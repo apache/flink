@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
@@ -34,7 +35,7 @@ import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 
-import org.junit.Assert.{assertTrue, fail}
+import org.junit.Assert.{assertThat, assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assume, Before, Test}
@@ -162,30 +163,30 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
 
   @Test
   def testInvalidLookupTableFunction(): Unit = {
+    if (legacyTableSource) {
+      return
+    }
     util.addDataStream[(Int, String, Long, Timestamp)](
       "T", 'a, 'b, 'c, 'ts, 'proctime.proctime)
     createLookupTable("LookupTable1", new InvalidTableFunctionResultType)
-    val tableDesc = if (legacyTableSource) {
-      "TableSource [TestInvalidTemporalTable(id, name, age, ts)]"
-    } else {
-      "DynamicTableSource [TestValues]"
-    }
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable1 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      s"Result type of the lookup TableFunction of $tableDesc is String type, " +
-        "but currently only Row and RowData are supported",
-      classOf[TableException]
+      s"output class can simply be a Row or RowData class",
+      classOf[ValidationException]
     )
 
     createLookupTable("LookupTable2", new InvalidTableFunctionEvalSignature1)
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable2 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Expected: eval(java.lang.Integer, org.apache.flink.table.data.StringData, " +
-        "org.apache.flink.table.data.TimestampData) \n" +
-        "Actual: eval(java.lang.Integer, java.lang.String, java.time.LocalDateTime)",
-      classOf[TableException]
+      "Could not find an implementation method 'eval' in class " +
+          "'org.apache.flink.table.planner.plan.utils.InvalidTableFunctionEvalSignature1' " +
+          "for function 'default_catalog.default_database.LookupTable2' that matches the " +
+          "following signature:\n" +
+          "void eval(java.lang.Integer, org.apache.flink.table.data.StringData, " +
+          "org.apache.flink.table.data.TimestampData)",
+      classOf[ValidationException]
     )
 
     createLookupTable("LookupTable3", new ValidTableFunction)
@@ -211,24 +212,26 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable7 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Expected: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, org.apache.flink.table.data.StringData, " +
-        "org.apache.flink.table.data.TimestampData) \n" +
-        "Actual: eval(java.lang.Integer, org.apache.flink.table.data.StringData, " +
-        "java.time.LocalDateTime)",
-      classOf[TableException]
+      "Could not find an implementation method 'eval' in class " +
+          "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionEvalSignature1' " +
+          "for function 'default_catalog.default_database.LookupTable7' that matches the " +
+          "following signature:\n" +
+          "void eval(java.util.concurrent.CompletableFuture, java.lang.Integer, " +
+          "org.apache.flink.table.data.StringData, org.apache.flink.table.data.TimestampData)",
+      classOf[ValidationException]
     )
 
     createLookupTable("LookupTable8", new InvalidAsyncTableFunctionEvalSignature2)
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable8 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Expected: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, org.apache.flink.table.data.StringData, " +
-        "org.apache.flink.table.data.TimestampData) \n" +
-        "Actual: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, java.lang.String, java.time.LocalDateTime)",
-      classOf[TableException]
+      "Could not find an implementation method 'eval' in class " +
+          "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionEvalSignature2' " +
+          "for function 'default_catalog.default_database.LookupTable8' that matches the " +
+          "following signature:\nvoid eval(java.util.concurrent.CompletableFuture, " +
+          "java.lang.Integer, org.apache.flink.table.data.StringData, " +
+          "org.apache.flink.table.data.TimestampData)",
+      classOf[ValidationException]
     )
 
     createLookupTable("LookupTable9", new ValidAsyncTableFunction)
@@ -240,12 +243,13 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable10 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Expected: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, org.apache.flink.table.data.StringData, " +
-        "org.apache.flink.table.data.TimestampData) \n" +
-        "Actual: eval(org.apache.flink.streaming.api.functions.async.ResultFuture, " +
-        "java.lang.Integer, org.apache.flink.table.data.StringData, java.lang.Long)",
-      classOf[TableException]
+      "Could not find an implementation method 'eval' in class " +
+          "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionEvalSignature3' " +
+          "for function 'default_catalog.default_database.LookupTable10' that matches the " +
+          "following signature:\n" +
+          "void eval(java.util.concurrent.CompletableFuture, java.lang.Integer, " +
+          "org.apache.flink.table.data.StringData, org.apache.flink.table.data.TimestampData)",
+      classOf[ValidationException]
     )
   }
 
@@ -493,23 +497,15 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
 
   private def expectExceptionThrown(
     sql: String,
-    keywords: String,
+    message: String,
     clazz: Class[_ <: Throwable] = classOf[ValidationException])
   : Unit = {
     try {
       verifyTranslationSuccess(sql)
       fail(s"Expected a $clazz, but no exception is thrown.")
-    } catch {
-      case e if e.getClass == clazz =>
-        if (keywords != null) {
-          assertTrue(
-            s"The actual exception message \n${e.getMessage}\n" +
-              s"doesn't contain expected keyword \n$keywords\n",
-            e.getMessage.contains(keywords))
-        }
-      case e: Throwable =>
-        e.printStackTrace()
-        fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+    } catch { case e: Throwable =>
+        assertTrue(clazz.isAssignableFrom(e.getClass))
+        assertThat(e, containsMessage(message))
     }
   }
 
@@ -533,13 +529,11 @@ class TestTemporalTable(bounded: Boolean = false)
   val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.STRING, Types.INT)
 
   override def getLookupFunction(lookupKeys: Array[String]): TableFunction[RowData] = {
-    // mocked table function used for planning test
-    new TableFunction[RowData] {}
+    new ValidTableFunction()
   }
 
   override def getAsyncLookupFunction(lookupKeys: Array[String]): AsyncTableFunction[RowData] = {
-    // mocked async table function used for planning test
-    new AsyncTableFunction[RowData] {}
+    new ValidAsyncTableFunction()
   }
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[RowData] = {
