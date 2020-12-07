@@ -236,13 +236,9 @@ under the License.
 							</archive>
 
 							<includes>
-<<<<<<< HEAD
 								<include>org/apache/flink/table/examples/scala/StreamTableExample*</include>
-=======
-								<include>org/apache/flink/table/examples/scala/basics/StreamTableExample*</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
->>>>>>> 8fe1928da5... [FLINK-20455][build][legal] Bundle LICENSE/NOTICE in various deployed jars
 							</includes>
 						</configuration>
 					</execution>
@@ -264,13 +260,9 @@ under the License.
 							</archive>
 
 							<includes>
-<<<<<<< HEAD
 								<include>org/apache/flink/table/examples/scala/TPCHQuery3Table*</include>
-=======
-								<include>org/apache/flink/table/examples/scala/basics/TPCHQuery3Table*</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
->>>>>>> 8fe1928da5... [FLINK-20455][build][legal] Bundle LICENSE/NOTICE in various deployed jars
 							</includes>
 						</configuration>
 					</execution>
