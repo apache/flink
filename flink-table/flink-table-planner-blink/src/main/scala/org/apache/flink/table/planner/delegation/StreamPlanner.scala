@@ -128,7 +128,12 @@ class StreamPlanner(
 
     sb.append("== Physical Execution Plan ==")
     sb.append(System.lineSeparator)
-    sb.append(executionPlan)
+    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      sb.append(streamGraph.getStreamingPlanAsJSON)
+    } else {
+      sb.append(executionPlan)
+    }
+
     sb.toString()
   }
 

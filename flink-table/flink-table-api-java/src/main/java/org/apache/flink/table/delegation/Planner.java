@@ -81,7 +81,7 @@ public interface Planner {
 	 * @param operations The collection of relational queries for which the AST
 	 * and execution plan will be returned.
 	 * @param extraDetails The extra explain details which the explain result should include,
-	 *   e.g. estimated cost, changelog mode for streaming
+	 *   e.g. estimated cost, changelog mode for streaming, displaying execution plan in json format
 	 */
 	String explain(List<Operation> operations, ExplainDetail... extraDetails);
 

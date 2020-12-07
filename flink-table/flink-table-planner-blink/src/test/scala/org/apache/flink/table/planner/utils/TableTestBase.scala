@@ -1204,4 +1204,12 @@ object TableTestUtil {
   def replaceStageId(s: String): String = {
     s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
   }
+
+  /**
+   * Stream node {id} is ignored, because id keeps incrementing in test class
+   * while StreamExecutionEnvironment is up
+   */
+  def replaceStreamNodeId(s: String): String = {
+    s.replaceAll("\"id\" : \\d+", "\"id\" : ").trim
+  }
 }
