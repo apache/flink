@@ -46,7 +46,7 @@ public class MiniClusterConfiguration {
 	@Nullable
 	private final String commonBindAddress;
 
-	private final boolean enableEmbeddedHaLeadershipControl;
+	private final MiniCluster.HaServices haServices;
 
 	// ------------------------------------------------------------------------
 	//  Construction
@@ -57,12 +57,12 @@ public class MiniClusterConfiguration {
 			int numTaskManagers,
 			RpcServiceSharing rpcServiceSharing,
 			@Nullable String commonBindAddress,
-			boolean enableEmbeddedHaLeadershipControl) {
+			MiniCluster.HaServices haServices) {
 		this.numTaskManagers = numTaskManagers;
 		this.configuration = generateConfiguration(Preconditions.checkNotNull(configuration));
 		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
 		this.commonBindAddress = commonBindAddress;
-		this.enableEmbeddedHaLeadershipControl = enableEmbeddedHaLeadershipControl;
+		this.haServices = haServices;
 	}
 
 	private UnmodifiableConfiguration generateConfiguration(final Configuration configuration) {
@@ -125,8 +125,8 @@ public class MiniClusterConfiguration {
 		return configuration;
 	}
 
-	public boolean embeddedHaLeadershipControlEnabled() {
-		return enableEmbeddedHaLeadershipControl;
+	public MiniCluster.HaServices getHaServices() {
+		return haServices;
 	}
 
 	@Override
@@ -157,7 +157,7 @@ public class MiniClusterConfiguration {
 		private RpcServiceSharing rpcServiceSharing = SHARED;
 		@Nullable
 		private String commonBindAddress = null;
-		private boolean enableEmbeddedHaLeadershipControl;
+		private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
 
 		public Builder setConfiguration(Configuration configuration1) {
 			this.configuration = Preconditions.checkNotNull(configuration1);
@@ -184,8 +184,8 @@ public class MiniClusterConfiguration {
 			return this;
 		}
 
-		public Builder enableEmbeddedHaLeadershipControl(boolean enableEmbeddedHaLeadershipControl) {
-			this.enableEmbeddedHaLeadershipControl = enableEmbeddedHaLeadershipControl;
+		public Builder setHaServices(MiniCluster.HaServices haServices) {
+			this.haServices = haServices;
 			return this;
 		}
 
@@ -201,7 +201,7 @@ public class MiniClusterConfiguration {
 				numTaskManagers,
 				rpcServiceSharing,
 				commonBindAddress,
-				enableEmbeddedHaLeadershipControl);
+				haServices);
 		}
 	}
 }

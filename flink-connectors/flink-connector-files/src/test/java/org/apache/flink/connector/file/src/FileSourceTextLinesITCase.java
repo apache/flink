@@ -75,7 +75,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
 			.setNumberTaskManagers(1)
 			.setNumberSlotsPerTaskManager(PARALLELISM)
 			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-			.enableEmbeddedHaLeadershipControl()
+			.withHaLeadershipControl()
 			.build());
 
 	// ------------------------------------------------------------------------

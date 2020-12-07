@@ -27,8 +27,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Simple {@link CheckpointRecoveryFactory} which creates a
- * {@link CompletedCheckpointStore} and a {@link CheckpointIDCounter} per {@link JobID}.
+ * Simple {@link CheckpointRecoveryFactory} which creates and keeps separate
+ * {@link CompletedCheckpointStore} and {@link CheckpointIDCounter} for each {@link JobID}.
  */
 public class PerJobCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
 	private final Function<Integer, CompletedCheckpointStore> completedCheckpointStorePerJobFactory;
@@ -60,7 +60,7 @@ public class PerJobCheckpointRecoveryFactory implements CheckpointRecoveryFactor
 	}
 
 	@VisibleForTesting
-	public static CheckpointRecoveryFactory createSamePerJob(
+	public static CheckpointRecoveryFactory useSameServicesForAllJobs(
 			CompletedCheckpointStore store,
 			CheckpointIDCounter counter) {
 		return new PerJobCheckpointRecoveryFactory(n -> store, () -> counter);

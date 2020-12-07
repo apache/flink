@@ -445,7 +445,7 @@ public class RegionFailoverITCase extends TestLogger {
 		@Override
 		public HighAvailabilityServices createHAServices(Configuration configuration, Executor executor) {
 			return new TestingHaServices(
-				PerJobCheckpointRecoveryFactory.createSamePerJob(new TestingCompletedCheckpointStore(), new StandaloneCheckpointIDCounter()),
+				PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs(new TestingCompletedCheckpointStore(), new StandaloneCheckpointIDCounter()),
 				executor);
 		}
 	}

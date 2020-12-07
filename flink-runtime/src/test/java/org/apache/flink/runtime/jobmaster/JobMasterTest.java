@@ -182,7 +182,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory.createSamePerJob;
+import static org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
@@ -782,7 +782,7 @@ public class JobMasterTest extends TestLogger {
 		final JobGraph jobGraph = createJobGraphWithCheckpointing(savepointRestoreSettings);
 
 		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
-		final CheckpointRecoveryFactory testingCheckpointRecoveryFactory = createSamePerJob(completedCheckpointStore, new StandaloneCheckpointIDCounter());
+		final CheckpointRecoveryFactory testingCheckpointRecoveryFactory = useSameServicesForAllJobs(completedCheckpointStore, new StandaloneCheckpointIDCounter());
 		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 		final JobMaster jobMaster = createJobMaster(
 			configuration,
@@ -825,7 +825,7 @@ public class JobMasterTest extends TestLogger {
 		final JobGraph jobGraphWithNewOperator = createJobGraphFromJobVerticesWithCheckpointing(savepointRestoreSettings, jobVertex);
 
 		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
-		final CheckpointRecoveryFactory testingCheckpointRecoveryFactory = createSamePerJob(completedCheckpointStore, new StandaloneCheckpointIDCounter());
+		final CheckpointRecoveryFactory testingCheckpointRecoveryFactory = useSameServicesForAllJobs(completedCheckpointStore, new StandaloneCheckpointIDCounter());
 		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 
 		try {
@@ -895,7 +895,7 @@ public class JobMasterTest extends TestLogger {
 		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
 		completedCheckpointStore.addCheckpoint(completedCheckpoint, new CheckpointsCleaner(), () -> {
 		});
-		final CheckpointRecoveryFactory testingCheckpointRecoveryFactory = createSamePerJob(completedCheckpointStore, new StandaloneCheckpointIDCounter());
+		final CheckpointRecoveryFactory testingCheckpointRecoveryFactory = useSameServicesForAllJobs(completedCheckpointStore, new StandaloneCheckpointIDCounter());
 		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 
 		final JobMaster jobMaster = createJobMaster(

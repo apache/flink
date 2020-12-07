@@ -29,6 +29,7 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -94,7 +95,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
@@ -115,7 +115,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -438,9 +437,15 @@ public class MiniCluster implements AutoCloseableAsync {
 			Configuration configuration,
 			Executor executor) throws Exception {
 		LOG.info("Starting high-availability services");
-		return miniClusterConfiguration.embeddedHaLeadershipControlEnabled() ?
-			new EmbeddedHaServicesWithLeadershipControl(executor) :
-			HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(configuration, executor);
+		final HaServices haServices = miniClusterConfiguration.getHaServices();
+		switch (haServices) {
+			case WITH_LEADERSHIP_CONTROL:
+				return new EmbeddedHaServicesWithLeadershipControl(executor);
+			case CONFIGURED:
+				return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(configuration, executor);
+			default:
+				throw new IllegalConfigurationException("Unkown HA Services " + haServices);
+		}
 	}
 
 	/**
@@ -962,13 +967,6 @@ public class MiniCluster implements AutoCloseableAsync {
 		}
 	}
 
-	@Nullable
-	private static BiFunction<Configuration, Executor, HighAvailabilityServices> createHighAvailabilityServicesFactory(
-			boolean enableEmbeddedHaLeadershipControl) {
-		return enableEmbeddedHaLeadershipControl ?
-			(conf, executor) -> new EmbeddedHaServicesWithLeadershipControl(executor) : null;
-	}
-
 	/**
 	 * Internal factory for {@link RpcService}.
 	 */
@@ -1079,5 +1077,23 @@ public class MiniCluster implements AutoCloseableAsync {
 		private TerminatingFatalErrorHandler create(int index) {
 			return new TerminatingFatalErrorHandler(index);
 		}
+	}
+
+	/**
+	 * HA Services to use.
+	 */
+	public enum HaServices {
+		/**
+		 * Uses the configured HA Services in {@link HighAvailabilityOptions#HA_MODE} option.
+		 */
+		CONFIGURED,
+
+		/**
+		 * Enables or disables {@link HaLeadershipControl} in {@link MiniCluster#getHaLeadershipControl}.
+		 *
+		 * <p>{@link HaLeadershipControl} allows granting and revoking leadership of HA components.
+		 * Enabling this feature disables {@link HighAvailabilityOptions#HA_MODE} option.
+		 */
+		WITH_LEADERSHIP_CONTROL
 	}
 }
