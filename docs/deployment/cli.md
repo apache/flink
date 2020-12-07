@@ -119,6 +119,16 @@ Disposing savepoint '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab'.
 Waiting for response...
 Savepoint '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab' disposed.
 ```
+
+If you use custom state instances (for example custom reducing state or RocksDB state), you have to 
+specify the path to the program JAR with which the savepoint was triggered. Otherwise, you will run 
+into a `ClassNotFoundException`:
+{% highlight bash %}
+./bin/flink savepoint \
+    -d <savepointPath> \ 
+    -j <jarFile>
+{% endhighlight %}
+
 Triggering the savepoint disposal through the `savepoint` action does not only remove the data from 
 the storage but makes Flink clean up the savepoint-related metadata as well.
 
