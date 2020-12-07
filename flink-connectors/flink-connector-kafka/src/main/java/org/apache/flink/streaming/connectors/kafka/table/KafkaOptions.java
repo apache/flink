@@ -212,11 +212,6 @@ public class KafkaOptions {
 	public static final String SINK_PARTITIONER_VALUE_FIXED = "fixed";
 	public static final String SINK_PARTITIONER_VALUE_ROUND_ROBIN = "round-robin";
 
-	private static final Set<String> SINK_PARTITIONER_ENUMS = new HashSet<>(Arrays.asList(
-			SINK_PARTITIONER_VALUE_FIXED,
-			SINK_PARTITIONER_VALUE_ROUND_ROBIN,
-			SINK_PARTITIONER_VALUE_DEFAULT));
-
 	// Sink semantic
 	public static final String SINK_SEMANTIC_VALUE_EXACTLY_ONCE = "exactly-once";
 	public static final String SINK_SEMANTIC_VALUE_AT_LEAST_ONCE = "at-least-once";
