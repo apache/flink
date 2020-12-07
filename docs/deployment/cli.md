@@ -172,7 +172,7 @@ Job has been submitted with JobID 97b20a0a8ffd5c1d656328b0cd6436a6
 
 See how the command is equal to the [initial run command](#submitting-a-job) except for the 
 `--fromSavepoint` parameter which is used to refer to the state of the 
-[previously cancelled job](#cancelling-a-job).  A new JobID is generated that can be used to 
+[previously cancelled job](#cancelling-a-job). A new JobID is generated that can be used to 
 maintain the job.
 
 {% top %}
