@@ -51,7 +51,7 @@ public interface StatementSet {
 	 * all statements and Tables.
 	 *
 	 * @param extraDetails The extra explain details which the explain result should include,
-	 *                     e.g. estimated cost, changelog mode for streaming
+	 *                     e.g. estimated cost, changelog mode for streaming, displaying execution plan in json format
 	 * @return AST and the execution plan.
 	 */
 	String explain(ExplainDetail... extraDetails);

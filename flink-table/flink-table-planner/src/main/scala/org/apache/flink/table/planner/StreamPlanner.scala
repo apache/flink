@@ -162,7 +162,7 @@ class StreamPlanner(
     val jsonSqlPlan = env.getExecutionPlan
     val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jsonSqlPlan, false)
 
-    s"== Abstract Syntax Tree ==" +
+    val explanation = s"== Abstract Syntax Tree ==" +
       System.lineSeparator +
       s"$astPlan" +
       System.lineSeparator +
@@ -171,8 +171,15 @@ class StreamPlanner(
       s"$optimizedPlan" +
       System.lineSeparator +
       s"== Physical Execution Plan ==" +
-      System.lineSeparator +
+      System.lineSeparator
+
+    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      s"$explanation" +
+      s"$jsonSqlPlan"
+    } else {
+      s"$explanation" +
       s"$sqlPlan"
+    }
   }
 
   override def getCompletionHints(
