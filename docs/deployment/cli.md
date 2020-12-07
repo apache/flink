@@ -137,7 +137,7 @@ will be stopped.
 
 #### Stop: Cancelling a Job but creating a final Savepoint
 
-Another action for stopping a job is `stop`. It function in the same way as `cancel` but creates a 
+Another action for stopping a job is `stop`. It functions in the same way as `cancel` but creates a 
 savepoint as part of the cancellation process:
 {% highlight bash %}
 ./bin/flink stop --savepointPath /tmp-flink-savepoints $JOB_ID
