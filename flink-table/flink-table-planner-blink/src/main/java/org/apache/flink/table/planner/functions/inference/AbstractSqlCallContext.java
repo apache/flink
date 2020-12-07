@@ -24,7 +24,6 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
@@ -34,7 +33,7 @@ import java.time.Period;
 import java.time.ZoneOffset;
 
 /**
- * A {@link CallContext} backed by {@link SqlOperatorBinding}.
+ * A {@link CallContext} backed by Calcite abstractions.
  */
 @Internal
 public abstract class AbstractSqlCallContext implements CallContext {

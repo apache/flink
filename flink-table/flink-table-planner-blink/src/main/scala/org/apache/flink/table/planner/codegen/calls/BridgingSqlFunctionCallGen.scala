@@ -18,24 +18,12 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.data.GenericRowData
-import org.apache.flink.table.functions.UserDefinedFunctionHelper.{SCALAR_EVAL, TABLE_EVAL, validateClassForRuntime}
-import org.apache.flink.table.functions.{FunctionKind, ScalarFunction, TableFunction, UserDefinedFunction}
-import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.GeneratedExpression.NEVER_NULL
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.WrappingCollector
-import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper
-import org.apache.flink.table.types.inference.TypeInferenceUtil
-import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
-import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
-import org.apache.flink.table.types.utils.DataTypeUtils.{validateInputDataType, validateOutputDataType}
-import org.apache.flink.util.Preconditions
+import org.apache.flink.table.types.logical.LogicalType
 
 import org.apache.calcite.rex.{RexCall, RexCallBinding}
 
@@ -50,14 +38,14 @@ import java.util.Collections
  */
 class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
 
-  private val function: BridgingSqlFunction = call.getOperator.asInstanceOf[BridgingSqlFunction]
-  private val udf: UserDefinedFunction = function.getDefinition.asInstanceOf[UserDefinedFunction]
-
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       returnType: LogicalType)
     : GeneratedExpression = {
+
+    val function: BridgingSqlFunction = call.getOperator.asInstanceOf[BridgingSqlFunction]
+    val udf: UserDefinedFunction = function.getDefinition.asInstanceOf[UserDefinedFunction]
 
     val inference = function.getTypeInference
 
@@ -71,264 +59,14 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
         call,
         Collections.emptyList()))
 
-    // enrich argument types with conversion class
-    val adaptedCallContext = TypeInferenceUtil.adaptArguments(
-      inference,
-      callContext,
-      null)
-    val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
-    verifyArgumentTypes(operands.map(_.resultType), enrichedArgumentDataTypes)
-
-    // enrich output types with conversion class
-    val enrichedOutputDataType = TypeInferenceUtil.inferOutputType(
-      adaptedCallContext,
-      inference.getOutputTypeStrategy)
-    verifyFunctionAwareOutputType(returnType, enrichedOutputDataType)
-
-    // find runtime method and generate call
-    verifyFunctionAwareImplementation(enrichedArgumentDataTypes, enrichedOutputDataType)
-    generateFunctionAwareCall(
+    BridgingFunctionGenUtil.generateFunctionAwareCall(
       ctx,
       operands,
-      enrichedArgumentDataTypes,
-      enrichedOutputDataType,
-      returnType)
-  }
-
-  private def generateFunctionAwareCall(
-      ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression],
-      argumentDataTypes: Seq[DataType],
-      outputDataType: DataType,
-      returnType: LogicalType)
-    : GeneratedExpression = {
-
-    val functionTerm = ctx.addReusableFunction(udf)
-
-    // operand conversion
-    val externalOperands = prepareExternalOperands(ctx, operands, argumentDataTypes)
-
-    if (function.getDefinition.getKind == FunctionKind.TABLE) {
-      Preconditions.checkState(
-        isCompositeType(returnType),
-        "Logical output type of function call should be a composite type.",
-        Seq(): _*)
-      generateTableFunctionCall(
-        ctx,
-        functionTerm,
-        externalOperands,
-        outputDataType,
-        returnType)
-    } else {
-      generateScalarFunctionCall(ctx, functionTerm, externalOperands, outputDataType)
-    }
-  }
-
-  private def generateTableFunctionCall(
-      ctx: CodeGeneratorContext,
-      functionTerm: String,
-      externalOperands: Seq[GeneratedExpression],
-      functionOutputDataType: DataType,
-      outputType: LogicalType)
-    : GeneratedExpression = {
-    val resultCollectorTerm = generateResultCollector(ctx, functionOutputDataType, outputType)
-
-    val setCollectorCode = s"""
-      |$functionTerm.setCollector($resultCollectorTerm);
-      |""".stripMargin
-    ctx.addReusableOpenStatement(setCollectorCode)
-
-    // function call
-    val functionCallCode =
-      s"""
-        |${externalOperands.map(_.code).mkString("\n")}
-        |$functionTerm.eval(${externalOperands.map(_.resultTerm).mkString(", ")});
-        |""".stripMargin
-
-    // has no result
-    GeneratedExpression(
-      resultCollectorTerm,
-      NEVER_NULL,
-      functionCallCode,
-      outputType)
-  }
-
-  /**
-   * Generates a collector that converts the output of a table function (possibly as an atomic type)
-   * into an internal row type. Returns a collector term for referencing the collector.
-   */
-  def generateResultCollector(
-      ctx: CodeGeneratorContext,
-      outputDataType: DataType,
-      returnType: LogicalType)
-    : String = {
-    val outputType = outputDataType.getLogicalType
-
-    val collectorCtx = CodeGeneratorContext(ctx.tableConfig)
-    val externalResultTerm = newName("externalResult")
-
-    // code for wrapping atomic types
-    val collectorCode = if (!isCompositeType(outputType)) {
-      val resultGenerator = new ExprCodeGenerator(collectorCtx, outputType.isNullable)
-        .bindInput(outputType, externalResultTerm)
-      val wrappedResult = resultGenerator.generateConverterResultExpression(
-        returnType.asInstanceOf[RowType],
-        classOf[GenericRowData])
-      s"""
-       |${wrappedResult.code}
-       |outputResult(${wrappedResult.resultTerm});
-       |""".stripMargin
-    } else {
-      s"""
-        |if ($externalResultTerm != null) {
-        |  outputResult($externalResultTerm);
-        |}
-        |""".stripMargin
-    }
-
-    // collector for converting to internal types then wrapping atomic types
-    val resultCollector = CollectorCodeGenerator.generateWrappingCollector(
-      collectorCtx,
-      "TableFunctionResultConverterCollector",
-      outputType,
-      externalResultTerm,
-      // nullability is handled by the expression code generator if necessary
-      genToInternalConverter(ctx, outputDataType),
-      collectorCode)
-    val resultCollectorTerm = newName("resultConverterCollector")
-    CollectorCodeGenerator.addToContext(ctx, resultCollectorTerm, resultCollector)
-
-    resultCollectorTerm
-  }
-
-  private def generateScalarFunctionCall(
-      ctx: CodeGeneratorContext,
-      functionTerm: String,
-      externalOperands: Seq[GeneratedExpression],
-      outputDataType: DataType)
-    : GeneratedExpression = {
-
-    // result conversion
-    val externalResultClass = outputDataType.getConversionClass
-    val externalResultTypeTerm = typeTerm(externalResultClass)
-    // Janino does not fully support the JVM spec:
-    // boolean b = (boolean) f(); where f returns Object
-    // This is not supported and we need to box manually.
-    val externalResultClassBoxed = primitiveToWrapper(externalResultClass)
-    val externalResultCasting = if (externalResultClass == externalResultClassBoxed) {
-      s"($externalResultTypeTerm)"
-    } else {
-      s"($externalResultTypeTerm) (${typeTerm(externalResultClassBoxed)})"
-    }
-    val externalResultTerm = ctx.addReusableLocalVariable(externalResultTypeTerm, "externalResult")
-    val internalExpr = genToInternalConverterAll(ctx, outputDataType, externalResultTerm)
-
-    // function call
-    internalExpr.copy(code =
-      s"""
-        |${externalOperands.map(_.code).mkString("\n")}
-        |$externalResultTerm = $externalResultCasting $functionTerm
-        |  .$SCALAR_EVAL(${externalOperands.map(_.resultTerm).mkString(", ")});
-        |${internalExpr.code}
-        |""".stripMargin)
-  }
-
-  private def prepareExternalOperands(
-      ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression],
-      argumentDataTypes: Seq[DataType])
-    : Seq[GeneratedExpression] = {
-    operands
-      .zip(argumentDataTypes)
-      .map { case (operand, dataType) =>
-        operand.copy(resultTerm = genToExternalConverterAll(ctx, dataType, operand))
-      }
-  }
-
-  private def verifyArgumentTypes(
-      operandTypes: Seq[LogicalType],
-      enrichedDataTypes: Seq[DataType])
-    : Unit = {
-    val enrichedTypes = enrichedDataTypes.map(_.getLogicalType)
-    operandTypes.zip(enrichedTypes).foreach { case (operandType, enrichedType) =>
-      // check that the logical type has not changed during the enrichment
-      if (!supportsAvoidingCast(operandType, enrichedType)) {
-        throw new CodeGenException(
-          s"Mismatch of function's argument data type '$enrichedType' and actual " +
-            s"argument type '$operandType'.")
-      }
-    }
-    // the data type class can only partially verify the conversion class,
-    // now is the time for the final check
-    enrichedDataTypes.foreach(validateOutputDataType)
-  }
-
-  private def verifyFunctionAwareOutputType(
-      returnType: LogicalType,
-      enrichedDataType: DataType)
-    : Unit = {
-    val enrichedType = enrichedDataType.getLogicalType
-    // logically table functions wrap atomic types into ROW, however, the physical function might
-    // return an atomic type
-    if (function.getDefinition.getKind == FunctionKind.TABLE) {
-      if (!isCompositeType(enrichedType)) {
-        Preconditions.checkState(
-          hasRoot(returnType, LogicalTypeRoot.ROW) && returnType.getChildren.size() == 1,
-          "Logical output type of function call should be a ROW wrapping an atomic type.",
-          Seq(): _*)
-        val atomicOutputType = returnType.asInstanceOf[RowType].getChildren.get(0)
-        verifyOutputType(atomicOutputType, enrichedDataType)
-      } else {
-        // null values are skipped therefore, the result top level row will always be not null
-        verifyOutputType(returnType.copy(true), enrichedDataType)
-      }
-    } else {
-      verifyOutputType(returnType, enrichedDataType)
-    }
-  }
-
-  private def verifyOutputType(
-      returnType: LogicalType,
-      enrichedDataType: DataType)
-    : Unit = {
-    val enrichedType = enrichedDataType.getLogicalType
-    // check that the logical type has not changed during the enrichment
-    if (!supportsAvoidingCast(enrichedType, returnType)) {
-      throw new CodeGenException(
-        s"Mismatch of expected output data type '$returnType' and function's " +
-          s"output type '$enrichedType'.")
-    }
-    // the data type class can only partially verify the conversion class,
-    // now is the time for the final check
-    validateInputDataType(enrichedDataType)
-  }
-
-  private def verifyFunctionAwareImplementation(
-      argumentDataTypes: Seq[DataType],
-      outputDataType: DataType)
-    : Unit = {
-    if (function.getDefinition.getKind == FunctionKind.TABLE) {
-      verifyImplementation(TABLE_EVAL, argumentDataTypes, None)
-    } else if (function.getDefinition.getKind == FunctionKind.SCALAR) {
-      verifyImplementation(SCALAR_EVAL, argumentDataTypes, Some(outputDataType))
-    } else {
-      throw new CodeGenException(
-        s"Unsupported function kind '${function.getDefinition.getKind}' for function '$function'.")
-    }
-  }
-
-  private def verifyImplementation(
-      methodName: String,
-      argumentDataTypes: Seq[DataType],
-      outputDataType: Option[DataType])
-    : Unit = {
-    val argumentClasses = argumentDataTypes.map(_.getConversionClass).toArray
-    val outputClass = outputDataType.map(_.getConversionClass).getOrElse(classOf[Unit])
-    validateClassForRuntime(
-      udf.getClass,
-      methodName,
-      argumentClasses,
-      outputClass,
-      function.toString)
+      returnType,
+      inference,
+      callContext,
+      udf,
+      function.toString,
+      skipIfArgsNull = false)
   }
 }

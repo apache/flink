@@ -32,10 +32,13 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
+import org.apache.flink.table.planner.functions.BuiltInFunctionTestBase;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -56,6 +59,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -70,7 +74,10 @@ import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /**
- * Tests for catalog and system in stream table environment.
+ * Tests for catalog and system functions in a table environment.
+ *
+ * <p>Note: This class is meant for testing the core function support. Use {@link BuiltInFunctionTestBase}
+ * for testing individual function implementations.
  */
 public class FunctionITCase extends StreamingTestBase {
 
@@ -929,6 +936,60 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
+	public void testLookupTableFunction() throws ExecutionException, InterruptedException {
+		final List<Row> sourceData = Arrays.asList(
+			Row.of("Bob"),
+			Row.of("Alice")
+		);
+
+		final List<Row> sinkData = Arrays.asList(
+			Row.of("Bob", new byte[0]),
+			Row.of("Bob", new byte[]{66, 111, 98}),
+			Row.of("Alice", new byte[0]),
+			Row.of("Alice", new byte[]{65, 108, 105, 99, 101})
+		);
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv()
+			.executeSql(
+				"CREATE TABLE SourceTable1("
+					+ "  s STRING, "
+					+ "  proctime AS PROCTIME()"
+					+ ")"
+					+ "WITH ("
+					+ "  'connector' = 'COLLECTION'"
+					+ ")");
+
+		tEnv()
+			.executeSql(
+				"CREATE TABLE SourceTable2("
+					+ "  s STRING,"
+					+ "  b BYTES"
+					+ ")"
+					+ "WITH ("
+					+ "  'connector' = 'values',"
+					+ "  'lookup-function-class' = '" + LookupTableFunction.class.getName() + "'"
+					+ ")");
+
+		tEnv()
+			.executeSql(
+				"CREATE TABLE SinkTable(s STRING, b BYTES) WITH ('connector' = 'COLLECTION')");
+
+		tEnv()
+			.executeSql(
+				"INSERT INTO SinkTable "
+					+ "SELECT SourceTable1.s, SourceTable2.b "
+					+ "FROM SourceTable1 "
+					+ "JOIN SourceTable2 FOR SYSTEM_TIME AS OF SourceTable1.proctime"
+					+ "  ON SourceTable1.s = SourceTable2.s")
+			.await();
+
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+	@Test
 	public void testTimestampNotNull() {
 		List<Row> sourceData = Arrays.asList(
 				Row.of(1),
@@ -1286,6 +1347,17 @@ public class FunctionITCase extends StreamingTestBase {
 				.map(Objects::toString)
 				.sorted()
 				.collect(Collectors.joining(", "));
+		}
+	}
+
+	/**
+	 * Synchronous table function that uses regular type inference for {@link LookupTableSource}.
+	 */
+	@DataTypeHint("ROW<s STRING, b BYTES>")
+	public static class LookupTableFunction extends TableFunction<Object> {
+		public void eval(@DataTypeHint("STRING") StringData s) {
+			collect(Row.of(s.toString(), new byte[0]));
+			collect(Row.of(s.toString(), s.toBytes()));
 		}
 	}
 }
