@@ -445,4 +445,59 @@ FlinkLogicalCalc(select=[a, pyFunc1(b, f0) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPythonFunctionWithCompositeOutputs">
+    <Resource name="sql">
+	  <![CDATA[SELECT e.* FROM (SELECT pyFunc5(a) as e FROM MyTable) AS T]]>
+    </Resource>
+    <Resource name="planBefore">
+	  <![CDATA[
+LogicalProject(f0=[pyFunc5($0).f0], f1=[pyFunc5($0).f1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+	  <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
++- FlinkLogicalCalc(select=[pyFunc5(a) AS f0])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPythonFunctionWithMultipleCompositeOutputs">
+	<Resource name="sql">
+	  <![CDATA[SELECT e.*, f.* FROM (SELECT pyFunc5(a) as e, pyFunc5(b) as f FROM MyTable) AS T]]>
+	</Resource>
+	<Resource name="planBefore">
+	  <![CDATA[
+LogicalProject(f0=[pyFunc5($0).f0], f1=[pyFunc5($0).f1], f00=[pyFunc5($1).f0], f10=[pyFunc5($1).f1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+	</Resource>
+	<Resource name="planAfter">
+	  <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1, f1.f0 AS f00, f1.f1 AS f10])
++- FlinkLogicalCalc(select=[pyFunc5(a) AS f0, pyFunc5(b) AS f1])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testPythonFunctionWithCompositeInputsAndOutputs">
+	<Resource name="sql">
+	  <![CDATA[SELECT e.* FROM (SELECT pyFunc5(d._1) as e FROM MyTable) AS T]]>
+	</Resource>
+	<Resource name="planBefore">
+	  <![CDATA[
+LogicalProject(f0=[pyFunc5($3._1).f0], f1=[pyFunc5($3._1).f1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+	</Resource>
+	<Resource name="planAfter">
+	  <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
++- FlinkLogicalCalc(select=[pyFunc5(f0) AS f0])
+   +- FlinkLogicalCalc(select=[d._1 AS f0])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+	</Resource>
+  </TestCase>
 </Root>
