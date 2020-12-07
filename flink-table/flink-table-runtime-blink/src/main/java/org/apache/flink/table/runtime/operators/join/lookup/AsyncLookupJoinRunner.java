@@ -156,9 +156,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
 		}
 		if (allResultFutures != null) {
 			for (JoinedRowResultFuture rf : allResultFutures) {
-				if (rf != null) {
-					rf.close();
-				}
+				rf.close();
 			}
 		}
 	}
