@@ -210,7 +210,7 @@ Job has been submitted with JobID 97b20a0a8ffd5c1d656328b0cd6436a6
 
 See how the command is equal to the [initial run command](#submitting-a-job) except for the 
 `--fromSavepoint` parameter which is used to refer to the state of the 
-[previously cancelled job](#stopping-a-job-gracefully-creating-a-final-savepoint). A new JobID is 
+[previously stopped job](#stopping-a-job-gracefully-creating-a-final-savepoint). A new JobID is 
 generated that can be used to maintain the job.
 
 By default, we try to match the whole savepoint state to the job being submitted. If you want to 
