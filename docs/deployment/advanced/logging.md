@@ -97,8 +97,8 @@ You can create an SLF4J logger by calling `org.slf4j.LoggerFactory#LoggerFactory
 We highly recommend storing this logger in a `private static final` field.
 
 {% highlight java %}
-import org.slf4j.LoggerFactory
-import org.slf4j.Logger
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Foobar {
 	private static final Logger LOG = LoggerFactory.getLogger(Foobar.class);
