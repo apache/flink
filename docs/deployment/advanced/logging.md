@@ -40,7 +40,7 @@ By default, [Log4j 2](https://logging.apache.org/log4j/2.x/index.html) is used a
 
 Log4j 2 is controlled using property files.
 
-The Flink distribution ships with the following log4j properties files in the `conf` directory, which are used automatically if log4j 2 is enabled:
+The Flink distribution ships with the following log4j properties files in the `conf` directory, which are used automatically if Log4j 2 is enabled:
 
 - `log4j-cli.properties`: used by the command line interface (e.g., `flink run`)
 - `log4j-session.properties`: used by the command line interface when starting a Kubernetes/Yarn session cluster (i.e., `kubernetes-session.sh`/`yarn-session.sh`)
