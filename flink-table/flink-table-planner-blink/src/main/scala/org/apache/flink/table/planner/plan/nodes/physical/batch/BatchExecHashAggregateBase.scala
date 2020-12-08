@@ -28,8 +28,8 @@ import org.apache.flink.table.planner.codegen.agg.batch.{AggWithoutKeysCodeGener
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
+import org.apache.flink.table.planner.plan.nodes.exec.BatchExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -42,10 +42,6 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.Util
-
-import java.util
-
-import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for hash-based aggregate operator.
@@ -107,15 +103,6 @@ abstract class BatchExecHashAggregateBase(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[_]] =
-    List(getInput.asInstanceOf[ExecNode[_]])
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[_]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {

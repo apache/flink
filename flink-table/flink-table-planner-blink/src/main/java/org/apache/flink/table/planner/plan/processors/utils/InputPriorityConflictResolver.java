@@ -76,6 +76,8 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 					exchange.getInput(),
 					exchange.getDistribution());
 				newExchange.setRequiredShuffleMode(shuffleMode);
+				// TODO remove this later
+				newExchange.setInputNodes(exchange.getInputNodes());
 				node.replaceInputNode(lowerInput, newExchange);
 			} else {
 				exchange.setRequiredShuffleMode(shuffleMode);
@@ -116,6 +118,8 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 			inputRel,
 			distribution);
 		exchange.setRequiredShuffleMode(shuffleMode);
+		// TODO remove this later
+		exchange.setInputNodes(Collections.singletonList(node.getInputNodes().get(idx)));
 		return exchange;
 	}
 

@@ -29,8 +29,8 @@ import org.apache.flink.table.planner.codegen.agg.batch.{SortWindowCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
+import org.apache.flink.table.planner.plan.nodes.exec.BatchExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -41,10 +41,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.tools.RelBuilder
-
-import java.util
-
-import scala.collection.JavaConversions._
 
 abstract class BatchExecSortWindowAggregateBase(
     cluster: RelOptCluster,
@@ -95,15 +91,6 @@ abstract class BatchExecSortWindowAggregateBase(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[_]] =
-    List(getInput.asInstanceOf[ExecNode[_]])
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[_]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {

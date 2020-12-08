@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
@@ -27,8 +27,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -79,14 +77,4 @@ abstract class StreamExecCorrelateBase(
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[_]] =
-    getInputs.map(_.asInstanceOf[ExecNode[_]])
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[_]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 }

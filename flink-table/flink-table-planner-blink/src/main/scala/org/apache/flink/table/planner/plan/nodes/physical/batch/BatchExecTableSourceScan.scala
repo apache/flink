@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
@@ -66,15 +66,7 @@ class BatchExecTableSourceScan(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[_]] = List()
-
   override def getInputEdges: util.List[ExecEdge] = List()
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[_]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def createInputFormatTransformation(
       env: StreamExecutionEnvironment,

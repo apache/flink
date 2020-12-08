@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.WatermarkGeneratorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOperatorFactory
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -34,8 +34,6 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -78,16 +76,6 @@ class StreamExecWatermarkAssigner(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[_]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[_]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[_]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {
