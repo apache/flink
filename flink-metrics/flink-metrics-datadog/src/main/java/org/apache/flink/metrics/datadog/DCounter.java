@@ -37,10 +37,7 @@ public class DCounter extends DMetric {
 	}
 
 	/**
-	 * Visibility of this method must not be changed
-	 * since we deliberately not map it to json object in a Datadog-defined format.
-	 *
-	 * <p>Note: DataDog counters count the number of events during the reporting interval.
+	 * Returns the count of events since the last report.
 	 *
 	 * @return the number of events since the last retrieval
 	 */
