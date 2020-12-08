@@ -142,25 +142,13 @@ Connector Options
       <td>Comma separated list of Kafka brokers.</td>
     </tr>
     <tr>
-      <td><h5>properties.sasl.kerberos.service.name</h5></td>
+      <td><h5>properties.*</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The Kerberos principal name that Kafka runs as. </td>
-    </tr>
-    <tr>
-      <td><h5>properties.security.mechanism</h5></td>
-      <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>String</td>
-      <td>SASL mechanism used for client connections. This may be any mechanism for which a security provider is available.</td>
-    </tr>
-    <tr>
-      <td><h5>properties.security.protocol</h5></td>
-      <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>String</td>
-      <td>Protocol used to communicate with brokers. Valid values are: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL.</td>
+      <td>
+         This can set and pass arbitrary Kafka configurations. Suffix names must match the configuration key defined in <a href="https://kafka.apache.org/documentation/#configuration">Kafka Configuration documentation</a>. Flink will remove the "properties." key prefix and pass the transformed key and values to the underlying KafkaClient. For example, you can disable automatic topic creation via <code>'properties.allow.auto.create.topics' = 'false'</code>. But there are some configurations that do not support to set, because Flink will override them, e.g. <code>'key.deserializer'</code> and <code>'value.deserializer'</code>.
+      </td>
     </tr>
     <tr>
       <td><h5>key.format</h5></td>
@@ -281,14 +269,6 @@ option in the table configuration.
 
 Please refer to [Kafka watermark strategies]({% link dev/event_timestamps_watermarks.md %}#watermark-strategies-and-the-kafka-connector)
 for more details.
-
-### Use `'properties.*'` to convey Kafka config
-
-Flink is flexible to convey the Kafka config in the `'properties.*'` fashion. Currently Flink will extract the value of the option whose name starts with `'properties.'`
-into the config with the shortened option name as the key. For example, the option `'properties.bootstrap.servers'` is regarded as option `'bootstrap.servers'` in Kafka
-config. But for some configs e.g. `'key.deserializer'` and `'value.deserializer'`, it's invalid to set value by this way because Flink will override its value with its
-own implementation. Please use the options in the [Connector Options]({% link dev/table/connectors/upsert-kafka.md %}#connector-options) as the first choice before
-using the `'properties.*'`.
 
 Data Type Mapping
 ----------------
