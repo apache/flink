@@ -94,7 +94,8 @@ Jobs that were submitted but not started, yet, would be listed under "Scheduled 
 
 ### Creating a Savepoint
 
-[Savepoints]({% link ops/state/savepoints.md %}) can be created to save the current state a job is in. All that's needed is the JobID:
+[Savepoints]({% link ops/state/savepoints.md %}) can be created to save the current state a job is 
+in. All that's needed is the JobID:
 {% highlight bash %}
 $ ./bin/flink savepoint \
       $JOB_ID \ 
