@@ -34,7 +34,7 @@ This *Getting Started* section guides you through setting up a fully functional 
 
 [Apache Mesos](http://mesos.apache.org/) is another resource provider supported by 
 Apache Flink. Flink utilizes the worker's provided by Mesos to run its TaskManagers.
-Apache Flink provides the script `bin/mesos-appmaster.sh` to create the Flink 
+Apache Flink provides the script `bin/mesos-appmaster.sh` to initiate the Flink 
 on Mesos cluster.
 
 
