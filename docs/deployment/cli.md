@@ -74,7 +74,7 @@ $ export JOB_ID="cca7bc1061d61cf15238e92312c2fc20"
 {% endhighlight %}
 
 There is another action called `run-application` available to run the job in 
-[Application Mode]({% link deployment/index.md %}#deployment-modes). This documentation does not address
+[Application Mode]({% link deployment/index.md %}#application-mode). This documentation does not address
 this action individually as it works similarly to the `run` action in terms of the CLI frontend.
 
 ### Job Monitoring
@@ -249,7 +249,7 @@ Here's an overview of actions supported by Flink's CLI tool:
         <tr>
             <td><code class="highlighter-rouge">run-application</code></td>
             <td>
-                This action executes jobs in <a href="{% link deployment/index.md %}#deployment-modes">
+                This action executes jobs in <a href="{% link deployment/index.md %}#application-mode">
                 Application Mode</a>. Other than that, it requires the same parameters as the 
                 <code class="highlighter-rouge">run</code> action.
             </td>
