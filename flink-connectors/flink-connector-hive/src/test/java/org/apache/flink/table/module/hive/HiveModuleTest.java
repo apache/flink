@@ -19,6 +19,7 @@ package org.apache.flink.table.module.hive;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -46,6 +47,7 @@ import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VER
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V3_1_1;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /** Test for {@link HiveModule}. */
@@ -236,5 +238,34 @@ public class HiveModuleTest {
                 CollectionUtil.iteratorToList(
                         tableEnv.sqlQuery("select `array`(),`map`()").execute().collect());
         assertEquals("[[],{}]", results.toString());
+    }
+
+    @Test
+    public void testStringLiteralParameter() throws Exception {
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+
+        tableEnv.unloadModule("core");
+        tableEnv.loadModule("hive", new HiveModule());
+        tableEnv.loadModule("core", CoreModule.INSTANCE);
+
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.sqlQuery("select coalesce('abc',1)").execute().collect());
+        assertEquals("[abc]", results.toString());
+
+        try {
+            CollectionUtil.iteratorToList(
+                    tableEnv.sqlQuery("select coalesce(cast('abc' as char(3)),1)")
+                            .execute()
+                            .collect());
+            fail("Calling COALESCE with incompatible types should fail");
+        } catch (ValidationException e) {
+            // expected
+        }
+
+        results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.sqlQuery("select if(1>0,1,'a')").execute().collect());
+        assertEquals("[1]", results.toString());
     }
 }

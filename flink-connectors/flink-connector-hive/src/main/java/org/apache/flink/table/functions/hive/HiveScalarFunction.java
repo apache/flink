@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionContext;
@@ -40,6 +41,7 @@ import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -125,6 +127,11 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction {
                                         ClassLogicalTypeConverter.getDefaultExternalClassForType(
                                                 inputTypes[i].getLogicalType()))
                                 .orElse(null);
+                // we always use string type for string constant arg because that's what hive UDFs
+                // expect
+                if (constantArgs[i] instanceof String) {
+                    inputTypes[i] = DataTypes.STRING();
+                }
             }
         }
         this.constantArguments = constantArgs;
@@ -171,7 +178,7 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction {
                     return Optional.empty();
                 }
             }
-            return Optional.of(callContext.getArgumentDataTypes());
+            return Optional.of(Arrays.asList(argTypes));
         }
 
         @Override
