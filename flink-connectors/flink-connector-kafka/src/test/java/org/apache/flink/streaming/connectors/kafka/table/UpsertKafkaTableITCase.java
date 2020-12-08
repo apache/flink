@@ -104,7 +104,6 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
 	@Test
 	public void testTemporalJoin() throws Exception {
 		String topic = USERS_TOPIC + "_" + format;
-		env.setParallelism(2);
 		createTestTopic(topic, 2, 1);
 		// -------------   test   ---------------
 		writeChangelogToUpsertKafkaWithMetadata(topic);
@@ -385,6 +384,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
 	}
 
 	private void writeChangelogToUpsertKafkaWithMetadata(String userTable) throws Exception {
+		env.setParallelism(1);
 		String bootstraps = standardProps.getProperty("bootstrap.servers");
 
 		// ------------- test data ---------------
@@ -480,7 +480,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
 	}
 
 	private void temporalJoinUpsertKafka(String userTable) throws Exception {
-
+		env.setParallelism(2);
 		// ------------- test data ---------------
 		List<Row> input = Arrays.asList(
 			Row.of(10001L, 100L, LocalDateTime.parse("2020-08-15T00:00:02")),
