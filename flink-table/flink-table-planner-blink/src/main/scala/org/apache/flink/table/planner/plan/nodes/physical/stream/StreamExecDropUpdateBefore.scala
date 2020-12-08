@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.operators.StreamFilter
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
 import org.apache.flink.table.runtime.operators.misc.DropUpdateBeforeFunction
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -45,7 +45,7 @@ class StreamExecDropUpdateBefore(
     input: RelNode)
   extends SingleRel(cluster, traitSet, input)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 

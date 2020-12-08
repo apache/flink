@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.PartialFinalType
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, ChangelogPlanUtils, KeySelectorUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.aggregate.{GroupAggFunction, MiniBatchGroupAggFunction}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
@@ -59,7 +59,7 @@ class StreamExecGroupAggregate(
     val aggCalls: Seq[AggregateCall],
     var partialFinalType: PartialFinalType = PartialFinalType.NONE)
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   val aggInfoList: AggregateInfoList = AggregateUtil.deriveAggregateInfoList(
     this,

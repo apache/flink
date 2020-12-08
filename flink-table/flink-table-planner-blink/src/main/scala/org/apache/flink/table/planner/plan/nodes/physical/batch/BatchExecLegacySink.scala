@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContex
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
@@ -53,8 +53,8 @@ class BatchExecLegacySink[T](
     sink: TableSink[T],
     sinkName: String)
   extends LegacySink(cluster, traitSet, inputRel, sink, sinkName)
-          with BatchPhysicalRel
-          with BatchExecNode[Any] {
+  with BatchPhysicalRel
+  with LegacyBatchExecNode[Any] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLegacySink(cluster, traitSet, inputs.get(0), sink, sinkName)
@@ -116,8 +116,8 @@ class BatchExecLegacySink[T](
     validateType(resultDataType)
     val inputNode = getInputNodes.get(0)
     inputNode match {
-      // Sink's input must be BatchExecNode[RowData] now.
-      case node: BatchExecNode[RowData] =>
+      // Sink's input must be LegacyBatchExecNode[RowData] now.
+      case node: LegacyBatchExecNode[RowData] =>
         val plan = node.translateToPlan(planner).asInstanceOf[Transformation[T]]
         if (CodeGenUtils.isInternalClass(resultDataType)) {
           plan

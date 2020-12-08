@@ -30,7 +30,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDeduplicate.TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
@@ -64,7 +64,7 @@ class StreamExecDeduplicate(
     val keepLastRow: Boolean)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   def getUniqueKeys: Array[Int] = uniqueKeys
 

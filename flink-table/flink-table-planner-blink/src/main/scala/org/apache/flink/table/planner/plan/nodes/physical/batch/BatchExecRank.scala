@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkR
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType}
@@ -75,7 +75,7 @@ class BatchExecRank(
     rankNumberType,
     outputRankNumber)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   require(rankType == RankType.RANK, "Only RANK is supported now")
   val (rankStart, rankEnd) = rankRange match {

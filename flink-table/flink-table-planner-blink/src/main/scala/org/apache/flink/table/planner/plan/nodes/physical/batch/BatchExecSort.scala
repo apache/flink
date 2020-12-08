@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.SortOperator
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -55,7 +55,7 @@ class BatchExecSort(
     sortCollation: RelCollation)
   extends Sort(cluster, traitSet, inputRel, sortCollation)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   require(sortCollation.getFieldCollations.size() > 0)
   private val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(

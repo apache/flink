@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -46,7 +46,7 @@ abstract class BatchExecCalcBase(
     outputRowType: RelDataType)
   extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   override def deriveRowType(): RelDataType = outputRowType
 

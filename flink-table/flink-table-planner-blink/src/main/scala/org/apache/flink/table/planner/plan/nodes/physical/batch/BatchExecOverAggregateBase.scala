@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, OverAggregateUtil, RelExplainUtil}
@@ -66,7 +66,7 @@ abstract class BatchExecOverAggregateBase(
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   protected lazy val modeToGroupToAggCallToAggFunction:
     Seq[(OverWindowMode, Window.Group, Seq[(AggregateCall, UserDefinedFunction)])] =

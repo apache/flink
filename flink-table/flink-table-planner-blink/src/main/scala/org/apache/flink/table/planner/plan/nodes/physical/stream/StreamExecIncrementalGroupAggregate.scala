@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, _}
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchIncrementalGroupAggFunction
@@ -81,7 +81,7 @@ class StreamExecIncrementalGroupAggregate(
     val finalAggGrouping: Array[Int],
     val partialAggGrouping: Array[Int])
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def deriveRowType(): RelDataType = outputRowType
 

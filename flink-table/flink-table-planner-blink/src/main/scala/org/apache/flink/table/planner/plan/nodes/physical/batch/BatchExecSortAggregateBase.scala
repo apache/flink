@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.batch.{AggWithoutKeysCodeGenerator, SortAggCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.BatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyBatchExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -68,7 +68,7 @@ abstract class BatchExecSortAggregateBase(
     aggCallToAggFunction,
     isMerge,
     isFinal)
-  with BatchExecNode[RowData]{
+  with LegacyBatchExecNode[RowData]{
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val inputRows = mq.getRowCount(getInput())

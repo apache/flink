@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.ValuesCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -45,7 +45,7 @@ class BatchExecValues(
     outputRowType: RelDataType)
   extends Values(cluster, outputRowType, tuples, traitSet)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   override def deriveRowType(): RelDataType = outputRowType
 

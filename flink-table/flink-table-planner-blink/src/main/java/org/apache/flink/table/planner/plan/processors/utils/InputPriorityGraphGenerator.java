@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.planner.plan.nodes.exec.AbstractExecNodeExactlyOnceVisitor;
-import org.apache.flink.table.planner.plan.nodes.exec.BatchExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyBatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.util.Preconditions;
@@ -103,7 +103,7 @@ public abstract class InputPriorityGraphGenerator {
 			Set<ExecNode<?>> boundaries,
 			ExecEdge.DamBehavior safeDamBehavior) {
 		Preconditions.checkArgument(
-			roots.stream().allMatch(root -> root instanceof BatchExecNode),
+			roots.stream().allMatch(root -> root instanceof LegacyBatchExecNode),
 			"InputPriorityConflictResolver can only be used for batch jobs.");
 		this.roots = roots;
 		this.boundaries = boundaries;
