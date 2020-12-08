@@ -134,7 +134,7 @@ of all available metadata fields.
     </tr>
     <tr>
       <td><h5>properties.*</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>
