@@ -420,6 +420,7 @@ object FlinkStreamRuleSets {
     StreamExecGroupAggregateRule.INSTANCE,
     StreamExecGroupTableAggregateRule.INSTANCE,
     StreamExecPythonGroupAggregateRule.INSTANCE,
+    StreamExecPythonGroupTableAggregateRule.INSTANCE,
     // over agg
     StreamExecOverAggregateRule.INSTANCE,
     StreamExecPythonOverAggregateRule.INSTANCE,
