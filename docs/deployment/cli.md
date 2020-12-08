@@ -161,7 +161,7 @@ We have to use `--savepointPath` to specify the savepoint folder if
 [state.savepoints.dir]({% link deployment/config.md %}#state-savepoints-dir) isn't set.
 
 If the `--drain` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint 
-barrier. This will result all registered event-time timers to fire, thus flushing out any state that 
+barrier. This will make all registered event-time timers fire, thus flushing out any state that 
 is waiting for a specific watermark, e.g. windows. The job will keep running until all sources properly 
 shut down. This allows the job to finish processing all in-flight data.
 
