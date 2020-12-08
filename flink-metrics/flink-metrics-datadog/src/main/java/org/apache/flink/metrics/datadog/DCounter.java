@@ -32,7 +32,7 @@ public class DCounter extends DMetric {
 	private long currentReportCount = 0;
 
 	public DCounter(Counter c, String metricName, String host, List<String> tags, Clock clock) {
-		super(MetricType.count, metricName, host, tags, clock);
+		super(new MetricMetaData(MetricType.count, metricName, host, tags, clock));
 		counter = c;
 	}
 

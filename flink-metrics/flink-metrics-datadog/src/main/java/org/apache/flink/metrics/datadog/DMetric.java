@@ -44,45 +44,37 @@ public abstract class DMetric {
 	@VisibleForTesting
 	static final String FIELD_NAME_POINTS = "points";
 
-	private final String metricName;
-	private final MetricType type;
-	private final String host;
-	private final List<String> tags;
-	private final Clock clock;
+	private final MetricMetaData metaData;
 
-	public DMetric(MetricType metricType, String metricName, String host, List<String> tags, Clock clock) {
-		this.type = metricType;
-		this.metricName = metricName;
-		this.host = host;
-		this.tags = tags;
-		this.clock = clock;
+	public DMetric(MetricMetaData metaData) {
+		this.metaData = metaData;
 	}
 
 	@JsonGetter(FIELD_NAME_TYPE)
 	public MetricType getType() {
-		return type;
+		return metaData.getType();
 	}
 
 	@JsonGetter(FIELD_NAME_METRIC)
 	public String getMetricName() {
-		return metricName;
+		return metaData.getMetricName();
 	}
 
 	@JsonGetter(FIELD_NAME_HOST)
 	public String getHost() {
-		return host;
+		return metaData.getHost();
 	}
 
 	@JsonGetter(FIELD_NAME_TAGS)
 	public List<String> getTags() {
-		return tags;
+		return metaData.getTags();
 	}
 
 	@JsonGetter(FIELD_NAME_POINTS)
 	public List<List<Number>> getPoints() {
 		// One single data point
 		List<Number> point = new ArrayList<>();
-		point.add(clock.getUnixEpochTimestamp());
+		point.add(metaData.getClock().getUnixEpochTimestamp());
 		point.add(getMetricValue());
 
 		List<List<Number>> points = new ArrayList<>();
