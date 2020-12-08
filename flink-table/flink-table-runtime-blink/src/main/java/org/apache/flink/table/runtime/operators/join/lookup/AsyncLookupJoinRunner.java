@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -153,9 +154,16 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
 		if (fetcher != null) {
 			FunctionUtils.closeFunction(fetcher);
 		}
-		for (JoinedRowResultFuture rf : allResultFutures) {
-			rf.close();
+		if (allResultFutures != null) {
+			for (JoinedRowResultFuture rf : allResultFutures) {
+				rf.close();
+			}
 		}
+	}
+
+	@VisibleForTesting
+	public List<JoinedRowResultFuture> getAllResultFutures() {
+		return allResultFutures;
 	}
 
 	/**

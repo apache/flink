@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
@@ -63,6 +64,10 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 /**
  * Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}.
@@ -248,6 +253,40 @@ public class AsyncLookupJoinHarnessTest {
 				ASYNC_BUFFER_CAPACITY,
 				AsyncDataStream.OutputMode.ORDERED),
 			inSerializer);
+	}
+
+	@Test
+	public void testCloseAsyncLookupJoinRunner() throws Exception {
+		final InternalTypeInfo<RowData> rightRowTypeInfo = InternalTypeInfo.ofFields(
+				DataTypes.INT().getLogicalType(),
+				DataTypes.STRING().getLogicalType());
+		final AsyncLookupJoinRunner joinRunner = new AsyncLookupJoinRunner(
+				new GeneratedFunctionWrapper(new TestingFetcherFunction()),
+				new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+				rightRowTypeInfo,
+				rightRowTypeInfo,
+				true,
+				100);
+		assertNull(joinRunner.getAllResultFutures());
+		closeAsyncLookupJoinRunner(joinRunner);
+
+		joinRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+		joinRunner.open(new Configuration());
+		assertNotNull(joinRunner.getAllResultFutures());
+		closeAsyncLookupJoinRunner(joinRunner);
+
+		joinRunner.open(new Configuration());
+		joinRunner.asyncInvoke(row(1, "a"), new TestingFetcherResultFuture());
+		assertNotNull(joinRunner.getAllResultFutures());
+		closeAsyncLookupJoinRunner(joinRunner);
+	}
+
+	private void closeAsyncLookupJoinRunner(AsyncLookupJoinRunner joinRunner) throws Exception {
+		try {
+			joinRunner.close();
+		} catch (NullPointerException e) {
+			fail("Unexpected close to fail with null pointer exception.");
+		}
 	}
 
 	/**
