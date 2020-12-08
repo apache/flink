@@ -380,8 +380,10 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 					windowProperty.setField(i, TimestampData.fromEpochMillis(((TimeWindow) currentWindow).getEnd()));
 					break;
 				case 2:
-					windowProperty.setField(i, TimestampData.fromEpochMillis(currentWindow.maxTimestamp()));
+					windowProperty.setField(i, TimestampData.fromEpochMillis(((TimeWindow) currentWindow).getEnd() - 1));
 					break;
+				case 3:
+					windowProperty.setField(i, TimestampData.fromEpochMillis(-1));
 			}
 		}
 	}

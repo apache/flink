@@ -29,7 +29,7 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.expressions.{PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
+import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecPythonGroupWindowAggregate.ARROW_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME
@@ -219,6 +219,7 @@ class StreamExecPythonGroupWindowAggregate(
           case PlannerWindowStart(_) => 0
           case PlannerWindowEnd(_) => 1
           case PlannerRowtimeAttribute(_) => 2
+          case PlannerProctimeAttribute(_) => 3
         }
       }.toArray
 
