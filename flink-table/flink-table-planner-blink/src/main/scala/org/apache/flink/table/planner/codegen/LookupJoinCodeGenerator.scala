@@ -25,13 +25,14 @@ import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.data.{GenericRowData, RowData}
-import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.verifyFunctionAwareImplementation
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.inference.LookupCallContext
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
@@ -128,7 +129,7 @@ object LookupJoinCodeGenerator {
       _.code)
   }
 
-   private def generateLookupFunction[F <: Function](
+  private def generateLookupFunction[F <: Function](
       generatedClass: Class[F],
       config: TableConfig,
       dataTypeFactory: DataTypeFactory,
@@ -156,11 +157,19 @@ object LookupJoinCodeGenerator {
       lookupKeyOrder,
       tableSourceType)
 
+    // create the final UDF for runtime
+    val udf = UserDefinedFunctionHelper.createSpecializedFunction(
+      functionName,
+      lookupFunction,
+      callContext,
+      classOf[PlannerBase].getClassLoader,
+      config.getConfiguration)
+
     val inference = createLookupTypeInference(
       dataTypeFactory,
       callContext,
       lookupFunctionBase,
-      lookupFunction,
+      udf,
       functionName)
 
     val ctx = CodeGeneratorContext(config)
@@ -176,7 +185,7 @@ object LookupJoinCodeGenerator {
       tableSourceType,
       inference,
       callContext,
-      lookupFunction,
+      udf,
       functionName,
       // TODO: filter all records when there is any nulls on the join key, because
       //  "IS NOT DISTINCT FROM" is not supported yet.
