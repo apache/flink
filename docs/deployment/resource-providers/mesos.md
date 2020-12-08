@@ -37,15 +37,14 @@ Apache Flink. Flink utilizes the worker's provided by Mesos to run its TaskManag
 Apache Flink provides the script `bin/mesos-appmaster.sh` to initiate the Flink 
 on Mesos cluster.
 
-
 ### Preparation
 
-Flink on Mesos expects a Mesos cluster to be around. It also requires the Flink binaries being deployed
-ontothe the Mesos master. Additionally, Hadoop needs to be installed on the very same machine.
+Flink on Mesos expects a Mesos cluster to be around. It also requires the Flink binaries being 
+deployed. Additionally, Hadoop needs to be installed on the very same machine.
 
-Flink provides `bin/mesos-appmaster.sh` to create a Flink on Mesos cluster. It will instantiate a 
-JobManager process on the Mesos master. The Mesos workers will be utilized to run the TaskManager 
-processes.
+Flink provides `bin/mesos-appmaster.sh` to initiate a Flink on Mesos cluster. A Mesos application master 
+will be created (i.e. a JobManager process with Mesos support) which will utilize the Mesos workers to 
+run Flink's TaskManager processes.
 
 For `bin/mesos-appmaster.sh` to work, you have to set the two variables `HADOOP_CLASSPATH` and 
 `MESOS_NATIVE_JAVA_LIBRARY`:
@@ -61,7 +60,8 @@ used above refers to Mesos' Linux library. Running Mesos on MacOS would require 
 
 ### Starting a Flink Session on Mesos
 
-Connect to the Mesos workers, change into Flink's home directory and call `bin/mesos-appmaster.sh`:
+Connect to the machine which matches all the requirements listed in the [Preparation section](#preparation).
+Change into Flink's home directory and call `bin/mesos-appmaster.sh`:
 
 {% highlight bash %}
 # (0) set required environment variables
@@ -71,17 +71,19 @@ export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
 # (1) create Flink on Mesos cluster
 ./bin/mesos-appmaster.sh \
     -Dmesos.master=$MESOS_MASTER:5050 \
-    -Djobmanager.rpc.address=$MESOS_MASTER \
+    -Djobmanager.rpc.address=$JOBMANAGER_HOST \
     -Dmesos.resourcemanager.framework.user=$FLINK_USER \
     -Dmesos.resourcemanager.tasks.cpus=6
 {% endhighlight %}
 
 The call above uses two variables not introduced, yet, as they depend on the cluster:
-* `MESOS_MASTER` refers to the Mesos master's IP address or hostname. It's important to not use `localhost` 
-  or `127.0.0.1` as the corresponding parameters are being shared with the Mesos cluster and the TaskManagers.
+* `MESOS_MASTER` refers to the Mesos master's IP address or hostname. 
+* `JOBMANAGER_HOST` refers to the host that executes `bin/mesos-appmaster.sh` which is starting 
+  Flink's JobManager process. It's important to not use `localhost` or `127.0.0.1` as this parameter 
+  is being shared with the Mesos cluster and the TaskManagers.
 * `FLINK_USER` refers to the user that owns the Mesos master's Flink installation directory (see Mesos' 
-documentation on [specifying a user](http://mesos.apache.org/documentation/latest/fetcher/#specifying-a-user-name)
-for further details).
+  documentation on [specifying a user](http://mesos.apache.org/documentation/latest/fetcher/#specifying-a-user-name)
+  for further details).
 
 The Flink on Mesos cluster is now deployed in [Session Mode]({% link deployment/index.md %}#session-mode).
 Note that you can run multiple Flink jobs on a Session cluster. Each job needs to be submitted to the 
@@ -100,14 +102,15 @@ for each job.
 
 ### Application Mode
 
-Flink on Mesos does not support Application Mode.
+Flink on Mesos does not support [Application Mode]({% link deployment/index.md %}#application-mode).
 
 ### Per-Job Cluster Mode
 
-A job which is executed in Per-Job Cluster Mode spins up a dedicated Flink cluster that is only 
-used for that specific job. No extra job submission is needed. `bin/mesos-appmaster-job.sh` is used 
-as the startup script. It will start a Flink cluster for a dedicated job which is passed as a 
-JobGraph file. This file can be created by applying the following code to your Job source code:
+A job which is executed in [Per-Job Cluster Mode]({% link deployment/index.md %}#per-job-mode) spins 
+up a dedicated Flink cluster that is only used for that specific job. No extra job submission is 
+needed. `bin/mesos-appmaster-job.sh` is used as the startup script. It will start a Flink cluster 
+for a dedicated job which is passed as a JobGraph file. This file can be created by applying the 
+following code to your Job source code:
 {% highlight java %}
 final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 final String jobGraphFilename = "job.graph";
