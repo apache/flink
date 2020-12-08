@@ -355,7 +355,7 @@ public class JsonRowDataSerDeSchemaTest {
 		RowType schema = (RowType) dataType.getLogicalType();
 
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
-			schema, InternalTypeInfo.of(schema), false, false, TimestampFormat.ISO_8601);
+			schema, InternalTypeInfo.of(schema), true, false, TimestampFormat.ISO_8601);
 		RowData rowData = deserializationSchema.deserialize("".getBytes());
 		assertEquals(null, rowData);
 	}

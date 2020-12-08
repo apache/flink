@@ -29,7 +29,6 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.MissingNode;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -90,7 +89,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 		this.failOnMissingField = failOnMissingField;
 		this.ignoreParseErrors = ignoreParseErrors;
 		this.runtimeConverter = new JsonToRowDataConverters(failOnMissingField, ignoreParseErrors, timestampFormat)
-			.createRowConverter(checkNotNull(rowType));
+			.createConverter(checkNotNull(rowType));
 		this.timestampFormat = timestampFormat;
 		boolean hasDecimalType = LogicalTypeChecks.hasNested(rowType, t -> t instanceof DecimalType);
 		if (hasDecimalType) {
@@ -102,9 +101,6 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	public RowData deserialize(byte[] message) throws IOException {
 		try {
 			final JsonNode root = objectMapper.readTree(message);
-			if (root instanceof MissingNode) {
-				return null;
-			}
 			return (RowData) runtimeConverter.convert(root);
 		} catch (Throwable t) {
 			if (ignoreParseErrors) {
