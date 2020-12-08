@@ -39,16 +39,8 @@ public class DSeries {
 		this.series = series;
 	}
 
-	public void addGauge(DGauge gauge) {
-		series.add(gauge);
-	}
-
-	public void addCounter(DCounter counter) {
-		series.add(counter);
-	}
-
-	public void addMeter(DMeter meter) {
-		series.add(meter);
+	public void add(DMetric metric) {
+		series.add(metric);
 	}
 
 	public List<DMetric> getSeries() {
