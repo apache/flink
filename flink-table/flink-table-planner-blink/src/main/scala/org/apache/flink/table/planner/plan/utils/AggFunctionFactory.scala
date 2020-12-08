@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.aggfunctions.IncrSumAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.IncrSumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
@@ -39,20 +40,21 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * The class of agg function factory which is used to create AggregateFunction or
-  * DeclarativeAggregateFunction from Calcite AggregateCall
-  *
-  * @param inputRowType the input's output RowType
-  * @param orderKeyIndexes the indexes of order key (null when is not over agg)
-  * @param aggCallNeedRetractions true if need retraction
-  */
+ * Factory for creating runtime implementation for internal aggregate functions that are declared
+ * as subclasses of [[SqlAggFunction]] in Calcite but not as [[BridgingSqlAggFunction]]. The factory
+ * returns [[DeclarativeAggregateFunction]] or [[InternalAggregateFunction]].
+ *
+ * @param inputType the input rel data type
+ * @param orderKeyIdx the indexes of order key (null when is not over agg)
+ * @param needRetraction true if need retraction
+ */
 class AggFunctionFactory(
     inputRowType: RowType,
     orderKeyIndexes: Array[Int],
     aggCallNeedRetractions: Array[Boolean]) {
 
   /**
-    * The entry point to create an aggregate function from the given AggregateCall
+    * The entry point to create an aggregate function from the given [[AggregateCall]].
     */
   def createAggFunction(call: AggregateCall, index: Int): UserDefinedFunction = {
 
@@ -118,13 +120,12 @@ class AggFunctionFactory(
         // Can not touch the literals, Calcite make them in previous RelNode.
         // In here, all inputs are input refs.
         val constants = new util.ArrayList[AnyRef]()
-        argTypes.foreach(t => constants.add(null))
+        argTypes.foreach(_ => constants.add(null))
         udagg.makeFunction(
           constants.toArray,
           argTypes)
 
-      case bsf: BridgingSqlAggFunction =>
-        bsf.getDefinition.asInstanceOf[UserDefinedFunction]
+      case _: BridgingSqlAggFunction => null // not covered by this factory
 
       case unSupported: SqlAggFunction =>
         throw new TableException(s"Unsupported Function: '${unSupported.getName}'")
