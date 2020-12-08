@@ -211,6 +211,21 @@ When running Flink with Marathon, the whole Flink cluster including the JobManag
 Mesos tasks in the Mesos cluster. Flink's binaries have to be installed on all Mesos workers for the 
 above Marathon config to work.
 
+### Supported Hadoop versions
+
+Flink on Mesos is compiled against Hadoop 2.4.1, and all Hadoop versions >= 2.4.1 are supported, 
+including Hadoop 3.x.
+
+For providing Flink with the required Hadoop dependencies, we recommend setting the `HADOOP_CLASSPATH` 
+environment variable already introduced in the [Getting Started / Preparation](#preparation) section.
+
+If that is not possible, the dependencies can also be put into the `lib/` folder of Flink. 
+
+Flink also offers pre-bundled Hadoop fat jars for placing them in the `lib/` folder, on the 
+[Downloads / Additional Components]({{site.download_url}}#additional-components) section of the website. 
+These pre-bundled fat jars are shaded to avoid dependency conflicts with common libraries. The Flink 
+community is not testing the Mesos integration against these pre-bundled jars.
+
 ### Flink on Mesos Architecture
 
 The Flink on Mesos implementation consists of two components: The application master and the workers. 
