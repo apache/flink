@@ -18,25 +18,44 @@
 
 package org.apache.flink.metrics.datadog;
 
-import org.apache.flink.metrics.Meter;
-
 import java.util.List;
 
 /**
- * Mapping of meter between Flink and Datadog.
- *
- * <p>Only consider rate of the meter, due to Datadog HTTP API's limited support of meter
+ * All metadata associated with a given metric.
  */
-public class DMeter extends DMetric {
-	private final Meter meter;
+public final class MetricMetaData {
 
-	public DMeter(Meter m, String metricName, String host, List<String> tags, Clock clock) {
-		super(new MetricMetaData(MetricType.gauge, metricName, host, tags, clock));
-		meter = m;
+	private final String metricName;
+	private final MetricType type;
+	private final String host;
+	private final List<String> tags;
+	private final Clock clock;
+
+	public MetricMetaData(MetricType metricType, String metricName, String host, List<String> tags, Clock clock) {
+		this.type = metricType;
+		this.metricName = metricName;
+		this.host = host;
+		this.tags = tags;
+		this.clock = clock;
 	}
 
-	@Override
-	public Number getMetricValue() {
-		return meter.getRate();
+	public MetricType getType() {
+		return type;
+	}
+
+	public String getMetricName() {
+		return metricName;
+	}
+
+	public String getHost() {
+		return host;
+	}
+
+	public List<String> getTags() {
+		return tags;
+	}
+
+	public Clock getClock() {
+		return clock;
 	}
 }
