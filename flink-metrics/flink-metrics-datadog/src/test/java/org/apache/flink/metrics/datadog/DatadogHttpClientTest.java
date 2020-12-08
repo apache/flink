@@ -18,9 +18,8 @@
 
 package org.apache.flink.metrics.datadog;
 
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.util.TestCounter;
+import org.apache.flink.metrics.util.TestMeter;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 
@@ -39,7 +38,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class DatadogHttpClientTest {
 
-	private static List<String> tags = Arrays.asList("tag1", "tag2");
+	private static final List<String> tags = Arrays.asList("tag1", "tag2");
 
 	private static final long MOCKED_SYSTEM_MILLIS = 123L;
 
@@ -73,13 +72,7 @@ public class DatadogHttpClientTest {
 
 	@Test
 	public void serializeGauge() throws JsonProcessingException {
-
-		DGauge g = new DGauge(new Gauge<Number>() {
-			@Override
-			public Number getValue() {
-				return 1;
-			}
-		}, "testCounter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
+		DGauge g = new DGauge(() -> 1, "testCounter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
 			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
@@ -88,13 +81,7 @@ public class DatadogHttpClientTest {
 
 	@Test
 	public void serializeGaugeWithoutHost() throws JsonProcessingException {
-
-		DGauge g = new DGauge(new Gauge<Number>() {
-			@Override
-			public Number getValue() {
-				return 1;
-			}
-		}, "testCounter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
+		DGauge g = new DGauge(() -> 1, "testCounter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
 			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
@@ -103,24 +90,7 @@ public class DatadogHttpClientTest {
 
 	@Test
 	public void serializeCounter() throws JsonProcessingException {
-		DCounter c = new DCounter(new Counter() {
-			@Override
-			public void inc() {}
-
-			@Override
-			public void inc(long n) {}
-
-			@Override
-			public void dec() {}
-
-			@Override
-			public void dec(long n) {}
-
-			@Override
-			public long getCount() {
-				return 1;
-			}
-		}, "testCounter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
+		DCounter c = new DCounter(new TestCounter(1), "testCounter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
 			"{\"metric\":\"testCounter\",\"type\":\"count\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
@@ -129,24 +99,7 @@ public class DatadogHttpClientTest {
 
 	@Test
 	public void serializeCounterWithoutHost() throws JsonProcessingException {
-		DCounter c = new DCounter(new Counter() {
-			@Override
-			public void inc() {}
-
-			@Override
-			public void inc(long n) {}
-
-			@Override
-			public void dec() {}
-
-			@Override
-			public void dec(long n) {}
-
-			@Override
-			public long getCount() {
-				return 1;
-			}
-		}, "testCounter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
+		DCounter c = new DCounter(new TestCounter(1), "testCounter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
 			"{\"metric\":\"testCounter\",\"type\":\"count\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
@@ -155,24 +108,7 @@ public class DatadogHttpClientTest {
 
 	@Test
 	public void serializeMeter() throws JsonProcessingException {
-
-		DMeter m = new DMeter(new Meter() {
-			@Override
-			public void markEvent() {}
-
-			@Override
-			public void markEvent(long n) {}
-
-			@Override
-			public double getRate() {
-				return 1;
-			}
-
-			@Override
-			public long getCount() {
-				return 0;
-			}
-		}, "testMeter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
+		DMeter m = new DMeter(new TestMeter(0, 1), "testMeter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
 			"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",
@@ -181,24 +117,7 @@ public class DatadogHttpClientTest {
 
 	@Test
 	public void serializeMeterWithoutHost() throws JsonProcessingException {
-
-		DMeter m = new DMeter(new Meter() {
-			@Override
-			public void markEvent() {}
-
-			@Override
-			public void markEvent(long n) {}
-
-			@Override
-			public double getRate() {
-				return 1;
-			}
-
-			@Override
-			public long getCount() {
-				return 0;
-			}
-		}, "testMeter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
+		DMeter m = new DMeter(new TestMeter(0, 1), "testMeter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
 			"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",
