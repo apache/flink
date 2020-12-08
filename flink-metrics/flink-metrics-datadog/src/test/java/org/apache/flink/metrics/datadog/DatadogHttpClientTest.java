@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.datadog;
 
 import org.apache.flink.metrics.util.TestCounter;
+import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -135,6 +136,24 @@ public class DatadogHttpClientTest {
 		assertSerialization(DatadogHttpClient.serialize(series), new MetricAssertion(MetricType.gauge, false, "1.0"));
 	}
 
+	@Test
+	public void serializeHistogram() throws JsonProcessingException {
+		DHistogram h = new DHistogram(new TestHistogram(), METRIC, HOST, tags, () -> MOCKED_SYSTEM_MILLIS);
+
+		DSeries series = new DSeries();
+		h.addTo(series);
+
+		assertSerialization(
+			DatadogHttpClient.serialize(series),
+			new MetricAssertion(MetricType.gauge, true, "4.0", DHistogram.SUFFIX_AVG),
+			new MetricAssertion(MetricType.gauge, true, "1", DHistogram.SUFFIX_COUNT),
+			new MetricAssertion(MetricType.gauge, true, "0.5", DHistogram.SUFFIX_MEDIAN),
+			new MetricAssertion(MetricType.gauge, true, "0.95", DHistogram.SUFFIX_95_PERCENTILE),
+			new MetricAssertion(MetricType.gauge, true, "7", DHistogram.SUFFIX_MIN),
+			new MetricAssertion(MetricType.gauge, true, "6", DHistogram.SUFFIX_MAX)
+		);
+	}
+
 	private static void assertSerialization(String json, MetricAssertion... metricAssertions) throws JsonProcessingException {
 		final JsonNode series = MAPPER.readTree(json).get(DSeries.FIELD_NAME_SERIES);
 
@@ -147,7 +166,7 @@ public class DatadogHttpClientTest {
 			} else {
 				assertThat(parsedJson.get(DMetric.FIELD_NAME_HOST), nullValue());
 			}
-			assertThat(parsedJson.get(DMetric.FIELD_NAME_METRIC).asText(), is(METRIC));
+			assertThat(parsedJson.get(DMetric.FIELD_NAME_METRIC).asText(), is(METRIC + metricAssertion.metricNameSuffix));
 			assertThat(parsedJson.get(DMetric.FIELD_NAME_TYPE).asText(), is(metricAssertion.expectedType.name()));
 			assertThat(parsedJson.get(DMetric.FIELD_NAME_POINTS).toString(), is(String.format("[[123,%s]]", metricAssertion.expectedValue)));
 			assertThat(parsedJson.get(DMetric.FIELD_NAME_TAGS).toString(), is(TAGS_AS_JSON));
@@ -158,11 +177,17 @@ public class DatadogHttpClientTest {
 		final MetricType expectedType;
 		final boolean expectHost;
 		final String expectedValue;
+		final String metricNameSuffix;
 
 		private MetricAssertion(MetricType expectedType, boolean expectHost, String expectedValue) {
+			this(expectedType, expectHost, expectedValue, "");
+		}
+
+		private MetricAssertion(MetricType expectedType, boolean expectHost, String expectedValue, String metricNameSuffix) {
 			this.expectedType = expectedType;
 			this.expectHost = expectHost;
 			this.expectedValue = expectedValue;
+			this.metricNameSuffix = metricNameSuffix;
 		}
 	}
 }

@@ -230,6 +230,10 @@ metrics.reporter.stsd.interval: 60 SECONDS
 Note any variables in Flink metrics, such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>`, and `<operator_name>`,
 will be sent to Datadog as tags. Tags will look like `host:localhost` and `job_name:myjobname`.
 
+<span class="label label-info">Note</span> Histograms are exposed as a series of gauges following the naming convention of Datadog histograms (`<metric_name>.<aggregation>`).
+The `min` aggregation is reported by default, whereas `sum` is not available.
+In contrast to Datadog-provided Histograms the reported aggregations are not computed for a specific reporting interval.
+
 Parameters:
 
 - `apikey` - the Datadog API key
