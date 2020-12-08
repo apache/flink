@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecGroupTableAggregate
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 
 import scala.collection.JavaConversions._
 
@@ -33,6 +34,11 @@ class StreamExecGroupTableAggregateRule extends ConverterRule(
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
     "StreamExecGroupTableAggregateRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val agg: FlinkLogicalTableAggregate = call.rel(0)
+    !agg.getAggCallList.exists(isPythonAggregate(_))
+  }
 
   def convert(rel: RelNode): RelNode = {
     val agg: FlinkLogicalTableAggregate = rel.asInstanceOf[FlinkLogicalTableAggregate]
