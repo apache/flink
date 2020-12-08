@@ -63,7 +63,7 @@ public final class TypeInferenceReturnInference implements SqlReturnTypeInferenc
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
         final CallContext callContext =
-                new OperatorBindingCallContext(dataTypeFactory, definition, opBinding);
+                new OperatorBindingCallContext(dataTypeFactory, definition, opBinding, null);
         try {
             return inferReturnTypeOrError(unwrapTypeFactory(opBinding), callContext);
         } catch (ValidationException e) {

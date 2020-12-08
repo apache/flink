@@ -22,10 +22,11 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, FunctionKind, ImperativeAggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionKind, ImperativeAggregateFunction, UserDefinedFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.functions.aggfunctions.{DeclarativeAggregateFunction, InternalAggregateFunction}
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
@@ -384,7 +385,6 @@ object AggregateUtil extends Enumeration {
         call,
         index,
         argIndexes,
-        udf.asInstanceOf[ImperativeAggregateFunction[_, _]],
         hasStateBackedDataViews,
         needsRetraction)
 
@@ -413,22 +413,19 @@ object AggregateUtil extends Enumeration {
       call: AggregateCall,
       index: Int,
       argIndexes: Array[Int],
-      udf: ImperativeAggregateFunction[_, _],
       hasStateBackedDataViews: Boolean,
       needsRetraction: Boolean)
     : AggregateInfo = {
 
     val function = call.getAggregation.asInstanceOf[BridgingSqlAggFunction]
-
+    val definition = function.getDefinition
     val dataTypeFactory = function.getDataTypeFactory
-
-    val inference = function.getTypeInference
 
     // not all information is available in the call context of aggregate functions at this location
     // e.g. literal information is lost because the aggregation is split into multiple operators
     val callContext = new OperatorBindingCallContext(
       dataTypeFactory,
-      udf,
+      definition,
       new AggCallBinding(
         function.getTypeFactory,
         function,
@@ -436,7 +433,17 @@ object AggregateUtil extends Enumeration {
           FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType),
           argIndexes.map(Int.box).toList),
         0,
-        false))
+        false),
+      call.getType)
+
+    // create the final UDF for runtime
+    val udf = UserDefinedFunctionHelper.createSpecializedFunction(
+      function.getName,
+      definition,
+      callContext,
+      classOf[PlannerBase].getClassLoader,
+      null) // currently, aggregate functions have no access to configuration
+    val inference = udf.getTypeInference(dataTypeFactory)
 
     // enrich argument types with conversion class
     val adaptedCallContext = TypeInferenceUtil.adaptArguments(
@@ -457,7 +464,7 @@ object AggregateUtil extends Enumeration {
 
     createImperativeAggregateInfo(
       call,
-      udf,
+      udf.asInstanceOf[ImperativeAggregateFunction[_, _]],
       index,
       argIndexes,
       enrichedArgumentDataTypes.toArray,
