@@ -27,6 +27,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecGraphGenerator;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext;
@@ -42,6 +43,8 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Tests for {@link MultipleInputNodeCreationProcessor}.
@@ -103,7 +106,9 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 		Table table = util.tableEnv().sqlQuery(sql);
 		RelNode relNode = TableTestUtil.toRelNode(table);
 		FlinkPhysicalRel optimizedRel = (FlinkPhysicalRel) util.getPlanner().optimize(relNode);
-		ExecNode<?> execNode = optimizedRel.translateToExecNode();
+		ExecGraphGenerator generator = new ExecGraphGenerator();
+		List<ExecNode<?>> execNodes = generator.generate(Collections.singletonList(optimizedRel));
+		ExecNode<?> execNode = execNodes.get(0);
 		while (!execNode.getInputNodes().isEmpty()) {
 			execNode = execNode.getInputNodes().get(0);
 		}
