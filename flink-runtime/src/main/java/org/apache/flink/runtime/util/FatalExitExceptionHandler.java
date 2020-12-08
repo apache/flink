@@ -21,6 +21,8 @@ package org.apache.flink.runtime.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.flink.runtime.util.ExitCode.FATAL_UNCAUGHT;
+
 /**
  * Handler for uncaught exceptions that will log the exception and kill the process afterwards.
  *
@@ -32,7 +34,7 @@ public final class FatalExitExceptionHandler implements Thread.UncaughtException
 	private static final Logger LOG = LoggerFactory.getLogger(FatalExitExceptionHandler.class);
 
 	public static final FatalExitExceptionHandler INSTANCE = new FatalExitExceptionHandler();
-	public static final int EXIT_CODE = -17;
+	public static final int EXIT_CODE = FATAL_UNCAUGHT.getExitCode();
 
 	@Override
 	@SuppressWarnings("finally")

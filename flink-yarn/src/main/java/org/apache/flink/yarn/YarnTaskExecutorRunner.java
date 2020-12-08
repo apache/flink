@@ -40,6 +40,8 @@ import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
 
+import static org.apache.flink.runtime.util.ExitCode.RUNNER_INIT;
+
 /**
  * This class is the executable entry point for running a TaskExecutor in a YARN container.
  */
@@ -51,7 +53,7 @@ public class YarnTaskExecutorRunner {
 	private static final Map<String, String> ENV = System.getenv();
 
 	/** The exit code returned if the initialization of the yarn task executor runner failed. */
-	private static final int INIT_ERROR_EXIT_CODE = 31;
+	private static final int INIT_ERROR_EXIT_CODE = RUNNER_INIT.getExitCode();
 
 	// ------------------------------------------------------------------------
 	//  Program entry point

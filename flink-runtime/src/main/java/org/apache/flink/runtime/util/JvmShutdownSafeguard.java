@@ -22,6 +22,7 @@ import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 
+import static org.apache.flink.runtime.util.ExitCode.JVM_SHUTDOWN;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -41,7 +42,7 @@ public class JvmShutdownSafeguard extends Thread {
 	private static final long DEFAULT_DELAY = 5000L;
 
 	/** The exit code returned by the JVM process if it is killed by the safeguard */
-	private static final int EXIT_CODE = -17;
+	private static final int EXIT_CODE = JVM_SHUTDOWN.getExitCode();
 
 	/** The thread that actually does the termination */
 	private final Thread terminator;

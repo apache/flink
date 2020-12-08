@@ -33,6 +33,8 @@ import org.apache.commons.cli.PosixParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.flink.runtime.util.ExitCode.RUNNER_INIT;
+
 /**
  * The entry point for running a TaskManager in a Mesos container.
  */
@@ -40,7 +42,7 @@ public class MesosTaskExecutorRunner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MesosTaskExecutorRunner.class);
 
-	private static final int INIT_ERROR_EXIT_CODE = 31;
+	private static final int INIT_ERROR_EXIT_CODE = RUNNER_INIT.getExitCode();
 
 	private static final Options ALL_OPTIONS;
 

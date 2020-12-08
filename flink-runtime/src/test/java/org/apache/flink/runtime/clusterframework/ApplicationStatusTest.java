@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.runtime.util.ExitCode.SUCCESS;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -37,7 +38,7 @@ import static org.junit.Assert.assertThat;
  */
 public class ApplicationStatusTest extends TestLogger {
 
-	private static final int SUCCESS_EXIT_CODE = 0;
+	private static final int SUCCESS_EXIT_CODE = SUCCESS.getExitCode();
 
 	@Test
 	public void succeededStatusMapsToSuccessExitCode() {
