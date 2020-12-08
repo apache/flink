@@ -76,7 +76,8 @@ public class ExecGraphGenerator {
 			baseNode.setInputNodes(inputNodes);
 			execNode = baseNode;
 		} else {
-			throw new UnsupportedOperationException("");
+			throw new TableException(rel.getClass().getSimpleName() + " can't be converted to ExecNode." +
+					"This is a bug and should not happen. Please file an issue.");
 		}
 
 		visitedRels.put(rel, execNode);
