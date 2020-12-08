@@ -110,6 +110,10 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
 		return physicalSlotResourceProfile;
 	}
 
+	public ExecutionSlotSharingGroup getExecutionSlotSharingGroup() {
+		return executionSlotSharingGroup;
+	}
+
 	CompletableFuture<PhysicalSlot> getSlotContextFuture() {
 		return slotContextFuture;
 	}
@@ -123,7 +127,6 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
 	 * @return the logical slot future
 	 */
 	CompletableFuture<LogicalSlot> allocateLogicalSlot(ExecutionVertexID executionVertexId) {
-		Preconditions.checkState(state == State.ALLOCATED, "SharedSlot (physical request %s) has been released", physicalSlotRequestId);
 		Preconditions.checkArgument(
 			executionSlotSharingGroup.getExecutionVertexIds().contains(executionVertexId),
 			"Trying to allocate a logical slot for execution %s which is not in the ExecutionSlotSharingGroup",
