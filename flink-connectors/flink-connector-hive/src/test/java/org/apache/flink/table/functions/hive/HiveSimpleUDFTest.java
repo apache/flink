@@ -248,8 +248,8 @@ public class HiveSimpleUDFTest {
 		HiveSimpleUDF udf = new HiveSimpleUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
 
 		// Hive UDF won't have literal args
-		udf.setArgumentTypesAndConstants(new Object[0], argTypes);
-		udf.getHiveResultType(new Object[0], argTypes);
+		udf.setArgumentTypesAndConstants(new Object[argTypes.length], argTypes);
+		udf.getHiveResultType(new Object[argTypes.length], argTypes);
 
 		udf.open(null);
 

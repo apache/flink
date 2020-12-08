@@ -42,11 +42,9 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveGenericUDF.class);
 
 	private transient GenericUDF.DeferredObject[] deferredObjects;
-	private HiveShim hiveShim;
 
 	public HiveGenericUDF(HiveFunctionWrapper<GenericUDF> hiveFunctionWrapper, HiveShim hiveShim) {
-		super(hiveFunctionWrapper);
-		this.hiveShim = hiveShim;
+		super(hiveFunctionWrapper, hiveShim);
 		LOG.info("Creating HiveGenericUDF from '{}'", hiveFunctionWrapper.getClassName());
 	}
 
@@ -55,15 +53,7 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 
 		LOG.info("Open HiveGenericUDF as {}", hiveFunctionWrapper.getClassName());
 
-		function = hiveFunctionWrapper.createFunction();
-
-		ObjectInspector[] argInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
-
-		try {
-			returnInspector = function.initializeAndFoldConstants(argInspectors);
-		} catch (UDFArgumentException e) {
-			throw new FlinkHiveUDFException(e);
-		}
+		ObjectInspector[] argInspectors = validateAndGetArgOIs();
 
 		deferredObjects = new GenericUDF.DeferredObject[argTypes.length];
 
@@ -96,17 +86,32 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 	@Override
 	public DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes) {
 		LOG.info("Getting result type of HiveGenericUDF from {}", hiveFunctionWrapper.getClassName());
+		setArgumentTypesAndConstants(constantArguments, argTypes);
+		validateAndGetArgOIs();
 
+		return HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromObjectInspector(returnInspector));
+	}
+
+	private ObjectInspector[] validateAndGetArgOIs() {
+		function = hiveFunctionWrapper.createFunction();
 		try {
-			ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
-
-			ObjectInspector resultObjectInspector =
-				hiveFunctionWrapper.createFunction().initializeAndFoldConstants(argumentInspectors);
-
-			return HiveTypeUtil.toFlinkType(
-				TypeInfoUtils.getTypeInfoFromObjectInspector(resultObjectInspector));
+			ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, this.constantArguments, this.argTypes);
+			returnInspector = function.initializeAndFoldConstants(argumentInspectors);
+			return argumentInspectors;
 		} catch (UDFArgumentException e) {
-			throw new FlinkHiveUDFException(e);
+			FlinkHiveUDFException toThrow = new FlinkHiveUDFException(e);
+			if (adaptConstantArgTypes()) {
+				// try again with updated types
+				ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, this.constantArguments, this.argTypes);
+				try {
+					returnInspector = function.initializeAndFoldConstants(argumentInspectors);
+					return argumentInspectors;
+				} catch (UDFArgumentException udfArgumentException) {
+					throw toThrow;
+				}
+			} else {
+				throw toThrow;
+			}
 		}
 	}
 }

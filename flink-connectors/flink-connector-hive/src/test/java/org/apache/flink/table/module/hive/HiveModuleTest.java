@@ -17,8 +17,10 @@
 
 package org.apache.flink.table.module.hive;
 
+import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -45,6 +47,7 @@ import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VER
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V3_1_1;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -94,8 +97,8 @@ public class HiveModuleTest {
 			DataTypes.STRING()
 		};
 
-		udf.setArgumentTypesAndConstants(new Object[0], inputType);
-		udf.getHiveResultType(new Object[0], inputType);
+		udf.setArgumentTypesAndConstants(new Object[inputType.length], inputType);
+		udf.getHiveResultType(new Object[inputType.length], inputType);
 
 		udf.open(null);
 
@@ -203,5 +206,29 @@ public class HiveModuleTest {
 		Lists.newArrayList(tableEnv.executeSql("select x from src where y is not null limit 10").collect());
 		Lists.newArrayList(tableEnv.executeSql("select count(distinct if(y is null, 0, y)) from src where x=-1 limit 1").collect());
 		Lists.newArrayList(tableEnv.executeSql("select x, rank() over (partition by x order by y) from src").collect());
+	}
+
+	@Test
+	public void testStringLiteralParameter() throws Exception {
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+
+		tableEnv.unloadModule("core");
+		tableEnv.loadModule("hive", new HiveModule());
+		tableEnv.loadModule("core", CoreModule.INSTANCE);
+
+		List<Row> results = Lists.newArrayList(tableEnv.sqlQuery("select coalesce('abc',1)").execute().collect());
+		assertEquals("[abc]", results.toString());
+
+		if (!HiveVersionTestUtil.HIVE_310_OR_LATER) {
+			try {
+				Lists.newArrayList(tableEnv.sqlQuery("select coalesce(cast('abc' as char(3)),1)").execute().collect());
+				fail("Calling COALESCE with incompatible types should fail");
+			} catch (ValidationException e) {
+				// expected
+			}
+		}
+
+		results = Lists.newArrayList(tableEnv.sqlQuery("select if(1>0,1,'a')").execute().collect());
+		assertEquals("[1]", results.toString());
 	}
 }
