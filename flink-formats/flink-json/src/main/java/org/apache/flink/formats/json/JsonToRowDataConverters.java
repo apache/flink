@@ -40,7 +40,6 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.MissingNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 
@@ -369,7 +368,7 @@ public class JsonToRowDataConverters implements Serializable {
 	private JsonToRowDataConverter wrapIntoNullableConverter(
 		JsonToRowDataConverter converter) {
 		return jsonNode -> {
-			if (jsonNode == null || jsonNode.isNull() || jsonNode instanceof MissingNode) {
+			if (jsonNode == null || jsonNode.isNull() || jsonNode.isMissingNode()) {
 				return null;
 			}
 			try {
