@@ -212,7 +212,7 @@ Here is an example configuration for Marathon:
 {% highlight javascript %}
 {
     "id": "flink",
-    "cmd": "/opt/flink-1.11.2/bin/mesos-appmaster.sh -Dmesos.resourcemanager.framework.user=root -Dmesos.resourcemanager.tasks.taskmanager-cmd=/opt/flink-1.11.2/bin/mesos-taskmanager.sh -Dmesos.master=master:5050 -Djobmanager.memory.process.size=1472m -Dtaskmanager.memory.process.size=3500m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2",
+    "cmd": "/opt/flink-{{ site.version }}/bin/mesos-appmaster.sh -Dmesos.resourcemanager.framework.user=root -Dmesos.resourcemanager.tasks.taskmanager-cmd=/opt/flink-{{ site.version }}/bin/mesos-taskmanager.sh -Dmesos.master=master:5050 -Djobmanager.memory.process.size=1472m -Dtaskmanager.memory.process.size=3500m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2",
     "cpus": 2,
     "mem": 1024,
     "disk": 0,
@@ -234,7 +234,7 @@ Here is an example configuration for Marathon:
     ],
     "user": "root"
 }
-Flink is installed into `/opt/flink-1.11.2` for this example having `root` as the owner of the Flink 
+Flink is installed into `/opt/flink-{{ site.version }}` for this example having `root` as the owner of the Flink 
 directory.
 {% endhighlight %}
 
