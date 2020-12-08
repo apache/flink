@@ -249,11 +249,13 @@ Connector Options
       <td>SASL mechanism used for client connections. This may be any mechanism for which a security provider is available.</td>
     </tr>
     <tr>
-      <td><h5>properties.security.protocol</h5></td>
+      <td><h5>properties.*</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Protocol used to communicate with brokers. Valid values are: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL.</td>
+      <td>
+         This can set and pass arbitrary Kafka configurations. Suffix names must match the configuration key defined in <a href="https://kafka.apache.org/documentation/#configuration">Kafka Configuration documentation</a>. Flink will remove the "properties." key prefix and pass the transformed key and values to the underlying KafkaClient. For example, you can disable automatic topic creation via <code>'properties.allow.auto.create.topics' = 'false'</code>. But there are some configurations that do not support to set, because Flink will override them, e.g. <code>'key.deserializer'</code> and <code>'value.deserializer'</code>.
+      </td>
     </tr>
     <tr>
       <td><h5>format</h5></td>
