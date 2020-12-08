@@ -236,8 +236,8 @@ Here is an example configuration for Marathon:
 }
 {% endhighlight %}
 
-Flink is installed into `/opt/flink-{{ site.version }}` for this example having `root` as the owner of the Flink 
-directory.
+Flink is installed into `/opt/flink-{{ site.version }}` for this example having `root` as the owner 
+of the Flink directory.
 
 When running Flink with Marathon, the whole Flink cluster including the JobManager will be run as 
 Mesos tasks in the Mesos cluster. Flink's binaries have to be installed on all Mesos workers for the 
