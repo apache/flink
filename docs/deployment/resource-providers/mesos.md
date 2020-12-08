@@ -146,38 +146,6 @@ deploying Flink in Session Mode.
 
 ## Flink on Mesos Reference
 
-### Flink on Mesos Architecture
-
-The Flink on Mesos implementation consists of two components: The application master and the workers. 
-The workers are simple TaskManagers parameterized by the environment which is set up through the 
-application master. The most sophisticated component of the Flink on Mesos implementation is the 
-application master. The application master currently hosts the following components:
-- **Mesos Scheduler**: The Scheduler is responsible for registering a framework with Mesos, requesting 
-  resources, and launching worker nodes. The Scheduler continuously needs to report back to Mesos to 
-  ensure the framework is in a healthy state. To verify the health of the cluster, the Scheduler 
-  monitors the spawned workers, marks them as failed and restarts them if necessary.
-
-  Flink's Mesos Scheduler itself is currently not highly available. However, it persists all necessary 
-  information about its state (e.g. configuration, list of workers) in [ZooKeeper](#high-availability-on-mesos). 
-  In the presence of a failure, it relies on an external system to bring up a new Scheduler (see the 
-  [Marathon subsection](#marathon) for further details). The Scheduler will then register with Mesos 
-  again and go through the reconciliation phase. In the reconciliation phase, the Scheduler receives 
-  a list of running workers nodes. It matches these against the recovered information from ZooKeeper 
-  and makes sure to bring back the cluster in the state before the failure.
-- **Artifact Server**: The Artifact Server is responsible for providing resources to the worker nodes. 
-  The resources can be anything from the Flink binaries to shared secrets or configuration files. 
-  For instance, in non-containerized environments, the Artifact Server will provide the Flink binaries. 
-  What files will be served depends on the configuration overlay used.
-
-Flink's Mesos startup scripts `bin/mesos-appmaster.sh` and `bin/mesos-appmaster-job.sh` provide a way 
-to configure and start the application master. The worker nodes inherit all further configuration. 
-They are deployed through `bin/mesos-taskmanager.sh`. The configuration inheritance is achieved using 
-configuration overlays. Configuration overlays provide a way to infer a configuration from environment 
-variables and config files which are shipped to the worker nodes.
-
-See [Mesos Architecture](http://mesos.apache.org/documentation/latest/architecture/) for a more details 
-on how frameworks are handled by Mesos.
-
 ### Deploying User Libraries
 
 User libraries can be passed to the Mesos workers by placing them in Flink's `lib/` folder. This way, 
@@ -242,5 +210,37 @@ of the Flink directory.
 When running Flink with Marathon, the whole Flink cluster including the JobManager will be run as 
 Mesos tasks in the Mesos cluster. Flink's binaries have to be installed on all Mesos workers for the 
 above Marathon config to work.
+
+### Flink on Mesos Architecture
+
+The Flink on Mesos implementation consists of two components: The application master and the workers. 
+The workers are simple TaskManagers parameterized by the environment which is set up through the 
+application master. The most sophisticated component of the Flink on Mesos implementation is the 
+application master. The application master currently hosts the following components:
+- **Mesos Scheduler**: The Scheduler is responsible for registering a framework with Mesos, requesting 
+  resources, and launching worker nodes. The Scheduler continuously needs to report back to Mesos to 
+  ensure the framework is in a healthy state. To verify the health of the cluster, the Scheduler 
+  monitors the spawned workers, marks them as failed and restarts them if necessary.
+
+  Flink's Mesos Scheduler itself is currently not highly available. However, it persists all necessary 
+  information about its state (e.g. configuration, list of workers) in [ZooKeeper](#high-availability-on-mesos). 
+  In the presence of a failure, it relies on an external system to bring up a new Scheduler (see the 
+  [Marathon subsection](#marathon) for further details). The Scheduler will then register with Mesos 
+  again and go through the reconciliation phase. In the reconciliation phase, the Scheduler receives 
+  a list of running workers nodes. It matches these against the recovered information from ZooKeeper 
+  and makes sure to bring back the cluster in the state before the failure.
+- **Artifact Server**: The Artifact Server is responsible for providing resources to the worker nodes. 
+  The resources can be anything from the Flink binaries to shared secrets or configuration files. 
+  For instance, in non-containerized environments, the Artifact Server will provide the Flink binaries. 
+  What files will be served depends on the configuration overlay used.
+
+Flink's Mesos startup scripts `bin/mesos-appmaster.sh` and `bin/mesos-appmaster-job.sh` provide a way 
+to configure and start the application master. The worker nodes inherit all further configuration. 
+They are deployed through `bin/mesos-taskmanager.sh`. The configuration inheritance is achieved using 
+configuration overlays. Configuration overlays provide a way to infer a configuration from environment 
+variables and config files which are shipped to the worker nodes.
+
+See [Mesos Architecture](http://mesos.apache.org/documentation/latest/architecture/) for a more details 
+on how frameworks are handled by Mesos.
 
 {% top %}
