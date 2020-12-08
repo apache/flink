@@ -38,5 +38,4 @@ trait FlinkPhysicalRel extends FlinkRelNode {
     *         Returns None if required traits cannot be satisfied.
     */
   def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = None
-
 }

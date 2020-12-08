@@ -127,7 +127,7 @@ object ExecNodePlanDumper {
             withExecNodeId = withExecNodeId,
             withChangelogTraits = withChangelogTraits,
             withOutputType = withOutputType,
-            stopExplainNodes = Some(stopExplainNodes),
+            stopExplainNodes = Some(stopExplainNodes.toList),
             reuseInfoMap = Some(reuseInfoMap),
             withResource = withResource)
           sb.append(reusePlan).append(System.lineSeparator)
@@ -155,7 +155,7 @@ object ExecNodePlanDumper {
       withExecNodeId: Boolean = false,
       withChangelogTraits: Boolean = false,
       withOutputType: Boolean = false,
-      stopExplainNodes: Option[util.Set[ExecNode[_]]] = None,
+      stopExplainNodes: Option[util.List[ExecNode[_]]] = None,
       reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_], (Integer, Boolean)]] = None,
       withResource: Boolean = false
   ): String = {
@@ -223,9 +223,10 @@ class NodeTreeWriterImpl(
     withExecNodeId: Boolean = false,
     withChangelogTraits: Boolean = false,
     withOutputType: Boolean = false,
-    stopExplainNodes: Option[util.Set[ExecNode[_]]] = None,
+    stopExplainNodes: Option[util.List[ExecNode[_]]] = None,
     reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_], (Integer, Boolean)]] = None,
-    withResource: Boolean = false)
+    withResource: Boolean = false,
+    includingBorder: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, false) {
 
   require((stopExplainNodes.isEmpty && reuseInfoMap.isEmpty) ||
@@ -286,13 +287,13 @@ class NodeTreeWriterImpl(
   override def explain_(rel: RelNode, values: JList[Pair[String, AnyRef]]): Unit = {
     val node = rel.asInstanceOf[ExecNode[_]]
     reuseInfo.addVisitedTimes(node)
-    val inputs = rel.getInputs
+    val inputs = node.getInputNodes
     // whether explain input nodes of current node
     val explainInputs = needExplainInputs(node)
     val mq = rel.getCluster.getMetadataQuery
     if (explainInputs && !mq.isVisibleInExplain(rel, explainLevel)) {
       // render children in place of this, at same level
-      inputs.toSeq.foreach(_.explain(this))
+      inputs.toSeq.foreach(_.asInstanceOf[RelNode].explain(this))
       return
     }
 
@@ -302,6 +303,15 @@ class NodeTreeWriterImpl(
         s.append(if (isLast) "   " else ":  ")
       }
       s.append(if (lastChildren.last) "+- " else ":- ")
+    }
+
+    val borderIndex = stopExplainNodes match {
+      case Some(borders) => borders.indexOf(rel)
+      case _ => -1
+    }
+    val reachBorder = borderIndex >= 0
+    if (reachBorder && includingBorder) {
+      s.append("[#").append(borderIndex + 1).append("] ")
     }
 
     val reuseId = reuseInfo.getReuseId(node)
@@ -373,11 +383,14 @@ class NodeTreeWriterImpl(
         .append(mq.getCumulativeCost(rel))
     }
     pw.println(s)
+    if (reachBorder) {
+      return
+    }
     if (explainInputs && inputs.length > 1 && printDetail) {
       inputs.toSeq.init.foreach { rel =>
         depth = depth + 1
         lastChildren = lastChildren :+ false
-        rel.explain(this)
+        rel.asInstanceOf[RelNode].explain(this)
         depth = depth - 1
         lastChildren = lastChildren.init
       }
@@ -385,7 +398,7 @@ class NodeTreeWriterImpl(
     if (explainInputs && !inputs.isEmpty && printDetail) {
       depth = depth + 1
       lastChildren = lastChildren :+ true
-      inputs.toSeq.last.explain(this)
+      inputs.toSeq.last.asInstanceOf[RelNode].explain(this)
       depth = depth - 1
       lastChildren = lastChildren.init
     }

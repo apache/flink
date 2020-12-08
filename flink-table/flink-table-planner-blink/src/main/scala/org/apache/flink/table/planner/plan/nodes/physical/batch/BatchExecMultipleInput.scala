@@ -57,10 +57,6 @@ class BatchExecMultipleInput(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[_]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[_]])
-  }
-
   override def getInputEdges: util.List[ExecEdge] = inputEdges.toList
 
   override def replaceInputNode(
