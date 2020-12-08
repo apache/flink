@@ -142,6 +142,15 @@ Connector Options
       <td>Comma separated list of Kafka brokers.</td>
     </tr>
     <tr>
+      <td><h5>properties.*</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>
+         This can set and pass arbitrary Kafka configurations. Suffix names must match the configuration key defined in <a href="https://kafka.apache.org/documentation/#configuration">Kafka Configuration documentation</a>. Flink will remove the "properties." key prefix and pass the transformed key and values to the underlying KafkaClient. For example, you can disable automatic topic creation via <code>'properties.allow.auto.create.topics' = 'false'</code>. But there are some configurations that do not support to set, because Flink will override them, e.g. <code>'key.deserializer'</code> and <code>'value.deserializer'</code>.
+      </td>
+    </tr>
+    <tr>
       <td><h5>key.format</h5></td>
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
