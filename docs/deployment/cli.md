@@ -146,7 +146,7 @@ the storage but makes Flink clean up the savepoint-related metadata as well.
 Another action for stopping a job is `stop`. It is a more graceful way of stopping a running streaming 
 job as the `stop`  flows from source to sink. When the user requests to stop a job, all sources will 
 be requested to send the last checkpoint barrier that will trigger a savepoint, and after the successful 
-completion of that savepoint, they will finish by calling their	`cancel()` method. 
+completion of that savepoint, they will finish by calling their `cancel()` method. 
 
 {% highlight bash %}
 $ ./bin/flink stop \
