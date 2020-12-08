@@ -53,6 +53,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	private final Map<Gauge, DGauge> gauges = new ConcurrentHashMap<>();
 	private final Map<Counter, DCounter> counters = new ConcurrentHashMap<>();
 	private final Map<Meter, DMeter> meters = new ConcurrentHashMap<>();
+	private final Map<Histogram, DHistogram> histograms = new ConcurrentHashMap<>();
 
 	private DatadogHttpClient client;
 	private List<String> configTags;
@@ -86,7 +87,8 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 			// Only consider rate
 			meters.put(m, new DMeter(m, name, host, tags, clock));
 		} else if (metric instanceof Histogram) {
-			LOGGER.warn("Cannot add {} because Datadog HTTP API doesn't support Histogram", metricName);
+			Histogram h = (Histogram) metric;
+			histograms.put(h, new DHistogram(h, name, host, tags, clock));
 		} else {
 			LOGGER.warn("Cannot add unknown metric type {}. This indicates that the reporter " +
 				"does not support this metric type.", metric.getClass().getName());
@@ -102,7 +104,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		} else if (metric instanceof Meter) {
 			meters.remove(metric);
 		} else if (metric instanceof Histogram) {
-			// No Histogram is registered
+			histograms.remove(metric);
 		} else {
 			LOGGER.warn("Cannot remove unknown metric type {}. This indicates that the reporter " +
 				"does not support this metric type.", metric.getClass().getName());
@@ -139,6 +141,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		addGaugesAndUnregisterOnException(request);
 		counters.values().forEach(request::add);
 		meters.values().forEach(request::add);
+		histograms.values().forEach(histogram -> histogram.addTo(request));
 
 		int totalMetrics = request.getSeries().size();
 		int fromIndex = 0;
