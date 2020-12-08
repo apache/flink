@@ -309,7 +309,7 @@ tools like `curl` can be used to get even more out of Flink.
 
 Flink supports different deployment backends like [Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}) 
 or [YARN]({% link deployment/resource-providers/yarn.md %}) which are described in more detail in the 
-Resource Provider section. You can specify the mode you're Flink cluster is running in through the 
+Resource Provider section. You can specify the mode your Flink cluster is running in through the 
 `--target` parameter. It supports the following values:
 * `local`
 * `remote`
