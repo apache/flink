@@ -37,7 +37,7 @@ public interface ApplicationDeployer {
 	 * @param applicationConfiguration an {@link ApplicationConfiguration} specific to
 	 *                                   the application to be executed.
 	 */
-	 void run(
+	void run(
 			final Configuration configuration,
 			final ApplicationConfiguration applicationConfiguration) throws Exception;
 }
