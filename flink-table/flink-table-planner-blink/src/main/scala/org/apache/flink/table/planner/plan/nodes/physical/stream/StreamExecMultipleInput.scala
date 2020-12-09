@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, LegacyStreamExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -40,7 +40,7 @@ class StreamExecMultipleInput(
     inputRels: Array[RelNode],
     outputRel: RelNode)
   extends MultipleInputRel(cluster, traitSet, inputRels, outputRel, inputRels.map(_ => 0))
-  with StreamExecNode[RowData]
+  with LegacyStreamExecNode[RowData]
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = {

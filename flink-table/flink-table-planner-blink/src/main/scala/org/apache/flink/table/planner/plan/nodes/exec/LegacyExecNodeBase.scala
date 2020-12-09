@@ -34,8 +34,11 @@ import scala.collection.JavaConversions._
  *
  * @tparam P The Planner
  * @tparam T The type of the elements that result from this [[Transformation]]
+ *
+ * <p>NOTE: This class will be removed once all sub-classes do not extend from RelNode.
  */
-trait ExecNodeBase[P <: Planner, T] extends ExecNode[T] {
+@Deprecated
+trait LegacyExecNodeBase[P <: Planner, T] extends ExecNode[T] {
 
   /**
    * The [[Transformation]] translated from this node.

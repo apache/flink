@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExpandCodeG
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Expand
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
@@ -50,7 +50,7 @@ class BatchExecExpand(
     expandIdIndex: Int)
   extends Expand(cluster, traitSet, input, outputRowType, projects, expandIdIndex)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecExpand(

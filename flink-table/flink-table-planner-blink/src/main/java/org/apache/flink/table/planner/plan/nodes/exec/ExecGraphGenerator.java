@@ -71,8 +71,8 @@ public class ExecGraphGenerator {
 			inputNodes.add(generate((FlinkPhysicalRel) input));
 		}
 
-		if (rel instanceof ExecNodeBase) {
-			ExecNodeBase<?, ?> baseNode = (ExecNodeBase<?, ?>) rel;
+		if (rel instanceof LegacyExecNodeBase) {
+			LegacyExecNodeBase<?, ?> baseNode = (LegacyExecNodeBase<?, ?>) rel;
 			baseNode.setInputNodes(inputNodes);
 			execNode = baseNode;
 		} else {

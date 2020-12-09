@@ -25,7 +25,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 import org.apache.flink.table.runtime.operators.multipleinput.{BatchMultipleInputStreamOperatorFactory, TableOperatorWrapperGenerator}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -52,7 +52,7 @@ class BatchExecMultipleInput(
     outputRel: RelNode,
     inputEdges: Array[ExecEdge])
   extends MultipleInputRel(cluster, traitSet, inputRels, outputRel, inputEdges.map(_.getPriority))
-  with BatchExecNode[RowData]
+  with LegacyBatchExecNode[RowData]
   with BatchPhysicalRel {
 
   //~ ExecNode methods -----------------------------------------------------------
@@ -68,7 +68,7 @@ class BatchExecMultipleInput(
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
     val inputTransforms = getInputNodes.map(n => n.translateToPlan(planner))
-    val tailTransform = outputRel.asInstanceOf[BatchExecNode[_]].translateToPlan(planner)
+    val tailTransform = outputRel.asInstanceOf[LegacyBatchExecNode[_]].translateToPlan(planner)
 
     val outputType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 

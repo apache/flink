@@ -32,12 +32,12 @@ import org.apache.calcite.rel.AbstractRelNode
 import java.util
 
 /**
- * [[BatchExecNode]] for testing purpose.
+ * [[LegacyBatchExecNode]] for testing purpose.
  */
 class TestingBatchExecNode
     extends AbstractRelNode(TestingBatchExecNode.cluster, TestingBatchExecNode.traitSet)
     with BatchPhysicalRel
-    with BatchExecNode[BatchPlanner]  {
+    with LegacyBatchExecNode[BatchPlanner]  {
 
   val inputNodes: util.List[ExecNode[_]] =
     new util.ArrayList[ExecNode[_]]()
