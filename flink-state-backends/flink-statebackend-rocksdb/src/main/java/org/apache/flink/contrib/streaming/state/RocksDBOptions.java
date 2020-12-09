@@ -135,4 +135,18 @@ public class RocksDBOptions {
                                     "The fraction of cache memory that is reserved for high-priority data like index, filter, and "
                                             + "compression dictionary blocks. This option only has an effect when '%s' or '%s' are configured.",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
+
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    public static final ConfigOption<Boolean> USE_PARTITIONED_INDEX_FILTERS =
+            ConfigOptions.key("state.backend.rocksdb.memory.partitioned-index-filters")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            String.format(
+                                    "With partitioning, the index/filter block of an SST file is partitioned into smaller blocks with "
+                                            + "an additional top-level index on them. When reading an index/filter, only top-level index is loaded into memory. "
+                                            + "The partitioned index/filter then uses the top-level index to load on demand into the block cache "
+                                            + "the partitions that are required to perform the index/filter query. "
+                                            + "This option only has an effect when '%s' or '%s' are configured.",
+                                    USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 }
