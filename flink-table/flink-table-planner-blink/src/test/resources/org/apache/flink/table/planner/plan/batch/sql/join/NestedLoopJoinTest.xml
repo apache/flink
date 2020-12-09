@@ -96,7 +96,7 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[FullOuterJoin], where=[AND(=(a, d), <(d, 2))], select=[d, g, a, c], build=[left])
++- NestedLoopJoin(joinType=[FullOuterJoin], where=[((a = d) AND (d < 2))], select=[d, g, a, c], build=[left])
    :- Exchange(distribution=[single])
    :  +- Calc(select=[d, g])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
@@ -120,7 +120,7 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-NestedLoopJoin(joinType=[FullOuterJoin], where=[AND(=(a, d), <(d, 2), <(b, h))], select=[d, e, f, g, h, a, b, c], build=[right])
+NestedLoopJoin(joinType=[FullOuterJoin], where=[((a = d) AND (d < 2) AND (b < h))], select=[d, e, f, g, h, a, b, c], build=[right])
 :- Exchange(distribution=[single])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[single])
@@ -143,7 +143,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[FullOuterJoin], where=[=(b, e)], select=[b, c, e, g], build=[left])
++- NestedLoopJoin(joinType=[FullOuterJoin], where=[(b = e)], select=[b, c, e, g], build=[left])
    :- Exchange(distribution=[single])
    :  +- Calc(select=[b, c])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -167,7 +167,7 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-NestedLoopJoin(joinType=[FullOuterJoin], where=[<>(a, d)], select=[d, e, f, g, h, a, b, c], build=[right])
+NestedLoopJoin(joinType=[FullOuterJoin], where=[(a <> d)], select=[d, e, f, g, h, a, b, c], build=[right])
 :- Exchange(distribution=[single])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[single])
@@ -193,8 +193,8 @@ LogicalProject(a=[COALESCE($0, $3)], b=[$1], c=[$2], b0=[$4], c0=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[CASE(IS NOT NULL(a), a, a0) AS $f0, b, c, b0, c0])
-+- NestedLoopJoin(joinType=[FullOuterJoin], where=[=(a, a0)], select=[a, b, c, a0, b0, c0], build=[left])
+Calc(select=[CASE(a IS NOT NULL, a, a0) AS $f0, b, c, b0, c0])
++- NestedLoopJoin(joinType=[FullOuterJoin], where=[(a = a0)], select=[a, b, c, a0, b0, c0], build=[left])
    :- Exchange(distribution=[single])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[single])
@@ -217,9 +217,9 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[=(a, d)], select=[d, g, a, c], build=[left])
++- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[d, g, a, c], build=[left])
    :- Exchange(distribution=[broadcast])
-   :  +- Calc(select=[d, g], where=[<(d, 2)])
+   :  +- Calc(select=[d, g], where=[(d < 2)])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Calc(select=[a, c])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -240,7 +240,7 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d), <(d, 2), <(b, h))], select=[d, e, f, g, h, a, b, c], build=[right])
+NestedLoopJoin(joinType=[LeftOuterJoin], where=[((a = d) AND (d < 2) AND (b < h))], select=[d, e, f, g, h, a, b, c], build=[right])
 :- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[broadcast])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -261,9 +261,9 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[AND(=(a, d), <(b, h))], select=[d, e, f, g, h, a, b, c], build=[left])
+NestedLoopJoin(joinType=[InnerJoin], where=[((a = d) AND (b < h))], select=[d, e, f, g, h, a, b, c], build=[left])
 :- Exchange(distribution=[broadcast])
-:  +- Calc(select=[d, e, f, g, h], where=[<(d, 2)])
+:  +- Calc(select=[d, e, f, g, h], where=[(d < 2)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -285,9 +285,9 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[=(a, d)], select=[d, g, a, c], build=[left])
++- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[d, g, a, c], build=[left])
    :- Exchange(distribution=[broadcast])
-   :  +- Calc(select=[d, g], where=[<(d, 2)])
+   :  +- Calc(select=[d, g], where=[(d < 2)])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Calc(select=[a, c])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -310,7 +310,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[AND(=(b, e), =(a, d))], select=[a, b, c, d, e, g], build=[left])
++- NestedLoopJoin(joinType=[InnerJoin], where=[((b = e) AND (a = d))], select=[a, b, c, d, e, g], build=[left])
    :- Exchange(distribution=[broadcast])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Calc(select=[d, e, g])
@@ -333,7 +333,7 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[AND(=(a, d), =(b, e))], select=[d, e, g, a, b, c], build=[left])
++- NestedLoopJoin(joinType=[InnerJoin], where=[((a = d) AND (b = e))], select=[d, e, g, a, b, c], build=[left])
    :- Exchange(distribution=[broadcast])
    :  +- Calc(select=[d, e, g])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
@@ -357,8 +357,8 @@ LogicalProject(a=[$0], d=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, d])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[=($f3, d)], select=[a, $f3, d], build=[right])
-   :- Calc(select=[a, +(a, 1) AS $f3])
++- NestedLoopJoin(joinType=[InnerJoin], where=[($f3 = d)], select=[a, $f3, d], build=[right])
+   :- Calc(select=[a, (a + 1) AS $f3])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[d])
@@ -403,7 +403,7 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftOuterJoin], where=[<>(a, d)], select=[d, e, f, g, h, a, b, c], build=[right])
+NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a <> d)], select=[d, e, f, g, h, a, b, c], build=[right])
 :- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[broadcast])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -467,7 +467,7 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d), <(d, 2))], select=[d, g, a, c], build=[right])
++- NestedLoopJoin(joinType=[LeftOuterJoin], where=[((a = d) AND (d < 2))], select=[d, g, a, c], build=[right])
    :- Calc(select=[d, g])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[broadcast])
@@ -491,7 +491,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[RightOuterJoin], where=[=(b, e)], select=[b, c, e, g], build=[left])
++- NestedLoopJoin(joinType=[RightOuterJoin], where=[(b = e)], select=[b, c, e, g], build=[left])
    :- Exchange(distribution=[broadcast])
    :  +- Calc(select=[b, c])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -516,7 +516,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, g], build=[left])
++- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, c, d, g], build=[left])
    :- Exchange(distribution=[broadcast])
    :  +- Calc(select=[a, c])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -561,7 +561,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(b, e)], select=[b, c, e, g], build=[right])
++- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, c, e, g], build=[right])
    :- Calc(select=[b, c])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
@@ -606,9 +606,9 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[RightOuterJoin], where=[=(a, d)], select=[d, g, a, c], build=[left])
++- NestedLoopJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[d, g, a, c], build=[left])
    :- Exchange(distribution=[broadcast])
-   :  +- Calc(select=[d, g], where=[<(d, 2)])
+   :  +- Calc(select=[d, g], where=[(d < 2)])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Calc(select=[a, c])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -629,7 +629,7 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-NestedLoopJoin(joinType=[RightOuterJoin], where=[<>(a, d)], select=[d, e, f, g, h, a, b, c], build=[left])
+NestedLoopJoin(joinType=[RightOuterJoin], where=[(a <> d)], select=[d, e, f, g, h, a, b, c], build=[left])
 :- Exchange(distribution=[broadcast])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -650,9 +650,9 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-NestedLoopJoin(joinType=[RightOuterJoin], where=[AND(=(a, d), <(b, h))], select=[d, e, f, g, h, a, b, c], build=[left])
+NestedLoopJoin(joinType=[RightOuterJoin], where=[((a = d) AND (b < h))], select=[d, e, f, g, h, a, b, c], build=[left])
 :- Exchange(distribution=[broadcast])
-:  +- Calc(select=[d, e, f, g, h], where=[<(d, 2)])
+:  +- Calc(select=[d, e, f, g, h], where=[(d < 2)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -681,8 +681,8 @@ LogicalProject(k=[$0], v=[$1], k0=[$2], v0=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(k, k0)], select=[k, v, k0, v0], build=[right])
-:- Calc(select=[CAST(0:BIGINT) AS k, v], where=[=(k, 0:BIGINT)])
+NestedLoopJoin(joinType=[LeftOuterJoin], where=[(k = k0)], select=[k, v, k0, v0], build=[right])
+:- Calc(select=[CAST(0:BIGINT) AS k, v], where=[(k = 0:BIGINT)])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]], fields=[k, v])
 +- Exchange(distribution=[broadcast])
    +- Values(tuples=[[]], values=[k, v])

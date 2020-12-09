@@ -204,7 +204,7 @@ LogicalFilter(condition=[=($0, 2)])
 Calc(select=[CAST(2) AS b, EXPR$0])
 +- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0])
    +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[a, b, c], where=[=(b, 2)])
+      +- Calc(select=[a, b, c], where=[(b = 2)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

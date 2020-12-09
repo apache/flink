@@ -89,19 +89,34 @@ trait FlinkRelNode extends RelNode {
         val ops = c.getOperands.map(
           getExpressionString(_, inFields, localExprsTable, expressionFormat))
         c.getOperator match {
-          case _ : SqlAsOperator => ops.head
+          case _: SqlAsOperator => ops.head
           case _ =>
-            expressionFormat match {
-              case ExpressionFormat.Infix if ops.size() == 1 =>
-                val operand = ops.head
-                c.getKind match {
-                  case IS_FALSE | IS_NOT_FALSE | IS_TRUE | IS_NOT_TRUE | IS_UNKNOWN | IS_NULL |
-                       IS_NOT_NULL => s"$operand $op"
-                  case _ => s"$op($operand)"
-                }
-              case ExpressionFormat.Infix => s"(${ops.mkString(s" $op ")})"
-              case ExpressionFormat.PostFix => s"(${ops.mkString(", ")})$op"
-              case ExpressionFormat.Prefix => s"$op(${ops.mkString(", ")})"
+            if (ops.size() == 1) {
+              val operand = ops.head
+              expressionFormat match {
+                case ExpressionFormat.Infix =>
+                  c.getKind match {
+                    case IS_FALSE | IS_NOT_FALSE | IS_TRUE | IS_NOT_TRUE | IS_UNKNOWN
+                         | IS_NULL | IS_NOT_NULL => s"$operand $op"
+                    case _ => s"$op($operand)"
+                  }
+                case ExpressionFormat.PostFix => s"$operand $op"
+                case ExpressionFormat.Prefix => s"$op($operand)"
+              }
+            } else {
+              c.getKind match {
+                case TIMES | DIVIDE | PLUS | MINUS
+                     | LESS_THAN | LESS_THAN_OR_EQUAL
+                     | GREATER_THAN | GREATER_THAN_OR_EQUAL
+                     | EQUALS | NOT_EQUALS
+                     | OR | AND =>
+                  expressionFormat match {
+                    case ExpressionFormat.Infix => s"(${ops.mkString(s" $op ")})"
+                    case ExpressionFormat.PostFix => s"(${ops.mkString(", ")})$op"
+                    case ExpressionFormat.Prefix => s"$op(${ops.mkString(", ")})"
+                  }
+                case _ => s"$op(${ops.mkString(", ")})"
+              }
             }
         }
 

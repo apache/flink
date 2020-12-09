@@ -16,32 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testCreateViewWithRowNumber">
-    <Resource name="sql">
-      <![CDATA[insert into sink select name, eat, cnt
-from view2 where row_num <= 3]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
-   +- LogicalFilter(condition=[<=($3, 3)])
-      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
-         +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
-            +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[cnt DESC], select=[name, eat, cnt])
-   +- Exchange(distribution=[hash[name]])
-      +- GroupAggregate(groupBy=[name, eat], select=[name, eat, SUM(age) AS cnt])
-         +- Exchange(distribution=[hash[name, eat]])
-            +- TableSourceScan(table=[[default_catalog, default_database, test_source]], fields=[name, eat, age])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testCorrelateSortToRank">
     <Resource name="sql">
       <![CDATA[
@@ -77,6 +51,32 @@ Calc(select=[a, b])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCreateViewWithRowNumber">
+    <Resource name="sql">
+      <![CDATA[insert into sink select name, eat, cnt
+from view2 where row_num <= 3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
+   +- LogicalFilter(condition=[<=($3, 3)])
+      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[cnt DESC], select=[name, eat, cnt])
+   +- Exchange(distribution=[hash[name]])
+      +- GroupAggregate(groupBy=[name, eat], select=[name, eat, SUM(age) AS cnt])
+         +- Exchange(distribution=[hash[name, eat]])
+            +- TableSourceScan(table=[[default_catalog, default_database, test_source]], fields=[name, eat, age])
 ]]>
     </Resource>
   </TestCase>
@@ -561,7 +561,7 @@ Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankS
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM($f2) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
-         +- Calc(select=[a, b, CASE(>(c, 10), 1, <(c, 0), 0, null:INTEGER) AS $f2])
+         +- Calc(select=[a, b, CASE((c > 10), 1, (c < 0), 0, null:INTEGER) AS $f2])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -635,7 +635,7 @@ Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankS
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
-         +- Calc(select=[a, b, c, IS TRUE(AND(>=(c, 0), <(a, 0))) AS $f3])
+         +- Calc(select=[a, b, c, ((c >= 0) AND (a < 0)) IS TRUE AS $f3])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -671,7 +671,7 @@ Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankS
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
-         +- Calc(select=[a, b, c, IS TRUE(AND(<=(c, 0), <(a, 0))) AS $f3])
+         +- Calc(select=[a, b, c, ((c <= 0) AND (a < 0)) IS TRUE AS $f3])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -707,7 +707,7 @@ Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, 
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM($f2) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
-         +- Calc(select=[a, b, IF(>(c, 10), 1, 0) AS $f2])
+         +- Calc(select=[a, b, IF((c > 10), 1, 0) AS $f2])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

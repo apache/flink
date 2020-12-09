@@ -31,8 +31,8 @@ LogicalProject(rate=[*($0, $4)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[*(o_amount, rate) AS rate])
-+- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)), =(currency, o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
+Calc(select=[(o_amount * rate) AS rate])
++- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
    :- Exchange(distribution=[hash[o_currency]])
    :  +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_amount, o_currency, o_rowtime])
    +- Exchange(distribution=[hash[currency]])
@@ -59,15 +59,15 @@ LogicalProject(rate=[$0], secondary_key=[$1], t3_comment=[$2], t3_secondary_key=
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(t3_secondary_key, secondary_key)], select=[rate, secondary_key, t3_comment, t3_secondary_key], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(t3_secondary_key = secondary_key)], select=[rate, secondary_key, t3_comment, t3_secondary_key], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[secondary_key]])
-:  +- Calc(select=[*(o_amount, rate) AS rate, secondary_key])
-:     +- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)), OR(=(currency, o_currency), =(secondary_key, o_secondary_key)))], select=[o_rowtime, o_amount, o_currency, o_secondary_key, rowtime, currency, rate, secondary_key])
+:  +- Calc(select=[(o_amount * rate) AS rate, secondary_key])
+:     +- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND ((currency = o_currency) OR (secondary_key = o_secondary_key)))], select=[o_rowtime, o_amount, o_currency, o_secondary_key, rowtime, currency, rate, secondary_key])
 :        :- Exchange(distribution=[single])
 :        :  +- Calc(select=[o_rowtime, o_amount, o_currency, o_secondary_key])
 :        :     +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_rowtime, o_comment, o_amount, o_currency, o_secondary_key])
 :        +- Exchange(distribution=[single])
-:           +- Calc(select=[rowtime, currency, rate, secondary_key], where=[>(rate, 110)])
+:           +- Calc(select=[rowtime, currency, rate, secondary_key], where=[(rate > 110)])
 :              +- DataStreamScan(table=[[default_catalog, default_database, RatesHistory]], fields=[rowtime, comment, currency, rate, secondary_key])
 +- Exchange(distribution=[hash[t3_secondary_key]])
    +- DataStreamScan(table=[[default_catalog, default_database, Table3]], fields=[t3_comment, t3_secondary_key])
@@ -91,10 +91,10 @@ LogicalProject(rate=[*($0, $4)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[*(o_amount, rate) AS rate])
-+- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)), =(currency, o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
+Calc(select=[(o_amount * rate) AS rate])
++- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
    :- Exchange(distribution=[hash[o_currency]])
-   :  +- Calc(select=[o_amount, o_currency, o_rowtime], where=[>(o_amount, 1000)])
+   :  +- Calc(select=[o_amount, o_currency, o_rowtime], where=[(o_amount > 1000)])
    :     +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_amount, o_currency, o_rowtime])
    +- Exchange(distribution=[hash[currency]])
       +- DataStreamScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
@@ -116,8 +116,8 @@ LogicalProject(rate=[*($0, $4)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[*(o_amount, rate) AS rate])
-+- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(o_proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)), =(currency, o_currency))], select=[o_amount, o_currency, o_proctime, currency, rate, proctime])
+Calc(select=[(o_amount * rate) AS rate])
++- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_proctime, currency, rate, proctime])
    :- Exchange(distribution=[hash[o_currency]])
    :  +- DataStreamScan(table=[[default_catalog, default_database, ProctimeOrders]], fields=[o_amount, o_currency, o_proctime])
    +- Exchange(distribution=[hash[currency]])

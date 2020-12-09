@@ -35,8 +35,9 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, User
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.LookupJoinCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, LookupJoinCodeGenerator}
-import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
+import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.{ExpressionFormat, FlinkRelNode}
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
@@ -239,7 +240,7 @@ abstract class CommonLookupJoin(
       .item("lookup", lookupKeys)
       .itemIf("where", whereString, whereString.nonEmpty)
       .itemIf("joinCondition",
-        joinConditionToString(resultFieldNames, remainingCondition),
+        joinConditionToString(resultFieldNames, remainingCondition, preferExpressionFormat(pw)),
         remainingCondition.isDefined)
       .item("select", selection)
   }
@@ -677,9 +678,10 @@ abstract class CommonLookupJoin(
 
   private def joinConditionToString(
       resultFieldNames: Array[String],
-      joinCondition: Option[RexNode]): String = joinCondition match {
+      joinCondition: Option[RexNode],
+      expressionFormat: ExpressionFormat = ExpressionFormat.Prefix): String = joinCondition match {
     case Some(condition) =>
-      getExpressionString(condition, resultFieldNames.toList, None)
+      getExpressionString(condition, resultFieldNames.toList, None, expressionFormat)
     case None => "N/A"
   }
 }

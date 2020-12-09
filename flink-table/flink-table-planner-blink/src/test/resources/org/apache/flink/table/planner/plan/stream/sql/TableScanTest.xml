@@ -135,8 +135,8 @@ LogicalProject(ts=[$0], a=[$1], b=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[ts, a, b], where=[>(a, 1)])
-+- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1:INTERVAL SECOND)])
+Calc(select=[ts, a, b], where=[(a > 1)])
++- WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1:INTERVAL SECOND)])
    +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b])
 ]]>
     </Resource>
@@ -153,7 +153,7 @@ LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
+Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
 +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 ]]>
     </Resource>
@@ -173,9 +173,9 @@ LogicalProject(ts=[$0], a=[$1], b=[$2], my_ts=[$3], proc=[$4])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[ts, a, b, my_ts, PROCTIME_MATERIALIZE(proc) AS proc], where=[>(a, 1)])
-+- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1:INTERVAL SECOND)])
-   +- Calc(select=[ts, a, b, -(ts, 1:INTERVAL SECOND) AS my_ts, PROCTIME() AS proc])
+Calc(select=[ts, a, b, my_ts, PROCTIME_MATERIALIZE(proc) AS proc], where=[(a > 1)])
++- WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1:INTERVAL SECOND)])
+   +- Calc(select=[ts, a, b, (ts - 1:INTERVAL SECOND) AS my_ts, PROCTIME() AS proc])
       +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b])
 ]]>
     </Resource>
@@ -228,8 +228,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-WatermarkAssigner(rowtime=[d], watermark=[-(d, 1:INTERVAL SECOND)])
-+- Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
+WatermarkAssigner(rowtime=[d], watermark=[(d - 1:INTERVAL SECOND)])
++- Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
    +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 ]]>
     </Resource>
