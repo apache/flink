@@ -55,14 +55,12 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.TriConsumer;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.junit.Rule;
 import org.junit.rules.ErrorCollector;
 import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +77,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -104,11 +101,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 	public final TemporaryFolder temp = new TemporaryFolder();
 
 	@Rule
-	public final Timeout timeout = Timeout.builder()
-		.withTimeout(300, TimeUnit.SECONDS)
-		.build();
-
-	@Rule
 	public ErrorCollector collector = new ErrorCollector();
 
 	@Nullable
@@ -116,8 +108,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 		final File checkpointDir = temp.newFolder();
 		StreamExecutionEnvironment env = settings.createEnvironment(checkpointDir);
 
-		int minCheckpoints = 10;
-		settings.dagCreator.accept(env, minCheckpoints, settings.slotSharing);
+		settings.dagCreator.create(env, settings.minCheckpoints, settings.slotSharing, settings.expectedFailures - 1);
 		try {
 			final JobExecutionResult result = env.execute();
 
@@ -143,14 +134,15 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 	/**
 	 * A source that generates longs in a fixed number of splits.
 	 */
-	protected static class LongSource
-			implements Source<Long, UnalignedCheckpointTestBase.LongSource.LongSplit, List<UnalignedCheckpointTestBase.LongSource.LongSplit>> {
+	protected static class LongSource implements Source<Long, LongSource.LongSplit, LongSource.EnumeratorState> {
 		private final long minCheckpoints;
 		private final int numSplits;
+		private final int expectedRestarts;
 
-		protected LongSource(long minCheckpoints, int numSplits) {
+		protected LongSource(long minCheckpoints, int numSplits, int expectedRestarts) {
 			this.minCheckpoints = minCheckpoints;
 			this.numSplits = numSplits;
+			this.expectedRestarts = expectedRestarts;
 		}
 
 		@Override
@@ -160,22 +152,20 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
 		@Override
 		public SourceReader<Long, LongSplit> createReader(SourceReaderContext readerContext) {
-			return new LongSourceReader(minCheckpoints);
+			return new LongSourceReader(minCheckpoints, expectedRestarts);
 		}
 
 		@Override
-		public SplitEnumerator<LongSplit, List<UnalignedCheckpointTestBase.LongSource.LongSplit>> createEnumerator(SplitEnumeratorContext<LongSplit> enumContext) {
+		public SplitEnumerator<LongSplit, EnumeratorState> createEnumerator(SplitEnumeratorContext<LongSplit> enumContext) {
 			List<LongSplit> splits = IntStream.range(0, numSplits)
 				.mapToObj(i -> new LongSplit(i, numSplits, 0))
 				.collect(Collectors.toList());
-			return new LongSplitSplitEnumerator(enumContext, splits);
+			return new LongSplitSplitEnumerator(enumContext, new EnumeratorState(splits, 0));
 		}
 
 		@Override
-		public SplitEnumerator<LongSplit, List<UnalignedCheckpointTestBase.LongSource.LongSplit>> restoreEnumerator(
-			SplitEnumeratorContext<LongSplit> enumContext,
-			List<UnalignedCheckpointTestBase.LongSource.LongSplit> checkpoint) {
-			return new LongSplitSplitEnumerator(enumContext, checkpoint);
+		public SplitEnumerator<LongSplit, EnumeratorState> restoreEnumerator(SplitEnumeratorContext<LongSplit> enumContext, EnumeratorState state) {
+			return new LongSplitSplitEnumerator(enumContext, state);
 		}
 
 		@Override
@@ -184,18 +174,23 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 		}
 
 		@Override
-		public SimpleVersionedSerializer<List<LongSplit>> getEnumeratorCheckpointSerializer() {
+		public SimpleVersionedSerializer<EnumeratorState> getEnumeratorCheckpointSerializer() {
 			return new EnumeratorVersionedSerializer();
 		}
 
 		private static class LongSourceReader implements SourceReader<Long, LongSplit> {
 
 			private final long minCheckpoints;
+			private final int expectedRestarts;
 			private final LongCounter numInputsCounter = new LongCounter();
 			private LongSplit split;
+			private int numAbortedCheckpoints;
+			private boolean throttle = true;
+			private int numRestarts;
 
-			public LongSourceReader(final long minCheckpoints) {
+			public LongSourceReader(final long minCheckpoints, int expectedRestarts) {
 				this.minCheckpoints = minCheckpoints;
+				this.expectedRestarts = expectedRestarts;
 			}
 
 			@Override
@@ -203,14 +198,19 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 			}
 
 			@Override
-			public InputStatus pollNext(ReaderOutput<Long> output) {
+			public InputStatus pollNext(ReaderOutput<Long> output) throws InterruptedException {
 				if (split == null) {
 					return InputStatus.NOTHING_AVAILABLE;
 				}
 
 				output.collect(split.nextNumber, split.nextNumber);
 				split.nextNumber += split.increment;
-				return split.numCompletedCheckpoints >= minCheckpoints ? InputStatus.END_OF_INPUT : InputStatus.MORE_AVAILABLE;
+
+				if (throttle) {
+					// throttle source as long as sink is not backpressuring (which it does only after full recovery)
+					Thread.sleep(1);
+				}
+				return split.numCompletedCheckpoints >= minCheckpoints && numRestarts >= expectedRestarts ? InputStatus.END_OF_INPUT : InputStatus.MORE_AVAILABLE;
 			}
 
 			@Override
@@ -218,14 +218,28 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 				if (split == null) {
 					return Collections.emptyList();
 				}
-				LOG.info("Snapshotted {} @ {} subtask (? attempt)", split, split.nextNumber % split.increment);
+				throttle = split.numCompletedCheckpoints >= minCheckpoints;
+				LOG.info("Snapshotted {} @ {} subtask ({} attempt)", split, split.nextNumber % split.increment, numRestarts);
 				return singletonList(split);
 			}
 
 			@Override
 			public void notifyCheckpointComplete(long checkpointId) {
 				if (split != null) {
-					LOG.info("notifyCheckpointComplete {} @ {} subtask (? attempt)", split.numCompletedCheckpoints, split.nextNumber % split.increment);
+					LOG.info("notifyCheckpointComplete {} @ {} subtask ({} attempt)",
+						split.numCompletedCheckpoints,
+						split.nextNumber % split.increment,
+						numRestarts);
+					split.numCompletedCheckpoints++;
+					numAbortedCheckpoints = 0;
+				}
+			}
+
+			@Override
+			public void notifyCheckpointAborted(long checkpointId) {
+				if (numAbortedCheckpoints++ > 10) {
+					// aborted too many checkpoints in a row, which usually indicates that part of the pipeline is already completed
+					// here simply also advance completed checkpoints to avoid running into a live lock
 					split.numCompletedCheckpoints++;
 				}
 			}
@@ -241,7 +255,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 					throw new IllegalStateException("Tried to add " + splits + " but already got " + split);
 				}
 				split = Iterables.getOnlyElement(splits);
-				LOG.info("Added split {} @ {} subtask (? attempt)", split, split.nextNumber % split.increment);
+				LOG.info("Added split {} @ {} subtask ({} attempt)", split, split.nextNumber % split.increment, numRestarts);
 			}
 
 			@Override
@@ -250,6 +264,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
 			@Override
 			public void handleSourceEvents(SourceEvent sourceEvent) {
+				if (sourceEvent instanceof RestartEvent) {
+					numRestarts = ((RestartEvent) sourceEvent).numRestarts;
+				}
 			}
 
 			@Override
@@ -260,12 +277,20 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 			}
 		}
 
+		private static class RestartEvent implements SourceEvent {
+			final int numRestarts;
+
+			private RestartEvent(int numRestarts) {
+				this.numRestarts = numRestarts;
+			}
+		}
+
 		private static class LongSplit implements SourceSplit {
 			private final int increment;
 			private long nextNumber;
-			private long numCompletedCheckpoints;
+			private int numCompletedCheckpoints;
 
-			public LongSplit(long nextNumber, int increment, long numCompletedCheckpoints) {
+			public LongSplit(long nextNumber, int increment, int numCompletedCheckpoints) {
 				this.nextNumber = nextNumber;
 				this.increment = increment;
 				this.numCompletedCheckpoints = numCompletedCheckpoints;
@@ -286,13 +311,13 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 			}
 		}
 
-		private static class LongSplitSplitEnumerator implements SplitEnumerator<LongSplit, List<LongSplit>> {
+		private static class LongSplitSplitEnumerator implements SplitEnumerator<LongSplit, EnumeratorState> {
 			private final SplitEnumeratorContext<LongSplit> context;
-			private final List<LongSplit> unassignedSplits;
+			private final EnumeratorState state;
 
-			private LongSplitSplitEnumerator(SplitEnumeratorContext<LongSplit> context, List<LongSplit> unassignedSplits) {
+			private LongSplitSplitEnumerator(SplitEnumeratorContext<LongSplit> context, EnumeratorState state) {
 				this.context = context;
-				this.unassignedSplits = new ArrayList<>(unassignedSplits);
+				this.state = state;
 			}
 
 			@Override
@@ -309,36 +334,42 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
 			@Override
 			public void addSplitsBack(List<LongSplit> splits, int subtaskId) {
-				LOG.info("addSplitsBack {}", splits);
-				// disabled due to FLINK-20290, which may duplicate splits
-				// unassignedSplits.addAll(splits);
-			}
-
-			@Override
-			public void addReader(int subtaskId) {
-				if (context.registeredReaders().size() == context.currentParallelism()) {
-					int numReaders = context.registeredReaders().size();
-					Map<Integer, List<LongSplit>> assignment = new HashMap<>();
-					for (int i = 0; i < unassignedSplits.size(); i++) {
-						assignment
-							.computeIfAbsent(i % numReaders, t -> new ArrayList<>())
-							.add(unassignedSplits.get(i));
-					}
-					LOG.info("Assigning splits {}", assignment);
-					context.assignSplits(new SplitsAssignment<>(assignment));
-					unassignedSplits.clear();
+				if (!splits.isEmpty()) {
+					LOG.info("addSplitsBack {}", splits);
+					state.unassignedSplits.addAll(splits);
+				}
+				if (subtaskId == 0) {
+					// currently always called on failure
+					state.numRestarts++;
 				}
 			}
 
 			@Override
-			public void notifyCheckpointComplete(long checkpointId) {
-				unassignedSplits.forEach(s -> s.numCompletedCheckpoints++);
+			public void addReader(int subtaskId) {
+				if (context.registeredReaders().size() == context.currentParallelism() && !state.unassignedSplits.isEmpty()) {
+					int numReaders = context.registeredReaders().size();
+					Map<Integer, List<LongSplit>> assignment = new HashMap<>();
+					for (int i = 0; i < state.unassignedSplits.size(); i++) {
+						assignment
+							.computeIfAbsent(i % numReaders, t -> new ArrayList<>())
+							.add(state.unassignedSplits.get(i));
+					}
+					LOG.info("Assigning splits {}", assignment);
+					context.assignSplits(new SplitsAssignment<>(assignment));
+					state.unassignedSplits.clear();
+				}
+				context.sendEventToSourceReader(subtaskId, new RestartEvent(state.numRestarts));
 			}
 
 			@Override
-			public List<LongSplit> snapshotState() throws Exception {
-				LOG.info("snapshotState {}", unassignedSplits);
-				return unassignedSplits;
+			public void notifyCheckpointComplete(long checkpointId) {
+				state.unassignedSplits.forEach(s -> s.numCompletedCheckpoints++);
+			}
+
+			@Override
+			public EnumeratorState snapshotState() throws Exception {
+				LOG.info("snapshotState {}", state);
+				return state;
 			}
 
 			@Override
@@ -346,33 +377,61 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 			}
 		}
 
-		private static class EnumeratorVersionedSerializer implements SimpleVersionedSerializer<List<LongSplit>> {
+		private static class EnumeratorState {
+			private final List<LongSplit> unassignedSplits;
+			private int numRestarts;
+
+			public EnumeratorState(List<LongSplit> unassignedSplits, int numRestarts) {
+				this.unassignedSplits = unassignedSplits;
+				this.numRestarts = numRestarts;
+			}
+
+			@Override
+			public String toString() {
+				return "EnumeratorState{" +
+					"unassignedSplits=" + unassignedSplits +
+					", numRestarts=" + numRestarts +
+					'}';
+			}
+		}
+
+		private static class EnumeratorVersionedSerializer implements SimpleVersionedSerializer<EnumeratorState> {
+			private SplitVersionedSerializer splitVersionedSerializer = new SplitVersionedSerializer();
+
 			@Override
 			public int getVersion() {
 				return 0;
 			}
 
 			@Override
-			public byte[] serialize(List<LongSplit> splits) {
-				final byte[] bytes = new byte[20 * splits.size()];
-				for (final LongSplit split : splits) {
-					ByteBuffer.wrap(bytes).putLong(split.nextNumber).putInt(split.increment).putLong(split.numCompletedCheckpoints);
+			public byte[] serialize(EnumeratorState state) {
+				final ByteBuffer byteBuffer = ByteBuffer.allocate(state.unassignedSplits.size() * SplitVersionedSerializer.LENGTH + 4);
+				byteBuffer.putInt(state.numRestarts);
+				for (final LongSplit unassignedSplit : state.unassignedSplits) {
+					byteBuffer.put(splitVersionedSerializer.serialize(unassignedSplit));
 				}
-				return bytes;
+				return byteBuffer.array();
 			}
 
 			@Override
-			public List<LongSplit> deserialize(int version, byte[] serialized) {
+			public EnumeratorState deserialize(int version, byte[] serialized) {
 				final ByteBuffer byteBuffer = ByteBuffer.wrap(serialized);
-				final ArrayList<LongSplit> splits = new ArrayList<>();
+				final int numRestarts = byteBuffer.getInt();
+
+				final List<LongSplit> splits = new ArrayList<>(serialized.length / SplitVersionedSerializer.LENGTH);
+
+				final byte[] serializedSplit = new byte[SplitVersionedSerializer.LENGTH];
 				while (byteBuffer.hasRemaining()) {
-					splits.add(new LongSplit(byteBuffer.getLong(), byteBuffer.getInt(), byteBuffer.getLong()));
+					byteBuffer.get(serializedSplit);
+					splits.add(splitVersionedSerializer.deserialize(version, serializedSplit));
 				}
-				return splits;
+				return new EnumeratorState(splits, numRestarts);
 			}
 		}
 
 		private static class SplitVersionedSerializer implements SimpleVersionedSerializer<LongSplit> {
+			static final int LENGTH = 16;
+
 			@Override
 			public int getVersion() {
 				return 0;
@@ -380,19 +439,22 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
 			@Override
 			public byte[] serialize(LongSplit split) {
-				final byte[] bytes = new byte[20];
-				ByteBuffer.wrap(bytes).putLong(split.nextNumber).putInt(split.increment).putLong(split.numCompletedCheckpoints);
+				final byte[] bytes = new byte[LENGTH];
+				ByteBuffer.wrap(bytes).putLong(split.nextNumber).putInt(split.increment).putInt(split.numCompletedCheckpoints);
 				return bytes;
 			}
 
 			@Override
 			public LongSplit deserialize(int version, byte[] serialized) {
 				final ByteBuffer byteBuffer = ByteBuffer.wrap(serialized);
-				return new LongSplit(byteBuffer.getLong(), byteBuffer.getInt(), byteBuffer.getLong());
+				return new LongSplit(byteBuffer.getLong(), byteBuffer.getInt(), byteBuffer.getInt());
 			}
 		}
 	}
 
+	interface DagCreator {
+		void create(StreamExecutionEnvironment environment, int minCheckpoints, boolean slotSharing, int expectedFailures);
+	}
 
 	/**
 	 * Builder-like interface for all relevant unaligned settings.
@@ -400,6 +462,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 	protected static class UnalignedSettings {
 		private int parallelism;
 		private int slotsPerTaskManager = 1;
+		private int minCheckpoints = 10;
 		private boolean slotSharing = true;
 		@Nullable
 		private File restoreCheckpoint;
@@ -407,9 +470,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 		private int numSlots;
 		private int numBuffers;
 		private int expectedFailures = 0;
-		private final TriConsumer<StreamExecutionEnvironment, Integer, Boolean> dagCreator;
+		private final DagCreator dagCreator;
 
-		public UnalignedSettings(TriConsumer<StreamExecutionEnvironment, Integer, Boolean> dagCreator) {
+		public UnalignedSettings(DagCreator dagCreator) {
 			this.dagCreator = dagCreator;
 		}
 

@@ -19,7 +19,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
@@ -45,8 +44,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Random;
 
+import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
 
 /**
@@ -159,9 +158,12 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 		execute(settings);
 	}
 
-	private static void createPipeline(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing) {
+	private static void createPipeline(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing, int expectedRestarts) {
 		final int parallelism = env.getParallelism();
-		final SingleOutputStreamOperator<Long> stream = env.fromSource(new LongSource(minCheckpoints, parallelism), WatermarkStrategy.noWatermarks(), "source")
+		final SingleOutputStreamOperator<Long> stream = env.fromSource(
+				new LongSource(minCheckpoints, parallelism, expectedRestarts),
+				noWatermarks(),
+				"source")
 			.slotSharingGroup(slotSharing ? "default" : "source")
 			.disableChaining()
 			.map(i -> i).name("forward").uid("forward")
@@ -172,27 +174,36 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 		addFailingPipeline(minCheckpoints, slotSharing, stream);
 	}
 
-	private static void createMultipleInputTopology(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing) {
+	private static void createMultipleInputTopology(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing, int expectedRestarts) {
 		final int parallelism = env.getParallelism();
 		DataStream<Long> combinedSource = null;
 		for (int inputIndex = 0; inputIndex < 4; inputIndex++) {
-			final SingleOutputStreamOperator<Long> source = env.fromSource(new LongSource(minCheckpoints, parallelism), WatermarkStrategy.noWatermarks(),
-				"source" + inputIndex)
+			final SingleOutputStreamOperator<Long> source = env.fromSource(
+					new LongSource(minCheckpoints, parallelism, expectedRestarts),
+					noWatermarks(),
+					"source" + inputIndex)
 				.slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
 				.disableChaining();
-			combinedSource = combinedSource == null ? source : combinedSource.connect(source).flatMap(new MinEmittingFunction());
+			combinedSource = combinedSource == null ?
+				source :
+				combinedSource.connect(source)
+					.flatMap(new MinEmittingFunction())
+					.name("min" + inputIndex).uid("min" + inputIndex)
+					.slotSharingGroup(slotSharing ? "default" : ("min" + inputIndex));
 		}
 
 		addFailingPipeline(minCheckpoints, slotSharing, combinedSource);
 	}
 
-	private static void createUnionTopology(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing) {
+	private static void createUnionTopology(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing, int expectedRestarts) {
 		final int parallelism = env.getParallelism();
 		DataStream<Long> combinedSource = null;
 		final int numSources = 4;
 		for (int inputIndex = 0; inputIndex < numSources; inputIndex++) {
-			final SingleOutputStreamOperator<Long> source = env.fromSource(new LongSource(minCheckpoints, parallelism), WatermarkStrategy.noWatermarks(),
-				"source" + inputIndex)
+			final SingleOutputStreamOperator<Long> source = env.fromSource(
+					new LongSource(minCheckpoints, parallelism, expectedRestarts),
+					noWatermarks(),
+					"source" + inputIndex)
 				.slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
 				.disableChaining();
 			combinedSource = combinedSource == null ? source : combinedSource.union(source);
@@ -246,7 +257,6 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 	 * A sink that checks if the members arrive in the expected order without any missing values.
 	 */
 	protected static class StrictOrderVerifyingSink extends VerifyingSinkBase<StrictOrderVerifyingSink.State> {
-		private Random random = new Random();
 		protected boolean backpressure;
 		private boolean firstOutOfOrder = true;
 		private boolean firstDuplicate = true;
@@ -320,9 +330,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
 			if (backpressure) {
 				// induce backpressure until enough checkpoints have been written
-				if (random.nextInt(100) == 42) {
-					Thread.sleep(0, 100_000);
-				}
+				Thread.sleep(1);
 			}
 			// after all checkpoints have been completed, the remaining data should be flushed out fairly quickly
 		}
