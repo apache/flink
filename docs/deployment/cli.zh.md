@@ -93,7 +93,8 @@ Jobs that were submitted but not started, yet, would be listed under "Scheduled 
 
 ### Creating a Savepoint
 
-[Savepoints]({% link ops/state/savepoints.zh.md %}) can be created to save the current state a job is in. All that's needed is the JobID:
+[Savepoints]({% link ops/state/savepoints.zh.md %}) can be created to save the current state a job is 
+in. All that's needed is the JobID:
 {% highlight bash %}
 $ ./bin/flink savepoint \
       $JOB_ID \ 
@@ -131,8 +132,8 @@ specify the path to the program JAR with which the savepoint was triggered. Othe
 into a `ClassNotFoundException`:
 {% highlight bash %}
 $ ./bin/flink savepoint \
-      -d <savepointPath> \ 
-      -j <jarFile>
+      --dispose <savepointPath> \ 
+      --jarfile <jarFile>
 {% endhighlight %}
 
 Triggering the savepoint disposal through the `savepoint` action does not only remove the data from 
@@ -177,7 +178,7 @@ Cancelled job cca7bc1061d61cf15238e92312c2fc20.
 The corresponding job's state will be transitioned from `Running` to `Cancelled`. Any computations 
 will be stopped.
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger">	
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
     <b>Note</b>: The <code class="highlighter-rouge">--withSavepoint</code> flag allows creating a 
     savepoint as part of the job cancellation. This feature is deprecated. Use the 
     <a href="#stopping-a-job-gracefully-creating-a-final-savepoint">stop</a> action instead.
@@ -306,19 +307,34 @@ tools like `curl` can be used to get even more out of Flink.
 
 ### Selecting Deployment Targets
 
-Flink supports different deployment backends like [Kubernetes]({% link deployment/resource-providers/native_kubernetes.zh.md %}) 
-or [YARN]({% link deployment/resource-providers/yarn.zh.md %}) which are described in more detail in the 
-Resource Provider section. You can specify the mode your Flink cluster is running in through the 
-`--target` parameter. It supports the following values:
-* `local`
-* `remote`
-* `kubernetes-session`
-* `kubernetes-application`
-* `yarn-per-job`
-* `yarn-session`
-* `yarn-application`
+Flink is compatible with multiple cluster management frameworks like 
+[Kubernetes]({% link deployment/resource-providers/native_kubernetes.zh.md %}) or 
+[YARN]({% link deployment/resource-providers/yarn.zh.md %}) which are described in more detail in the 
+Resource Provider section. Jobs can be submitted in different [Deployment Modes]({% link deployment/index.zh.md %}#deployment-modes). 
+The parameterization of a job submission differs based on the underlying framework and Deployment Mode. 
+
+`bin/flink` offers a parameter `--target` to handle the different options. In addition to that, jobs 
+have to be submitted using either `run` (for [Session]({% link deployment/index.zh.md %}#session-mode) 
+and [Per-Job Mode]({% link deployment/index.zh.md %}#per-job-mode)) or `run-application` (for 
+[Application Mode]]({% link deployment/index.zh.md %}#application-mode)). See the following summary of 
+parameter combinations: 
+* YARN
+  * `./bin/flink run --target yarn-session`: Submission to an already running Flink on YARN cluster
+  * `./bin/flink run --target yarn-per-job`: Submission spinning up a Flink on YARN cluster in Per-Job Mode
+  * `./bin/flink run-application --target yarn-application`: Submission spinning up Flink on YARN cluster in Application Mode
+* Kubernetes
+  * `./bin/flink run --target kubernetes-session`: Submission to an already running Flink on Kubernetes cluster
+  * `./bin/flink run-application --target kubernetes-application`: Submission spinning up a Flink on Kubernetes cluster in Application Mode
+* Mesos
+  * `./bin/flink run --target remote`: Submission to an already running Flink on Mesos cluster
+* Standalone:
+  * `./bin/flink run --target local`: Local submission using a MiniCluster in Session Mode
+  * `./bin/flink run --target remote`: Submission to an already running Flink cluster
 
 The `--target` will overwrite the [execution.target]({% link deployment/config.zh.md %}#execution-target) 
 specified in the `config/flink-config.yaml`.
+
+For more details on the commands and the available options, please refer to the Resource Provider-specific 
+pages of the documentation.
 
 {% top %}
