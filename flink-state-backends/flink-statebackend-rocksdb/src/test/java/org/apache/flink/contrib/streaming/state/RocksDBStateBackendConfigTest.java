@@ -477,6 +477,7 @@ public class RocksDBStateBackendConfigTest {
                         .setMaxWriteBufferNumber(4)
                         .setMinWriteBufferNumberToMerge(3)
                         .setBlockSize("64KB")
+                        .setMetadataBlockSize("16KB")
                         .setBlockCacheSize("512mb");
 
         try (RocksDBResourceContainer optionsContainer =
@@ -497,6 +498,7 @@ public class RocksDBStateBackendConfigTest {
             BlockBasedTableConfig tableConfig =
                     (BlockBasedTableConfig) columnOptions.tableFormatConfig();
             assertEquals(64 * SizeUnit.KB, tableConfig.blockSize());
+            assertEquals(16 * SizeUnit.KB, tableConfig.metadataBlockSize());
             assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
         }
     }
@@ -520,6 +522,7 @@ public class RocksDBStateBackendConfigTest {
             verifyIllegalArgument(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE, "1BB");
             verifyIllegalArgument(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE, "-1KB");
             verifyIllegalArgument(RocksDBConfigurableOptions.BLOCK_SIZE, "0MB");
+            verifyIllegalArgument(RocksDBConfigurableOptions.METADATA_BLOCK_SIZE, "0MB");
             verifyIllegalArgument(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE, "0");
 
             verifyIllegalArgument(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, "1");
@@ -541,6 +544,7 @@ public class RocksDBStateBackendConfigTest {
                     RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE.key(), "2");
             configuration.setString(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE.key(), "64 MB");
             configuration.setString(RocksDBConfigurableOptions.BLOCK_SIZE.key(), "4 kb");
+            configuration.setString(RocksDBConfigurableOptions.METADATA_BLOCK_SIZE.key(), "8 kb");
             configuration.setString(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE.key(), "512 mb");
 
             DefaultConfigurableOptionsFactory optionsFactory =
@@ -566,6 +570,7 @@ public class RocksDBStateBackendConfigTest {
                 BlockBasedTableConfig tableConfig =
                         (BlockBasedTableConfig) columnOptions.tableFormatConfig();
                 assertEquals(4 * SizeUnit.KB, tableConfig.blockSize());
+                assertEquals(8 * SizeUnit.KB, tableConfig.metadataBlockSize());
                 assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
             }
         }
