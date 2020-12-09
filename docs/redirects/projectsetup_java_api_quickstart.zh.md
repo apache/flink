@@ -1,7 +1,7 @@
 ---
 title: "Java 项目模板"
 layout: redirect
-redirect: /getting-started/project-setup/java_api_quickstart.html
+redirect: dev/project-configuration
 permalink: /dev/projectsetup/java_api_quickstart.html
 ---
 <!--
