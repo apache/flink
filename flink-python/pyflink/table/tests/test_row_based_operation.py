@@ -49,6 +49,35 @@ class RowBasedOperationTests(object):
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["4,9", "3,4", "7,36", "10,81", "5,16"])
 
+    def test_map_with_pandas_udf(self):
+        t = self.t_env.from_elements(
+            [(1, Row(2, 3)), (2, Row(1, 3)), (1, Row(5, 4)), (1, Row(8, 6)), (2, Row(3, 4))],
+            DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.TINYINT()),
+                 DataTypes.FIELD("b",
+                                 DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
+                                                DataTypes.FIELD("b", DataTypes.INT())]))]))
+
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a', 'b'],
+            [DataTypes.BIGINT(), DataTypes.BIGINT()])
+        self.t_env.register_table_sink("Results", table_sink)
+
+        def func(x, y):
+            import pandas as pd
+            a = (x * 2).rename('b')
+            res = pd.concat([a, x], axis=1) + y
+            return res
+
+        pandas_udf = udf(func,
+                         result_type=DataTypes.ROW(
+                             [DataTypes.FIELD("c", DataTypes.BIGINT()),
+                              DataTypes.FIELD("d", DataTypes.BIGINT())]),
+                         func_type='pandas')
+        t.map(pandas_udf(t.a, t.b)).execute_insert("Results").wait()
+        actual = source_sink_utils.results()
+        self.assert_equals(actual, ["3,5", "3,7", "6,6", "9,8", "5,8"])
+
 
 class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTableTestCase):
     pass
