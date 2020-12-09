@@ -52,7 +52,7 @@ Upsert Kafka 连接器支持以 upsert 方式从 Kafka topic 中读取数据并�
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE pageviews_per_region (
-  region STRING,
+  user_region STRING,
   pv BIGINT,
   uv BIGINT,
   PRIMARY KEY (region) NOT ENFORCED

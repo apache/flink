@@ -61,7 +61,7 @@ The example below shows how to create and use an Upsert Kafka table:
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE pageviews_per_region (
-  region STRING,
+  user_region STRING,
   pv BIGINT,
   uv BIGINT,
   PRIMARY KEY (region) NOT ENFORCED
