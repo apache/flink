@@ -27,8 +27,10 @@ CONFLUENT_MAJOR_VERSION="5.0"
 KAFKA_SQL_VERSION="universal"
 ELASTICSEARCH_VERSION=7
 # we use the smallest version possible
-ELASTICSEARCH_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-oss-7.5.1-no-jdk-darwin-x86_64.tar.gz'
-ELASTICSEARCH_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-oss-7.5.1-no-jdk-linux-x86_64.tar.gz'
+ELASTICSEARCH_MAC_X86_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-oss-7.5.1-no-jdk-darwin-x86_64.tar.gz'
+ELASTICSEARCH_LINUX_X86_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-oss-7.5.1-no-jdk-linux-x86_64.tar.gz'
+# There is no oss version for arm64.
+ELASTICSEARCH_LINUX_ARM64_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.0-linux-aarch64.tar.gz'
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka_sql_common.sh \
@@ -111,12 +113,22 @@ function prepare_elasticsearch {
       *)          OS_TYPE="UNKNOWN:${unameOut}"
   esac
 
-  if [[ "$OS_TYPE" == "mac" ]]; then
-    DOWNLOAD_URL=$ELASTICSEARCH_MAC_DOWNLOAD_URL
-  elif [[ "$OS_TYPE" == "linux" ]]; then
-    DOWNLOAD_URL=$ELASTICSEARCH_LINUX_DOWNLOAD_URL
+  case "$(uname -i)" in
+      aarch64*)     ARCH_TYPE=aarch64;;
+      x86_64*)      ARCH_TYPE=x86_64;;
+      *)            ARCH_TYPE="UNKNOWN:${unameOut}"
+  esac
+
+  if [ "$ARCH_TYPE" == "aarch64" ] && [ "$OS_TYPE" == "linux" ]; then
+    DOWNLOAD_URL=$ELASTICSEARCH_LINUX_ARM64_DOWNLOAD_URL
+  elif [[ "$ARCH_TYPE" == "x86_64" ]]; then
+    if [[ "$OS_TYPE" == "mac" ]]; then
+      DOWNLOAD_URL=$ELASTICSEARCH_MAC_X86_DOWNLOAD_URL
+    elif [[ "$OS_TYPE" == "linux" ]]; then
+      DOWNLOAD_URL=$ELASTICSEARCH_LINUX_X86_DOWNLOAD_URL
+    fi
   else
-    echo "[ERROR] Unsupported OS for Elasticsearch: $OS_TYPE"
+    echo "[ERROR] Unsupported OS or Arch for Elasticsearch: $OS_TYPE, $ARCH_TYPE"
     exit 1
   fi
 
