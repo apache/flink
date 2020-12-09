@@ -24,16 +24,16 @@ under the License.
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
     <title>Apache Flink {{ site.version_title }} Documentation: {{ page.title }}</title>
-    <link rel="shortcut icon" href="{{ site.baseurl }}/page/favicon.ico" type="image/x-icon">
-    <link rel="icon" href="{{ site.baseurl }}/page/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="{% link page/favicon.ico %}" type="image/x-icon">
+    <link rel="icon" href="{% link /page/favicon.ico %}" type="image/x-icon">
     <link rel="canonical" href="{{ site.stable_baseurl }}{{ page.url | replace:'index.html',''}}">
 
     <!-- Bootstrap -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}/page/css/flink.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}/page/css/syntax.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}/page/css/codetabs.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}/page/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="{% link page/css/flink.css %}">
+    <link rel="stylesheet" href="{% link page/css/syntax.css %}">
+    <link rel="stylesheet" href="{% link page/css/codetabs.css %}">
+    <link rel="stylesheet" href="{% link page/font-awesome/css/font-awesome.min.css %}">
     {% if page.mathjax %}
     <script type="text/x-mathjax-config">
         MathJax.Hub.Config({
@@ -89,11 +89,11 @@ under the License.
     <script>var defaultCodeTab = "{{ page.code_tab }}";</script>
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="{{ site.baseurl }}/page/js/jquery.min.js"></script>
+    <script src="{% link page/js/jquery.min.js %}"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/3.1.0/anchor.min.js"></script>
-    <script src="{{ site.baseurl }}/page/js/flink.js"></script>
+    <script src="{% link page/js/flink.js %}"></script>
 
     <!-- Google Analytics -->
     <script>

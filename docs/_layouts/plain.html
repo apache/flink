@@ -45,7 +45,7 @@ under the License.
   {%- if forloop.last == true %}
     <li class="active">{{ title }}</li>
   {%- elsif p.nav-show_overview %}
-    <li><a href="{{ site.baseurl }}{{ p.url }}">{{ title }}</a></li>
+    <li><a href="{% link {{ p.path }} %}">{{ title }}</a></li>
   {%- else %}
     <li>{{ title }}</li>
   {%- endif -%}
