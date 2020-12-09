@@ -761,19 +761,19 @@ class Table(object):
 
     def map(self, func: Union[str, Expression]) -> 'Table':
         """
-        Performs a map operation with an user-defined scalar function.
+        Performs a map operation with a user-defined scalar function.
 
         Example:
         ::
 
             >>> add = udf(lambda x: Row(x + 1, x *x), result_type=DataTypes.Row(
             ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
-            >>> table_env.create_temporary_function("add", add)
             >>> tab.map(add(tab.a)).alias("a, b")
-            >>> tab.map("add(a)").alias("a, b")
 
         :param func: user-defined scalar function.
         :return: The result table.
+
+        .. versionadded:: 1.13.0
         """
         if isinstance(func, str):
             return Table(self._j_table.map(func), self._t_env)

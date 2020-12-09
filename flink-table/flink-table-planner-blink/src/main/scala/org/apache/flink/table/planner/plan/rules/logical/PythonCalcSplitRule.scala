@@ -367,7 +367,7 @@ private class ScalarFunctionSplitter(
       val expr = fieldAccess.getReferenceExpr
       expr match {
         case localRef: RexLocalRef if isPythonCall(program.expandLocalRef(localRef))
-          => getExtractRexFieldNode(fieldAccess, localRef.getIndex)
+          => getExtractedRexFieldAccess(fieldAccess, localRef.getIndex)
         case _ => getExtractedRexNode(fieldAccess)
       }
     } else {
@@ -388,12 +388,12 @@ private class ScalarFunctionSplitter(
     newNode
   }
 
-  private def getExtractRexFieldNode(node: RexFieldAccess, rexCallIndex: Int): RexNode = {
+  private def getExtractedRexFieldAccess(node: RexFieldAccess, rexCallIndex: Int): RexNode = {
     val pythonCall: RexCall = program.expandLocalRef(
       node.getReferenceExpr.asInstanceOf[RexLocalRef]).asInstanceOf[RexCall]
     if (!fieldsRexCall.contains(rexCallIndex)) {
       extractedRexNodes.append(pythonCall)
-      fieldsRexCall += rexCallIndex -> (extractedFunctionOffset + extractedRexNodes.length -1)
+      fieldsRexCall += rexCallIndex -> (extractedFunctionOffset + extractedRexNodes.length - 1)
     }
     rexBuilder.makeFieldAccess(
       new RexInputRef(fieldsRexCall(rexCallIndex), pythonCall.getType),

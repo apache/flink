@@ -42,9 +42,12 @@ class RowBasedOperationTests(object):
             [DataTypes.FIELD("a", DataTypes.BIGINT()),
              DataTypes.FIELD("b", DataTypes.BIGINT())]))
 
-        t.map(func(t.b)).alias("a", "b").execute_insert("Results").wait()
+        t.map(func(t.b)).alias("a", "b") \
+            .map(func(t.a)).alias("a", "b") \
+            .execute_insert("Results") \
+            .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3,4", "2,1", "6,25", "9,64", "4,9"])
+        self.assert_equals(actual, ["4,9", "3,4", "7,36", "10,81", "5,16"])
 
 
 class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTableTestCase):
