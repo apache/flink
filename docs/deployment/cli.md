@@ -133,8 +133,8 @@ specify the path to the program JAR with which the savepoint was triggered. Othe
 into a `ClassNotFoundException`:
 {% highlight bash %}
 $ ./bin/flink savepoint \
-      -d <savepointPath> \ 
-      -j <jarFile>
+      --dispose <savepointPath> \ 
+      --jarfile <jarFile>
 {% endhighlight %}
 
 Triggering the savepoint disposal through the `savepoint` action does not only remove the data from 
@@ -179,7 +179,7 @@ Cancelled job cca7bc1061d61cf15238e92312c2fc20.
 The corresponding job's state will be transitioned from `Running` to `Cancelled`. Any computations 
 will be stopped.
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger">	
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
     <b>Note</b>: The <code class="highlighter-rouge">--withSavepoint</code> flag allows creating a 
     savepoint as part of the job cancellation. This feature is deprecated. Use the 
     <a href="#stopping-a-job-gracefully-creating-a-final-savepoint">stop</a> action instead.
