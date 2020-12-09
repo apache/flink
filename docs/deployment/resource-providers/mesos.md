@@ -94,7 +94,7 @@ with Flink's parameters to find the right resource utilization for your needs.
 Check out [Flink's Mesos configuration]({% link deployment/config.md %}#mesos) to further influence 
 the resources Flink on Mesos is going to allocate.
 
-## Deployment Modes Supported by Flink on Mesos
+## Deployment Modes
 
 For production use, we recommend deploying Flink Applications in the 
 [Per-Job Mode]({% link deployment/index.md %}#per-job-mode), as it provides a better isolation 
