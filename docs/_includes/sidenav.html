@@ -41,9 +41,9 @@ Extract the active nav IDs.
 {%- endfor -%}
 
 {%- if page.language == "en" -%}
-  {%- capture baseurl_i18n -%}{{ site.baseurl }}{%- endcapture -%}
+  {%- capture baseurl_i18n -%}{% link index.md %}{%- endcapture -%}
 {%- else if page.language == "zh" -%}
-  {%- capture baseurl_i18n -%}{{ site.baseurl }}/{{ page.language }}{%- endcapture -%}
+  {%- capture baseurl_i18n -%}{% link index.{{ page.language }}.md %}{%- endcapture -%}
 {%- endif -%}
 
 {%- comment -%}
@@ -80,7 +80,7 @@ level is determined by 'nav-pos'.
 {%- assign pos = 0 -%}
 
 <div class="sidenav-logo">
-  <p><a href="{{ baseurl_i18n }}/"><img class="bottom" alt="Apache Flink" src="{{ site.baseurl }}/page/img/navbar-brand-logo.jpg"></a> v{{ site.version_title }}</p>
+  <p><a href="{{ baseurl_i18n }}"><img class="bottom" alt="Apache Flink" src="{% link page/img/navbar-brand-logo.jpg %}"></a> v{{ site.version_title }}</p>
 </div>
 <ul id="sidenav">
 {%- for i in (1..10000) -%}
@@ -106,8 +106,8 @@ level is determined by 'nav-pos'.
     {%- endif -%}
 
     {%- capture title -%}{%- if this.nav-title -%}{{ this.nav-title }}{%- else -%}{{ this.title }}{%- endif -%}{%- endcapture -%}
-    {%- capture target -%}"{{ site.baseurl }}{{ this.url }}"{%- if active %} class="active"{%- endif -%}{%- endcapture -%}
-    {%- capture overview_target -%}"{{ site.baseurl }}{{ this.url }}"{%- if this.url == page.url -%} class="active"{%- endif -%}{%- endcapture -%}
+    {%- capture target -%}"{% link {{ this.path }} %}"{%- if active %} class="active"{%- endif -%}{%- endcapture -%}
+    {%- capture overview_target -%}"{% link {{ this.path }} %}"{%- if this.url == page.url -%} class="active"{%- endif -%}{%- endcapture -%}
 
     {% if this.section-break %}<hr class="section-break"></hr>{% endif -%}
 
@@ -145,7 +145,7 @@ level is determined by 'nav-pos'.
 </ul>
 
 <div class="sidenav-search-box">
-  <form class="navbar-form" role="search" action="{{site.baseurl}}/search-results.html">
+  <form class="navbar-form" role="search" action="{% link search-results.md %}">
     <div class="form-group">
       <input type="text" class="form-control" size="16px" name="q" placeholder="Search">
     </div>
@@ -173,11 +173,11 @@ level is determined by 'nav-pos'.
 <div class="sidenav-languages">
   {%- if page.is_default_language -%}
     <!-- link to the Chinese home page when current is blog page -->
-    <a href="{{ site.baseurl }}/zh{{ page.url }}">
+    <a href="{% link {{ page.path | replace: '.md', '.zh.md' }} %}">
       <button type="submit" class="btn btn-default">中文版</button>
     </a>
   {%- else -%}
-    <a href="{{ site.baseurl }}{{ page.url | remove_first: 'zh/' }}">
+    <a href="{% link {{ page.path | remove: '.zh' }} %}">
       <button type="submit" class="btn btn-default">English</button>
     </a>
   {%- endif %}
