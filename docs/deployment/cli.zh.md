@@ -316,7 +316,7 @@ The parameterization of a job submission differs based on the underlying framewo
 `bin/flink` offers a parameter `--target` to handle the different options. In addition to that, jobs 
 have to be submitted using either `run` (for [Session]({% link deployment/index.zh.md %}#session-mode) 
 and [Per-Job Mode]({% link deployment/index.zh.md %}#per-job-mode)) or `run-application` (for 
-[Application Mode]]({% link deployment/index.zh.md %}#application-mode)). See the following summary of 
+[Application Mode]({% link deployment/index.zh.md %}#application-mode)). See the following summary of 
 parameter combinations: 
 * YARN
   * `./bin/flink run --target yarn-session`: Submission to an already running Flink on YARN cluster
