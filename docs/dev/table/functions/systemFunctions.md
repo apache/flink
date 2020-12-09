@@ -4600,6 +4600,22 @@ CAST(value AS type)
         <p>E.g., <code>CAST('42' AS INT)</code> returns 42; <code>CAST(NULL AS VARCHAR)</code> returns NULL of type VARCHAR.</p>
       </td>
     </tr>
+    <tr>
+      <td>
+{% highlight text %}
+TYPEOF(input)
+TYPEOF(input, force_serializable)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string representation of the input expression's data type. By default, the
+          returned string is a summary string that might omit certain details for readability. If
+          <code>force_serializable</code> is set to TRUE, the string represents a full data type
+          that could be persisted in a catalog. Note that especially anonymous, inline data types
+          have no serializable string representation. In this case, NULL is returned.</p>
+        <p>E.g., <code>TYPEOF(12)</code> returns 'INT NOT NULL'.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 </div>
@@ -4625,6 +4641,22 @@ ANY.cast(TYPE)
         <p>E.g., <code>'42'.cast(INT)</code> returns 42; <code>Null(STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
+    <tr>
+      <td>
+{% highlight java %}
+call("TYPEOF", input)
+call("TYPEOF", input, force_serializable)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string representation of the input expression's data type. By default, the
+          returned string is a summary string that might omit certain details for readability. If
+          <code>force_serializable</code> is set to TRUE, the string represents a full data type
+          that could be persisted in a catalog. Note that especially anonymous, inline data types
+          have no serializable string representation. In this case, NULL is returned.</p>
+        <p>E.g., <code>call("TYPEOF", 12)</code> returns 'INT NOT NULL'.</p>
+      </td>
+    </tr>
     </tbody>
 </table>
 </div>
@@ -4648,6 +4680,22 @@ ANY.cast(TYPE)
       <td>
         <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="{% link dev/table/tableApi.md %}#data-types">here</a>.</p>
         <p>E.g., <code>"42".cast(Types.INT)</code> returns 42; <code>Null(Types.STRING)</code> returns NULL of type STRING.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+{% highlight scala %}
+call("TYPEOF", input)
+call("TYPEOF", input, force_serializable)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the string representation of the input expression's data type. By default, the
+          returned string is a summary string that might omit certain details for readability. If
+          <code>force_serializable</code> is set to TRUE, the string represents a full data type
+          that could be persisted in a catalog. Note that especially anonymous, inline data types
+          have no serializable string representation. In this case, NULL is returned.</p>
+        <p>E.g., <code>call("TYPEOF", 12)</code> returns 'INT NOT NULL'.</p>
       </td>
     </tr>
   </tbody>
