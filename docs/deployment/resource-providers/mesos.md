@@ -179,33 +179,39 @@ also adjust any configuration parameters for the Flink cluster.
 Here is an example configuration for Marathon:
 {% highlight javascript %}
 {
-    "id": "flink",
-    "cmd": "/opt/flink-{{ site.version }}/bin/mesos-appmaster.sh -Dmesos.resourcemanager.framework.user=root -Dmesos.resourcemanager.tasks.taskmanager-cmd=/opt/flink-{{ site.version }}/bin/mesos-taskmanager.sh -Dmesos.master=master:5050 -Djobmanager.memory.process.size=1472m -Dtaskmanager.memory.process.size=3500m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2",
-    "cpus": 2,
-    "mem": 1024,
-    "disk": 0,
-    "instances": 1,
-    "env": {
-        "MESOS_NATIVE_JAVA_LIBRARY": "/usr/lib/libmesos.so",
-        "HADOOP_CLASSPATH": "/opt/hadoop-2.10.1/etc/hadoop:/opt/hadoop-2.10.1/share/hadoop/common/lib/*:/opt/hadoop-2.10.1/share/hadoop/common/*:/opt/hadoop-2.10.1/share/hadoop/hdfs:/opt/hadoop-2.10.1/share/hadoop/hdfs/lib/*:/opt/hadoop-2.10.1/share/hadoop/hdfs/*:/opt/hadoop-2.10.1/share/hadoop/yarn:/opt/hadoop-2.10.1/share/hadoop/yarn/lib/*:/opt/hadoop-2.10.1/share/hadoop/yarn/*:/opt/hadoop-2.10.1/share/hadoop/mapreduce/lib/*:/opt/hadoop-2.10.1/share/hadoop/mapreduce/*:/contrib/capacity-scheduler/*.jar"
-    },
-    "healthChecks": [
-        {
-            "protocol": "HTTP",
-            "path": "/",
-            "port": 8081,
-            "gracePeriodSeconds": 300,
-            "intervalSeconds": 60,
-            "timeoutSeconds": 20,
-            "maxConsecutiveFailures": 3
-        }
-    ],
-    "user": "root"
+  "id": "flink",
+  "cmd": "/opt/flink-{{ site.version }}/bin/mesos-appmaster.sh -Djobmanager.rpc.address=$HOST -Dmesos.resourcemanager.framework.user=root -Dmesos.master=<mesos-master>:5050 -Dparallelism.default=2",
+  "user": "root",
+  "cpus": 2,
+  "mem": 2048,
+  "instances": 1,
+  "env": {
+    "MESOS_NATIVE_JAVA_LIBRARY": "/usr/lib/libmesos.so"
+  },
+  "healthChecks": [
+    {
+      "protocol": "HTTP",
+      "path": "/",
+      "port": 8081,
+      "gracePeriodSeconds": 300,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 20,
+      "maxConsecutiveFailures": 3
+    }
+  ]
 }
 {% endhighlight %}
 
-Flink is installed into `/opt/flink-{{ site.version }}` for this example having `root` as the owner 
-of the Flink directory.
+Flink is installed into `/opt/flink-{{ site.version }}` having `root` as the owner of the Flink 
+directory (notice that the user is used twice: once as a Marathon and another time as a Mesos 
+parameter) for the example configuration above to work.
+
+`<mesos-master>` needs to be set to the hostname or IP of Mesos' master node. `$HOST` is a Marathon 
+environment variable referring to the hostname of the machine the script is executed on.
+
+Additionally, we have the bundled Hadoop jar saved in Flink's `lib/` folder for the sake of 
+simplicity here. This way, we don't have to set `HADOOP_CLASSPATH` as a environment variable next 
+to `MESOS_NATIVE_JAVA_LIBRARY`.
 
 When running Flink with Marathon, the whole Flink cluster including the JobManager will be run as 
 Mesos tasks in the Mesos cluster. Flink's binaries have to be installed on all Mesos workers for the 
