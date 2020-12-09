@@ -1,7 +1,7 @@
 ---
 title: Temporal Tables
 layout: redirect
-redirect: /dev/table/streaming/versioned_table.html
+redirect: /dev/table/streaming/legacy.html
 permalink: /dev/table/streaming/temporal_tables.html
 ---
 <!--
