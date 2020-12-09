@@ -1,8 +1,8 @@
 ---
-title: "Standalone Docker"
+title: "High Availability"
 layout: redirect
-redirect: deployment/resource-providers/standalone/docker
-permalink: /ops/deployment/docker.html
+redirect: deployment/ha/index
+permalink: /deployment/jobmanager_high_availability.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

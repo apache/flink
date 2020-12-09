@@ -1,8 +1,8 @@
 ---
-title: "Best Practices"
+title: "Standalone Docker"
 layout: redirect
-redirect: /index.html
-permalink: /apis/best_practices.html
+redirect: deployment/resource-providers/standalone/docker
+permalink: /ops/deployment/docker.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

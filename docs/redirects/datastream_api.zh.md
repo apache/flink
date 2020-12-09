@@ -1,8 +1,8 @@
 ---
-title: Java Quickstart
+title: "DataStream API"
 layout: redirect
-redirect: /dev/project-configuration.html
-permalink: /getting-started/project-setup/java_api_quickstart.html
+redirect: dev/datastream_api
+permalink: /apis/streaming/index.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

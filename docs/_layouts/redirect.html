@@ -22,18 +22,18 @@ under the License.
 
 {% if page.language == "en" %}
 
-    <meta http-equiv="refresh" content="1; url={{ site.baseurl }}{{ page.redirect }}" />
+    <meta http-equiv="refresh" content="1; url={% link {{ page.redirect }}.md %}" />
 
     <h1>Page '{{ page.title }}' Has Moved</h1>
 
-    The page <strong>{{ page.title }}</strong> has been moved. Redirecting to <a href="{{ site.baseurl }}/{{ page.redirect }}">{{ site.baseurl }}{{ page.redirect }}</a> in 1 second.
+    The page <strong>{{ page.title }}</strong> has been moved. Redirecting to <a href="{% link {{ page.redirect }}.md %}">{% link {{ page.redirect }}.md %}</a> in 1 second.
 
 {% else if page.language == "zh" %}
 
-    <meta http-equiv="refresh" content="1; url={{ site.baseurl }}/zh{{ page.redirect }}" />
+    <meta http-equiv="refresh" content="1; url={% link {{ page.redirect }}.zh.md %}" />
 
     <h1>'{{ page.title }}' 页面已被移动</h1>
 
-    <strong>{{ page.title }}</strong> 页面已经被移动了。将在 1 秒后重定向到 <a href="{{ site.baseurl }}/zh{{ page.redirect }}">{{ site.baseurl }}/zh{{ page.redirect }}</a> 。
+    <strong>{{ page.title }}</strong> 页面已经被移动了。将在 1 秒后重定向到 <a href="{% link {{ page.redirect }}.zh.md %}">{% link {{ page.redirect }}.zh.md %}</a> 。
 
 {% endif %}

@@ -1,7 +1,7 @@
 ---
 title: "DataStream API"
 layout: redirect
-redirect: /dev/datastream_api.html
+redirect: dev/datastream_api
 permalink: /apis/streaming/index.html
 ---
 <!--

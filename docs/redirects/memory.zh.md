@@ -1,8 +1,8 @@
 ---
-title: Java Quickstart
+title: "Memory Configuration"
 layout: redirect
-redirect: /dev/project-configuration.html
-permalink: /getting-started/project-setup/scala_api_quickstart.html
+redirect: deployment/memory/index
+permalink: /ops/memory/index.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

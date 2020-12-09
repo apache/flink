@@ -1,7 +1,7 @@
 ---
 title: "Memory Configuration"
 layout: redirect
-redirect: /deployment/memory/index.html
+redirect: deployment/memory/index
 permalink: /ops/memory/index.html
 ---
 <!--

@@ -1,7 +1,7 @@
 ---
 title: "Restart Strategies"
 layout: redirect
-redirect: /dev/task_failure_recovery.html
+redirect: dev/task_failure_recovery
 permalink: /dev/restart_strategies.html
 ---
 <!--
