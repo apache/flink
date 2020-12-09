@@ -176,7 +176,7 @@ public class CliFrontend {
 		final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
-			CliFrontendParser.printHelpForRun(customCommandLines);
+			CliFrontendParser.printHelpForRunApplication(customCommandLines);
 			return;
 		}
 

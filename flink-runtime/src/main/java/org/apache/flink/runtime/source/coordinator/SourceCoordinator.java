@@ -172,13 +172,25 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	public void subtaskFailed(int subtaskId, @Nullable Throwable reason) {
 		runInEventLoop(
 			() -> {
-				LOG.info("Handling subtask {} failure of source {}.", subtaskId, operatorName);
-				List<SplitT> splitsToAddBack = context.getAndRemoveUncheckpointedAssignment(subtaskId);
+				LOG.info("Removing registered reader after failure for subtask {} of source {}.", subtaskId, operatorName);
 				context.unregisterSourceReader(subtaskId);
-				LOG.debug("Adding {} back to the split enumerator of source {}.", splitsToAddBack, operatorName);
-				enumerator.addSplitsBack(splitsToAddBack, subtaskId);
 			},
 			"handling subtask %d failure", subtaskId
+		);
+	}
+
+	@Override
+	public void subtaskReset(int subtaskId, long checkpointId) {
+		runInEventLoop(
+			() -> {
+				LOG.info("Recovering subtask {} to checkpoint {} for source {} to checkpoint.",
+						subtaskId, checkpointId, operatorName);
+
+				final List<SplitT> splitsToAddBack = context.getAndRemoveUncheckpointedAssignment(subtaskId, checkpointId);
+				LOG.debug("Adding splits back to the split enumerator of source {}: {}", operatorName, splitsToAddBack);
+				enumerator.addSplitsBack(splitsToAddBack, subtaskId);
+			},
+			"handling subtask %d recovery to checkpoint %d", subtaskId, checkpointId
 		);
 	}
 
@@ -223,7 +235,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	}
 
 	@Override
-	public void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(
+			final long checkpointId,
+			@Nullable final byte[] checkpointData) throws Exception {
+
 		checkState(!started, "The coordinator can only be reset if it was not yet started");
 		assert enumerator == null;
 

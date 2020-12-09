@@ -50,7 +50,7 @@ The following examples show how to run an EXPLAIN statement in `TableEnvironment
 
 <div data-lang="SQL CLI" markdown="1">
 
-EXPLAIN statements can be executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html).
+EXPLAIN statements can be executed in [SQL CLI]({% link dev/table/sqlClient.md %}).
 
 The following examples show how to run an EXPLAIN statement in SQL CLI.
 
@@ -199,5 +199,5 @@ Stage 2 : Data Source
 EXPLAIN PLAN FOR <query_statement_or_insert_statement>
 {% endhighlight %}
 
-For query syntax, please refer to [Queries]({{ site.baseurl }}/dev/table/sql/queries.html#supported-syntax) page.
-For INSERT, please refer to [INSERT]({{ site.baseurl }}/dev/table/sql/insert.html) page.
+For query syntax, please refer to [Queries]({% link dev/table/sql/queries.md %}#supported-syntax) page.
+For INSERT, please refer to [INSERT]({% link dev/table/sql/insert.md %}) page.

@@ -40,11 +40,13 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	private final OperatorCoordinator.Context context;
 
 	private final ArrayList<Integer> failedTasks = new ArrayList<>();
+	private final ArrayList<SubtaskAndCheckpoint> restoredTasks = new ArrayList<>();
 
 	private final CountDownLatch blockOnCloseLatch;
 
 	@Nullable
 	private byte[] lastRestoredCheckpointState;
+	private long lastRestoredCheckpointId;
 
 	private BlockingQueue<CompletableFuture<byte[]>> triggeredCheckpoints;
 
@@ -95,6 +97,11 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
+	public void subtaskReset(int subtask, long checkpointId) {
+		restoredTasks.add(new SubtaskAndCheckpoint(subtask, checkpointId));
+	}
+
+	@Override
 	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
 		boolean added = triggeredCheckpoints.offer(result);
 		assert added; // guard the test assumptions
@@ -106,7 +113,8 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void resetToCheckpoint(@Nullable byte[] checkpointData) {
+	public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) {
+		lastRestoredCheckpointId = checkpointId;
 		lastRestoredCheckpointState = checkpointData == null
 				? NULL_RESTORE_VALUE
 				: checkpointData;
@@ -130,9 +138,17 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 		return failedTasks;
 	}
 
+	public List<SubtaskAndCheckpoint> getRestoredTasks() {
+		return restoredTasks;
+	}
+
 	@Nullable
 	public byte[] getLastRestoredCheckpointState() {
 		return lastRestoredCheckpointState;
+	}
+
+	public long getLastRestoredCheckpointId() {
+		return lastRestoredCheckpointId;
 	}
 
 	public CompletableFuture<byte[]> getLastTriggeredCheckpoint() throws InterruptedException {
@@ -154,6 +170,19 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
 	public boolean hasCompleteCheckpoint() throws InterruptedException {
 		return !lastCheckpointComplete.isEmpty();
+	}
+
+	// ------------------------------------------------------------------------
+
+	public static final class SubtaskAndCheckpoint {
+
+		public final int subtaskIndex;
+		public final long checkpointId;
+
+		public SubtaskAndCheckpoint(int subtaskIndex, long checkpointId) {
+			this.subtaskIndex = subtaskIndex;
+			this.checkpointId = checkpointId;
+		}
 	}
 
 	// ------------------------------------------------------------------------

@@ -23,7 +23,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CalcCodeGenerator, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
@@ -68,11 +68,12 @@ class BatchExecCalc(
       opName = "BatchCalc"
     )
 
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       inputTransform,
       getRelDetailedDescription,
       operator,
       InternalTypeInfo.of(outputType),
-      inputTransform.getParallelism)
+      inputTransform.getParallelism,
+      0)
   }
 }

@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.functions.ProcessFunction
@@ -32,12 +29,16 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.util.StreamRecordCollector
 import org.apache.flink.table.types.logical.RowType
+
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rex._
 
 import scala.collection.JavaConversions._
 
@@ -110,12 +111,13 @@ object CorrelateCodeGenerator {
       classOf[ProcessFunction[RowData, RowData]],
       retainHeader)
 
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       inputTransformation,
       transformationName,
       substituteStreamOperator,
       InternalTypeInfo.of(returnType),
-      parallelism)
+      parallelism,
+      0)
   }
 
   /**

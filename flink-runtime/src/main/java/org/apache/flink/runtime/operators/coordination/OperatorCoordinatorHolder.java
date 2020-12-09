@@ -202,6 +202,12 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
+	public void subtaskReset(int subtask, long checkpointId) {
+		mainThreadExecutor.assertRunningInMainThread();
+		coordinator.subtaskReset(subtask, checkpointId);
+	}
+
+	@Override
 	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
 		// unfortunately, this method does not run in the scheduler executor, but in the
 		// checkpoint coordinator time thread.
@@ -229,7 +235,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
-	public void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception {
 		// ideally we would like to check this here, however this method is called early during
 		// execution graph construction, before the main thread executor is set
 
@@ -237,7 +243,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		if (context != null) {
 			context.resetFailed();
 		}
-		coordinator.resetToCheckpoint(checkpointData);
+		coordinator.resetToCheckpoint(checkpointId, checkpointData);
 	}
 
 	private void checkpointCoordinatorInternal(final long checkpointId, final CompletableFuture<byte[]> result) {

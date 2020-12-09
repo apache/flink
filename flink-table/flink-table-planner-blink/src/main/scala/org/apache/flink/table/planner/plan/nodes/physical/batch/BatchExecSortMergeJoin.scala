@@ -30,7 +30,8 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -183,9 +184,6 @@ class BatchExecSortMergeJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
-
   // this method must be in sync with the behavior of SortMergeJoinOperator.
   override def getInputEdges: util.List[ExecEdge] = List(
     ExecEdge.builder()
@@ -194,12 +192,6 @@ class BatchExecSortMergeJoin(
     ExecEdge.builder()
       .damBehavior(ExecEdge.DamBehavior.END_INPUT)
       .build())
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -258,7 +250,7 @@ class BatchExecSortMergeJoin(
       newSortGen(leftAllKey.indices.toArray, keyType).generateRecordComparator("KeyComparator"),
       filterNulls)
 
-    ExecNode.createTwoInputTransformation(
+    ExecNodeUtil.createTwoInputTransformation(
       leftInput,
       rightInput,
       getRelDetailedDescription,

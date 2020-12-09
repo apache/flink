@@ -46,7 +46,7 @@ Python DataStream API 给各种算子提供了函数接口，用户可以定义�
 # Implementing MapFunction
 class MyMapFunction(MapFunction):
     
-    def map(value):
+    def map(self, value):
         return value + 1
         
 data_stream = env.from_collection([1, 2, 3, 4, 5], type_info=Types.INT())

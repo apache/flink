@@ -102,7 +102,7 @@ dataStream.filter(new FilterFunction<Integer>() {
           <td>
             <p>Logically partitions a stream into disjoint partitions. All records with the same key are assigned to the same partition. Internally, <em>keyBy()</em> is implemented with hash partitioning. There are different ways to <a href="{% link dev/stream/state/state.md %}#keyed-datastream">specify keys</a>.</p>
             <p>
-            This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keyed state</a>. </p>
+            This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{% link dev/stream/state/state.md %}#keyed-state">keyed state</a>. </p>
 {% highlight java %}
 dataStream.keyBy(value -> value.getSomeKey()) // Key by field "someKey"
 dataStream.keyBy(value -> value.f0) // Key by the first element of a Tuple
@@ -425,7 +425,7 @@ dataStream.filter { _ != 0 }
           <td><h5><strong>KeyBy</strong></h5>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="{% link dev/stream/state/state.md %}#keyed-state">keys</a> on how to specify keys.
             This transformation returns a KeyedStream.</p>
 {% highlight scala %}
 dataStream.keyBy(_.someKey) // Key by field "someKey"
@@ -628,7 +628,7 @@ data.map {
   case (id, name, temperature) => // [...]
 }
 {% endhighlight %}
-is not supported by the API out-of-the-box. To use this feature, you should use a <a href="{{ site.baseurl }}/dev/scala_api_extensions.html">Scala API extension</a>.
+is not supported by the API out-of-the-box. To use this feature, you should use a <a href="{% link dev/scala_api_extensions.md %}">Scala API extension</a>.
 
 
 </div>
@@ -682,7 +682,7 @@ data_stream.filter(lambda x: x != 0)
           <td><h5><strong>KeyBy</strong></h5>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions. All records with the same key are assigned to the same partition. Internally, <em>keyBy()</em> is implemented with hash partitioning. There are different ways to <a href="{% link dev/stream/state/state.md %}#keyed-datastream">specify keys</a>.</p>
-            <p>This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keyed state</a>. </p>
+            <p>This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{% link dev/stream/state/state.md %}#keyed-state">keyed state</a>. </p>
 {% highlight python %}
 data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'b')])
 data_stream.key_by(lambda x: x[1], key_type_info=Types.STRING()) // Key by the result of KeySelector
@@ -912,7 +912,7 @@ dataStream.rebalance();
         </p>
 
         <div style="text-align: center">
-            <img src="{{ site.baseurl }}/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            <img src="{% link /fig/rescale.svg %}" alt="Checkpoint barriers in data streams" />
             </div>
 
 
@@ -1020,7 +1020,7 @@ dataStream.rebalance()
         </p>
 
         <div style="text-align: center">
-            <img src="{{ site.baseurl }}/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            <img src="{% link /fig/rescale.svg %}" alt="Checkpoint barriers in data streams" />
             </div>
 
 
@@ -1126,7 +1126,7 @@ data_stream.rebalance()
         </p>
 
         <div style="text-align: center">
-            <img src="{{ site.baseurl }}/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            <img src="{% link /fig/rescale.svg %}" alt="Checkpoint barriers in data streams" />
             </div>
 
 
@@ -1171,7 +1171,7 @@ previous transformation. For example, you can use `someStream.map(...).startNewC
 you cannot use `someStream.startNewChain()`.
 
 A resource group is a slot in Flink, see
-[slots]({{site.baseurl}}/deployment/config.html#configuring-taskmanager-processing-slots). You can
+[slots]({% link deployment/config.md %}#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
 
 <br />
@@ -1239,7 +1239,7 @@ previous transformation. For example, you can use `someStream.map(...).startNewC
 you cannot use `someStream.startNewChain()`.
 
 A resource group is a slot in Flink, see
-[slots]({{site.baseurl}}/deployment/config.html#configuring-taskmanager-processing-slots). You can
+[slots]({% link deployment/config.md %}#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
 
 <br />
@@ -1307,7 +1307,7 @@ previous transformation. For example, you can use `some_stream.map(...).start_ne
 you cannot use `some_stream.start_new_chain()`.
 
 A resource group is a slot in Flink, see
-[slots]({{site.baseurl}}/deployment/config.html#configuring-taskmanager-processing-slots). You can
+[slots]({% link deployment/config.md %}#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
 
 <br />

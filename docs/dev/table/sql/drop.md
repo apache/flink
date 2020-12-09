@@ -25,7 +25,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-DROP statements are used to remove a registered table/view/function from current or specified [Catalog]({{ site.baseurl }}/dev/table/catalogs.html).
+DROP statements are used to remove a registered table/view/function from current or specified [Catalog]({% link dev/table/catalogs.md %}).
 
 Flink SQL supports the following DROP statements for now:
 
@@ -56,7 +56,7 @@ The following examples show how to run a DROP statement in `TableEnvironment`.
 
 <div data-lang="SQL CLI" markdown="1">
 
-DROP statements can be in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html).
+DROP statements can be in [SQL CLI]({% link dev/table/sqlClient.md %}).
 
 The following examples show how to run a DROP statement in SQL CLI.
 

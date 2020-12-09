@@ -29,11 +29,12 @@ import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.specific.SpecificRecord;
-import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.schema.MessageType;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,21 +52,25 @@ import static org.junit.Assert.assertTrue;
 /**
  * Simple test case for reading {@link org.apache.flink.types.Row} from Parquet files.
  */
-public class ParquetRowInputFormatTest {
-	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
+@RunWith(Parameterized.class)
+public class ParquetRowInputFormatTest extends TestUtil {
 
 	@ClassRule
 	public static TemporaryFolder tempRoot = new TemporaryFolder();
 
+	public ParquetRowInputFormatTest(boolean useLegacyMode) {
+		super(useLegacyMode);
+	}
+
 	@Test
 	public void testReadRowFromSimpleRecord() throws IOException {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
-		Path path = TestUtil.createTempParquetFile(
-			tempRoot.getRoot(), TestUtil.SIMPLE_SCHEMA, Arrays.asList(simple.f1, simple.f1));
-		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = getSimpleRecordTestData();
+		Path path = createTempParquetFile(
+			tempRoot.getRoot(), SIMPLE_SCHEMA, Arrays.asList(simple.f1, simple.f1), getConfiguration());
+		MessageType simpleType = getSchemaConverter().convert(SIMPLE_SCHEMA);
 
 		ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(path, simpleType);
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+		inputFormat.setRuntimeContext(getMockRuntimeContext());
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
 		assertEquals(1, splits.length);
@@ -95,13 +100,16 @@ public class ParquetRowInputFormatTest {
 
 		File tempFolder = tempRoot.newFolder();
 		// created a parquet file with 10 row groups. Each row group has 100 records
-		TestUtil.createTempParquetFile(tempFolder, TestUtil.SIMPLE_SCHEMA, records);
-		TestUtil.createTempParquetFile(tempFolder, TestUtil.SIMPLE_SCHEMA, records);
-		TestUtil.createTempParquetFile(tempFolder, TestUtil.SIMPLE_SCHEMA, records);
-		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
+		createTempParquetFile(tempFolder, SIMPLE_SCHEMA,
+			records, getConfiguration());
+		createTempParquetFile(tempFolder, SIMPLE_SCHEMA,
+			records, getConfiguration());
+		createTempParquetFile(tempFolder, SIMPLE_SCHEMA,
+			records, getConfiguration());
+		MessageType simpleType = getSchemaConverter().convert(SIMPLE_SCHEMA);
 
 		ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(new Path(tempFolder.getPath()), simpleType);
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+		inputFormat.setRuntimeContext(getMockRuntimeContext());
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(3);
 		assertEquals(3, splits.length);
@@ -133,11 +141,12 @@ public class ParquetRowInputFormatTest {
 		}
 
 		// created a parquet file with 10 row groups. Each row group has 100 records
-		Path path = TestUtil.createTempParquetFile(tempRoot.newFolder(), TestUtil.SIMPLE_SCHEMA, records);
-		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.newFolder(), SIMPLE_SCHEMA,
+			records, getConfiguration());
+		MessageType simpleType = getSchemaConverter().convert(SIMPLE_SCHEMA);
 
 		ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(path, simpleType);
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+		inputFormat.setRuntimeContext(getMockRuntimeContext());
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
 		assertEquals(1, splits.length);
@@ -240,11 +249,12 @@ public class ParquetRowInputFormatTest {
 		}
 
 		// created a parquet file with 10 row groups. Each row group has 100 records
-		Path path = TestUtil.createTempParquetFile(tempRoot.newFolder(), TestUtil.SIMPLE_SCHEMA, records);
-		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.newFolder(), SIMPLE_SCHEMA,
+			records, getConfiguration());
+		MessageType simpleType = getSchemaConverter().convert(SIMPLE_SCHEMA);
 
 		ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(path, simpleType);
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+		inputFormat.setRuntimeContext(getMockRuntimeContext());
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
 		assertEquals(1, splits.length);
@@ -340,12 +350,13 @@ public class ParquetRowInputFormatTest {
 
 	@Test
 	public void testReadRowFromNestedRecord() throws IOException {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.newFolder(), TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
-		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = getNestedRecordTestData();
+		Path path = createTempParquetFile(tempRoot.newFolder(), NESTED_SCHEMA,
+			Collections.singletonList(nested.f1), getConfiguration());
+		MessageType nestedType = getSchemaConverter().convert(NESTED_SCHEMA);
 
 		ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(path, nestedType);
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+		inputFormat.setRuntimeContext(getMockRuntimeContext());
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
 		assertEquals(1, splits.length);
@@ -365,12 +376,13 @@ public class ParquetRowInputFormatTest {
 
 	@Test
 	public void testProjectedRowFromNestedRecord() throws Exception {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.newFolder(), TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
-		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = getNestedRecordTestData();
+		Path path = createTempParquetFile(tempRoot.newFolder(), NESTED_SCHEMA,
+			Collections.singletonList(nested.f1), getConfiguration());
+		MessageType nestedType = getSchemaConverter().convert(NESTED_SCHEMA);
 
 		ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(path, nestedType);
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+		inputFormat.setRuntimeContext(getMockRuntimeContext());
 
 		inputFormat.selectFields(new String[]{"bar", "nestedMap"});
 
@@ -387,27 +399,29 @@ public class ParquetRowInputFormatTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidProjectionOfNestedRecord() throws Exception {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.newFolder(), TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
-		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = getNestedRecordTestData();
+		Path path = createTempParquetFile(tempRoot.newFolder(), NESTED_SCHEMA,
+			Collections.singletonList(nested.f1), getConfiguration());
+		MessageType nestedType = getSchemaConverter().convert(NESTED_SCHEMA);
 
 		ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(path, nestedType);
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+		inputFormat.setRuntimeContext(getMockRuntimeContext());
 
 		inputFormat.selectFields(new String[]{"bar", "celona"});
 	}
 
 	@Test
 	public void testSerialization() throws Exception {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.newFolder(), TestUtil.SIMPLE_SCHEMA, Collections.singletonList(simple.f1));
-		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = getSimpleRecordTestData();
+		Path path = createTempParquetFile(tempRoot.newFolder(), SIMPLE_SCHEMA,
+			Collections.singletonList(simple.f1), getConfiguration());
+		MessageType simpleType = getSchemaConverter().convert(SIMPLE_SCHEMA);
 
 		ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(path, simpleType);
 		byte[] bytes = InstantiationUtil.serializeObject(inputFormat);
 		ParquetRowInputFormat copy = InstantiationUtil.deserializeObject(bytes, getClass().getClassLoader());
 
-		copy.setRuntimeContext(TestUtil.getMockRuntimeContext());
+		copy.setRuntimeContext(getMockRuntimeContext());
 
 		FileInputSplit[] splits = copy.createInputSplits(1);
 		assertEquals(1, splits.length);
@@ -417,5 +431,4 @@ public class ParquetRowInputFormatTest {
 		assertNotNull(row);
 		assertEquals(simple.f2, row);
 	}
-
 }

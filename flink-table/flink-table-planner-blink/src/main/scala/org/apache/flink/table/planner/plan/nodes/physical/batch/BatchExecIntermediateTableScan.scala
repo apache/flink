@@ -41,5 +41,4 @@ class BatchExecIntermediateTableScan(
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchExecIntermediateTableScan(cluster, traitSet, getTable, getRowType)
   }
-
 }

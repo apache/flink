@@ -109,11 +109,41 @@ public class DataStreamBatchExecutionITCase {
 
 		try (CloseableIterator<String> result = mapped.executeAndCollect()) {
 
-			// only the operators after the key-by "barrier" are restarted and will have the
+			// only the operators after the rebalance "barrier" are restarted and will have the
 			// "attempt 1" suffix
 			assertThat(
 					iteratorToList(result),
 					containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
+		}
+	}
+
+	/**
+	 * We induce a failure in the last mapper. In BATCH execution mode the part of the pipeline
+	 * before the rescale should not be re-executed. Only the part after that will restart. We
+	 * check that by suffixing the attempt number to records and asserting the correct number.
+	 */
+	@Test
+	public void batchFailoverWithRescaleBarrier() throws Exception {
+
+		final StreamExecutionEnvironment env = getExecutionEnvironment();
+
+		DataStreamSource<String> source = env.fromElements("foo", "bar");
+		env.setParallelism(1);
+
+		SingleOutputStreamOperator<String> mapped = source
+			.map(new SuffixAttemptId("a"))
+			.map(new SuffixAttemptId("b"))
+			.rescale()
+			.map(new SuffixAttemptId("c")).setParallelism(2)
+			.map(new OnceFailingMapper("d")).setParallelism(2);
+
+		try (CloseableIterator<String> result = mapped.executeAndCollect()) {
+
+			// only the operators after the rescale "barrier" are restarted and will have the
+			// "attempt 1" suffix
+			assertThat(
+				iteratorToList(result),
+				containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
 		}
 	}
 

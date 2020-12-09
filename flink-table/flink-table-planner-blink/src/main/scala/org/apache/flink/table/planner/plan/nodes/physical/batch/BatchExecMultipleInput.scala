@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.transformations.MultipleInputTransformatio
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 import org.apache.flink.table.runtime.operators.multipleinput.{BatchMultipleInputStreamOperatorFactory, TableOperatorWrapperGenerator}
@@ -56,15 +57,11 @@ class BatchExecMultipleInput(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
-  }
-
   override def getInputEdges: util.List[ExecEdge] = inputEdges.toList
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     throw new UnsupportedOperationException()
   }
 
@@ -98,7 +95,7 @@ class BatchExecMultipleInput(
     // set resources
     multipleInputTransform.setResources(generator.getMinResources, generator.getPreferredResources)
     val memoryKB = generator.getManagedMemoryWeight
-    ExecNode.setManagedMemoryWeight(multipleInputTransform, memoryKB * 1024L)
+    ExecNodeUtil.setManagedMemoryWeight(multipleInputTransform, memoryKB * 1024L)
 
     // set chaining strategy for source chaining
     multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES)

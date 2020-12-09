@@ -60,7 +60,7 @@ class BatchPlanner(
   override protected def getOptimizer: Optimizer = new BatchCommonSubGraphBasedOptimizer(this)
 
   override private[flink] def translateToExecNodePlan(
-      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_, _]] = {
+      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_]] = {
     val execNodePlan = super.translateToExecNodePlan(optimizedRelNodes)
     val context = new DAGProcessContext(this)
 
@@ -78,7 +78,7 @@ class BatchPlanner(
   }
 
   override protected def translateToPlan(
-      execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
+      execNodes: util.List[ExecNode[_]]): util.List[Transformation[_]] = {
     val planner = createDummyPlanner()
     planner.overrideEnvParallelism()
 
@@ -148,7 +148,12 @@ class BatchPlanner(
 
     sb.append("== Physical Execution Plan ==")
     sb.append(System.lineSeparator)
-    sb.append(executionPlan)
+    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      sb.append(streamGraph.getStreamingPlanAsJSON)
+    } else {
+      sb.append(executionPlan)
+    }
+
     sb.toString()
   }
 

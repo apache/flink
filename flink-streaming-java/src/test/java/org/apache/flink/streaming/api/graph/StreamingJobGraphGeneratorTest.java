@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -93,6 +94,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
+import org.hamcrest.FeatureMatcher;
+import org.hamcrest.Matcher;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -108,6 +111,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.areOperatorsChainable;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -613,6 +617,51 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			sourceAndMapVertex.getProducedDataSets().get(0).getResultType());
 	}
 
+	@Test
+	public void testPartitionTypesInBatchMode() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+		env.setParallelism(4);
+		env.disableOperatorChaining();
+		DataStream<Integer> source = env.fromElements(1);
+		source
+			// set the same parallelism as the source to make it a FORWARD SHUFFLE
+			.map(value -> value).setParallelism(1)
+			.rescale()
+			.map(value -> value)
+			.rebalance()
+			.map(value -> value)
+			.keyBy(value -> value)
+			.map(value -> value)
+			.addSink(new DiscardingSink<>());
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertThat(verticesSorted.get(0) /* source - forward */,
+			hasOutputPartitionType(ResultPartitionType.PIPELINED_BOUNDED));
+		assertThat(verticesSorted.get(1) /* rescale */,
+			hasOutputPartitionType(ResultPartitionType.BLOCKING));
+		assertThat(verticesSorted.get(2) /* rebalance */,
+			hasOutputPartitionType(ResultPartitionType.BLOCKING));
+		assertThat(verticesSorted.get(3) /* keyBy */,
+			hasOutputPartitionType(ResultPartitionType.BLOCKING));
+		assertThat(verticesSorted.get(4) /* forward - sink */,
+			hasOutputPartitionType(ResultPartitionType.PIPELINED_BOUNDED));
+	}
+
+	private Matcher<JobVertex> hasOutputPartitionType(ResultPartitionType partitionType) {
+		return new FeatureMatcher<JobVertex, ResultPartitionType>(
+			equalTo(partitionType),
+			"output partition type",
+			"output partition type"
+		) {
+			@Override
+			protected ResultPartitionType featureValueOf(JobVertex actual) {
+				return actual.getProducedDataSets().get(0).getResultType();
+			}
+		};
+	}
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testConflictShuffleModeWithBufferTimeout() {
 		testCompatibleShuffleModeWithBufferTimeout(ShuffleMode.BATCH);
@@ -740,7 +789,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	 * sources, see FLINK-16219.
 	 */
 	@Test
-	public void testYieldingOperatorProperlyChained() {
+	public void testYieldingOperatorProperlyChainedOnLegacySources() {
 		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		chainEnv.fromElements(1)
@@ -758,6 +807,26 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		Assert.assertEquals(2, vertices.size());
 		assertEquals(2, vertices.get(0).getOperatorIDs().size());
 		assertEquals(5, vertices.get(1).getOperatorIDs().size());
+	}
+
+	/**
+	 * Tests that {@link org.apache.flink.streaming.api.operators.YieldingOperatorFactory} are chained to new sources,
+	 * see FLINK-20444.
+	 */
+	@Test
+	public void testYieldingOperatorProperlyChainedOnNewSources() {
+		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		chainEnv.fromSource(new NumberSequenceSource(0, 10), WatermarkStrategy.noWatermarks(), "input")
+			.map((x) -> x)
+			.transform("test", BasicTypeInfo.LONG_TYPE_INFO, new YieldingTestOperatorFactory<>())
+			.addSink(new DiscardingSink<>());
+
+		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
+
+		final List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+		Assert.assertEquals(1, vertices.size());
+		assertEquals(4, vertices.get(0).getOperatorIDs().size());
 	}
 
 	@Test(expected = UnsupportedOperationException.class)

@@ -18,6 +18,7 @@
 
 package org.apache.flink.tests.util.kafka;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.FlinkContainer;
@@ -26,6 +27,7 @@ import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
 
 import io.confluent.kafka.schemaregistry.avro.AvroSchema;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import org.apache.avro.Schema;
@@ -33,19 +35,22 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.Timeout;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 
-import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -63,6 +68,9 @@ public class SQLClientSchemaRegistryITCase {
 	private final Path sqlConnectorKafkaJar = TestUtils.getResource(".*kafka.jar");
 
 	public final Network network = Network.newNetwork();
+
+	@ClassRule
+	public static final Timeout TIMEOUT = new Timeout(10, TimeUnit.MINUTES);
 
 	@Rule
 	public final KafkaContainer kafka = new KafkaContainer(
@@ -87,9 +95,6 @@ public class SQLClientSchemaRegistryITCase {
 	private final KafkaContainerClient kafkaClient = new KafkaContainerClient(kafka);
 	private CachedSchemaRegistryClient registryClient;
 
-	public SQLClientSchemaRegistryITCase() throws IOException {
-	}
-
 	@Before
 	public void setUp() {
 		registryClient = new CachedSchemaRegistryClient(
@@ -97,7 +102,7 @@ public class SQLClientSchemaRegistryITCase {
 			10);
 	}
 
-	@Test
+	@Test(timeout = 120_000)
 	public void testReading() throws Exception {
 		String testCategoryTopic = "test-category-" + UUID.randomUUID().toString();
 		String testResultsTopic = "test-results-" + UUID.randomUUID().toString();
@@ -164,7 +169,7 @@ public class SQLClientSchemaRegistryITCase {
 		));
 	}
 
-	@Test
+	@Test(timeout = 120_000)
 	public void testWriting() throws Exception {
 		String testUserBehaviorTopic = "test-user-behavior-" + UUID.randomUUID().toString();
 		// Create topic test-avro
@@ -192,7 +197,7 @@ public class SQLClientSchemaRegistryITCase {
 
 		executeSqlStatements(sqlLines);
 
-		List<Integer> versions = registryClient.getAllVersions(behaviourSubject);
+		List<Integer> versions = getAllVersions(behaviourSubject);
 		assertThat(versions.size(), equalTo(1));
 		List<Object> userBehaviors = kafkaClient.readMessages(
 			1,
@@ -215,6 +220,20 @@ public class SQLClientSchemaRegistryITCase {
 					.build()
 			)
 		));
+	}
+
+	private List<Integer> getAllVersions(String behaviourSubject) throws Exception {
+		Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
+		Exception ex = new IllegalStateException(
+			"Could not query schema registry. Negative deadline provided.");
+		while (deadline.hasTimeLeft()) {
+			try {
+				return registryClient.getAllVersions(behaviourSubject);
+			} catch (RestClientException e) {
+				ex = e;
+			}
+		}
+		throw ex;
 	}
 
 	private void executeSqlStatements(List<String> sqlLines) throws Exception {

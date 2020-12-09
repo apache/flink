@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
+import org.apache.flink.streaming.api.transformations.BroadcastStateTransformation;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
@@ -53,6 +54,7 @@ import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTra
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
+import org.apache.flink.streaming.runtime.translators.BroadcastStateTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.LegacySinkTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.LegacySourceTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTranslator;
@@ -167,6 +169,7 @@ public class StreamGraphGenerator {
 		tmp.put(SideOutputTransformation.class, new SideOutputTransformationTranslator<>());
 		tmp.put(ReduceTransformation.class, new ReduceTransformationTranslator<>());
 		tmp.put(TimestampsAndWatermarksTransformation.class, new TimestampsAndWatermarksTransformationTranslator<>());
+		tmp.put(BroadcastStateTransformation.class, new BroadcastStateTransformationTranslator<>());
 		translatorMap = Collections.unmodifiableMap(tmp);
 	}
 
@@ -281,7 +284,7 @@ public class StreamGraphGenerator {
 				checkpointConfig.disableCheckpointing();
 			}
 
-			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED);
+			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED);
 			graph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
 			setDefaultBufferTimeout(-1);
 			setBatchStateBackendAndTimerService(graph);

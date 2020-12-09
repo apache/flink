@@ -24,7 +24,8 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.fetchToString
 import org.apache.flink.table.planner.plan.utils.SortUtil
 import org.apache.flink.table.runtime.operators.sort.LimitOperator
@@ -89,16 +90,7 @@ class BatchExecLimit(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
-
   override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -106,11 +98,12 @@ class BatchExecLimit(
         .asInstanceOf[Transformation[RowData]]
     val inputType = input.getOutputType
     val operator = new LimitOperator(isGlobal, limitStart, limitEnd)
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),
       inputType,
-      input.getParallelism)
+      input.getParallelism,
+      0)
   }
 }

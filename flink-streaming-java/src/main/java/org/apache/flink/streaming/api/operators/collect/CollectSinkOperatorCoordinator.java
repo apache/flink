@@ -184,6 +184,11 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 	}
 
 	@Override
+	public void subtaskReset(int subtask, long checkpointId) {
+		// nothing to do here, connections are re-created lazily
+	}
+
+	@Override
 	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		ObjectOutputStream oos = new ObjectOutputStream(baos);
@@ -197,7 +202,7 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 	}
 
 	@Override
-	public void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception {
 		if (checkpointData == null) {
 			// restore before any checkpoint completed
 			closeConnection();

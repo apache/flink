@@ -289,7 +289,12 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 		}
 
 		@Override
-		public void resetToCheckpoint(byte[] checkpointData) throws Exception {
+		public void subtaskReset(int subtask, long checkpointId) {}
+
+		@Override
+		public void resetToCheckpoint(
+				final long checkpointId,
+				@Nullable final byte[] checkpointData) throws Exception {
 			executor.execute(() -> nextNumber = bytesToInt(checkpointData));
 		}
 

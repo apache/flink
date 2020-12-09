@@ -268,6 +268,17 @@ The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names sep
 
 There are also more [advanced ways](#advanced-customization) for customizing the Flink image.
 
+### Switch memory allocator
+
+Flink introduced `jemalloc` as default memory allocator to resolve memory fragmentation problem (please refer to [FLINK-19125](https://issues.apache.org/jira/browse/FLINK-19125)).
+
+You could switch back to use `glibc` as memory allocator to restore the old behavior or if any unexpected memory consumption or problem observed
+(and please report the issue via JIRA or mailing list if you found any), by passing `disable-jemalloc` parameter:
+
+```sh
+    docker run <jobmanager|standalone-job|taskmanager> disable-jemalloc
+```
+
 ### Advanced customization
 
 There are several ways in which you can further customize the Flink image:
@@ -341,6 +352,27 @@ as described in [how to run the Flink image](#how-to-run-flink-image).
     # e.g. to distribute the custom image to your cluster
     docker push custom_flink_image
     ```
+  
+### Enabling Python
+
+To build a custom image which has Python and Pyflink prepared, you can refer to the following Dockerfile:
+{% highlight Dockerfile %}
+FROM flink
+
+# install python3 and pip3
+RUN apt-get update -y && \
+apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# install Python Flink
+RUN pip3 install apache-flink
+{% endhighlight %}
+
+Build the image named as **pyflink:latest**:
+
+{% highlight bash %}
+sudo docker build -t pyflink:latest .
+{% endhighlight %}
 
 {% top %}
 

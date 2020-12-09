@@ -228,16 +228,7 @@ public class ParquetSchemaConverter {
 							// If the repeated field is a group with multiple fields, then its type is the element
 							// type and elements are required.
 							if (elementType.getFieldCount() > 1) {
-
-								for (Type type : elementType.getFields()) {
-									if (!type.isRepetition(Type.Repetition.REQUIRED)) {
-										throw new UnsupportedOperationException(
-											String.format("List field [%s] in List [%s] has to be required. ",
-												type.toString(), fieldType.getName()));
-									}
-								}
-								typeInfo = ObjectArrayTypeInfo.getInfoFor(
-									convertParquetTypeToTypeInfo(elementType));
+								typeInfo = convertGroupElementToArrayTypeInfo(parquetGroupType, elementType);
 							} else {
 								Type internalType = elementType.getType(0);
 								if (internalType.isPrimitive()) {
@@ -250,9 +241,7 @@ public class ParquetSchemaConverter {
 										typeInfo = ObjectArrayTypeInfo.getInfoFor(
 											convertParquetTypeToTypeInfo(internalType));
 									} else {
-										throw new UnsupportedOperationException(
-											String.format("Unrecgonized List schema [%s] according to Parquet"
-												+ " standard", parquetGroupType.toString()));
+										typeInfo = convertGroupElementToArrayTypeInfo(parquetGroupType, tupleGroup);
 									}
 								}
 							}
@@ -304,6 +293,18 @@ public class ParquetSchemaConverter {
 		}
 
 		return typeInfo;
+	}
+
+	private static ObjectArrayTypeInfo convertGroupElementToArrayTypeInfo(GroupType arrayFieldType, GroupType elementType) {
+		for (Type type : elementType.getFields()) {
+			if (!type.isRepetition(Type.Repetition.REQUIRED)) {
+				throw new UnsupportedOperationException(
+					String.format("List field [%s] in List [%s] has to be required. ",
+						type.toString(), arrayFieldType.getName()));
+			}
+		}
+		return ObjectArrayTypeInfo.getInfoFor(
+			convertParquetTypeToTypeInfo(elementType));
 	}
 
 	private static TypeInformation<?> convertParquetPrimitiveListToFlinkArray(Type type) {
@@ -374,17 +375,33 @@ public class ParquetSchemaConverter {
 			GroupType componentGroup = (GroupType) convertField(LIST_ELEMENT, objectArrayTypeInfo.getComponentInfo(),
 					Type.Repetition.REQUIRED, legacyMode);
 
-			GroupType elementGroup = Types.repeatedGroup().named(LIST_ELEMENT);
-			elementGroup = elementGroup.withNewFields(componentGroup.getFields());
-			fieldType = Types.buildGroup(repetition)
-				.addField(elementGroup)
-				.as(OriginalType.LIST)
-				.named(fieldName);
+			if (legacyMode) {
+				// LegacyMode is 2 Level List schema
+				fieldType = Types.buildGroup(repetition)
+					.addField(componentGroup)
+					.as(OriginalType.LIST)
+					.named(fieldName);
+			} else {
+				// Add extra layer of Group according to Parquet's standard
+				Type listGroup = Types.repeatedGroup()
+					.addField(componentGroup).named(LIST_GROUP_NAME);
+				fieldType = Types.buildGroup(repetition)
+					.addField(listGroup)
+					.as(OriginalType.LIST)
+					.named(fieldName);
+			}
 		} else if (typeInfo instanceof BasicArrayTypeInfo) {
 			BasicArrayTypeInfo basicArrayType = (BasicArrayTypeInfo) typeInfo;
 
+			// LegacyMode is 2 Level List schema
 			if (legacyMode) {
-
+				PrimitiveType primitiveTyp =
+					convertField(fieldName, basicArrayType.getComponentInfo(),
+						Type.Repetition.REQUIRED, legacyMode).asPrimitiveType();
+				fieldType = Types.buildGroup(repetition)
+					.addField(primitiveTyp)
+					.as(OriginalType.LIST).named(fieldName);
+			} else {
 				// Add extra layer of Group according to Parquet's standard
 				Type listGroup = Types.repeatedGroup().addField(
 					convertField(LIST_ELEMENT, basicArrayType.getComponentInfo(),
@@ -392,15 +409,6 @@ public class ParquetSchemaConverter {
 
 				fieldType = Types.buildGroup(repetition)
 					.addField(listGroup)
-					.as(OriginalType.LIST).named(fieldName);
-			} else {
-				PrimitiveType primitiveTyp =
-					convertField(fieldName, basicArrayType.getComponentInfo(),
-						Type.Repetition.REQUIRED, legacyMode).asPrimitiveType();
-				fieldType = Types.buildGroup(repetition)
-					.repeated(primitiveTyp.getPrimitiveTypeName())
-					.as(primitiveTyp.getOriginalType())
-					.named(LIST_ARRAY_TYPE)
 					.as(OriginalType.LIST).named(fieldName);
 			}
 		} else if (typeInfo instanceof SqlTimeTypeInfo) {

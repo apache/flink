@@ -63,6 +63,9 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 
 	protected static final Logger LOG = LoggerFactory.getLogger(SinkTransformationTranslator.class);
 
+	// Currently we only support load the state from streaming file sink;
+	private static final String PREVIOUS_SINK_STATE_NAME = "bucket-states";
+
 	@Override
 	public Collection<Integer> translateForBatch(
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> transformation,
@@ -75,6 +78,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 			internalTranslate(
 					transformation,
 					parallelism,
+					PREVIOUS_SINK_STATE_NAME,
 					new BatchCommitterOperatorFactory<>(transformation.getSink()),
 					1,
 					1,
@@ -101,6 +105,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 			internalTranslate(
 					transformation,
 					parallelism,
+					PREVIOUS_SINK_STATE_NAME,
 					new StreamingCommitterOperatorFactory<>(transformation.getSink()),
 					parallelism,
 					transformation.getMaxParallelism(),
@@ -117,9 +122,9 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 
 	/**
 	 * Add the sink operators to the stream graph.
-	 *
 	 * @param sinkTransformation The sink transformation that committer and global committer belongs to.
 	 * @param writerParallelism The parallelism of the writer operator.
+	 * @param previousSinkStateName The state name of previous sink's state.
 	 * @param committerFactory The committer operator factory.
 	 * @param committerParallelism The parallelism of the committer operator.
 	 * @param committerMaxParallelism The max parallelism of the committer operator.
@@ -128,6 +133,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 	private void internalTranslate(
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
 			int writerParallelism,
+			@SuppressWarnings("SameParameterValue") @Nullable String previousSinkStateName,
 			OneInputStreamOperatorFactory<CommT, CommT> committerFactory,
 			int committerParallelism,
 			int committerMaxParallelism,
@@ -139,6 +145,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 		final int writerId = addWriter(
 				sinkTransformation,
 				writerParallelism,
+				previousSinkStateName,
 				context);
 
 		final int committerId = addCommitter(
@@ -161,12 +168,14 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 	 *
 	 * @param sinkTransformation The transformation that the writer belongs to
 	 * @param parallelism The parallelism of the writer
+	 * @param previousSinkStateName The state name of previous sink's state.
 	 *
 	 * @return The stream node id of the writer
 	 */
 	private int addWriter(
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
 			int parallelism,
+			@Nullable String previousSinkStateName,
 			Context context) {
 		final boolean hasState = sinkTransformation
 				.getSink()
@@ -180,7 +189,9 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 		final TypeInformation<InputT> inputTypeInfo = input.getOutputType();
 
 		final StreamOperatorFactory<CommT> writer =
-				hasState ? new StatefulSinkWriterOperatorFactory<>(sinkTransformation.getSink()) : new StatelessSinkWriterOperatorFactory<>(
+				hasState ? new StatefulSinkWriterOperatorFactory<>(
+						sinkTransformation.getSink(),
+						previousSinkStateName) : new StatelessSinkWriterOperatorFactory<>(
 						sinkTransformation.getSink());
 
 		final String prefix = "Sink Writer:";

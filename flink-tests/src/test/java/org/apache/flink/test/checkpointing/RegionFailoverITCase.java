@@ -34,9 +34,9 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
@@ -445,7 +445,7 @@ public class RegionFailoverITCase extends TestLogger {
 		@Override
 		public HighAvailabilityServices createHAServices(Configuration configuration, Executor executor) {
 			return new TestingHaServices(
-				new TestingCheckpointRecoveryFactory(new TestingCompletedCheckpointStore(), new StandaloneCheckpointIDCounter()),
+				PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs(new TestingCompletedCheckpointStore(), new StandaloneCheckpointIDCounter()),
 				executor);
 		}
 	}

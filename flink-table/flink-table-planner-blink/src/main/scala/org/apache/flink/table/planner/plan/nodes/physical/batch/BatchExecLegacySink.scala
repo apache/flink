@@ -26,7 +26,8 @@ import org.apache.flink.table.planner.codegen.SinkCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
@@ -61,21 +62,12 @@ class BatchExecLegacySink[T](
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
-
   // the input records will not trigger any output of a sink because it has no output,
   // so it's dam behavior is BLOCKING
   override def getInputEdges: util.List[ExecEdge] = List(
     ExecEdge.builder()
       .damBehavior(ExecEdge.DamBehavior.BLOCKING)
       .build())
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[Any] = {
@@ -138,12 +130,13 @@ class BatchExecLegacySink[T](
             withChangeFlag,
             "SinkConversion"
           )
-          ExecNode.createOneInputTransformation(
+          ExecNodeUtil.createOneInputTransformation(
             plan,
             s"SinkConversionTo${resultDataType.getConversionClass.getSimpleName}",
             converterOperator,
             outputTypeInfo,
-            plan.getParallelism)
+            plan.getParallelism,
+            0)
         }
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +

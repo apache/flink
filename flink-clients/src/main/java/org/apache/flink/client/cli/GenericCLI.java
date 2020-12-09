@@ -19,6 +19,7 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.DeploymentOptionsInternal;
@@ -53,9 +54,9 @@ public class GenericCLI implements CustomCommandLine {
 
 	private final Option targetOption = new Option("t", "target", true,
 			"The deployment target for the given application, which is equivalent " +
-					"to the \"" + DeploymentOptions.TARGET.key() + "\" config option. The " +
-					"currently available targets are: " + getExecutorFactoryNames() +
-					", \"yarn-application\" and \"kubernetes-application\".");
+					"to the \"" + DeploymentOptions.TARGET.key() + "\" config option. For the \"run\" action the " +
+					"currently available targets are: " + getExecutorFactoryNames() + ". For the \"run-application\" action"
+					+ " the currently available targets are: " + getApplicationModeTargetNames() + ".");
 
 	private final Configuration configuration;
 
@@ -112,6 +113,12 @@ public class GenericCLI implements CustomCommandLine {
 
 	private static String getExecutorFactoryNames() {
 		return new DefaultExecutorServiceLoader().getExecutorNames()
+				.map(name -> String.format("\"%s\"", name))
+				.collect(Collectors.joining(", "));
+	}
+
+	private static String getApplicationModeTargetNames() {
+		return new DefaultClusterClientServiceLoader().getApplicationModeTargetNames()
 				.map(name -> String.format("\"%s\"", name))
 				.collect(Collectors.joining(", "));
 	}

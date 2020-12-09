@@ -23,6 +23,8 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 
+import java.util.stream.Stream;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -40,5 +42,10 @@ public class DummyClusterClientServiceLoader<ClusterID> implements ClusterClient
 	public <C> ClusterClientFactory<C> getClusterClientFactory(final Configuration configuration) {
 		checkNotNull(configuration);
 		return new DummyClusterClientFactory<>(clusterClient);
+	}
+
+	@Override
+	public Stream<String> getApplicationModeTargetNames() {
+		return Stream.empty();
 	}
 }

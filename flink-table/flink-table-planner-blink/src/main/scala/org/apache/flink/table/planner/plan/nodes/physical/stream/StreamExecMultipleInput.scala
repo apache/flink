@@ -27,10 +27,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 
-import java.util
-
-import scala.collection.JavaConversions._
-
 /**
  * Stream physical node for [[MultipleInputRel]].
  *
@@ -53,13 +49,9 @@ class StreamExecMultipleInput(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     throw new UnsupportedOperationException()
   }
 

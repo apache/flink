@@ -28,6 +28,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -52,6 +54,8 @@ import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
+import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -102,6 +106,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -428,11 +433,35 @@ public class MiniCluster implements AutoCloseableAsync {
 	}
 
 	@VisibleForTesting
-	protected HighAvailabilityServices createHighAvailabilityServices(Configuration configuration, Executor executor) throws Exception {
+	protected HighAvailabilityServices createHighAvailabilityServices(
+			Configuration configuration,
+			Executor executor) throws Exception {
 		LOG.info("Starting high-availability services");
-		return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-			configuration,
-			executor);
+		final HaServices haServices = miniClusterConfiguration.getHaServices();
+		switch (haServices) {
+			case WITH_LEADERSHIP_CONTROL:
+				return new EmbeddedHaServicesWithLeadershipControl(executor);
+			case CONFIGURED:
+				return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(configuration, executor);
+			default:
+				throw new IllegalConfigurationException("Unkown HA Services " + haServices);
+		}
+	}
+
+	/**
+	 * Returns {@link HaLeadershipControl} if enabled.
+	 *
+	 * <p>{@link HaLeadershipControl} allows granting and revoking leadership of HA components,
+	 * e.g. JobManager. The method return {@link Optional#empty()} if the control is not enabled in
+	 * {@link MiniClusterConfiguration}.
+	 *
+	 * <p>Enabling this feature disables {@link HighAvailabilityOptions#HA_MODE} option.
+	 */
+	public Optional<HaLeadershipControl> getHaLeadershipControl() {
+		synchronized (lock) {
+			return haServices instanceof HaLeadershipControl ?
+				Optional.of((HaLeadershipControl) haServices) : Optional.empty();
+		}
 	}
 
 	/**
@@ -454,7 +483,7 @@ public class MiniCluster implements AutoCloseableAsync {
 					final int numComponents = 2 + miniClusterConfiguration.getNumTaskManagers();
 					final Collection<CompletableFuture<Void>> componentTerminationFutures = new ArrayList<>(numComponents);
 
-					componentTerminationFutures.addAll(terminateTaskExecutors());
+					componentTerminationFutures.addAll(terminateTaskManagers());
 
 					componentTerminationFutures.add(shutDownResourceManagerComponents());
 
@@ -519,12 +548,20 @@ public class MiniCluster implements AutoCloseableAsync {
 		LOG.info("Starting {} TaskManger(s)", numTaskManagers);
 
 		for (int i = 0; i < numTaskManagers; i++) {
-			startTaskExecutor();
+			startTaskManager();
 		}
 	}
 
-	@VisibleForTesting
-	void startTaskExecutor() throws Exception {
+	/**
+	 * Starts additional TaskManager process.
+	 *
+	 * <p>When the MiniCluster starts up, it always starts {@link MiniClusterConfiguration#getNumTaskManagers}
+	 * TaskManagers. All TaskManagers are indexed from 0 to the number of TaskManagers, started so far, minus one.
+	 * This method starts a TaskManager with the next index which is the number of TaskManagers, started so far.
+	 * The index always increases with each new started TaskManager. The indices of terminated TaskManagers
+	 * are not reused after {@link #terminateTaskManager(int)}.
+	 */
+	public void startTaskManager() throws Exception {
 		synchronized (lock) {
 			final Configuration configuration = miniClusterConfiguration.getConfiguration();
 
@@ -551,18 +588,27 @@ public class MiniCluster implements AutoCloseableAsync {
 	}
 
 	@GuardedBy("lock")
-	private Collection<? extends CompletableFuture<Void>> terminateTaskExecutors() {
+	private Collection<? extends CompletableFuture<Void>> terminateTaskManagers() {
 		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(taskManagers.size());
 		for (int i = 0; i < taskManagers.size(); i++) {
-			terminationFutures.add(terminateTaskExecutor(i));
+			terminationFutures.add(terminateTaskManager(i));
 		}
 
 		return terminationFutures;
 	}
 
-	@VisibleForTesting
-	@Nonnull
-	protected CompletableFuture<Void> terminateTaskExecutor(int index) {
+	/**
+	 * Terminates a TaskManager with the given index.
+	 *
+	 * <p>See {@link #startTaskManager()} to understand how TaskManagers are indexed.
+	 * This method terminates a TaskManager with a given index but it does not clear the index.
+	 * The index stays occupied for the lifetime of the MiniCluster and its TaskManager stays terminated.
+	 * The index is not reused if more TaskManagers are started with {@link #startTaskManager()}.
+	 *
+	 * @param index index of the TaskManager to terminate
+	 * @return {@link CompletableFuture} of the given TaskManager termination
+	 */
+	public CompletableFuture<Void> terminateTaskManager(int index) {
 		synchronized (lock) {
 			final TaskExecutor taskExecutor = taskManagers.get(index);
 			return taskExecutor.closeAsync();
@@ -1031,5 +1077,23 @@ public class MiniCluster implements AutoCloseableAsync {
 		private TerminatingFatalErrorHandler create(int index) {
 			return new TerminatingFatalErrorHandler(index);
 		}
+	}
+
+	/**
+	 * HA Services to use.
+	 */
+	public enum HaServices {
+		/**
+		 * Uses the configured HA Services in {@link HighAvailabilityOptions#HA_MODE} option.
+		 */
+		CONFIGURED,
+
+		/**
+		 * Enables or disables {@link HaLeadershipControl} in {@link MiniCluster#getHaLeadershipControl}.
+		 *
+		 * <p>{@link HaLeadershipControl} allows granting and revoking leadership of HA components.
+		 * Enabling this feature disables {@link HighAvailabilityOptions#HA_MODE} option.
+		 */
+		WITH_LEADERSHIP_CONTROL
 	}
 }

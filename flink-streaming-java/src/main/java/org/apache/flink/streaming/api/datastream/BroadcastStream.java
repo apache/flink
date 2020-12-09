@@ -78,7 +78,7 @@ public class BroadcastStream<T> {
 		return inputStream.getTransformation();
 	}
 
-	public List<MapStateDescriptor<?, ?>> getBroadcastStateDescriptor() {
+	public List<MapStateDescriptor<?, ?>> getBroadcastStateDescriptors() {
 		return broadcastStateDescriptors;
 	}
 

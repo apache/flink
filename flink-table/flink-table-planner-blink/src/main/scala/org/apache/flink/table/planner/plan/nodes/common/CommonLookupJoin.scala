@@ -35,7 +35,7 @@ import org.apache.flink.table.planner.codegen.LookupJoinCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, LookupJoinCodeGenerator}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getParamClassesConsiderVarArgs, getUserDefinedMethod, signatureToString, signaturesToString}
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
@@ -429,12 +429,13 @@ abstract class CommonLookupJoin(
       SimpleOperatorFactory.of(new ProcessOperator(processFunc))
     }
 
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       inputTransformation,
       getRelDetailedDescription,
       operatorFactory,
       InternalTypeInfo.of(resultRowType),
-      inputTransformation.getParallelism)
+      inputTransformation.getParallelism,
+      0)
   }
 
   private def rowTypeEquals(expected: TypeInformation[_], actual: TypeInformation[_]): Boolean = {

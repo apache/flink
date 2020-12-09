@@ -350,14 +350,14 @@ val kinesis = env.addSource(new FlinkKinesisConsumer[String](
 
 ### Event Time for Consumed Records
 
-If streaming topologies choose to use the [event time notion]({{site.baseurl}}/dev/event_time.html) for record
+If streaming topologies choose to use the [event time notion]({% link dev/event_time.md %}) for record
 timestamps, an *approximate arrival timestamp* will be used by default. This timestamp is attached to records by Kinesis once they
 were successfully received and stored by streams. Note that this timestamp is typically referred to as a Kinesis server-side
 timestamp, and there are no guarantees about the accuracy or order correctness (i.e., the timestamps may not always be
 ascending).
 
-Users can choose to override this default with a custom timestamp, as described [here]({{ site.baseurl }}/dev/event_timestamps_watermarks.html),
-or use one from the [predefined ones]({{ site.baseurl }}/dev/event_timestamp_extractors.html). After doing so,
+Users can choose to override this default with a custom timestamp, as described [here]({% link dev/event_timestamps_watermarks.md %}),
+or use one from the [predefined ones]({% link dev/event_timestamp_extractors.md %}). After doing so,
 it can be passed to the consumer in the following way:
 
 <div class="codetabs" markdown="1">

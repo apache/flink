@@ -212,10 +212,12 @@ public class SQLClientHBaseITCase extends TestLogger {
 
 	private void executeSqlStatements(ClusterController clusterController, List<String> sqlLines) throws IOException {
 		LOG.info("Executing SQL: HBase source table -> HBase sink table");
-		clusterController.submitSQLJob(new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
-			.addJar(sqlToolBoxJar)
-			.addJar(sqlConnectorHBaseJar)
-			.addJars(hadoopClasspathJars)
-			.build());
+		clusterController.submitSQLJob(
+			new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
+				.addJar(sqlToolBoxJar)
+				.addJar(sqlConnectorHBaseJar)
+				.addJars(hadoopClasspathJars)
+				.build(),
+			Duration.ofMinutes(2L));
 	}
 }

@@ -24,11 +24,11 @@ package org.apache.flink.table.planner.plan.nodes.exec;
  */
 public class ExecNodeVisitorImpl implements ExecNodeVisitor {
 
-	public void visit(ExecNode<?, ?> node) {
+	public void visit(ExecNode<?> node) {
 		visitInputs(node);
 	}
 
-	protected void visitInputs(ExecNode<?, ?> node) {
+	protected void visitInputs(ExecNode<?> node) {
 		node.getInputNodes().forEach(n -> n.accept(this));
 	}
 }
