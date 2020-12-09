@@ -204,17 +204,15 @@ Here is an example configuration for Marathon:
 
 Flink is installed into `/opt/flink-{{ site.version }}` having `root` as the owner of the Flink 
 directory (notice that the user is used twice: once as a Marathon and another time as a Mesos 
-parameter) for the example configuration above to work.
+parameter) for the example configuration above to work. Additionally, we have the bundled Hadoop jar 
+saved in Flink's `lib/` folder for the sake of simplicity here. This way, we don't have to set 
+`HADOOP_CLASSPATH` as a environment variable next to `MESOS_NATIVE_JAVA_LIBRARY`.
 
 `<mesos-master>` needs to be set to the hostname or IP of Mesos' master node. `$HOST` is a Marathon 
 environment variable referring to the hostname of the machine the script is executed on.
 
-Additionally, we have the bundled Hadoop jar saved in Flink's `lib/` folder for the sake of 
-simplicity here. This way, we don't have to set `HADOOP_CLASSPATH` as a environment variable next 
-to `MESOS_NATIVE_JAVA_LIBRARY`.
-
-When running Flink with Marathon, the whole Flink cluster including the JobManager will be run as 
-Mesos tasks in the Mesos cluster. Flink's binaries have to be installed on all Mesos workers for the 
+The whole Flink cluster including the JobManager will be run as Mesos tasks in the Mesos cluster when 
+deploying Flink using Marathon. Flink's binaries have to be installed on all Mesos workers for the 
 above Marathon config to work.
 
 ### Supported Hadoop versions
