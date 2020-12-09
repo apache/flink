@@ -50,8 +50,8 @@ For `bin/mesos-appmaster.sh` to work, you have to set the two variables `HADOOP_
 `MESOS_NATIVE_JAVA_LIBRARY`:
 
 {% highlight bash %}
-export HADOOP_CLASSPATH=$(hadoop classpath)
-export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
+$ export HADOOP_CLASSPATH=$(hadoop classpath)
+$ export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
 {% endhighlight %}
 
 `MESOS_NATIVE_JAVA_LIBRARY` needs to point to Mesos' native Java library. The library name `libmesos.so` 
@@ -65,15 +65,15 @@ Change into Flink's home directory and call `bin/mesos-appmaster.sh`:
 
 {% highlight bash %}
 # (0) set required environment variables
-export HADOOP_CLASSPATH=$(hadoop classpath)
-export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
+$ export HADOOP_CLASSPATH=$(hadoop classpath)
+$ export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
 
 # (1) create Flink on Mesos cluster
-./bin/mesos-appmaster.sh \
-    -Dmesos.master=$MESOS_MASTER:5050 \
-    -Djobmanager.rpc.address=$JOBMANAGER_HOST \
-    -Dmesos.resourcemanager.framework.user=$FLINK_USER \
-    -Dmesos.resourcemanager.tasks.cpus=6
+$ ./bin/mesos-appmaster.sh \
+      -Dmesos.master=$MESOS_MASTER:5050 \
+      -Djobmanager.rpc.address=$JOBMANAGER_HOST \
+      -Dmesos.resourcemanager.framework.user=$FLINK_USER \
+      -Dmesos.resourcemanager.tasks.cpus=6
 {% endhighlight %}
 
 The call above uses two variables not introduced, yet, as they depend on the cluster:
@@ -124,15 +124,15 @@ try (FileOutputStream output = new FileOutputStream(jobGraphFile);
 Flink on Mesos Per-Job cluster can be started in the following way:
 {% highlight bash %}
 # (0) set required environment variables
-export HADOOP_CLASSPATH=$(hadoop classpath)
-export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
+$ export HADOOP_CLASSPATH=$(hadoop classpath)
+$ export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
 
 # (1) create Per-Job Flink on Mesos cluster
-./bin/mesos-appmaster-job.sh \
-    -Dmesos.master=$MESOS_MASTER:5050 \
-    -Djobmanager.rpc.address=$MESOS_MASTER \
-    -Dmesos.resourcemanager.framework.user=$FLINK_USER \
-    -Dinternal.jobgraph-path=$JOB_GRAPH_FILE
+$ ./bin/mesos-appmaster-job.sh \
+      -Dmesos.master=$MESOS_MASTER:5050 \
+      -Djobmanager.rpc.address=$MESOS_MASTER \
+      -Dmesos.resourcemanager.framework.user=$FLINK_USER \
+      -Dinternal.jobgraph-path=$JOB_GRAPH_FILE
 {% endhighlight %} 
 
 `JOB_GRAPH_FILE` in the command above refers to the path of the uploaded JobGraph file defining the 
