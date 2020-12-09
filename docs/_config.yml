@@ -88,6 +88,7 @@ previous_docs:
 exclude:
   - "build_docs.sh"
   - "check_links.sh"
+  - "spider.log"
 
 # Used in some documents to initialize arrays. Don't delete.
 array: []
