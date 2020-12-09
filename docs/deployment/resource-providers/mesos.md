@@ -70,18 +70,18 @@ $ export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
 
 # (1) create Flink on Mesos cluster
 $ ./bin/mesos-appmaster.sh \
-      -Dmesos.master=$MESOS_MASTER:5050 \
-      -Djobmanager.rpc.address=$JOBMANAGER_HOST \
-      -Dmesos.resourcemanager.framework.user=$FLINK_USER \
+      -Dmesos.master=<mesos-master>:5050 \
+      -Djobmanager.rpc.address=<jobmanager-host> \
+      -Dmesos.resourcemanager.framework.user=<flink-user> \
       -Dmesos.resourcemanager.tasks.cpus=6
 {% endhighlight %}
 
 The call above uses two variables not introduced, yet, as they depend on the cluster:
-* `MESOS_MASTER` refers to the Mesos master's IP address or hostname. 
-* `JOBMANAGER_HOST` refers to the host that executes `bin/mesos-appmaster.sh` which is starting 
+* `<mesos-master>` refers to the Mesos master's IP address or hostname. 
+* `<jobmanager-host>` refers to the host that executes `bin/mesos-appmaster.sh` which is starting 
   Flink's JobManager process. It's important to not use `localhost` or `127.0.0.1` as this parameter 
   is being shared with the Mesos cluster and the TaskManagers.
-* `FLINK_USER` refers to the user that owns the Mesos master's Flink installation directory (see Mesos' 
+* `<flink-user>` refers to the user that owns the Mesos master's Flink installation directory (see Mesos' 
   documentation on [specifying a user](http://mesos.apache.org/documentation/latest/fetcher/#specifying-a-user-name)
   for further details).
 
@@ -129,15 +129,16 @@ $ export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
 
 # (1) create Per-Job Flink on Mesos cluster
 $ ./bin/mesos-appmaster-job.sh \
-      -Dmesos.master=$MESOS_MASTER:5050 \
-      -Djobmanager.rpc.address=$MESOS_MASTER \
-      -Dmesos.resourcemanager.framework.user=$FLINK_USER \
-      -Dinternal.jobgraph-path=$JOB_GRAPH_FILE
+      -Dmesos.master=<mesos-master>:5050 \
+      -Djobmanager.rpc.address=<jobmanager-host> \
+      -Dmesos.resourcemanager.framework.user=<flink-user> \
+      -Dinternal.jobgraph-path=<job-graph-file>
 {% endhighlight %} 
 
-`JOB_GRAPH_FILE` in the command above refers to the path of the uploaded JobGraph file defining the 
-job that shall be executed on the Per-Job Flink cluster. The meaning of `MESOS_MASTER` and `FLINK_USER` 
-are described in the [Getting Started](#starting-a-flink-session-on-mesos) guide of this page.
+`<job-graph-file>` refers to the path of the uploaded JobGraph file defining the job that shall be 
+executed on the Per-Job Flink cluster in the command above. The meaning of `<mesos-master>`, 
+`<jobmanager-host>` and `<flink-user>` are described in the 
+[Getting Started](#starting-a-flink-session-on-mesos) guide of this page.
 
 ### Session Mode
 
