@@ -44,6 +44,9 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
@@ -65,6 +68,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * BATCH style execution.
  */
 class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBackend<K> {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(BatchExecutionKeyedStateBackend.class);
+
     @SuppressWarnings("rawtypes")
     private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
             Stream.of(
@@ -130,20 +136,28 @@ class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBack
             TypeSerializer<N> namespaceSerializer,
             StateDescriptor<S, T> stateDescriptor,
             KeyedStateFunction<K, S> function) {
-        throw new UnsupportedOperationException(
-                "applyToAllKeys() is not supported in BATCH execution mode.");
+        // we don't do anything here. This is correct because the BATCH broadcast operators
+        // process the broadcast side first, meaning we know that the keyed side will always be
+        // empty when this is called
+        LOG.debug("Not iterating over all keyed in BATCH execution mode in applyToAllKeys().");
     }
 
     @Override
     public <N> Stream<K> getKeys(String state, N namespace) {
-        throw new UnsupportedOperationException(
-                "getKeys() is not supported in BATCH execution mode.");
+        LOG.debug("Returning an empty stream in BATCH execution mode in getKeys().");
+        // We return an empty Stream here. This is correct because the BATCH broadcast operators
+        // process the broadcast side first, meaning we know that the keyed side will always be
+        // empty when this is called
+        return Stream.empty();
     }
 
     @Override
     public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
-        throw new UnsupportedOperationException(
-                "getKeysAndNamespaces() is not supported in BATCH execution mode.");
+        LOG.debug("Returning an empty stream in BATCH execution mode in getKeysAndNamespaces().");
+        // We return an empty Stream here. This is correct because the BATCH broadcast operators
+        // process the broadcast side first, meaning we know that the keyed side will always be
+        // empty when this is called
+        return Stream.empty();
     }
 
     @Override
