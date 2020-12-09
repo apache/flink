@@ -108,6 +108,7 @@ public class StreamTwoInputProcessorFactory {
                             },
                             new TypeSerializer[] {typeSerializer1, typeSerializer2},
                             streamConfig.getStateKeySerializer(userClassloader),
+                            new StreamTaskInput[0],
                             memoryManager,
                             ioManager,
                             executionConfig.isObjectReuseEnabled(),
@@ -117,8 +118,8 @@ public class StreamTwoInputProcessorFactory {
                                     userClassloader),
                             jobConfig);
             inputSelectable = selectableSortingInputs.getInputSelectable();
-            input1 = getSortedInput(selectableSortingInputs.getSortingInputs()[0]);
-            input2 = getSortedInput(selectableSortingInputs.getSortingInputs()[1]);
+            input1 = getSortedInput(selectableSortingInputs.getSortedInputs()[0]);
+            input2 = getSortedInput(selectableSortingInputs.getSortedInputs()[1]);
         }
 
         StreamTaskNetworkOutput<IN1> output1 =
