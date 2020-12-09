@@ -21,30 +21,31 @@ package org.apache.flink.streaming.runtime.translators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.co.CoBroadcastWithNonKeyedOperator;
-import org.apache.flink.streaming.api.transformations.BroadcastStateTransformation;
+import org.apache.flink.streaming.api.operators.co.CoBroadcastWithKeyedOperator;
+import org.apache.flink.streaming.api.transformations.KeyedBroadcastStateTransformation;
 
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link TransformationTranslator} for the {@link BroadcastStateTransformation}.
+ * A {@link TransformationTranslator} for the {@link KeyedBroadcastStateTransformation}.
  *
  * @param <IN1> The type of the elements in the non-broadcasted input of the {@link
- *     BroadcastStateTransformation}.
+ *     KeyedBroadcastStateTransformation}.
  * @param <IN2> The type of the elements in the broadcasted input of the {@link
- *     BroadcastStateTransformation}.
- * @param <OUT> The type of the elements that result from the {@link BroadcastStateTransformation}.
+ *     KeyedBroadcastStateTransformation}.
+ * @param <OUT> The type of the elements that result from the {@link
+ *     KeyedBroadcastStateTransformation}.
  */
 @Internal
-public class BroadcastStateTransformationTranslator<IN1, IN2, OUT>
+public class KeyedBroadcastStateTransformationTranslator<KEY, IN1, IN2, OUT>
         extends AbstractTwoInputTransformationTranslator<
-                IN1, IN2, OUT, BroadcastStateTransformation<IN1, IN2, OUT>> {
+                IN1, IN2, OUT, KeyedBroadcastStateTransformation<KEY, IN1, IN2, OUT>> {
 
     @Override
     protected Collection<Integer> translateForBatchInternal(
-            final BroadcastStateTransformation<IN1, IN2, OUT> transformation,
+            final KeyedBroadcastStateTransformation<KEY, IN1, IN2, OUT> transformation,
             final Context context) {
         throw new UnsupportedOperationException(
                 "The Broadcast State Pattern is not support in BATCH execution mode.");
@@ -52,13 +53,13 @@ public class BroadcastStateTransformationTranslator<IN1, IN2, OUT>
 
     @Override
     protected Collection<Integer> translateForStreamingInternal(
-            final BroadcastStateTransformation<IN1, IN2, OUT> transformation,
+            final KeyedBroadcastStateTransformation<KEY, IN1, IN2, OUT> transformation,
             final Context context) {
         checkNotNull(transformation);
         checkNotNull(context);
 
-        CoBroadcastWithNonKeyedOperator<IN1, IN2, OUT> operator =
-                new CoBroadcastWithNonKeyedOperator<>(
+        CoBroadcastWithKeyedOperator<KEY, IN1, IN2, OUT> operator =
+                new CoBroadcastWithKeyedOperator<>(
                         transformation.getUserFunction(),
                         transformation.getBroadcastStateDescriptors());
 
@@ -67,9 +68,9 @@ public class BroadcastStateTransformationTranslator<IN1, IN2, OUT>
                 transformation.getRegularInput(),
                 transformation.getBroadcastInput(),
                 SimpleOperatorFactory.of(operator),
-                null /* no key type*/,
-                null /* no first key selector */,
-                null /* no key selector on broadcast input*/,
+                transformation.getStateKeyType(),
+                transformation.getKeySelector(),
+                null /* no key selector on broadcast input */,
                 context);
     }
 }
