@@ -74,9 +74,19 @@ $ ./bin/mesos-appmaster.sh \
       -Djobmanager.rpc.address=<jobmanager-host> \
       -Dmesos.resourcemanager.framework.user=<flink-user> \
       -Dmesos.resourcemanager.tasks.cpus=6
+
+# (2) execute Flink job passing the relevant configuration parameters
+$ ./bin/flink run \
+      --detached \
+      --target remote \
+      -Djobmanager.rpc.address=<jobmanager-host> \
+      -Dmesos.resourcemanager.framework.user=<flink-user> \
+      -Dmesos.master=<mesos-master>:5050 \
+      examples/streaming/WindowJoin.jar
 {% endhighlight %}
 
-The call above uses two variables not introduced, yet, as they depend on the cluster:
+The commands above use a few placeholders that need to be substituted by settings of the actual 
+underlying cluster:
 * `<mesos-master>` refers to the Mesos master's IP address or hostname. 
 * `<jobmanager-host>` refers to the host that executes `bin/mesos-appmaster.sh` which is starting 
   Flink's JobManager process. It's important to not use `localhost` or `127.0.0.1` as this parameter 
@@ -84,6 +94,9 @@ The call above uses two variables not introduced, yet, as they depend on the clu
 * `<flink-user>` refers to the user that owns the Mesos master's Flink installation directory (see Mesos' 
   documentation on [specifying a user](http://mesos.apache.org/documentation/latest/fetcher/#specifying-a-user-name)
   for further details).
+
+The `run` action requires `--target` to be set to `remote`. Refer to the [CLI documentation]({% link deployment/cli.md %}) 
+for further details on that parameter.
 
 The Flink on Mesos cluster is now deployed in [Session Mode]({% link deployment/index.md %}#session-mode).
 Note that you can run multiple Flink jobs on a Session cluster. Each job needs to be submitted to the 
