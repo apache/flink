@@ -21,6 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
@@ -39,6 +40,7 @@ import java.util.Set;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.NO_ARGS;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.SPECIFIC_FOR_CAST;
@@ -70,6 +72,29 @@ import static org.apache.flink.table.types.inference.TypeStrategies.varyingStrin
 /** Dictionary of function definitions for all built-in functions. */
 @PublicEvolving
 public final class BuiltInFunctionDefinitions {
+
+    // --------------------------------------------------------------------------------------------
+    // Debugging functions
+    // --------------------------------------------------------------------------------------------
+
+    public static final BuiltInFunctionDefinition TYPE_OF =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TYPEOF")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            new String[] {"input"},
+                                            new ArgumentTypeStrategy[] {InputTypeStrategies.ANY}),
+                                    sequence(
+                                            new String[] {"input", "force_serializable"},
+                                            new ArgumentTypeStrategy[] {
+                                                InputTypeStrategies.ANY,
+                                                and(logical(LogicalTypeRoot.BOOLEAN), LITERAL)
+                                            })))
+                    .outputTypeStrategy(explicit(DataTypes.STRING()))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.TypeOfFunction")
+                    .build();
 
     // --------------------------------------------------------------------------------------------
     // Logic functions
