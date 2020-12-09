@@ -21,6 +21,12 @@
             <td>The amount of the cache for data blocks in RocksDB. RocksDB has default block-cache size as '8MB'.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.block.metadata-blocksize</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>Approximate size of partitioned metadata packed per block. Currently applied to indexes block when partitioned index/filters option is enabled. RocksDB has default metadata blocksize as '4KB'.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.compaction.level.max-size-level-base</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>MemorySize</td>
