@@ -103,7 +103,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1) FILTER $2], EXPR$2=[COUNT(DISTINCT
       <![CDATA[
 GroupAggregate(groupBy=[a], select=[a, SUM(b) FILTER $f2 AS EXPR$1, COUNT(DISTINCT c) FILTER $f4 AS EXPR$2, MAX(b) AS EXPR$3])
 +- Exchange(distribution=[hash[a]])
-   +- Calc(select=[a, b, IS TRUE(=(c, _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")) AS $f2, c, IS TRUE(d) AS $f4])
+   +- Calc(select=[a, b, (c = _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") IS TRUE AS $f2, c, d IS TRUE AS $f4])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -132,7 +132,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1) FILTER $2], EXPR$2=[COUNT(DISTINCT
 GlobalGroupAggregate(groupBy=[a], select=[a, SUM(sum$0) AS EXPR$1, COUNT(distinct$0 count$1) AS EXPR$2, COUNT(distinct$0 count$2) AS EXPR$3, MAX(max$3) AS EXPR$4])
 +- Exchange(distribution=[hash[a]])
    +- LocalGroupAggregate(groupBy=[a], select=[a, SUM(b) FILTER $f2 AS sum$0, COUNT(distinct$0 c) FILTER $f4 AS count$1, COUNT(distinct$0 c) FILTER $f5 AS count$2, MAX(b) AS max$3, DISTINCT(c) AS distinct$0])
-      +- Calc(select=[a, b, IS TRUE(=(c, _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")) AS $f2, c, IS TRUE(d) AS $f4, IS TRUE(=(b, 1:BIGINT)) AS $f5])
+      +- Calc(select=[a, b, (c = _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") IS TRUE AS $f2, c, d IS TRUE AS $f4, (b = 1:BIGINT) IS TRUE AS $f5])
          +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>

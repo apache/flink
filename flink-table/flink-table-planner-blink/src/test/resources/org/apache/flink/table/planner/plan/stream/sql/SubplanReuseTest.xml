@@ -38,7 +38,7 @@ LogicalUnion(all=[true])
     <Resource name="planAfter">
       <![CDATA[
 Union(all=[true], union=[a])
-:- Calc(select=[a], where=[>(b, random_udf(a))])(reuse_id=[1])
+:- Calc(select=[a], where=[(b > random_udf(a))])(reuse_id=[1])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Reused(reference_id=[1])
 ]]>
@@ -70,18 +70,18 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
-:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:  +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- Calc(select=[a, b, c], where=[<(a, 10)])
+:     :  +- Calc(select=[a, b, c], where=[(a < 10)])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
 :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 +- Exchange(distribution=[hash[e]])
-   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, b, c], where=[>(a, 5)])
+      :  +- Calc(select=[a, b, c], where=[(a > 5)])
       :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
       +- Exchange(distribution=[hash[d]])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
@@ -117,18 +117,18 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, d, e, a0, b0, d0, e0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
-:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:  +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- Calc(select=[a, b], where=[<(a, 10)])
+:     :  +- Calc(select=[a, b], where=[(a < 10)])
 :     :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b]]], fields=[a, b])
 :     +- Exchange(distribution=[hash[d]])
 :        +- TableSourceScan(table=[[default_catalog, default_database, newY, project=[d, e]]], fields=[d, e])
 +- Exchange(distribution=[hash[e]])
-   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, b], where=[>(a, 5)])
+      :  +- Calc(select=[a, b], where=[(a > 5)])
       :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b]]], fields=[a, b])
       +- Exchange(distribution=[hash[d]])
          +- TableSourceScan(table=[[default_catalog, default_database, newY, project=[d, e]]], fields=[d, e])
@@ -161,19 +161,19 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, d, e, a0, b0, d0, e0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
-:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:  +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- Calc(select=[a, b], where=[<(a, 10)])
+:     :  +- Calc(select=[a, b], where=[(a < 10)])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
 :     +- Exchange(distribution=[hash[d]])(reuse_id=[2])
 :        +- Calc(select=[d, e])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 +- Exchange(distribution=[hash[e]])
-   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, b], where=[>(a, 5)])
+      :  +- Calc(select=[a, b], where=[(a > 5)])
       :     +- Reused(reference_id=[1])
       +- Reused(reference_id=[2])
 ]]>
@@ -202,14 +202,14 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, a, b, c0, a1, b0])
-+- Join(joinType=[InnerJoin], where=[=(a0, b0)], select=[c, a, b, a0, c0, a1, b0], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[(a0 = b0)], select=[c, a, b, a0, c0, a1, b0], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[a0]])
    :  +- Calc(select=[c, a, b, CAST(a) AS a0])
    :     +- GroupAggregate(groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b])(reuse_id=[1])
    :        +- Exchange(distribution=[hash[c]])
    :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[c, a, b], where=[>(a, 1)])
+      +- Calc(select=[c, a, b], where=[(a > 1)])
          +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -246,7 +246,7 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[a, c, e])
 :- Calc(select=[a, LOWER(c) AS c, e])(reuse_id=[1])
-:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:  +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, c, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- Calc(select=[a, c], where=[LIKE(c, _UTF-16LE'test%')])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -279,7 +279,7 @@ LogicalUnion(all=[true])
     <Resource name="planAfter">
       <![CDATA[
 Union(all=[true], union=[a, EXPR$1])
-:- Calc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)])(reuse_id=[1])
+:- Calc(select=[a, random_udf() AS EXPR$1], where=[(a > 10)])(reuse_id=[1])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Reused(reference_id=[1])
 ]]>
@@ -314,18 +314,18 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, d, e, a0, b0, d0, e0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
-:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:  +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- Calc(select=[a, b], where=[<(a, 10)])
+:     :  +- Calc(select=[a, b], where=[(a < 10)])
 :     :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b]]], fields=[a, b])(reuse_id=[1])
 :     +- Exchange(distribution=[hash[d]])(reuse_id=[2])
 :        +- TableSourceScan(table=[[default_catalog, default_database, newY, project=[d, e]]], fields=[d, e])
 +- Exchange(distribution=[hash[e]])
-   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, b], where=[>(a, 5)])
+      :  +- Calc(select=[a, b], where=[(a > 5)])
       :     +- Reused(reference_id=[1])
       +- Reused(reference_id=[2])
 ]]>
@@ -355,7 +355,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3], a0=[$4], b0=[$5], c0=[$6], v0=[$7
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(f0, f00)], select=[a, b, c, f0, a0, b0, c0, f00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(f0 = f00)], select=[a, b, c, f0, a0, b0, c0, f00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[f0]])
 :  +- Correlate(invocation=[str_split($cor0.c, _UTF-16LE'-')], correlate=[table(str_split($cor0.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -389,7 +389,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], a0=[$4], b0=[$5], c0=[$6], s0=[$7
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(c, f00)], select=[a, b, c, f0, a0, b0, c0, f00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(c = f00)], select=[a, b, c, f0, a0, b0, c0, f00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[c]])
 :  +- Correlate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -430,17 +430,17 @@ LogicalUnion(all=[true])
     <Resource name="planAfter">
       <![CDATA[
 Union(all=[true], union=[a, b, c, d, e, f])
-:- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :  :- Exchange(distribution=[hash[a]])(reuse_id=[1])
 :  :  +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'test%')])
 :  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  +- Exchange(distribution=[hash[d]])
-:     +- Calc(select=[d, e, f], where=[>(e, 10)])
+:     +- Calc(select=[d, e, f], where=[(e > 10)])
 :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Reused(reference_id=[1])
    +- Exchange(distribution=[hash[d]])
-      +- Calc(select=[d, e, f], where=[<>(f, _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+      +- Calc(select=[d, e, f], where=[(f <> _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -468,14 +468,14 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, a, b, c0, a1, b0])
-+- Join(joinType=[InnerJoin], where=[=(a0, b0)], select=[c, a, b, a0, c0, a1, b0], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[(a0 = b0)], select=[c, a, b, a0, c0, a1, b0], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[a0]])
    :  +- Calc(select=[c, a, b, CAST(a) AS a0])
    :     +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])(reuse_id=[1])
    :        +- Exchange(distribution=[hash[c]])
    :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[c, a, b], where=[>(a, 1)])
+      +- Calc(select=[c, a, b], where=[(a > 1)])
          +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -510,14 +510,14 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[a, b])
-:  +- Join(joinType=[InnerJoin], where=[OR(=(ABS(a), ABS(d)), =(c, f))], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])(reuse_id=[1])
+:  +- Join(joinType=[InnerJoin], where=[((ABS(a) = ABS(d)) OR (c = f))], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])(reuse_id=[1])
 :     :- Exchange(distribution=[single])
-:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
+:     :  +- Calc(select=[a, b, c], where=[(b > 1)])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[single])
-:        +- Calc(select=[d, e, f], where=[<(e, 2)])
+:        +- Calc(select=[d, e, f], where=[(e < 2)])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- Calc(select=[a, *(b, 2) AS b])
++- Calc(select=[a, (b * 2) AS b])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -552,14 +552,14 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[a, b])
-:  +- Join(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])(reuse_id=[1])
+:  +- Join(joinType=[InnerJoin], where=[((random_udf(a) = random_udf(d)) OR (c = f))], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])(reuse_id=[1])
 :     :- Exchange(distribution=[single])
-:     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
+:     :  +- Calc(select=[a, b, c], where=[(b > 1)])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[single])
-:        +- Calc(select=[d, e, f], where=[<(e, 2)])
+:        +- Calc(select=[d, e, f], where=[(e < 2)])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- Calc(select=[a, *(b, 2) AS b])
++- Calc(select=[a, (b * 2) AS b])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -584,14 +584,14 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, $20], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, $2, a0, b0, $20], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
+:  +- Calc(select=[a, b, w0$o0 AS $2], where=[(b < 100)])
 :     +- OverAggregate(orderBy=[c DESC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, RANK(*) AS w0$o0])(reuse_id=[1])
 :        +- Exchange(distribution=[single])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[a]])
-   +- Calc(select=[a, b, w0$o0 AS $2], where=[>(b, 10)])
+   +- Calc(select=[a, b, w0$o0 AS $2], where=[(b > 10)])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -624,11 +624,11 @@ LogicalUnion(all=[true])
     <Resource name="planAfter">
       <![CDATA[
 Union(all=[true], union=[a, b])
-:- Calc(select=[a, b], where=[>(a, 10)])
+:- Calc(select=[a, b], where=[(a > 10)])
 :  +- Limit(offset=[0], fetch=[10])(reuse_id=[1])
 :     +- Exchange(distribution=[single])
 :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Calc(select=[a, *(b, 2) AS b], where=[<(b, 10)])
++- Calc(select=[a, (b * 2) AS b], where=[(b < 10)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -653,14 +653,14 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, $2, a0, b0, $20], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, $2, a0, b0, $20], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, w0$o0 AS $2], where=[<(b, 100)])
+:  +- Calc(select=[a, b, w0$o0 AS $2], where=[(b < 100)])
 :     +- OverAggregate(partitionBy=[c], orderBy=[c DESC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, MyFirst(c) AS w0$o0])(reuse_id=[1])
 :        +- Exchange(distribution=[hash[c]])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[a]])
-   +- Calc(select=[a, b, w0$o0 AS $2], where=[>(b, 10)])
+   +- Calc(select=[a, b, w0$o0 AS $2], where=[(b > 10)])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -687,14 +687,14 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a, a0)], select=[c, a, b, c0, a0, b0], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+Join(joinType=[InnerJoin], where=[(a = a0)], select=[c, a, b, c0, a0, b0], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[c, a, b], where=[>(a, 1)])
+:  +- Calc(select=[c, a, b], where=[(a > 1)])
 :     +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])(reuse_id=[1])
 :        +- Exchange(distribution=[hash[c]])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[a]])
-   +- Calc(select=[c, a, b], where=[<(b, 10)])
+   +- Calc(select=[c, a, b], where=[(b < 10)])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -729,13 +729,13 @@ LogicalUnion(all=[true])
     <Resource name="planAfter">
       <![CDATA[
 Union(all=[true], union=[a, b])
-:- Calc(select=[a, b], where=[>(a, 10)])
+:- Calc(select=[a, b], where=[(a > 10)])
 :  +- SortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], strategy=[RetractStrategy])(reuse_id=[1])
 :     +- Exchange(distribution=[single])
 :        +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
 :           +- Exchange(distribution=[hash[c]])
 :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Calc(select=[a, *(b, 2) AS b], where=[<(b, 10)])
++- Calc(select=[a, (b * 2) AS b], where=[(b < 10)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>

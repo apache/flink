@@ -170,10 +170,10 @@ LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2], EXPR$3=[$3], EXPR$4=[$4], 
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0, /(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS EXPR$1, CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, EXPR$4, EXPR$5])
+Calc(select=[(($f0 - (($f1 * $f1) / $f2)) / $f2) AS EXPR$0, (($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, EXPR$4, EXPR$5])
 +- GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 900000)], properties=[EXPR$4, EXPR$5], select=[SUM($f4) AS $f0, SUM(c) AS $f1, COUNT(c) AS $f2, start('w) AS EXPR$4, end('w) AS EXPR$5])
    +- Exchange(distribution=[single])
-      +- Calc(select=[rowtime, a, b, c, *(c, c) AS $f4])
+      +- Calc(select=[rowtime, a, b, c, (c * c) AS $f4])
          +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, a, b, c])
 ]]>
     </Resource>
@@ -458,7 +458,7 @@ LogicalProject(string=[$0], s1=[AS(+($1, 1), _UTF-16LE's1')], s2=[AS(+($1, 3), _
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[string, +(EXPR$0, 1) AS s1, +(EXPR$0, 3) AS s2, EXPR$1 AS x, EXPR$1 AS x2, EXPR$2 AS x3, EXPR$2])
+Calc(select=[string, (EXPR$0 + 1) AS s1, (EXPR$0 + 3) AS s2, EXPR$1 AS x, EXPR$1 AS x2, EXPR$2 AS x3, EXPR$2])
 +- GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$1, EXPR$2], select=[string, SUM(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
    +- Exchange(distribution=[hash[string]])
       +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
