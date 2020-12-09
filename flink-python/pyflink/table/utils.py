@@ -38,16 +38,35 @@ def pandas_to_arrow(schema, timezone, field_types, series):
                         "pyarrow.Array (%s)."
             raise RuntimeError(error_msg % (s.dtype, t), e)
 
-    arrays = [create_array(
-        tz_convert_to_internal(series[i], field_types[i], timezone),
-        schema.types[i]) for i in range(0, len(schema))]
+    arrays = []
+    for i in range(len(schema)):
+        s = series[i]
+        field_type = field_types[i]
+        schema_type = schema.types[i]
+        if type(field_type) == RowType:
+            array_names = [(create_array(s[s.columns[i]], field.type), field.name)
+                           for i, field in enumerate(schema_type)]
+            struct_arrays, struct_names = zip(*array_names)
+            arrays.append(pa.StructArray.from_arrays(struct_arrays, struct_names))
+        else:
+            arrays.append(create_array(
+                tz_convert_to_internal(s, field_type, timezone), schema_type))
     return pa.RecordBatch.from_arrays(arrays, schema)
 
 
 def arrow_to_pandas(timezone, field_types, batches):
+    def arrow_column_to_pandas(arrow_column, t: DataType):
+        if type(t) == RowType:
+            import pandas as pd
+            series = [column.to_pandas(date_as_object=True).rename(field.name)
+                      for column, field in zip(arrow_column.flatten(), arrow_column.type)]
+            s = pd.concat(series, axis=1)
+        else:
+            s = arrow_column.to_pandas(date_as_object=True)
+        return s
     import pyarrow as pa
     table = pa.Table.from_batches(batches)
-    return [tz_convert_from_internal(c.to_pandas(date_as_object=True), t, timezone)
+    return [tz_convert_from_internal(arrow_column_to_pandas(c, t), t, timezone)
             for c, t in zip(table.itercolumns(), field_types)]
 
 
