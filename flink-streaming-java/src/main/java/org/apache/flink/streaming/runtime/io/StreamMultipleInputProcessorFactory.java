@@ -142,6 +142,7 @@ public class StreamMultipleInputProcessorFactory {
                                                             idx, userClassloader))
                                     .toArray(TypeSerializer[]::new),
                             streamConfig.getStateKeySerializer(userClassloader),
+                            new StreamTaskInput[0],
                             memoryManager,
                             ioManager,
                             executionConfig.isObjectReuseEnabled(),
@@ -151,7 +152,7 @@ public class StreamMultipleInputProcessorFactory {
                                     userClassloader),
                             jobConfig);
 
-            inputs = selectableSortingInputs.getSortingInputs();
+            inputs = selectableSortingInputs.getSortedInputs();
             inputSelectable = selectableSortingInputs.getInputSelectable();
         }
 

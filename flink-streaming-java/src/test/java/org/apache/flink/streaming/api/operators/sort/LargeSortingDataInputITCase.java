@@ -137,13 +137,14 @@ public class LargeSortingDataInputITCase {
                                 GeneratedRecordsDataInput.SERIALIZER
                             },
                             new StringSerializer(),
+                            new StreamTaskInput[0],
                             environment.getMemoryManager(),
                             environment.getIOManager(),
                             true,
                             1.0,
                             new Configuration());
 
-            StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortingInputs();
+            StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortedInputs();
             try (StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput1 =
                             (StreamTaskInput<Tuple3<Integer, String, byte[]>>)
                                     sortingDataInputs[0];
