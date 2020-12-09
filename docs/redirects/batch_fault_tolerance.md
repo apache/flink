@@ -1,7 +1,7 @@
 ---
 title: "Fault Tolerance"
 layout: redirect
-redirect: /dev/task_failure_recovery.html
+redirect: dev/task_failure_recovery
 permalink: /dev/batch/fault_tolerance.html
 ---
 <!--

@@ -1,8 +1,8 @@
 ---
-title: "Standalone Docker"
+title: "Python API Tutoria"
 layout: redirect
-redirect: deployment/resource-providers/standalone/docker
-permalink: /ops/deployment/docker.html
+redirect: dev/python/table_api_tutorial
+permalink: /try-flink/python_table_api.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,3 +22,4 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
