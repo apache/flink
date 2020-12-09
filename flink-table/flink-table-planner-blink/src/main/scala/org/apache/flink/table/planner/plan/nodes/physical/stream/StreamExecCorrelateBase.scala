@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
@@ -44,7 +44,7 @@ abstract class StreamExecCorrelateBase(
     joinType: JoinRelType)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   require(joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT)
 

@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.ValuesCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
@@ -41,7 +41,7 @@ class StreamExecValues(
     outputRowType: RelDataType)
   extends Values(cluster, outputRowType, tuples, traitSet)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 

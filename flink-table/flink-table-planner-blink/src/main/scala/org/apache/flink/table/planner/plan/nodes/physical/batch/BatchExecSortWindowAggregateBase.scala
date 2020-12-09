@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.codegen.agg.batch.{SortWindowCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
-import org.apache.flink.table.planner.plan.nodes.exec.BatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyBatchExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -74,7 +74,7 @@ abstract class BatchExecSortWindowAggregateBase(
     enableAssignPane,
     isMerge,
     isFinal)
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val inputRowCnt = mq.getRowCount(getInput)

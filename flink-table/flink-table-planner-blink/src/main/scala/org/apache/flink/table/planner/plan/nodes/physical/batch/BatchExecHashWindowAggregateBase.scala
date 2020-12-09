@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.codegen.agg.batch.{HashWindowCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
-import org.apache.flink.table.planner.plan.nodes.exec.BatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyBatchExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
@@ -77,7 +77,7 @@ abstract class BatchExecHashWindowAggregateBase(
     enableAssignPane,
     isMerge,
     isFinal)
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val numOfGroupKey = grouping.length

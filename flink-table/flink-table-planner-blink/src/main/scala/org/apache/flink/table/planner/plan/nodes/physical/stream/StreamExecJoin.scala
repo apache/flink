@@ -24,7 +24,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalJoin
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.{JoinUtil, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
 import org.apache.flink.table.runtime.operators.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
@@ -53,7 +53,7 @@ class StreamExecJoin(
     joinType: JoinRelType)
   extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   /**
    * This is mainly used in `FlinkChangelogModeInferenceProgram.SatisfyUpdateKindTraitVisitor`.

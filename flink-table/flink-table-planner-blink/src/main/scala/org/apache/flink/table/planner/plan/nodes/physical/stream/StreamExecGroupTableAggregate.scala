@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.operators.aggregate.GroupTableAggFunction
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -51,8 +51,8 @@ class StreamExecGroupTableAggregate(
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall])
   extends SingleRel(cluster, traitSet, inputRel)
-    with StreamPhysicalRel
-    with StreamExecNode[RowData] {
+  with StreamPhysicalRel
+  with LegacyStreamExecNode[RowData] {
 
   val aggInfoList: AggregateInfoList = AggregateUtil.deriveAggregateInfoList(
     this,

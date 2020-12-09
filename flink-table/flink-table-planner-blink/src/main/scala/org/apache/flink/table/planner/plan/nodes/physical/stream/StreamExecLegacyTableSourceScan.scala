@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
@@ -65,7 +65,7 @@ class StreamExecLegacyTableSourceScan(
     tableSourceTable: LegacyTableSourceTable[_])
   extends PhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 

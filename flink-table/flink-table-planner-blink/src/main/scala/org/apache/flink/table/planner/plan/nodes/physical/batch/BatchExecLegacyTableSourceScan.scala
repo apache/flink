@@ -29,7 +29,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
@@ -57,8 +57,8 @@ class BatchExecLegacyTableSourceScan(
     traitSet: RelTraitSet,
     tableSourceTable: LegacyTableSourceTable[_])
   extends PhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
-          with BatchPhysicalRel
-          with BatchExecNode[RowData]{
+  with BatchPhysicalRel
+  with LegacyBatchExecNode[RowData]{
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLegacyTableSourceScan(cluster, traitSet, tableSourceTable)

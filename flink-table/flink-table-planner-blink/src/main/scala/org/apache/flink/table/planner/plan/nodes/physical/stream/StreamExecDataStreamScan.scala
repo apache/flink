@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.ELEMENT
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.functions.sql.StreamRecordTimestampSqlFunction
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.schema.DataStreamTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
@@ -57,7 +57,7 @@ class StreamExecDataStreamScan(
     outputRowType: RelDataType)
   extends TableScan(cluster, traitSet, table)
   with StreamPhysicalRel
-  with StreamExecNode[RowData]{
+  with LegacyStreamExecNode[RowData]{
 
   val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 

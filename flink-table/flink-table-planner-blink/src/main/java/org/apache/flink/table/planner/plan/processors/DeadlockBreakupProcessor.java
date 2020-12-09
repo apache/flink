@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.processors;
 
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.plan.nodes.exec.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyBatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessor;
 import org.apache.flink.table.planner.plan.processors.utils.InputPriorityConflictResolver;
@@ -32,14 +32,14 @@ import java.util.List;
 /**
  * A {@link DAGProcessor} that finds out all deadlocks in the DAG and resolves them.
  *
- * <p>NOTE: This processor can be only applied on {@link BatchExecNode} DAG.
+ * <p>NOTE: This processor can be only applied on {@link LegacyBatchExecNode} DAG.
  */
 public class DeadlockBreakupProcessor implements DAGProcessor {
 
 	@Override
 	public List<ExecNode<?>> process(List<ExecNode<?>> rootNodes, DAGProcessContext context) {
-		if (!rootNodes.stream().allMatch(r -> r instanceof BatchExecNode)) {
-			throw new TableException("Only BatchExecNode DAG is supported now");
+		if (!rootNodes.stream().allMatch(r -> r instanceof LegacyBatchExecNode)) {
+			throw new TableException("Only LegacyBatchExecNode DAG is supported now");
 		}
 
 		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(

@@ -18,20 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec
 
-import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.utils.Logging
 
-import java.util
-
-import scala.collection.JavaConversions._
-
 /**
-  * Base class for stream ExecNode.
-  */
-trait StreamExecNode[T] extends ExecNodeBase[StreamPlanner, T] with Logging {
-
-  def getInputEdges: util.List[ExecEdge] = {
-    // TODO fill out the required shuffle for each stream exec node
-    getInputNodes.map(_ => ExecEdge.DEFAULT)
-  }
-}
+ * Base class for batch ExecNode.
+ *
+ * <p>NOTE: This class will be removed once all sub-classes do not extend from RelNode.
+ */
+@Deprecated
+trait LegacyBatchExecNode[T] extends LegacyExecNodeBase[BatchPlanner, T] with Logging

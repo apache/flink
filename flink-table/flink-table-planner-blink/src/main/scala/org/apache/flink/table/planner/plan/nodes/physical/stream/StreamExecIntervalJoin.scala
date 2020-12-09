@@ -28,7 +28,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, JoinTypeUtil, KeySelectorUtil}
@@ -65,7 +65,7 @@ class StreamExecIntervalJoin(
     remainCondition: Option[RexNode])
   extends BiRel(cluster, traitSet, leftRel, rightRel)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   if (remainCondition.isDefined && containsPythonCall(remainCondition.get)) {
     throw new TableException("Only inner join condition with equality predicates supports the " +

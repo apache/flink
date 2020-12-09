@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
-import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -39,7 +39,7 @@ abstract class StreamExecCalcBase(
     outputRowType: RelDataType)
   extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
