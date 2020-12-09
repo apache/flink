@@ -121,7 +121,7 @@ You can override configurations set in `conf/flink-conf.yaml` by passing key-val
 
 ### Per-Job Cluster Mode
 
-Flink on Mesos does not support Per-Job Cluster Mode.
+Flink on Kubernetes does not support Per-Job Cluster Mode.
 
 ### Session Mode
 
