@@ -61,7 +61,7 @@ The example below shows how to create and use an Upsert Kafka table:
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE pageviews_per_region (
-  region STRING,
+  user_region STRING,
   pv BIGINT,
   uv BIGINT,
   PRIMARY KEY (region) NOT ENFORCED
@@ -89,11 +89,11 @@ CREATE TABLE pageviews (
 -- calculate the pv, uv and insert into the upsert-kafka sink
 INSERT INTO pageviews_per_region
 SELECT
-  region,
+  user_region,
   COUNT(*),
   COUNT(DISTINCT user_id)
 FROM pageviews
-GROUP BY region;
+GROUP BY user_region;
 
 {% endhighlight %}
 </div>
