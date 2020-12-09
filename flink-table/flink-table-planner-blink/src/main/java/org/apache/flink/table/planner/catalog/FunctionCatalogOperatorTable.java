@@ -25,12 +25,12 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
-import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
@@ -202,10 +202,13 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
             FunctionIdentifier identifier,
             FunctionDefinition definition) {
 
-        // for now, we don't allow other functions than user-defined ones
-        // all built-in functions need to be mapped to Calcite's SqlFunctions
-        if (!(definition instanceof UserDefinedFunction)) {
-            return false;
+        // built-in functions without implementation are handled separately
+        if (definition instanceof BuiltInFunctionDefinition) {
+            final BuiltInFunctionDefinition builtInFunction =
+                    (BuiltInFunctionDefinition) definition;
+            if (!builtInFunction.getRuntimeClass().isPresent()) {
+                return false;
+            }
         }
 
         final FunctionKind kind = definition.getKind();
