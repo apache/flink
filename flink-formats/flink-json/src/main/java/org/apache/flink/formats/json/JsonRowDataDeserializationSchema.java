@@ -89,7 +89,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 		this.failOnMissingField = failOnMissingField;
 		this.ignoreParseErrors = ignoreParseErrors;
 		this.runtimeConverter = new JsonToRowDataConverters(failOnMissingField, ignoreParseErrors, timestampFormat)
-			.createRowConverter(checkNotNull(rowType));
+			.createConverter(checkNotNull(rowType));
 		this.timestampFormat = timestampFormat;
 		boolean hasDecimalType = LogicalTypeChecks.hasNested(rowType, t -> t instanceof DecimalType);
 		if (hasDecimalType) {

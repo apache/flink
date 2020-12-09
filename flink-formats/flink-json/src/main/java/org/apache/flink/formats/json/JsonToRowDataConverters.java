@@ -106,7 +106,7 @@ public class JsonToRowDataConverters implements Serializable {
 	/**
 	 * Creates a runtime converter which is null safe.
 	 */
-	private JsonToRowDataConverter createConverter(LogicalType type) {
+	public JsonToRowDataConverter createConverter(LogicalType type) {
 		return wrapIntoNullableConverter(createNotNullConverter(type));
 	}
 
@@ -368,7 +368,7 @@ public class JsonToRowDataConverters implements Serializable {
 	private JsonToRowDataConverter wrapIntoNullableConverter(
 		JsonToRowDataConverter converter) {
 		return jsonNode -> {
-			if (jsonNode == null || jsonNode.isNull()) {
+			if (jsonNode == null || jsonNode.isNull() || jsonNode.isMissingNode()) {
 				return null;
 			}
 			try {

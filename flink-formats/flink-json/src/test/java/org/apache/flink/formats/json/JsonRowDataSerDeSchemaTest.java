@@ -351,6 +351,17 @@ public class JsonRowDataSerDeSchemaTest {
 
 	@Test
 	public void testDeserializationMissingNode() throws Exception {
+		DataType dataType = ROW(FIELD("name", STRING()));
+		RowType schema = (RowType) dataType.getLogicalType();
+
+		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
+			schema, InternalTypeInfo.of(schema), true, false, TimestampFormat.ISO_8601);
+		RowData rowData = deserializationSchema.deserialize("".getBytes());
+		assertEquals(null, rowData);
+	}
+
+	@Test
+	public void testDeserializationMissingField() throws Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
 
 		// Root
