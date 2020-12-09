@@ -34,7 +34,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cn
     <Resource name="planAfter">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- Calc(select=[name, eat, cnt], where=[<=(w0$o0, 3)])
++- Calc(select=[name, eat, cnt], where=[(w0$o0 <= 3)])
    +- OverAggregate(partitionBy=[name], orderBy=[cnt DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[name, eat, cnt, w0$o0])
       +- Sort(orderBy=[name ASC, cnt DESC])
          +- Exchange(distribution=[hash[name]])
@@ -205,7 +205,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, $2], where=[>(a, 10)])
+Calc(select=[a, b, $2], where=[(a > 10)])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, c, $2])
    +- Sort(orderBy=[b ASC, a ASC])
       +- Exchange(distribution=[hash[b]])

@@ -132,7 +132,7 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
-Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
+Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -149,7 +149,7 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)], changelogMode=[I]): rowcount = ,
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
-Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
+Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -173,7 +173,7 @@ Calc(select=[a, b, c, e, f])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, c, e, f])
-+- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
@@ -221,7 +221,7 @@ Calc(select=[a, b, c, e, f], changelogMode=[I]): rowcount = , cumulative cost = 
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, c, e, f])
-+- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
@@ -268,11 +268,11 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])(reuse_id=[1])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[>(cnt, 10)])
++- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[<(cnt, 10)])
++- Calc(select=[a, cnt], where=[(cnt < 10)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -316,11 +316,11 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])(reuse_id=[1])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[>(cnt, 10)])
++- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[<(cnt, 10)])
++- Calc(select=[a, cnt], where=[(cnt < 10)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -340,7 +340,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, 
 
 == Optimized Execution Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
-+- Calc(select=[a, b, c], where=[>(a, 10)])
++- Calc(select=[a, b, c], where=[(a > 10)])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -360,7 +360,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, 
 
 == Optimized Execution Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
-+- Calc(select=[a, b, c], where=[>(a, 10)])
++- Calc(select=[a, b, c], where=[(a > 10)])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -454,12 +454,12 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a,
                   +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
-IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])(reuse_id=[1])
+IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[((id1 = id2) AND (CAST(rowtime) > (CAST(rowtime0) - 300000:INTERVAL MINUTE)) AND (CAST(rowtime) < (CAST(rowtime0) + 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])(reuse_id=[1])
 :- Exchange(distribution=[hash[id1]])
-:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
 :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
 +- Exchange(distribution=[hash[id2]])
-   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
       +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
@@ -548,12 +548,12 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a,
                   +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
 == Optimized Execution Plan ==
-IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])(reuse_id=[1])
+IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[((id1 = id2) AND (CAST(rowtime) > (CAST(rowtime0) - 300000:INTERVAL MINUTE)) AND (CAST(rowtime) < (CAST(rowtime0) + 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])(reuse_id=[1])
 :- Exchange(distribution=[hash[id1]])
-:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
 :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
 +- Exchange(distribution=[hash[id2]])
-   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
       +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])

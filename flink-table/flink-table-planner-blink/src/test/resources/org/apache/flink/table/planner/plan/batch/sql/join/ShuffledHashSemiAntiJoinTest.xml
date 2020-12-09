@@ -34,19 +34,19 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftAntiJoin], where=[=(a, i)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
 :     :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[broadcast])
-:        +- Calc(select=[IS NOT NULL(m) AS $f0])
+:        +- Calc(select=[m IS NOT NULL AS $f0])
 :           +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :              +- Exchange(distribution=[single])
 :                 +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
 :                    +- Calc(select=[true AS i])
 :                       +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 +- Exchange(distribution=[hash[i]])
-   +- Calc(select=[i], where=[<(j, 100)])
+   +- Calc(select=[i], where=[(j < 100)])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
@@ -69,7 +69,7 @@ LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[MAX($4)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, e), =(c, f))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((b = e) AND (c = f))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b, c]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e, f]])
@@ -77,7 +77,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, e), =(c, f))], select=[a, b, c
       +- HashAggregate(isMerge=[true], groupBy=[d, e, f], select=[d, e, f])
          +- Exchange(distribution=[hash[d, e, f]])
             +- LocalHashAggregate(groupBy=[d, e, f], select=[d, e, f])
-               +- Calc(select=[d, e, f], where=[<(d, 100)])
+               +- Calc(select=[d, e, f], where=[(d < 100)])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -100,7 +100,7 @@ LogicalFilter(condition=[=($cor1.a, $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
@@ -128,7 +128,7 @@ LogicalAggregate(group=[{0}])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(c, f)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(c = f)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[c]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f]])
@@ -157,7 +157,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
@@ -181,12 +181,12 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[+(a, 10) AS EXPR$0, c])
+Calc(select=[(a + 10) AS EXPR$0, c])
 +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, c], build=[right], singleRowJoin=[true])
-   :- Calc(select=[a, c], where=[AND(>(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
+   :- Calc(select=[a, c], where=[((b > 10) AND NOT(LIKE(c, _UTF-16LE'abc')))])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
-      +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- Calc(select=[m IS NOT NULL AS $f0])
          +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -218,17 +218,17 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[c], build=[right], 
 :- Calc(select=[c])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[IS NOT NULL(m) AS $f0])
+   +- Calc(select=[m IS NOT NULL AS $f0])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
                +- Calc(select=[true AS i])
-                  +- HashJoin(joinType=[FullOuterJoin], where=[=(e, j)], select=[e, j], build=[right])
+                  +- HashJoin(joinType=[FullOuterJoin], where=[(e = j)], select=[e, j], build=[right])
                      :- Exchange(distribution=[hash[e]])
                      :  +- Calc(select=[e])
                      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
                      +- Exchange(distribution=[hash[j]])
-                        +- Calc(select=[j], where=[>(i, 10)])
+                        +- Calc(select=[j], where=[(i > 10)])
                            +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
@@ -256,7 +256,7 @@ LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTabl
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
 :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[IS NOT NULL(m) AS $f0])
+   +- Calc(select=[m IS NOT NULL AS $f0])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -266,7 +266,7 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[ri
                      :  +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,f0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) f0)], joinType=[INNER])
                      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
                      +- Exchange(distribution=[broadcast])
-                        +- Calc(select=[IS NOT NULL(m) AS $f0])
+                        +- Calc(select=[m IS NOT NULL AS $f0])
                            +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
                               +- Exchange(distribution=[single])
                                  +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -293,7 +293,7 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
 :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[IS NOT NULL(m) AS $f0])
+   +- Calc(select=[m IS NOT NULL AS $f0])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -318,10 +318,10 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
     <Resource name="planAfter">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
-:- Calc(select=[a, b, c], where=[>(b, 10)])
+:- Calc(select=[a, b, c], where=[(b > 10)])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[IS NOT NULL(m) AS $f0])
+   +- Calc(select=[m IS NOT NULL AS $f0])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -355,7 +355,7 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a], build=[right], 
 :- Calc(select=[a])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[IS NOT NULL(m) AS $f0])
+   +- Calc(select=[m IS NOT NULL AS $f0])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -364,9 +364,9 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a], build=[right], 
                      +- Exchange(distribution=[hash[e, f]])
                         +- LocalHashAggregate(groupBy=[e, f], select=[e, f])
                            +- Union(all=[true], union=[e, f])
-                              :- Calc(select=[e, f], where=[>(d, 10)])
+                              :- Calc(select=[e, f], where=[(d > 10)])
                               :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-                              +- Calc(select=[j, k], where=[<(i, 100)])
+                              +- Calc(select=[j, k], where=[(i < 100)])
                                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
@@ -391,9 +391,9 @@ LogicalProject(i=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, i), =(b, j))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((a = i) AND (b = j))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
-:  +- HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+:  +- HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
@@ -424,9 +424,9 @@ LogicalFilter(condition=[=($cor0.a, $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- HashJoin(joinType=[LeftSemiJoin], where=[=(b, j)], select=[a, b, c], build=[right])
+:  +- HashJoin(joinType=[LeftSemiJoin], where=[(b = j)], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[b]])
 :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[j]])
@@ -457,7 +457,7 @@ LogicalProject(EXPR$0=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, EXPR$0), =(c, f))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (c = f))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b, c]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[EXPR$0, f]])
@@ -465,7 +465,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, EXPR$0), =(c, f))], select=[a,
       +- HashAggregate(isMerge=[true], groupBy=[f], select=[f, Final_MAX(max$0) AS EXPR$0])
          +- Exchange(distribution=[hash[f]])
             +- LocalHashAggregate(groupBy=[f], select=[f, Partial_MAX(e) AS max$0])
-               +- Calc(select=[f, e], where=[<(d, 3)])
+               +- Calc(select=[f, e], where=[(d < 3)])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -489,7 +489,7 @@ LogicalProject(EXPR$0=[$4], d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, EXPR$0), =(a, d), =(c, f))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (a = d) AND (c = f))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b, a, c]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[EXPR$0, d, f]])
@@ -518,10 +518,10 @@ LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[+(a, 10) AS EXPR$0, c])
-+- HashJoin(joinType=[LeftSemiJoin], where=[AND(=($f3, EXPR$0), =($f4, e))], select=[a, c, $f3, $f4], build=[right])
+Calc(select=[(a + 10) AS EXPR$0, c])
++- HashJoin(joinType=[LeftSemiJoin], where=[(($f3 = EXPR$0) AND ($f4 = e))], select=[a, c, $f3, $f4], build=[right])
    :- Exchange(distribution=[hash[$f3, $f4]])
-   :  +- Calc(select=[a, c, SUBSTRING(c, 1, 5) AS $f3, +(b, 1) AS $f4])
+   :  +- Calc(select=[a, c, SUBSTRING(c, 1, 5) AS $f3, (b + 1) AS $f4])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[EXPR$0, e]])
       +- Calc(select=[SUBSTRING(f, 1, 5) AS EXPR$0, e])
@@ -546,9 +546,9 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], build=[left])
+HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], build=[left])
 :- Exchange(distribution=[hash[a, b]])
-:  +- Calc(select=[a, b, c], where=[AND(>(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
+:  +- Calc(select=[a, b, c], where=[((b > 10) AND NOT(LIKE(c, _UTF-16LE'abc')))])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d, e]])
    +- Calc(select=[d, e])
@@ -579,17 +579,17 @@ LogicalProject(e=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, e), =(a, d), =(c, k))], select=[a, b, c], build=[right])
++- HashJoin(joinType=[LeftSemiJoin], where=[((b = e) AND (a = d) AND (c = k))], select=[a, b, c], build=[right])
    :- Exchange(distribution=[hash[b, a, c]])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e, d, k]])
       +- Calc(select=[e, d, k])
-         +- HashJoin(joinType=[InnerJoin], where=[=(e, j)], select=[e, d, j, k], build=[left])
+         +- HashJoin(joinType=[InnerJoin], where=[(e = j)], select=[e, d, j, k], build=[left])
             :- Exchange(distribution=[hash[e]])
-            :  +- Calc(select=[e, d], where=[<(e, 50)])
+            :  +- Calc(select=[e, d], where=[(e < 50)])
             :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
             +- Exchange(distribution=[hash[j]])
-               +- Calc(select=[j, k], where=[>(i, 10)])
+               +- Calc(select=[j, k], where=[(i > 10)])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
@@ -615,14 +615,14 @@ LogicalProject(j=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(a, d))], select=[a, b, c], build=[right])
++- HashJoin(joinType=[LeftSemiJoin], where=[((b = j) AND (a = d))], select=[a, b, c], build=[right])
    :- Exchange(distribution=[hash[b, a]])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[j, d]])
       +- Calc(select=[j, d])
-         +- HashJoin(joinType=[LeftOuterJoin], where=[=(f, k)], select=[f, d, j, k], build=[left])
+         +- HashJoin(joinType=[LeftOuterJoin], where=[(f = k)], select=[f, d, j, k], build=[left])
             :- Exchange(distribution=[hash[f]])
-            :  +- Calc(select=[f, d], where=[<(e, 50)])
+            :  +- Calc(select=[f, d], where=[(e < 50)])
             :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
             +- Exchange(distribution=[hash[k]])
                +- Calc(select=[j, k])
@@ -651,18 +651,18 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(c, k))], select=[a, c], build=[right])
++- HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (c = k))], select=[a, c], build=[right])
    :- Exchange(distribution=[hash[a, c]])
    :  +- Calc(select=[a, c])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d, k]])
       +- Calc(select=[d, k])
-         +- HashJoin(joinType=[RightOuterJoin], where=[=(d, i)], select=[d, i, k], build=[left])
+         +- HashJoin(joinType=[RightOuterJoin], where=[(d = i)], select=[d, i, k], build=[left])
             :- Exchange(distribution=[hash[d]])
             :  +- Calc(select=[d])
             :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
             +- Exchange(distribution=[hash[i]])
-               +- Calc(select=[i, k], where=[>(i, 10)])
+               +- Calc(select=[i, k], where=[(i > 10)])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
@@ -686,7 +686,7 @@ LogicalProject(f1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(c, f1), =(a, d))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((c = f1) AND (a = d))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[c, a]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f1, d]])
@@ -714,7 +714,7 @@ LogicalProject(d=[$0], EXPR$1=[SUBSTRING($2, 1, 5)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =($f3, EXPR$1), =(b, e))], select=[a, b, c, $f3], build=[right])
++- HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND ($f3 = EXPR$1) AND (b = e))], select=[a, b, c, $f3], build=[right])
    :- Exchange(distribution=[hash[a, $f3, b]])
    :  +- Calc(select=[a, b, c, SUBSTRING(c, 1, 5) AS $f3])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -741,7 +741,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), >(b, e))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b > e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
@@ -767,9 +767,9 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, c], where=[>(b, 10)])
+:  +- Calc(select=[a, b, c], where=[(b > 10)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
@@ -795,7 +795,7 @@ LogicalProject(rk=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, rk), <>(a, d))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((b = rk) AND (a <> d))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[rk]])
@@ -833,7 +833,7 @@ LogicalProject(i=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(EXPR$0, i), =(k, c))], select=[a, c, EXPR$0], build=[right])
++- HashJoin(joinType=[LeftSemiJoin], where=[((EXPR$0 = i) AND (k = c))], select=[a, c, EXPR$0], build=[right])
    :- Exchange(distribution=[hash[EXPR$0, c]])
    :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, c, EXPR$0], build=[right], singleRowJoin=[true])
    :     :- Calc(select=[a, c])
@@ -843,7 +843,7 @@ Calc(select=[a])
    :           +- Exchange(distribution=[single])
    :              +- LocalHashAggregate(select=[Partial_MAX(d) AS max$0])
    :                 +- Calc(select=[d])
-   :                    +- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[=(e, j)], select=[d, e, j], build=[right])\n:- [#1] Exchange(distribution=[hash[e]])\n+- HashAggregate(isMerge=[true], groupBy=[j], select=[j])\n   +- [#2] Exchange(distribution=[hash[j]])\n])
+   :                    +- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(e = j)], select=[d, e, j], build=[right])\n:- [#1] Exchange(distribution=[hash[e]])\n+- HashAggregate(isMerge=[true], groupBy=[j], select=[j])\n   +- [#2] Exchange(distribution=[hash[j]])\n])
    :                       :- Exchange(distribution=[hash[e]])
    :                       :  +- Calc(select=[d, e])
    :                       :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
@@ -874,7 +874,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d, e]])
@@ -900,12 +900,12 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
-:  +- Calc(select=[a, b, c], where=[>(b, 1)])
+:  +- Calc(select=[a, b, c], where=[(b > 1)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d, e]])
-   +- Calc(select=[d, e], where=[>(d, 10)])
+   +- Calc(select=[d, e], where=[(d > 10)])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -927,9 +927,9 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[left])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[left])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, c], where=[=(a, CAST(b))])
+:  +- Calc(select=[a, b, c], where=[(a = CAST(b))])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
@@ -957,7 +957,7 @@ LogicalProject(EXPR$0=[$1])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- HashJoin(joinType=[LeftSemiJoin], where=[=(b, EXPR$0)], select=[a, b], build=[right])
++- HashJoin(joinType=[LeftSemiJoin], where=[(b = EXPR$0)], select=[a, b], build=[right])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -966,7 +966,7 @@ Calc(select=[a])
          +- HashAggregate(isMerge=[true], groupBy=[f], select=[f, Final_MAX(max$0) AS EXPR$0])
             +- Exchange(distribution=[hash[f]])
                +- LocalHashAggregate(groupBy=[f], select=[f, Partial_MAX(e) AS max$0])
-                  +- Calc(select=[f, e], where=[<(d, 3)])
+                  +- Calc(select=[f, e], where=[(d < 3)])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -988,7 +988,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, EXPR$1))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = EXPR$1))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d, EXPR$1]])
@@ -1016,9 +1016,9 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, c], where=[AND(>(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
+:  +- Calc(select=[a, b, c], where=[((b > 10) AND NOT(LIKE(c, _UTF-16LE'abc')))])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
@@ -1042,7 +1042,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
@@ -1073,7 +1073,7 @@ LogicalProject(j=[$1])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- HashJoin(joinType=[LeftSemiJoin], where=[=(EXPR$0, j)], select=[a, EXPR$0], build=[right])
++- HashJoin(joinType=[LeftSemiJoin], where=[(EXPR$0 = j)], select=[a, EXPR$0], build=[right])
    :- Exchange(distribution=[hash[EXPR$0]])
    :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, EXPR$0], build=[right], singleRowJoin=[true])
    :     :- Calc(select=[a])
@@ -1082,7 +1082,7 @@ Calc(select=[a])
    :        +- HashAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0])
    :           +- Exchange(distribution=[single])
    :              +- LocalHashAggregate(select=[Partial_MAX(e) AS max$0])
-   :                 +- Calc(select=[e], where=[>(d, 0)])
+   :                 +- Calc(select=[e], where=[(d > 0)])
    :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
    +- Exchange(distribution=[hash[j]])
       +- Calc(select=[j])
@@ -1114,20 +1114,20 @@ LogicalProject(EXPR$0=[*(0.5:DECIMAL(2, 1), $0)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b])
-+- MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[InnerJoin], where=[>(b, $f0)], select=[b, $f0], build=[right], singleRowJoin=[true])\n:- Calc(select=[b])\n:  +- HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b], build=[right])\n:     :- [#2] Exchange(distribution=[hash[a]])\n:     +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[broadcast])\n])
++- MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[InnerJoin], where=[(b > $f0)], select=[b, $f0], build=[right], singleRowJoin=[true])\n:- Calc(select=[b])\n:  +- HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b], build=[right])\n:     :- [#2] Exchange(distribution=[hash[a]])\n:     +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
    :  +- HashAggregate(isMerge=[false], select=[SINGLE_VALUE(EXPR$0) AS $f0])
-   :     +- Calc(select=[*(0.5:DECIMAL(2, 1), $f0) AS EXPR$0])
+   :     +- Calc(select=[(0.5:DECIMAL(2, 1) * $f0) AS EXPR$0])
    :        +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0])
    :           +- Exchange(distribution=[single])
    :              +- LocalHashAggregate(select=[Partial_SUM(j) AS sum$0])
-   :                 +- Calc(select=[j], where=[<(i, 100)])
+   :                 +- Calc(select=[j], where=[(i < 100)])
    :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
-      +- Calc(select=[d], where=[>(e, 10)])
+      +- Calc(select=[d], where=[(e > 10)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -1151,9 +1151,9 @@ LogicalProject(e=[$1])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[s])
-+- HashJoin(joinType=[LeftSemiJoin], where=[=($f3, e)], select=[s, $f3], build=[left])
++- HashJoin(joinType=[LeftSemiJoin], where=[($f3 = e)], select=[s, $f3], build=[left])
    :- Exchange(distribution=[hash[$f3]])
-   :  +- Calc(select=[s, $f3], where=[>($f2, 2)])
+   :  +- Calc(select=[s, $f3], where=[($f2 > 2)])
    :     +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS s, Final_COUNT(count1$1) AS $f2, Final_MAX(max$2) AS $f3])
    :        +- Exchange(distribution=[hash[b]])
    :           +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(a) AS sum$0, Partial_COUNT(*) AS count1$1, Partial_MAX(b) AS max$2])
@@ -1189,18 +1189,18 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, c], build=[right])
++- HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, c], build=[right])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, c])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
       +- Calc(select=[d])
-         +- HashJoin(joinType=[FullOuterJoin], where=[=(e, i0)], select=[d, e, i0], build=[right])
+         +- HashJoin(joinType=[FullOuterJoin], where=[(e = i0)], select=[d, e, i0], build=[right])
             :- Exchange(distribution=[hash[e]])
             :  +- Calc(select=[d, e])
             :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
             +- Exchange(distribution=[hash[i0]])
-               +- Calc(select=[CAST(i) AS i0], where=[>(i, 10)])
+               +- Calc(select=[CAST(i) AS i0], where=[(i > 10)])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
@@ -1223,7 +1223,7 @@ LogicalProject(f1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(c, f1)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(c = f1)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[c]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f1]])
@@ -1253,12 +1253,12 @@ LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- HashJoin(joinType=[LeftSemiJoin], where=[AND(=($f3, EXPR$0), =($f4, EXPR$1))], select=[a, b, c, $f3, $f4], build=[right])
++- HashJoin(joinType=[LeftSemiJoin], where=[(($f3 = EXPR$0) AND ($f4 = EXPR$1))], select=[a, b, c, $f3, $f4], build=[right])
    :- Exchange(distribution=[hash[$f3, $f4]])
-   :  +- Calc(select=[a, b, c, +(a, 10) AS $f3, SUBSTRING(c, 1, 5) AS $f4])
+   :  +- Calc(select=[a, b, c, (a + 10) AS $f3, SUBSTRING(c, 1, 5) AS $f4])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[EXPR$0, EXPR$1]])
-      +- Calc(select=[+(d, 100) AS EXPR$0, SUBSTRING(f, 1, 5) AS EXPR$1])
+      +- Calc(select=[(d + 100) AS EXPR$0, SUBSTRING(f, 1, 5) AS EXPR$1])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -1282,7 +1282,7 @@ LogicalProject(EXPR$0=[MAX($0) OVER ()], EXPR$1=[MIN($1) OVER (PARTITION BY $2 O
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, $0), =(b, $1))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[$0, $1]])
@@ -1312,7 +1312,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
@@ -1338,12 +1338,12 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, c], where=[>(b, 10)])
+:  +- Calc(select=[a, b, c], where=[(b > 10)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
-   +- Calc(select=[d], where=[<(e, 100)])
+   +- Calc(select=[d], where=[(e < 100)])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -1365,9 +1365,9 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c])
-+- HashJoin(joinType=[LeftSemiJoin], where=[=($f3, d)], select=[a, b, c, $f3], build=[right])
++- HashJoin(joinType=[LeftSemiJoin], where=[($f3 = d)], select=[a, b, c, $f3], build=[right])
    :- Exchange(distribution=[hash[$f3]])
-   :  +- Calc(select=[a, b, c, +(a, 1) AS $f3])
+   :  +- Calc(select=[a, b, c, (a + 1) AS $f3])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
       +- Calc(select=[d])
@@ -1400,16 +1400,16 @@ LogicalUnion(all=[false])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a])
-+- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftSemiJoin], where=[=(b, e)], select=[a, b], build=[right])\n:- [#1] Exchange(distribution=[hash[b]])\n+- HashAggregate(isMerge=[true], groupBy=[e], select=[e])\n   +- [#2] Exchange(distribution=[hash[e]])\n])
++- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftSemiJoin], where=[(b = e)], select=[a, b], build=[right])\n:- [#1] Exchange(distribution=[hash[b]])\n+- HashAggregate(isMerge=[true], groupBy=[e], select=[e])\n   +- [#2] Exchange(distribution=[hash[e]])\n])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e]])
       +- LocalHashAggregate(groupBy=[e], select=[e])
          +- Union(all=[true], union=[e])
-            :- Calc(select=[e], where=[>(d, 10)])
+            :- Calc(select=[e], where=[(d > 10)])
             :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-            +- Calc(select=[CAST(i) AS i], where=[<(i, 100)])
+            +- Calc(select=[CAST(i) AS i], where=[(i < 100)])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
@@ -1432,7 +1432,7 @@ LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTabl
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
@@ -1440,7 +1440,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[righ
       :- Calc(select=[d])
       :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
       +- Exchange(distribution=[broadcast])
-         +- Calc(select=[IS NOT NULL(m) AS $f0])
+         +- Calc(select=[m IS NOT NULL AS $f0])
             +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
                +- Exchange(distribution=[single])
                   +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -1470,23 +1470,23 @@ LogicalFilter(condition=[<($1, 100)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:  :- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[left])\n:  :  :- [#3] Exchange(distribution=[hash[a]])\n:  :  +- [#4] Exchange(distribution=[hash[d]])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
+MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:  :- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[left])\n:  :  :- [#3] Exchange(distribution=[hash[a]])\n:  :  +- [#4] Exchange(distribution=[hash[d]])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
-:  +- Calc(select=[IS NOT NULL(m) AS $f0])
+:  +- Calc(select=[m IS NOT NULL AS $f0])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
-:              +- Calc(select=[true AS i], where=[<(j, 100)])
+:              +- Calc(select=[true AS i], where=[(j < 100)])
 :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[1])
 :- Exchange(distribution=[broadcast])
-:  +- Calc(select=[IS NOT NULL(m) AS $f0])
+:  +- Calc(select=[m IS NOT NULL AS $f0])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
-:              +- Calc(select=[true AS i], where=[>(i, 50)])
+:              +- Calc(select=[true AS i], where=[(i > 50)])
 :                 +- Reused(reference_id=[1])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, c], where=[>=(b, 1)])
+:  +- Calc(select=[a, b, c], where=[(b >= 1)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
@@ -1514,21 +1514,21 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftAntiJoin], where=[=(a, i)], select=[a, b, c, d, e, f], build=[right])
+HashJoin(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c, d, e, f], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- HashJoin(joinType=[LeftAntiJoin], where=[=(b, j)], select=[a, b, c, d, e, f], build=[right])
+:  +- HashJoin(joinType=[LeftAntiJoin], where=[(b = j)], select=[a, b, c, d, e, f], build=[right])
 :     :- Exchange(distribution=[hash[b]])
-:     :  +- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[left])
+:     :  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[left])
 :     :     :- Exchange(distribution=[hash[a]])
-:     :     :  +- Calc(select=[a, b, c], where=[>=(CAST(c), 1:BIGINT)])
+:     :     :  +- Calc(select=[a, b, c], where=[(CAST(c) >= 1:BIGINT)])
 :     :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     :     +- Exchange(distribution=[hash[d]])
 :     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 :     +- Exchange(distribution=[hash[j]])
-:        +- Calc(select=[j], where=[>(CAST(k), 50:BIGINT)])
+:        +- Calc(select=[j], where=[(CAST(k) > 50:BIGINT)])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[1])
 +- Exchange(distribution=[hash[i]])
-   +- Calc(select=[i], where=[<(j, 100)])
+   +- Calc(select=[i], where=[(j < 100)])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -1554,16 +1554,16 @@ LogicalProject(j=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(a, i))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((b = j) AND (a = i))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b, a]])
-:  +- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(c, f))], select=[a, b, c], build=[right])
+:  +- HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (c = f))], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[a, c]])
 :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d, f]])
 :        +- Calc(select=[d, f])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 +- Exchange(distribution=[hash[j, i]])
-   +- Calc(select=[j, i], where=[<>(k, _UTF-16LE'test':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+   +- Calc(select=[j, i], where=[(k <> _UTF-16LE'test':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
@@ -1589,12 +1589,12 @@ LogicalProject(k=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d, e]])
    +- Calc(select=[d, e])
-      +- HashJoin(joinType=[LeftSemiJoin], where=[AND(=(f, k), =(e, j))], select=[d, e, f], build=[right])
+      +- HashJoin(joinType=[LeftSemiJoin], where=[((f = k) AND (e = j))], select=[d, e, f], build=[right])
          :- Exchange(distribution=[hash[f, e]])
          :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
          +- Exchange(distribution=[hash[k, j]])
@@ -1623,9 +1623,9 @@ LogicalProject(j=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(k, c))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[((b = j) AND (k = c))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b, c]])
-:  +- HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+:  +- HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
@@ -1656,9 +1656,9 @@ LogicalProject(j=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(b, j)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(b = j)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b]])
-:  +- HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+:  +- HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
@@ -1690,12 +1690,12 @@ LogicalProject(j=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
-      +- HashJoin(joinType=[LeftSemiJoin], where=[=(e, j)], select=[d, e], build=[right])
+      +- HashJoin(joinType=[LeftSemiJoin], where=[(e = j)], select=[d, e], build=[right])
          :- Exchange(distribution=[hash[e]])
          :  +- Calc(select=[d, e])
          :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
@@ -1726,23 +1726,23 @@ LogicalFilter(condition=[<($1, 100)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:  :- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[left])\n:  :  :- [#3] Exchange(distribution=[hash[a]])\n:  :  +- [#4] Exchange(distribution=[hash[d]])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
+MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c, d, e, f], build=[right], singleRowJoin=[true])\n:  :- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[left])\n:  :  :- [#3] Exchange(distribution=[hash[a]])\n:  :  +- [#4] Exchange(distribution=[hash[d]])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
-:  +- Calc(select=[IS NOT NULL(m) AS $f0])
+:  +- Calc(select=[m IS NOT NULL AS $f0])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
-:              +- Calc(select=[true AS i], where=[<(j, 100)])
+:              +- Calc(select=[true AS i], where=[(j < 100)])
 :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[1])
 :- Exchange(distribution=[broadcast])
-:  +- Calc(select=[IS NOT NULL(m) AS $f0])
+:  +- Calc(select=[m IS NOT NULL AS $f0])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
-:              +- Calc(select=[true AS i], where=[>(i, 50)])
+:              +- Calc(select=[true AS i], where=[(i > 50)])
 :                 +- Reused(reference_id=[1])
 :- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, c], where=[>=(b, 1)])
+:  +- Calc(select=[a, b, c], where=[(b >= 1)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
@@ -1765,7 +1765,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftAntiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftAntiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
@@ -1789,12 +1789,12 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[+(a, 10) AS EXPR$0, c])
+Calc(select=[(a + 10) AS EXPR$0, c])
 +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, c], build=[right], singleRowJoin=[true])
-   :- Calc(select=[a, c], where=[AND(<=(b, 10), NOT(LIKE(c, _UTF-16LE'abc')))])
+   :- Calc(select=[a, c], where=[((b <= 10) AND NOT(LIKE(c, _UTF-16LE'abc')))])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
-      +- Calc(select=[IS NOT NULL(m) AS $f0])
+      +- Calc(select=[m IS NOT NULL AS $f0])
          +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -1821,7 +1821,7 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
 :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[IS NOT NULL(m) AS $f0])
+   +- Calc(select=[m IS NOT NULL AS $f0])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -1846,10 +1846,10 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
     <Resource name="planAfter">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
-:- Calc(select=[a, b, c], where=[>(b, 10)])
+:- Calc(select=[a, b, c], where=[(b > 10)])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[IS NOT NULL(m) AS $f0])
+   +- Calc(select=[m IS NOT NULL AS $f0])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
@@ -1876,7 +1876,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftAntiJoin], where=[=(a, c)], select=[a, b], build=[right])\n:- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[c], select=[c])\n   +- [#2] Exchange(distribution=[hash[c]])\n])
+MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftAntiJoin], where=[(a = c)], select=[a, b], build=[right])\n:- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[c], select=[c])\n   +- [#2] Exchange(distribution=[hash[c]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]], fields=[a, b])
 +- Exchange(distribution=[hash[c]])
@@ -1906,9 +1906,9 @@ LogicalProject(i=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(IS NULL(a), IS NULL(i), =(a, i)), =(b, j))], select=[a, b, c], build=[left])
+HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR i IS NULL OR (a = i)) AND (b = j))], select=[a, b, c], build=[left])
 :- Exchange(distribution=[hash[b]])
-:  +- HashJoin(joinType=[LeftAntiJoin], where=[=(a, d)], select=[a, b, c], build=[right])
+:  +- HashJoin(joinType=[LeftAntiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
@@ -1937,10 +1937,10 @@ LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[+(a, 10) AS EXPR$0, c])
-+- HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(IS NULL($f3), IS NULL(EXPR$0), =($f3, EXPR$0)), =($f4, e))], select=[a, c, $f3, $f4], build=[right])
+Calc(select=[(a + 10) AS EXPR$0, c])
++- HashJoin(joinType=[LeftAntiJoin], where=[(($f3 IS NULL OR EXPR$0 IS NULL OR ($f3 = EXPR$0)) AND ($f4 = e))], select=[a, c, $f3, $f4], build=[right])
    :- Exchange(distribution=[hash[$f4]])
-   :  +- Calc(select=[a, c, SUBSTRING(c, 1, 5) AS $f3, +(b, 1) AS $f4])
+   :  +- Calc(select=[a, c, SUBSTRING(c, 1, 5) AS $f3, (b + 1) AS $f4])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e]])
       +- Calc(select=[SUBSTRING(f, 1, 5) AS EXPR$0, e])
@@ -1972,10 +1972,10 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b])
-+- HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(IS NULL(d), =($f3, d)), =(c, f))], select=[b, c, $f3], build=[right])
++- HashJoin(joinType=[LeftAntiJoin], where=[((d IS NULL OR ($f3 = d)) AND (c = f))], select=[b, c, $f3], build=[right])
    :- Exchange(distribution=[hash[c]])
-   :  +- Calc(select=[b, c, CASE(OR(=(c0, 0), AND(IS NULL(i0), >=(ck, c0), IS NOT NULL(a))), 1, OR(=(c1, 0), AND(IS NULL(i), >=(ck0, c1), IS NOT NULL(a))), 2, 3) AS $f3])
-   :     +- MultipleInput(readOrder=[0,0,1,0,0], members=[\nHashJoin(joinType=[LeftOuterJoin], where=[=(a, EXPR$0)], select=[a, b, c, c0, ck, i0, c1, ck0, EXPR$0, i], build=[right])\n:- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0, ck, i0, c1, ck0], build=[right], singleRowJoin=[true])\n:  :- Calc(select=[a, b, c, c0, ck, i0])\n:  :  +- HashJoin(joinType=[LeftOuterJoin], where=[=(a, i)], select=[a, b, c, c0, ck, i, i0], build=[right])\n:  :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0, ck], build=[right], singleRowJoin=[true])\n:  :     :  :- [#3] Exchange(distribution=[hash[a]])\n:  :     :  +- [#4] Exchange(distribution=[broadcast])\n:  :     +- Calc(select=[i, true AS i0])\n:  :        +- HashAggregate(isMerge=[true], groupBy=[i], select=[i])\n:  :           +- [#5] Exchange(distribution=[hash[i]])\n:  +- [#1] Exchange(distribution=[broadcast])\n+- Calc(select=[EXPR$0, true AS i])\n   +- HashAggregate(isMerge=[true], groupBy=[EXPR$0], select=[EXPR$0])\n      +- [#2] Exchange(distribution=[hash[EXPR$0]])\n])
+   :  +- Calc(select=[b, c, CASE(((c0 = 0) OR (i0 IS NULL AND (ck >= c0) AND a IS NOT NULL)), 1, ((c1 = 0) OR (i IS NULL AND (ck0 >= c1) AND a IS NOT NULL)), 2, 3) AS $f3])
+   :     +- MultipleInput(readOrder=[0,0,1,0,0], members=[\nHashJoin(joinType=[LeftOuterJoin], where=[(a = EXPR$0)], select=[a, b, c, c0, ck, i0, c1, ck0, EXPR$0, i], build=[right])\n:- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0, ck, i0, c1, ck0], build=[right], singleRowJoin=[true])\n:  :- Calc(select=[a, b, c, c0, ck, i0])\n:  :  +- HashJoin(joinType=[LeftOuterJoin], where=[(a = i)], select=[a, b, c, c0, ck, i, i0], build=[right])\n:  :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0, ck], build=[right], singleRowJoin=[true])\n:  :     :  :- [#3] Exchange(distribution=[hash[a]])\n:  :     :  +- [#4] Exchange(distribution=[broadcast])\n:  :     +- Calc(select=[i, true AS i0])\n:  :        +- HashAggregate(isMerge=[true], groupBy=[i], select=[i])\n:  :           +- [#5] Exchange(distribution=[hash[i]])\n:  +- [#1] Exchange(distribution=[broadcast])\n+- Calc(select=[EXPR$0, true AS i])\n   +- HashAggregate(isMerge=[true], groupBy=[EXPR$0], select=[EXPR$0])\n      +- [#2] Exchange(distribution=[hash[EXPR$0]])\n])
    :        :- Exchange(distribution=[broadcast])
    :        :  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
    :        :     +- Exchange(distribution=[single])
@@ -2019,7 +2019,7 @@ LogicalProject(d=[$0], f=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(IS NULL(a), IS NULL(d), =(a, d)), OR(IS NULL(c), IS NULL(f), =(c, f)), =(b, e))], select=[a, b, c], build=[left])
+HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (c IS NULL OR f IS NULL OR (c = f)) AND (b = e))], select=[a, b, c], build=[left])
 :- Exchange(distribution=[hash[b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])
@@ -2045,7 +2045,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(IS NULL(a), IS NULL(d), =(a, d)), =(b, e))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])
@@ -2071,12 +2071,12 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(IS NULL(a), IS NULL(d), =(a, d)), =(b, e))], select=[a, b, c], build=[right])
+HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b]])
-:  +- Calc(select=[a, b, c], where=[>(b, 1)])
+:  +- Calc(select=[a, b, c], where=[(b > 1)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])
-   +- Calc(select=[d, e], where=[>(d, 10)])
+   +- Calc(select=[d, e], where=[(d > 10)])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>

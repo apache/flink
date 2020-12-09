@@ -297,7 +297,7 @@ LogicalProject(d=[AS(org$apache$flink$table$planner$expressions$utils$Func1$$879
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[Func1$(w0$o0) AS d, EXP(w0$o1) AS _c1, +(w0$o2, 1) AS _c2, ||(_UTF-16LE'AVG:', CAST(w0$o2)) AS _c3, ARRAY(w0$o2, w0$o1) AS _c4])
+Calc(select=[Func1$(w0$o0) AS d, EXP(w0$o1) AS _c1, (w0$o2 + 1) AS _c2, ||(_UTF-16LE'AVG:', CAST(w0$o2)) AS _c3, ARRAY(w0$o2, w0$o1) AS _c4])
 +- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, $4, SUM(a) AS w0$o0, COUNT(a) AS w0$o1, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithRetract$081f8b23180a56edc2515c53c561ebf0(c, $4) AS w0$o2])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, c, proctime, CAST(a) AS $4])

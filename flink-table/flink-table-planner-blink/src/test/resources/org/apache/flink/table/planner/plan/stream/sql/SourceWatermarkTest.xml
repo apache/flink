@@ -48,7 +48,7 @@ LogicalProject(EXPR$0=[-($0, $1)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[-(a, b) AS EXPR$0])
+Calc(select=[(a - b) AS EXPR$0])
 +- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func($2, $0), $0), $0)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -67,7 +67,7 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $3)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, EXTRACT(FLAG(SECOND), CAST(Reinterpret(+(c, 5000:INTERVAL SECOND)))) AS EXPR$2])
+Calc(select=[a, b, EXTRACT(FLAG(SECOND), CAST(Reinterpret((c + 5000:INTERVAL SECOND)))) AS EXPR$2])
 +- TableSourceScan(table=[[default_catalog, default_database, VirtualTable, watermark=[-(+($2, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -125,7 +125,7 @@ LogicalProject(a=[$0], b=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b], where=[>(b, 10)])
+Calc(select=[a, b], where=[(b > 10)])
 +- TableSourceScan(table=[[default_catalog, default_database, VirtualTable, watermark=[-(+($2, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)]]], fields=[a, b, c])
 ]]>
     </Resource>

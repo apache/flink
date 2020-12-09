@@ -46,11 +46,11 @@ LogicalProject(a=[$0], c=[$1])
       <![CDATA[
 Union(all=[true], union=[a, c])
 :- Union(all=[true], union=[a, c])
-:  :- Calc(select=[a, c], where=[>(a, 2)])
+:  :- Calc(select=[a, c], where=[(a > 2)])
 :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:  +- Calc(select=[a, c], where=[>(a, 2)])
+:  +- Calc(select=[a, c], where=[(a > 2)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Calc(select=[a, c], where=[>(a, 2)])
++- Calc(select=[a, c], where=[(a > 2)])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

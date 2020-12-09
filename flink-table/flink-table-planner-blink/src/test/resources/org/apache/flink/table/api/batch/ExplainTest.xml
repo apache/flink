@@ -43,7 +43,7 @@ HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], 
             +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 
 == Optimized Execution Plan ==
-MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
 :     +- Calc(select=[a, b])
@@ -82,7 +82,7 @@ HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], 
             +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
-MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
 :     +- Calc(select=[a, b])
@@ -186,7 +186,7 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
-Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
+Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -203,7 +203,7 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)]): rowcount = , cumulative cost = 
 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
-Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
+Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -227,7 +227,7 @@ Calc(select=[a, b, c, e, f])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, c, e, f])
-+- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
++- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])
    :- Exchange(distribution=[hash[a]])
    :  +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
@@ -254,7 +254,7 @@ Calc(select=[a, b, c, e, f]): rowcount = , cumulative cost = {rows, cpu, io, net
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, c, e, f])
-+- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
++- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])
    :- Exchange(distribution=[hash[a]])
    :  +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
@@ -304,11 +304,11 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS c
          +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[>(cnt, 10)])
++- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[<(cnt, 10)])
++- Calc(select=[a, cnt], where=[(cnt < 10)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -355,11 +355,11 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS c
          +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[>(cnt, 10)])
++- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[<(cnt, 10)])
++- Calc(select=[a, cnt], where=[(cnt < 10)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -379,7 +379,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 
 == Optimized Execution Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
-+- Calc(select=[a, b, c], where=[>(a, 10)])
++- Calc(select=[a, b, c], where=[(a > 10)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -399,7 +399,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 
 == Optimized Execution Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
-+- Calc(select=[a, b, c], where=[>(a, 10)])
++- Calc(select=[a, b, c], where=[(a > 10)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>

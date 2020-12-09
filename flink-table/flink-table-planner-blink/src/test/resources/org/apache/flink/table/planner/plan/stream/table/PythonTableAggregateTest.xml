@@ -64,7 +64,7 @@ LogicalProject(d=[AS($1, _UTF-16LE'd')], e=[AS($2, _UTF-16LE'e')])
 Calc(select=[f0 AS d, f1 AS e])
 +- PythonGroupTableAggregate(groupBy=[b], select=[b, PythonEmptyTableAggFunc(a, $f3) AS (f0, f1)])
    +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[a, b, +(c, 1) AS $f3])
+      +- Calc(select=[a, b, (c + 1) AS $f3])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

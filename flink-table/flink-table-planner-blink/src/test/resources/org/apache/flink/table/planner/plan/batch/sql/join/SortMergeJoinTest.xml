@@ -31,7 +31,7 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[FullOuterJoin], where=[AND(=(a, d), <(d, 2))], select=[d, g, a, c])
++- SortMergeJoin(joinType=[FullOuterJoin], where=[((a = d) AND (d < 2))], select=[d, g, a, c])
    :- Exchange(distribution=[hash[d]])
    :  +- Calc(select=[d, g])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
@@ -55,7 +55,7 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortMergeJoin(joinType=[FullOuterJoin], where=[AND(=(a, d), <(d, 2), <(b, h))], select=[d, e, f, g, h, a, b, c])
+SortMergeJoin(joinType=[FullOuterJoin], where=[((a = d) AND (d < 2) AND (b < h))], select=[d, e, f, g, h, a, b, c])
 :- Exchange(distribution=[hash[d]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[hash[a]])
@@ -78,7 +78,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[FullOuterJoin], where=[=(b, e)], select=[b, c, e, g])
++- SortMergeJoin(joinType=[FullOuterJoin], where=[(b = e)], select=[b, c, e, g])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -106,8 +106,8 @@ LogicalProject(a=[COALESCE($0, $3)], b=[$1], c=[$2], b0=[$4], c0=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[CASE(IS NOT NULL(a), a, a0) AS $f0, b, c, b0, c0])
-+- SortMergeJoin(joinType=[FullOuterJoin], where=[=(a, a0)], select=[a, b, c, a0, b0, c0])
+Calc(select=[CASE(a IS NOT NULL, a, a0) AS $f0, b, c, b0, c0])
++- SortMergeJoin(joinType=[FullOuterJoin], where=[(a = a0)], select=[a, b, c, a0, b0, c0])
    :- Exchange(distribution=[hash[a]])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[a]])
@@ -130,9 +130,9 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[d, g, a, c])
++- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[d, g, a, c])
    :- Exchange(distribution=[hash[d]])
-   :  +- Calc(select=[d, g], where=[<(d, 2)])
+   :  +- Calc(select=[d, g], where=[(d < 2)])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c])
@@ -154,7 +154,7 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortMergeJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d), <(d, 2), <(b, h))], select=[d, e, f, g, h, a, b, c])
+SortMergeJoin(joinType=[LeftOuterJoin], where=[((a = d) AND (d < 2) AND (b < h))], select=[d, e, f, g, h, a, b, c])
 :- Exchange(distribution=[hash[d]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[hash[a]])
@@ -176,9 +176,9 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, d), <(b, h))], select=[d, e, f, g, h, a, b, c])
+SortMergeJoin(joinType=[InnerJoin], where=[((a = d) AND (b < h))], select=[d, e, f, g, h, a, b, c])
 :- Exchange(distribution=[hash[d]])
-:  +- Calc(select=[d, e, f, g, h], where=[<(d, 2)])
+:  +- Calc(select=[d, e, f, g, h], where=[(d < 2)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[hash[a]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -201,9 +201,9 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[d, g, a, c])
++- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[d, g, a, c])
    :- Exchange(distribution=[hash[d]])
-   :  +- Calc(select=[d, g], where=[<(d, 2)])
+   :  +- Calc(select=[d, g], where=[(d < 2)])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c])
@@ -227,7 +227,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(b, e), =(a, d))], select=[a, b, c, d, e, g])
++- SortMergeJoin(joinType=[InnerJoin], where=[((b = e) AND (a = d))], select=[a, b, c, d, e, g])
    :- Exchange(distribution=[hash[b, a]])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e, d]])
@@ -251,7 +251,7 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, d), =(b, e))], select=[d, e, g, a, b, c])
++- SortMergeJoin(joinType=[InnerJoin], where=[((a = d) AND (b = e))], select=[d, e, g, a, b, c])
    :- Exchange(distribution=[hash[d, e]])
    :  +- Calc(select=[d, e, g])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
@@ -276,9 +276,9 @@ LogicalProject(a=[$0], d=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, d])
-+- SortMergeJoin(joinType=[InnerJoin], where=[=($f3, d)], select=[a, $f3, d])
++- SortMergeJoin(joinType=[InnerJoin], where=[($f3 = d)], select=[a, $f3, d])
    :- Exchange(distribution=[hash[$f3]])
-   :  +- Calc(select=[a, +(a, 1) AS $f3])
+   :  +- Calc(select=[a, (a + 1) AS $f3])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
       +- Calc(select=[d])
@@ -301,7 +301,7 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d), <(d, 2))], select=[d, g, a, c])
++- SortMergeJoin(joinType=[LeftOuterJoin], where=[((a = d) AND (d < 2))], select=[d, g, a, c])
    :- Exchange(distribution=[hash[d]])
    :  +- Calc(select=[d, g])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
@@ -326,7 +326,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[RightOuterJoin], where=[=(b, e)], select=[b, c, e, g])
++- SortMergeJoin(joinType=[RightOuterJoin], where=[(b = e)], select=[b, c, e, g])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -352,7 +352,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, g])
++- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, c, d, g])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, c])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -377,7 +377,7 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(b, e)], select=[b, c, e, g])
++- SortMergeJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, c, e, g])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -401,9 +401,9 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortMergeJoin(joinType=[RightOuterJoin], where=[AND(=(a, d), <(b, h))], select=[d, e, f, g, h, a, b, c])
+SortMergeJoin(joinType=[RightOuterJoin], where=[((a = d) AND (b < h))], select=[d, e, f, g, h, a, b, c])
 :- Exchange(distribution=[hash[d]])
-:  +- Calc(select=[d, e, f, g, h], where=[<(d, 2)])
+:  +- Calc(select=[d, e, f, g, h], where=[(d < 2)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[hash[a]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -425,9 +425,9 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- SortMergeJoin(joinType=[RightOuterJoin], where=[=(a, d)], select=[d, g, a, c])
++- SortMergeJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[d, g, a, c])
    :- Exchange(distribution=[hash[d]])
-   :  +- Calc(select=[d, g], where=[<(d, 2)])
+   :  +- Calc(select=[d, g], where=[(d < 2)])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c])
@@ -458,9 +458,9 @@ LogicalProject(k=[$0], v=[$1], k0=[$2], v0=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortMergeJoin(joinType=[LeftOuterJoin], where=[=(k, k0)], select=[k, v, k0, v0])
+SortMergeJoin(joinType=[LeftOuterJoin], where=[(k = k0)], select=[k, v, k0, v0])
 :- Exchange(distribution=[hash[k]])
-:  +- Calc(select=[CAST(0:BIGINT) AS k, v], where=[=(k, 0:BIGINT)])
+:  +- Calc(select=[CAST(0:BIGINT) AS k, v], where=[(k = 0:BIGINT)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]], fields=[k, v])
 +- Exchange(distribution=[hash[k]])
    +- Values(tuples=[[]], values=[k, v])

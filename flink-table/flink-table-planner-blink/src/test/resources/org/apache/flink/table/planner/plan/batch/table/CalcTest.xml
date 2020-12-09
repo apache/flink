@@ -42,7 +42,7 @@ LogicalFilter(condition=[=(MOD($0, 2), 1)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b], where=[AND(>(a, 0), <(b, 2), =(MOD(a, 2), 1))])
+Calc(select=[a, b], where=[((a > 0) AND (b < 2) AND (MOD(a, 2) = 1))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -138,7 +138,7 @@ LogicalFilter(condition=[=($1, 2)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[word, CAST(2:BIGINT) AS frequency], where=[=(EXPR$0, 2)])
+Calc(select=[word, CAST(2:BIGINT) AS frequency], where=[(EXPR$0 = 2)])
 +- HashAggregate(isMerge=[true], groupBy=[word], select=[word, Final_SUM(sum$0) AS EXPR$0])
    +- Exchange(distribution=[hash[word]])
       +- LocalHashAggregate(groupBy=[word], select=[word, Partial_SUM(frequency) AS sum$0])

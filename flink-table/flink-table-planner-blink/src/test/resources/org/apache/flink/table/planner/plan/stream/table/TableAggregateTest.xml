@@ -60,7 +60,7 @@ LogicalProject(bb=[AS($0, _UTF-16LE'bb')], _c1=[+(AS($1, _UTF-16LE'x'), 1)], y=[
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[bb, +(f0, 1) AS _c1, f1 AS y])
+Calc(select=[bb, (f0 + 1) AS _c1, f1 AS y])
 +- GroupTableAggregate(groupBy=[bb], select=[bb, org$apache$flink$table$planner$utils$EmptyTableAggFunc$3abce17277a07430b548ea4eacbf9f67(a, b) AS (f0, f1)])
    +- Exchange(distribution=[hash[bb]])
       +- Calc(select=[a, b, MOD(b, 5) AS bb])
