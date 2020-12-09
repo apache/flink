@@ -308,19 +308,34 @@ tools like `curl` can be used to get even more out of Flink.
 
 ### Selecting Deployment Targets
 
-Flink supports different deployment backends like [Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}) 
-or [YARN]({% link deployment/resource-providers/yarn.md %}) which are described in more detail in the 
-Resource Provider section. You can specify the mode your Flink cluster is running in through the 
-`--target` parameter. It supports the following values:
-* `local`
-* `remote`
-* `kubernetes-session`
-* `kubernetes-application`
-* `yarn-per-job`
-* `yarn-session`
-* `yarn-application`
+Flink is compatible with multiple cluster management frameworks like 
+[Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}) or 
+[YARN]({% link deployment/resource-providers/yarn.md %}) which are described in more detail in the 
+Resource Provider section. Jobs can be submitted in different [Deployment Modes]({% link deployment/index.md %}#deployment-modes). 
+The parameterization of a job submission differs based on the underlying framework and Deployment Mode. 
+
+`bin/flink` offers a parameter `--target` to handle the different options. In addition to that, jobs 
+have to be submitted using either `run` (for [Session]({% link deployment/index.md %}#session-mode) 
+and [Per-Job Mode]({% link deployment/index.md %}#per-job-mode)) or `run-application` (for 
+[Application Mode]]({% link deployment/index.md %}#application-mode)). See the following summary of 
+parameter combinations: 
+* YARN
+  * `./bin/flink run --target yarn-session`: Submission to an already running Flink on YARN cluster
+  * `./bin/flink run --target yarn-per-job`: Submission spinning up a Flink on YARN cluster in Per-Job Mode
+  * `./bin/flink run-application --target yarn-application`: Submission spinning up Flink on YARN cluster in Application Mode
+* Kubernetes
+  * `./bin/flink run --target kubernetes-session`: Submission to an already running Flink on Kubernetes cluster
+  * `./bin/flink run-application --target kubernetes-application`: Submission spinning up a Flink on Kubernetes cluster in Application Mode
+* Mesos
+  * `./bin/flink run --target remote`: Submission to an already running Flink on Mesos cluster
+* Standalone:
+  * `./bin/flink run --target local`: Local submission using a MiniCluster in Session Mode
+  * `./bin/flink run --target remote`: Submission to an already running Flink cluster
 
 The `--target` will overwrite the [execution.target]({% link deployment/config.md %}#execution-target) 
 specified in the `config/flink-config.yaml`.
+
+For more details on the commands and the available options, please refer to the Resource Provider-specific 
+pages of the documentation.
 
 {% top %}
