@@ -196,7 +196,7 @@ This means you can develop and test applications in batch mode on static dataset
 
 Now with the skeleton of a Job set-up, you are ready to add some business logic.
 The goal is to build a report that shows the total spend for each account across each hour of the day.
-This means the timestamp column needs be be rounded down from millisecond to hour granularity. 
+This means the timestamp column needs be rounded down from millisecond to hour granularity. 
 
 Flink supports developing relational applications in pure [SQL]({% link dev/table/sql/index.md %}) or using the [Table API]({% link dev/table/tableApi.md %}).
 The Table API is a fluent DSL inspired by SQL, that can be written in Python, Java, or Scala and supports strong IDE integration.

@@ -196,7 +196,7 @@ This means you can develop and test applications in batch mode on static dataset
 
 Now with the skeleton of a Job set-up, you are ready to add some business logic.
 The goal is to build a report that shows the total spend for each account across each hour of the day.
-This means the timestamp column needs be be rounded down from millisecond to hour granularity. 
+This means the timestamp column needs be rounded down from millisecond to hour granularity. 
 
 Just like a SQL query, Flink can select the required fields and group by your keys.
 These features, allong with [built-in functions]({% link dev/table/functions/systemFunctions.zh.md %}) like `floor` and `sum`, you can write this report.
