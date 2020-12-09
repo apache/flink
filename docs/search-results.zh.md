@@ -1,5 +1,5 @@
 ---
-layout: base
+title:  "Search Results"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -19,21 +19,18 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-<noscript>
-  <meta http-equiv="refresh" content="5; url={% link index.md %}">
-</noscript>
-<script type="text/javascript">
-  var documentationRootUrl = "{% link index.md %}";
-  var timeout = "5000";
-  window.onload = function() {
-    setTimeout(doRedirect, timeout);
-  }
-  function doRedirect() {
-    window.location.href = documentationRootUrl;
-  }
+<script>
+  (function() {
+    var cx = '000322205049649384055:qbxxlwnwoqs';
+    var gcse = document.createElement('script');
+    gcse.type = 'text/javascript';
+    gcse.async = true;
+    gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(gcse, s);
+  })();
 </script>
+<!-- add the keyword flink to every search -->
+<gcse:search as_oq="flink"></gcse:search>
 
-<h1>{{ page.title }}</h1>
-
-{{ content }}
+{% top %}
