@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.HOSTS_OPTION;
 
 /**
- * Elasticsearch 7 specific configuration.
+ * Elasticsearch 6 specific configuration.
  */
 @Internal
 final class Elasticsearch6Configuration extends ElasticsearchConfiguration {
