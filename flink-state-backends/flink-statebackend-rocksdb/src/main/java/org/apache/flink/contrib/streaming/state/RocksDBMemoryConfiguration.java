@@ -51,6 +51,9 @@ public final class RocksDBMemoryConfiguration implements Serializable {
      */
     @Nullable private Double highPriorityPoolRatio;
 
+    /** Flag whether to use partition index/filters. Null if not set. */
+    @Nullable private Boolean usePartitionedIndexFilters;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -166,6 +169,17 @@ public final class RocksDBMemoryConfiguration implements Serializable {
                 : RocksDBOptions.HIGH_PRIORITY_POOL_RATIO.defaultValue();
     }
 
+    /**
+     * Gets whether the state backend is configured to use partitioned index/filters for RocksDB.
+     *
+     * <p>See {@link RocksDBOptions#USE_PARTITIONED_INDEX_FILTERS} for details.
+     */
+    public Boolean isUsingPartitionedIndexFilters() {
+        return usePartitionedIndexFilters != null
+                ? usePartitionedIndexFilters
+                : RocksDBOptions.USE_PARTITIONED_INDEX_FILTERS.defaultValue();
+    }
+
     // ------------------------------------------------------------------------
 
     /** Validates if the configured options are valid with respect to one another. */
@@ -218,6 +232,11 @@ public final class RocksDBMemoryConfiguration implements Serializable {
                 other.highPriorityPoolRatio != null
                         ? other.highPriorityPoolRatio
                         : config.get(RocksDBOptions.HIGH_PRIORITY_POOL_RATIO);
+
+        newConfig.usePartitionedIndexFilters =
+                other.usePartitionedIndexFilters != null
+                        ? other.usePartitionedIndexFilters
+                        : config.get(RocksDBOptions.USE_PARTITIONED_INDEX_FILTERS);
 
         return newConfig;
     }
