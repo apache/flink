@@ -1,7 +1,7 @@
 ---
 title: "Scala 项目模板"
 layout: redirect
-redirect: /getting-started/project-setup/scala_api_quickstart.html
+redirect: dev/project-configuration
 permalink: /dev/projectsetup/scala_api_quickstart.html
 ---
 <!--

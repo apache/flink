@@ -1,8 +1,8 @@
 ---
-title: "Standalone Docker"
+title: "Hands-on Tutorials"
 layout: redirect
-redirect: deployment/resource-providers/standalone/docker
-permalink: /ops/deployment/docker.html
+redirect: learn-flink/index
+permalink: /training/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
