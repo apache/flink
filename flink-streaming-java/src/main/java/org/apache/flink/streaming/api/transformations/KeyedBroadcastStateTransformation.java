@@ -22,23 +22,30 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 
 import java.util.List;
 
-/** A non-keyed {@link AbstractBroadcastStateTransformation}. */
+/** A keyed {@link AbstractBroadcastStateTransformation}. */
 @Internal
-public class BroadcastStateTransformation<IN1, IN2, OUT>
+public class KeyedBroadcastStateTransformation<KEY, IN1, IN2, OUT>
         extends AbstractBroadcastStateTransformation<IN1, IN2, OUT> {
 
-    private final BroadcastProcessFunction<IN1, IN2, OUT> userFunction;
+    private final KeyedBroadcastProcessFunction<KEY, IN1, IN2, OUT> userFunction;
 
-    public BroadcastStateTransformation(
+    private final TypeInformation<KEY> stateKeyType;
+
+    private final KeySelector<IN1, KEY> keySelector;
+
+    public KeyedBroadcastStateTransformation(
             final String name,
             final Transformation<IN1> inputStream,
             final Transformation<IN2> broadcastStream,
-            final BroadcastProcessFunction<IN1, IN2, OUT> userFunction,
+            final KeyedBroadcastProcessFunction<KEY, IN1, IN2, OUT> userFunction,
             final List<MapStateDescriptor<?, ?>> broadcastStateDescriptors,
+            final TypeInformation<KEY> keyType,
+            final KeySelector<IN1, KEY> keySelector,
             final TypeInformation<OUT> outTypeInfo,
             final int parallelism) {
         super(
@@ -49,10 +56,21 @@ public class BroadcastStateTransformation<IN1, IN2, OUT>
                 outTypeInfo,
                 parallelism);
         this.userFunction = userFunction;
-        updateManagedMemoryStateBackendUseCase(false /* not keyed */);
+
+        this.stateKeyType = keyType;
+        this.keySelector = keySelector;
+        updateManagedMemoryStateBackendUseCase(true /* we have keyed state */);
     }
 
-    public BroadcastProcessFunction<IN1, IN2, OUT> getUserFunction() {
+    public KeyedBroadcastProcessFunction<KEY, IN1, IN2, OUT> getUserFunction() {
         return userFunction;
+    }
+
+    public TypeInformation<KEY> getStateKeyType() {
+        return stateKeyType;
+    }
+
+    public KeySelector<IN1, KEY> getKeySelector() {
+        return keySelector;
     }
 }
