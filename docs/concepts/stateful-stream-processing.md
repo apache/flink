@@ -354,7 +354,7 @@ A *DataSet* is treated internally as a stream of data. The concepts above thus
 apply to batch programs in the same way as well as they apply to streaming
 programs, with minor exceptions:
 
-  - [Fault tolerance for batch programs](../dev/batch/fault_tolerance.html)
+  - [Fault tolerance for batch programs]({% link dev/task_failure_recovery.md %})
     does not use checkpointing.  Recovery happens by fully replaying the
     streams.  That is possible, because inputs are bounded. This pushes the
     cost more towards the recovery, but makes the regular processing cheaper,
