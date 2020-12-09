@@ -209,7 +209,8 @@ saved in Flink's `lib/` folder for the sake of simplicity here. This way, we don
 `HADOOP_CLASSPATH` as a environment variable next to `MESOS_NATIVE_JAVA_LIBRARY`.
 
 `<mesos-master>` needs to be set to the hostname or IP of Mesos' master node. `$HOST` is a Marathon 
-environment variable referring to the hostname of the machine the script is executed on.
+environment variable referring to the hostname of the machine the script is executed on. `$HOST` should 
+not be replaced in the config above!
 
 The whole Flink cluster including the JobManager will be run as Mesos tasks in the Mesos cluster when 
 deploying Flink using Marathon. Flink's binaries have to be installed on all Mesos workers for the 
