@@ -32,7 +32,6 @@ import org.apache.flink.table.types.DataTypeVisitor;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeTransformation;
-import org.apache.flink.table.types.inference.TypeTransformations;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
@@ -187,7 +186,12 @@ public final class DataTypeUtils {
      */
     public static DataType toInternalDataType(LogicalType logicalType) {
         final DataType defaultDataType = TypeConversions.fromLogicalToDataType(logicalType);
-        return transform(defaultDataType, TypeTransformations.TO_INTERNAL_CLASS);
+        return toInternalDataType(defaultDataType);
+    }
+
+    /** Creates a {@link DataType} from the given {@link DataType} with internal data structures. */
+    public static DataType toInternalDataType(DataType dataType) {
+        return dataType.bridgedTo(toInternalConversionClass(dataType.getLogicalType()));
     }
 
     /** Checks whether a given data type is an internal data structure. */
