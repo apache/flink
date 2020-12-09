@@ -83,10 +83,8 @@ $ python -m pip install apache-flink
 </div>
 
 Additionally, if you want to run the Table API & SQL programs locally within your IDE, you must add the
-following set of modules, depending which planner you want to use.
+following set of modules.
 
-<div class="codetabs" markdown="1">
-<div data-lang="Blink Planner" markdown="1">
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
@@ -101,24 +99,6 @@ following set of modules, depending which planner you want to use.
   <scope>provided</scope>
 </dependency>
 {% endhighlight %}
-</div>
-<div data-lang="Legacy Planner" markdown="1">
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-planner{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
-  <scope>provided</scope>
-</dependency>
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-scala{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
-  <scope>provided</scope>
-</dependency>
-{% endhighlight %}
-</div>
-</div>
 
 ### Extension Dependencies
 
