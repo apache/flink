@@ -194,8 +194,8 @@ Here is an example configuration for Marathon:
 {% highlight javascript %}
 {
   "id": "flink",
-  "cmd": "/opt/flink-{{ site.version }}/bin/mesos-appmaster.sh -Djobmanager.rpc.address=$HOST -Dmesos.resourcemanager.framework.user=root -Dmesos.master=<mesos-master>:5050 -Dparallelism.default=2",
-  "user": "root",
+  "cmd": "/opt/flink-{{ site.version }}/bin/mesos-appmaster.sh -Djobmanager.rpc.address=$HOST -Dmesos.resourcemanager.framework.user=<flink-user> -Dmesos.master=<mesos-master>:5050 -Dparallelism.default=2",
+  "user": "<flink-user>",
   "cpus": 2,
   "mem": 2048,
   "instances": 1,
@@ -216,7 +216,7 @@ Here is an example configuration for Marathon:
 }
 {% endhighlight %}
 
-Flink is installed into `/opt/flink-{{ site.version }}` having `root` as the owner of the Flink 
+Flink is installed into `/opt/flink-{{ site.version }}` having `<flink-user>` as the owner of the Flink 
 directory (notice that the user is used twice: once as a Marathon and another time as a Mesos 
 parameter) for the example configuration above to work. Additionally, we have the bundled Hadoop jar 
 saved in Flink's `lib/` folder for the sake of simplicity here. This way, we don't have to set 
