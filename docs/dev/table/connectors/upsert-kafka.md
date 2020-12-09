@@ -89,11 +89,11 @@ CREATE TABLE pageviews (
 -- calculate the pv, uv and insert into the upsert-kafka sink
 INSERT INTO pageviews_per_region
 SELECT
-  region,
+  user_region,
   COUNT(*),
   COUNT(DISTINCT user_id)
 FROM pageviews
-GROUP BY region;
+GROUP BY user_region;
 
 {% endhighlight %}
 </div>
