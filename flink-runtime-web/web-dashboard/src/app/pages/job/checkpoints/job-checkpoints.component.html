@@ -49,7 +49,7 @@
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong>End to End Duration: </strong> {{ checkPointStats['latest']['completed']['end_to_end_duration'] | humanizeDuration}}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Checkpointed Data Size: </strong> {{ checkPointStats['latest']['completed']['checkpointed_data_size'] | humanizeBytes }}</span>
+              <span><strong>Checkpointed Data Size: </strong> {{ checkPointStats['latest']['completed']['state_size'] | humanizeBytes }}</span>
             </td>
             <td *ngIf="!checkPointStats['latest']['completed']">None</td>
           </tr>
