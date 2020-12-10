@@ -18,7 +18,7 @@
 
 from pyflink.common import Row
 from pyflink.table.types import DataTypes
-from pyflink.table.udf import udf
+from pyflink.table.udf import udf, udtf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
     PyFlinkBlinkStreamTableTestCase
@@ -77,6 +77,32 @@ class RowBasedOperationTests(object):
         t.map(pandas_udf(t.a, t.b)).execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,5", "3,7", "6,6", "9,8", "5,8"])
+
+    def test_flat_map(self):
+        t = self.t_env.from_elements(
+            [(1, "2,3", 3), (2, "1", 3), (1, "5,6,7", 4)],
+            DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.TINYINT()),
+                 DataTypes.FIELD("b", DataTypes.STRING()),
+                 DataTypes.FIELD("c", DataTypes.INT())]))
+
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a', 'b'],
+            [DataTypes.BIGINT(), DataTypes.STRING()])
+        self.t_env.register_table_sink("Results", table_sink)
+
+        @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+        def split(x, string):
+            for s in string.split(","):
+                yield x, s
+
+        t.flat_map(split(t.a, t.b)) \
+            .alias("a, b") \
+            .flat_map(split(t.a, t.b)) \
+            .execute_insert("Results") \
+            .wait()
+        actual = source_sink_utils.results()
+        self.assert_equals(actual, ["1,2", "1,3", "2,1", "1,5", "1,6", "1,7"])
 
 
 class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTableTestCase):
