@@ -43,7 +43,7 @@ class LegacySinkTest extends TableTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("AppendStreamTableSink doesn't support consuming update " +
       "changes which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
-    util.verifyPlanInsert(table, appendSink, "appendSink")
+    util.verifyRelPlanInsert(table, appendSink, "appendSink")
   }
 
   @Test
@@ -67,21 +67,21 @@ class LegacySinkTest extends TableTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("OverAggregate doesn't support consuming update changes " +
       "which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
-    util.verifyPlan(stmtSet)
+    util.verifyRelPlan(stmtSet)
   }
 
   @Test
   def testAppendSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT a + b, c FROM MyTable")
     val appendSink = util.createAppendTableSink(Array("d", "c"), Array(LONG, STRING))
-    util.verifyPlanInsert(table, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testRetractSink1(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val retractSink = util.createRetractTableSink(Array("a", "cnt"), Array(INT, LONG))
-    util.verifyPlanInsert(table, retractSink, "retractSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, retractSink, "retractSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -94,14 +94,14 @@ class LegacySinkTest extends TableTestBase {
       """.stripMargin
     val table = util.tableEnv.sqlQuery(sqlQuery)
     val retractSink = util.createRetractTableSink(Array("cnt", "a"), Array(LONG, LONG))
-    util.verifyPlanInsert(table, retractSink, "retractSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, retractSink, "retractSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testUpsertSink1(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val upsertSink = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
-    util.verifyPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -118,7 +118,7 @@ class LegacySinkTest extends TableTestBase {
     val table = util.tableEnv.sqlQuery(sqlQuery)
     val upsertSink = util.createUpsertTableSink(Array(), Array("a1", "b", "c1"),
       Array(INT, LONG, STRING))
-    util.verifyPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -132,7 +132,7 @@ class LegacySinkTest extends TableTestBase {
     val table = util.tableEnv.sqlQuery(sql)
     val upsertSink = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
     // a filter after aggregation, the Aggregation and Calc should produce UPDATE_BEFORE
-    util.verifyPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -153,7 +153,7 @@ class LegacySinkTest extends TableTestBase {
       "upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table2)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -175,7 +175,7 @@ class LegacySinkTest extends TableTestBase {
       "upsertSink2", upsertSink2)
     stmtSet.addInsert("upsertSink2", table2)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -209,7 +209,7 @@ class LegacySinkTest extends TableTestBase {
       "upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table3)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
 }

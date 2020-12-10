@@ -57,7 +57,7 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
   def testDoesNotMatchSemiJoin(): Unit = {
     val sqlQuery =
       "SELECT * FROM (SELECT * FROM T1 JOIN T2 ON a = c) t WHERE a IN (SELECT e FROM T3)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -67,6 +67,6 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
         |SELECT * FROM (SELECT * FROM T1 JOIN T2 ON a = c) t
         |WHERE NOT EXISTS (SELECT e FROM T3  WHERE a = e)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

@@ -110,56 +110,56 @@ public class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {
 
 	@Test
 	public void simpleTranspose() {
-		util.verifyPlan("SELECT a, c FROM SimpleTable");
+		util.verifyRelPlan("SELECT a, c FROM SimpleTable");
 	}
 
 	@Test
 	public void transposeWithReorder() {
-		util.verifyPlan("SELECT b, a FROM SimpleTable");
+		util.verifyRelPlan("SELECT b, a FROM SimpleTable");
 	}
 
 	@Test
 	public void transposeWithNestedField() {
-		util.verifyPlan("SELECT b, d.d1, d.d2 FROM SimpleTable");
+		util.verifyRelPlan("SELECT b, d.d1, d.d2 FROM SimpleTable");
 	}
 
 	@Test
 	public void complicatedTranspose() {
-		util.verifyPlan("SELECT d.d1, d.d2 + b FROM SimpleTable");
+		util.verifyRelPlan("SELECT d.d1, d.d2 + b FROM SimpleTable");
 	}
 
 	@Test
 	public void transposeExcludeRowTime() {
-		util.verifyPlan("SELECT SECOND(c) FROM SimpleTable");
+		util.verifyRelPlan("SELECT SECOND(c) FROM SimpleTable");
 	}
 
 	@Test
 	public void transposeWithIncludeComputedRowTime() {
-		util.verifyPlan("SELECT a, b, d FROM VirtualTable");
+		util.verifyRelPlan("SELECT a, b, d FROM VirtualTable");
 	}
 
 	@Test
 	public void transposeWithExcludeComputedRowTime() {
-		util.verifyPlan("SELECT a, b FROM VirtualTable");
+		util.verifyRelPlan("SELECT a, b FROM VirtualTable");
 	}
 
 	@Test
 	public void transposeWithExcludeComputedRowTime2() {
-		util.verifyPlan("SELECT a, b, SECOND(d) FROM VirtualTable");
+		util.verifyRelPlan("SELECT a, b, SECOND(d) FROM VirtualTable");
 	}
 
 	@Test
 	public void transposeWithExcludeComputedRowTime3() {
-		util.verifyPlan("SELECT a, SECOND(d) FROM NestedTable");
+		util.verifyRelPlan("SELECT a, SECOND(d) FROM NestedTable");
 	}
 
 	@Test
 	public void transposeWithDuplicateColumns() {
-		util.verifyPlan("SELECT a, b, b as e FROM VirtualTable");
+		util.verifyRelPlan("SELECT a, b, b as e FROM VirtualTable");
 	}
 
 	@Test
 	public void transposeWithWatermarkWithMultipleInput() {
-		util.verifyPlan("SELECT a FROM UdfTable");
+		util.verifyRelPlan("SELECT a FROM UdfTable");
 	}
 }

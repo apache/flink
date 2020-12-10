@@ -80,94 +80,94 @@ class PushPartitionIntoLegacyTableSourceScanRuleTest(
 
   @Test
   def testNoPartitionFieldPredicate(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE id > 2")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE id > 2")
   }
 
   @Test
   def testNoPartitionFieldPredicateWithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE id > 2")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE id > 2")
   }
 
   @Test
   def testOnlyPartitionFieldPredicate1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE part1 = 'A'")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE part1 = 'A'")
   }
 
   @Test
   def testOnlyPartitionFieldPredicate1WithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE part1 = 'A'")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE part1 = 'A'")
   }
 
   @Test
   def testOnlyPartitionFieldPredicate2(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE part2 > 1")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE part2 > 1")
   }
 
   @Test
   def testOnlyPartitionFieldPredicate2WithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE part2 > 1")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE part2 > 1")
   }
 
   @Test
   def testOnlyPartitionFieldPredicate3(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE part1 = 'A' AND part2 > 1")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE part1 = 'A' AND part2 > 1")
   }
 
   @Test
   def testOnlyPartitionFieldPredicate3WithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE part1 = 'A' AND part2 > 1")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE part1 = 'A' AND part2 > 1")
   }
 
   @Test
   def testOnlyPartitionFieldPredicate4(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE part1 = 'A' OR part2 > 1")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE part1 = 'A' OR part2 > 1")
   }
 
   @Test
   def testOnlyPartitionFieldPredicate4WithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE part1 = 'A' OR part2 > 1")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE part1 = 'A' OR part2 > 1")
   }
 
   @Test
   def testPartitionFieldPredicateAndOtherPredicate(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE id > 2 AND part1 = 'A'")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE id > 2 AND part1 = 'A'")
   }
 
   @Test
   def testPartitionFieldPredicateAndOtherPredicateWithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE id > 2 AND part1 = 'A'")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE id > 2 AND part1 = 'A'")
   }
 
   @Test
   def testPartitionFieldPredicateOrOtherPredicate(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE id > 2 OR part1 = 'A'")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE id > 2 OR part1 = 'A'")
   }
 
   @Test
   def testPartitionFieldPredicateOrOtherPredicateWithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE id > 2 OR part1 = 'A'")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE id > 2 OR part1 = 'A'")
   }
 
   @Test
   def testPartialPartitionFieldPredicatePushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
   }
 
   @Test
   def testPartialPartitionFieldPredicatePushDownWithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
   }
 
   @Test
   def testWithUdf(): Unit = {
     util.addFunction("MyUdf", Func1)
-    util.verifyPlan("SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
   @Test
   def testWithUdfAndVirtualColumn(): Unit = {
     util.addFunction("MyUdf", Func1)
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 }
 

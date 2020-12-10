@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.table.planner.plan.common.UnnestTestBase
 import org.apache.flink.table.planner.utils.TableTestUtil
 
-class UnnestTest extends UnnestTestBase {
+class UnnestTest extends UnnestTestBase(true) {
 
   override def getTableTestUtil: TableTestUtil = streamTestUtil()
 }

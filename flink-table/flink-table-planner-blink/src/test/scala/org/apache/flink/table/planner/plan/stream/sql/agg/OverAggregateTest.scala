@@ -54,7 +54,7 @@ class OverAggregateTest extends TableTestBase {
         |from MyTable
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   /**
@@ -63,7 +63,7 @@ class OverAggregateTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidOverAggregation(): Unit = {
     util.addFunction("overAgg", new OverAgg0)
-    util.verifyPlan("SELECT overAgg(c, a) FROM MyTable")
+    util.verifyExecPlan("SELECT overAgg(c, a) FROM MyTable")
   }
 
   /**
@@ -72,7 +72,7 @@ class OverAggregateTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidOverAggregation2(): Unit = {
     util.addFunction("overAgg", new OverAgg0)
-    util.verifyPlan("SELECT overAgg(c, a) FROM MyTable")
+    util.verifyExecPlan("SELECT overAgg(c, a) FROM MyTable")
   }
 
   @Test
@@ -103,7 +103,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(sqlQuery1, sqlQuery2)
-    util.verifyPlan(sqlQuery1)
+    util.verifyExecPlan(sqlQuery1)
   }
 
   @Test
@@ -129,7 +129,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(sqlQuery1, sqlQuery2)
-    util.verifyPlan(sqlQuery1)
+    util.verifyExecPlan(sqlQuery1)
   }
 
   @Test
@@ -155,7 +155,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(sqlQuery1, sqlQuery2)
-    util.verifyPlan(sqlQuery1)
+    util.verifyExecPlan(sqlQuery1)
   }
 
   @Test
@@ -176,7 +176,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(sqlQuery1, sqlQuery2)
-    util.verifyPlan(sqlQuery1)
+    util.verifyExecPlan(sqlQuery1)
   }
 
   @Test
@@ -196,7 +196,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(sqlQuery1, sqlQuery2)
-    util.verifyPlan(sqlQuery1)
+    util.verifyExecPlan(sqlQuery1)
   }
 
   @Test
@@ -215,7 +215,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(sqlQuery1, sqlQuery2)
-    util.verifyPlan(sqlQuery1)
+    util.verifyExecPlan(sqlQuery1)
   }
 
   @Test
@@ -238,7 +238,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(sql, sql2)
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -258,7 +258,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(sql, sql2)
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -281,7 +281,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(sql, sql2)
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -300,7 +300,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(sql, sql2)
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -313,7 +313,7 @@ class OverAggregateTest extends TableTestBase {
         |FROM MyTable
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -326,7 +326,7 @@ class OverAggregateTest extends TableTestBase {
         |    FROM MyTable
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -338,7 +338,7 @@ class OverAggregateTest extends TableTestBase {
         |FROM MyTable
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -351,7 +351,7 @@ class OverAggregateTest extends TableTestBase {
         |FROM MyTable
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -364,7 +364,7 @@ class OverAggregateTest extends TableTestBase {
         |FROM MyTable
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -377,7 +377,7 @@ class OverAggregateTest extends TableTestBase {
         |FROM MyTable
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -390,7 +390,7 @@ class OverAggregateTest extends TableTestBase {
         |FROM MyTable
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -403,7 +403,7 @@ class OverAggregateTest extends TableTestBase {
         |FROM MyTable
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[TableException])
@@ -427,7 +427,7 @@ class OverAggregateTest extends TableTestBase {
       "w2 AS (PARTITION BY a ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)"
 
     verifyPlanIdentical(sql, sql2)
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -439,6 +439,6 @@ class OverAggregateTest extends TableTestBase {
       "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

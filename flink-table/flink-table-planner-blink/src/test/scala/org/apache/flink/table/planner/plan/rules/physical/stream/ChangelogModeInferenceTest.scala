@@ -97,13 +97,13 @@ class ChangelogModeInferenceTest extends TableTestBase {
 
   @Test
   def testSelect(): Unit = {
-    util.verifyPlan("SELECT word, number FROM MyTable", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan("SELECT word, number FROM MyTable", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testOneLevelGroupBy(): Unit = {
     // one level unbounded groupBy
-    util.verifyPlan("SELECT COUNT(number) FROM MyTable GROUP BY word", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan("SELECT COUNT(number) FROM MyTable GROUP BY word", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -115,7 +115,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
         |  SELECT word, COUNT(number) as cnt FROM MyTable GROUP BY word
         |) GROUP BY cnt
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -132,7 +132,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
         |  SELECT word, COUNT(number) as cnt FROM MyTable GROUP BY word
         |) GROUP BY cnt
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -143,7 +143,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
         | JOIN DeduplicatedView FOR SYSTEM_TIME AS OF o.rowtime AS r
         | ON o.currency = r.currency
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -154,7 +154,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
         | JOIN ratesChangelogStream FOR SYSTEM_TIME AS OF o.rowtime AS r
         | ON o.currency = r.currency
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -178,6 +178,6 @@ class ChangelogModeInferenceTest extends TableTestBase {
         |   SELECT word, cnt FROM MyTable2
         |) GROUP BY cnt
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 }

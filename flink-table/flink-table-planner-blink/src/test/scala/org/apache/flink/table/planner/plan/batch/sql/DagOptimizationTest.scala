@@ -44,7 +44,7 @@ class DagOptimizationTest extends TableTestBase {
   def testSingleSink1(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT c, COUNT(a) AS cnt FROM MyTable GROUP BY c")
     val appendSink = util.createCollectTableSink(Array("c", "cnt"), Array(STRING, LONG))
-    util.verifyPlanInsert(table, appendSink, "appendSink")
+    util.verifyExecPlanInsert(table, appendSink, "appendSink")
   }
 
   @Test
@@ -62,7 +62,7 @@ class DagOptimizationTest extends TableTestBase {
     val table6 = util.tableEnv.sqlQuery("SELECT a1, b, c1 FROM table4, table5 WHERE a1 = a3")
 
     val appendSink = util.createCollectTableSink(Array("a1", "b", "c1"), Array(INT, LONG, STRING))
-    util.verifyPlanInsert(table6, appendSink, "appendSink")
+    util.verifyExecPlanInsert(table6, appendSink, "appendSink")
   }
 
   @Test
@@ -75,7 +75,7 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT * FROM table1 UNION ALL SELECT * FROM table2")
 
     val appendSink = util.createCollectTableSink(Array("a1", "b1"), Array(INT, LONG))
-    util.verifyPlanInsert(table3, appendSink, "appendSink")
+    util.verifyExecPlanInsert(table3, appendSink, "appendSink")
   }
 
   @Test
@@ -95,7 +95,7 @@ class DagOptimizationTest extends TableTestBase {
     val table7 = util.tableEnv.sqlQuery("SELECT a1, b1, c1 FROM table1, table6 WHERE a1 = a3")
 
     val sink = util.createCollectTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.verifyPlanInsert(table7, sink, "sink")
+    util.verifyExecPlanInsert(table7, sink, "sink")
   }
 
   @Test
@@ -114,7 +114,7 @@ class DagOptimizationTest extends TableTestBase {
     val sink = util.createCollectTableSink(
       Array("a", "b", "c", "d", "e", "f", "i", "j", "k", "l", "m", "s"),
       Array(INT, LONG, STRING, INT, LONG, STRING, INT, LONG, INT, STRING, LONG, STRING))
-    util.verifyPlanInsert(table, sink, "sink")
+    util.verifyExecPlanInsert(table, sink, "sink")
   }
 
   @Test
@@ -123,7 +123,7 @@ class DagOptimizationTest extends TableTestBase {
       "(SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1)"
     val table = util.tableEnv.sqlQuery(sqlQuery)
     val sink = util.createCollectTableSink(Array("total_sum"), Array(INT))
-    util.verifyPlanInsert(table, sink, "sink")
+    util.verifyExecPlanInsert(table, sink, "sink")
   }
 
   @Test
@@ -144,7 +144,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table3)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -168,7 +168,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table3)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -192,7 +192,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table3)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -221,7 +221,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table6)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -244,7 +244,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table3)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -284,7 +284,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink3", sink3)
     stmtSet.addInsert("sink3", table5)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -326,7 +326,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table6)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -349,7 +349,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table3)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -388,7 +388,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink3", sink3)
     stmtSet.addInsert("sink3", table3)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -420,7 +420,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink3", sink3)
     stmtSet.addInsert("sink3", table3)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -451,7 +451,7 @@ class DagOptimizationTest extends TableTestBase {
      util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table2)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   @Test
@@ -497,7 +497,7 @@ class DagOptimizationTest extends TableTestBase {
      util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table2)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
 }

@@ -43,7 +43,7 @@ class RemoveRedundantLocalRankRuleTest extends TableTestBase {
         | SELECT a, RANK() OVER(PARTITION BY a ORDER BY SUM(b)) rk FROM x GROUP BY a
         |) WHERE rk <= 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -54,7 +54,7 @@ class RemoveRedundantLocalRankRuleTest extends TableTestBase {
         | SELECT a, RANK() OVER(PARTITION BY a ORDER BY SUM(b)) rk FROM x GROUP BY a
         |) WHERE rk <= 5 and rk >= 2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -67,7 +67,7 @@ class RemoveRedundantLocalRankRuleTest extends TableTestBase {
         | ) WHERE rk <= 5
         |) WHERE rk1 <= 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

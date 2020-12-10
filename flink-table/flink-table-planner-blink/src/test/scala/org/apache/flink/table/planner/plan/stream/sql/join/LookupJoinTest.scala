@@ -258,7 +258,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     // Will do implicit type coercion.
     thrown.expect(classOf[TableException])
     thrown.expectMessage("VARCHAR(2147483647) and INTEGER does not have common type now")
-    util.verifyPlan("SELECT * FROM MyTable AS T JOIN LookupTable "
+    util.verifyExecPlan("SELECT * FROM MyTable AS T JOIN LookupTable "
       + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
   }
 
@@ -267,7 +267,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     val sql = "SELECT * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -275,7 +275,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     val sql = "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -285,7 +285,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       "JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -298,7 +298,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |ON T.a = D.id
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -311,7 +311,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |WHERE T.c > 1000
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -324,7 +324,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |WHERE cast(D.name as bigint) > 1000
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -337,7 +337,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |WHERE T.c > 1000
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -364,7 +364,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
          |GROUP BY b
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -377,7 +377,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |WHERE T.c > 1000
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -390,7 +390,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |ON T.b = concat(D.name, '!') AND D.age = 11
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -403,7 +403,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |ON T.a = D.id + 1 AND T.b = concat(D.name, '!') AND D.age = 11
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -416,7 +416,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |WHERE D.name LIKE 'Jack%'
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -430,7 +430,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -445,7 +445,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
         |  ON T.a = D.id
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -460,7 +460,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
         |  ON T.a = D.id and D.nominal_age > 12
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   // ==========================================================================================
