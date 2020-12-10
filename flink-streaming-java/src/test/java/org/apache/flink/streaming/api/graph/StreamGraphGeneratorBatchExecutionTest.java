@@ -96,7 +96,9 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         StreamGraph graph = graphGenerator.generate();
         StreamNode processNode = graph.getStreamNode(process.getId());
-        assertThat(processNode.getSortedInputs(), equalTo(true));
+        assertThat(
+                processNode.getInputRequirements().get(0),
+                equalTo(StreamConfig.InputRequirement.SORTED));
         assertThat(
                 processNode.getOperatorFactory().getChainingStrategy(),
                 equalTo(ChainingStrategy.HEAD));
@@ -124,7 +126,9 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         StreamGraph graph = graphGenerator.generate();
         StreamNode processNode = graph.getStreamNode(process.getId());
-        assertThat(processNode.getSortedInputs(), equalTo(true));
+        assertThat(
+                processNode.getInputRequirements().get(0),
+                equalTo(StreamConfig.InputRequirement.SORTED));
         assertThat(
                 processNode.getOperatorFactory().getChainingStrategy(),
                 equalTo(ChainingStrategy.HEAD));
@@ -152,7 +156,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         StreamGraph graph = graphGenerator.generate();
         StreamNode processNode = graph.getStreamNode(process.getId());
-        assertThat(processNode.getSortedInputs(), equalTo(false));
+        assertThat(processNode.getInputRequirements().get(0), nullValue());
         assertThat(graph.getStateBackend(), nullValue());
         assertThat(graph.getTimerServiceProvider(), nullValue());
     }
@@ -201,7 +205,12 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         StreamGraph graph = graphGenerator.generate();
         StreamNode processNode = graph.getStreamNode(process.getId());
-        assertThat(processNode.getSortedInputs(), equalTo(true));
+        assertThat(
+                processNode.getInputRequirements().get(0),
+                equalTo(StreamConfig.InputRequirement.SORTED));
+        assertThat(
+                processNode.getInputRequirements().get(1),
+                equalTo(StreamConfig.InputRequirement.SORTED));
         assertThat(
                 processNode.getOperatorFactory().getChainingStrategy(),
                 equalTo(ChainingStrategy.HEAD));
@@ -234,7 +243,12 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         StreamGraph graph = graphGenerator.generate();
         StreamNode processNode = graph.getStreamNode(process.getId());
-        assertThat(processNode.getSortedInputs(), equalTo(true));
+        assertThat(
+                processNode.getInputRequirements().get(0),
+                equalTo(StreamConfig.InputRequirement.SORTED));
+        assertThat(
+                processNode.getInputRequirements().get(1),
+                equalTo(StreamConfig.InputRequirement.SORTED));
         assertThat(
                 processNode.getOperatorFactory().getChainingStrategy(),
                 equalTo(ChainingStrategy.HEAD));
@@ -267,7 +281,8 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         StreamGraph graph = graphGenerator.generate();
         StreamNode processNode = graph.getStreamNode(process.getId());
-        assertThat(processNode.getSortedInputs(), equalTo(false));
+        assertThat(processNode.getInputRequirements().get(0), nullValue());
+        assertThat(processNode.getInputRequirements().get(1), nullValue());
         assertThat(graph.getStateBackend(), nullValue());
         assertThat(graph.getTimerServiceProvider(), nullValue());
     }
@@ -368,7 +383,12 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         StreamGraph graph = graphGenerator.generate();
         StreamNode operatorNode = graph.getStreamNode(multipleInputTransformation.getId());
-        assertThat(operatorNode.getSortedInputs(), equalTo(true));
+        assertThat(
+                operatorNode.getInputRequirements().get(0),
+                equalTo(StreamConfig.InputRequirement.SORTED));
+        assertThat(
+                operatorNode.getInputRequirements().get(1),
+                equalTo(StreamConfig.InputRequirement.SORTED));
         assertThat(
                 operatorNode.getOperatorFactory().getChainingStrategy(),
                 equalTo(ChainingStrategy.HEAD));
