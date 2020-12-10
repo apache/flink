@@ -141,6 +141,12 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 	public void openInputFormat() {
 		//called once per inputFormat (on open)
 		try {
+			// Load DriverManager first to avoid deadlock between DriverManager's
+			// static initialization block and specific driver class's static
+			// initialization block.
+			//
+			// See comments in SimpleJdbcConnectionProvider for more details.
+			DriverManager.getDrivers();
 			Class.forName(drivername);
 			if (username == null) {
 				dbConn = DriverManager.getConnection(dbURL);
