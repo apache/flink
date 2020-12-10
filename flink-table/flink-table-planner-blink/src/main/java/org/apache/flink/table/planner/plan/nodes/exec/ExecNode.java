@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
+import org.apache.flink.table.types.logical.RowType;
 
 import java.util.List;
 
@@ -30,6 +31,18 @@ import java.util.List;
  * @param <T> The type of the elements that result from this node.
  */
 public interface ExecNode<T> {
+
+	/**
+	 * Returns a string which describes this node.
+	 * TODO rename to `getDescription` once all ExecNodes do not extend from FlinkPhysicalRel,
+	 *  because RelNode already has `getDescription` method.
+	 */
+	String getDesc();
+
+	/**
+	 * Returns the output {@link RowType} of this node.
+	 */
+	RowType getOutputType();
 
 	/**
 	 * Returns a list of this node's input nodes.
@@ -49,12 +62,21 @@ public interface ExecNode<T> {
 
 	/**
 	 * Replaces the <code>ordinalInParent</code><sup>th</sup> input.
-	 * You must override this method if you override {@link #getInputNodes}.
+	 * Once we introduce source node and target node for {@link ExecEdge},
+	 * we will remove this method.
 	 *
 	 * @param ordinalInParent Position of the child input, 0 is the first
 	 * @param newInputNode New node that should be put at position ordinalInParent
 	 */
 	void replaceInputNode(int ordinalInParent, ExecNode<?> newInputNode);
+
+	/**
+	 * Replaces the <code>ordinalInParent</code><sup>th</sup> edge.
+	 *
+	 * @param ordinalInParent Position of the child input, 0 is the first
+	 * @param newInputEdge New edge that should be put at position ordinalInParent
+	 */
+	void replaceInputEdge(int ordinalInParent, ExecEdge newInputEdge);
 
 	/**
 	 * Translates this node into a Flink operator.
