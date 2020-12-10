@@ -2026,7 +2026,8 @@ object ScalarOperatorGens {
                |}
              """.stripMargin
           val sourceElementExpr =
-            GeneratedExpression(sourceElement, sourceElementNullTerm, sourceElementCode, sourceElementType)
+            GeneratedExpression(
+              sourceElement, sourceElementNullTerm, sourceElementCode, sourceElementType)
           val elementCastExpr = generateCast(ctx, sourceElementExpr, targetElementType)
 
           val stmt =
