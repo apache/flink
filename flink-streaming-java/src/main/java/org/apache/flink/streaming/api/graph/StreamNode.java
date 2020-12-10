@@ -84,7 +84,8 @@ public class StreamNode {
 
     private String transformationUID;
     private String userHash;
-    private boolean sortedInputs = false;
+
+    private final Map<Integer, StreamConfig.InputRequirement> inputRequirements = new HashMap<>();
 
     @VisibleForTesting
     public StreamNode(
@@ -343,12 +344,13 @@ public class StreamNode {
         this.userHash = userHash;
     }
 
-    public void setSortedInputs(boolean sortedInputs) {
-        this.sortedInputs = sortedInputs;
+    public void addInputRequirement(
+            int inputIndex, StreamConfig.InputRequirement inputRequirement) {
+        inputRequirements.put(inputIndex, inputRequirement);
     }
 
-    public boolean getSortedInputs() {
-        return sortedInputs;
+    public Map<Integer, StreamConfig.InputRequirement> getInputRequirements() {
+        return inputRequirements;
     }
 
     public Optional<OperatorCoordinator.Provider> getCoordinatorProvider(
