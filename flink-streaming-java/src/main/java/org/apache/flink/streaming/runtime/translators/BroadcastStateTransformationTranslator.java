@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.translators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.co.BatchCoBroadcastWithNonKeyedOperator;
 import org.apache.flink.streaming.api.operators.co.CoBroadcastWithNonKeyedOperator;
 import org.apache.flink.streaming.api.transformations.BroadcastStateTransformation;
 
@@ -46,8 +47,23 @@ public class BroadcastStateTransformationTranslator<IN1, IN2, OUT>
     protected Collection<Integer> translateForBatchInternal(
             final BroadcastStateTransformation<IN1, IN2, OUT> transformation,
             final Context context) {
-        throw new UnsupportedOperationException(
-                "The Broadcast State Pattern is not support in BATCH execution mode.");
+        checkNotNull(transformation);
+        checkNotNull(context);
+
+        BatchCoBroadcastWithNonKeyedOperator<IN1, IN2, OUT> operator =
+                new BatchCoBroadcastWithNonKeyedOperator<>(
+                        transformation.getUserFunction(),
+                        transformation.getBroadcastStateDescriptors());
+
+        return translateInternal(
+                transformation,
+                transformation.getRegularInput(),
+                transformation.getBroadcastInput(),
+                SimpleOperatorFactory.of(operator),
+                null /* no key type*/,
+                null /* no first key selector */,
+                null /* no second */,
+                context);
     }
 
     @Override
