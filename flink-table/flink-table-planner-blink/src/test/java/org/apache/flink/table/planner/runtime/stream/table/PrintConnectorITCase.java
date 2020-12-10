@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -89,7 +90,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
 				"'standard-error'='false')");
 		DataType type = tEnv().from("print_t").getSchema().toRowDataType();
 		Row row = Row.of(1, 1.1);
-		tEnv().fromValues(type, Arrays.asList(row)).executeInsert("print_t").await();
+		tEnv().fromValues(type, Collections.singleton(row)).executeInsert("print_t").await();
 
 		String expectedLine1 = "test_print:1> +I(" +
 			/* 0 */ "1," +
