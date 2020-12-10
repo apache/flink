@@ -448,8 +448,8 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
         if not isinstance(result_type, DataType):
             raise TypeError(
                 "Invalid returnType: returnType should be DataType but is {}".format(result_type))
-        from pyflink.table.types import RowType, MapType
-        if func_type == 'pandas' and isinstance(result_type, (RowType, MapType)):
+        from pyflink.table.types import MapType
+        if func_type == 'pandas' and isinstance(result_type, MapType):
             raise TypeError(
                 "Invalid returnType: Pandas UDAF doesn't support DataType type {} currently"
                 .format(result_type))

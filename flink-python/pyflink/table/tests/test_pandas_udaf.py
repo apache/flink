@@ -34,11 +34,6 @@ class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
 
         with self.assertRaises(
                 TypeError,
-                msg="Invalid returnType: Pandas UDAF doesn't support DataType type ROW currently"):
-            udaf(pandas_udaf, result_type=DataTypes.ROW(), func_type="pandas")
-
-        with self.assertRaises(
-                TypeError,
                 msg="Invalid returnType: Pandas UDAF doesn't support DataType type MAP currently"):
             udaf(pandas_udaf, result_type=DataTypes.MAP(DataTypes.INT(), DataTypes.INT()),
                  func_type="pandas")
@@ -53,19 +48,26 @@ class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c'],
-            [DataTypes.TINYINT(), DataTypes.FLOAT(), DataTypes.INT()])
+            [DataTypes.TINYINT(), DataTypes.FLOAT(),
+             DataTypes.ROW(
+                 [DataTypes.FIELD("a", DataTypes.INT()),
+                  DataTypes.FIELD("b", DataTypes.INT())])])
         self.t_env.register_table_sink("Results", table_sink)
         # general udf
         add = udf(lambda a: a + 1, result_type=DataTypes.INT())
         # pandas udf
         substract = udf(lambda a: a - 1, result_type=DataTypes.INT(), func_type="pandas")
-        max_udaf = udaf(lambda a: a.max(), result_type=DataTypes.INT(), func_type="pandas")
+        max_udaf = udaf(lambda a: (a.max(), a.min()),
+                        result_type=DataTypes.ROW(
+                            [DataTypes.FIELD("a", DataTypes.INT()),
+                             DataTypes.FIELD("b", DataTypes.INT())]),
+                        func_type="pandas")
         t.group_by("a") \
             .select(t.a, mean_udaf(add(t.b)), max_udaf(substract(t.c))) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,6.0,5", "2,3.0,3", "3,3.0,2"])
+        self.assert_equals(actual, ["1,6.0,5,2", "2,3.0,3,2", "3,3.0,2,2"])
 
     def test_group_aggregate_without_keys(self):
         t = self.t_env.from_elements(
