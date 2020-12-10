@@ -122,7 +122,7 @@ CREATE KEYSPACE IF NOT EXISTS example
     WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
 CREATE TABLE IF NOT EXISTS example.wordcount (
     word text,
-    count bigint,
+    `count` bigint,
     PRIMARY KEY(word)
     );
 {% endhighlight %}
