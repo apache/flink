@@ -145,7 +145,6 @@ object BridgingFunctionGenUtil {
         ctx,
         functionTerm,
         externalOperands,
-        outputDataType,
         returnType)
     } else {
       generateScalarFunctionCall(ctx, functionTerm, externalOperands, outputDataType)
@@ -195,7 +194,6 @@ object BridgingFunctionGenUtil {
       ctx: CodeGeneratorContext,
       functionTerm: String,
       externalOperands: Seq[GeneratedExpression],
-      functionOutputDataType: DataType,
       outputType: LogicalType)
     : GeneratedExpression = {
 
@@ -388,7 +386,7 @@ object BridgingFunctionGenUtil {
     } else if (udf.getKind == FunctionKind.ASYNC_TABLE) {
       verifyImplementation(
         ASYNC_TABLE_EVAL,
-        Seq(DataTypes.NULL.bridgedTo(classOf[CompletableFuture[_]])) ++ argumentDataTypes,
+        DataTypes.NULL.bridgedTo(classOf[CompletableFuture[_]]) +: argumentDataTypes,
         None,
         udf,
         functionName)

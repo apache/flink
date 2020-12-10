@@ -176,12 +176,12 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       classOf[ValidationException]
     )
 
-    createLookupTable("LookupTable2", new InvalidTableFunctionEvalSignature1)
+    createLookupTable("LookupTable2", new InvalidTableFunctionEvalSignature)
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable2 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
       "Could not find an implementation method 'eval' in class " +
-          "'org.apache.flink.table.planner.plan.utils.InvalidTableFunctionEvalSignature1' " +
+          "'org.apache.flink.table.planner.plan.utils.InvalidTableFunctionEvalSignature' " +
           "for function 'default_catalog.default_database.LookupTable2' that matches the " +
           "following signature:\n" +
           "void eval(java.lang.Integer, org.apache.flink.table.data.StringData, " +
@@ -189,22 +189,22 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       classOf[ValidationException]
     )
 
-    createLookupTable("LookupTable3", new ValidTableFunction)
+    createLookupTable("LookupTable3", new TableFunctionWithRowDataVarArg)
     verifyTranslationSuccess("SELECT * FROM T JOIN LookupTable3 " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D " +
       "ON T.a = D.id AND T.b = D.name AND T.ts = D.ts")
 
-    createLookupTable("LookupTable4", new ValidTableFunction2)
+    createLookupTable("LookupTable4", new TableFunctionWithRow)
     verifyTranslationSuccess("SELECT * FROM T JOIN LookupTable4 " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D " +
       "ON T.a = D.id AND T.b = D.name AND T.ts = D.ts")
 
-    createLookupTable("LookupTable5", new ValidAsyncTableFunction)
+    createLookupTable("LookupTable5", new AsyncTableFunctionWithRowDataVarArg)
     verifyTranslationSuccess("SELECT * FROM T JOIN LookupTable5 " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D " +
       "ON T.a = D.id AND T.b = D.name AND T.ts = D.ts")
 
-    createLookupTable("LookupTable6", new InvalidAsyncTableFunctionResultType)
+    createLookupTable("LookupTable6", new AsyncTableFunctionWithRow)
     verifyTranslationSuccess("SELECT * FROM T JOIN LookupTable6 " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts")
 
@@ -229,12 +229,12 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
           "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionEvalSignature2' " +
           "for function 'default_catalog.default_database.LookupTable8' that matches the " +
           "following signature:\nvoid eval(java.util.concurrent.CompletableFuture, " +
-          "java.lang.Integer, org.apache.flink.table.data.StringData, " +
-          "org.apache.flink.table.data.TimestampData)",
+          "java.lang.Integer, java.lang.String, " +
+          "java.time.LocalDateTime)",
       classOf[ValidationException]
     )
 
-    createLookupTable("LookupTable9", new ValidAsyncTableFunction)
+    createLookupTable("LookupTable9", new AsyncTableFunctionWithRowDataVarArg)
     verifyTranslationSuccess("SELECT * FROM T JOIN LookupTable9 " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D " +
       "ON T.a = D.id AND T.b = D.name AND T.ts = D.ts")
@@ -529,11 +529,11 @@ class TestTemporalTable(bounded: Boolean = false)
   val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.STRING, Types.INT)
 
   override def getLookupFunction(lookupKeys: Array[String]): TableFunction[RowData] = {
-    new ValidTableFunction()
+    new TableFunctionWithRowDataVarArg()
   }
 
   override def getAsyncLookupFunction(lookupKeys: Array[String]): AsyncTableFunction[RowData] = {
-    new ValidAsyncTableFunction()
+    new AsyncTableFunctionWithRowDataVarArg()
   }
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[RowData] = {

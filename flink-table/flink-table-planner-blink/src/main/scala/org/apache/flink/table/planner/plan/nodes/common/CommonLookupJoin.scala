@@ -42,7 +42,7 @@ import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, RelExplainUtil}
-import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapContext, unwrapTypeFactory}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext
 import org.apache.flink.table.runtime.operators.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
@@ -311,12 +311,10 @@ abstract class CommonLookupJoin(
       ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT).toMillis
 
     val asyncLookupFunction = lookupFunction.asInstanceOf[AsyncTableFunction[_]]
-    val typeFactory = unwrapTypeFactory(relBuilder)
     val dataTypeFactory = unwrapContext(relBuilder).getCatalogManager.getDataTypeFactory
 
     val (generatedFetcher, fetcherDataType) = LookupJoinCodeGenerator.generateAsyncLookupFunction(
       config,
-      typeFactory,
       dataTypeFactory,
       inputRowType,
       tableSourceRowType,
@@ -386,12 +384,10 @@ abstract class CommonLookupJoin(
     : StreamOperatorFactory[RowData] = {
 
     val syncLookupFunction = lookupFunction.asInstanceOf[TableFunction[_]]
-    val typeFactory = unwrapTypeFactory(relBuilder)
     val dataTypeFactory = unwrapContext(relBuilder).getCatalogManager.getDataTypeFactory
 
     val generatedFetcher = LookupJoinCodeGenerator.generateSyncLookupFunction(
       config,
-      typeFactory,
       dataTypeFactory,
       inputRowType,
       tableSourceRowType,

@@ -25,7 +25,7 @@ import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.data.{GenericRowData, RowData}
-import org.apache.flink.table.functions.{AsyncTableFunction, FunctionKind, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
@@ -60,7 +60,6 @@ object LookupJoinCodeGenerator {
     */
   def generateSyncLookupFunction(
       config: TableConfig,
-      typeFactory: FlinkTypeFactory,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -83,7 +82,6 @@ object LookupJoinCodeGenerator {
     val (function, _) = generateLookupFunction(
       classOf[FlatMapFunction[RowData, RowData]],
       config,
-      typeFactory,
       dataTypeFactory,
       inputType,
       tableSourceType,
@@ -104,7 +102,6 @@ object LookupJoinCodeGenerator {
     */
   def generateAsyncLookupFunction(
       config: TableConfig,
-      typeFactory: FlinkTypeFactory,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -118,7 +115,6 @@ object LookupJoinCodeGenerator {
     generateLookupFunction(
       classOf[AsyncFunction[RowData, AnyRef]],
       config,
-      typeFactory,
       dataTypeFactory,
       inputType,
       tableSourceType,
@@ -135,7 +131,6 @@ object LookupJoinCodeGenerator {
    private def generateLookupFunction[F <: Function](
       generatedClass: Class[F],
       config: TableConfig,
-      typeFactory: FlinkTypeFactory,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
