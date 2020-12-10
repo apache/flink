@@ -34,7 +34,16 @@ _constant_num = 0
 
 def wrap_pandas_result(it):
     import pandas as pd
-    return [pd.Series([result]) for result in it]
+    is_row_type = None
+    arrays = []
+    for result in it:
+        if is_row_type is None:
+            is_row_type = isinstance(result, (Row, Tuple))
+        if is_row_type:
+            arrays.append(pd.concat([pd.Series([item]) for item in result], axis=1))
+        else:
+            arrays.append(pd.Series([result]))
+    return arrays
 
 
 def extract_over_window_user_defined_function(user_defined_function_proto):

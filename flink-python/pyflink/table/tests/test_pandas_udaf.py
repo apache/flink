@@ -34,11 +34,6 @@ class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
 
         with self.assertRaises(
                 TypeError,
-                msg="Invalid returnType: Pandas UDAF doesn't support DataType type ROW currently"):
-            udaf(pandas_udaf, result_type=DataTypes.ROW(), func_type="pandas")
-
-        with self.assertRaises(
-                TypeError,
                 msg="Invalid returnType: Pandas UDAF doesn't support DataType type MAP currently"):
             udaf(pandas_udaf, result_type=DataTypes.MAP(DataTypes.INT(), DataTypes.INT()),
                  func_type="pandas")
