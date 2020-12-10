@@ -56,6 +56,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -487,6 +488,32 @@ public class AkkaRpcActorTest extends TestLogger {
 		return new SimpleRpcEndpoint(akkaRpcService, AkkaRpcServiceUtils.createRandomName(prefix));
 	}
 
+	@Test
+	public void canRespondWithNullValueLocally() throws Exception {
+		try (final NullRespondingEndpoint nullRespondingEndpoint = new NullRespondingEndpoint(akkaRpcService)) {
+			nullRespondingEndpoint.start();
+
+			final NullRespondingGateway selfGateway = nullRespondingEndpoint.getSelfGateway(NullRespondingGateway.class);
+
+			final CompletableFuture<Integer> nullValuedResponseFuture = selfGateway.foobar();
+
+			assertThat(nullValuedResponseFuture.join(), is(nullValue()));
+		}
+	}
+
+	@Test
+	public void canRespondWithSynchronousNullValueLocally() throws Exception {
+		try (final NullRespondingEndpoint nullRespondingEndpoint = new NullRespondingEndpoint(akkaRpcService)) {
+			nullRespondingEndpoint.start();
+
+			final NullRespondingGateway selfGateway = nullRespondingEndpoint.getSelfGateway(NullRespondingGateway.class);
+
+			final Integer value = selfGateway.synchronousFoobar();
+
+			assertThat(value, is(nullValue()));
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test Actors and Interfaces
 	// ------------------------------------------------------------------------
@@ -510,6 +537,29 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		public void setFoobar(int value) {
 			foobar = value;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	interface NullRespondingGateway extends DummyRpcGateway {
+		Integer synchronousFoobar();
+	}
+
+	static class NullRespondingEndpoint extends RpcEndpoint implements NullRespondingGateway {
+
+		protected NullRespondingEndpoint(RpcService rpcService) {
+			super(rpcService);
+		}
+
+		@Override
+		public CompletableFuture<Integer> foobar() {
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public Integer synchronousFoobar() {
+			return null;
 		}
 	}
 
