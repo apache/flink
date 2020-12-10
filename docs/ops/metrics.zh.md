@@ -1654,6 +1654,57 @@ Request metrics aggregated over a subset of all entities of the respective type:
   - `/jobs/metrics?jobs=D,E,F`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics?subtask=1,2,3`
 
+<span class="label label-danger">Warning</span> Metric names can contain special characters that you need to be escape when querying metrics.
+For example, "`a_+_b`" would be escaped to "`a_%2B_b`".
+
+List of characters that should be escaped:
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Character</th>
+            <th>Escape Sequence</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>#</td>
+            <td>%23</td>
+        </tr>
+        <tr>
+            <td>$</td>
+            <td>%24</td>
+        </tr>
+        <tr>
+            <td>&</td>
+            <td>%26</td>
+        </tr>
+        <tr>
+            <td>+</td>
+            <td>%2B</td>
+        </tr>
+        <tr>
+            <td>/</td>
+            <td>%2F</td>
+        </tr>
+        <tr>
+            <td>;</td>
+            <td>%3B</td>
+        </tr>
+        <tr>
+            <td>=</td>
+            <td>%3D</td>
+        </tr>
+        <tr>
+            <td>?</td>
+            <td>%3F</td>
+        </tr>
+        <tr>
+            <td>@</td>
+            <td>%40</td>
+        </tr>
+    </tbody>
+</table>
+
 Request a list of available metrics:
 
 `GET /jobmanager/metrics`
