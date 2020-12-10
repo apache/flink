@@ -780,6 +780,29 @@ class Table(object):
         else:
             return Table(self._j_table.map(func._j_expr), self._t_env)
 
+    def flat_map(self, func: Union[str, Expression]) -> 'Table':
+        """
+        Performs a flatMap operation with a user-defined table function.
+
+        Example:
+        ::
+
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split(x, string):
+            ...     for s in string.split(","):
+            ...         yield x, s
+            >>> tab.flat_map(split(tab.a, table.b))
+
+        :param func: user-defined table function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return Table(self._j_table.flatMap(func), self._t_env)
+        else:
+            return Table(self._j_table.flatMap(func._j_expr), self._t_env)
+
     def insert_into(self, table_path: str):
         """
         Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
