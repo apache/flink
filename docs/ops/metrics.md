@@ -1358,6 +1358,13 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       partition's metric can be specified by topic name and partition id.</td>
       <td>Gauge</td>
     </tr>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>recordsLagMax</td>
+      <td>n/a</td>
+      <td>The consumer's maximum lag in terms of number of records for any partition.</td>
+      <td>Gauge</td>
+    </tr>
   </tbody>
 </table>
 
