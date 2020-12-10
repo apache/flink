@@ -20,6 +20,8 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -41,6 +43,7 @@ public class SerializedValue<T> implements java.io.Serializable {
 	private static final long serialVersionUID = -3564011643393683761L;
 
 	/** The serialized data. */
+	@Nullable
 	private final byte[] serializedData;
 
 	private SerializedValue(byte[] serializedData) {
@@ -63,6 +66,7 @@ public class SerializedValue<T> implements java.io.Serializable {
 	 *
 	 * @return Serialized data.
 	 */
+	@Nullable
 	public byte[] getByteArray() {
 		return serializedData;
 	}
