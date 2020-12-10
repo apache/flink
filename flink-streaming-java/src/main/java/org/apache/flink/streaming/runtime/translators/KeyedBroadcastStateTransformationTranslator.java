@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.co.BatchCoBroadcastWithKeyedOperator;
 import org.apache.flink.streaming.api.operators.co.CoBroadcastWithKeyedOperator;
 import org.apache.flink.streaming.api.transformations.KeyedBroadcastStateTransformation;
 
@@ -47,8 +49,32 @@ public class KeyedBroadcastStateTransformationTranslator<KEY, IN1, IN2, OUT>
     protected Collection<Integer> translateForBatchInternal(
             final KeyedBroadcastStateTransformation<KEY, IN1, IN2, OUT> transformation,
             final Context context) {
-        throw new UnsupportedOperationException(
-                "The Broadcast State Pattern is not support in BATCH execution mode.");
+        checkNotNull(transformation);
+        checkNotNull(context);
+
+        BatchCoBroadcastWithKeyedOperator<KEY, IN1, IN2, OUT> operator =
+                new BatchCoBroadcastWithKeyedOperator<>(
+                        transformation.getUserFunction(),
+                        transformation.getBroadcastStateDescriptors());
+
+        Collection<Integer> result =
+                translateInternal(
+                        transformation,
+                        transformation.getRegularInput(),
+                        transformation.getBroadcastInput(),
+                        SimpleOperatorFactory.of(operator),
+                        transformation.getStateKeyType(),
+                        transformation.getKeySelector(),
+                        null /* no key selector on broadcast input */,
+                        context);
+
+        BatchExecutionUtils.applyBatchExecutionSettings(
+                transformation.getId(),
+                context,
+                StreamConfig.InputRequirement.SORTED,
+                StreamConfig.InputRequirement.PASS_THROUGH);
+
+        return result;
     }
 
     @Override
