@@ -64,8 +64,8 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 // register a table named "Orders"
-tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)");
-tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)");
+tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH (...)");
+tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH (...)");
 
 // explain SELECT statement through TableEnvironment.explainSql()
 String explanation = tEnv.explainSql(
@@ -91,8 +91,8 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tEnv = StreamTableEnvironment.create(env)
 
 // register a table named "Orders"
-tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)")
-tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)")
+tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH (...)")
+tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH (...)")
 
 // explain SELECT statement through TableEnvironment.explainSql()
 val explanation = tEnv.explainSql(
@@ -117,8 +117,8 @@ tableResult.print()
 settings = EnvironmentSettings.new_instance()...
 table_env = StreamTableEnvironment.create(env, settings)
 
-t_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)")
-t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)")
+t_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH (...)")
+t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH (...)")
 
 # explain SELECT statement through TableEnvironment.explain_sql()
 explanation1 = t_env.explain_sql(
@@ -140,10 +140,10 @@ table_result.print()
 
 <div data-lang="SQL CLI" markdown="1">
 {% highlight sql %}
-Flink SQL> CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256));
+Flink SQL> CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH (...);
 [INFO] Table has been created.
 
-Flink SQL> CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256));
+Flink SQL> CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH (...);
 [INFO] Table has been created.
 
 Flink SQL> EXPLAIN PLAN FOR SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' 
