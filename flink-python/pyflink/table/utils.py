@@ -29,6 +29,7 @@ import pickle
 
 def pandas_to_arrow(schema, timezone, field_types, series):
     import pyarrow as pa
+    import pandas as pd
 
     def create_array(s, t):
         try:
@@ -43,9 +44,9 @@ def pandas_to_arrow(schema, timezone, field_types, series):
         s = series[i]
         field_type = field_types[i]
         schema_type = schema.types[i]
-        if type(field_type) == RowType:
-            array_names = [(create_array(s[s.columns[i]], field.type), field.name)
-                           for i, field in enumerate(schema_type)]
+        if type(s) == pd.DataFrame:
+            array_names = [(create_array(s[s.columns[j]], field.type), field.name)
+                           for j, field in enumerate(schema_type)]
             struct_arrays, struct_names = zip(*array_names)
             arrays.append(pa.StructArray.from_arrays(struct_arrays, struct_names))
         else:
@@ -60,10 +61,9 @@ def arrow_to_pandas(timezone, field_types, batches):
             import pandas as pd
             series = [column.to_pandas(date_as_object=True).rename(field.name)
                       for column, field in zip(arrow_column.flatten(), arrow_column.type)]
-            s = pd.concat(series, axis=1)
+            return pd.concat(series, axis=1)
         else:
-            s = arrow_column.to_pandas(date_as_object=True)
-        return s
+            return arrow_column.to_pandas(date_as_object=True)
     import pyarrow as pa
     table = pa.Table.from_batches(batches)
     return [tz_convert_from_internal(arrow_column_to_pandas(c, t), t, timezone)

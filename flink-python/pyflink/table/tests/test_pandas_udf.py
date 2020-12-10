@@ -195,9 +195,19 @@ class PandasUDFITTests(object):
 
         @udf(result_type=row_type, func_type="pandas")
         def row_func(row_param):
-            assert isinstance(row_param, pd.Series)
-            assert isinstance(row_param[0], dict), \
-                'row_param of wrong type %s !' % type(row_param[0])
+            assert isinstance(row_param, pd.DataFrame)
+            assert isinstance(row_param.f1, pd.Series)
+            assert isinstance(row_param.f1[0], np.int32), \
+                'row_param.f1 of wrong type %s !' % type(row_param.f1[0])
+            assert isinstance(row_param.f2, pd.Series)
+            assert isinstance(row_param.f2[0], str), \
+                'row_param.f2 of wrong type %s !' % type(row_param.f2[0])
+            assert isinstance(row_param.f3, pd.Series)
+            assert isinstance(row_param.f3[0], datetime.datetime), \
+                'row_param.f3 of wrong type %s !' % type(row_param.f3[0])
+            assert isinstance(row_param.f4, pd.Series)
+            assert isinstance(row_param.f4[0], np.ndarray), \
+                'row_param.f4 of wrong type %s !' % type(row_param.f4[0])
             return row_param
 
         table_sink = source_sink_utils.TestAppendSink(

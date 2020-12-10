@@ -49,7 +49,7 @@ class RowBasedOperationTests(object):
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["4,9", "3,4", "7,36", "10,81", "5,16"])
 
-    def test_map_pandas(self):
+    def test_map_with_pandas_udf(self):
         t = self.t_env.from_elements(
             [(1, Row(2, 3)), (2, Row(1, 3)), (1, Row(5, 4)), (1, Row(8, 6)), (2, Row(3, 4))],
             DataTypes.ROW(
