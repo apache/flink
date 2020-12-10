@@ -734,10 +734,6 @@ public class StreamGraph implements Pipeline {
         getStreamNode(vertexID).setOutputFormat(outputFormat);
     }
 
-    void setSortedInputs(int vertexId, boolean shouldSort) {
-        getStreamNode(vertexId).setSortedInputs(shouldSort);
-    }
-
     public void setTransformationUID(Integer nodeId, String transformationId) {
         StreamNode node = streamNodes.get(nodeId);
         if (node != null) {

@@ -110,12 +110,6 @@ public class StreamConfig implements Serializable {
                     .withDescription(
                             "If state backend is specified, whether it uses managed memory.");
 
-    private static final ConfigOption<Boolean> SORTED_INPUTS =
-            ConfigOptions.key("sorted-inputs")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription("A flag to enable/disable sorting inputs of keyed operators.");
-
     // ------------------------------------------------------------------------
     //  Default Values
     // ------------------------------------------------------------------------
@@ -251,7 +245,7 @@ public class StreamConfig implements Serializable {
     public void setupNetworkInputs(TypeSerializer<?>... serializers) {
         InputConfig[] inputs = new InputConfig[serializers.length];
         for (int i = 0; i < serializers.length; i++) {
-            inputs[i] = new NetworkInputConfig(serializers[i], i);
+            inputs[i] = new NetworkInputConfig(serializers[i], i, InputRequirement.PASS_THROUGH);
         }
         setInputs(inputs);
     }
@@ -680,14 +674,6 @@ public class StreamConfig implements Serializable {
         return builder.toString();
     }
 
-    public void setShouldSortInputs(boolean sortInputs) {
-        config.set(SORTED_INPUTS, sortInputs);
-    }
-
-    public boolean shouldSortInputs() {
-        return config.get(SORTED_INPUTS);
-    }
-
     public void setGraphContainingLoops(boolean graphContainingLoops) {
         config.setBoolean(GRAPH_CONTAINING_LOOPS, graphContainingLoops);
     }
@@ -696,17 +682,50 @@ public class StreamConfig implements Serializable {
         return config.getBoolean(GRAPH_CONTAINING_LOOPS, false);
     }
 
+    /**
+     * Requirements of the different inputs of an operator. Each input can have a different
+     * requirement. For all {@link #SORTED} inputs, records are sorted/grouped by key and all
+     * records of a given key are passed to the operator consecutively before moving on to the next
+     * group.
+     */
+    public enum InputRequirement {
+        /**
+         * Records from all sorted inputs are grouped (sorted) by key and are then fed to the
+         * operator one group at a time. This "zig-zags" between different inputs if records for the
+         * same key arrive on multiple inputs to ensure that the operator sees all records with a
+         * key as one consecutive group.
+         */
+        SORTED,
+
+        /**
+         * Records from {@link #PASS_THROUGH} inputs are passed to the operator before passing any
+         * records from {@link #SORTED} inputs. There are no guarantees on ordering between and
+         * within the different {@link #PASS_THROUGH} inputs.
+         */
+        PASS_THROUGH;
+    }
+
     /** Interface representing chained inputs. */
     public interface InputConfig extends Serializable {}
 
     /** A representation of a Network {@link InputConfig}. */
     public static class NetworkInputConfig implements InputConfig {
         private final TypeSerializer<?> typeSerializer;
+        private final InputRequirement inputRequirement;
+
         private int inputGateIndex;
 
         public NetworkInputConfig(TypeSerializer<?> typeSerializer, int inputGateIndex) {
+            this(typeSerializer, inputGateIndex, InputRequirement.PASS_THROUGH);
+        }
+
+        public NetworkInputConfig(
+                TypeSerializer<?> typeSerializer,
+                int inputGateIndex,
+                InputRequirement inputRequirement) {
             this.typeSerializer = typeSerializer;
             this.inputGateIndex = inputGateIndex;
+            this.inputRequirement = inputRequirement;
         }
 
         public TypeSerializer<?> getTypeSerializer() {
@@ -715,6 +734,10 @@ public class StreamConfig implements Serializable {
 
         public int getInputGateIndex() {
             return inputGateIndex;
+        }
+
+        public InputRequirement getInputRequirement() {
+            return inputRequirement;
         }
     }
 
@@ -751,5 +774,11 @@ public class StreamConfig implements Serializable {
         public int hashCode() {
             return inputEdge.hashCode();
         }
+    }
+
+    public static boolean requiresSorting(StreamConfig.InputConfig inputConfig) {
+        return inputConfig instanceof StreamConfig.NetworkInputConfig
+                && ((StreamConfig.NetworkInputConfig) inputConfig).getInputRequirement()
+                        == StreamConfig.InputRequirement.SORTED;
     }
 }

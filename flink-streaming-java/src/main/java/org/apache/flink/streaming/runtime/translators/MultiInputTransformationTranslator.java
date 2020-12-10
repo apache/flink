@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
@@ -53,7 +54,13 @@ public class MultiInputTransformationTranslator<OUT>
         Collection<Integer> ids = translateInternal(transformation, context);
         boolean isKeyed = transformation instanceof KeyedMultipleInputTransformation;
         if (isKeyed) {
-            BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+            List<Transformation<?>> inputs = transformation.getInputs();
+            StreamConfig.InputRequirement[] inputRequirements =
+                    inputs.stream()
+                            .map((input) -> StreamConfig.InputRequirement.SORTED)
+                            .toArray(StreamConfig.InputRequirement[]::new);
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(), context, inputRequirements);
         }
         return ids;
     }

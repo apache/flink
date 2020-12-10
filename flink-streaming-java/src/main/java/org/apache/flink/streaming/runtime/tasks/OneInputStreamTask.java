@@ -45,6 +45,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
 import javax.annotation.Nullable;
 
+import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -90,7 +91,10 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
             DataOutput<IN> output = createDataOutput(numRecordsIn);
             StreamTaskInput<IN> input = createTaskInput(inputGate);
 
-            if (configuration.shouldSortInputs()) {
+            StreamConfig.InputConfig[] inputConfigs =
+                    configuration.getInputs(getUserCodeClassLoader());
+            StreamConfig.InputConfig inputConfig = inputConfigs[0];
+            if (requiresSorting(inputConfig)) {
                 checkState(
                         !configuration.isCheckpointingEnabled(),
                         "Checkpointing is not allowed with sorted inputs.");

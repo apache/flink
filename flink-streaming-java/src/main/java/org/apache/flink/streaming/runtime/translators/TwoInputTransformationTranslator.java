@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
@@ -46,7 +47,11 @@ public class TwoInputTransformationTranslator<IN1, IN2, OUT>
                 transformation.getStateKeySelector1() != null
                         && transformation.getStateKeySelector2() != null;
         if (isKeyed) {
-            BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(),
+                    context,
+                    StreamConfig.InputRequirement.SORTED,
+                    StreamConfig.InputRequirement.SORTED);
         }
         return ids;
     }

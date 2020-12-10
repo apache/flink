@@ -51,6 +51,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -118,31 +119,48 @@ public class StreamMultipleInputProcessorFactory {
 
         InputSelectable inputSelectable =
                 mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null;
-        if (streamConfig.shouldSortInputs()) {
+
+        StreamConfig.InputConfig[] inputConfigs = streamConfig.getInputs(userClassloader);
+        boolean anyRequiresSorting =
+                Arrays.stream(inputConfigs).anyMatch(StreamConfig::requiresSorting);
+
+        if (anyRequiresSorting) {
 
             if (inputSelectable != null) {
                 throw new IllegalStateException(
                         "The InputSelectable interface is not supported with sorting inputs");
             }
 
+            StreamTaskInput[] sortingInputs =
+                    IntStream.range(0, inputsCount)
+                            .filter(idx -> requiresSorting(inputConfigs[idx]))
+                            .mapToObj(idx -> inputs[idx])
+                            .toArray(StreamTaskInput[]::new);
+            KeySelector[] sortingInputKeySelectors =
+                    IntStream.range(0, inputsCount)
+                            .filter(idx -> requiresSorting(inputConfigs[idx]))
+                            .mapToObj(idx -> streamConfig.getStatePartitioner(idx, userClassloader))
+                            .toArray(KeySelector[]::new);
+            TypeSerializer[] sortingInputKeySerializers =
+                    IntStream.range(0, inputsCount)
+                            .filter(idx -> requiresSorting(inputConfigs[idx]))
+                            .mapToObj(idx -> streamConfig.getTypeSerializerIn(idx, userClassloader))
+                            .toArray(TypeSerializer[]::new);
+
+            StreamTaskInput[] passThroughInputs =
+                    IntStream.range(0, inputsCount)
+                            .filter(idx -> !requiresSorting(inputConfigs[idx]))
+                            .mapToObj(idx -> inputs[idx])
+                            .toArray(StreamTaskInput[]::new);
+
             SelectableSortingInputs selectableSortingInputs =
                     MultiInputSortingDataInput.wrapInputs(
                             ownerTask,
-                            inputs,
-                            IntStream.range(0, inputsCount)
-                                    .mapToObj(
-                                            idx ->
-                                                    streamConfig.getStatePartitioner(
-                                                            idx, userClassloader))
-                                    .toArray(KeySelector[]::new),
-                            IntStream.range(0, inputsCount)
-                                    .mapToObj(
-                                            idx ->
-                                                    streamConfig.getTypeSerializerIn(
-                                                            idx, userClassloader))
-                                    .toArray(TypeSerializer[]::new),
+                            sortingInputs,
+                            sortingInputKeySelectors,
+                            sortingInputKeySerializers,
                             streamConfig.getStateKeySerializer(userClassloader),
-                            new StreamTaskInput[0],
+                            passThroughInputs,
                             memoryManager,
                             ioManager,
                             executionConfig.isObjectReuseEnabled(),
@@ -152,7 +170,20 @@ public class StreamMultipleInputProcessorFactory {
                                     userClassloader),
                             jobConfig);
 
-            inputs = selectableSortingInputs.getSortedInputs();
+            StreamTaskInput<?>[] sortedInputs = selectableSortingInputs.getSortedInputs();
+            StreamTaskInput<?>[] passedThroughInputs =
+                    selectableSortingInputs.getPassThroughInputs();
+            int sortedIndex = 0;
+            int passThroughIndex = 0;
+            for (int i = 0; i < inputs.length; i++) {
+                if (requiresSorting(inputConfigs[i])) {
+                    inputs[i] = sortedInputs[sortedIndex];
+                    sortedIndex++;
+                } else {
+                    inputs[i] = passedThroughInputs[passThroughIndex];
+                    passThroughIndex++;
+                }
+            }
             inputSelectable = selectableSortingInputs.getInputSelectable();
         }
 
