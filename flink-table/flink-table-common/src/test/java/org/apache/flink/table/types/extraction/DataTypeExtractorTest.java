@@ -128,9 +128,9 @@ public class DataTypeExtractorTest {
 			TestSpec
 				.forType(RowData.class)
 				.expectErrorMessage(
-					"Cannot extract a data type from a pure internal "
-						+ "'org.apache.flink.table.data.RowData' class. Please use annotations "
-						+ "to define the logical type."),
+					"Cannot extract a data type from an internal 'org.apache.flink.table.data.RowData' "
+						+ "class without further information. Please use annotations to define the "
+						+ "full logical type."),
 
 			// explicit precision/scale through data type
 			TestSpec

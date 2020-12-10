@@ -399,8 +399,8 @@ public final class DataTypeExtractor {
 				Object.class.getName());
 		} else if (INTERNAL_DATA_STRUCTURES.contains(clazz)) {
 			throw extractionError(
-				"Cannot extract a data type from a pure internal '%s' class. " +
-					"Please use annotations to define the logical type.",
+				"Cannot extract a data type from an internal '%s' class without further information. " +
+					"Please use annotations to define the full logical type.",
 				clazz.getName());
 		} else if (clazz.getName().startsWith("scala.Tuple")) {
 			throw extractionError(
