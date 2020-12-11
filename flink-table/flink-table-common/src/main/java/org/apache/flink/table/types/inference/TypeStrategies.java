@@ -173,8 +173,8 @@ public final class TypeStrategies {
             };
 
     /**
-     * <<<<<<< HEAD Type strategy that returns the sum of an exact numeric addition that includes at
-     * least one decimal.
+     * Type strategy that returns the sum of an exact numeric addition that includes at least one
+     * decimal.
      */
     public static final TypeStrategy DECIMAL_PLUS =
             callContext -> {
@@ -403,6 +403,18 @@ public final class TypeStrategies {
                                 return type;
                             }
                         });
+            };
+
+    /** Type strategy specific for avoiding nulls. */
+    public static final TypeStrategy IF_NULL =
+            callContext -> {
+                final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+                final DataType inputDataType = argumentDataTypes.get(0);
+                final DataType nullReplacementDataType = argumentDataTypes.get(1);
+                if (!inputDataType.getLogicalType().isNullable()) {
+                    return Optional.of(inputDataType);
+                }
+                return Optional.of(nullReplacementDataType);
             };
 
     // --------------------------------------------------------------------------------------------

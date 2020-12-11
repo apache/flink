@@ -619,7 +619,15 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                         .namedArguments("sameName")
                         .calledWithArgumentTypes(DataTypes.BOOLEAN())
                         .expectErrorMessage(
-                                "Invalid input arguments. Expected signatures are:\nf(STRING)\nf(INT)"));
+                                "Invalid input arguments. Expected signatures are:\nf(STRING)\nf(INT)"),
+                TestSpec.forStrategy(
+                                "Common argument type strategy",
+                                sequence(
+                                        InputTypeStrategies.COMMON_ARG,
+                                        InputTypeStrategies.COMMON_ARG))
+                        .calledWithArgumentTypes(DataTypes.INT(), DataTypes.BIGINT())
+                        .expectSignature("f(<COMMON>, <COMMON>)")
+                        .expectArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT()));
     }
 
     /** Simple pojo that should be converted to a Structured type. */

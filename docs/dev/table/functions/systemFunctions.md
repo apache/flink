@@ -4480,7 +4480,24 @@ IF(condition, true_value, false_value)
         <p>Only supported in blink planner.</p>
         <p>E.g., <code>IF(5 > 3, 5, 3)</code> returns 5.</p>
       </td>
-    </tr>    
+    </tr>
+
+    <tr>
+      <td>
+{% highlight text %}
+IFNULL(input, null_replacement)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>null_replacement</i> if <i>input</i> is NULL; otherwise <i>input</i> is returned.</p>
+        <p>Compared to <code>COALESCE</code> or <code>CASE WHEN</code>, this function returns a data
+          type that is very specific in terms of nullability. The returned type is the common type of
+          both arguments but only nullable if the <i>null_replacement</i> is nullable.</p>
+        <p>The function allows to pass nullable columns into a function or table that is declared with
+          a NOT NULL constraint.</p>
+        <p>E.g., <code>IFNULL(nullable_column, 5)</code> returns never NULL.</p>
+      </td>
+    </tr>
 
     <tr>
       <td>
@@ -4543,6 +4560,23 @@ BOOLEAN.?(VALUE1, VALUE2)
         <p>E.g., <code>(42 > 5).?('A', 'B')</code> returns "A".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+{% highlight java %}
+input.ifNull(nullReplacement)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>nullReplacement</i> if <i>input</i> is NULL; otherwise <i>input</i> is returned.</p>
+        <p>This function returns a data type that is very specific in terms of nullability. The returned
+          type is the common type of both arguments but only nullable if the <i>nullReplacement</i> is
+          nullable.</p>
+        <p>The function allows to pass nullable columns into a function or table that is declared with
+          a NOT NULL constraint.</p>
+        <p>E.g., <code>$("nullable_column").ifNull(5)</code> returns never NULL.</p>
+      </td>
+    </tr>
     </tbody>
 </table>
 </div>
@@ -4566,6 +4600,23 @@ BOOLEAN.?(VALUE1, VALUE2)
       <td>
         <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p> 
         <p>E.g., <code>(42 > 5).?("A", "B")</code> returns "A".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+{% highlight scala %}
+input.ifNull(nullReplacement)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>nullReplacement</i> if <i>input</i> is NULL; otherwise <i>input</i> is returned.</p>
+        <p>This function returns a data type that is very specific in terms of nullability. The returned
+          type is the common type of both arguments but only nullable if the <i>nullReplacement</i> is
+          nullable.</p>
+        <p>The function allows to pass nullable columns into a function or table that is declared with
+          a NOT NULL constraint.</p>
+        <p>E.g., <code>$("nullable_column").ifNull(5)</code> returns never NULL.</p>
       </td>
     </tr>
     </tbody>

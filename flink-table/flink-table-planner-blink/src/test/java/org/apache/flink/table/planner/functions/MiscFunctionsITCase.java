@@ -20,9 +20,11 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.runners.Parameterized;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -51,6 +53,41 @@ public class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 call("TYPEOF", $("f1"), true),
                                 "CHAR(11) NOT NULL",
                                 DataTypes.STRING())
-                        .testSqlResult("TYPEOF(NULL)", "NULL", DataTypes.STRING()));
+                        .testSqlResult("TYPEOF(NULL)", "NULL", DataTypes.STRING()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.IF_NULL)
+                        .onFieldsWithData(null, new BigDecimal("123.45"))
+                        .andDataTypes(DataTypes.INT().nullable(), DataTypes.DECIMAL(5, 2).notNull())
+                        .withFunction(TakesNotNull.class)
+                        .testResult(
+                                $("f0").ifNull($("f0")),
+                                "IFNULL(f0, f0)",
+                                null,
+                                DataTypes.INT().nullable())
+                        .testResult(
+                                $("f0").ifNull($("f1")),
+                                "IFNULL(f0, f1)",
+                                new BigDecimal("123.45"),
+                                DataTypes.DECIMAL(12, 2).notNull())
+                        .testResult(
+                                $("f1").ifNull($("f0")),
+                                "IFNULL(f1, f0)",
+                                new BigDecimal("123.45"),
+                                DataTypes.DECIMAL(12, 2).notNull())
+                        .testResult(
+                                $("f1").ifNull($("f0")),
+                                "IFNULL(f1, f0)",
+                                new BigDecimal("123.45"),
+                                DataTypes.DECIMAL(12, 2).notNull())
+                        .testSqlResult(
+                                "TakesNotNull(IFNULL(f0, 12))", 12, DataTypes.INT().notNull()));
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /** Function that takes a NOT NULL argument. */
+    public static class TakesNotNull extends ScalarFunction {
+        public int eval(int i) {
+            return i;
+        }
     }
 }
