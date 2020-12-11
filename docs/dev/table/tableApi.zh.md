@@ -1279,7 +1279,7 @@ Table result = left.join(right)
         </p>
 {% highlight java %}
 // register User-Defined Table Function
-TableFunction<String> split = new MySplitUDTF();
+TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
 tableEnv.registerFunction("split", split);
 
 // join
@@ -1300,7 +1300,7 @@ Table result = orders
         <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
 {% highlight java %}
 // register User-Defined Table Function
-TableFunction<String> split = new MySplitUDTF();
+TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
 tableEnv.registerFunction("split", split);
 
 // join
