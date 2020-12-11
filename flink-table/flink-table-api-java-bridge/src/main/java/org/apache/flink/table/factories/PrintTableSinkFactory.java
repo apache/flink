@@ -105,7 +105,7 @@ public class PrintTableSinkFactory implements DynamicTableSinkFactory {
 		private final DataType type;
 		private final String printIdentifier;
 		private final boolean stdErr;
-		private final Integer parallelism;
+		private final @Nullable Integer parallelism;
 
 		private PrintSink(DataType type, String printIdentifier, boolean stdErr, Integer parallelism) {
 			this.type = type;
