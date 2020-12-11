@@ -170,7 +170,8 @@ class LegacyTableSourceTest extends TableTestBase {
 
   @Test
   def testPartitionTableSource(): Unit = {
-    util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
+    util.verifyExecPlan(
+      "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
   }
 
   @Test

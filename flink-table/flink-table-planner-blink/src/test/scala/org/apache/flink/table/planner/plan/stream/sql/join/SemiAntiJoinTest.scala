@@ -71,7 +71,8 @@ class SemiAntiJoinTest extends TableTestBase {
 
   @Test
   def testInWithUncorrelated_ComplexCondition4(): Unit = {
-    util.verifyExecPlan("SELECT a FROM l WHERE (SELECT MAX(e) FROM r WHERE d > 0) IN (SELECT j FROM t)")
+    util.verifyExecPlan(
+      "SELECT a FROM l WHERE (SELECT MAX(e) FROM r WHERE d > 0) IN (SELECT j FROM t)")
   }
 
   @Test
@@ -171,7 +172,8 @@ class SemiAntiJoinTest extends TableTestBase {
 
   @Test
   def testInWithCorrelated_SimpleCondition3(): Unit = {
-    util.verifyExecPlan("SELECT * FROM l WHERE a IN (SELECT d FROM r where CAST(l.b AS INTEGER) = r.d)")
+    util.verifyExecPlan(
+      "SELECT * FROM l WHERE a IN (SELECT d FROM r where CAST(l.b AS INTEGER) = r.d)")
   }
 
   @Test

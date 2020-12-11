@@ -81,7 +81,8 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
   def testVariableWindowSize(): Unit = {
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage("Only constant window descriptors are supported")
-    util.verifyExecPlan("SELECT COUNT(*) FROM MyTable2 GROUP BY TUMBLE(ts, b * INTERVAL '1' MINUTE)")
+    util.verifyExecPlan(
+      "SELECT COUNT(*) FROM MyTable2 GROUP BY TUMBLE(ts, b * INTERVAL '1' MINUTE)")
   }
 
   @Test

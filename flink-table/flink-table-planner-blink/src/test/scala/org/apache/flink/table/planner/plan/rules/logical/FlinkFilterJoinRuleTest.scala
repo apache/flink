@@ -89,7 +89,8 @@ class FlinkFilterJoinRuleTest extends TableTestBase {
 
   @Test
   def testJoinConditionPushDownLeftSemi3(): Unit = {
-    util.verifyRelPlan("SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE a = c AND b > 2)")
+    util.verifyRelPlan(
+      "SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE a = c AND b > 2)")
   }
 
   @Test

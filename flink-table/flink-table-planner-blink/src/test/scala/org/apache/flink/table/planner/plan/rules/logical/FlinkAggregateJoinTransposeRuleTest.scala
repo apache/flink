@@ -77,12 +77,14 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
 
   @Test
   def testPushCountAggThroughJoinOverUniqueColumn(): Unit = {
-    util.verifyRelPlan("SELECT COUNT(A.a) FROM (SELECT DISTINCT a FROM T) AS A JOIN T AS B ON A.a=B.a")
+    util.verifyRelPlan(
+      "SELECT COUNT(A.a) FROM (SELECT DISTINCT a FROM T) AS A JOIN T AS B ON A.a=B.a")
   }
 
   @Test
   def testPushSumAggThroughJoinOverUniqueColumn(): Unit = {
-    util.verifyRelPlan("SELECT SUM(A.a) FROM (SELECT DISTINCT a FROM T) AS A JOIN T AS B ON A.a=B.a")
+    util.verifyRelPlan(
+      "SELECT SUM(A.a) FROM (SELECT DISTINCT a FROM T) AS A JOIN T AS B ON A.a=B.a")
   }
 
   @Test

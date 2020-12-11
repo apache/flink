@@ -63,7 +63,8 @@ class FlinkJoinPushExpressionsRuleTest extends TableTestBase {
 
   @Test
   def testPushExpressionsOnSemiJoin_Exists(): Unit = {
-    util.verifyRelPlan("SELECT * FROM l WHERE EXISTS (SELECT d FROM r WHERE CAST(b AS INTEGER) = d)")
+    util.verifyRelPlan(
+      "SELECT * FROM l WHERE EXISTS (SELECT d FROM r WHERE CAST(b AS INTEGER) = d)")
   }
 
   @Test

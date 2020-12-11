@@ -53,7 +53,8 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
 
   @Test
   def testSimpleCondition(): Unit = {
-    util.verifyRelPlan("SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true")
   }
 
   @Test

@@ -484,7 +484,8 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
 
   @Test
   def testNotExistsWithUncorrelatedOnWhere3(): Unit = {
-    util.verifyRelPlan("SELECT * FROM x WHERE NOT (NOT (NOT EXISTS (SELECT * FROM y))) AND x.b = 10")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE NOT (NOT (NOT EXISTS (SELECT * FROM y))) AND x.b = 10")
   }
 
   @Test
@@ -566,7 +567,8 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
 
   @Test
   def testNotExistsWithCorrelatedOnWhere4(): Unit = {
-    util.verifyRelPlan("SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y WHERE x.a = c and x.b > 10)")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y WHERE x.a = c and x.b > 10)")
   }
 
   @Test
@@ -583,18 +585,21 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
 
   @Test
   def testNotExistsWithCorrelatedOnWhere7(): Unit = {
-    util.verifyRelPlan("SELECT * FROM x WHERE (NOT EXISTS (SELECT d FROM y WHERE y.d = x.b)) IS TRUE")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE (NOT EXISTS (SELECT d FROM y WHERE y.d = x.b)) IS TRUE")
   }
 
   @Test
   def testNotExistsWithCorrelatedOnWhere8(): Unit = {
     // TODO the result of SqlToRelConverter does not contain any field `a` info in SubQuery
-    util.verifyRelPlan("SELECT a FROM x WHERE NOT EXISTS (SELECT x.a IS NULL FROM y WHERE y.d = x.b)")
+    util.verifyRelPlan(
+      "SELECT a FROM x WHERE NOT EXISTS (SELECT x.a IS NULL FROM y WHERE y.d = x.b)")
   }
 
   @Test
   def testNotExistsWithCorrelatedOnWhere9(): Unit = {
-    util.verifyRelPlan("SELECT * FROM x WHERE (NOT EXISTS (SELECT d FROM y WHERE y.d = x.b)) = true")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE (NOT EXISTS (SELECT d FROM y WHERE y.d = x.b)) = true")
   }
 
   @Test

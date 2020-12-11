@@ -106,7 +106,8 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
 
   @Test
   def testConvertToNotIn_GreaterThanThreshold_Int(): Unit = {
-    util.verifyRelPlan("SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND a = 5")
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND a = 5")
   }
 
   @Test
@@ -123,13 +124,14 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
 
   @Test
   def testConvertToNotIn_WithOr1(): Unit = {
-    util.verifyRelPlan("SELECT * FROM MyTable WHERE (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4) OR b =" +
-      " 1")
+    util.verifyRelPlan("" +
+      "SELECT * FROM MyTable WHERE (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4) OR b = 1")
   }
 
   @Test
   def testConvertToNotIn_WithOr2(): Unit = {
-    util.verifyRelPlan("SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 OR b = 1")
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 OR b = 1")
   }
 
   @Test
@@ -139,7 +141,8 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
 
   @Test
   def testConvertToNotIn_WithAnd1(): Unit = {
-    util.verifyRelPlan("SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND b = 1")
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND b = 1")
   }
 
   @Test
@@ -162,7 +165,8 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
 
   @Test
   def testConvertToInAndNotIn3(): Unit = {
-    util.verifyRelPlan("SELECT * FROM MyTable WHERE b = 1 OR b = 2 OR (a <> 1 AND a <> 2 AND a <> 3 " +
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE b = 1 OR b = 2 OR (a <> 1 AND a <> 2 AND a <> 3 " +
       "AND a <> 4 AND c = 1) OR b = 3 OR b = 4 OR c = 1")
   }
 }

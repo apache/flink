@@ -166,12 +166,14 @@ class GroupingSetsTest extends TableTestBase {
 
   @Test
   def testRollupPlusOrderBy(): Unit = {
-    util.verifyExecPlan("SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender) ORDER BY c DESC")
+    util.verifyExecPlan(
+      "SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender) ORDER BY c DESC")
   }
 
   @Test
   def testRollupCartesianProduct(): Unit = {
-    util.verifyExecPlan("SELECT deptno, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno), ROLLUP(gender)")
+    util.verifyExecPlan(
+      "SELECT deptno, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno), ROLLUP(gender)")
   }
 
   @Test

@@ -60,7 +60,8 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Long, Int)]("A", 'a1, 'a2)
     util.addTableSource[(Int, Int)]("B", 'b1, 'b2)
-    util.verifyExecPlan("SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x  ON a1 = cnt")
+    util.verifyExecPlan(
+      "SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x  ON a1 = cnt")
   }
 
   @Test
@@ -68,7 +69,8 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Long, Int)]("A", 'a1, 'a2)
     util.addTableSource[(Int, Int)]("B", 'b1, 'b2)
-    util.verifyExecPlan("SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x ON a1 > cnt")
+    util.verifyExecPlan(
+      "SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x ON a1 > cnt")
   }
 
   @Test

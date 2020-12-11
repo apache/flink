@@ -165,7 +165,8 @@ class FlinkAggregateRemoveRuleTest extends TableTestBase {
   @Test
   def testAggRemove_GroupSets2(): Unit = {
     // can not remove agg
-    util.verifyRelPlan("SELECT a, SUM(b) AS s FROM MyTable3 GROUP BY GROUPING SETS((a, c), (a), ())")
+    util.verifyRelPlan(
+      "SELECT a, SUM(b) AS s FROM MyTable3 GROUP BY GROUPING SETS((a, c), (a), ())")
   }
 
   @Test

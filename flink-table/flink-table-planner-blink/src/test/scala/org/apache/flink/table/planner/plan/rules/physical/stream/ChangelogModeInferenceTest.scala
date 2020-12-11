@@ -103,7 +103,8 @@ class ChangelogModeInferenceTest extends TableTestBase {
   @Test
   def testOneLevelGroupBy(): Unit = {
     // one level unbounded groupBy
-    util.verifyRelPlan("SELECT COUNT(number) FROM MyTable GROUP BY word", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(
+      "SELECT COUNT(number) FROM MyTable GROUP BY word", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

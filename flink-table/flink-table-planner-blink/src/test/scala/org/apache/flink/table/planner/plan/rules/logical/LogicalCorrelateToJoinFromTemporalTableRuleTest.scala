@@ -100,7 +100,8 @@ class LogicalCorrelateToJoinFromTemporalTableRuleTest extends TableTestBase {
   @Test
   def testRowTimeLeftTemporalJoinWithFilter(): Unit = {
     setUpCurrentRule(LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER)
-    util.verifyRelPlan("SELECT * FROM T1 LEFT JOIN T3 FOR SYSTEM_TIME AS OF T1.rowtime AS dimTable " +
+    util.verifyRelPlan(
+      "SELECT * FROM T1 LEFT JOIN T3 FOR SYSTEM_TIME AS OF T1.rowtime AS dimTable " +
       "ON T1.id = dimTable.id AND dimTable.rate > 10")
   }
 
@@ -137,7 +138,8 @@ class LogicalCorrelateToJoinFromTemporalTableRuleTest extends TableTestBase {
     setUpCurrentRule(LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER)
     expectedException.expect(classOf[AssertionError])
     expectedException.expectMessage("Correlate has invalid join type RIGHT")
-    util.verifyRelPlan("SELECT * FROM T1 RIGHT JOIN T3 FOR SYSTEM_TIME AS OF T1.rowtime AS dimTable " +
+    util.verifyRelPlan(
+      "SELECT * FROM T1 RIGHT JOIN T3 FOR SYSTEM_TIME AS OF T1.rowtime AS dimTable " +
       "ON T1.id = dimTable.id AND dimTable.rate > 10")
   }
 
@@ -146,7 +148,8 @@ class LogicalCorrelateToJoinFromTemporalTableRuleTest extends TableTestBase {
     setUpCurrentRule(LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER)
     expectedException.expect(classOf[AssertionError])
     expectedException.expectMessage("Correlate has invalid join type FULL")
-    util.verifyRelPlan("SELECT * FROM T1 FULL JOIN T3 FOR SYSTEM_TIME AS OF T1.rowtime AS dimTable " +
+    util.verifyRelPlan(
+      "SELECT * FROM T1 FULL JOIN T3 FOR SYSTEM_TIME AS OF T1.rowtime AS dimTable " +
       "ON T1.id = dimTable.id AND dimTable.rate > 10")
   }
 

@@ -104,7 +104,8 @@ class DistinctAggregateTest(
 
   @Test
   def testTwoDistinctAggregateWithNonDistinctAgg(): Unit = {
-    util.verifyExecPlan("SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c")
+    util.verifyExecPlan(
+      "SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c")
   }
 
   @Test

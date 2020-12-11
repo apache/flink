@@ -270,7 +270,8 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
   @Test
   def testInWithUncorrelatedOnWhere_Aggregate2(): Unit = {
-    util.verifyRelPlan("SELECT * FROM l WHERE a IN (SELECT d * 5 FROM (SELECT SUM(d) AS d FROM r) r1)")
+    util.verifyRelPlan(
+      "SELECT * FROM l WHERE a IN (SELECT d * 5 FROM (SELECT SUM(d) AS d FROM r) r1)")
   }
 
   @Test
@@ -416,7 +417,8 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
   @Test
   def testInWithCorrelatedOnWhere6(): Unit = {
-    util.verifyRelPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y where CAST(x.b AS INTEGER) = y.c)")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE a IN (SELECT c FROM y where CAST(x.b AS INTEGER) = y.c)")
   }
 
   @Test
@@ -1181,7 +1183,8 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
   @Test
   def testExistsWithCorrelatedOnWhere3(): Unit = {
-    util.verifyRelPlan("SELECT * FROM x WHERE EXISTS (SELECT 1, c + d, c + 2, d FROM y WHERE a = c)")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE EXISTS (SELECT 1, c + d, c + 2, d FROM y WHERE a = c)")
   }
 
   @Test
@@ -1483,12 +1486,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
   @Test
   def testExistsWithCorrelatedOnWhere_SortLimit1(): Unit = {
-    util.verifyRelPlan("SELECT * FROM x WHERE EXISTS (SELECT 1 FROM y WHERE a = c ORDER BY d LIMIT 1)")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE EXISTS (SELECT 1 FROM y WHERE a = c ORDER BY d LIMIT 1)")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_SortLimit2(): Unit = {
-    util.verifyRelPlan("SELECT * FROM x WHERE EXISTS (SELECT 1 FROM y WHERE a = c ORDER BY c LIMIT 1)")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE EXISTS (SELECT 1 FROM y WHERE a = c ORDER BY c LIMIT 1)")
   }
 
   @Test
