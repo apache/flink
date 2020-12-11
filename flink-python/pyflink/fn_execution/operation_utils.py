@@ -34,12 +34,9 @@ _constant_num = 0
 
 def wrap_pandas_result(it):
     import pandas as pd
-    is_row_type = None
     arrays = []
     for result in it:
-        if is_row_type is None:
-            is_row_type = isinstance(result, (Row, Tuple))
-        if is_row_type:
+        if isinstance(result, (Row, Tuple)):
             arrays.append(pd.concat([pd.Series([item]) for item in result], axis=1))
         else:
             arrays.append(pd.Series([result]))
