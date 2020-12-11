@@ -21,6 +21,8 @@ package org.apache.flink.connector.jdbc.table;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
+import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatementImpl;
@@ -38,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -66,14 +67,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JdbcLookupFunction extends TableFunction<Row> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JdbcLookupFunction.class);
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 2L;
 
 	private final String query;
-	private final String drivername;
-	private final String dbURL;
-	private final String username;
-	private final String password;
-	private final int connectionCheckTimeoutSeconds;
+	private final JdbcConnectionProvider connectionProvider;
 	private final TypeInformation[] keyTypes;
 	private final int[] keySqlTypes;
 	private final String[] fieldNames;
@@ -84,18 +81,13 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 	private final long cacheExpireMs;
 	private final int maxRetryTimes;
 
-	private transient Connection dbConn;
 	private transient PreparedStatement statement;
 	private transient Cache<Row, List<Row>> cache;
 
 	public JdbcLookupFunction(
 			JdbcOptions options, JdbcLookupOptions lookupOptions,
 			String[] fieldNames, TypeInformation[] fieldTypes, String[] keyNames) {
-		this.drivername = options.getDriverName();
-		this.dbURL = options.getDbURL();
-		this.username = options.getUsername().orElse(null);
-		this.password = options.getPassword().orElse(null);
-		this.connectionCheckTimeoutSeconds = options.getConnectionCheckTimeoutSeconds();
+		this.connectionProvider = new SimpleJdbcConnectionProvider(options);
 		this.fieldNames = fieldNames;
 		this.fieldTypes = fieldTypes;
 		this.keyNames = keyNames;
@@ -178,9 +170,9 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 				}
 
 				try {
-					if (!dbConn.isValid(connectionCheckTimeoutSeconds)) {
+					if (!connectionProvider.isConnectionValid()) {
 						statement.close();
-						dbConn.close();
+						connectionProvider.closeConnection();
 						establishConnectionAndStatement();
 					}
 				} catch (SQLException | ClassNotFoundException excpetion) {
@@ -206,18 +198,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 	}
 
 	private void establishConnectionAndStatement() throws SQLException, ClassNotFoundException {
-		// Load DriverManager first to avoid deadlock between DriverManager's
-		// static initialization block and specific driver class's static
-		// initialization block.
-		//
-		// See comments in SimpleJdbcConnectionProvider for more details.
-		DriverManager.getDrivers();
-		Class.forName(drivername);
-		if (username == null) {
-			dbConn = DriverManager.getConnection(dbURL);
-		} else {
-			dbConn = DriverManager.getConnection(dbURL, username, password);
-		}
+		Connection dbConn = connectionProvider.getOrEstablishConnection();
 		statement = dbConn.prepareStatement(query);
 	}
 
@@ -237,20 +218,12 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 			}
 		}
 
-		if (dbConn != null) {
-			try {
-				dbConn.close();
-			} catch (SQLException se) {
-				LOG.info("JDBC connection could not be closed: " + se.getMessage());
-			} finally {
-				dbConn = null;
-			}
-		}
+		connectionProvider.closeConnection();
 	}
 
 	@VisibleForTesting
 	public Connection getDbConnection() {
-		return dbConn;
+		return connectionProvider.getConnection();
 	}
 
 	@Override

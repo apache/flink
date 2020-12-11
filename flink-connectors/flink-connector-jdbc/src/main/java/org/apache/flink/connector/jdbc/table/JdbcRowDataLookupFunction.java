@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
+import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
+import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
@@ -42,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -60,14 +61,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JdbcRowDataLookupFunction.class);
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 2L;
 
 	private final String query;
-	private final String drivername;
-	private final String dbURL;
-	private final String username;
-	private final String password;
-	private final int connectionCheckTimeoutSeconds;
+	private final JdbcConnectionProvider connectionProvider;
 	private final DataType[] keyTypes;
 	private final String[] keyNames;
 	private final long cacheMaxSize;
@@ -77,7 +74,6 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 	private final JdbcRowConverter jdbcRowConverter;
 	private final JdbcRowConverter lookupKeyRowConverter;
 
-	private transient Connection dbConn;
 	private transient FieldNamedPreparedStatement statement;
 	private transient Cache<RowData, List<RowData>> cache;
 
@@ -92,12 +88,8 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 		checkNotNull(fieldNames, "No fieldNames supplied.");
 		checkNotNull(fieldTypes, "No fieldTypes supplied.");
 		checkNotNull(keyNames, "No keyNames supplied.");
-		this.drivername = options.getDriverName();
-		this.dbURL = options.getDbURL();
-		this.username = options.getUsername().orElse(null);
-		this.password = options.getPassword().orElse(null);
+		this.connectionProvider = new SimpleJdbcConnectionProvider(options);
 		this.keyNames = keyNames;
-		this.connectionCheckTimeoutSeconds = options.getConnectionCheckTimeoutSeconds();
 		List<String> nameList = Arrays.asList(fieldNames);
 		this.keyTypes = Arrays.stream(keyNames)
 			.map(s -> {
@@ -111,6 +103,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 		this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
 		this.query = options.getDialect().getSelectFromStatement(
 			options.getTableName(), fieldNames, keyNames);
+		String dbURL = options.getDbURL();
 		this.jdbcDialect = JdbcDialects.get(dbURL)
 			.orElseThrow(() -> new UnsupportedOperationException(String.format("Unknown dbUrl:%s", dbURL)));
 		this.jdbcRowConverter = jdbcDialect.getRowConverter(rowType);
@@ -176,9 +169,9 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 				}
 
 				try {
-					if (!dbConn.isValid(connectionCheckTimeoutSeconds)) {
+					if (!connectionProvider.isConnectionValid()) {
 						statement.close();
-						dbConn.close();
+						connectionProvider.closeConnection();
 						establishConnectionAndStatement();
 					}
 				} catch (SQLException | ClassNotFoundException excpetion) {
@@ -196,18 +189,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 	}
 
 	private void establishConnectionAndStatement() throws SQLException, ClassNotFoundException {
-		// Load DriverManager first to avoid deadlock between DriverManager's
-		// static initialization block and specific driver class's static
-		// initialization block.
-		//
-		// See comments in SimpleJdbcConnectionProvider for more details.
-		DriverManager.getDrivers();
-		Class.forName(drivername);
-		if (username == null) {
-			dbConn = DriverManager.getConnection(dbURL);
-		} else {
-			dbConn = DriverManager.getConnection(dbURL, username, password);
-		}
+		Connection dbConn = connectionProvider.getOrEstablishConnection();
 		statement = FieldNamedPreparedStatement.prepareStatement(dbConn, query, keyNames);
 	}
 
@@ -227,19 +209,11 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 			}
 		}
 
-		if (dbConn != null) {
-			try {
-				dbConn.close();
-			} catch (SQLException se) {
-				LOG.info("JDBC connection could not be closed: " + se.getMessage());
-			} finally {
-				dbConn = null;
-			}
-		}
+		connectionProvider.closeConnection();
 	}
 
 	@VisibleForTesting
 	public Connection getDbConnection() {
-		return dbConn;
+		return connectionProvider.getConnection();
 	}
 }

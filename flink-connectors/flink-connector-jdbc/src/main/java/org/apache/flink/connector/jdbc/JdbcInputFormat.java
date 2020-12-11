@@ -27,6 +27,8 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
+import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.split.JdbcParameterValuesProvider;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
@@ -102,19 +104,15 @@ import java.util.Arrays;
 @Experimental
 public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements ResultTypeQueryable<Row> {
 
-	protected static final long serialVersionUID = 1L;
+	protected static final long serialVersionUID = 2L;
 	protected static final Logger LOG = LoggerFactory.getLogger(JdbcInputFormat.class);
 
-	protected String username;
-	protected String password;
-	protected String drivername;
-	protected String dbURL;
+	protected JdbcConnectionProvider connectionProvider;
 	protected String queryTemplate;
 	protected int resultSetType;
 	protected int resultSetConcurrency;
 	protected RowTypeInfo rowTypeInfo;
 
-	protected transient Connection dbConn;
 	protected transient PreparedStatement statement;
 	protected transient ResultSet resultSet;
 	protected int fetchSize;
@@ -141,18 +139,7 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 	public void openInputFormat() {
 		//called once per inputFormat (on open)
 		try {
-			// Load DriverManager first to avoid deadlock between DriverManager's
-			// static initialization block and specific driver class's static
-			// initialization block.
-			//
-			// See comments in SimpleJdbcConnectionProvider for more details.
-			DriverManager.getDrivers();
-			Class.forName(drivername);
-			if (username == null) {
-				dbConn = DriverManager.getConnection(dbURL);
-			} else {
-				dbConn = DriverManager.getConnection(dbURL, username, password);
-			}
+			Connection dbConn = connectionProvider.getOrEstablishConnection();
 
 			// set autoCommit mode only if it was explicitly configured.
 			// keep connection default otherwise.
@@ -184,15 +171,7 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 			statement = null;
 		}
 
-		try {
-			if (dbConn != null) {
-				dbConn.close();
-			}
-		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} finally {
-			dbConn = null;
-		}
+		connectionProvider.closeConnection();
 
 		parameterValues = null;
 	}
@@ -342,7 +321,7 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 
 	@VisibleForTesting
 	protected Connection getDbConn() {
-		return dbConn;
+		return connectionProvider.getConnection();
 	}
 
 	/**
@@ -357,10 +336,11 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 	 * Builder for {@link JdbcInputFormat}.
 	 */
 	public static class JdbcInputFormatBuilder {
-
+		private final JdbcConnectionOptions.JdbcConnectionOptionsBuilder connOptionsBuilder;
 		private final JdbcInputFormat format;
 
 		public JdbcInputFormatBuilder() {
+			this.connOptionsBuilder = new JdbcConnectionOptions.JdbcConnectionOptionsBuilder();
 			this.format = new JdbcInputFormat();
 			//using TYPE_FORWARD_ONLY for high performance reads
 			this.format.resultSetType = ResultSet.TYPE_FORWARD_ONLY;
@@ -368,22 +348,22 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 		}
 
 		public JdbcInputFormatBuilder setUsername(String username) {
-			format.username = username;
+			connOptionsBuilder.withUsername(username);
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setPassword(String password) {
-			format.password = password;
+			connOptionsBuilder.withPassword(password);
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setDrivername(String drivername) {
-			format.drivername = drivername;
+			connOptionsBuilder.withDriverName(drivername);
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setDBUrl(String dbURL) {
-			format.dbURL = dbURL;
+			connOptionsBuilder.withUrl(dbURL);
 			return this;
 		}
 
@@ -425,23 +405,12 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 		}
 
 		public JdbcInputFormat finish() {
-			if (format.username == null) {
-				LOG.info("Username was not supplied separately.");
-			}
-			if (format.password == null) {
-				LOG.info("Password was not supplied separately.");
-			}
-			if (format.dbURL == null) {
-				throw new IllegalArgumentException("No database URL supplied");
-			}
+			format.connectionProvider = new SimpleJdbcConnectionProvider(connOptionsBuilder.build());
 			if (format.queryTemplate == null) {
-				throw new IllegalArgumentException("No query supplied");
-			}
-			if (format.drivername == null) {
-				throw new IllegalArgumentException("No driver supplied");
+				throw new NullPointerException("No query supplied");
 			}
 			if (format.rowTypeInfo == null) {
-				throw new IllegalArgumentException("No " + RowTypeInfo.class.getSimpleName() + " supplied");
+				throw new NullPointerException("No " + RowTypeInfo.class.getSimpleName() + " supplied");
 			}
 			if (format.parameterValues == null) {
 				LOG.debug("No input splitting configured (data will be read with parallelism 1).");
