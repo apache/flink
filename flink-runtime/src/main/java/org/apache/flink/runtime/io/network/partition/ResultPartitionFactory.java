@@ -243,7 +243,7 @@ public class ResultPartitionFactory {
 	 * stuck problem if the minimum pool size is exactly equal to the number of subpartitions, because every subpartition
 	 * might maintain a partial unfilled buffer.
 	 *
-	 * <p>2. Increases one more buffer for every output LocalBufferPool to void performance regression if processing input is
+	 * <p>2. Increases one more buffer for every output LocalBufferPool to avoid performance regression if processing input is
 	 * based on at-least one buffer available on output side.
 	 */
 	@VisibleForTesting
