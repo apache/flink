@@ -24,14 +24,18 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+
+import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
 /** Built-in LAST_VALUE aggregate function. */
 @Internal
-public final class LastValueAggFunction<T> extends InternalAggregateFunction<T, RowData> {
+public final class LastValueAggFunction<T> extends BuiltInAggregateFunction<T, RowData> {
 
     private transient DataType valueDataType;
 
@@ -44,8 +48,8 @@ public final class LastValueAggFunction<T> extends InternalAggregateFunction<T, 
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public DataType[] getInputDataTypes() {
-        return new DataType[] {valueDataType};
+    public List<DataType> getArgumentDataTypes() {
+        return Collections.singletonList(valueDataType);
     }
 
     @Override
