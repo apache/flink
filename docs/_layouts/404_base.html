@@ -21,10 +21,10 @@ under the License.
 -->
 
 <noscript>
-  <meta http-equiv="refresh" content="5; url=https:{{ site.baseurl }}">
+  <meta http-equiv="refresh" content="5; url={% link index.md %}">
 </noscript>
 <script type="text/javascript">
-  var documentationRootUrl = "https:{{ site.baseurl }}";
+  var documentationRootUrl = "{% link index.md %}";
   var timeout = "5000";
   window.onload = function() {
     setTimeout(doRedirect, timeout);
