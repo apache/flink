@@ -64,7 +64,7 @@ CREATE TABLE pageviews_per_region (
   user_region STRING,
   pv BIGINT,
   uv BIGINT,
-  PRIMARY KEY (region) NOT ENFORCED
+  PRIMARY KEY (user_region) NOT ENFORCED
 ) WITH (
   'connector' = 'upsert-kafka',
   'topic' = 'pageviews_per_region',
