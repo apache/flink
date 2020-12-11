@@ -40,6 +40,8 @@ import java.util.Set;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.COMMON_ARG_NULLABLE;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.NO_ARGS;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
@@ -74,7 +76,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.varyingStrin
 public final class BuiltInFunctionDefinitions {
 
     // --------------------------------------------------------------------------------------------
-    // Debugging functions
+    // New stack built-in functions
     // --------------------------------------------------------------------------------------------
 
     public static final BuiltInFunctionDefinition TYPE_OF =
@@ -85,15 +87,28 @@ public final class BuiltInFunctionDefinitions {
                             or(
                                     sequence(
                                             new String[] {"input"},
-                                            new ArgumentTypeStrategy[] {InputTypeStrategies.ANY}),
+                                            new ArgumentTypeStrategy[] {ANY}),
                                     sequence(
                                             new String[] {"input", "force_serializable"},
                                             new ArgumentTypeStrategy[] {
-                                                InputTypeStrategies.ANY,
-                                                and(logical(LogicalTypeRoot.BOOLEAN), LITERAL)
+                                                ANY, and(logical(LogicalTypeRoot.BOOLEAN), LITERAL)
                                             })))
                     .outputTypeStrategy(explicit(DataTypes.STRING()))
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.TypeOfFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition IF_NULL =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("IFNULL")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    new String[] {"input", "null_replacement"},
+                                    new ArgumentTypeStrategy[] {
+                                        COMMON_ARG_NULLABLE, COMMON_ARG_NULLABLE
+                                    }))
+                    .outputTypeStrategy(TypeStrategies.IF_NULL)
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.IfNullFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------
