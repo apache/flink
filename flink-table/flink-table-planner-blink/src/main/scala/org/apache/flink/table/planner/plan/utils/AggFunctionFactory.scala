@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 
@@ -42,7 +43,7 @@ import scala.collection.JavaConversions._
 /**
  * Factory for creating runtime implementation for internal aggregate functions that are declared
  * as subclasses of [[SqlAggFunction]] in Calcite but not as [[BridgingSqlAggFunction]]. The factory
- * returns [[DeclarativeAggregateFunction]] or [[InternalAggregateFunction]].
+ * returns [[DeclarativeAggregateFunction]] or [[BuiltInAggregateFunction]].
  *
  * @param inputType the input rel data type
  * @param orderKeyIdx the indexes of order key (null when is not over agg)

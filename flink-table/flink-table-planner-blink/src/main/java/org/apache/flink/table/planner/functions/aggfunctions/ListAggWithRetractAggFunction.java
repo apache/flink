@@ -24,17 +24,19 @@ import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 /** Built-in LISTAGG with retraction aggregate function. */
 @Internal
 public final class ListAggWithRetractAggFunction
-        extends InternalAggregateFunction<
+        extends BuiltInAggregateFunction<
                 StringData, ListAggWithRetractAggFunction.ListAggWithRetractAccumulator> {
 
     private static final long serialVersionUID = -2836795091288790955L;
@@ -46,8 +48,8 @@ public final class ListAggWithRetractAggFunction
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public DataType[] getInputDataTypes() {
-        return new DataType[] {DataTypes.STRING().bridgedTo(StringData.class)};
+    public List<DataType> getArgumentDataTypes() {
+        return Collections.singletonList(DataTypes.STRING().bridgedTo(StringData.class));
     }
 
     @Override

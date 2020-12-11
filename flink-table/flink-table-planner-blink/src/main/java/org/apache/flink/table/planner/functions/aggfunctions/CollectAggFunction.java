@@ -23,9 +23,12 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -34,7 +37,7 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataTyp
 /** Built-in COLLECT aggregate function. */
 @Internal
 public final class CollectAggFunction<T>
-        extends InternalAggregateFunction<MapData, CollectAggFunction.CollectAccumulator<T>> {
+        extends BuiltInAggregateFunction<MapData, CollectAggFunction.CollectAccumulator<T>> {
 
     private static final long serialVersionUID = -5860934997657147836L;
 
@@ -49,8 +52,8 @@ public final class CollectAggFunction<T>
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public DataType[] getInputDataTypes() {
-        return new DataType[] {elementDataType};
+    public List<DataType> getArgumentDataTypes() {
+        return Collections.singletonList(elementDataType);
     }
 
     @Override

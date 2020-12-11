@@ -22,9 +22,10 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.{RexCall, RexFieldAccess, RexNode}
 import org.apache.flink.table.functions.FunctionDefinition
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionKind}
-import org.apache.flink.table.planner.functions.aggfunctions.{DeclarativeAggregateFunction, InternalAggregateFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.bridging.{BridgingSqlAggFunction, BridgingSqlFunction}
 import org.apache.flink.table.planner.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 
 import scala.collection.JavaConversions._
 
@@ -95,7 +96,7 @@ object PythonUtil {
     val aggregation = call.getAggregation
     aggregation match {
       case function: AggSqlFunction =>
-        function.aggregateFunction.isInstanceOf[InternalAggregateFunction[_, _]]
+        function.aggregateFunction.isInstanceOf[BuiltInAggregateFunction[_, _]]
       case function: BridgingSqlAggFunction =>
         function.getDefinition.isInstanceOf[DeclarativeAggregateFunction]
       case _ => true

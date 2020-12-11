@@ -22,13 +22,13 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, FunctionKind, ImperativeAggregateFunction, UserDefinedFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
-import org.apache.flink.table.planner.functions.aggfunctions.{DeclarativeAggregateFunction, InternalAggregateFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction, SqlListAggFunction}
@@ -41,6 +41,7 @@ import org.apache.flink.table.planner.typeutils.DataViewUtils
 import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
@@ -483,13 +484,13 @@ object AggregateUtil extends Enumeration {
       hasStateBackedDataViews: Boolean)
     : AggregateInfo = udf match {
 
-    case imperativeFunction: InternalAggregateFunction[_, _] =>
+    case imperativeFunction: BuiltInAggregateFunction[_, _] =>
       createImperativeAggregateInfo(
         call,
         imperativeFunction,
         index,
         argIndexes,
-        imperativeFunction.getInputDataTypes,
+        imperativeFunction.getArgumentDataTypes.asScala.toArray,
         imperativeFunction.getAccumulatorDataType,
         imperativeFunction.getOutputDataType,
         needsRetraction,

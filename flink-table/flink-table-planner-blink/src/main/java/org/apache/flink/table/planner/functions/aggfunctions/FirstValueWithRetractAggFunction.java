@@ -23,10 +23,12 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -36,7 +38,7 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataTyp
 /** Built-in FIRST_VALUE with retraction aggregate function. */
 @Internal
 public final class FirstValueWithRetractAggFunction<T>
-        extends InternalAggregateFunction<
+        extends BuiltInAggregateFunction<
                 T, FirstValueWithRetractAggFunction.FirstValueWithRetractAccumulator<T>> {
 
     private transient DataType valueDataType;
@@ -50,8 +52,8 @@ public final class FirstValueWithRetractAggFunction<T>
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public DataType[] getInputDataTypes() {
-        return new DataType[] {valueDataType};
+    public List<DataType> getArgumentDataTypes() {
+        return Collections.singletonList(valueDataType);
     }
 
     @Override
