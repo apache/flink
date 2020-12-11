@@ -28,7 +28,6 @@ import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
-import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
@@ -40,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * HBase table source implementation.
  */
 @Internal
-public abstract class AbstractHBaseDynamicTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
+public abstract class AbstractHBaseDynamicTableSource implements ScanTableSource, LookupTableSource {
 
 	protected final Configuration conf;
 	protected final String tableName;

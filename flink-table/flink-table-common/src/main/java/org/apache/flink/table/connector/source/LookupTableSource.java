@@ -19,6 +19,7 @@
 package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.types.RowKind;
 
 import java.io.Serializable;
@@ -38,8 +39,9 @@ import java.io.Serializable;
  * from a query by the planner and will be provided in the given {@link LookupContext#getKeys()}. The values
  * for those key fields are passed during runtime.
  */
+
 @PublicEvolving
-public interface LookupTableSource extends DynamicTableSource {
+public interface LookupTableSource extends DynamicTableSource, SupportsProjectionPushDown {
 
 	/**
 	 * Returns a provider of runtime implementation for reading the data.

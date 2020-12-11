@@ -1084,6 +1084,15 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		public String asSummaryString() {
 			return null;
 		}
+
+		@Override
+		public boolean supportsNestedProjection() {
+			return false;
+		}
+
+		@Override
+		public void applyProjection(int[][] projectedFields) {
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
