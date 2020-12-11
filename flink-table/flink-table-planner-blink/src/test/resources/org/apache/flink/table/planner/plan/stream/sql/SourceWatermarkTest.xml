@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT a, b, c FROM VirtualTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
@@ -28,7 +28,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 TableSourceScan(table=[[default_catalog, default_database, VirtualTable, watermark=[-(+($2, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)]]], fields=[a, b, c])
 ]]>
@@ -38,7 +38,7 @@ TableSourceScan(table=[[default_catalog, default_database, VirtualTable, waterma
     <Resource name="sql">
       <![CDATA[SELECT a - b FROM UdfTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[-($0, $1)])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[func(func($3, $0), $0)])
@@ -46,7 +46,7 @@ LogicalProject(EXPR$0=[-($0, $1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(a - b) AS EXPR$0])
 +- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func($2, $0), $0), $0)]]], fields=[a, b, c])
@@ -57,7 +57,7 @@ Calc(select=[(a - b) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT a, b, SECOND(d) FROM VirtualTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $3)])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
@@ -65,7 +65,7 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $3)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, EXTRACT(FLAG(SECOND), CAST(Reinterpret((c + 5000:INTERVAL SECOND)))) AS EXPR$2])
 +- TableSourceScan(table=[[default_catalog, default_database, VirtualTable, watermark=[-(+($2, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)]]], fields=[a, b, c])
@@ -76,7 +76,7 @@ Calc(select=[a, b, EXTRACT(FLAG(SECOND), CAST(Reinterpret((c + 5000:INTERVAL SEC
     <Resource name="sql">
       <![CDATA[select c.e, c.d from NestedTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(e=[$2.d.e], d=[$2.d])
 +- LogicalWatermarkAssigner(rowtime=[g], watermark=[-($3, 5000:INTERVAL SECOND)])
@@ -84,7 +84,7 @@ LogicalProject(e=[$2.d.e], d=[$2.d])
       +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c.d.e AS e, c.d AS d])
 +- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[c], watermark=[-($0.d.f, 5000:INTERVAL SECOND)]]], fields=[c])
@@ -95,7 +95,7 @@ Calc(select=[c.d.e AS e, c.d AS d])
     <Resource name="sql">
       <![CDATA[SELECT a, b FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
@@ -103,7 +103,7 @@ LogicalProject(a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, originTime], watermark=[TO_TIMESTAMP(FROM_UNIXTIME(/($2, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')]]], fields=[a, b, originTime])
@@ -114,7 +114,7 @@ Calc(select=[a, b])
     <Resource name="sql">
       <![CDATA[SELECT a, b FROM VirtualTable WHERE b > 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[>($1, 10)])
@@ -123,7 +123,7 @@ LogicalProject(a=[$0], b=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b], where=[(b > 10)])
 +- TableSourceScan(table=[[default_catalog, default_database, VirtualTable, watermark=[-(+($2, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)]]], fields=[a, b, c])

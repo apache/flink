@@ -23,7 +23,7 @@ SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
   t1.a = t2.a AND t1.proctime = t2.proctime
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalFilter(condition=[AND(=($0, $5), =($3, $8))])
@@ -32,7 +32,7 @@ LogicalProject(a=[$0], b=[$6])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- Join(joinType=[InnerJoin], where=[((a = a0) AND ($f5 = $f50))], select=[a, $f5, a0, b, $f50], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -52,7 +52,7 @@ SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
   t1.a = t2.a AND t1.rowtime = t2.rowtime
         ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalFilter(condition=[AND(=($0, $5), =($4, $9))])
@@ -61,7 +61,7 @@ LogicalProject(a=[$0], b=[$6])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- Join(joinType=[InnerJoin], where=[((a = a0) AND (rowtime0 = rowtime00))], select=[a, rowtime0, a0, b, rowtime00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -87,7 +87,7 @@ JOIN T2 AS t2 ON t1.a = t2.a AND t1.nullField = t2.nullField AND
   t2.proctime + INTERVAL '5' SECOND
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$5], c=[$7], c0=[$2])
 +- LogicalJoin(condition=[AND(=($0, $5), =($4, $9), >=($3, -($8, 5000:INTERVAL SECOND)), <=($3, +($8, 5000:INTERVAL SECOND)))], joinType=[inner])
@@ -97,7 +97,7 @@ LogicalProject(a=[$5], c=[$7], c0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -113,7 +113,7 @@ FROM MyTable t1 FULL OUTER JOIN MyTable2 t2 ON
   WHERE t1.b LIKE t2.b
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalFilter(condition=[LIKE($1, $6)])
@@ -122,7 +122,7 @@ LogicalProject(a=[$0], b=[$6])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b0 AS b])
 +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[((a = a0) AND (rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)) AND LIKE(b, b0))], select=[a, b, rowtime, a0, b0, rowtime0])
@@ -143,7 +143,7 @@ SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
     t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[inner])
@@ -151,7 +151,7 @@ LogicalProject(a=[$0], b=[$6])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (proctime >= (proctime0 - 3600000:INTERVAL HOUR)) AND (proctime <= (proctime0 + 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
@@ -171,7 +171,7 @@ SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
     t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalJoin(condition=[AND(>=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[inner])
@@ -179,7 +179,7 @@ LogicalProject(a=[$0], b=[$6])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=1], where=[((proctime >= (proctime0 - 3600000:INTERVAL HOUR)) AND (proctime <= (proctime0 + 3600000:INTERVAL HOUR)))], select=[a, proctime, b, proctime0])
@@ -200,7 +200,7 @@ SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
     t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalFilter(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))])
@@ -209,7 +209,7 @@ LogicalProject(a=[$0], b=[$6])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (PROCTIME_MATERIALIZE(proctime) >= (PROCTIME_MATERIALIZE(proctime0) - 3600000:INTERVAL HOUR)) AND (PROCTIME_MATERIALIZE(proctime) <= (PROCTIME_MATERIALIZE(proctime0) + 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
@@ -232,7 +232,7 @@ WHERE t1.a = t2.a AND
 GROUP BY TUMBLE(t1.rowtime, INTERVAL '6' HOUR), t1.b
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
 +- LogicalAggregate(group=[{0, 1}], aSum=[SUM($2)], bCnt=[COUNT($3)])
@@ -243,7 +243,7 @@ LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 21600000)], select=[b, SUM(a0) AS aSum, COUNT(b0) AS bCnt])
 +- Exchange(distribution=[hash[b]])
@@ -267,7 +267,7 @@ FROM MyTable t1 Full OUTER JOIN MyTable2 t2 ON
   t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[full])
@@ -275,7 +275,7 @@ LogicalProject(a=[$0], b=[$6])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (proctime >= (proctime0 - 3600000:INTERVAL HOUR)) AND (proctime <= (proctime0 + 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
@@ -297,7 +297,7 @@ FROM MyTable t1 RIGHT OUTER JOIN MyTable2 t2 ON
   t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[right])
@@ -305,7 +305,7 @@ LogicalProject(a=[$0], b=[$6])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[RightOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (proctime >= (proctime0 - 3600000:INTERVAL HOUR)) AND (proctime <= (proctime0 + 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
@@ -327,7 +327,7 @@ FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
   t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[left])
@@ -335,7 +335,7 @@ LogicalProject(a=[$0], b=[$6])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (proctime >= (proctime0 - 3600000:INTERVAL HOUR)) AND (proctime <= (proctime0 + 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
@@ -357,7 +357,7 @@ FROM MyTable t1 FULL OUTER JOIN MyTable2 t2 ON
   t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[full])
@@ -365,7 +365,7 @@ LogicalProject(a=[$0], b=[$6])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
@@ -388,7 +388,7 @@ WHERE t1.a = t2.a AND
 GROUP BY TUMBLE(t2.rowtime, INTERVAL '6' HOUR), t2.b
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
 +- LogicalAggregate(group=[{0, 1}], aSum=[SUM($2)], bCnt=[COUNT($3)])
@@ -399,7 +399,7 @@ LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupWindowAggregate(groupBy=[b0], window=[TumblingGroupWindow('w$, rowtime0, 21600000)], select=[b0, SUM(a) AS aSum, COUNT(b) AS bCnt])
 +- Exchange(distribution=[hash[b0]])
@@ -422,7 +422,7 @@ SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
   t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[inner])
@@ -430,7 +430,7 @@ LogicalProject(a=[$0], b=[$6])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
@@ -450,7 +450,7 @@ SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
   t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalJoin(condition=[AND(>=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[inner])
@@ -458,7 +458,7 @@ LogicalProject(a=[$0], b=[$6])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=1], where=[((rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)))], select=[a, rowtime, b, rowtime0])
@@ -480,7 +480,7 @@ FROM MyTable t1 RIGHT OUTER JOIN MyTable2 t2 ON
   t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[right])
@@ -488,7 +488,7 @@ LogicalProject(a=[$0], b=[$6])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[RightOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
@@ -509,7 +509,7 @@ SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
   t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' MINUTE AND t2.rowtime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalFilter(condition=[AND(=($0, $5), >=($4, -($9, 600000:INTERVAL MINUTE)), <=($4, +($9, 3600000:INTERVAL HOUR)))])
@@ -518,7 +518,7 @@ LogicalProject(a=[$0], b=[$6])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (CAST(rowtime) >= (CAST(rowtime0) - 600000:INTERVAL MINUTE)) AND (CAST(rowtime) <= (CAST(rowtime0) + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
@@ -540,7 +540,7 @@ FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
   t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$6])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[left])
@@ -548,7 +548,7 @@ LogicalProject(a=[$0], b=[$6])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
 +- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])

@@ -26,7 +26,7 @@ SELECT a, rank_num FROM (
 WHERE rank_num >= 1 AND rank_num < 2
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], rank_num=[$4])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 2))])
@@ -34,7 +34,7 @@ LogicalProject(a=[$0], rank_num=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, rank_num])
 +- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime, rank_num])
@@ -53,7 +53,7 @@ SELECT a, rank_num FROM (
 WHERE rank_num >= 1 AND rank_num < 3
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], rank_num=[$4])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 3))])
@@ -61,7 +61,7 @@ LogicalProject(a=[$0], rank_num=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, rank_num])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime, rank_num])
@@ -80,7 +80,7 @@ SELECT a FROM (
 WHERE rank_num >= 1 AND rank_num < 2
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 2))])
@@ -88,7 +88,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime])
@@ -107,7 +107,7 @@ SELECT a, rank_num FROM (
 WHERE rank_num >= 1 AND rank_num < 2
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], rank_num=[$4])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 2))])
@@ -115,7 +115,7 @@ LogicalProject(a=[$0], rank_num=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, 1:BIGINT AS rank_num])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime])

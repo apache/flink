@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(e) FROM y WHERE d > 10) > 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
@@ -32,7 +32,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
@@ -50,7 +50,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10 GROUP BY f) > 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
@@ -63,7 +63,7 @@ LogicalProject(EXPR$0=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
@@ -133,7 +133,7 @@ ORDER BY i_product_name
 LIMIT 100
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[100])
 +- LogicalAggregate(group=[{0}])
@@ -146,7 +146,7 @@ LogicalAggregate(group=[{}], item_cnt=[COUNT()])
          +- LogicalTableScan(table=[[default_catalog, default_database, item, source: [TestTableSource(i_manufact_id, i_manufact, i_product_name, i_category, i_color, i_units, i_size)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[100])
 +- LogicalAggregate(group=[{0}])
@@ -164,7 +164,7 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[100])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) > 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
@@ -175,7 +175,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
@@ -190,7 +190,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) > 0.9]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
@@ -201,7 +201,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
@@ -216,7 +216,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) >= 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>=($SCALAR_QUERY({
@@ -227,7 +227,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
@@ -242,7 +242,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) >= 0.1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>=($SCALAR_QUERY({
@@ -253,7 +253,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
@@ -268,7 +268,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE 0 < (SELECT COUNT(*) FROM y WHERE a = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<(0, $SCALAR_QUERY({
@@ -279,7 +279,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
@@ -294,7 +294,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE 0.99 < (SELECT COUNT(*) FROM y WHERE a = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<(0.99:DECIMAL(3, 2), $SCALAR_QUERY({
@@ -305,7 +305,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
@@ -320,7 +320,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE 1 <= (SELECT COUNT(*) FROM y WHERE a = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=(1, $SCALAR_QUERY({
@@ -331,7 +331,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
@@ -346,7 +346,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE 0.01 <= (SELECT COUNT(*) FROM y WHERE a = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=(0.01:DECIMAL(3, 2), $SCALAR_QUERY({
@@ -357,7 +357,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
@@ -372,7 +372,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
@@ -383,7 +383,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[semi])
@@ -400,7 +400,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > 0.9]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
@@ -411,7 +411,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[semi])
@@ -428,7 +428,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) >= 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>=($SCALAR_QUERY({
@@ -439,7 +439,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[semi])
@@ -456,7 +456,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) >= 0.1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>=($SCALAR_QUERY({
@@ -467,7 +467,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[semi])
@@ -484,7 +484,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE 0 < (SELECT COUNT(*) FROM y WHERE d > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<(0, $SCALAR_QUERY({
@@ -495,7 +495,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[semi])
@@ -512,7 +512,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE 0.99 < (SELECT COUNT(*) FROM y WHERE d > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<(0.99:DECIMAL(3, 2), $SCALAR_QUERY({
@@ -523,7 +523,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[semi])
@@ -540,7 +540,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE 1 <= (SELECT COUNT(*) FROM y WHERE d > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=(1, $SCALAR_QUERY({
@@ -551,7 +551,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[semi])
@@ -568,7 +568,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE 0.01 <= (SELECT COUNT(*) FROM y WHERE d > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=(0.01:DECIMAL(3, 2), $SCALAR_QUERY({
@@ -579,7 +579,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[semi])

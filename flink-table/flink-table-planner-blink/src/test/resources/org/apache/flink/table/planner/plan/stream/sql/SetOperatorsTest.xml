@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 INTERSECT SELECT f FROM T2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[false])
 :- LogicalProject(c=[$2])
@@ -29,7 +29,7 @@ LogicalIntersect(all=[false])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[c], select=[c])
 +- Exchange(distribution=[hash[c]])
@@ -47,7 +47,7 @@ GroupAggregate(groupBy=[c], select=[c])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[true])
 :- LogicalProject(c=[$2])
@@ -56,7 +56,7 @@ LogicalIntersect(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c0 AS c])
 +- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], correlate=[table(ReplicateRows($f0,c))], select=[$f0,c,c0], rowType=[RecordType(BIGINT $f0, VARCHAR(2147483647) c, VARCHAR(2147483647) c0)], joinType=[INNER])
@@ -75,7 +75,7 @@ Calc(select=[c0 AS c])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[false])
 :- LogicalProject(c=[$2])
@@ -85,7 +85,7 @@ LogicalIntersect(all=[false])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -95,7 +95,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[false])
 :- LogicalProject(c=[$2])
@@ -105,7 +105,7 @@ LogicalIntersect(all=[false])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -115,7 +115,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM (SELECT a, b FROM T1 INTERSECT SELECT d, e FROM T2)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalIntersect(all=[false])
@@ -125,7 +125,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- GroupAggregate(groupBy=[a, b], select=[a, b])
@@ -144,7 +144,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
 :- LogicalProject(c=[$2])
@@ -153,7 +153,7 @@ LogicalMinus(all=[false])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[c], select=[c])
 +- Exchange(distribution=[hash[c]])
@@ -171,7 +171,7 @@ GroupAggregate(groupBy=[c], select=[c])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[true])
 :- LogicalProject(c=[$2])
@@ -180,7 +180,7 @@ LogicalMinus(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c0 AS c])
 +- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], correlate=[table(ReplicateRows(sum_vcol_marker,c))], select=[sum_vcol_marker,c,c0], rowType=[RecordType(BIGINT sum_vcol_marker, VARCHAR(2147483647) c, VARCHAR(2147483647) c0)], joinType=[INNER])
@@ -199,7 +199,7 @@ Calc(select=[c0 AS c])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
 :- LogicalProject(c=[$2])
@@ -209,7 +209,7 @@ LogicalMinus(all=[false])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -219,7 +219,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
 :- LogicalProject(c=[$2])
@@ -229,7 +229,7 @@ LogicalMinus(all=[false])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[c], select=[c])
 +- Exchange(distribution=[hash[c]])
@@ -242,7 +242,7 @@ GroupAggregate(groupBy=[c], select=[c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable EXCEPT SELECT * FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
 :- LogicalProject(a=[$0], b=[$1], c=[$2])
@@ -251,7 +251,7 @@ LogicalMinus(all=[false])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[a, b, c], select=[a, b, c])
 +- Exchange(distribution=[hash[a, b, c]])
@@ -266,7 +266,7 @@ GroupAggregate(groupBy=[a, b, c], select=[a, b, c])
     <Resource name="sql">
       <![CDATA[SELECT a FROM A UNION ALL SELECT CASE WHEN c > 0 THEN b ELSE NULL END FROM A]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0])
@@ -275,7 +275,7 @@ LogicalUnion(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[a])
 :- Calc(select=[a])
@@ -289,7 +289,7 @@ Union(all=[true], union=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM A UNION ALL SELECT b FROM A]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0])
@@ -298,7 +298,7 @@ LogicalUnion(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[a])
 :- Calc(select=[a])

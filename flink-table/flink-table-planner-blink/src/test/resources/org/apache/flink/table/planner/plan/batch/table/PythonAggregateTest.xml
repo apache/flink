@@ -17,14 +17,14 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testPandasGroupAggregate">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1])
 +- LogicalAggregate(group=[{1}], EXPR$0=[PandasAggregateFunction($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 PythonGroupAggregate(groupBy=[b], select=[b, PandasAggregateFunction(a, c) AS EXPR$0])
 +- Sort(orderBy=[b ASC])
@@ -34,14 +34,14 @@ PythonGroupAggregate(groupBy=[b], select=[b, PandasAggregateFunction(a, c) AS EX
     </Resource>
   </TestCase>
   <TestCase name="testPandasGroupAggregateWithoutKeys">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
 +- LogicalAggregate(group=[{}], EXPR$0=[PandasAggregateFunction($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 PythonGroupAggregate(select=[PandasAggregateFunction(a, c) AS EXPR$0])
 +- Exchange(distribution=[single])

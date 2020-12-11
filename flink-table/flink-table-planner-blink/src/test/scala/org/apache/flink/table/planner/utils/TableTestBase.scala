@@ -487,12 +487,12 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val astPlan = astBuilder.toString()
 
     val optimizedRels = getPlanner.optimize(relNodes)
-    val optimizedRelPlan =
+    val optimizedRelPlan = System.lineSeparator +
       getOptimizedRelPlan(optimizedRels.toArray, extraDetails, withRowType = withRowType)
 
     val optimizedExecPlan = if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
       val optimizedExecs = getPlanner.translateToExecNodePlan(optimizedRels)
-      ExecNodePlanDumper.dagToString(optimizedExecs)
+      System.lineSeparator + ExecNodePlanDumper.dagToString(optimizedExecs)
     } else {
       ""
     }
@@ -501,23 +501,14 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
     assertSqlEquals()
 
-    val printPlanBefore = expectedPlans.contains(PlanKind.AST)
-    if (printPlanBefore) {
-      assertEqualsOrExpand("planBefore", astPlan)
+    if (expectedPlans.contains(PlanKind.AST)) {
+      assertEqualsOrExpand("ast", astPlan)
     }
-
-    val printRelPlanInMiddle = expectedPlans.contains(PlanKind.OPT_REL) &&
-      expectedPlans.contains(PlanKind.OPT_EXEC)
-    if (printRelPlanInMiddle) {
-      assertEqualsOrExpand("planMiddle", System.lineSeparator + optimizedRelPlan, expand = false)
+    if (expectedPlans.contains(PlanKind.OPT_REL)) {
+      assertEqualsOrExpand("optimized rel plan", optimizedRelPlan, expand = false)
     }
-
-    val printRelPlanInAfter = expectedPlans.contains(PlanKind.OPT_REL) &&
-      !expectedPlans.contains(PlanKind.OPT_EXEC)
-    if (printRelPlanInAfter) {
-      assertEqualsOrExpand("planAfter", System.lineSeparator + optimizedRelPlan, expand = false)
-    } else {
-      assertEqualsOrExpand("planAfter", System.lineSeparator + optimizedExecPlan, expand = false)
+    if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
+      assertEqualsOrExpand("optimized exec plan", optimizedExecPlan, expand = false)
     }
   }
 
