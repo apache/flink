@@ -39,6 +39,7 @@ import org.apache.avro.specific.SpecificRecord;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Deserialization schema that deserializes from Avro binary format.
@@ -143,7 +144,10 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 
 		ClassLoader cl = Thread.currentThread().getContextClassLoader();
 		if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
-			SpecificData specificData = new SpecificData(cl);
+			@SuppressWarnings("unchecked")
+			SpecificData specificData = AvroFactory.getSpecificDataForClass(
+				(Class<? extends SpecificData>) recordClazz,
+				cl);
 			this.datumReader = new SpecificDatumReader<>(specificData);
 			this.reader = AvroFactory.extractAvroSpecificSchema(recordClazz, specificData);
 		} else {
@@ -162,12 +166,30 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public TypeInformation<T> getProducedType() {
 		if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
 			return new AvroTypeInfo(recordClazz);
 		} else {
 			return (TypeInformation<T>) new GenericRecordAvroTypeInfo(this.reader);
 		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		AvroDeserializationSchema<?> that = (AvroDeserializationSchema<?>) o;
+		return recordClazz.equals(that.recordClazz) &&
+				Objects.equals(reader, that.reader);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(recordClazz, reader);
 	}
 }

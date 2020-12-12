@@ -2,7 +2,7 @@
 title: "Orc Format"
 nav-title: Orc
 nav-parent_id: sql-formats
-nav-pos: 6
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -34,12 +34,10 @@ under the License.
 依赖
 ------------
 
-为了建立Orc格式，下列的表格提供了为项目使用自动化工具（例如Maven或者SBT）以及SQL客户端使用SQL JAR包的依赖信息。
-
-| Maven 依赖         | SQL 客户端 JAR         |
-| :----------------- | :----------------------|
-| flink-orc{{site.scala_version_suffix}}        |{% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-orc{{site.scala_version_suffix}}/{{site.version}}/flink-sql-orc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
-
+{% assign connector = site.data.sql-connectors['orc'] %}
+{% include sql-connector-download-table.html
+    connector=connector
+%}
 
 如何用 Orc 格式创建一个表格
 ----------------

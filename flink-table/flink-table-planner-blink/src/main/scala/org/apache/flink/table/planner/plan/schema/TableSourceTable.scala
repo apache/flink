@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.connector.source.DynamicTableSource
-import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 
 import com.google.common.collect.ImmutableList
@@ -41,7 +40,6 @@ import java.util
  * @param tableSource The [[DynamicTableSource]] for which is converted to a Calcite Table
  * @param isStreamingMode A flag that tells if the current table is in stream mode
  * @param catalogTable Catalog table where this table source table comes from
- * @param dynamicOptions The dynamic hinted options
  * @param extraDigests The extra digests which will be added into `getQualifiedName`
  *                     as a part of table digest
  */
@@ -53,7 +51,6 @@ class TableSourceTable(
     val tableSource: DynamicTableSource,
     val isStreamingMode: Boolean,
     val catalogTable: CatalogTable,
-    val dynamicOptions: JMap[String, String],
     val extraDigests: Array[String] = Array.empty)
   extends FlinkPreparingTableBase(
     relOptSchema,
@@ -65,15 +62,8 @@ class TableSourceTable(
     statistic) {
 
   override def getQualifiedName: util.List[String] = {
-    val names = super.getQualifiedName
     val builder = ImmutableList.builder[String]()
-    builder.addAll(names)
-    if (dynamicOptions.size() != 0) {
-      // Add the dynamic options as part of the table digest,
-      // this is a temporary solution, we expect to avoid this
-      // before Calcite 1.23.0.
-      builder.add(s"dynamic options: $dynamicOptions")
-    }
+        .addAll(super.getQualifiedName)
     extraDigests.foreach(builder.add)
     builder.build()
   }
@@ -97,7 +87,28 @@ class TableSourceTable(
       newTableSource,
       isStreamingMode,
       catalogTable,
-      dynamicOptions,
+      extraDigests ++ newExtraDigests)
+  }
+
+  /**
+   * Creates a copy of this table with specified digest and statistic.
+   *
+   * @param newTableSource tableSource to replace
+   * @param newStatistic statistic to replace
+   * @return added TableSourceTable instance with specified digest and statistic
+   */
+  def copy(
+      newTableSource: DynamicTableSource,
+      newStatistic: FlinkStatistic,
+      newExtraDigests: Array[String]): TableSourceTable = {
+    new TableSourceTable(
+      relOptSchema,
+      tableIdentifier,
+      rowType,
+      newStatistic,
+      newTableSource,
+      isStreamingMode,
+      catalogTable,
       extraDigests ++ newExtraDigests)
   }
 }

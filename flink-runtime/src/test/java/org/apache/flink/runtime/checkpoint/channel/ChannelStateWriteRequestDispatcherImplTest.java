@@ -24,7 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
+import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 
 import org.junit.Test;
 
@@ -49,7 +49,10 @@ public class ChannelStateWriteRequestDispatcherImplTest {
 	}
 
 	private void testBuffersRecycled(Function<NetworkBuffer[], ChannelStateWriteRequest> requestBuilder) throws Exception {
-		ChannelStateWriteRequestDispatcher dispatcher = new ChannelStateWriteRequestDispatcherImpl(new MemoryBackendCheckpointStorage(new JobID(), null, null, 1), new ChannelStateSerializerImpl());
+		ChannelStateWriteRequestDispatcher dispatcher = new ChannelStateWriteRequestDispatcherImpl(
+			0,
+			new MemoryBackendCheckpointStorageAccess(new JobID(), null, null, 1),
+			new ChannelStateSerializerImpl());
 		ChannelStateWriteResult result = new ChannelStateWriteResult();
 		dispatcher.dispatch(ChannelStateWriteRequest.start(1L, result, CheckpointStorageLocationReference.getDefault()));
 

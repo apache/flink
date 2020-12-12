@@ -31,7 +31,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
-import org.apache.flink.table.runtime.typeutils.WrapperTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
@@ -58,7 +58,7 @@ public class AvroFormatFactoryTest extends TestLogger {
 	@Test
 	public void testSeDeSchema() {
 		final AvroRowDataDeserializationSchema expectedDeser =
-				new AvroRowDataDeserializationSchema(ROW_TYPE, WrapperTypeInfo.of(ROW_TYPE));
+				new AvroRowDataDeserializationSchema(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE));
 
 		final Map<String, String> options = getAllOptions();
 
@@ -110,7 +110,8 @@ public class AvroFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock source"),
 				new Configuration(),
-				AvroFormatFactoryTest.class.getClassLoader());
+				AvroFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -119,6 +120,7 @@ public class AvroFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock sink"),
 				new Configuration(),
-				AvroFormatFactoryTest.class.getClassLoader());
+				AvroFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 }

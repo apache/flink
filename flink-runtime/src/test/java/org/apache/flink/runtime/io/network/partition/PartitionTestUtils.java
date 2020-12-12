@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -31,7 +30,6 @@ import org.hamcrest.Matchers;
 
 import java.io.IOException;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -97,6 +95,14 @@ public enum PartitionTestUtils {
 			.build();
 	}
 
+	public static ResultSubpartitionView createView(ResultSubpartition subpartition, BufferAvailabilityListener listener)
+			throws IOException {
+		final ResultPartitionManager partitionManager = new ResultPartitionManager();
+		final ResultPartition parent = subpartition.parent;
+		partitionManager.registerResultPartition(parent);
+		return partitionManager.createSubpartitionView(parent.partitionId, 0, listener);
+	}
+
 	static void verifyCreateSubpartitionViewThrowsException(
 			ResultPartitionProvider partitionManager,
 			ResultPartitionID partitionId) throws IOException {
@@ -122,15 +128,5 @@ public enum PartitionTestUtils {
 			shuffleDescriptor,
 			1,
 			true);
-	}
-
-	public static void writeBuffers(
-			ResultPartitionWriter partition,
-			int numberOfBuffers,
-			int bufferSize) throws IOException {
-		for (int i = 0; i < numberOfBuffers; i++) {
-			partition.addBufferConsumer(createFilledFinishedBufferConsumer(bufferSize), 0);
-		}
-		partition.finish();
 	}
 }

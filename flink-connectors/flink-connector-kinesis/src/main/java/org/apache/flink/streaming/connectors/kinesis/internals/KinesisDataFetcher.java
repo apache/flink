@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -27,18 +28,28 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisherFactory;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutRecordPublisherFactory;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling.PollingRecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.metrics.KinesisConsumerMetricConstants;
-import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
+import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Factory;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
+import org.apache.flink.streaming.connectors.kinesis.util.StreamConsumerRegistrarUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
@@ -51,6 +62,8 @@ import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -69,6 +82,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.POLLING;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -178,8 +193,14 @@ public class KinesisDataFetcher<T> {
 	/** The Kinesis proxy factory that will be used to create instances for discovery and shard consumers. */
 	private final FlinkKinesisProxyFactory kinesisProxyFactory;
 
+	/** The Kinesis proxy V2 factory that will be used to create instances for EFO shard consumers. */
+	private final FlinkKinesisProxyV2Factory kinesisProxyV2Factory;
+
 	/** The Kinesis proxy that the fetcher will be using to discover new shards. */
 	private final KinesisProxyInterface kinesis;
+
+	/** The factory used to create record publishers that consumer from Kinesis shards. */
+	private final RecordPublisherFactory recordPublisherFactory;
 
 	/** Thread that executed runFetcher(). */
 	private volatile Thread mainThread;
@@ -232,6 +253,13 @@ public class KinesisDataFetcher<T> {
 	 */
 	public interface FlinkKinesisProxyFactory {
 		KinesisProxyInterface create(Properties configProps);
+	}
+
+	/**
+	 * Factory to create Kinesis proxy V@ instances used by a fetcher.
+	 */
+	public interface FlinkKinesisProxyV2Factory {
+		KinesisProxyV2Interface create(Properties configProps);
 	}
 
 	/**
@@ -310,14 +338,15 @@ public class KinesisDataFetcher<T> {
 	 * @param configProps the consumer configuration properties
 	 * @param deserializationSchema deserialization schema
 	 */
-	public KinesisDataFetcher(List<String> streams,
-							SourceFunction.SourceContext<T> sourceContext,
-							RuntimeContext runtimeContext,
-							Properties configProps,
-							KinesisDeserializationSchema<T> deserializationSchema,
-							KinesisShardAssigner shardAssigner,
-							AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner,
-							WatermarkTracker watermarkTracker) {
+	public KinesisDataFetcher(
+			final List<String> streams,
+			final SourceFunction.SourceContext<T> sourceContext,
+			final RuntimeContext runtimeContext,
+			final Properties configProps,
+			final KinesisDeserializationSchema<T> deserializationSchema,
+			final KinesisShardAssigner shardAssigner,
+			final AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner,
+			final WatermarkTracker watermarkTracker) {
 		this(streams,
 			sourceContext,
 			sourceContext.getCheckpointLock(),
@@ -330,23 +359,26 @@ public class KinesisDataFetcher<T> {
 			new AtomicReference<>(),
 			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
-			KinesisProxy::create);
+			KinesisProxy::create,
+			KinesisProxyV2Factory::createKinesisProxyV2);
 	}
 
 	@VisibleForTesting
-	protected KinesisDataFetcher(List<String> streams,
-								SourceFunction.SourceContext<T> sourceContext,
-								Object checkpointLock,
-								RuntimeContext runtimeContext,
-								Properties configProps,
-								KinesisDeserializationSchema<T> deserializationSchema,
-								KinesisShardAssigner shardAssigner,
-								AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner,
-								WatermarkTracker watermarkTracker,
-								AtomicReference<Throwable> error,
-								List<KinesisStreamShardState> subscribedShardsState,
-								HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds,
-								FlinkKinesisProxyFactory kinesisProxyFactory) {
+	protected KinesisDataFetcher(
+			final List<String> streams,
+			final SourceFunction.SourceContext<T> sourceContext,
+			final Object checkpointLock,
+			final RuntimeContext runtimeContext,
+			final Properties configProps,
+			final KinesisDeserializationSchema<T> deserializationSchema,
+			final KinesisShardAssigner shardAssigner,
+			final AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner,
+			final WatermarkTracker watermarkTracker,
+			final AtomicReference<Throwable> error,
+			final List<KinesisStreamShardState> subscribedShardsState,
+			final HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds,
+			final FlinkKinesisProxyFactory kinesisProxyFactory,
+			@Nullable final FlinkKinesisProxyV2Factory kinesisProxyV2Factory) {
 		this.streams = checkNotNull(streams);
 		this.configProps = checkNotNull(configProps);
 		this.sourceContext = checkNotNull(sourceContext);
@@ -359,7 +391,9 @@ public class KinesisDataFetcher<T> {
 		this.periodicWatermarkAssigner = periodicWatermarkAssigner;
 		this.watermarkTracker = watermarkTracker;
 		this.kinesisProxyFactory = checkNotNull(kinesisProxyFactory);
+		this.kinesisProxyV2Factory = kinesisProxyV2Factory;
 		this.kinesis = kinesisProxyFactory.create(configProps);
+		this.recordPublisherFactory = createRecordPublisherFactory();
 
 		this.consumerMetricGroup = runtimeContext.getMetricGroup()
 			.addGroup(KinesisConsumerMetricConstants.KINESIS_CONSUMER_METRICS_GROUP);
@@ -370,7 +404,10 @@ public class KinesisDataFetcher<T> {
 
 		this.shardConsumersExecutor =
 			createShardConsumersThreadPool(runtimeContext.getTaskNameWithSubtasks());
+
 		this.recordEmitter = createRecordEmitter(configProps);
+
+		StreamConsumerRegistrarUtil.lazilyRegisterStreamConsumers(configProps, streams);
 	}
 
 	private RecordEmitter createRecordEmitter(Properties configProps) {
@@ -389,23 +426,47 @@ public class KinesisDataFetcher<T> {
 	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
 	 * @param subscribedShard the shard this consumer is subscribed to
 	 * @param lastSequenceNum the sequence number in the shard to start consuming
-	 * @param shardMetricsReporter the reporter to report metrics to
+	 * @param metricGroup the metric group to report metrics to
 	 * @return shard consumer
 	 */
 	protected ShardConsumer<T> createShardConsumer(
-		Integer subscribedShardStateIndex,
-		StreamShardHandle subscribedShard,
-		SequenceNumber lastSequenceNum,
-		ShardMetricsReporter shardMetricsReporter,
-		KinesisDeserializationSchema<T> shardDeserializer) {
+			final Integer subscribedShardStateIndex,
+			final StreamShardHandle subscribedShard,
+			final SequenceNumber lastSequenceNum,
+			final MetricGroup metricGroup,
+			final KinesisDeserializationSchema<T> shardDeserializer) throws InterruptedException {
+
 		return new ShardConsumer<>(
 			this,
+			createRecordPublisher(lastSequenceNum, configProps, metricGroup, subscribedShard),
 			subscribedShardStateIndex,
 			subscribedShard,
 			lastSequenceNum,
-			this.kinesisProxyFactory.create(configProps),
-			shardMetricsReporter,
+			new ShardConsumerMetricsReporter(metricGroup),
 			shardDeserializer);
+	}
+
+	protected RecordPublisherFactory createRecordPublisherFactory() {
+		RecordPublisherType recordPublisherType = RecordPublisherType.valueOf(
+			configProps.getProperty(RECORD_PUBLISHER_TYPE, POLLING.name()));
+
+		switch (recordPublisherType) {
+			case EFO:
+				return new FanOutRecordPublisherFactory(kinesisProxyV2Factory.create(configProps));
+			case POLLING:
+			default:
+				return new PollingRecordPublisherFactory(kinesisProxyFactory);
+		}
+	}
+
+	protected RecordPublisher createRecordPublisher(
+			final SequenceNumber sequenceNumber,
+			final Properties configProps,
+			final MetricGroup metricGroup,
+			final StreamShardHandle subscribedShard) throws InterruptedException {
+
+		StartingPosition startingPosition = AWSUtil.getStartingPosition(sequenceNumber, configProps);
+		return recordPublisherFactory.create(startingPosition, configProps, metricGroup, subscribedShard);
 	}
 
 	/**
@@ -466,16 +527,21 @@ public class KinesisDataFetcher<T> {
 				StreamShardHandle streamShardHandle = subscribedShardsState.get(seededStateIndex)
 					.getStreamShardHandle();
 				KinesisDeserializationSchema<T> shardDeserializationSchema = getClonedDeserializationSchema();
-				shardDeserializationSchema.open(() -> consumerMetricGroup
-					.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
-					.addGroup("shardId", streamShardHandle.getShard().getShardId())
-					.addGroup("user"));
+				shardDeserializationSchema.open(
+						RuntimeContextInitializationContextAdapters.deserializationAdapter(
+								runtimeContext,
+								// ignore the provided metric group
+								metricGroup -> consumerMetricGroup
+										.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
+										.addGroup("shardId", streamShardHandle.getShard().getShardId())
+										.addGroup("user")
+						));
 				shardConsumersExecutor.submit(
 					createShardConsumer(
 						seededStateIndex,
 						streamShardHandle,
 						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum(),
-						registerShardMetrics(consumerMetricGroup, subscribedShardsState.get(seededStateIndex)),
+						registerShardMetricGroup(consumerMetricGroup, subscribedShardsState.get(seededStateIndex)),
 						shardDeserializationSchema));
 			}
 		}
@@ -533,7 +599,7 @@ public class KinesisDataFetcher<T> {
 		// we will escape from this loop only when shutdownFetcher() or stopWithError() is called
 		// TODO: have this thread emit the records for tracking backpressure
 
-		final long discoveryIntervalMillis = Long.valueOf(
+		final long discoveryIntervalMillis = Long.parseLong(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS)));
@@ -567,16 +633,20 @@ public class KinesisDataFetcher<T> {
 
 				StreamShardHandle streamShardHandle = newShardState.getStreamShardHandle();
 				KinesisDeserializationSchema<T> shardDeserializationSchema = getClonedDeserializationSchema();
-				shardDeserializationSchema.open(() -> consumerMetricGroup
-					.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
-					.addGroup("shardId", streamShardHandle.getShard().getShardId())
-					.addGroup("user"));
+				shardDeserializationSchema.open(RuntimeContextInitializationContextAdapters.deserializationAdapter(
+						runtimeContext,
+						// ignore the provided metric group
+						metricGroup -> consumerMetricGroup
+								.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
+								.addGroup("shardId", streamShardHandle.getShard().getShardId())
+								.addGroup("user")
+				));
 				shardConsumersExecutor.submit(
 					createShardConsumer(
 						newStateIndex,
 						newShardState.getStreamShardHandle(),
 						newShardState.getLastProcessedSequenceNum(),
-						registerShardMetrics(consumerMetricGroup, newShardState),
+						registerShardMetricGroup(consumerMetricGroup, newShardState),
 						shardDeserializationSchema));
 			}
 
@@ -635,6 +705,12 @@ public class KinesisDataFetcher<T> {
 	public void shutdownFetcher() {
 		running = false;
 
+		StreamConsumerRegistrarUtil.deregisterStreamConsumers(configProps, streams);
+
+		recordPublisherFactory.close();
+
+		shardConsumersExecutor.shutdownNow();
+
 		if (mainThread != null) {
 			mainThread.interrupt(); // the main thread may be sleeping for the discovery interval
 		}
@@ -647,7 +723,6 @@ public class KinesisDataFetcher<T> {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Shutting down the shard consumer threads of subtask {} ...", indexOfThisConsumerSubtask);
 		}
-		shardConsumersExecutor.shutdownNow();
 	}
 
 	/** After calling {@link KinesisDataFetcher#shutdownFetcher()}, this can be called to await the fetcher shutdown. */
@@ -1057,29 +1132,16 @@ public class KinesisDataFetcher<T> {
 	/**
 	 * Registers a metric group associated with the shard id of the provided {@link KinesisStreamShardState shardState}.
 	 *
-	 * @return a {@link ShardMetricsReporter} that can be used to update metric values
+	 * @return a {@link MetricGroup} that can be used to update metric values
 	 */
-	private static ShardMetricsReporter registerShardMetrics(MetricGroup metricGroup, KinesisStreamShardState shardState) {
-		ShardMetricsReporter shardMetrics = new ShardMetricsReporter();
-
-		MetricGroup streamShardMetricGroup = metricGroup
+	private MetricGroup registerShardMetricGroup(final MetricGroup metricGroup, final KinesisStreamShardState shardState) {
+		return metricGroup
 			.addGroup(
 				KinesisConsumerMetricConstants.STREAM_METRICS_GROUP,
 				shardState.getStreamShardHandle().getStreamName())
 			.addGroup(
 				KinesisConsumerMetricConstants.SHARD_METRICS_GROUP,
 				shardState.getStreamShardHandle().getShard().getShardId());
-
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.MILLIS_BEHIND_LATEST_GAUGE, shardMetrics::getMillisBehindLatest);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.MAX_RECORDS_PER_FETCH, shardMetrics::getMaxNumberOfRecordsPerFetch);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.NUM_AGGREGATED_RECORDS_PER_FETCH, shardMetrics::getNumberOfAggregatedRecords);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.NUM_DEAGGREGATED_RECORDS_PER_FETCH, shardMetrics::getNumberOfDeaggregatedRecords);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.AVG_RECORD_SIZE_BYTES, shardMetrics::getAverageRecordSizeBytes);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.BYTES_PER_READ, shardMetrics::getBytesPerRead);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.RUNTIME_LOOP_NANOS, shardMetrics::getRunLoopTimeNanos);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.LOOP_FREQUENCY_HZ, shardMetrics::getLoopFrequencyHz);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.SLEEP_TIME_MILLIS, shardMetrics::getSleepTimeMillis);
-		return shardMetrics;
 	}
 
 	// ------------------------------------------------------------------------
@@ -1102,9 +1164,10 @@ public class KinesisDataFetcher<T> {
 	@VisibleForTesting
 	protected ExecutorService createShardConsumersThreadPool(final String subtaskName) {
 		return Executors.newCachedThreadPool(new ThreadFactory() {
+			private final AtomicLong threadCount = new AtomicLong(0);
+
 			@Override
 			public Thread newThread(Runnable runnable) {
-				final AtomicLong threadCount = new AtomicLong(0);
 				Thread thread = new Thread(runnable);
 				thread.setName("shardConsumers-" + subtaskName + "-thread-" + threadCount.getAndIncrement());
 				thread.setDaemon(true);

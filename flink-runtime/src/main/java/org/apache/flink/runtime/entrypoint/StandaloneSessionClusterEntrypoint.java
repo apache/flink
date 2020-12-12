@@ -20,7 +20,6 @@ package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -46,17 +45,10 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		EntrypointClusterConfiguration entrypointClusterConfiguration = null;
-		final CommandLineParser<EntrypointClusterConfiguration> commandLineParser = new CommandLineParser<>(new EntrypointClusterConfigurationParserFactory());
-
-		try {
-			entrypointClusterConfiguration = commandLineParser.parse(args);
-		} catch (FlinkParseException e) {
-			LOG.error("Could not parse command line arguments {}.", args, e);
-			commandLineParser.printHelp(StandaloneSessionClusterEntrypoint.class.getSimpleName());
-			System.exit(1);
-		}
-
+		final EntrypointClusterConfiguration entrypointClusterConfiguration = ClusterEntrypointUtils.parseParametersOrExit(
+			args,
+			new EntrypointClusterConfigurationParserFactory(),
+			StandaloneSessionClusterEntrypoint.class);
 		Configuration configuration = loadConfiguration(entrypointClusterConfiguration);
 
 		StandaloneSessionClusterEntrypoint entrypoint = new StandaloneSessionClusterEntrypoint(configuration);

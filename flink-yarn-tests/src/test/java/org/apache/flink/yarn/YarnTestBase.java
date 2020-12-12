@@ -90,6 +90,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -123,25 +124,28 @@ public abstract class YarnTestBase extends TestLogger {
 	};
 
 	/** These strings are white-listed, overriding the prohibited strings. */
-	protected static final String[] WHITELISTED_STRINGS = {
-		"akka.remote.RemoteTransportExceptionNoStackTrace",
+	protected static final Pattern[] WHITELISTED_STRINGS = {
+		Pattern.compile("akka\\.remote\\.RemoteTransportExceptionNoStackTrace"),
 		// workaround for annoying InterruptedException logging:
 		// https://issues.apache.org/jira/browse/YARN-1022
-		"java.lang.InterruptedException",
-		// very specific on purpose
-		"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
-		"Remote connection to [null] failed with java.nio.channels.NotYetConnectedException",
-		"java.io.IOException: Connection reset by peer",
+		Pattern.compile("java\\.lang\\.InterruptedException"),
+		// very specific on purpose; whitelist meaningless exceptions that occur during akka shutdown:
+		Pattern.compile("Remote connection to \\[null\\] failed with java.net.ConnectException: Connection refused"),
+		Pattern.compile("Remote connection to \\[null\\] failed with java.nio.channels.NotYetConnectedException"),
+		Pattern.compile("java\\.io\\.IOException: Connection reset by peer"),
+		Pattern.compile("Association with remote system \\[akka.tcp://flink@[^]]+\\] has failed, address is now gated for \\[50\\] ms. Reason: \\[Association failed with \\[akka.tcp://flink@[^]]+\\]\\] Caused by: \\[java.net.ConnectException: Connection refused: [^]]+\\]"),
 
 		// filter out expected ResourceManagerException caused by intended shutdown request
-		YarnResourceManager.ERROR_MASSAGE_ON_SHUTDOWN_REQUEST,
+		Pattern.compile(YarnResourceManagerDriver.ERROR_MESSAGE_ON_SHUTDOWN_REQUEST),
 
 		// this can happen in Akka 2.4 on shutdown.
-		"java.util.concurrent.RejectedExecutionException: Worker has already been shutdown",
+		Pattern.compile("java\\.util\\.concurrent\\.RejectedExecutionException: Worker has already been shutdown"),
 
-		"org.apache.flink.util.FlinkException: Stopping JobMaster",
-		"org.apache.flink.util.FlinkException: JobManager is shutting down.",
-		"lost the leadership."
+		Pattern.compile("org\\.apache\\.flink.util\\.FlinkException: Stopping JobMaster"),
+		Pattern.compile("org\\.apache\\.flink.util\\.FlinkException: JobManager is shutting down\\."),
+		Pattern.compile("lost the leadership."),
+
+		Pattern.compile("akka.remote.transport.netty.NettyTransport.*Remote connection to \\[[^]]+\\] failed with java.io.IOException: Broken pipe")
 	};
 
 	// Temp directory which is deleted after the unit test.
@@ -390,7 +394,7 @@ public abstract class YarnTestBase extends TestLogger {
 	 * So always run "mvn clean" before running the tests here.
 	 *
 	 */
-	public static void ensureNoProhibitedStringInLogFiles(final String[] prohibited, final String[] whitelisted) {
+	public static void ensureNoProhibitedStringInLogFiles(final String[] prohibited, final Pattern[] whitelisted) {
 		File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
 		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to exist", cwd.exists());
 		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to be a directory", cwd.isDirectory());
@@ -400,17 +404,18 @@ public abstract class YarnTestBase extends TestLogger {
 			@Override
 			public boolean accept(File dir, String name) {
 			// scan each file for prohibited strings.
-			File f = new File(dir.getAbsolutePath() + "/" + name);
+			File logFile = new File(dir.getAbsolutePath() + "/" + name);
 			try {
-				BufferingScanner scanner = new BufferingScanner(new Scanner(f), 10);
+				BufferingScanner scanner = new BufferingScanner(new Scanner(logFile), 10);
 				while (scanner.hasNextLine()) {
 					final String lineFromFile = scanner.nextLine();
 					for (String aProhibited : prohibited) {
 						if (lineFromFile.contains(aProhibited)) {
 
 							boolean whitelistedFound = false;
-							for (String white : whitelisted) {
-								if (lineFromFile.contains(white)) {
+							for (Pattern whitelistPattern : whitelisted) {
+								Matcher whitelistMatch = whitelistPattern.matcher(lineFromFile);
+								if (whitelistMatch.find()) {
 									whitelistedFound = true;
 									break;
 								}
@@ -419,7 +424,7 @@ public abstract class YarnTestBase extends TestLogger {
 							if (!whitelistedFound) {
 								// logging in FATAL to see the actual message in CI tests.
 								Marker fatal = MarkerFactory.getMarker("FATAL");
-								LOG.error(fatal, "Prohibited String '{}' in '{}:{}'", aProhibited, f.getAbsolutePath(), lineFromFile);
+								LOG.error(fatal, "Prohibited String '{}' in '{}:{}'", aProhibited, logFile.getAbsolutePath(), lineFromFile);
 
 								StringBuilder logExcerpt = new StringBuilder();
 
@@ -456,7 +461,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 				}
 			} catch (FileNotFoundException e) {
-				LOG.warn("Unable to locate file: " + e.getMessage() + " file: " + f.getAbsolutePath());
+				LOG.warn("Unable to locate file: " + e.getMessage() + " file: " + logFile.getAbsolutePath());
 			}
 
 			return false;
@@ -682,6 +687,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			map.put("YARN_CONF_DIR", targetTestClassesFolder.getAbsolutePath());
+			map.put("MAX_LOG_FILE_NUMBER", "10");
 			TestBaseUtils.setEnv(map);
 
 			Assert.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);
@@ -949,7 +955,7 @@ public abstract class YarnTestBase extends TestLogger {
 							CliFrontend cli = new CliFrontend(
 								configuration,
 								CliFrontend.loadCustomCommandLines(configuration, configurationDirectory));
-							returnValue = cli.parseParameters(args);
+							returnValue = cli.parseAndRun(args);
 						} catch (Exception e) {
 							throw new RuntimeException("Failed to execute the following args with CliFrontend: "
 								+ Arrays.toString(args), e);

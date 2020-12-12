@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-elasticsearch6_${scala.binary.version}</artifactId>
-	<name>flink-connector-elasticsearch6</name>
+	<name>Flink : Connectors : Elasticsearch 6</name>
 
 	<packaging>jar</packaging>
 
@@ -82,6 +82,13 @@ under the License.
 		</dependency>
 
 		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>elasticsearch</artifactId>
+			<version>1.15.0</version>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

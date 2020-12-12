@@ -17,14 +17,14 @@
 ################################################################################
 
 import array
-import unittest
 
 from pyflink import keyword
 from pyflink.ml.api.param import ParamInfo, TypeConverters, Params
 from pyflink.ml.lib.param.colname import HasSelectedCols, HasOutputCol
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
-class ParamsTest(unittest.TestCase):
+class ParamsTest(PyFlinkTestCase):
 
     def test_default_behavior(self):
         params = Params()
@@ -102,7 +102,7 @@ class ParamsTest(unittest.TestCase):
         self.assertEqual(params_new.get(param_info), val)
 
 
-class ParamTypeConversionTests(unittest.TestCase):
+class ParamTypeConversionTests(PyFlinkTestCase):
     """
     Test that param type conversion happens.
     """
@@ -168,7 +168,7 @@ class MockVectorAssembler(HasSelectedCols, HasOutputCol):
         return self._params
 
 
-class TestWithParams(unittest.TestCase):
+class TestWithParams(PyFlinkTestCase):
 
     def test_set_params_with_keyword_arguments(self):
         assembler = MockVectorAssembler(selected_cols=["a", "b"], output_col="features")

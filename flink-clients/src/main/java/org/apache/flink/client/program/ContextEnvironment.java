@@ -93,7 +93,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		JobExecutionResult jobExecutionResult;
 		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
 			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
-					jobClient.getJobExecutionResult(getUserCodeClassLoader());
+					jobClient.getJobExecutionResult();
 
 			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
 				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(

@@ -24,14 +24,12 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.IterableUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -44,8 +42,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class DefaultLogicalTopology implements LogicalTopology<DefaultLogicalVertex, DefaultLogicalResult> {
 
-	private final boolean containsCoLocationConstraints;
-
 	private final List<DefaultLogicalVertex> verticesSorted;
 
 	private final Map<JobVertexID, DefaultLogicalVertex> idToVertexMap;
@@ -54,10 +50,6 @@ public class DefaultLogicalTopology implements LogicalTopology<DefaultLogicalVer
 
 	public DefaultLogicalTopology(final JobGraph jobGraph) {
 		checkNotNull(jobGraph);
-
-		this.containsCoLocationConstraints = IterableUtils.toStream(jobGraph.getVertices())
-			.map(JobVertex::getCoLocationGroup)
-			.anyMatch(Objects::nonNull);
 
 		this.verticesSorted = new ArrayList<>(jobGraph.getNumberOfVertices());
 		this.idToVertexMap = new HashMap<>();
@@ -87,11 +79,6 @@ public class DefaultLogicalTopology implements LogicalTopology<DefaultLogicalVer
 		return verticesSorted;
 	}
 
-	@Override
-	public boolean containsCoLocationConstraints() {
-		return containsCoLocationConstraints;
-	}
-
 	private DefaultLogicalVertex getVertex(final JobVertexID vertexId) {
 		return Optional.ofNullable(idToVertexMap.get(vertexId))
 			.orElseThrow(() -> new IllegalArgumentException("can not find vertex: " + vertexId));
@@ -103,7 +90,8 @@ public class DefaultLogicalTopology implements LogicalTopology<DefaultLogicalVer
 	}
 
 	public Set<DefaultLogicalPipelinedRegion> getLogicalPipelinedRegions() {
-		final Set<Set<DefaultLogicalVertex>> regionsRaw = PipelinedRegionComputeUtil.computePipelinedRegions(this);
+		final Set<Set<DefaultLogicalVertex>> regionsRaw = PipelinedRegionComputeUtil
+			.computePipelinedRegions(verticesSorted);
 
 		final Set<DefaultLogicalPipelinedRegion> regions = new HashSet<>();
 		for (Set<DefaultLogicalVertex> regionVertices : regionsRaw) {

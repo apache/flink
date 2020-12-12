@@ -57,7 +57,7 @@ The `ExternalizedCheckpointCleanup` mode configures what happens with checkpoint
 
 ### Directory Structure
 
-Similarly to [savepoints](savepoints.html), a checkpoint consists
+Similarly to [savepoints]({% link ops/state/savepoints.md %}), a checkpoint consists
 of a meta data file and, depending on the state backend, some additional data
 files. The meta data file and data files are stored in the directory that is
 configured via `state.checkpoints.dir` in the configuration files, 
@@ -96,7 +96,7 @@ env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/"));
 
 ### Difference to Savepoints
 
-Checkpoints have a few differences from [savepoints](savepoints.html). They
+Checkpoints have a few differences from [savepoints]({% link ops/state/savepoints.md %}). They
 - use a state backend specific (low-level) data format, may be incremental.
 - do not support Flink specific features like rescaling.
 
@@ -104,7 +104,7 @@ Checkpoints have a few differences from [savepoints](savepoints.html). They
 
 A job may be resumed from a checkpoint just as from a savepoint
 by using the checkpoint's meta data file instead (see the
-[savepoint restore guide](../cli.html#restore-a-savepoint)). Note that if the
+[savepoint restore guide]({% link deployment/cli.md %}#restore-a-savepoint)). Note that if the
 meta data file is not self-contained, the jobmanager needs to have access to
 the data files it refers to (see [Directory Structure](#directory-structure)
 above).

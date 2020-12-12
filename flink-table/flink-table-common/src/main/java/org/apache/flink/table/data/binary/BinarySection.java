@@ -62,10 +62,15 @@ public class BinarySection implements BinaryFormat {
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o || o != null &&
-			getClass() == o.getClass() &&
-			sizeInBytes == ((BinarySection) o).sizeInBytes &&
-			BinarySegmentUtils.equals(segments, offset, ((BinarySection) o).segments, ((BinarySection) o).offset, sizeInBytes);
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		final BinarySection that = (BinarySection) o;
+		return sizeInBytes == that.sizeInBytes &&
+			BinarySegmentUtils.equals(segments, offset, that.segments, that.offset, sizeInBytes);
 	}
 
 	@Override

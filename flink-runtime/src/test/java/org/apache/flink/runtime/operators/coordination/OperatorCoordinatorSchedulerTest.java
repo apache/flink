@@ -42,7 +42,7 @@ import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TestingCheckpointStorageCoordinatorView;
+import org.apache.flink.runtime.state.TestingCheckpointStorageAccessCoordinatorView;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -72,12 +72,14 @@ import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
 import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -322,7 +324,57 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 	}
 
 	@Test
-	public void testLocalFailureDoesNotResetToCheckpoint() throws Exception {
+	public void testGlobalFailureBeforeCheckpointResetsToEmptyState() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		failGlobalAndRestart(scheduler, new TestException());
+
+		assertSame("coordinator should have null restored state",
+			TestingOperatorCoordinator.NULL_RESTORE_VALUE, coordinator.getLastRestoredCheckpointState());
+		assertEquals(OperatorCoordinator.NO_CHECKPOINT, coordinator.getLastRestoredCheckpointId());
+	}
+
+	@Test
+	public void testGlobalFailoverDoesNotNotifyLocalRestore() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		takeCompleteCheckpoint(scheduler, coordinator, new byte[0]);
+		failGlobalAndRestart(scheduler, new TestException());
+
+		assertThat(coordinator.getRestoredTasks(), empty());
+	}
+
+	@Test
+	public void testLocalFailoverResetsTask() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		final long checkpointId = takeCompleteCheckpoint(scheduler, coordinator, new byte[0]);
+		failAndRestartTask(scheduler, 1);
+
+		assertEquals(1, coordinator.getRestoredTasks().size());
+		final TestingOperatorCoordinator.SubtaskAndCheckpoint restoredTask = coordinator.getRestoredTasks().get(0);
+		assertEquals(1, restoredTask.subtaskIndex);
+		assertEquals(checkpointId, restoredTask.checkpointId);
+	}
+
+	@Test
+	public void testLocalFailoverBeforeCheckpointResetsTask() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		failAndRestartTask(scheduler, 1);
+
+		assertEquals(1, coordinator.getRestoredTasks().size());
+		final TestingOperatorCoordinator.SubtaskAndCheckpoint restoredTask = coordinator.getRestoredTasks().get(0);
+		assertEquals(1, restoredTask.subtaskIndex);
+		assertEquals(OperatorCoordinator.NO_CHECKPOINT, restoredTask.checkpointId);
+	}
+
+	@Test
+	public void testLocalFailoverDoesNotResetToCheckpoint() throws Exception {
 		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
 		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
 
@@ -341,6 +393,55 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
 		assertEquals("coordinator should be notified of completed checkpoint",
 				checkpointId, coordinator.getLastCheckpointComplete());
+	}
+
+	// ------------------------------------------------------------------------
+	//  tests for failover notifications in a batch setup (no checkpoints)
+	// ------------------------------------------------------------------------
+
+	@Test
+	public void testBatchGlobalFailureResetsToEmptyState() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerWithoutCheckpointingAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		failGlobalAndRestart(scheduler, new TestException());
+
+		assertSame("coordinator should have null restored state",
+			TestingOperatorCoordinator.NULL_RESTORE_VALUE, coordinator.getLastRestoredCheckpointState());
+		assertEquals(OperatorCoordinator.NO_CHECKPOINT, coordinator.getLastRestoredCheckpointId());
+	}
+
+	@Test
+	public void testBatchGlobalFailoverDoesNotNotifyLocalRestore() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerWithoutCheckpointingAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		failGlobalAndRestart(scheduler, new TestException());
+
+		assertThat(coordinator.getRestoredTasks(), empty());
+	}
+
+	@Test
+	public void testBatchLocalFailoverResetsTask() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerWithoutCheckpointingAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		failAndRestartTask(scheduler, 1);
+
+		assertEquals(1, coordinator.getRestoredTasks().size());
+		final TestingOperatorCoordinator.SubtaskAndCheckpoint restoredTask = coordinator.getRestoredTasks().get(0);
+		assertEquals(1, restoredTask.subtaskIndex);
+		assertEquals(OperatorCoordinator.NO_CHECKPOINT, restoredTask.checkpointId);
+	}
+
+	@Test
+	public void testBatchLocalFailoverDoesNotResetToCheckpoint() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerWithoutCheckpointingAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		failAndRestartTask(scheduler, 0);
+
+		assertNull("coordinator should not have a restored checkpoint", coordinator.getLastRestoredCheckpointState());
 	}
 
 	// ------------------------------------------------------------------------
@@ -422,6 +523,17 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		return scheduler;
 	}
 
+	private DefaultScheduler createSchedulerWithoutCheckpointingAndDeployTasks() throws Exception {
+		final Consumer<JobGraph> noCheckpoints = (jobGraph) -> jobGraph.setSnapshotSettings(null);
+		final DefaultScheduler scheduler = setupTestJobAndScheduler(new TestingOperatorCoordinator.Provider(testOperatorId), null, noCheckpoints, false);
+
+		// guard test assumptions: this must set up a scheduler without checkpoints
+		assertNull(scheduler.getExecutionGraph().getCheckpointCoordinator());
+
+		scheduleAllTasksToRunning(scheduler);
+		return scheduler;
+	}
+
 	private DefaultScheduler createSchedulerAndDeployTasks(OperatorCoordinator.Provider provider) throws Exception {
 		final DefaultScheduler scheduler = setupTestJobAndScheduler(provider);
 		scheduleAllTasksToRunning(scheduler);
@@ -438,7 +550,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final byte[] savepointMetadata = serializeAsCheckpointMetadata(testOperatorId, coordinatorState);
 		final String savepointPointer = "testingSavepointPointer";
 
-		final TestingCheckpointStorageCoordinatorView storage = new TestingCheckpointStorageCoordinatorView();
+		final TestingCheckpointStorageAccessCoordinatorView storage = new TestingCheckpointStorageAccessCoordinatorView();
 		storage.registerSavepoint(savepointPointer, savepointMetadata);
 
 		final Consumer<JobGraph> savepointConfigurer = (jobGraph) -> {

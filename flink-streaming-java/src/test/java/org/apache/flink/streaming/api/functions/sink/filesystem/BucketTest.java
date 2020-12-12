@@ -366,6 +366,7 @@ public class BucketTest {
 				initialPartCounter,
 				new RowWiseBucketWriter<>(writer, ENCODER),
 				rollingPolicy,
+				null,
 				outputFileConfig);
 	}
 
@@ -382,6 +383,7 @@ public class BucketTest {
 				new RowWiseBucketWriter<>(writer, ENCODER),
 				rollingPolicy,
 				bucketState,
+				null,
 				outputFileConfig);
 	}
 
@@ -413,6 +415,7 @@ public class BucketTest {
 			new RowWiseBucketWriter<>(writer, ENCODER),
 			rollingPolicy,
 			stateWithOnlyInProgressFile,
+			null,
 			OutputFileConfig.builder().build());
 	}
 
@@ -432,7 +435,9 @@ public class BucketTest {
 			1L,
 			new RowWiseBucketWriter<>(writer, ENCODER),
 			rollingPolicy,
-			initStateWithOnlyInProgressFile, OutputFileConfig.builder().build());
+			initStateWithOnlyInProgressFile,
+			null,
+			OutputFileConfig.builder().build());
 	}
 
 	private Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> createPendingPartsPerCheckpoint(int noOfCheckpoints) {

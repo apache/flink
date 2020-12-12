@@ -18,20 +18,13 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.deployment.executors.LocalExecutor;
-import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.JobExecutor;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
-import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.test.util.MiniClusterPipelineExecutorServiceLoader;
 
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -40,74 +33,49 @@ import java.util.Collections;
  */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
-	/** The job executor to use to execute environment's jobs. */
-	private final JobExecutor jobExecutor;
-
-	private final Collection<Path> jarFiles;
-
-	private final Collection<URL> classPaths;
-
 	public TestStreamEnvironment(
-			JobExecutor jobExecutor,
+			MiniCluster miniCluster,
 			int parallelism,
 			Collection<Path> jarFiles,
 			Collection<URL> classPaths) {
-
-		this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
-		this.jarFiles = Preconditions.checkNotNull(jarFiles);
-		this.classPaths = Preconditions.checkNotNull(classPaths);
-		getConfiguration().set(DeploymentOptions.TARGET, LocalExecutor.NAME);
-		getConfiguration().set(DeploymentOptions.ATTACHED, true);
+		super(
+				new MiniClusterPipelineExecutorServiceLoader(miniCluster),
+				MiniClusterPipelineExecutorServiceLoader.createConfiguration(jarFiles, classPaths),
+				null);
 
 		setParallelism(parallelism);
 	}
 
 	public TestStreamEnvironment(
-			JobExecutor jobExecutor,
+			MiniCluster miniCluster,
 			int parallelism) {
-		this(jobExecutor, parallelism, Collections.emptyList(), Collections.emptyList());
+		this(miniCluster, parallelism, Collections.emptyList(), Collections.emptyList());
 	}
-
-	@Override
-	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		final JobGraph jobGraph = streamGraph.getJobGraph();
-
-		for (Path jarFile : jarFiles) {
-			jobGraph.addJar(jarFile);
-		}
-
-		jobGraph.setClasspaths(new ArrayList<>(classPaths));
-
-		return jobExecutor.executeJobBlocking(jobGraph);
-	}
-
-	// ------------------------------------------------------------------------
 
 	/**
 	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
 	 * the given cluster with the given default parallelism and the specified jar files and class
 	 * paths.
 	 *
-	 * @param jobExecutor The executor to execute the jobs on
+	 * @param miniCluster The MiniCluster to execute jobs on.
 	 * @param parallelism The default parallelism for the test programs.
 	 * @param jarFiles Additional jar files to execute the job with
 	 * @param classpaths Additional class paths to execute the job with
 	 */
 	public static void setAsContext(
-			final JobExecutor jobExecutor,
+			final MiniCluster miniCluster,
 			final int parallelism,
 			final Collection<Path> jarFiles,
 			final Collection<URL> classpaths) {
 
-		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
-			@Override
-			public StreamExecutionEnvironment createExecutionEnvironment() {
-				return new TestStreamEnvironment(
-					jobExecutor,
-					parallelism,
-					jarFiles,
-					classpaths);
-			}
+		StreamExecutionEnvironmentFactory factory = conf -> {
+			TestStreamEnvironment env = new TestStreamEnvironment(
+				miniCluster,
+				parallelism,
+				jarFiles,
+				classpaths);
+			env.configure(conf, env.getUserClassloader());
+			return env;
 		};
 
 		initializeContextEnvironment(factory);
@@ -117,15 +85,15 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
 	 * the given cluster with the given default parallelism.
 	 *
-	 * @param jobExecutor The executor to execute the jobs on
+	 * @param miniCluster The MiniCluster to execute jobs on.
 	 * @param parallelism The default parallelism for the test programs.
 	 */
-	public static void setAsContext(final JobExecutor jobExecutor, final int parallelism) {
+	public static void setAsContext(final MiniCluster miniCluster, final int parallelism) {
 		setAsContext(
-			jobExecutor,
-			parallelism,
-			Collections.emptyList(),
-			Collections.emptyList());
+				miniCluster,
+				parallelism,
+				Collections.emptyList(),
+				Collections.emptyList());
 	}
 
 	/**

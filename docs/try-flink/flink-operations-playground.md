@@ -50,16 +50,16 @@ operational tasks like upgrades and rescaling.
 ## Anatomy of this Playground
 
 This playground consists of a long living
-[Flink Session Cluster]({{ site.baseurl }}/concepts/glossary.html#flink-session-cluster) and a Kafka
+[Flink Session Cluster]({% link concepts/glossary.md %}#flink-session-cluster) and a Kafka
 Cluster.
 
 A Flink Cluster always consists of a 
-[JobManager]({{ site.baseurl }}/concepts/glossary.html#flink-jobmanager) and one or more 
-[Flink TaskManagers]({{ site.baseurl }}/concepts/glossary.html#flink-taskmanager). The JobManager 
-is responsible for handling [Job]({{ site.baseurl }}/concepts/glossary.html#flink-job) submissions, 
+[JobManager]({% link concepts/glossary.md %}#flink-jobmanager) and one or more 
+[Flink TaskManagers]({% link concepts/glossary.md %}#flink-taskmanager). The JobManager 
+is responsible for handling [Job]({% link concepts/glossary.md %}#flink-job) submissions, 
 the supervision of Jobs as well as resource management. The Flink TaskManagers are the worker 
 processes and are responsible for the execution of the actual 
-[Tasks]({{ site.baseurl }}/concepts/glossary.html#task) which make up a Flink Job. In this 
+[Tasks]({% link concepts/glossary.md %}#task) which make up a Flink Job. In this 
 playground you will start with a single TaskManager, but scale out to more TaskManagers later. 
 Additionally, this playground comes with a dedicated *client* container, which we use to submit the 
 Flink Job initially and to perform various operational tasks later on. The *client* container is not
@@ -67,18 +67,18 @@ needed by the Flink Cluster itself but only included for ease of use.
 
 The Kafka Cluster consists of a Zookeeper server and a Kafka Broker.
 
-<img src="{{ site.baseurl }}/fig/flink-docker-playground.svg" alt="Flink Docker Playground"
+<img src="{% link /fig/flink-docker-playground.svg %}" alt="Flink Docker Playground"
 class="offset" width="80%" />
 
 When the playground is started a Flink Job called *Flink Event Count* will be submitted to the 
 JobManager. Additionally, two Kafka Topics *input* and *output* are created.
 
-<img src="{{ site.baseurl }}/fig/click-event-count-example.svg" alt="Click Event Count Example"
+<img src="{% link /fig/click-event-count-example.svg %}" alt="Click Event Count Example"
 class="offset" width="80%" />
 
 The Job consumes `ClickEvent`s from the *input* topic, each with a `timestamp` and a `page`. The 
 events are then keyed by `page` and counted in 15 second
-[windows]({{ site.baseurl }}/dev/stream/operators/windows.html). The results are written to the 
+[windows]({% link dev/stream/operators/windows.md %}). The results are written to the 
 *output* topic. 
 
 There are six different pages and we generate 1000 click events per page and 15 seconds. Hence, the 
@@ -140,7 +140,7 @@ The most natural starting point to observe your Flink Cluster is the WebUI expos
 [http://localhost:8081](http://localhost:8081). If everything went well, you'll see that the cluster initially consists of 
 one TaskManager and executes a Job called *Click Event Count*.
 
-<img src="{{ site.baseurl }}/fig/playground-webui.png" alt="Playground Flink WebUI"
+<img src="{% link /fig/playground-webui.png %}" alt="Playground Flink WebUI"
 class="offset" width="100%" />
 
 The Flink WebUI contains a lot of useful and interesting information about your Flink Cluster and 
@@ -169,7 +169,7 @@ After the initial startup you should mainly see log messages for every checkpoin
 
 ### Flink CLI
 
-The [Flink CLI]({{ site.baseurl }}/ops/cli.html) can be used from within the client container. For
+The [Flink CLI]({% link deployment/cli.md %}) can be used from within the client container. For
 example, to print the `help` message of the Flink CLI you can run
 {% highlight bash%}
 docker-compose run --no-deps client flink --help
@@ -177,7 +177,7 @@ docker-compose run --no-deps client flink --help
 
 ### Flink REST API
 
-The [Flink REST API]({{ site.baseurl }}/monitoring/rest_api.html#api) is exposed via
+The [Flink REST API]({% link ops/rest_api.md %}#api) is exposed via
 `localhost:8081` on the host or via `jobmanager:8081` from the client container, e.g. to list all
 currently running jobs, you can run:
 {% highlight bash%}
@@ -291,7 +291,7 @@ immediately resubmit it for recovery.
 When the Job gets restarted, its tasks remain in the `SCHEDULED` state, which is indicated by the 
 purple colored squares (see screenshot below).
 
-<img src="{{ site.baseurl }}/fig/playground-webui-failure.png" alt="Playground Flink WebUI" 
+<img src="{% link /fig/playground-webui-failure.png %}" alt="Playground Flink WebUI" 
 class="offset" width="100%" />
 
 <p style="border-radius: 5px; padding: 5px" class="bg-info">
@@ -316,14 +316,14 @@ docker-compose up -d taskmanager
 
 When the JobManager is notified about the new TaskManager, it schedules the tasks of the 
 recovering Job to the newly available TaskSlots. Upon restart, the tasks recover their state from
-the last successful [checkpoint]({{ site.baseurl }}/learn-flink/fault_tolerance.html) that was taken
+the last successful [checkpoint]({% link learn-flink/fault_tolerance.md %}) that was taken
 before the failure and switch to the `RUNNING` state.
 
 The Job will quickly process the full backlog of input events (accumulated during the outage) 
 from Kafka and produce output at a much higher rate (> 24 records/minute) until it reaches 
 the head of the stream. In the *output* you will see that all keys (`page`s) are present for all time 
 windows and that every count is exactly one thousand. Since we are using the 
-[FlinkKafkaProducer]({{ site.baseurl }}/dev/connectors/kafka.html#kafka-producers-and-fault-tolerance)
+[FlinkKafkaProducer]({% link dev/connectors/kafka.md %}#kafka-producers-and-fault-tolerance)
 in its "at-least-once" mode, there is a chance that you will see some duplicate output records.
 
 <p style="border-radius: 5px; padding: 5px" class="bg-info">
@@ -334,7 +334,7 @@ in its "at-least-once" mode, there is a chance that you will see some duplicate 
 ### Upgrading & Rescaling a Job
 
 Upgrading a Flink Job always involves two steps: First, the Flink Job is gracefully stopped with a
-[Savepoint]({{ site.baseurl }}/ops/state/savepoints.html). A Savepoint is a consistent snapshot of 
+[Savepoint]({% link ops/state/savepoints.md %}). A Savepoint is a consistent snapshot of 
 the complete application state at a well-defined, globally consistent point in time (similar to a 
 checkpoint). Second, the upgraded Flink Job is started from the Savepoint. In this context "upgrade" 
 can mean different things including the following:
@@ -367,26 +367,13 @@ docker-compose run --no-deps client flink stop <job-id>
 **Expected Output**
 {% highlight bash %}
 Suspending job "<job-id>" with a savepoint.
-Suspended job "<job-id>" with a savepoint.
+Savepoint completed. Path: file:<savepoint-path>
 {% endhighlight %}
 
-The Savepoint has been stored to the `state.savepoint.dir` configured in the *flink-conf.yaml*, 
+The Savepoint has been stored to the `state.savepoints.dir` configured in the *flink-conf.yaml*,
 which is mounted under */tmp/flink-savepoints-directory/* on your local machine. You will need the 
-path to this Savepoint in the next step. In case of the REST API this path was already part of the 
-response, you will need to have a look at the filesystem directly.
+path to this Savepoint in the next step. 
 
-**Command**
-{% highlight bash %}
-ls -lia /tmp/flink-savepoints-directory
-{% endhighlight %}
-
-**Expected Output**
-{% highlight bash %}
-total 0
-  17 drwxr-xr-x   3 root root   60 17 jul 17:05 .
-   2 drwxrwxrwt 135 root root 3420 17 jul 17:09 ..
-1002 drwxr-xr-x   2 root root  140 17 jul 17:05 savepoint-<short-job-id>-<uuid>
-{% endhighlight %}
 </div>
  <div data-lang="REST API" markdown="1">
  
@@ -438,7 +425,6 @@ docker-compose run --no-deps client flink run -s <savepoint-path> \
 {% endhighlight %}
 **Expected Output**
 {% highlight bash %}
-Starting execution of program
 Job has been submitted with JobID <job-id>
 {% endhighlight %}
 </div>
@@ -544,7 +530,7 @@ rescaling: all windows are present with a count of exactly one thousand.
 
 ### Querying the Metrics of a Job
 
-The JobManager exposes system and user [metrics]({{ site.baseurl }}/monitoring/metrics.html)
+The JobManager exposes system and user [metrics]({% link ops/metrics.md %})
 via its REST API.
 
 The endpoint depends on the scope of these metrics. Metrics scoped to a Job can be listed via 
@@ -794,7 +780,7 @@ curl localhost:8081/jobs/<jod-id>
 }
 {% endhighlight %}
 
-Please consult the [REST API reference]({{ site.baseurl }}/monitoring/rest_api.html#api)
+Please consult the [REST API reference]({% link ops/rest_api.md %}#api)
 for a complete list of possible queries including how to query metrics of different scopes (e.g. 
 TaskManager metrics);
 
@@ -806,12 +792,12 @@ You might have noticed that the *Click Event Count* application was always start
 and `--event-time` program arguments. By omitting these in the command of the *client* container in the 
 `docker-compose.yaml`, you can change the behavior of the Job.
 
-* `--checkpointing` enables [checkpoint]({{ site.baseurl }}/learn-flink/fault_tolerance.html), 
+* `--checkpointing` enables [checkpoint]({% link learn-flink/fault_tolerance.md %}), 
 which is Flink's fault-tolerance mechanism. If you run without it and go through 
 [failure and recovery](#observing-failure--recovery), you should will see that data is actually 
 lost.
 
-* `--event-time` enables [event time semantics]({{ site.baseurl }}/dev/event_time.html) for your 
+* `--event-time` enables [event time semantics]({% link dev/event_time.md %}) for your 
 Job. When disabled, the Job will assign events to windows based on the wall-clock time instead of 
 the timestamp of the `ClickEvent`. Consequently, the number of events per window will not be exactly
 one thousand anymore. 
@@ -822,7 +808,7 @@ command of the *client* container in `docker-compose.yaml`.
 
 * `--backpressure` adds an additional operator into the middle of the job that causes severe backpressure 
 during even-numbered minutes (e.g., during 10:12, but not during 10:13). This can be observed by 
-inspecting various [network metrics]({{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service) 
+inspecting various [network metrics]({% link ops/metrics.md %}#default-shuffle-service) 
 such as `outputQueueLength` and `outPoolUsage`, and/or by using the 
-[backpressure monitoring]({{ site.baseurl }}/monitoring/back_pressure.html#monitoring-back-pressure) 
+[backpressure monitoring]({% link ops/monitoring/back_pressure.md %}#monitoring-back-pressure) 
 available in the WebUI.

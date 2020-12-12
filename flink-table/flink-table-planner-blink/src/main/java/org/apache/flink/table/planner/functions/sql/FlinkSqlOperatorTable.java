@@ -561,7 +561,11 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
 		@Override
 		public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-			return SqlMonotonicity.INCREASING;
+			if (call.getOperandCount() == 0) {
+				return SqlMonotonicity.INCREASING;
+			} else {
+				return SqlMonotonicity.NOT_MONOTONIC;
+			}
 		}
 	};
 
@@ -629,11 +633,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		@Override
 		public boolean isDeterministic() {
 			return false;
-		}
-
-		@Override
-		public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-			return SqlMonotonicity.INCREASING;
 		}
 	};
 
@@ -805,7 +804,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	/**
 	 * We need custom group auxiliary functions in order to support nested windows.
 	 */
-	public static final SqlGroupedWindowFunction TUMBLE = new SqlGroupedWindowFunction(
+	public static final SqlGroupedWindowFunction TUMBLE_OLD = new SqlGroupedWindowFunction(
 			// The TUMBLE group function was hard code to $TUMBLE in CALCITE-3382.
 			"$TUMBLE", SqlKind.TUMBLE, null,
 			OperandTypes.or(OperandTypes.DATETIME_INTERVAL, OperandTypes.DATETIME_INTERVAL_TIME)) {
@@ -815,14 +814,15 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		}
 	};
 
-	public static final SqlGroupedWindowFunction TUMBLE_START = TUMBLE.auxiliary(SqlKind.TUMBLE_START);
-	public static final SqlGroupedWindowFunction TUMBLE_END = TUMBLE.auxiliary(SqlKind.TUMBLE_END);
+	public static final SqlGroupedWindowFunction TUMBLE_START = TUMBLE_OLD.auxiliary(SqlKind.TUMBLE_START);
+	public static final SqlGroupedWindowFunction TUMBLE_END = TUMBLE_OLD.auxiliary(SqlKind.TUMBLE_END);
 	public static final SqlGroupedWindowFunction TUMBLE_ROWTIME =
-			TUMBLE.auxiliary("TUMBLE_ROWTIME", SqlKind.OTHER_FUNCTION);
+			TUMBLE_OLD.auxiliary("TUMBLE_ROWTIME", SqlKind.OTHER_FUNCTION);
 	public static final SqlGroupedWindowFunction TUMBLE_PROCTIME =
-			TUMBLE.auxiliary("TUMBLE_PROCTIME", SqlKind.OTHER_FUNCTION);
+			TUMBLE_OLD.auxiliary("TUMBLE_PROCTIME", SqlKind.OTHER_FUNCTION);
 
-	public static final SqlGroupedWindowFunction HOP = new SqlGroupedWindowFunction(
+	public static final SqlGroupedWindowFunction HOP_OLD = new SqlGroupedWindowFunction(
+			"$HOP",
 			SqlKind.HOP,
 			null,
 			OperandTypes.or(
@@ -834,12 +834,13 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		}
 	};
 
-	public static final SqlGroupedWindowFunction HOP_START = HOP.auxiliary(SqlKind.HOP_START);
-	public static final SqlGroupedWindowFunction HOP_END = HOP.auxiliary(SqlKind.HOP_END);
-	public static final SqlGroupedWindowFunction HOP_ROWTIME = HOP.auxiliary("HOP_ROWTIME", SqlKind.OTHER_FUNCTION);
-	public static final SqlGroupedWindowFunction HOP_PROCTIME = HOP.auxiliary("HOP_PROCTIME", SqlKind.OTHER_FUNCTION);
+	public static final SqlGroupedWindowFunction HOP_START = HOP_OLD.auxiliary(SqlKind.HOP_START);
+	public static final SqlGroupedWindowFunction HOP_END = HOP_OLD.auxiliary(SqlKind.HOP_END);
+	public static final SqlGroupedWindowFunction HOP_ROWTIME = HOP_OLD.auxiliary("HOP_ROWTIME", SqlKind.OTHER_FUNCTION);
+	public static final SqlGroupedWindowFunction HOP_PROCTIME = HOP_OLD.auxiliary("HOP_PROCTIME", SqlKind.OTHER_FUNCTION);
 
-	public static final SqlGroupedWindowFunction SESSION = new SqlGroupedWindowFunction(
+	public static final SqlGroupedWindowFunction SESSION_OLD = new SqlGroupedWindowFunction(
+			"$SESSION",
 			SqlKind.SESSION,
 			null,
 			OperandTypes.or(OperandTypes.DATETIME_INTERVAL, OperandTypes.DATETIME_INTERVAL_TIME)) {
@@ -849,12 +850,12 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		}
 	};
 
-	public static final SqlGroupedWindowFunction SESSION_START = SESSION.auxiliary(SqlKind.SESSION_START);
-	public static final SqlGroupedWindowFunction SESSION_END = SESSION.auxiliary(SqlKind.SESSION_END);
+	public static final SqlGroupedWindowFunction SESSION_START = SESSION_OLD.auxiliary(SqlKind.SESSION_START);
+	public static final SqlGroupedWindowFunction SESSION_END = SESSION_OLD.auxiliary(SqlKind.SESSION_END);
 	public static final SqlGroupedWindowFunction SESSION_ROWTIME =
-			SESSION.auxiliary("SESSION_ROWTIME", SqlKind.OTHER_FUNCTION);
+			SESSION_OLD.auxiliary("SESSION_ROWTIME", SqlKind.OTHER_FUNCTION);
 	public static final SqlGroupedWindowFunction SESSION_PROCTIME =
-			SESSION.auxiliary("SESSION_PROCTIME", SqlKind.OTHER_FUNCTION);
+			SESSION_OLD.auxiliary("SESSION_PROCTIME", SqlKind.OTHER_FUNCTION);
 
 	// -----------------------------------------------------------------------------
 	// operators extend from Calcite
@@ -958,6 +959,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlOperator REINTERPRET = SqlStdOperatorTable.REINTERPRET;
 	public static final SqlOperator EXTRACT = SqlStdOperatorTable.EXTRACT;
 	public static final SqlOperator IN = SqlStdOperatorTable.IN;
+	public static final SqlOperator SEARCH = SqlStdOperatorTable.SEARCH;
 	public static final SqlOperator NOT_IN = SqlStdOperatorTable.NOT_IN;
 
 	// FUNCTIONS
@@ -1043,4 +1045,10 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlPostfixOperator IS_NOT_JSON_OBJECT = SqlStdOperatorTable.IS_NOT_JSON_OBJECT;
 	public static final SqlPostfixOperator IS_NOT_JSON_ARRAY = SqlStdOperatorTable.IS_NOT_JSON_ARRAY;
 	public static final SqlPostfixOperator IS_NOT_JSON_SCALAR = SqlStdOperatorTable.IS_NOT_JSON_SCALAR;
+
+	// WINDOW TABLE FUNCTIONS
+	public static final SqlOperator DESCRIPTOR = SqlStdOperatorTable.DESCRIPTOR;
+	public static final SqlFunction TUMBLE = SqlStdOperatorTable.TUMBLE;
+	public static final SqlFunction HOP = SqlStdOperatorTable.HOP;
+	public static final SqlFunction SESSION = SqlStdOperatorTable.SESSION;
 }

@@ -43,7 +43,7 @@ public class CollectBatchTableSink extends OutputFormatTableSink<Row> implements
 	public CollectBatchTableSink(String accumulatorName, TypeSerializer<Row> serializer, TableSchema tableSchema) {
 		this.accumulatorName = accumulatorName;
 		this.serializer = serializer;
-		this.tableSchema = TableSchemaUtils.checkNoGeneratedColumns(tableSchema);
+		this.tableSchema = TableSchemaUtils.checkOnlyPhysicalColumns(tableSchema);
 	}
 
 	/**

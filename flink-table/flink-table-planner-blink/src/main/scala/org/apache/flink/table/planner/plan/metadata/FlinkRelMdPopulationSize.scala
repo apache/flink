@@ -94,7 +94,7 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
     // numDistinctVals.  This is needed; otherwise, population can be
     // larger than the number of rows in the RelNode.
     val rowCount = mq.getRowCount(rel)
-    RelMdUtil.numDistinctVals(population, rowCount)
+    FlinkRelMdUtil.numDistinctVals(population, rowCount)
   }
 
   def getPopulationSize(
@@ -136,7 +136,7 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
     // numDistinctVals.  This is needed; otherwise, population can be
     // larger than the number of rows in the RelNode.
     val rowCount = mq.getRowCount(rel)
-    RelMdUtil.numDistinctVals(population, rowCount)
+    FlinkRelMdUtil.numDistinctVals(population, rowCount)
   }
 
   def getPopulationSize(

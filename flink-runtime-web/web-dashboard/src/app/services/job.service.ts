@@ -117,8 +117,7 @@ export class JobService {
       map(job => this.convertJob(job)),
       tap(job => {
         this.jobDetail$.next(job);
-      }),
-      catchError(() => EMPTY)
+      })
     );
   }
 

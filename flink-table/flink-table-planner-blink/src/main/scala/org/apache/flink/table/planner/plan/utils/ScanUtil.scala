@@ -19,16 +19,16 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.data.{RowData, GenericRowData}
+import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, OperatorCodeGenerator}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
@@ -37,6 +37,8 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.RexNode
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -81,7 +83,7 @@ object ScanUtil {
     val inputTerm = DEFAULT_INPUT1_TERM
     val internalInType = fromDataTypeToLogicalType(inputType)
     val (inputTermConverter, inputRowType) = {
-      val convertFunc = CodeGenUtils.genToInternal(ctx, inputType)
+      val convertFunc = CodeGenUtils.genToInternalConverter(ctx, inputType)
       internalInType match {
         case rt: RowType => (convertFunc, rt)
         case _ => ((record: String) => s"$GENERIC_ROW.of(${convertFunc(record)})",
@@ -119,12 +121,13 @@ object ScanUtil {
 
     val substituteStreamOperator = new CodeGenOperatorFactory[RowData](generatedOperator)
 
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       input.asInstanceOf[Transformation[RowData]],
       getOperatorName(qualifiedName, outRowType),
       substituteStreamOperator,
-      RowDataTypeInfo.of(outputRowType),
-      input.getParallelism)
+      InternalTypeInfo.of(outputRowType),
+      input.getParallelism,
+      0)
   }
 
   /**
@@ -134,5 +137,25 @@ object ScanUtil {
     val tableQualifiedName = qualifiedName.mkString(".")
     val fieldNames = rowType.getFieldNames.mkString(", ")
     s"SourceConversion(table=[$tableQualifiedName], fields=[$fieldNames])"
+  }
+
+  /**
+   * Returns the field indices of primary key in given fields.
+   */
+  def getPrimaryKeyIndices(
+      fieldNames: util.List[String],
+      keyFields: util.List[String]): Array[Int] = {
+    // we must use the output field names of scan node instead of the original schema
+    // to calculate the primary key indices, because the scan node maybe projection pushed down
+    keyFields.map { k =>
+      val index = fieldNames.indexOf(k)
+      if (index < 0) {
+        // primary key shouldn't be pruned, otherwise it's a bug
+        throw new TableException(
+          s"Can't find primary key field $k in the input fields $fieldNames. " +
+            s"This is a bug, please file an issue.")
+      }
+      index
+    }.toArray
   }
 }

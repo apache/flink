@@ -40,6 +40,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,8 +53,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
@@ -62,12 +68,21 @@ import static org.junit.Assert.assertThat;
 /**
  * End-to-end test for the HBase connectors.
  */
+@RunWith(Parameterized.class)
 @Category(value = {TravisGroup1.class, PreCommit.class, FailsOnJava11.class})
 public class SQLClientHBaseITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SQLClientHBaseITCase.class);
 
 	private static final String HBASE_E2E_SQL = "hbase_e2e.sql";
+
+	@Parameterized.Parameters(name = "{index}: hbase-version:{0}")
+	public static Collection<Object[]> data() {
+		return Arrays.asList(new Object[][]{
+				{"1.4.3", "hbase-1.4"},
+				{"2.2.3", "hbase-2.2"}
+		});
+	}
 
 	@Rule
 	public final HBaseResource hbase;
@@ -79,16 +94,20 @@ public class SQLClientHBaseITCase extends TestLogger {
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
+	private final String hbaseConnector;
+	private final Path sqlConnectorHBaseJar;
+
 	@ClassRule
 	public static final DownloadCache DOWNLOAD_CACHE = DownloadCache.get();
 
 	private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
-	private static final Path sqlConnectorHBaseJar = TestUtils.getResource(".*hbase.jar");
 	private static final Path hadoopClasspath = TestUtils.getResource(".*hadoop.classpath");
 	private List<Path> hadoopClasspathJars;
 
-	public SQLClientHBaseITCase() {
-		this.hbase = HBaseResource.get();
+	public SQLClientHBaseITCase(String hbaseVersion, String hbaseConnector) {
+		this.hbase = HBaseResource.get(hbaseVersion);
+		this.hbaseConnector = hbaseConnector;
+		this.sqlConnectorHBaseJar = TestUtils.getResource(".*sql-" + hbaseConnector + ".jar");
 	}
 
 	@Before
@@ -125,7 +144,9 @@ public class SQLClientHBaseITCase extends TestLogger {
 			hbase.putData("source", "row2", "family2", "f2c2", "v6");
 
 			// Initialize the SQL statements from "hbase_e2e.sql" file
-			List<String> sqlLines = initializeSqlLines();
+			Map<String, String> varsMap = new HashMap<>();
+			varsMap.put("$HBASE_CONNECTOR", hbaseConnector);
+			List<String> sqlLines = initializeSqlLines(varsMap);
 
 			// Execute SQL statements in "hbase_e2e.sql" file
 			executeSqlStatements(clusterController, sqlLines);
@@ -172,20 +193,31 @@ public class SQLClientHBaseITCase extends TestLogger {
 		Assert.assertTrue("Did not get expected results before timeout.", success);
 	}
 
-	private List<String> initializeSqlLines() throws IOException {
+	private List<String> initializeSqlLines(Map<String, String> vars) throws IOException {
 		URL url = SQLClientHBaseITCase.class.getClassLoader().getResource(HBASE_E2E_SQL);
 		if (url == null) {
 			throw new FileNotFoundException(HBASE_E2E_SQL);
 		}
-		return Files.readAllLines(new File(url.getFile()).toPath());
+		List<String> lines = Files.readAllLines(new File(url.getFile()).toPath());
+		List<String> result = new ArrayList<>();
+		for (String line : lines) {
+			for (Map.Entry<String, String> var : vars.entrySet()) {
+				line = line.replace(var.getKey(), var.getValue());
+			}
+			result.add(line);
+		}
+
+		return result;
 	}
 
 	private void executeSqlStatements(ClusterController clusterController, List<String> sqlLines) throws IOException {
 		LOG.info("Executing SQL: HBase source table -> HBase sink table");
-		clusterController.submitSQLJob(new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
-			.addJar(sqlToolBoxJar)
-			.addJar(sqlConnectorHBaseJar)
-			.addJars(hadoopClasspathJars)
-			.build());
+		clusterController.submitSQLJob(
+			new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
+				.addJar(sqlToolBoxJar)
+				.addJar(sqlConnectorHBaseJar)
+				.addJars(hadoopClasspathJars)
+				.build(),
+			Duration.ofMinutes(2L));
 	}
 }

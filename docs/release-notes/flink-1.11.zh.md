@@ -32,7 +32,7 @@ these notes carefully if you are planning to upgrade your Flink version to 1.11.
 #### Support for Application Mode ([FLIP-85](https://cwiki.apache.org/confluence/display/FLINK/FLIP-85+Flink+Application+Mode))
 The user can now submit applications and choose to execute their `main()` method on the cluster rather than the client.
 This allows for more light-weight application submission. For more details,
-see the [Application Mode documentation](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/#application-mode).
+see the [Application Mode documentation](https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/#application-mode).
  
 #### Web Submission behaves the same as detached mode.
 With [FLINK-16657](https://issues.apache.org/jira/browse/FLINK-16657) the web submission logic changes and it exposes
@@ -68,22 +68,22 @@ The examples of `Dockerfiles` and docker image `build.sh` scripts have been remo
 - `flink-container/docker`
 - `flink-container/kubernetes`
 
-Check the updated user documentation for [Flink Docker integration](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html) instead. It now describes in detail how to [use](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#how-to-run-a-flink-image) and [customize](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#customize-flink-image) [the Flink official docker image](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#docker-hub-flink-images): configuration options, logging, plugins, adding more dependencies and installing software. The documentation also includes examples for Session and Job cluster deployments with:
-- [docker run](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#how-to-run-flink-image)
-- [docker compose](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#flink-with-docker-compose)
-- [docker swarm](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#flink-with-docker-swarm)
-- [standalone Kubernetes](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/kubernetes.html)
+Check the updated user documentation for [Flink Docker integration](https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/standalone/docker.html) instead. It now describes in detail how to [use](https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/standalone/docker.html#how-to-run-a-flink-image) and [customize](https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/standalone/docker.html#customize-flink-image) [the Flink official docker image](https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/standalone/docker.html#docker-hub-flink-images): configuration options, logging, plugins, adding more dependencies and installing software. The documentation also includes examples for Session and Job cluster deployments with:
+- [docker run](https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/standalone/docker.html#how-to-run-flink-image)
+- [docker compose](https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/standalone/docker.html#flink-with-docker-compose)
+- [docker swarm](https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/standalone/docker.html#flink-with-docker-swarm)
+- [standalone Kubernetes](https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/standalone/kubernetes.html)
 
 ### Memory Management
 #### New JobManager Memory Model
 ##### Overview
 With [FLIP-116](https://cwiki.apache.org/confluence/display/FLINK/FLIP-116%3A+Unified+Memory+Configuration+for+Job+Managers), a new memory model has been introduced for the JobManager. New configuration options have been introduced to control the memory consumption of the JobManager process. This affects all types of deployments: standalone, YARN, Mesos, and the new active Kubernetes integration.
 
-Please, check the user documentation for [more details](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_jobmanager.html).
+Please, check the user documentation for [more details](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_setup_jobmanager.html).
 
 If you try to reuse your previous Flink configuration without any adjustments, the new memory model can result in differently computed memory parameters for the JVM and, thus, performance changes or even failures.
-In order to start the JobManager process, you have to specify at least one of the following options [`jobmanager.memory.flink.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-flink-size), [`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-process-size) or [`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-heap-size).
-See also [the migration guide](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_migration.html#migrate-job-manager-memory-configuration) for more information.
+In order to start the JobManager process, you have to specify at least one of the following options [`jobmanager.memory.flink.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-flink-size), [`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-process-size) or [`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-heap-size).
+See also [the migration guide](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_migration.html#migrate-job-manager-memory-configuration) for more information.
 
 ##### Deprecation and breaking changes
 The following options are deprecated:
@@ -91,23 +91,23 @@ The following options are deprecated:
  * `jobmanager.heap.mb`
 
 If these deprecated options are still used, they will be interpreted as one of the following new options in order to maintain backwards compatibility:
- * [JVM Heap](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_jobmanager.html#configure-jvm-heap) ([`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-heap-size)) for standalone and Mesos deployments
- * [Total Process Memory](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_jobmanager.html#configure-total-memory) ([`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-process-size)) for containerized deployments (Kubernetes and Yarn)
+ * [JVM Heap](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_setup_jobmanager.html#configure-jvm-heap) ([`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-heap-size)) for standalone and Mesos deployments
+ * [Total Process Memory](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_setup_jobmanager.html#configure-total-memory) ([`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-process-size)) for containerized deployments (Kubernetes and Yarn)
 
 The following options have been removed and have no effect anymore:
  * `containerized.heap-cutoff-ratio`
  * `containerized.heap-cutoff-min`
 
-There is [no container cut-off](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_migration.html#container-cut-off-memory) anymore.
+There is [no container cut-off](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_migration.html#container-cut-off-memory) anymore.
 
 ##### JVM arguments
 The `direct` and `metaspace` memory of the JobManager's JVM process are now limited by configurable values:
- * [`jobmanager.memory.off-heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-off-heap-size)
- * [`jobmanager.memory.jvm-metaspace.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-jvm-metaspace-size)
+ * [`jobmanager.memory.off-heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-off-heap-size)
+ * [`jobmanager.memory.jvm-metaspace.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-jvm-metaspace-size)
 
-See also [JVM Parameters](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup.html#jvm-parameters).
+See also [JVM Parameters](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_setup.html#jvm-parameters).
 
-<span class="label label-warning">Attention</span> These new limits can produce the respective `OutOfMemoryError` exceptions if they are not configured properly or there is a respective memory leak. See also [the troubleshooting guide](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_trouble.html#outofmemoryerror-direct-buffer-memory).
+<span class="label label-warning">Attention</span> These new limits can produce the respective `OutOfMemoryError` exceptions if they are not configured properly or there is a respective memory leak. See also [the troubleshooting guide](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_trouble.html#outofmemoryerror-direct-buffer-memory).
 
 #### Removal of deprecated mesos.resourcemanager.tasks.mem ([FLINK-15198](https://issues.apache.org/jira/browse/FLINK-15198))
 The `mesos.resourcemanager.tasks.mem` option, deprecated in 1.10 in favour of `taskmanager.memory.process.size`, has been completely removed and will have no effect anymore in 1.11+.

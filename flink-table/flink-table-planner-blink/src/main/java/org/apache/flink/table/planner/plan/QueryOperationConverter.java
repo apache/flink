@@ -464,7 +464,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				tableSource,
 				!isBatch,
 				ConnectorCatalogTable.source(tableSource, isBatch));
-			return LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable);
+			return LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable,
+				Collections.emptyList());
 		}
 
 		private RelNode convertToDataStreamScan(DataStreamQueryOperation<?> operation) {
@@ -495,7 +496,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				operation.getTableSchema().getFieldNames(),
 				operation.getStatistic(),
 				scala.Option.apply(operation.getFieldNullables()));
-			return LogicalTableScan.create(relBuilder.getCluster(), dataStreamTable);
+			return LogicalTableScan.create(relBuilder.getCluster(), dataStreamTable,
+				Collections.emptyList());
 		}
 
 		private RelNode convertToDataStreamScan(
@@ -528,7 +530,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				tableSchema.getFieldNames(),
 				FlinkStatistic.UNKNOWN(),
 				scala.Option.empty());
-			return LogicalTableScan.create(relBuilder.getCluster(), dataStreamTable);
+			return LogicalTableScan.create(relBuilder.getCluster(), dataStreamTable,
+				Collections.emptyList());
 		}
 
 		private List<RexNode> convertToRexNodes(List<ResolvedExpression> expressions) {
@@ -650,7 +653,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			public AggCallVisitor(RelBuilder relBuilder, ExpressionConverter expressionConverter, String name,
 					boolean isDistinct) {
 				this.relBuilder = relBuilder;
-				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
+				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor(relBuilder);
 				this.expressionConverter = expressionConverter;
 				this.name = name;
 				this.isDistinct = isDistinct;
@@ -704,7 +707,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 			public TableAggCallVisitor(RelBuilder relBuilder, ExpressionConverter expressionConverter) {
 				this.relBuilder = relBuilder;
-				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
+				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor(relBuilder);
 				this.expressionConverter = expressionConverter;
 			}
 

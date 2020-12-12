@@ -33,6 +33,8 @@ import org.apache.flink.util.ConfigurationException;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.Executor;
+
 /**
  * {@link ResourceManager} factory.
  *
@@ -50,7 +52,8 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
 			MetricRegistry metricRegistry,
-			String hostname) throws Exception {
+			String hostname,
+			Executor ioExecutor) throws Exception {
 
 		final ResourceManagerMetricGroup resourceManagerMetricGroup = ResourceManagerMetricGroup.create(metricRegistry, hostname);
 		final SlotManagerMetricGroup slotManagerMetricGroup = SlotManagerMetricGroup.create(metricRegistry, hostname);
@@ -68,7 +71,8 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
 			clusterInformation,
 			webInterfaceUrl,
 			resourceManagerMetricGroup,
-			resourceManagerRuntimeServices);
+			resourceManagerRuntimeServices,
+			ioExecutor);
 	}
 
 	protected abstract ResourceManager<T> createResourceManager(
@@ -81,7 +85,8 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			ResourceManagerRuntimeServices resourceManagerRuntimeServices) throws Exception;
+			ResourceManagerRuntimeServices resourceManagerRuntimeServices,
+			Executor ioExecutor) throws Exception;
 
 	private ResourceManagerRuntimeServices createResourceManagerRuntimeServices(
 			Configuration configuration,

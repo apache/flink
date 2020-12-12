@@ -2,7 +2,7 @@
 title: "Parquet 格式"
 nav-title: Parquet
 nav-parent_id: sql-formats
-nav-pos: 5
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -34,11 +34,10 @@ under the License.
 依赖
 ------------
 
-为设置 Parquet 格式，下表为使用自动化构建工具（例如 Maven 或 SBT）的项目及SQL 客户端皆提供了所需的依赖信息。
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| flink-parquet{{site.scala_version_suffix}}    |{% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-parquet{{site.scala_version_suffix}}/{{site.version}}/flink-sql-parquet{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} 仅可用于稳定版本 {% endif %}|
+{% assign connector = site.data.sql-connectors['parquet'] %}
+{% include sql-connector-download-table.html
+    connector=connector
+%}
 
 如何创建基于 Parquet 格式的表
 ----------------

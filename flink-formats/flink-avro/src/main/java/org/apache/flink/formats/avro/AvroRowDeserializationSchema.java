@@ -42,10 +42,8 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeFieldType;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -57,6 +55,10 @@ import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.temporal.ChronoField;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,11 +79,12 @@ import java.util.TimeZone;
  */
 @PublicEvolving
 public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<Row> {
-
 	/**
 	 * Used for time conversions into SQL types.
 	 */
 	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
+
+	private static final long MICROS_PER_SECOND = 1_000_000L;
 
 	/**
 	 * Avro record class for deserialization. Might be null if record class is not available.
@@ -124,6 +127,11 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	private transient Decoder decoder;
 
 	/**
+	 * Converter for joda classes.
+	 */
+	private transient @Nullable JodaConverter jodaConverter;
+
+	/**
 	 * Creates a Avro deserialization schema for the given specific record class. Having the
 	 * concrete Avro record class might improve performance.
 	 *
@@ -139,6 +147,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		datumReader = new SpecificDatumReader<>(schema);
 		inputStream = new MutableByteArrayInputStream();
 		decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+		jodaConverter = JodaConverter.getConverter();
 	}
 
 	/**
@@ -158,6 +167,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		datumReader = new GenericDatumReader<>(schema);
 		inputStream = new MutableByteArrayInputStream();
 		decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+		jodaConverter = JodaConverter.getConverter();
 	}
 
 	@Override
@@ -196,7 +206,10 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 
 	// --------------------------------------------------------------------------------------------
 
-	private Row convertAvroRecordToRow(Schema schema, RowTypeInfo typeInfo, IndexedRecord record) {
+	private Row convertAvroRecordToRow(
+			Schema schema,
+			RowTypeInfo typeInfo,
+			IndexedRecord record) {
 		final List<Schema.Field> fields = schema.getFields();
 		final TypeInformation<?>[] fieldInfo = typeInfo.getFieldTypes();
 		final int length = fields.size();
@@ -208,7 +221,10 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		return row;
 	}
 
-	private Object convertAvroType(Schema schema, TypeInformation<?> info, Object object) {
+	private Object convertAvroType(
+			Schema schema,
+			TypeInformation<?> info,
+			Object object) {
 		// we perform the conversion based on schema information but enriched with pre-computed
 		// type information where useful (i.e., for arrays)
 
@@ -239,7 +255,11 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 				for (Map.Entry<?, ?> entry : map.entrySet()) {
 					convertedMap.put(
 						entry.getKey().toString(),
-						convertAvroType(schema.getValueType(), mapTypeInfo.getValueTypeInfo(), entry.getValue()));
+						convertAvroType(
+							schema.getValueType(),
+							mapTypeInfo.getValueTypeInfo(),
+							entry.getValue())
+					);
 				}
 				return convertedMap;
 			case UNION:
@@ -279,7 +299,9 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 				return object;
 			case LONG:
 				if (info == Types.SQL_TIMESTAMP) {
-					return convertToTimestamp(object);
+					return convertToTimestamp(object, schema.getLogicalType() == LogicalTypes.timestampMicros());
+				} else if (info == Types.SQL_TIME) {
+					return convertToTime(object);
 				}
 				return object;
 			case FLOAT:
@@ -302,10 +324,13 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 			// adopted from Apache Calcite
 			final long t = (long) value * 86400000L;
 			millis = t - (long) LOCAL_TZ.getOffset(t);
+		} else if (object instanceof LocalDate) {
+			long t = ((LocalDate) object).toEpochDay() * 86400000L;
+			millis = t - (long) LOCAL_TZ.getOffset(t);
+		} else if (jodaConverter != null) {
+			millis = jodaConverter.convertDate(object);
 		} else {
-			// use 'provided' Joda time
-			final LocalDate value = (LocalDate) object;
-			millis = value.toDate().getTime();
+			throw new IllegalArgumentException("Unexpected object type for DATE logical type. Received: " + object);
 		}
 		return new Date(millis);
 	}
@@ -314,27 +339,54 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		final long millis;
 		if (object instanceof Integer) {
 			millis = (Integer) object;
+		} else if (object instanceof Long) {
+			millis = (Long) object / 1000L;
+		} else if (object instanceof LocalTime) {
+			millis = ((LocalTime) object).get(ChronoField.MILLI_OF_DAY);
+		} else if (jodaConverter != null) {
+			millis = jodaConverter.convertTime(object);
 		} else {
-			// use 'provided' Joda time
-			final LocalTime value = (LocalTime) object;
-			millis = (long) value.get(DateTimeFieldType.millisOfDay());
+			throw new IllegalArgumentException("Unexpected object type for DATE logical type. Received: " + object);
 		}
 		return new Time(millis - LOCAL_TZ.getOffset(millis));
 	}
 
-	private Timestamp convertToTimestamp(Object object) {
+	private Timestamp convertToTimestamp(Object object, boolean isMicros) {
 		final long millis;
 		if (object instanceof Long) {
-			millis = (Long) object;
+			if (isMicros) {
+				long micros = (Long) object;
+				int offsetMillis = LOCAL_TZ.getOffset(micros / 1000L);
+
+				long seconds = micros / MICROS_PER_SECOND - offsetMillis / 1000;
+				int nanos = ((int) (micros % MICROS_PER_SECOND)) * 1000 - offsetMillis % 1000 * 1000;
+				Timestamp timestamp = new Timestamp(seconds * 1000L);
+				timestamp.setNanos(nanos);
+				return timestamp;
+			} else {
+				millis = (Long) object;
+			}
+		} else if (object instanceof Instant) {
+			Instant instant = (Instant) object;
+			int offsetMillis = LOCAL_TZ.getOffset(instant.toEpochMilli());
+
+			long seconds = instant.getEpochSecond() - offsetMillis / 1000;
+			int nanos = instant.getNano() - offsetMillis % 1000 * 1000;
+			Timestamp timestamp = new Timestamp(seconds * 1000L);
+			timestamp.setNanos(nanos);
+			return timestamp;
+		} else if (jodaConverter != null) {
+			millis = jodaConverter.convertTimestamp(object);
 		} else {
-			// use 'provided' Joda time
-			final DateTime value = (DateTime) object;
-			millis = value.toDate().getTime();
+			throw new IllegalArgumentException("Unexpected object type for DATE logical type. Received: " + object);
 		}
 		return new Timestamp(millis - LOCAL_TZ.getOffset(millis));
 	}
 
-	private Object[] convertToObjectArray(Schema elementSchema, TypeInformation<?> elementInfo, Object object) {
+	private Object[] convertToObjectArray(
+			Schema elementSchema,
+			TypeInformation<?> elementInfo,
+			Object object) {
 		final List<?> list = (List<?>) object;
 		final Object[] convertedArray = (Object[]) Array.newInstance(
 			elementInfo.getTypeClass(),
@@ -364,5 +416,6 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		datumReader = new SpecificDatumReader<>(schema);
 		this.inputStream = new MutableByteArrayInputStream();
 		decoder = DecoderFactory.get().binaryDecoder(this.inputStream, null);
+		jodaConverter = JodaConverter.getConverter();
 	}
 }

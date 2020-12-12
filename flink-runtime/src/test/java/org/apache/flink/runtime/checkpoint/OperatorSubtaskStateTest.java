@@ -37,14 +37,15 @@ public class OperatorSubtaskStateTest {
 	@Test
 	public void testDiscardDuplicatedDelegatesOnce() {
 		StreamStateHandle delegate = new DiscardOnceStreamStateHandle();
-		new OperatorSubtaskState(
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			new StateObjectCollection<>(asList(buildInputChannelHandle(delegate, 1), buildInputChannelHandle(delegate, 2))),
-			new StateObjectCollection<>(asList(buildSubpartitionHandle(delegate, 4), buildSubpartitionHandle(delegate, 3)))
-		).discardState();
+		OperatorSubtaskState.builder()
+			.setInputChannelState(new StateObjectCollection<>(asList(
+				buildInputChannelHandle(delegate, 1),
+				buildInputChannelHandle(delegate, 2))))
+			.setResultSubpartitionState(new StateObjectCollection<>(asList(
+				buildSubpartitionHandle(delegate, 4),
+				buildSubpartitionHandle(delegate, 3))))
+			.build()
+			.discardState();
 	}
 
 	private ResultSubpartitionStateHandle buildSubpartitionHandle(StreamStateHandle delegate, int subPartitionIdx1) {

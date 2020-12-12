@@ -306,25 +306,25 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 
 		// schedule something into the shared group so that both instances are in the sharing group
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 
 		// schedule one locally to instance 1
 		LogicalSlot s3 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// schedule with co location constraint (yet unassigned) and a preference for
 		// instance 1, but it can only get instance 2
 		LogicalSlot s4 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// schedule something into the assigned co-location constraints and check that they override the
 		// other preferences
 		LogicalSlot s5 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid3, 0, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid3, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 		LogicalSlot s6 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid3, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid3, 1, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// check that each slot got three
 		assertEquals(s1.getTaskManagerLocation(), s3.getTaskManagerLocation());
@@ -366,9 +366,9 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
 
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 
 		s1.releaseSlot();
 		s2.releaseSlot();
@@ -376,9 +376,9 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
 
 		LogicalSlot s3 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 		LogicalSlot s4 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// still preserves the previous instance mapping)
 		assertEquals(loc1, s3.getTaskManagerLocation());
@@ -412,9 +412,9 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
 
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 
 		s1.releaseSlot();
 		s2.releaseSlot();
@@ -428,7 +428,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 
 		try {
 			testingSlotProvider.allocateSlot(
-					new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+					new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 			fail("should not be able to find a resource");
 		}
 		catch (ExecutionException e) {
@@ -468,14 +468,14 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		// and give locality preferences that hint at using the same shared slot for both
 		// co location constraints (which we seek to prevent)
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		LogicalSlot s3 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s4 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// check that each slot got three
 		assertEquals(s1.getTaskManagerLocation(), s3.getTaskManagerLocation());
@@ -513,14 +513,14 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
 
 		LogicalSlot s1 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc1), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s2 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup, loc2), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid1, 1, 2, sharingGroup), sharingGroup.getSlotSharingGroupId(), cc2), slotProfileForLocation(loc2), TestingUtils.infiniteTime()).get();
 
 		LogicalSlot s3 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 0, 2, sharingGroup), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 		LogicalSlot s4 = testingSlotProvider.allocateSlot(
-				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup, loc1), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
+				new ScheduledUnit(getExecution(jid2, 1, 2, sharingGroup), sharingGroup.getSlotSharingGroupId()), slotProfileForLocation(loc1), TestingUtils.infiniteTime()).get();
 
 		// check that each slot got two
 		assertEquals(s1.getTaskManagerLocation(), s3.getTaskManagerLocation());

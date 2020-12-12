@@ -44,6 +44,7 @@ import java.util.Map;
  * @param <V> The type of the values in the map.
  */
 @Internal
+@Deprecated
 public class MapViewSerializer<K, V>
 		extends TypeSerializer<MapView<K, V>>
 		implements LegacySerializerSnapshotTransformer<MapView<K, V>> {
@@ -73,7 +74,9 @@ public class MapViewSerializer<K, V>
 
 	@Override
 	public MapView<K, V> copy(MapView<K, V> from) {
-		return new MapView<>(null, null, mapSerializer.copy(from.map));
+		final MapView<K, V> view = new MapView<>();
+		view.setMap(mapSerializer.copy(from.getMap()));
+		return view;
 	}
 
 	@Override
@@ -88,12 +91,14 @@ public class MapViewSerializer<K, V>
 
 	@Override
 	public void serialize(MapView<K, V> record, DataOutputView target) throws IOException {
-		mapSerializer.serialize(record.map, target);
+		mapSerializer.serialize(record.getMap(), target);
 	}
 
 	@Override
 	public MapView<K, V> deserialize(DataInputView source) throws IOException {
-		return new MapView<>(null, null, mapSerializer.deserialize(source));
+		final MapView<K, V> view = new MapView<>();
+		view.setMap(mapSerializer.deserialize(source));
+		return view;
 	}
 
 	@Override

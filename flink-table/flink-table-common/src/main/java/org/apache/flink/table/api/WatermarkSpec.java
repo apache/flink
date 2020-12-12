@@ -71,6 +71,11 @@ public class WatermarkSpec {
 		return watermarkExprOutputType;
 	}
 
+	public String asSummaryString() {
+		return "WATERMARK FOR " + rowtimeAttribute + ": " + watermarkExprOutputType +
+			" AS " + watermarkExpressionString;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -92,7 +97,6 @@ public class WatermarkSpec {
 
 	@Override
 	public String toString() {
-		return "rowtime: '" + rowtimeAttribute + '\'' +
-			", watermark: '" + watermarkExpressionString + '\'';
+		return asSummaryString();
 	}
 }

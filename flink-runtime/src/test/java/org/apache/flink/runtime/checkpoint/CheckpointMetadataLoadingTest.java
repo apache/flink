@@ -88,7 +88,7 @@ public class CheckpointMetadataLoadingTest {
 
 		try {
 			Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false);
-			fail("Did not throw expected Exception");
+				fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
 		}
@@ -178,13 +178,13 @@ public class CheckpointMetadataLoadingTest {
 
 		final Random rnd = new Random();
 
-		final OperatorSubtaskState subtaskState = new OperatorSubtaskState(
-			new OperatorStreamStateHandle(Collections.emptyMap(), new ByteStreamStateHandle("testHandler", new byte[0])),
-			null,
-			null,
-			null,
-			singleton(createNewInputChannelStateHandle(10, rnd)),
-			singleton(createNewResultSubpartitionStateHandle(10, rnd)));
+		final OperatorSubtaskState subtaskState = OperatorSubtaskState.builder()
+			.setManagedOperatorState(new OperatorStreamStateHandle(
+				Collections.emptyMap(),
+				new ByteStreamStateHandle("testHandler", new byte[0])))
+			.setInputChannelState(singleton(createNewInputChannelStateHandle(10, rnd)))
+			.setResultSubpartitionState(singleton(createNewResultSubpartitionStateHandle(10, rnd)))
+			.build();
 
 		final OperatorState state = new OperatorState(operatorId, parallelism, parallelism);
 		state.putState(0, subtaskState);

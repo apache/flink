@@ -19,11 +19,10 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.ValuesCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -46,7 +45,7 @@ class BatchExecValues(
     outputRowType: RelDataType)
   extends Values(cluster, outputRowType, tuples, traitSet)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   override def deriveRowType(): RelDataType = outputRowType
 
@@ -61,15 +60,7 @@ class BatchExecValues(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
-
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = List()
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
+  override def getInputEdges: util.List[ExecEdge] = List()
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -82,7 +73,7 @@ class BatchExecValues(
       inputFormat.getProducedType).getTransformation
     transformation.setName(getRelDetailedDescription)
     transformation.setParallelism(1)
-    ExecNode.setManagedMemoryWeight(transformation)
+    transformation
   }
 
 }

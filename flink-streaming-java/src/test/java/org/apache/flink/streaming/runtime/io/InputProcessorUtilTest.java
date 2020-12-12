@@ -23,12 +23,15 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.MockChannelStateWriter;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
@@ -58,8 +61,8 @@ public class InputProcessorUtilTest {
 
 			// First input gate has index larger than the second
 			List<IndexedInputGate>[] inputGates = new List[] {
-				Collections.singletonList(new MockIndexedInputGate(1, 4)),
-				Collections.singletonList(new MockIndexedInputGate(0, 2)),
+				Collections.singletonList(getGate(1, 4)),
+				Collections.singletonList(getGate(0, 2)),
 			};
 
 			CheckpointedInputGate[] checkpointedMultipleInputGate = InputProcessorUtil.createCheckpointedMultipleInputGate(
@@ -68,24 +71,29 @@ public class InputProcessorUtilTest {
 				new TestSubtaskCheckpointCoordinator(new MockChannelStateWriter()),
 				environment.getMetricGroup().getIOMetricGroup(),
 				streamTask.getName(),
-				inputGates);
+				new SyncMailboxExecutor(),
+				inputGates,
+				Collections.emptyList());
 			for (CheckpointedInputGate checkpointedInputGate : checkpointedMultipleInputGate) {
 				registry.registerCloseable(checkpointedInputGate);
 			}
 
 			CheckpointBarrierHandler barrierHandler = checkpointedMultipleInputGate[0].getCheckpointBarrierHandler();
-			assertTrue(barrierHandler.getBufferReceivedListener().isPresent());
-			BufferReceivedListener bufferReceivedListener = barrierHandler.getBufferReceivedListener().get();
 
 			List<IndexedInputGate> allInputGates = Arrays.stream(inputGates).flatMap(gates -> gates.stream()).collect(Collectors.toList());
 			for (IndexedInputGate inputGate : allInputGates) {
 				for (int channelId = 0; channelId < inputGate.getNumberOfInputChannels(); channelId++) {
-					bufferReceivedListener.notifyBarrierReceived(
-						new CheckpointBarrier(1, 42, CheckpointOptions.forCheckpointWithDefaultLocation(true, true)),
+					barrierHandler.processBarrier(
+						new CheckpointBarrier(1, 42, CheckpointOptions.forCheckpointWithDefaultLocation(true, true, 0)),
 						new InputChannelInfo(inputGate.getGateIndex(), channelId));
 				}
 			}
 			assertTrue(barrierHandler.getAllBarriersReceivedFuture(1).isDone());
 		}
+	}
+
+	private SingleInputGate getGate(int index, int numChannels) {
+		return new SingleInputGateBuilder().setNumberOfChannels(numChannels).setSingleInputGateIndex(index).setChannelFactory(
+			InputChannelBuilder::buildLocalChannel).build();
 	}
 }

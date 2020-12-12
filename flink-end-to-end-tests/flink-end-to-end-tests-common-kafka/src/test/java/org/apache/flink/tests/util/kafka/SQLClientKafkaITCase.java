@@ -76,8 +76,6 @@ public class SQLClientKafkaITCase extends TestLogger {
 	@Parameterized.Parameters(name = "{index}: kafka-version:{0} kafka-sql-version:{1}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
-				{"0.10.2.2", "0.10", "kafka-0.10", ".*kafka-0.10.jar"},
-				{"0.11.0.2", "0.11", "kafka-0.11", ".*kafka-0.11.jar"},
 				{"2.4.1", "universal", "kafka", ".*kafka.jar"}
 		});
 	}
@@ -127,10 +125,6 @@ public class SQLClientKafkaITCase extends TestLogger {
 		Path tmpPath = tmp.getRoot().toPath();
 		LOG.info("The current temporary path: {}", tmpPath);
 		this.result = tmpPath.resolve("result");
-
-		apacheAvroJars.add(DOWNLOAD_CACHE.getOrDownload("https://repo1.maven.org/maven2/org/apache/avro/avro/1.8.2/avro-1.8.2.jar", tmpPath));
-		apacheAvroJars.add(DOWNLOAD_CACHE.getOrDownload("https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-core-asl/1.9.13/jackson-core-asl-1.9.13.jar", tmpPath));
-		apacheAvroJars.add(DOWNLOAD_CACHE.getOrDownload("https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-mapper-asl/1.9.13/jackson-mapper-asl-1.9.13.jar", tmpPath));
 	}
 
 	@Test
@@ -176,12 +170,14 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 	private void executeSqlStatements(ClusterController clusterController, List<String> sqlLines) throws IOException {
 		LOG.info("Executing Kafka {} end-to-end SQL statements.", kafkaSQLVersion);
-		clusterController.submitSQLJob(new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
-			.addJar(sqlAvroJar)
-			.addJars(apacheAvroJars)
-			.addJar(sqlConnectorKafkaJar)
-			.addJar(sqlToolBoxJar)
-			.build());
+		clusterController.submitSQLJob(
+			new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
+				.addJar(sqlAvroJar)
+				.addJars(apacheAvroJars)
+				.addJar(sqlConnectorKafkaJar)
+				.addJar(sqlToolBoxJar)
+				.build(),
+			Duration.ofMinutes(2L));
 	}
 
 	private List<String> initializeSqlLines(Map<String, String> vars) throws IOException {

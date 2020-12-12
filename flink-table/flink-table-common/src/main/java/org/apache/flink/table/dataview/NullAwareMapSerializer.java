@@ -33,6 +33,7 @@ import java.util.Map;
  * the {@link NullAwareMapSerializer} can handle null keys.
  */
 @Internal
+@Deprecated
 public class NullAwareMapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	private static final long serialVersionUID = 5363147328373166590L;
 

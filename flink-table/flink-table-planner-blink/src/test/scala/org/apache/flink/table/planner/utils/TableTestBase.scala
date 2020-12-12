@@ -26,12 +26,12 @@ import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
 import org.apache.flink.table.api.bridge.java.internal.{StreamTableEnvironmentImpl => JavaStreamTableEnvImpl}
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
@@ -61,6 +61,7 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
+
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
@@ -69,8 +70,10 @@ import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
+
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
+import java.time.Duration
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -358,18 +361,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     }
 
     val actual = SystemUtils.LINE_SEPARATOR + optimizedPlan
-    assertEqualsOrExpand("planAfter", actual.toString, expand = false)
-  }
-
-  def verifyResource(sql: String): Unit = {
-    assertEqualsOrExpand("sql", sql)
-    val table = getTableEnv.sqlQuery(sql)
-    doVerifyPlan(
-      table,
-      Array.empty,
-      withRowType = false,
-      printResource = true,
-      printPlanBefore = false)
+    assertEqualsOrExpand("planAfter", actual, expand = false)
   }
 
   def doVerifyPlan(
@@ -377,26 +369,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
       printPlanBefore: Boolean): Unit = {
-    doVerifyPlan(
-      table = table,
-      extraDetails,
-      withRowType = withRowType,
-      printPlanBefore = printPlanBefore,
-      printResource = false)
-  }
-
-  def doVerifyPlan(
-      table: Table,
-      extraDetails: Array[ExplainDetail],
-      withRowType: Boolean,
-      printPlanBefore: Boolean,
-      printResource: Boolean): Unit = {
     val relNode = TableTestUtil.toRelNode(table)
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
       extraDetails,
-      withRowType = withRowType,
-      withResource = printResource)
+      withRowType = withRowType)
 
     if (printPlanBefore) {
       val planBefore = SystemUtils.LINE_SEPARATOR +
@@ -423,8 +400,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   protected def getOptimizedPlan(
       relNodes: Array[RelNode],
       extraDetails: Array[ExplainDetail],
-      withRowType: Boolean,
-      withResource: Boolean = false): String = {
+      withRowType: Boolean): String = {
     require(relNodes.nonEmpty)
     val planner = getPlanner
     val optimizedRels = planner.optimize(relNodes)
@@ -434,17 +410,14 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       SqlExplainLevel.EXPPLAN_ATTRIBUTES
     }
     val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
+    val usingExecNodePlan = explainLevel != SqlExplainLevel.ALL_ATTRIBUTES &&
+      !withChangelogTraits && !withRowType
 
     optimizedRels.head match {
-      case _: ExecNode[_, _] =>
-        val optimizedNodes = planner.translateToExecNodePlan(optimizedRels)
-        require(optimizedNodes.length == optimizedRels.length)
-        ExecNodePlanDumper.dagToString(
-          optimizedNodes,
-          detailLevel = explainLevel,
-          withChangelogTraits = withChangelogTraits,
-          withOutputType = withRowType,
-          withResource = withResource)
+      case _: ExecNode[_] if usingExecNodePlan =>
+        val execNodes = planner.translateToExecNodePlan(optimizedRels)
+        require(execNodes.length == optimizedRels.length)
+        ExecNodePlanDumper.dagToString(execNodes)
       case _ =>
         optimizedRels.map { rel =>
           FlinkRelOptUtil.toString(
@@ -503,7 +476,6 @@ abstract class TableTestUtil(
     GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
   override def getTableEnv: TableEnvironment = tableEnv
 
@@ -558,22 +530,25 @@ abstract class TableTestUtil(
   }
 
   /**
-    * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
-    */
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def addFunction[T: TypeInformation](
       name: String,
       function: TableFunction[T]): Unit = testingTableEnv.registerFunction(name, function)
 
   /**
-    * Registers a [[AggregateFunction]] under given name into the TableEnvironment's catalog.
-    */
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
 
   /**
-    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
-    */
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: TableAggregateFunction[T, ACC]): Unit = {
@@ -653,7 +628,6 @@ abstract class ScalaTableTestUtil(
   extends TableTestUtilBase(test, isStreamingMode) {
   // scala env
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   // scala tableEnv
   val tableEnv: ScalaStreamTableEnv = ScalaStreamTableEnv.create(env, setting)
 
@@ -687,7 +661,6 @@ abstract class JavaTableTestUtil(
   extends TableTestUtilBase(test, isStreamingMode) {
   // java env
   val env = new LocalStreamEnvironment()
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   // java tableEnv
   // use impl class instead of interface class to avoid
   // "Static methods in interface require -target:jvm-1.8"
@@ -793,8 +766,8 @@ case class StreamTableTestUtil(
   def enableMiniBatch(): Unit = {
     tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     tableEnv.getConfig.getConfiguration.setLong(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 3L)
   }
@@ -990,7 +963,7 @@ class TestingTableEnvironment private(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: AggregateFunction[T, ACC]): Unit = {
-    registerUserDefinedAggregateFunction(name, f)
+    registerImperativeAggregateFunction(name, f)
   }
 
   // just for testing, remove this method while
@@ -999,12 +972,12 @@ class TestingTableEnvironment private(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: TableAggregateFunction[T, ACC]): Unit = {
-    registerUserDefinedAggregateFunction(name, f)
+    registerImperativeAggregateFunction(name, f)
   }
 
-  private def registerUserDefinedAggregateFunction[T: TypeInformation, ACC: TypeInformation](
+  private def registerImperativeAggregateFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      f: UserDefinedAggregateFunction[T, ACC]): Unit = {
+      f: ImperativeAggregateFunction[T, ACC]): Unit = {
     val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
     val accTypeInfo = UserDefinedFunctionHelper
@@ -1202,5 +1175,13 @@ object TableTestUtil {
     */
   def replaceStageId(s: String): String = {
     s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
+  }
+
+  /**
+   * Stream node {id} is ignored, because id keeps incrementing in test class
+   * while StreamExecutionEnvironment is up
+   */
+  def replaceStreamNodeId(s: String): String = {
+    s.replaceAll("\"id\" : \\d+", "\"id\" : ").trim
   }
 }

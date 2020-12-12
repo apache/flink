@@ -19,19 +19,15 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
-import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -51,7 +47,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ol>
  */
 public abstract class InputChannel {
-
 	/** The info of the input channel to identify it globally within a task. */
 	protected final InputChannelInfo channelInfo;
 
@@ -151,7 +146,8 @@ public abstract class InputChannel {
 		inputGate.notifyChannelNonEmpty(this);
 	}
 
-	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) throws IOException {
+	public void notifyPriorityEvent(int priorityBufferNumber) {
+		inputGate.notifyPriorityEvent(this, priorityBufferNumber);
 	}
 
 	protected void notifyBufferAvailable(int numAvailableBuffers) throws IOException {
@@ -174,6 +170,18 @@ public abstract class InputChannel {
 	 * Returns the next buffer from the consumed subpartition or {@code Optional.empty()} if there is no data to return.
 	 */
 	abstract Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException;
+
+	/**
+	 * Called by task thread when checkpointing is started (e.g., any input channel received barrier).
+	 */
+	public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
+	}
+
+	/**
+	 * Called by task thread on cancel/complete to clean-up temporary data.
+	 */
+	public void checkpointStopped(long checkpointId) {
+	}
 
 	// ------------------------------------------------------------------------
 	// Task events
@@ -288,23 +296,6 @@ public abstract class InputChannel {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Parses the buffer as an event and returns the {@link CheckpointBarrier} if the event is indeed a barrier or
-	 * returns null in all other cases.
-	 */
-	@Nullable
-	protected CheckpointBarrier parseCheckpointBarrierOrNull(Buffer buffer) throws IOException {
-		if (buffer.isBuffer()) {
-			return null;
-		}
-
-		AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
-		// reset the buffer because it would be deserialized again in SingleInputGate while getting next buffer.
-		// we can further improve to avoid double deserialization in the future.
-		buffer.setReaderIndex(0);
-		return event.getClass() == CheckpointBarrier.class ? (CheckpointBarrier) event : null;
-	}
-
-	/**
 	 * A combination of a {@link Buffer} and a flag indicating availability of further buffers,
 	 * and the backlog length indicating how many non-event buffers are available in the
 	 * subpartition.
@@ -312,13 +303,19 @@ public abstract class InputChannel {
 	public static final class BufferAndAvailability {
 
 		private final Buffer buffer;
-		private final boolean moreAvailable;
+		private final Buffer.DataType nextDataType;
 		private final int buffersInBacklog;
+		private final int sequenceNumber;
 
-		public BufferAndAvailability(Buffer buffer, boolean moreAvailable, int buffersInBacklog) {
+		public BufferAndAvailability(
+				Buffer buffer,
+				Buffer.DataType nextDataType,
+				int buffersInBacklog,
+				int sequenceNumber) {
 			this.buffer = checkNotNull(buffer);
-			this.moreAvailable = moreAvailable;
+			this.nextDataType = checkNotNull(nextDataType);
 			this.buffersInBacklog = buffersInBacklog;
+			this.sequenceNumber = sequenceNumber;
 		}
 
 		public Buffer buffer() {
@@ -326,11 +323,36 @@ public abstract class InputChannel {
 		}
 
 		public boolean moreAvailable() {
-			return moreAvailable;
+			return nextDataType != Buffer.DataType.NONE;
+		}
+
+		public boolean morePriorityEvents() {
+			return nextDataType.hasPriority();
 		}
 
 		public int buffersInBacklog() {
 			return buffersInBacklog;
 		}
+
+		public boolean hasPriority() {
+			return buffer.getDataType().hasPriority();
+		}
+
+		public int getSequenceNumber() {
+			return sequenceNumber;
+		}
+
+		@Override
+		public String toString() {
+			return "BufferAndAvailability{" +
+				"buffer=" + buffer +
+				", nextDataType=" + nextDataType +
+				", buffersInBacklog=" + buffersInBacklog +
+				", sequenceNumber=" + sequenceNumber +
+				'}';
+		}
+	}
+
+	void setup() throws IOException {
 	}
 }

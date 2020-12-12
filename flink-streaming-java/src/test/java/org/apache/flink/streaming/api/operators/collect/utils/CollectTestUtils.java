@@ -19,7 +19,12 @@
 package org.apache.flink.streaming.api.operators.collect.utils;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.streaming.api.operators.collect.CollectCoordinationResponse;
+
+import org.hamcrest.CoreMatchers;
+import org.junit.Assert;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -44,5 +49,38 @@ public class CollectTestUtils {
 			ret.add(baos.toByteArray());
 		}
 		return ret;
+	}
+
+	public static <T> void assertResponseEquals(
+			CollectCoordinationResponse response,
+			String version,
+			long lastCheckpointedOffset,
+			List<T> expected,
+			TypeSerializer<T> serializer) throws IOException {
+		Assert.assertEquals(version, response.getVersion());
+		Assert.assertEquals(lastCheckpointedOffset, response.getLastCheckpointedOffset());
+		List<T> results = response.getResults(serializer);
+		assertResultsEqual(expected, results);
+	}
+
+	public static <T> void assertResultsEqual(List<T> expected, List<T> actual) {
+		Assert.assertThat(actual, CoreMatchers.is(expected));
+	}
+
+	public static <T> void assertAccumulatorResult(
+			Tuple2<Long, CollectCoordinationResponse> accResults,
+			long expectedOffset,
+			String expectedVersion,
+			long expectedLastCheckpointedOffset,
+			List<T> expectedResults,
+			TypeSerializer<T> serializer) throws Exception {
+		long offset = accResults.f0;
+		CollectCoordinationResponse response = accResults.f1;
+		List<T> actualResults = response.getResults(serializer);
+
+		Assert.assertEquals(expectedOffset, offset);
+		Assert.assertEquals(expectedVersion, response.getVersion());
+		Assert.assertEquals(expectedLastCheckpointedOffset, response.getLastCheckpointedOffset());
+		assertResultsEqual(expectedResults, actualResults);
 	}
 }

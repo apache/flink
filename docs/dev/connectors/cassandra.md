@@ -43,7 +43,7 @@ To use this connector, add the following dependency to your project:
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/project-configuration.html).
+Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({% link dev/project-configuration.md %}).
 
 ## Installing Apache Cassandra
 There are multiple ways to bring up a Cassandra instance on local machine:
@@ -107,7 +107,7 @@ Note that that enabling this feature will have an adverse impact on latency.
 ### Checkpointing and Fault Tolerance
 With checkpointing enabled, Cassandra Sink guarantees at-least-once delivery of action requests to C* instance.
 
-More details on [checkpoints docs]({{ site.baseurl }}/dev/stream/state/checkpointing.html) and [fault tolerance guarantee docs]({{ site.baseurl }}/dev/connectors/guarantees.html)
+More details on [checkpoints docs]({% link dev/stream/state/checkpointing.md %}) and [fault tolerance guarantee docs]({% link dev/connectors/guarantees.md %})
 
 ## Examples
 
@@ -160,8 +160,8 @@ DataStream<Tuple2<String, Long>> result = text
                 }
             }
         })
-        .keyBy(0)
-        .timeWindow(Time.seconds(5))
+        .keyBy(value -> value.f0)
+        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
         .sum(1);
 
 CassandraSink.addSink(result)
@@ -185,8 +185,8 @@ val result: DataStream[(String, Long)] = text
   .filter(_.nonEmpty)
   .map((_, 1L))
   // group by the tuple field "0" and sum up tuple field "1"
-  .keyBy(0)
-  .timeWindow(Time.seconds(5))
+  .keyBy(_._1)
+  .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
   .sum(1)
 
 CassandraSink.addSink(result)
@@ -231,8 +231,8 @@ DataStream<WordCount> result = text
                 }
             }
         })
-        .keyBy("word")
-        .timeWindow(Time.seconds(5))
+        .keyBy(WordCount::getWord)
+        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
 
         .reduce(new ReduceFunction<WordCount>() {
             @Override

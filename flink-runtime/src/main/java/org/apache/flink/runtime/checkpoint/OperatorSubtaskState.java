@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -26,19 +27,15 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.runtime.checkpoint.StateObjectCollection.emptyIfNull;
 import static org.apache.flink.runtime.state.AbstractChannelStateHandle.collectUniqueDelegates;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class encapsulates the state for one parallel instance of an operator. The complete state of a (logical)
@@ -64,32 +61,42 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	/**
 	 * Snapshot from the {@link org.apache.flink.runtime.state.OperatorStateBackend}.
 	 */
-	@Nonnull
 	private final StateObjectCollection<OperatorStateHandle> managedOperatorState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream}.
 	 */
-	@Nonnull
 	private final StateObjectCollection<OperatorStateHandle> rawOperatorState;
 
 	/**
 	 * Snapshot from {@link org.apache.flink.runtime.state.KeyedStateBackend}.
 	 */
-	@Nonnull
 	private final StateObjectCollection<KeyedStateHandle> managedKeyedState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream}.
 	 */
-	@Nonnull
 	private final StateObjectCollection<KeyedStateHandle> rawKeyedState;
 
-	@Nonnull
 	private final StateObjectCollection<InputChannelStateHandle> inputChannelState;
 
-	@Nonnull
 	private final StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState;
+
+	/**
+	 * The subpartitions mappings per partition set when the output operator for a partition was rescaled. The key is
+	 * the partition id and the value contains all subtask indexes of the output operator before rescaling. Note that
+	 * this field is only set by {@link StateAssignmentOperation} and will not be persisted in the checkpoint itself
+	 * as it can only be calculated if the the post-recovery scale factor is known.
+	 */
+	private final InflightDataRescalingDescriptor inputRescalingDescriptor;
+
+	/**
+	 * The input channel mappings per input set when the input operator for a gate was rescaled. The key is
+	 * the gate index and the value contains all subtask indexes of the input operator before rescaling. Note that
+	 * this field is only set by {@link StateAssignmentOperation} and will not be persisted in the checkpoint itself
+	 * as it can only be calculated if the the post-recovery scale factor is known.
+	 */
+	private final InflightDataRescalingDescriptor outputRescalingDescriptor;
 
 	/**
 	 * The state size. This is also part of the deserialized state handle.
@@ -98,47 +105,24 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 */
 	private final long stateSize;
 
-	/**
-	 * Empty state.
-	 */
-	public OperatorSubtaskState() {
-		this(
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty());
-	}
+	private OperatorSubtaskState(
+			StateObjectCollection<OperatorStateHandle> managedOperatorState,
+			StateObjectCollection<OperatorStateHandle> rawOperatorState,
+			StateObjectCollection<KeyedStateHandle> managedKeyedState,
+			StateObjectCollection<KeyedStateHandle> rawKeyedState,
+			StateObjectCollection<InputChannelStateHandle> inputChannelState,
+			StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState,
+			InflightDataRescalingDescriptor inputRescalingDescriptor,
+			InflightDataRescalingDescriptor outputRescalingDescriptor) {
 
-	public OperatorSubtaskState(
-			@Nonnull StateObjectCollection<OperatorStateHandle> managedOperatorState,
-			@Nonnull StateObjectCollection<OperatorStateHandle> rawOperatorState,
-			@Nonnull StateObjectCollection<KeyedStateHandle> managedKeyedState,
-			@Nonnull StateObjectCollection<KeyedStateHandle> rawKeyedState) {
-		this(
-			managedOperatorState,
-			rawOperatorState,
-			managedKeyedState,
-			rawKeyedState,
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty());
-	}
-
-	public OperatorSubtaskState(
-		@Nonnull StateObjectCollection<OperatorStateHandle> managedOperatorState,
-		@Nonnull StateObjectCollection<OperatorStateHandle> rawOperatorState,
-		@Nonnull StateObjectCollection<KeyedStateHandle> managedKeyedState,
-		@Nonnull StateObjectCollection<KeyedStateHandle> rawKeyedState,
-		@Nonnull StateObjectCollection<InputChannelStateHandle> inputChannelState,
-		@Nonnull StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
-
-		this.managedOperatorState = Preconditions.checkNotNull(managedOperatorState);
-		this.rawOperatorState = Preconditions.checkNotNull(rawOperatorState);
-		this.managedKeyedState = Preconditions.checkNotNull(managedKeyedState);
-		this.rawKeyedState = Preconditions.checkNotNull(rawKeyedState);
-		this.inputChannelState = Preconditions.checkNotNull(inputChannelState);
-		this.resultSubpartitionState = Preconditions.checkNotNull(resultSubpartitionState);
+		this.managedOperatorState = checkNotNull(managedOperatorState);
+		this.rawOperatorState = checkNotNull(rawOperatorState);
+		this.managedKeyedState = checkNotNull(managedKeyedState);
+		this.rawKeyedState = checkNotNull(rawKeyedState);
+		this.inputChannelState = checkNotNull(inputChannelState);
+		this.resultSubpartitionState = checkNotNull(resultSubpartitionState);
+		this.inputRescalingDescriptor = checkNotNull(inputRescalingDescriptor);
+		this.outputRescalingDescriptor = checkNotNull(outputRescalingDescriptor);
 
 		long calculateStateSize = managedOperatorState.getStateSize();
 		calculateStateSize += rawOperatorState.getStateSize();
@@ -149,72 +133,50 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		stateSize = calculateStateSize;
 	}
 
-	/**
-	 * For convenience because the size of the collections is typically 0 or 1. Null values are translated into empty
-	 * Collections.
-	 */
-	public OperatorSubtaskState(
-			@Nullable OperatorStateHandle managedOperatorState,
-			@Nullable OperatorStateHandle rawOperatorState,
-			@Nullable KeyedStateHandle managedKeyedState,
-			@Nullable KeyedStateHandle rawKeyedState,
-			@Nullable StateObjectCollection<InputChannelStateHandle> inputChannelState,
-			@Nullable StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
-		this(
-			singletonOrEmptyOnNull(managedOperatorState),
-			singletonOrEmptyOnNull(rawOperatorState),
-			singletonOrEmptyOnNull(managedKeyedState),
-			singletonOrEmptyOnNull(rawKeyedState),
-			emptyIfNull(inputChannelState),
-			emptyIfNull(resultSubpartitionState));
-	}
-
-	private static <T extends StateObject> StateObjectCollection<T> singletonOrEmptyOnNull(T element) {
-		return element != null ? StateObjectCollection.singleton(element) : StateObjectCollection.empty();
+	@VisibleForTesting
+	OperatorSubtaskState() {
+		this(StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			InflightDataRescalingDescriptor.NO_RESCALE,
+			InflightDataRescalingDescriptor.NO_RESCALE);
 	}
 
 	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * Returns a handle to the managed operator state.
-	 */
-	@Nonnull
 	public StateObjectCollection<OperatorStateHandle> getManagedOperatorState() {
 		return managedOperatorState;
 	}
 
-	/**
-	 * Returns a handle to the raw operator state.
-	 */
-	@Nonnull
 	public StateObjectCollection<OperatorStateHandle> getRawOperatorState() {
 		return rawOperatorState;
 	}
 
-	/**
-	 * Returns a handle to the managed keyed state.
-	 */
-	@Nonnull
 	public StateObjectCollection<KeyedStateHandle> getManagedKeyedState() {
 		return managedKeyedState;
 	}
 
-	/**
-	 * Returns a handle to the raw keyed state.
-	 */
-	@Nonnull
 	public StateObjectCollection<KeyedStateHandle> getRawKeyedState() {
 		return rawKeyedState;
 	}
 
-	@Nonnull
 	public StateObjectCollection<InputChannelStateHandle> getInputChannelState() {
 		return inputChannelState;
 	}
 
-	@Nonnull
 	public StateObjectCollection<ResultSubpartitionStateHandle> getResultSubpartitionState() {
 		return resultSubpartitionState;
+	}
+
+	public InflightDataRescalingDescriptor getInputRescalingDescriptor() {
+		return inputRescalingDescriptor;
+	}
+
+	public InflightDataRescalingDescriptor getOutputRescalingDescriptor() {
+		return outputRescalingDescriptor;
 	}
 
 	@Override
@@ -222,7 +184,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		try {
 			List<StateObject> toDispose =
 				new ArrayList<>(
-						managedOperatorState.size() +
+					managedOperatorState.size() +
 						rawOperatorState.size() +
 						managedKeyedState.size() +
 						rawKeyedState.size() +
@@ -291,6 +253,12 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		if (!getResultSubpartitionState().equals(that.getResultSubpartitionState())) {
 			return false;
 		}
+		if (!getInputRescalingDescriptor().equals(that.getInputRescalingDescriptor())) {
+			return false;
+		}
+		if (!getOutputRescalingDescriptor().equals(that.getOutputRescalingDescriptor())) {
+			return false;
+		}
 		return getRawKeyedState().equals(that.getRawKeyedState());
 	}
 
@@ -302,6 +270,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		result = 31 * result + getRawKeyedState().hashCode();
 		result = 31 * result + getInputChannelState().hashCode();
 		result = 31 * result + getResultSubpartitionState().hashCode();
+		result = 31 * result + getInputRescalingDescriptor().hashCode();
+		result = 31 * result + getOutputRescalingDescriptor().hashCode();
 		result = 31 * result + (int) (getStateSize() ^ (getStateSize() >>> 32));
 		return result;
 	}
@@ -327,4 +297,94 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			|| inputChannelState.hasState()
 			|| resultSubpartitionState.hasState();
 	}
+
+	public static Builder builder() {
+		return new Builder();
+	}
+
+	/**
+	 * The builder for a new {@link OperatorSubtaskState} which can be obtained by {@link #builder()}.
+	 */
+	public static class Builder {
+		private StateObjectCollection<OperatorStateHandle> managedOperatorState = StateObjectCollection.empty();
+		private StateObjectCollection<OperatorStateHandle> rawOperatorState = StateObjectCollection.empty();
+		private StateObjectCollection<KeyedStateHandle> managedKeyedState = StateObjectCollection.empty();
+		private StateObjectCollection<KeyedStateHandle> rawKeyedState = StateObjectCollection.empty();
+		private StateObjectCollection<InputChannelStateHandle> inputChannelState = StateObjectCollection.empty();
+		private StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState = StateObjectCollection.empty();
+		private InflightDataRescalingDescriptor inputRescalingDescriptor = InflightDataRescalingDescriptor.NO_RESCALE;
+		private InflightDataRescalingDescriptor outputRescalingDescriptor = InflightDataRescalingDescriptor.NO_RESCALE;
+
+		private Builder() {
+		}
+
+		public Builder setManagedOperatorState(StateObjectCollection<OperatorStateHandle> managedOperatorState) {
+			this.managedOperatorState = checkNotNull(managedOperatorState);
+			return this;
+		}
+
+		public Builder setManagedOperatorState(OperatorStateHandle managedOperatorState) {
+			return setManagedOperatorState(StateObjectCollection.singleton(checkNotNull(managedOperatorState)));
+		}
+
+		public Builder setRawOperatorState(StateObjectCollection<OperatorStateHandle> rawOperatorState) {
+			this.rawOperatorState = checkNotNull(rawOperatorState);
+			return this;
+		}
+
+		public Builder setRawOperatorState(OperatorStateHandle rawOperatorState) {
+			return setRawOperatorState(StateObjectCollection.singleton(checkNotNull(rawOperatorState)));
+		}
+
+		public Builder setManagedKeyedState(StateObjectCollection<KeyedStateHandle> managedKeyedState) {
+			this.managedKeyedState = checkNotNull(managedKeyedState);
+			return this;
+		}
+
+		public Builder setManagedKeyedState(KeyedStateHandle managedKeyedState) {
+			return setManagedKeyedState(StateObjectCollection.singleton(checkNotNull(managedKeyedState)));
+		}
+
+		public Builder setRawKeyedState(StateObjectCollection<KeyedStateHandle> rawKeyedState) {
+			this.rawKeyedState = checkNotNull(rawKeyedState);
+			return this;
+		}
+
+		public Builder setRawKeyedState(KeyedStateHandle rawKeyedState) {
+			return setRawKeyedState(StateObjectCollection.singleton(checkNotNull(rawKeyedState)));
+		}
+
+		public Builder setInputChannelState(StateObjectCollection<InputChannelStateHandle> inputChannelState) {
+			this.inputChannelState = checkNotNull(inputChannelState);
+			return this;
+		}
+
+		public Builder setResultSubpartitionState(StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
+			this.resultSubpartitionState = checkNotNull(resultSubpartitionState);
+			return this;
+		}
+
+		public Builder setInputRescalingDescriptor(InflightDataRescalingDescriptor inputRescalingDescriptor) {
+			this.inputRescalingDescriptor = checkNotNull(inputRescalingDescriptor);
+			return this;
+		}
+
+		public Builder setOutputRescalingDescriptor(InflightDataRescalingDescriptor outputRescalingDescriptor) {
+			this.outputRescalingDescriptor = checkNotNull(outputRescalingDescriptor);
+			return this;
+		}
+
+		public OperatorSubtaskState build() {
+			return new OperatorSubtaskState(
+				managedOperatorState,
+				rawOperatorState,
+				managedKeyedState,
+				rawKeyedState,
+				inputChannelState,
+				resultSubpartitionState,
+				inputRescalingDescriptor,
+				outputRescalingDescriptor);
+		}
+	}
+
 }

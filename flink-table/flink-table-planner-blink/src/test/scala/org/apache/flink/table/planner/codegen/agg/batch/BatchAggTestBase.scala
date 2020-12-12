@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
+import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.jobgraph.OperatorID
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.runtime.tasks.{OneInputStreamTask, OneInputStreamTaskTestHarness}
 import org.apache.flink.table.data.{GenericRowData, RowData, StringData}
 import org.apache.flink.table.planner.codegen.agg.AggTestBase
-import org.apache.flink.table.planner.utils.RowDataTestUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.table.runtime.util.RowDataTestUtil
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.function.FunctionWithException
 import org.junit.Assert
@@ -67,14 +68,14 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
     val testHarness = new OneInputStreamTaskTestHarness[RowData, RowData](
       new FunctionWithException[Environment, OneInputStreamTask[RowData, RowData], Exception] {
         override def apply(t: Environment) = new OneInputStreamTask(t)
-      }, 1, 1, RowDataTypeInfo.of(args._2), RowDataTypeInfo.of(args._3))
+      }, 1, 1, InternalTypeInfo.of(args._2), InternalTypeInfo.of(args._3))
     testHarness.memorySize = 32 * 100 * 1024
 
     testHarness.setupOutputForSingletonOperatorChain()
     val streamConfig = testHarness.getStreamConfig
     streamConfig.setStreamOperatorFactory(args._1)
     streamConfig.setOperatorID(new OperatorID)
-    streamConfig.setManagedMemoryFraction(0.99)
+    streamConfig.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, .99)
 
     testHarness.invoke()
     testHarness.waitForTaskRunning()

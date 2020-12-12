@@ -99,4 +99,11 @@ public class OptimizerConfigOptions {
 		key("table.optimizer.join-reorder-enabled")
 			.defaultValue(false)
 			.withDescription("Enables join reorder in optimizer. Default is disabled.");
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED =
+		key("table.optimizer.multiple-input-enabled")
+			.defaultValue(true)
+			.withDescription("When it is true, the optimizer will merge the operators with pipelined shuffling " +
+					"into a multiple input operator to reduce shuffling and improve performance. Default value is true.");
 }

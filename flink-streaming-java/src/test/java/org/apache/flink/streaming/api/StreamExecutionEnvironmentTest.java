@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -133,6 +135,18 @@ public class StreamExecutionEnvironmentTest {
 
 		DataStreamSource<Long> src4 = env.fromCollection(list);
 		assertTrue(getFunctionFromDataSource(src4) instanceof FromElementsFunction);
+	}
+
+	/**
+	 * Verifies that the API method doesn't throw and creates a source of the expected type.
+	 */
+	@Test
+	public void testFromSequence() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Long> src = env.fromSequence(0, 2);
+
+		assertEquals(BasicTypeInfo.LONG_TYPE_INFO, src.getType());
 	}
 
 	@Test
@@ -255,6 +269,37 @@ public class StreamExecutionEnvironmentTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testDefaultJobName() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		testJobName(StreamExecutionEnvironment.DEFAULT_JOB_NAME, env);
+	}
+
+	@Test
+	public void testUserDefinedJobName() {
+		String jobName = "MyTestJob";
+		Configuration config = new Configuration();
+		config.set(PipelineOptions.NAME, jobName);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+		testJobName(jobName, env);
+	}
+
+	@Test
+	public void testUserDefinedJobNameWithConfigure() {
+		String jobName = "MyTestJob";
+		Configuration config = new Configuration();
+		config.set(PipelineOptions.NAME, jobName);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.configure(config, this.getClass().getClassLoader());
+		testJobName(jobName, env);
+	}
+
+	private void testJobName(String expectedJobName, StreamExecutionEnvironment env) {
+		env.fromElements(1, 2, 3).print();
+		StreamGraph streamGraph = env.getStreamGraph();
+		assertEquals(expectedJobName, streamGraph.getJobName());
 	}
 
 	@Test

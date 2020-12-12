@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kafka.table;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
@@ -28,24 +29,20 @@ import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestBase.isCausedByJobFinished;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 
 /**
  * IT cases for Kafka with changelog format for Table API & SQL.
@@ -57,6 +54,7 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 
 	@Before
 	public void setup() {
+		TestValuesTableFactory.clearAllData();
 		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		tEnv = StreamTableEnvironment.create(
 			env,
@@ -76,6 +74,13 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 	public void testKafkaDebeziumChangelogSource() throws Exception {
 		final String topic = "changelog_topic";
 		createTestTopic(topic, 1, 1);
+
+		// enables MiniBatch processing to verify MiniBatch + FLIP-95, see FLINK-18769
+		Configuration tableConf = tEnv.getConfig().getConfiguration();
+		tableConf.setString("table.exec.mini-batch.enabled", "true");
+		tableConf.setString("table.exec.mini-batch.allow-latency", "1s");
+		tableConf.setString("table.exec.mini-batch.size", "5000");
+		tableConf.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE");
 
 		// ---------- Write the Debezium json into Kafka -------------------
 		List<String> lines = readLines("debezium-data-schema-exclude.txt");
@@ -99,41 +104,39 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 		String bootstraps = standardProps.getProperty("bootstrap.servers");
 		String sourceDDL = String.format(
 			"CREATE TABLE debezium_source (" +
+			// test format metadata
+			" origin_ts STRING METADATA FROM 'value.ingestion-timestamp' VIRTUAL," + // unused
+			" origin_table STRING METADATA FROM 'value.source.table' VIRTUAL," +
 			" id INT NOT NULL," +
 			" name STRING," +
 			" description STRING," +
-			" weight DECIMAL(10,3)" +
+			" weight DECIMAL(10,3)," +
+			// test connector metadata
+			" origin_topic STRING METADATA FROM 'topic' VIRTUAL," +
+			" origin_partition STRING METADATA FROM 'partition' VIRTUAL" + // unused
 			") WITH (" +
 			" 'connector' = 'kafka'," +
 			" 'topic' = '%s'," +
 			" 'properties.bootstrap.servers' = '%s'," +
 			" 'scan.startup.mode' = 'earliest-offset'," +
-			" 'format' = 'debezium-json'" +
+			" 'value.format' = 'debezium-json'" +
 			")", topic, bootstraps);
 		String sinkDDL = "CREATE TABLE sink (" +
+			" origin_topic STRING," +
+			" origin_table STRING," +
 			" name STRING," +
 			" weightSum DECIMAL(10,3)," +
 			" PRIMARY KEY (name) NOT ENFORCED" +
 			") WITH (" +
 			" 'connector' = 'values'," +
-			" 'sink-insert-only' = 'false'," +
-			" 'sink-expected-messages-num' = '20'" +
+			" 'sink-insert-only' = 'false'" +
 			")";
 		tEnv.executeSql(sourceDDL);
 		tEnv.executeSql(sinkDDL);
-
-		try {
-			TableEnvUtil.execInsertSqlAndWaitResult(
-				tEnv,
-				"INSERT INTO sink SELECT name, SUM(weight) FROM debezium_source GROUP BY name");
-		} catch (Throwable t) {
-			// we have to use a specific exception to indicate the job is finished,
-			// because the registered Kafka source is infinite.
-			if (!isCausedByJobFinished(t)) {
-				// re-throw
-				throw t;
-			}
-		}
+		TableResult tableResult = tEnv.executeSql(
+			"INSERT INTO sink "
+				+ "SELECT FIRST_VALUE(origin_topic), FIRST_VALUE(origin_table), name, SUM(weight) "
+				+ "FROM debezium_source GROUP BY name");
 
 		// Debezium captures change data on the `products` table:
 		//
@@ -179,26 +182,20 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 		// | 110 | jacket             | new water resistent white wind breaker                  |    0.5 |
 		// +-----+--------------------+---------------------------------------------------------+--------+
 
-		String[] expected = new String[]{
-			"scooter,3.140", "car battery,8.100", "12-pack drill bits,0.800",
-			"hammer,2.625", "rocks,5.100", "jacket,0.600", "spare tire,22.200"};
+		List<String> expected = Arrays.asList(
+			"changelog_topic,products,scooter,3.140",
+			"changelog_topic,products,car battery,8.100",
+			"changelog_topic,products,12-pack drill bits,0.800",
+			"changelog_topic,products,hammer,2.625",
+			"changelog_topic,products,rocks,5.100",
+			"changelog_topic,products,jacket,0.600",
+			"changelog_topic,products,spare tire,22.200");
 
-		List<String> actual = TestValuesTableFactory.getResults("sink");
-		assertThat(actual, containsInAnyOrder(expected));
+		waitingExpectedResults("sink", expected, Duration.ofSeconds(10));
 
 		// ------------- cleanup -------------------
 
+		tableResult.getJobClient().get().cancel().get(); // stop the job
 		deleteTestTopic(topic);
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Utilities
-	// --------------------------------------------------------------------------------------------
-
-	private static List<String> readLines(String resource) throws IOException {
-		final URL url = KafkaChangelogTableITCase.class.getClassLoader().getResource(resource);
-		assert url != null;
-		Path path = new File(url.getFile()).toPath();
-		return Files.readAllLines(path);
 	}
 }

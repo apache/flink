@@ -21,13 +21,15 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
  * A factory returning {@link Bucket buckets}.
  */
 @Internal
-class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, BucketID> {
+public class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, BucketID> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -39,6 +41,7 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 			final long initialPartCounter,
 			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
+			@Nullable final FileLifeCycleListener<BucketID> fileListener,
 			final OutputFileConfig outputFileConfig) {
 
 		return Bucket.getNew(
@@ -48,6 +51,7 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 				initialPartCounter,
 				bucketWriter,
 				rollingPolicy,
+				fileListener,
 				outputFileConfig);
 	}
 
@@ -58,6 +62,7 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
+			@Nullable final FileLifeCycleListener<BucketID> fileListener,
 			final OutputFileConfig outputFileConfig) throws IOException {
 
 		return Bucket.restore(
@@ -66,6 +71,7 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 				bucketWriter,
 				rollingPolicy,
 				bucketState,
+				fileListener,
 				outputFileConfig);
 	}
 }

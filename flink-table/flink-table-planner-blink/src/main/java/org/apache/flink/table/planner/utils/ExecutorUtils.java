@@ -23,7 +23,6 @@ import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -63,7 +62,7 @@ public class ExecutorUtils {
 		ExecutionConfig executionConfig = execEnv.getConfig();
 		executionConfig.enableObjectReuse();
 		executionConfig.setLatencyTrackingInterval(-1);
-		execEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		execEnv.getConfig().setAutoWatermarkInterval(0);
 		execEnv.setBufferTimeout(-1);
 		if (isShuffleModeAllBlocking(tableConfig)) {
 			executionConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL);

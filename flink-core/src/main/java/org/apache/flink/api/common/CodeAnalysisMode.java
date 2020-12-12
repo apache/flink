@@ -19,21 +19,16 @@
 package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 
 /**
- * Specifies to which extent user-defined functions are analyzed in order
- * to give the Flink optimizer an insight of UDF internals and inform
- * the user about common implementation mistakes.
- *
- * The analyzer gives hints about:
- *  - ForwardedFields semantic properties
- *  - Warnings if static fields are modified by a Function
- *  - Warnings if a FilterFunction modifies its input objects
- *  - Warnings if a Function returns null
- *  - Warnings if a tuple access uses a wrong index
- *  - Information about the number of object creations (for manual optimization)
- *
  * @deprecated The code analysis code has been removed and this enum has no effect.
+ * <b>NOTE</b> It can not be removed from the codebase for now, because it had been serialized as part
+ * of the {@link ExecutionConfig} which in turn had been serialized as part of the {@link PojoSerializer}.
+ *
+ * <p>This class can be removed when we drop support for pre 1.8 serializer snapshots that contained java
+ * serialized serializers ({@link TypeSerializerConfigSnapshot}).
  */
 @PublicEvolving
 @Deprecated

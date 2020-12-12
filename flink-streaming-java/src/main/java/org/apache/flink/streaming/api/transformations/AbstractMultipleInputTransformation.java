@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -51,6 +50,7 @@ public abstract class AbstractMultipleInputTransformation<OUT> extends PhysicalT
 		this.operatorFactory = operatorFactory;
 	}
 
+	@Override
 	public List<Transformation<?>> getInputs() {
 		return inputs;
 	}
@@ -72,7 +72,7 @@ public abstract class AbstractMultipleInputTransformation<OUT> extends PhysicalT
 	}
 
 	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
+	public List<Transformation<?>> getTransitivePredecessors() {
 		return inputs.stream()
 			.flatMap(input -> input.getTransitivePredecessors().stream())
 			.collect(Collectors.toList());

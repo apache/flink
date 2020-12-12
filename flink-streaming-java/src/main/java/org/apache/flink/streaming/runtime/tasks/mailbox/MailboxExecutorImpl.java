@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -57,8 +58,7 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 	}
 
 	public boolean isIdle() {
-		return !mailboxProcessor.isMailboxLoopRunning() ||
-			(mailboxProcessor.isDefaultActionUnavailable() && !mailbox.hasMail() && mailbox.getState().isAcceptingMails());
+		return mailboxProcessor.isDefaultActionUnavailable() && !mailbox.hasMail() && mailbox.getState().isAcceptingMails();
 	}
 
 	@Override
@@ -68,7 +68,7 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 			final Object... descriptionArgs) {
 		try {
 			mailbox.put(new Mail(command, priority, actionExecutor, descriptionFormat, descriptionArgs));
-		} catch (IllegalStateException mbex) {
+		} catch (MailboxClosedException mbex) {
 			throw new RejectedExecutionException(mbex);
 		}
 	}

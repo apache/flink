@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
+import org.apache.flink.runtime.dispatcher.DispatcherBootstrapFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.contains;
@@ -118,7 +119,8 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 			new MemoryArchivedExecutionGraphStore(),
 			fatalErrorHandler,
 			VoidHistoryServerArchivist.INSTANCE,
-			null);
+			null,
+			ForkJoinPool.commonPool());
 	}
 
 	@After
@@ -206,12 +208,14 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 		public Dispatcher createDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			DispatcherBootstrap dispatcherBootstrap,
+			Collection<JobGraph> recoveredJobs,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 			return new StandaloneDispatcher(
 				rpcService,
 				fencingToken,
-				dispatcherBootstrap,
+				recoveredJobs,
+				dispatcherBootstrapFactory,
 				DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, jobManagerRunnerFactory));
 		}
 	}

@@ -173,7 +173,7 @@ public class ExecutionEnvironment {
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
-		this.configuration = checkNotNull(configuration);
+		this.configuration = new Configuration(checkNotNull(configuration));
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
 
 		// the configuration of a job or an operator can be specified at the following places:
@@ -418,6 +418,8 @@ public class ExecutionEnvironment {
 				this.cacheFile.clear();
 				this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
 			});
+		configuration.getOptional(PipelineOptions.NAME)
+			.ifPresent(jobName -> this.getConfiguration().set(PipelineOptions.NAME, jobName));
 		config.configure(configuration, classLoader);
 	}
 
@@ -870,7 +872,7 @@ public class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public JobExecutionResult execute() throws Exception {
-		return execute(getDefaultName());
+		return execute(getJobName());
 	}
 
 	/**
@@ -890,7 +892,7 @@ public class ExecutionEnvironment {
 
 		try {
 			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
-				lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+				lastJobExecutionResult = jobClient.getJobExecutionResult().get();
 			} else {
 				lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 			}
@@ -899,10 +901,15 @@ public class ExecutionEnvironment {
 					jobListener -> jobListener.onJobExecuted(lastJobExecutionResult, null));
 
 		} catch (Throwable t) {
+			// get() on the JobExecutionResult Future will throw an ExecutionException. This
+			// behaviour was largely not there in Flink versions before the PipelineExecutor
+			// refactoring so we should strip that exception.
+			Throwable strippedException = ExceptionUtils.stripExecutionException(t);
+
 			jobListeners.forEach(jobListener -> {
-				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+				jobListener.onJobExecuted(null, strippedException);
 			});
-			ExceptionUtils.rethrowException(t);
+			ExceptionUtils.rethrowException(strippedException);
 		}
 
 		return lastJobExecutionResult;
@@ -940,7 +947,7 @@ public class ExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public final JobClient executeAsync() throws Exception {
-		return executeAsync(getDefaultName());
+		return executeAsync(getJobName());
 	}
 
 	/**
@@ -970,7 +977,7 @@ public class ExecutionEnvironment {
 
 		CompletableFuture<JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
-			.execute(plan, configuration);
+			.execute(plan, configuration, userClassloader);
 
 		try {
 			JobClient jobClient = jobClientFuture.get();
@@ -993,7 +1000,7 @@ public class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the compiler could not be instantiated.
 	 */
 	public String getExecutionPlan() throws Exception {
-		Plan p = createProgramPlan(getDefaultName(), false);
+		Plan p = createProgramPlan(getJobName(), false);
 		return ExecutionPlanUtil.getExecutionPlanAsJSON(p);
 	}
 
@@ -1046,7 +1053,7 @@ public class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan() {
-		return createProgramPlan(getDefaultName());
+		return createProgramPlan(getJobName());
 	}
 
 	/**
@@ -1117,12 +1124,13 @@ public class ExecutionEnvironment {
 	}
 
 	/**
-	 * Gets a default job name, based on the timestamp when this method is invoked.
+	 * Gets the job name. If user defined job name is not found in the configuration,
+	 * the default name based on the timestamp when this method is invoked will return.
 	 *
-	 * @return A default job name.
+	 * @return A job name.
 	 */
-	private static String getDefaultName() {
-		return "Flink Java Job at " + Calendar.getInstance().getTime();
+	private String getJobName() {
+		return configuration.getString(PipelineOptions.NAME, "Flink Java Job at " + Calendar.getInstance().getTime());
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -34,11 +34,10 @@ The [JSON](https://www.json.org/json-en.html) format allows to read and write JS
 Dependencies
 ------------
 
-In order to setup the JSON format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | Built-in               |
+{% assign connector = site.data.sql-connectors['json'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 How to create a table with JSON format
 ----------------
@@ -108,13 +107,35 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
-      <td>Specify the input and output timestamp format. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
+      <td>Specify the input and output timestamp format for <code>TIMESTAMP</code> and <code>TIMESTAMP WITH LOCAL TIME ZONE</code> type. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
       <ul>
-        <li>Option <code>'SQL'</code> will parse input timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format, e.g '2020-12-30 12:13:14.123' and output timestamp in the same format.</li>
-        <li>Option <code>'ISO-8601'</code>will parse input timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g '2020-12-30T12:13:14.123' and output timestamp in the same format.</li>
+        <li>Option <code>'SQL'</code> will parse input TIMESTAMP values in "yyyy-MM-dd HH:mm:ss.s{precision}" format, e.g "2020-12-30 12:13:14.123", 
+        parse input TIMESTAMP WITH LOCAL TIME ZONE values in "yyyy-MM-dd HH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30 12:13:14.123Z" and output timestamp in the same format.</li>
+        <li>Option <code>'ISO-8601'</code>will parse input TIMESTAMP in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g "2020-12-30T12:13:14.123" 
+        parse input TIMESTAMP WITH LOCAL TIME ZONE in "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30T12:13:14.123Z" and output timestamp in the same format.</li>
       </ul>
       </td>
     </tr>
+    <tr>
+      <td><h5>json.map-null-key.mode</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+      <td>String</td>
+      <td>Specify the handling mode when serializing null keys for map data. Currently supported values are <code>'FAIL'</code>, <code>'DROP'</code> and <code>'LITERAL'</code>:
+      <ul>
+        <li>Option <code>'FAIL'</code> will throw exception when encountering map with null key.</li>
+        <li>Option <code>'DROP'</code> will drop null key entries for map data.</li>
+        <li>Option <code>'LITERAL'</code> will replace null key with string literal. The string literal is defined by <code>json.map-null-key.literal</code> option.</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><h5>json.map-null-key.literal</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">'null'</td>
+      <td>String</td>
+      <td>Specify string literal to replace null key when <code>'json.map-null-key.mode'</code> is LITERAL.</td>
+    </tr>     
     </tbody>
 </table>
 
@@ -188,6 +209,10 @@ The following table lists the type mapping from Flink type to JSON type.
       <td><code>string with format: date-time</code></td>
     </tr>
     <tr>
+      <td><code>TIMESTAMP_WITH_LOCAL_TIME_ZONE</code></td>
+      <td><code>string with format: date-time (with UTC time zone)</code></td>
+    </tr>
+    <tr>
       <td><code>INTERVAL</code></td>
       <td><code>number</code></td>
     </tr>
@@ -205,7 +230,6 @@ The following table lists the type mapping from Flink type to JSON type.
     </tr>
     </tbody>
 </table>
-
 
 
 

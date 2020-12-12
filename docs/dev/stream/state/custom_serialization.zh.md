@@ -254,7 +254,7 @@ outer serializer, the compatibility of each nested serializer needs to be consid
 
 `CompositeTypeSerializerSnapshot` is provided to assist in the implementation of snapshots for these kind of
 composite serializers. It deals with reading and writing the nested serializer snapshots, as well as resolving
-the final compatibilty result taking into account the compatibility of all nested serializers.
+the final compatibility result taking into account the compatibility of all nested serializers.
 
 Below is an example of how the `CompositeTypeSerializerSnapshot` is used, using Flink's `MapSerializer` as an example:
 <div data-lang="java" markdown="1">

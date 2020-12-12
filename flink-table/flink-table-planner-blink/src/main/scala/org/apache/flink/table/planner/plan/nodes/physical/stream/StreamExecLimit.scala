@@ -26,20 +26,16 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector
-import org.apache.flink.table.runtime.operators.rank.{AppendOnlyTopNFunction, ConstantRankRange, RankType, RetractableTopNFunction}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.operators.rank.{AppendOnlyTopNFunction, ComparableRecordComparator, ConstantRankRange, RankType, RetractableTopNFunction}
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rex.RexNode
-
-import java.util
-
-import scala.collection.JavaConversions._
 
 /**
   * Stream physical RelNode for [[Sort]].
@@ -60,7 +56,7 @@ class StreamExecLimit(
     offset,
     fetch)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   private lazy val limitStart: Long = SortUtil.getLimitStart(offset)
   private lazy val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
@@ -84,23 +80,13 @@ class StreamExecLimit(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {
     if (fetch == null) {
       throw new TableException(
         "FETCH is missed, which on streaming table is not supported currently.")
     }
-    val inputRowTypeInfo = RowDataTypeInfo.of(
+    val inputRowTypeInfo = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val tableConfig = planner.getTableConfig
@@ -131,13 +117,19 @@ class StreamExecLimit(
         outputRankNumber,
         cacheSize)
     } else {
-      val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getLogicalTypes)
+      val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.toRowFieldTypes)
       val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("LimitValueEqualiser")
+      val comparator = new ComparableRecordComparator(
+        sortKeyComparator,
+        Array(),
+        Array(),
+        Array(),
+        Array())
       new RetractableTopNFunction(
         minIdleStateRetentionTime,
         maxIdleStateRetentionTime,
         inputRowTypeInfo,
-        sortKeyComparator,
+        comparator,
         sortKeySelector,
         rankType,
         rankRange,
@@ -151,7 +143,7 @@ class StreamExecLimit(
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
 
-    val outputRowTypeInfo = RowDataTypeInfo.of(
+    val outputRowTypeInfo = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // as input node is singleton exchange, its parallelism is 1.

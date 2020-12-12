@@ -102,8 +102,9 @@ class TableScanTest extends TableTestBase {
         |)
       """.stripMargin)
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Cannot query on an unbounded source in batch mode, " +
-      "but 'default_catalog.default_database.src' is unbounded")
+    thrown.expectMessage(
+      "Querying an unbounded table 'default_catalog.default_database.src' in batch mode is not " +
+      "allowed. The table source is unbounded.")
     util.verifyPlan("SELECT * FROM src WHERE a > 1")
   }
 
@@ -121,10 +122,34 @@ class TableScanTest extends TableTestBase {
         |  'changelog-mode' = 'I,UA,UB'
         |)
       """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
+    thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      "Currently, batch mode only supports INSERT only source, " +
-        "but 'default_catalog.default_database.src' source produces not INSERT only messages")
+      "Querying a table in batch mode is currently only possible for INSERT-only table sources. " +
+       "But the source for table 'default_catalog.default_database.src' produces other changelog " +
+       "messages than just INSERT.")
+    util.verifyPlan("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testScanOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  id STRING,
+        |  a INT,
+        |  b DOUBLE,
+        |  PRIMARY KEY (id) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'true',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Querying a table in batch mode is currently only possible for INSERT-only table sources. " +
+      "But the source for table 'default_catalog.default_database.src' produces other changelog " +
+      "messages than just INSERT.")
     util.verifyPlan("SELECT * FROM src WHERE a > 1")
   }
 

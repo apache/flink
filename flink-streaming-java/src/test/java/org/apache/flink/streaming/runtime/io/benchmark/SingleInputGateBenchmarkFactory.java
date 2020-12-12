@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -85,6 +86,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				connectionManager,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
+				networkBuffersPerChannel,
 				metrics);
 		}
 	}
@@ -115,7 +117,8 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				initialBackoff,
 				maxBackoff,
 				metrics.getNumBytesInLocalCounter(),
-				metrics.getNumBuffersInLocalCounter());
+				metrics.getNumBuffersInLocalCounter(),
+				ChannelStateWriter.NO_OP);
 		}
 
 		@Override
@@ -149,6 +152,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				ConnectionManager connectionManager,
 				int initialBackOff,
 				int maxBackoff,
+				int networkBuffersPerChannel,
 				InputChannelMetrics metrics) {
 			super(
 				inputGate,
@@ -158,8 +162,10 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				connectionManager,
 				initialBackOff,
 				maxBackoff,
+				networkBuffersPerChannel,
 				metrics.getNumBytesInRemoteCounter(),
-				metrics.getNumBuffersInRemoteCounter());
+				metrics.getNumBuffersInRemoteCounter(),
+				ChannelStateWriter.NO_OP);
 		}
 
 		@Override

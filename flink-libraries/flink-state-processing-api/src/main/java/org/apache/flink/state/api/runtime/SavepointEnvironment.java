@@ -55,10 +55,13 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
+
+import static org.apache.flink.runtime.memory.MemoryManager.DEFAULT_PAGE_SIZE;
 
 /**
  * A minimally implemented {@link Environment} that provides the functionality required to run the
@@ -92,6 +95,8 @@ public class SavepointEnvironment implements Environment {
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
+	private final UserCodeClassLoader userCodeClassLoader;
+
 	private SavepointEnvironment(RuntimeContext ctx, Configuration configuration, int maxParallelism, int indexOfSubtask, PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
 		this.jobID = new JobID();
 		this.vertexID = new JobVertexID();
@@ -106,8 +111,10 @@ public class SavepointEnvironment implements Environment {
 		this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
 		this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
 		this.ioManager = new IOManagerAsync(ConfigurationUtils.parseTempDirectories(configuration));
-		this.memoryManager = MemoryManager.forDefaultPageSize(64 * 1024 * 1024);
+		this.memoryManager = MemoryManager.create(64 * 1024 * 1024, DEFAULT_PAGE_SIZE);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
+
+		this.userCodeClassLoader = UserCodeClassLoaderRuntimeContextAdapter.from(ctx);
 	}
 
 	@Override
@@ -176,8 +183,8 @@ public class SavepointEnvironment implements Environment {
 	}
 
 	@Override
-	public ClassLoader getUserClassLoader() {
-		return ctx.getUserCodeClassLoader();
+	public UserCodeClassLoader getUserCodeClassLoader() {
+		return userCodeClassLoader;
 	}
 
 	@Override
@@ -314,6 +321,29 @@ public class SavepointEnvironment implements Environment {
 				maxParallelism,
 				indexOfSubtask,
 				prioritizedOperatorSubtaskState);
+		}
+	}
+
+	private static final class UserCodeClassLoaderRuntimeContextAdapter implements UserCodeClassLoader {
+
+		private final RuntimeContext runtimeContext;
+
+		private UserCodeClassLoaderRuntimeContextAdapter(RuntimeContext runtimeContext) {
+			this.runtimeContext = runtimeContext;
+		}
+
+		@Override
+		public ClassLoader asClassLoader() {
+			return runtimeContext.getUserCodeClassLoader();
+		}
+
+		@Override
+		public void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
+			runtimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent(releaseHookName, releaseHook);
+		}
+
+		private static UserCodeClassLoaderRuntimeContextAdapter from(RuntimeContext runtimeContext) {
+			return new UserCodeClassLoaderRuntimeContextAdapter(runtimeContext);
 		}
 	}
 

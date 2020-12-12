@@ -20,6 +20,7 @@ package org.apache.flink.table.tpcds;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -105,7 +106,7 @@ public class TpcdsTestProgram {
 			TableResult tableResult = resultTable.executeInsert(sinkTableName);
 			// wait job finish
 			tableResult.getJobClient().get()
-					.getJobExecutionResult(Thread.currentThread().getContextClassLoader())
+					.getJobExecutionResult()
 					.get();
 			System.out.println("[INFO]Run TPC-DS query " + queryId + " success.");
 		}
@@ -129,6 +130,8 @@ public class TpcdsTestProgram {
 		//config Optimizer parameters
 		tEnv.getConfig().getConfiguration()
 				.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
+		tEnv.getConfig().getConfiguration()
+				.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED.toString());
 		tEnv.getConfig().getConfiguration()
 				.setLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, 10 * 1024 * 1024);
 		tEnv.getConfig().getConfiguration()

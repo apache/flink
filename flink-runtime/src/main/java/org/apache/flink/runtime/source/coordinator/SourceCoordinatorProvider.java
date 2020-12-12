@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -67,8 +68,9 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 	public OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) {
 		final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
 		CoordinatorExecutorThreadFactory coordinatorThreadFactory =
-				new CoordinatorExecutorThreadFactory(coordinatorThreadName);
+				new CoordinatorExecutorThreadFactory(coordinatorThreadName, context.getUserCodeClassloader());
 		ExecutorService coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
+
 		SimpleVersionedSerializer<SplitT> splitSerializer = source.getSplitSerializer();
 		SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
 				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads,
@@ -80,22 +82,40 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 	 * A thread factory class that provides some helper methods.
 	 */
 	public static class CoordinatorExecutorThreadFactory implements ThreadFactory {
+
 		private final String coordinatorThreadName;
+		private final ClassLoader cl;
+		private final Thread.UncaughtExceptionHandler errorHandler;
+
 		private Thread t;
 
-		CoordinatorExecutorThreadFactory(String coordinatorThreadName) {
+		CoordinatorExecutorThreadFactory(
+				final String coordinatorThreadName,
+				final ClassLoader contextClassLoader) {
+			this(coordinatorThreadName, contextClassLoader, FatalExitExceptionHandler.INSTANCE);
+		}
+
+		@VisibleForTesting
+		CoordinatorExecutorThreadFactory(
+				final String coordinatorThreadName,
+				final ClassLoader contextClassLoader,
+				final Thread.UncaughtExceptionHandler errorHandler) {
 			this.coordinatorThreadName = coordinatorThreadName;
-			this.t = null;
+			this.cl = contextClassLoader;
+			this.errorHandler = errorHandler;
 		}
 
 		@Override
-		public Thread newThread(Runnable r) {
+		public synchronized Thread newThread(Runnable r) {
 			if (t != null) {
-				throw new IllegalStateException("Should never happen. This factory should only be used by a " +
-						"SingleThreadExecutor.");
+				throw new Error(
+					"This indicates that a fatal error has happened and caused the "
+						+ "coordinator executor thread to exit. Check the earlier logs"
+						+ "to see the root cause of the problem.");
 			}
 			t = new Thread(r, coordinatorThreadName);
-			t.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
+			t.setContextClassLoader(cl);
+			t.setUncaughtExceptionHandler(errorHandler);
 			return t;
 		}
 

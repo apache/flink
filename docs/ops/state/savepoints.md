@@ -27,7 +27,7 @@ under the License.
 
 ## What is a Savepoint? How is a Savepoint different from a Checkpoint?
 
-A Savepoint is a consistent image of the execution state of a streaming job, created via Flink's [checkpointing mechanism]({{ site.baseurl }}/learn-flink/fault_tolerance.html). You can use Savepoints to stop-and-resume, fork,
+A Savepoint is a consistent image of the execution state of a streaming job, created via Flink's [checkpointing mechanism]({% link learn-flink/fault_tolerance.md %}). You can use Savepoints to stop-and-resume, fork,
 or update your Flink jobs. Savepoints consist of two parts: a directory with (typically large) binary files on stable storage (e.g. HDFS, S3, ...) and a (relatively small) meta data file. The files on stable storage represent the net data of the job's execution state
 image. The meta data file of a Savepoint contains (primarily) pointers to all files on stable storage that are part of the Savepoint, in form of absolute paths.
 
@@ -82,7 +82,7 @@ In the above example, the print sink is stateless and hence not part of the save
 
 ## Operations
 
-You can use the [command line client]({{ site.baseurl }}/ops/cli.html#savepoints) to *trigger savepoints*, *cancel a job with a savepoint*, *resume from savepoints*, and *dispose savepoints*.
+You can use the [command line client]({% link deployment/cli.md %}#savepoints) to *trigger savepoints*, *cancel a job with a savepoint*, *resume from savepoints*, and *dispose savepoints*.
 
 With Flink >= 1.2.0 it is also possible to *resume from savepoints* using the webui.
 
@@ -226,7 +226,7 @@ If you did not assign IDs, the auto generated IDs of the stateful operators will
 
 If the savepoint was triggered with Flink >= 1.2.0 and using no deprecated state API like `Checkpointed`, you can simply restore the program from a savepoint and specify a new parallelism.
 
-If you are resuming from a savepoint triggered with Flink < 1.2.0 or using now deprecated APIs you first have to migrate your job and savepoint to Flink >= 1.2.0 before being able to change the parallelism. See the [upgrading jobs and Flink versions guide]({{ site.baseurl }}/ops/upgrading.html).
+If you are resuming from a savepoint triggered with Flink < 1.2.0 or using now deprecated APIs you first have to migrate your job and savepoint to Flink >= 1.2.0 before being able to change the parallelism. See the [upgrading jobs and Flink versions guide]({% link ops/upgrading.md %}).
 
 ### Can I move the Savepoint files on stable storage?
 

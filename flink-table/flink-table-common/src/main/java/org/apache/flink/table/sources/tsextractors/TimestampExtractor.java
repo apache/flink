@@ -21,6 +21,7 @@ package org.apache.flink.table.sources.tsextractors;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.sources.FieldComputer;
@@ -32,7 +33,12 @@ import java.util.Map;
 
 /**
  * Provides an expression to extract the timestamp for a rowtime attribute.
+ *
+ * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
+ *             which only works with the Blink planner. Use the concept of computed columns instead.
+ *             See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public abstract class TimestampExtractor implements FieldComputer<Long>, Serializable, Descriptor {
 

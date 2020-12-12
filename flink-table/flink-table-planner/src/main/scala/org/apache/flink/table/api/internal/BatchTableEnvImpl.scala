@@ -76,7 +76,7 @@ abstract class BatchTableEnvImpl(
     config: TableConfig,
     catalogManager: CatalogManager,
     moduleManager: ModuleManager)
-  extends TableEnvImpl(config, catalogManager, moduleManager) {
+  extends TableEnvImpl(config, catalogManager, moduleManager, execEnv.getUserCodeClassLoader) {
 
   private val bufferedModifyOperations = new JArrayList[ModifyOperation]()
 
@@ -297,7 +297,7 @@ abstract class BatchTableEnvImpl(
     val extended = extraDetails.contains(ExplainDetail.ESTIMATED_COST)
     val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
 
-    s"== Abstract Syntax Tree ==" +
+    val explanation = s"== Abstract Syntax Tree ==" +
       System.lineSeparator +
       s"$astPlan" +
       System.lineSeparator +
@@ -306,8 +306,15 @@ abstract class BatchTableEnvImpl(
       s"$optimizedPlan" +
       System.lineSeparator +
       s"== Physical Execution Plan ==" +
-      System.lineSeparator +
+      System.lineSeparator
+
+    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      s"$explanation" +
+      s"$jasonSqlPlan"
+    } else {
+      s"$explanation" +
       s"$sqlPlan"
+    }
   }
 
   override def execute(jobName: String): JobExecutionResult = {
@@ -316,7 +323,7 @@ abstract class BatchTableEnvImpl(
     try {
       val jobClient = executePipeline(plan)
       if (execEnv.getConfiguration.getBoolean(DeploymentOptions.ATTACHED)) {
-        jobClient.getJobExecutionResult(execEnv.getUserCodeClassLoader).get
+        jobClient.getJobExecutionResult().get
       } else {
         new DetachedJobExecutionResult(jobClient.getJobID)
       }
@@ -343,7 +350,8 @@ abstract class BatchTableEnvImpl(
       "Cannot find compatible factory for specified execution.target (=%s)",
       configuration.get(DeploymentOptions.TARGET))
 
-    val jobClientFuture = executorFactory.getExecutor(configuration).execute(plan, configuration)
+    val jobClientFuture = executorFactory.getExecutor(configuration)
+      .execute(plan, configuration, execEnv.getUserCodeClassLoader)
     try {
       jobClientFuture.get
     } catch {

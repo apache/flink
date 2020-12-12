@@ -19,10 +19,13 @@
 package org.apache.flink.table.data.conversion;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 
 /**
  * Converter for {@link RawType} of object external type.
@@ -53,7 +56,16 @@ public class RawObjectConverter<T> implements DataStructureConverter<RawValueDat
 	// --------------------------------------------------------------------------------------------
 
 	public static RawObjectConverter<?> create(DataType dataType) {
-		final TypeSerializer<?> serializer = ((RawType<?>) dataType.getLogicalType()).getTypeSerializer();
+		final LogicalType logicalType = dataType.getLogicalType();
+		final TypeSerializer<?> serializer;
+		if (logicalType instanceof TypeInformationRawType) {
+			serializer = ((TypeInformationRawType<?>) logicalType)
+				.getTypeInformation()
+				.createSerializer(new ExecutionConfig());
+		} else {
+			serializer = ((RawType<?>) dataType.getLogicalType())
+				.getTypeSerializer();
+		}
 		return new RawObjectConverter<>(serializer);
 	}
 }

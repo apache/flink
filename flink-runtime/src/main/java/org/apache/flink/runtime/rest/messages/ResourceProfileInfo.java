@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
@@ -32,7 +33,9 @@ import java.util.stream.Collectors;
 /**
  * Contains information of a {@link ResourceProfile}.
  */
-public class ResourceProfileInfo implements ResponseBody {
+public class ResourceProfileInfo implements ResponseBody, Serializable {
+
+	private static final long serialVersionUID = 2286586486998901098L;
 
 	public static final String FIELD_NAME_CPU = "cpuCores";
 

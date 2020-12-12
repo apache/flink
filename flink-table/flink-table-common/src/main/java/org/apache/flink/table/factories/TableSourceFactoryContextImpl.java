@@ -34,14 +34,17 @@ public class TableSourceFactoryContextImpl implements TableSourceFactory.Context
 	private final ObjectIdentifier identifier;
 	private final CatalogTable table;
 	private final ReadableConfig config;
+	private final boolean isTemporary;
 
 	public TableSourceFactoryContextImpl(
 			ObjectIdentifier identifier,
 			CatalogTable table,
-			ReadableConfig config) {
+			ReadableConfig config,
+			boolean isTemporary) {
 		this.identifier = checkNotNull(identifier);
 		this.table = checkNotNull(table);
 		this.config = checkNotNull(config);
+		this.isTemporary = isTemporary;
 	}
 
 	@Override
@@ -57,5 +60,10 @@ public class TableSourceFactoryContextImpl implements TableSourceFactory.Context
 	@Override
 	public ReadableConfig getConfiguration() {
 		return config;
+	}
+
+	@Override
+	public boolean isTemporary() {
+		return isTemporary;
 	}
 }

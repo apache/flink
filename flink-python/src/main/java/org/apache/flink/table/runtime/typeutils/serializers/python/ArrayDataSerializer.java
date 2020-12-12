@@ -49,13 +49,16 @@ public class ArrayDataSerializer extends org.apache.flink.table.runtime.typeutil
 
 	private final TypeSerializer elementTypeSerializer;
 
+	private final ArrayData.ElementGetter elementGetter;
+
 	private final int elementSize;
 
 	public ArrayDataSerializer(LogicalType eleType, TypeSerializer elementTypeSerializer) {
-		super(eleType, null);
+		super(eleType);
 		this.elementType = eleType;
 		this.elementTypeSerializer = elementTypeSerializer;
 		this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);
+		this.elementGetter = ArrayData.createElementGetter(elementType);
 	}
 
 	@Override
@@ -67,7 +70,7 @@ public class ArrayDataSerializer extends org.apache.flink.table.runtime.typeutil
 				target.writeBoolean(false);
 			} else {
 				target.writeBoolean(true);
-				Object element = ArrayData.get(array, i, elementType);
+				Object element = elementGetter.getElementOrNull(array, i);
 				elementTypeSerializer.serialize(element, target);
 			}
 		}

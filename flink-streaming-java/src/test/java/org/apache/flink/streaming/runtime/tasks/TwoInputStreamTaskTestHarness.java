@@ -110,8 +110,8 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 			private static final long serialVersionUID = 1L;
 		};
 
-		StreamNode sourceVertexDummy = new StreamNode(0, "default group", null, dummyOperator, "source dummy", new LinkedList<>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(1, "default group", null, dummyOperator, "target dummy", new LinkedList<>(), SourceStreamTask.class);
+		StreamNode sourceVertexDummy = new StreamNode(0, "default group", null, dummyOperator, "source dummy", SourceStreamTask.class);
+		StreamNode targetVertexDummy = new StreamNode(1, "default group", null, dummyOperator, "target dummy", SourceStreamTask.class);
 
 		for (int i = 0; i < numInputGates; i++) {
 
@@ -126,7 +126,6 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,
 							1,
-							new LinkedList<>(),
 							new BroadcastPartitioner<>(),
 							null /* output tag */);
 
@@ -143,7 +142,6 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,
 							2,
-							new LinkedList<>(),
 							new BroadcastPartitioner<>(),
 							null /* output tag */);
 
@@ -158,7 +156,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 		}
 
 		streamConfig.setInPhysicalEdges(inPhysicalEdges);
-		streamConfig.setNumberOfInputs(numInputGates);
+		streamConfig.setNumberOfNetworkInputs(numInputGates);
 		streamConfig.setTypeSerializersIn(inputSerializer1, inputSerializer2);
 	}
 

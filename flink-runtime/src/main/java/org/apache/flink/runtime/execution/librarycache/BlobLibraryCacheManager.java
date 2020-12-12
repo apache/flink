@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,13 +149,20 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		 */
 		private final Consumer<Throwable> classLoadingExceptionHandler;
 
+		/**
+		 * Test if classloader is used outside of job.
+		 */
+		private final boolean checkClassLoaderLeak;
+
 		private DefaultClassLoaderFactory(
 				FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
 				String[] alwaysParentFirstPatterns,
-				Consumer<Throwable> classLoadingExceptionHandler) {
+				Consumer<Throwable> classLoadingExceptionHandler,
+				boolean checkClassLoaderLeak) {
 			this.classLoaderResolveOrder = classLoaderResolveOrder;
 			this.alwaysParentFirstPatterns = alwaysParentFirstPatterns;
 			this.classLoadingExceptionHandler = classLoadingExceptionHandler;
+			this.checkClassLoaderLeak = checkClassLoaderLeak;
 		}
 
 		@Override
@@ -164,18 +172,21 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				libraryURLs,
 				FlinkUserCodeClassLoaders.class.getClassLoader(),
 				alwaysParentFirstPatterns,
-				classLoadingExceptionHandler);
+				classLoadingExceptionHandler,
+				checkClassLoaderLeak);
 		}
 	}
 
 	public static ClassLoaderFactory defaultClassLoaderFactory(
 			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
 			String[] alwaysParentFirstPatterns,
-			@Nullable FatalErrorHandler fatalErrorHandlerJvmMetaspaceOomError) {
+			@Nullable FatalErrorHandler fatalErrorHandlerJvmMetaspaceOomError,
+			boolean checkClassLoaderLeak) {
 		return new DefaultClassLoaderFactory(
 			classLoaderResolveOrder,
 			alwaysParentFirstPatterns,
-			createClassLoadingExceptionHandler(fatalErrorHandlerJvmMetaspaceOomError));
+			createClassLoadingExceptionHandler(fatalErrorHandlerJvmMetaspaceOomError),
+			checkClassLoaderLeak);
 	}
 
 	private static Consumer<Throwable> createClassLoadingExceptionHandler(
@@ -210,7 +221,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 			this.isReleased = false;
 		}
 
-		private ClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> libraries, Collection<URL> classPaths) throws IOException {
+		private UserCodeClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> libraries, Collection<URL> classPaths) throws IOException {
 			synchronized (lockObject) {
 				verifyIsNotReleased();
 
@@ -220,7 +231,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 					resolvedClassLoader.verifyClassLoader(libraries, classPaths);
 				}
 
-				return resolvedClassLoader.getClassLoader();
+				return resolvedClassLoader;
 			}
 		}
 
@@ -307,7 +318,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		}
 
 		@Override
-		public ClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException {
+		public UserCodeClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException {
 			verifyIsNotClosed();
 			return libraryCacheEntry.getOrResolveClassLoader(
 				requiredJarFiles,
@@ -334,7 +345,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		}
 	}
 
-	private static final class ResolvedClassLoader {
+	private static final class ResolvedClassLoader implements UserCodeClassLoader {
 		private final URLClassLoader classLoader;
 
 		/**
@@ -353,6 +364,8 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		 */
 		private final Set<String> classPaths;
 
+		private final Map<String, Runnable> releaseHooks;
+
 		private ResolvedClassLoader(URLClassLoader classLoader, Collection<PermanentBlobKey> requiredLibraries, Collection<URL> requiredClassPaths) {
 			this.classLoader = classLoader;
 
@@ -364,10 +377,18 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				classPaths.add(url.toString());
 			}
 			this.libraries = new HashSet<>(requiredLibraries);
+
+			this.releaseHooks = new HashMap<>();
 		}
 
-		private URLClassLoader getClassLoader() {
+		@Override
+		public ClassLoader asClassLoader() {
 			return classLoader;
+		}
+
+		@Override
+		public void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
+			releaseHooks.putIfAbsent(releaseHookName, releaseHook);
 		}
 
 		private void verifyClassLoader(Collection<PermanentBlobKey> requiredLibraries, Collection<URL> requiredClassPaths) {
@@ -403,10 +424,28 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		 * and the cached libraries are deleted immediately.
 		 */
 		private void releaseClassLoader() {
+			runReleaseHooks();
+
 			try {
 				classLoader.close();
 			} catch (IOException e) {
 				LOG.warn("Failed to release user code class loader for " + Arrays.toString(libraries.toArray()));
+			}
+		}
+
+		private void runReleaseHooks() {
+			Set<Map.Entry<String, Runnable>> hooks = releaseHooks.entrySet();
+			if (!hooks.isEmpty()) {
+				for (Map.Entry<String, Runnable> hookEntry : hooks) {
+					try {
+						LOG.debug("Running class loader shutdown hook: {}.", hookEntry.getKey());
+						hookEntry.getValue().run();
+					} catch (Throwable t) {
+						LOG.warn("Failed to run release hook '{}' for user code class loader.", hookEntry.getValue(), t);
+					}
+				}
+
+				releaseHooks.clear();
 			}
 		}
 	}

@@ -110,6 +110,7 @@ class RelTreeWriterImpl(
         .append(mq.getCumulativeCost(rel))
     }
     pw.println(s)
+
     if (inputs.length > 1) inputs.toSeq.init.foreach { rel =>
       if (withTreeStyle) {
         depth = depth + 1

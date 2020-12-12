@@ -35,6 +35,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectAnnotationsOfClass;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectAnnotationsOfMethod;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.collectMethods;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.createMethodSignatureString;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
@@ -437,9 +440,30 @@ final class FunctionMappingExtractor {
 
 	/**
 	 * Extraction that uses a generic type variable for producing a {@link FunctionResultTemplate}.
+	 *
+	 * <p>If enabled, a {@link DataTypeHint} from method or class has higher priority.
 	 */
-	static ResultExtraction createGenericResultExtraction(Class<? extends UserDefinedFunction> baseClass, int genericPos) {
+	static ResultExtraction createGenericResultExtraction(
+			Class<? extends UserDefinedFunction> baseClass,
+			int genericPos,
+			boolean allowDataTypeHint) {
 		return (extractor, method) -> {
+			if (allowDataTypeHint) {
+				final Set<DataTypeHint> dataTypeHints = new HashSet<>();
+				dataTypeHints.addAll(collectAnnotationsOfMethod(DataTypeHint.class, method));
+				dataTypeHints.addAll(collectAnnotationsOfClass(DataTypeHint.class, extractor.function));
+				if (dataTypeHints.size() > 1) {
+					throw extractionError(
+						"More than one data type hint found for output of function. " +
+							"Please use a function hint instead.");
+				}
+				if (dataTypeHints.size() == 1) {
+					return FunctionTemplate.createResultTemplate(
+						extractor.typeFactory,
+						dataTypeHints.iterator().next());
+				}
+				// otherwise continue with regular extraction
+			}
 			final DataType dataType = DataTypeExtractor.extractFromGeneric(
 				extractor.typeFactory,
 				baseClass,

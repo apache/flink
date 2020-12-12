@@ -31,14 +31,14 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
+import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -107,8 +107,8 @@ public class StateBackendITCase extends AbstractTestBase {
 		}
 
 		@Override
-		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-			return new MemoryBackendCheckpointStorage(jobId, null, null, 1_000_000);
+		public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+			return new MemoryBackendCheckpointStorageAccess(jobId, null, null, 1_000_000);
 		}
 
 		@Override

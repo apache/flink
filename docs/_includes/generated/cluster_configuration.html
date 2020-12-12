@@ -21,6 +21,12 @@
             <td>The size of the IO executor pool used by the cluster to execute blocking IO operations (Master as well as TaskManager processes). By default it will use 4 * the number of CPU cores (hardware contexts) that the cluster process has access to. Increasing the pool size allows to run more IO operations concurrently.</td>
         </tr>
         <tr>
+            <td><h5>cluster.processes.halt-on-fatal-error</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether processes should halt on fatal errors instead of performing a graceful shutdown. In some environments (e.g. Java 8 with the G1 garbage collector), a regular graceful shutdown can lead to a JVM deadlock. See <a href="https://issues.apache.org/jira/browse/FLINK-16510">FLINK-16510</a> for details.</td>
+        </tr>
+        <tr>
             <td><h5>cluster.registration.error-delay</h5></td>
             <td style="word-wrap: break-word;">10000</td>
             <td>Long</td>

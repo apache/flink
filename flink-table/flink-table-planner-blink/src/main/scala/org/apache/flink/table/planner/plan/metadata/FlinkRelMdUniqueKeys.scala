@@ -18,32 +18,34 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.catalog.AbstractCatalogTable
 import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
+import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
-import org.apache.flink.table.runtime.operators.rank.RankType
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
 
+import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.RelOptTable
+import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
-import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.{SqlKind, SqlWindowTableFunction}
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
-
-import com.google.common.collect.ImmutableSet
 
 import java.util
 
@@ -70,9 +72,29 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   private def getTableUniqueKeys(
       tableSource: TableSource[_],
       relOptTable: RelOptTable): JSet[ImmutableBitSet] = {
-    // TODO get uniqueKeys from TableSchema of TableSource
 
     relOptTable match {
+      case sourceTable: TableSourceTable =>
+        val catalogTable = sourceTable.catalogTable
+        catalogTable match {
+          case act: AbstractCatalogTable =>
+            val schema = act.getSchema
+            if (schema.getPrimaryKey.isPresent) {
+              val columns = schema.getFieldNames
+              val columnIndices = schema.getPrimaryKey.get().getColumns map { c =>
+                columns.indexOf(c)
+              }
+              val builder = ImmutableSet.builder[ImmutableBitSet]()
+              builder.add(ImmutableBitSet.of(columnIndices:_*))
+              val uniqueSet = sourceTable.uniqueKeysSet().orElse(null)
+              if (uniqueSet != null) {
+                builder.addAll(uniqueSet)
+              }
+              builder.build()
+            } else {
+              sourceTable.uniqueKeysSet.orElse(null)
+            }
+        }
       case table: FlinkPreparingTableBase => table.uniqueKeysSet.orElse(null)
       case _ => null
     }
@@ -244,7 +266,24 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
     val inputUniqueKeys = mq.getUniqueKeys(rel.getInput, ignoreNulls)
     val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rel).getOrElse(-1)
-    if (rankFunColumnIndex < 0) {
+    // for Rank node that can convert to Deduplicate, unique key is partition key
+    val canConvertToDeduplicate: Boolean = {
+      val rankRange = rel.rankRange
+      val isRowNumberType = rel.rankType == RankType.ROW_NUMBER
+      val isLimit1 = rankRange match {
+        case rankRange: ConstantRankRange =>
+          rankRange.getRankStart() == 1 && rankRange.getRankEnd() == 1
+        case _ => false
+      }
+      isRowNumberType && isLimit1
+    }
+
+    if (canConvertToDeduplicate) {
+      val retSet = new JHashSet[ImmutableBitSet]
+      retSet.add(rel.partitionKey)
+      retSet
+    }
+    else if (rankFunColumnIndex < 0) {
       inputUniqueKeys
     } else {
       val retSet = new JHashSet[ImmutableBitSet]
@@ -272,6 +311,20 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
     ImmutableSet.of(ImmutableBitSet.of(rel.getUniqueKeys.map(Integer.valueOf).toList))
+  }
+
+  def getUniqueKeys(
+      rel: StreamExecChangelogNormalize,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    ImmutableSet.of(ImmutableBitSet.of(rel.uniqueKeys.map(Integer.valueOf).toList))
+  }
+
+  def getUniqueKeys(
+      rel: StreamExecDropUpdateBefore,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    mq.getUniqueKeys(rel.getInput, ignoreNulls)
   }
 
   def getUniqueKeys(
@@ -540,6 +593,12 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   }
 
   def getUniqueKeys(
+      multipleInput: MultipleInputRel,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] =
+    mq.getUniqueKeys(multipleInput.outputRel, ignoreNulls)
+
+  def getUniqueKeys(
       subset: RelSubset,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
@@ -553,21 +612,25 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     }
   }
 
+  def getUniqueKeys(
+      subset: HepRelVertex,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    mq.getUniqueKeys(subset.getCurrentRel, ignoreNulls)
+  }
+
+  def getUniqueKeys(
+      subset: WatermarkAssigner,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    mq.getUniqueKeys(subset.getInput, ignoreNulls)
+  }
+
   // Catch-all rule when none of the others apply.
   def getUniqueKeys(
       rel: RelNode,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = null
-
-  private def toImmutableSet(array: Array[Int]): JSet[ImmutableBitSet] = {
-    if (array.nonEmpty) {
-      val keys = new JArrayList[Integer]()
-      array.foreach(keys.add(_))
-      ImmutableSet.of(ImmutableBitSet.of(keys))
-    } else {
-      null
-    }
-  }
 
 }
 

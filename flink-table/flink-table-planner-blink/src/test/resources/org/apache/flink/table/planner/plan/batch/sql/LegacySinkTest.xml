@@ -58,7 +58,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[t
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[sum_a], reuse_id=[1])
+Calc(select=[sum_a])(reuse_id=[1])
 +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])

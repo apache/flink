@@ -124,7 +124,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 	public void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget) {
 		if (!stopped) {
 			if (heartbeatTargets.containsKey(resourceID)) {
-				log.debug("The target with resource ID {} is already been monitored.", resourceID);
+				log.debug("The target with resource ID {} is already been monitored.", resourceID.getStringWithMetadata());
 			} else {
 				HeartbeatMonitor<O> heartbeatMonitor =
 					heartbeatMonitorFactory.createHeartbeatMonitor(

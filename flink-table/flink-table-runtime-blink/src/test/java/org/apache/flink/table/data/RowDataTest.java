@@ -23,6 +23,7 @@ import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.binary.TypedSetters;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
@@ -124,10 +125,9 @@ public class RowDataTest {
 		writer.writeRawValue(9, generic, genericSerializer);
 		writer.writeDecimal(10, decimal1, 5);
 		writer.writeDecimal(11, decimal2, 20);
-		writer.writeArray(12, array, new ArrayDataSerializer(DataTypes.INT().getLogicalType(), null));
-		writer.writeMap(13, map, new MapDataSerializer(
-			DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
-		writer.writeRow(14, underRow, new RowDataSerializer(null, RowType.of(new IntType(), new IntType())));
+		writer.writeArray(12, array, new ArrayDataSerializer(DataTypes.INT().getLogicalType()));
+		writer.writeMap(13, map, new MapDataSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType()));
+		writer.writeRow(14, underRow, new RowDataSerializer(RowType.of(new IntType(), new IntType())));
 		writer.writeBinary(15, bytes);
 		writer.writeTimestamp(16, timestamp1, 3);
 		writer.writeTimestamp(17, timestamp2, 9);

@@ -26,7 +26,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -41,7 +44,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -74,15 +79,18 @@ public class JobGraph implements Serializable {
 	/** Name of this job. */
 	private final String jobName;
 
-	/** The mode in which the job is scheduled */
+	/** The mode in which the job is scheduled. */
 	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
+
+	/** Whether approximate local recovery is enabled. This flag will be removed together with legacy scheduling strategies. */
+	private boolean approximateLocalRecovery = false;
 
 	// --- checkpointing ---
 
-	/** Job specific execution config */
+	/** Job specific execution config. */
 	private SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-	/** The settings for the job checkpoints */
+	/** The settings for the job checkpoints. */
 	private JobCheckpointingSettings snapshotSettings;
 
 	/** Savepoint restore settings. */
@@ -210,7 +218,7 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
-	 * Returns the {@link ExecutionConfig}
+	 * Returns the {@link ExecutionConfig}.
 	 *
 	 * @return ExecutionConfig
 	 */
@@ -224,6 +232,14 @@ public class JobGraph implements Serializable {
 
 	public ScheduleMode getScheduleMode() {
 		return scheduleMode;
+	}
+
+	public void enableApproximateLocalRecovery(boolean enabled) {
+		this.approximateLocalRecovery = enabled;
+	}
+
+	public boolean isApproximateLocalRecoveryEnabled() {
+		return approximateLocalRecovery;
 	}
 
 	/**
@@ -300,6 +316,27 @@ public class JobGraph implements Serializable {
 		return this.taskVertices.size();
 	}
 
+	public Set<SlotSharingGroup> getSlotSharingGroups() {
+		final Set<SlotSharingGroup> slotSharingGroups = IterableUtils
+			.toStream(getVertices())
+			.map(JobVertex::getSlotSharingGroup)
+			.collect(Collectors.toSet());
+		return Collections.unmodifiableSet(slotSharingGroups);
+	}
+
+	public Set<CoLocationGroupDesc> getCoLocationGroupDescriptors() {
+		// invoke distinct() on CoLocationGroup first to avoid creating
+		// multiple CoLocationGroupDec from one CoLocationGroup
+		final Set<CoLocationGroupDesc> coLocationGroups = IterableUtils
+			.toStream(getVertices())
+			.map(JobVertex::getCoLocationGroup)
+			.filter(Objects::nonNull)
+			.distinct()
+			.map(CoLocationGroupDesc::from)
+			.collect(Collectors.toSet());
+		return Collections.unmodifiableSet(coLocationGroups);
+	}
+
 	/**
 	 * Sets the settings for asynchronous snapshots. A value of {@code null} means that
 	 * snapshotting is not enabled.
@@ -321,7 +358,7 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
-	 * Checks if the checkpointing was enabled for this job graph
+	 * Checks if the checkpointing was enabled for this job graph.
 	 *
 	 * @return true if checkpointing enabled
 	 */

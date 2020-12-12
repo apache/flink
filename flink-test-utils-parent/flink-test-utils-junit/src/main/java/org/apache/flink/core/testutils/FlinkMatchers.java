@@ -89,6 +89,20 @@ public class FlinkMatchers {
 		return new ContainsCauseMatcher(failureCause);
 	}
 
+	/**
+	 * Checks for a {@link Throwable} that contains the expected error message.
+	 */
+	public static Matcher<Throwable> containsMessage(String errorMessage) {
+		return new ContainsMessageMatcher(errorMessage);
+	}
+
+	/**
+	 * Checks that a {@link CompletableFuture} won't complete within the given timeout.
+	 */
+	public static Matcher<CompletableFuture<?>> willNotComplete(Duration timeout) {
+		return new WillNotCompleteMatcher(timeout);
+	}
+
 	// ------------------------------------------------------------------------
 
 	/** This class should not be instantiated. */
@@ -265,6 +279,93 @@ public class FlinkMatchers {
 			}
 
 			return Optional.empty();
+		}
+	}
+
+	private static final class ContainsMessageMatcher extends TypeSafeDiagnosingMatcher<Throwable> {
+
+		private final String errorMessage;
+
+		private ContainsMessageMatcher(String errorMessage) {
+			this.errorMessage = errorMessage;
+		}
+
+		@Override
+		protected boolean matchesSafely(Throwable throwable, Description description) {
+			final Optional<Throwable> optionalCause = findThrowableWithMessage(throwable, errorMessage);
+
+			if (!optionalCause.isPresent()) {
+				description
+					.appendText("The throwable ")
+					.appendValue(throwable)
+					.appendText(" does not contain the expected error message ")
+					.appendValue(errorMessage);
+			}
+
+			return optionalCause.isPresent();
+		}
+
+		@Override
+		public void describeTo(Description description) {
+			description
+				.appendText("Expected error message is ")
+				.appendValue(errorMessage);
+		}
+
+		// copied from flink-core to not mess up the dependency design too much, just for a little
+		// utility method
+		private static Optional<Throwable> findThrowableWithMessage(Throwable throwable, String searchMessage) {
+			if (throwable == null || searchMessage == null) {
+				return Optional.empty();
+			}
+
+			Throwable t = throwable;
+			while (t != null) {
+				if (t.getMessage() != null && t.getMessage().contains(searchMessage)) {
+					return Optional.of(t);
+				} else {
+					t = t.getCause();
+				}
+			}
+
+			return Optional.empty();
+		}
+	}
+
+	private static final class WillNotCompleteMatcher extends TypeSafeDiagnosingMatcher<CompletableFuture<?>> {
+
+		private final Duration timeout;
+
+		private WillNotCompleteMatcher(Duration timeout) {
+			this.timeout = timeout;
+		}
+
+		@Override
+		protected boolean matchesSafely(
+				CompletableFuture<?> item,
+				Description mismatchDescription) {
+
+			try {
+				final Object value = item.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+				mismatchDescription.appendText("The given future completed with ")
+						.appendValue(value);
+			} catch (TimeoutException timeoutException) {
+				return true;
+			} catch (InterruptedException e) {
+				mismatchDescription.appendText("The waiting thread was interrupted.");
+			} catch (ExecutionException e) {
+				mismatchDescription.appendText("The given future was completed exceptionally: ")
+						.appendValue(e);
+			}
+
+			return false;
+		}
+
+		@Override
+		public void describeTo(Description description) {
+			description.appendText("The given future should not complete within ")
+					.appendValue(timeout.toMillis())
+					.appendText(" ms.");
 		}
 	}
 }

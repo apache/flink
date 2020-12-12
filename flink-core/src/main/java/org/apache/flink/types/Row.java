@@ -24,7 +24,9 @@ import org.apache.flink.util.StringUtils;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.util.Arrays;
+
+import static org.apache.flink.types.RowUtils.deepEqualsRow;
+import static org.apache.flink.types.RowUtils.deepHashCodeRow;
 
 /**
  * A row is a fixed-length, null-aware composite type for storing multiple values in a deterministic
@@ -43,6 +45,9 @@ import java.util.Arrays;
  *
  * <p>A row instance is in principle {@link Serializable}. However, it may contain non-serializable fields
  * in which case serialization will fail if the row is not serialized with Flink's serialization stack.
+ *
+ * <p>The {@link #equals(Object)} and {@link #hashCode()} methods of this class support all external
+ * conversion classes of the table ecosystem.
  */
 @PublicEvolving
 public final class Row implements Serializable {
@@ -153,16 +158,13 @@ public final class Row implements Serializable {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		Row row = (Row) o;
-		return kind == row.kind &&
-			Arrays.deepEquals(fields, row.fields);
+		final Row row = (Row) o;
+		return deepEqualsRow(this, row);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = kind.toByteValue(); // for stable hash across JVM instances
-		result = 31 * result + Arrays.deepHashCode(fields);
-		return result;
+		return deepHashCodeRow(this);
 	}
 
 	// --------------------------------------------------------------------------------------------

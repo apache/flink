@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.stream
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -62,7 +61,6 @@ class TimeAttributesITCase extends AbstractTestBase {
     (16L, 4, 4d, 4f, new BigDecimal("4"), "Hello world"))
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(
     env,
     EnvironmentSettings.newInstance().useOldPlanner().build())
@@ -598,7 +596,6 @@ class TimeAttributesITCase extends AbstractTestBase {
   def testMaterializedRowtimeFilter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(
       env, EnvironmentSettings.newInstance().useOldPlanner().build())
 

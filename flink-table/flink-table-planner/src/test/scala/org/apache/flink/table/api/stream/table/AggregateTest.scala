@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api.stream.table
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
@@ -81,7 +80,7 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
-  def testGroupAggregate() = {
+  def testGroupAggregate(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
@@ -223,7 +222,7 @@ class AggregateTest extends TableTestBase {
 
     val resultTable = table
       .groupBy('b)
-      .select('b, 'a.cast(BasicTypeInfo.DOUBLE_TYPE_INFO).avg)
+      .select('b, 'a.cast(DataTypes.DOUBLE()).avg)
 
     val expected =
       unaryNode(

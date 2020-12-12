@@ -933,10 +933,11 @@ public interface Table {
 	Table orderBy(String fields);
 
 	/**
-	 * Sorts the given {@link Table}. Similar to SQL ORDER BY.
-	 * The resulting Table is globally sorted across all parallel partitions.
+	 * Sorts the given {@link Table}. Similar to SQL {@code ORDER BY}.
 	 *
-	 * <p>Scala Example:
+	 * <p>The resulting Table is globally sorted across all parallel partitions.
+	 *
+	 * <p>Java Example:
 	 *
 	 * <pre>
 	 * {@code
@@ -951,16 +952,17 @@ public interface Table {
 	 *   tab.orderBy($"name".desc)
 	 * }
 	 * </pre>
+	 *
+	 * <p>For unbounded tables, this operation requires a sorting on a time attribute or a subsequent
+	 * fetch operation.
 	 */
 	Table orderBy(Expression... fields);
 
 	/**
-	 * Limits a sorted result from an offset position.
-	 * Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
-	 * thus must be preceded by it.
+	 * Limits a (possibly sorted) result from an offset position.
 	 *
-	 * {@link Table#offset(int offset)} can be combined with a subsequent
-	 * {@link Table#fetch(int fetch)} call to return n rows after skipping the first o rows.
+	 * <p>This method can be combined with a preceding {@link #orderBy(Expression...)} call for a deterministic
+	 * order and a subsequent {@link #fetch(int)} call to return n rows after skipping the first o rows.
 	 *
 	 * <pre>
 	 * {@code
@@ -971,17 +973,17 @@ public interface Table {
 	 * }
 	 * </pre>
 	 *
+	 * <p>For unbounded tables, this operation requires a subsequent fetch operation.
+	 *
 	 * @param offset number of records to skip
 	 */
 	Table offset(int offset);
 
 	/**
-	 * Limits a sorted result to the first n rows.
-	 * Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
-	 * thus must be preceded by it.
+	 * Limits a (possibly sorted) result to the first n rows.
 	 *
-	 * {@link Table#fetch(int fetch)} can be combined with a preceding
-	 * {@link Table#offset(int offset)} call to return n rows after skipping the first o rows.
+	 * <p>This method can be combined with a preceding {@link #orderBy(Expression...)} call for a deterministic
+	 * order and {@link #offset(int)} call to return n rows after skipping the first o rows.
 	 *
 	 * <pre>
 	 * {@code
@@ -995,6 +997,24 @@ public interface Table {
 	 * @param fetch the number of records to return. Fetch must be >= 0.
 	 */
 	Table fetch(int fetch);
+
+	/**
+	 * Limits a (possibly sorted) result to the first n rows.
+	 *
+	 * <p>This method is a synonym for {@link #fetch(int)}.
+	 */
+	default Table limit(int fetch) {
+		return fetch(fetch);
+	}
+
+	/**
+	 * Limits a (possibly sorted) result to the first n rows from an offset position.
+	 *
+	 * <p>This method is a synonym for {@link #offset(int)} followed by {@link #fetch(int)}.
+	 */
+	default Table limit(int offset, int fetch) {
+		return offset(offset).fetch(fetch);
+	}
 
 	/**
 	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
@@ -1187,8 +1207,8 @@ public interface Table {
 	 * <pre>
 	 * {@code
 	 *   tab.renameColumns(
-	 *      $("a").as($("a1")),
-	 *      $("b").as($("b1"))
+	 *      $("a").as("a1"),
+	 *      $("b").as("b1")
 	 *   );
 	 * }
 	 * </pre>
@@ -1198,8 +1218,8 @@ public interface Table {
 	 * <pre>
 	 * {@code
 	 *   tab.renameColumns(
-	 *      $"a" as $"a1",
-	 *      $"b" as $"b1"
+	 *      $"a" as "a1",
+	 *      $"b" as "b1"
 	 *   )
 	 * }
 	 * </pre>

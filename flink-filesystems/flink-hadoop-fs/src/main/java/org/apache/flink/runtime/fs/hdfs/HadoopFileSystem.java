@@ -83,7 +83,7 @@ public class HadoopFileSystem extends FileSystem {
 	@Override
 	public FileStatus getFileStatus(final Path f) throws IOException {
 		org.apache.hadoop.fs.FileStatus status = this.fs.getFileStatus(toHadoopPath(f));
-		return new HadoopFileStatus(status);
+		return HadoopFileStatus.fromHadoopStatus(status);
 	}
 
 	@Override
@@ -93,10 +93,18 @@ public class HadoopFileSystem extends FileSystem {
 			throw new IOException("file is not an instance of DistributedFileStatus");
 		}
 
-		final HadoopFileStatus f = (HadoopFileStatus) file;
+		// shortcut - if the status already has the information, return it.
+		if (file instanceof LocatedHadoopFileStatus) {
+			return ((LocatedHadoopFileStatus) file).getBlockLocations();
+		}
 
-		final org.apache.hadoop.fs.BlockLocation[] blkLocations = fs.getFileBlockLocations(f.getInternalFileStatus(),
-			start, len);
+		final org.apache.hadoop.fs.FileStatus hadoopStatus = ((HadoopFileStatus) file).getInternalFileStatus();
+
+		// second shortcut - if the internal status already has the information, return it.
+		// only if that is not the case, to the actual HDFS call (RPC to Name Node)
+		final org.apache.hadoop.fs.BlockLocation[] blkLocations = hadoopStatus instanceof org.apache.hadoop.fs.LocatedFileStatus
+				? ((org.apache.hadoop.fs.LocatedFileStatus) hadoopStatus).getBlockLocations()
+				: fs.getFileBlockLocations(hadoopStatus, start, len);
 
 		// Wrap up HDFS specific block location objects
 		final HadoopBlockLocation[] distBlkLocations = new HadoopBlockLocation[blkLocations.length];
@@ -159,7 +167,7 @@ public class HadoopFileSystem extends FileSystem {
 
 		// Convert types
 		for (int i = 0; i < files.length; i++) {
-			files[i] = new HadoopFileStatus(hadoopFiles[i]);
+			files[i] = HadoopFileStatus.fromHadoopStatus(hadoopFiles[i]);
 		}
 
 		return files;

@@ -18,13 +18,17 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.client.deployment.application.UnsuccessfulExecutionException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +74,8 @@ final class PythonEnvUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonEnvUtils.class);
 
 	static final String PYFLINK_CLIENT_EXECUTABLE = "PYFLINK_CLIENT_EXECUTABLE";
+
+	static volatile Throwable capturedJavaException = null;
 
 	/**
 	 * Wraps Python exec environment.
@@ -241,19 +247,31 @@ final class PythonEnvUtils {
 	 * @return the process represent the python process.
 	 * @throws IOException Thrown if an error occurred when python process start.
 	 */
-	static Process startPythonProcess(PythonEnvironment pythonEnv, List<String> commands) throws IOException {
+	static Process startPythonProcess(
+		PythonEnvironment pythonEnv,
+		List<String> commands,
+		boolean redirectToPipe) throws IOException {
 		ProcessBuilder pythonProcessBuilder = new ProcessBuilder();
 		Map<String, String> env = pythonProcessBuilder.environment();
 		if (pythonEnv.pythonPath != null) {
-			env.put("PYTHONPATH", pythonEnv.pythonPath);
+			String defaultPythonPath = env.get("PYTHONPATH");
+			if (Strings.isNullOrEmpty(defaultPythonPath)) {
+				env.put("PYTHONPATH", pythonEnv.pythonPath);
+			} else {
+				env.put("PYTHONPATH", String.join(File.pathSeparator, pythonEnv.pythonPath, defaultPythonPath));
+			}
 		}
 		pythonEnv.systemEnv.forEach(env::put);
 		commands.add(0, pythonEnv.pythonExec);
 		pythonProcessBuilder.command(commands);
 		// redirect the stderr to stdout
 		pythonProcessBuilder.redirectErrorStream(true);
-		// set the child process the output same as the parent process.
-		pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+		if (redirectToPipe) {
+			pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+		} else {
+			// set the child process the output same as the parent process.
+			pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+		}
 		Process process = pythonProcessBuilder.start();
 		if (!process.isAlive()) {
 			throw new RuntimeException("Failed to start Python process. ");
@@ -352,12 +370,19 @@ final class PythonEnvUtils {
 		ReadableConfig config,
 		List<String> commands,
 		String entryPointScript,
-		String tmpDir) throws IOException {
+		String tmpDir,
+		boolean redirectToPipe) throws IOException {
 		PythonEnvironment pythonEnv = PythonEnvUtils.preparePythonEnvironment(
 			config, entryPointScript, tmpDir);
 		// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python process.
 		pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 		// start the python process.
-		return PythonEnvUtils.startPythonProcess(pythonEnv, commands);
+		return PythonEnvUtils.startPythonProcess(pythonEnv, commands, redirectToPipe);
+	}
+
+	public static void setPythonException(Throwable pythonException) {
+		if (ExceptionUtils.findThrowable(pythonException, UnsuccessfulExecutionException.class).isPresent()) {
+			capturedJavaException = pythonException;
+		}
 	}
 }

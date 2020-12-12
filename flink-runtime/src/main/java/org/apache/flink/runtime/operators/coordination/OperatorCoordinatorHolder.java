@@ -32,6 +32,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -199,6 +202,12 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
+	public void subtaskReset(int subtask, long checkpointId) {
+		mainThreadExecutor.assertRunningInMainThread();
+		coordinator.subtaskReset(subtask, checkpointId);
+	}
+
+	@Override
 	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
 		// unfortunately, this method does not run in the scheduler executor, but in the
 		// checkpoint coordinator time thread.
@@ -208,26 +217,33 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
-	public void checkpointComplete(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) {
 		// unfortunately, this method does not run in the scheduler executor, but in the
 		// checkpoint coordinator time thread.
 		// we can remove the delegation once the checkpoint coordinator runs fully in the scheduler's
 		// main thread executor
-		mainThreadExecutor.execute(() -> checkpointCompleteInternal(checkpointId));
+		mainThreadExecutor.execute(() -> coordinator.notifyCheckpointComplete(checkpointId));
 	}
 
 	@Override
-	public void resetToCheckpoint(byte[] checkpointData) throws Exception {
+	public void notifyCheckpointAborted(long checkpointId) {
+		// unfortunately, this method does not run in the scheduler executor, but in the
+		// checkpoint coordinator time thread.
+		// we can remove the delegation once the checkpoint coordinator runs fully in the scheduler's
+		// main thread executor
+		mainThreadExecutor.execute(() -> coordinator.notifyCheckpointAborted(checkpointId));
+	}
+
+	@Override
+	public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception {
 		// ideally we would like to check this here, however this method is called early during
 		// execution graph construction, before the main thread executor is set
 
 		eventValve.reset();
-		coordinator.resetToCheckpoint(checkpointData);
-	}
-
-	private void checkpointCompleteInternal(long checkpointId) {
-		mainThreadExecutor.assertRunningInMainThread();
-		coordinator.checkpointComplete(checkpointId);
+		if (context != null) {
+			context.resetFailed();
+		}
+		coordinator.resetToCheckpoint(checkpointId, checkpointData);
 	}
 
 	private void checkpointCoordinatorInternal(final long checkpointId, final CompletableFuture<byte[]> result) {
@@ -298,7 +314,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	public static OperatorCoordinatorHolder create(
 			SerializedValue<OperatorCoordinator.Provider> serializedProvider,
 			ExecutionJobVertex jobVertex,
-			ClassLoader classLoader) throws IOException, ClassNotFoundException {
+			ClassLoader classLoader) throws Exception {
 
 		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
 			final OperatorCoordinator.Provider provider = serializedProvider.deserializeValue(classLoader);
@@ -315,6 +331,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 					provider,
 					eventSender,
 					jobVertex.getName(),
+					jobVertex.getGraph().getUserClassLoader(),
 					jobVertex.getParallelism(),
 					jobVertex.getMaxParallelism());
 		}
@@ -326,13 +343,14 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 			final OperatorCoordinator.Provider coordinatorProvider,
 			final BiFunction<SerializedValue<OperatorEvent>, Integer, CompletableFuture<Acknowledge>> eventSender,
 			final String operatorName,
+			final ClassLoader userCodeClassLoader,
 			final int operatorParallelism,
-			final int operatorMaxParallelism) {
+			final int operatorMaxParallelism) throws Exception {
 
 		final OperatorEventValve valve = new OperatorEventValve(eventSender);
 
 		final LazyInitializedCoordinatorContext context = new LazyInitializedCoordinatorContext(
-				opId, valve, operatorName, operatorParallelism);
+				opId, valve, operatorName, userCodeClassLoader, operatorParallelism);
 
 		final OperatorCoordinator coordinator = coordinatorProvider.create(context);
 
@@ -360,22 +378,29 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	 */
 	private static final class LazyInitializedCoordinatorContext implements OperatorCoordinator.Context {
 
+		private static final Logger LOG = LoggerFactory.getLogger(LazyInitializedCoordinatorContext.class);
+
 		private final OperatorID operatorId;
 		private final OperatorEventValve eventValve;
 		private final String operatorName;
+		private final ClassLoader userCodeClassLoader;
 		private final int operatorParallelism;
 
 		private Consumer<Throwable> globalFailureHandler;
 		private Executor schedulerExecutor;
 
+		private volatile boolean failed;
+
 		public LazyInitializedCoordinatorContext(
 				final OperatorID operatorId,
 				final OperatorEventValve eventValve,
 				final String operatorName,
+				final ClassLoader userCodeClassLoader,
 				final int operatorParallelism) {
 			this.operatorId = checkNotNull(operatorId);
 			this.eventValve = checkNotNull(eventValve);
 			this.operatorName = checkNotNull(operatorName);
+			this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
 			this.operatorParallelism = operatorParallelism;
 		}
 
@@ -395,6 +420,10 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 		private void checkInitialized() {
 			checkState(isInitialized(), "Context was not yet initialized");
+		}
+
+		void resetFailed() {
+			failed = false;
 		}
 
 		@Override
@@ -427,6 +456,12 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		@Override
 		public void failJob(final Throwable cause) {
 			checkInitialized();
+			if (failed) {
+				LOG.warn("Ignoring the request to fail job because the job is already failing. "
+							+ "The ignored failure cause is", cause);
+				return;
+			}
+			failed = true;
 
 			final FlinkException e = new FlinkException("Global failure triggered by OperatorCoordinator for '" +
 				operatorName + "' (operator " + operatorId + ").", cause);
@@ -437,6 +472,11 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		@Override
 		public int currentParallelism() {
 			return operatorParallelism;
+		}
+
+		@Override
+		public ClassLoader getUserCodeClassloader() {
+			return userCodeClassLoader;
 		}
 	}
 }

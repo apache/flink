@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /**
  * The function to execute processing time interval stream inner-join.
@@ -35,8 +35,8 @@ public final class ProcTimeIntervalJoin extends TimeIntervalJoin {
 			FlinkJoinType joinType,
 			long leftLowerBound,
 			long leftUpperBound,
-			RowDataTypeInfo leftType,
-			RowDataTypeInfo rightType,
+			InternalTypeInfo<RowData> leftType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc) {
 		super(joinType, leftLowerBound, leftUpperBound, 0L, leftType, rightType, genJoinFunc);
 	}

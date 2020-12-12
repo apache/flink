@@ -27,8 +27,8 @@ import org.junit.Test;
 
 import java.util.Random;
 
-import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage.decodePathFromReference;
-import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage.encodePathAsReference;
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.decodePathFromReference;
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.encodePathAsReference;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -72,19 +72,26 @@ public class FsStorageLocationReferenceTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static Path randomPath(Random rnd) {
-		final StringBuilder path = new StringBuilder();
+		while (true) {
+			try {
+				final StringBuilder path = new StringBuilder();
 
-		// scheme
-		path.append(StringUtils.getRandomString(rnd, 1, 5, 'a', 'z'));
-		path.append("://");
-		path.append(StringUtils.getRandomString(rnd, 10, 20)); // authority
-		path.append(rnd.nextInt(50000) + 1); // port
+				// scheme
+				path.append(StringUtils.getRandomString(rnd, 1, 5, 'a', 'z'));
+				path.append("://");
+				path.append(StringUtils.getRandomString(rnd, 10, 20)); // authority
+				path.append(":");
+				path.append(rnd.nextInt(50000) + 1); // port
 
-		for (int i = rnd.nextInt(5) + 1; i > 0; i--) {
-			path.append('/');
-			path.append(StringUtils.getRandomString(rnd, 3, 15));
+				for (int j = rnd.nextInt(5) + 1; j > 0; j--) {
+					path.append('/');
+					path.append(StringUtils.getRandomString(rnd, 3, 15));
+				}
+
+				return new Path(path.toString());
+			} catch (Throwable t) {
+				// ignore the exception and retry
+			}
 		}
-
-		return new Path(path.toString());
 	}
 }

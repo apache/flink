@@ -19,12 +19,15 @@
 package org.apache.flink.runtime.clusterframework.overlays;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -32,10 +35,10 @@ import java.io.IOException;
 /**
  * Overlays a Kerberos configuration file into a container.
  *
- * The following files are copied to the container:
+ * <p>The following files are copied to the container:
  *  - krb5.conf
  *
- * The following Java system properties are set in the container:
+ * <p>The following Java system properties are set in the container:
  *  - java.security.krb5.conf
  */
 public class Krb5ConfOverlay extends AbstractContainerOverlay {
@@ -57,7 +60,7 @@ public class Krb5ConfOverlay extends AbstractContainerOverlay {
 
 	@Override
 	public void configure(ContainerSpecification container) throws IOException {
-		if(krb5Conf != null) {
+		if (krb5Conf != null) {
 			container.getArtifacts().add(ContainerSpecification.Artifact.newBuilder()
 				.setSource(krb5Conf)
 				.setDest(TARGET_PATH)
@@ -81,17 +84,18 @@ public class Krb5ConfOverlay extends AbstractContainerOverlay {
 		/**
 		 * Configures the overlay using the current environment.
 		 *
-		 * Locates the krb5.conf configuration file as per
+		 * <p>Locates the krb5.conf configuration file as per
 		 * <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/jgss/tutorials/KerberosReq.html">Java documentation</a>.
 		 * Note that the JRE doesn't support the KRB5_CONFIG environment variable (JDK-7045913).
 		 */
-		public Builder fromEnvironment(Configuration globalConfiguration) {
+		public Builder fromEnvironmentOrConfiguration(Configuration globalConfiguration) {
 
 			// check the system property
-			String krb5Config = System.getProperty(JAVA_SECURITY_KRB5_CONF);
-			if(krb5Config != null && krb5Config.length() != 0) {
+			String krb5Config = System.getProperty(JAVA_SECURITY_KRB5_CONF) != null ?
+					System.getProperty(JAVA_SECURITY_KRB5_CONF) : globalConfiguration.get(SecurityOptions.KERBEROS_KRB5_PATH);
+			if (krb5Config != null && krb5Config.length() != 0) {
 				krb5ConfPath = new File(krb5Config);
-				if(!krb5ConfPath.exists()) {
+				if (!krb5ConfPath.exists()) {
 					throw new IllegalStateException("java.security.krb5.conf refers to a non-existent file");
 				}
 			}

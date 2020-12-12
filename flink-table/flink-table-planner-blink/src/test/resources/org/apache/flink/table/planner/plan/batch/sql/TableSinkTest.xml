@@ -16,10 +16,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testDynamicPartWithOrderBy">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b])
++- LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[a, b])
++- Sort(orderBy=[a ASC])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[a, b])
+         +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSingleSink">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink], fields=[a])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[cnt])
 +- LogicalProject(cnt=[$1])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
       +- LogicalProject(a=[$0])
@@ -28,7 +47,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[a])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink], fields=[a])
+Sink(table=[default_catalog.default_database.sink], fields=[cnt])
 +- Calc(select=[cnt])
    +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
       +- Exchange(distribution=[hash[a]])
@@ -58,7 +77,7 @@ LogicalSink(table=[default_catalog.default_database.sink2], fields=[total_min])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[sum_a], reuse_id=[1])
+Calc(select=[sum_a])(reuse_id=[1])
 +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])

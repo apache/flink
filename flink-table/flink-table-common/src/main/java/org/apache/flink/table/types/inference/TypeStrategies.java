@@ -38,6 +38,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.math.BigDecimal;
@@ -355,6 +356,35 @@ public final class TypeStrategies {
 		// deal with nullability handling and varying semantics
 		return findCommonType(Arrays.asList(type1, type2, minimumType))
 			.map(TypeConversions::fromLogicalToDataType);
+	};
+
+	/**
+	 * Type strategy that returns a type of a field nested inside a composite type that is described by the second argument.
+	 * The second argument must be a literal that describes either the nested field name or index.
+	 */
+	public static final TypeStrategy GET = callContext -> {
+		List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		DataType rowDataType = argumentDataTypes.get(0);
+
+		Optional<DataType> result = Optional.empty();
+
+		Optional<String> fieldName = callContext.getArgumentValue(1, String.class);
+		if (fieldName.isPresent()) {
+			result = DataTypeUtils.getField(rowDataType, fieldName.get());
+		}
+
+		Optional<Integer> fieldIndex = callContext.getArgumentValue(1, Integer.class);
+		if (fieldIndex.isPresent()) {
+			result = DataTypeUtils.getField(rowDataType, fieldIndex.get());
+		}
+
+		return result.map(type -> {
+			if (rowDataType.getLogicalType().isNullable()) {
+				return type.nullable();
+			} else {
+				return type;
+			}
+		});
 	};
 
 	// --------------------------------------------------------------------------------------------

@@ -118,15 +118,20 @@ public class HadoopPathBasedBulkFormatBuilder<IN, BucketID, T extends HadoopPath
 	}
 
 	@Override
+	public BucketWriter<IN, BucketID> createBucketWriter() {
+		return new HadoopPathBasedPartFileWriter.HadoopPathBasedBucketWriter<>(
+				serializableConfiguration.getConfiguration(),
+				writerFactory,
+				fileCommitterFactory);
+	}
+
+	@Override
 	public Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
 		return new Buckets<>(
 			basePath,
 			bucketAssigner,
 			bucketFactory,
-			new HadoopPathBasedPartFileWriter.HadoopPathBasedBucketWriter<>(
-				serializableConfiguration.getConfiguration(),
-				writerFactory,
-				fileCommitterFactory),
+			createBucketWriter(),
 			rollingPolicy,
 			subtaskIndex,
 			outputFileConfig);

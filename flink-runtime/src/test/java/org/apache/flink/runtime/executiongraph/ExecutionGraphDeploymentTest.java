@@ -365,7 +365,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that {@link Execution#completeCancelling(Map, IOMetrics, boolean)} and {@link Execution#markFailed(Throwable, Map, IOMetrics)}
+	 * Verifies that {@link Execution#completeCancelling(Map, IOMetrics, boolean)}
+	 * and {@link Execution#markFailed(Throwable, boolean, Map, IOMetrics, boolean, boolean)}
 	 * store the given accumulators and metrics correctly.
 	 */
 	@Test
@@ -389,7 +390,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		assertEquals(accumulators, execution1.getUserAccumulators());
 
 		Execution execution2 = executions.values().iterator().next();
-		execution2.markFailed(new Throwable(), accumulators, ioMetrics);
+		execution2.markFailed(new Throwable(), false, accumulators, ioMetrics, false, true);
 
 		assertEquals(ioMetrics, execution2.getIOMetrics());
 		assertEquals(accumulators, execution2.getUserAccumulators());
@@ -802,7 +803,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			timeout,
 			LoggerFactory.getLogger(getClass()),
 			NettyShuffleMaster.INSTANCE,
-			NoOpJobMasterPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE,
+			System.currentTimeMillis());
 	}
 
 	private static final class ExecutionStageMatcher extends TypeSafeMatcher<List<ExecutionAttemptID>> {

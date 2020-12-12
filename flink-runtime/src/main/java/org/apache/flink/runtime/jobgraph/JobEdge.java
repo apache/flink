@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * This class represent edges (communication channels) in a job graph.
  * The edges always go from an intermediate result partition to a job vertex.
@@ -26,14 +30,20 @@ package org.apache.flink.runtime.jobgraph;
 public class JobEdge implements java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	
 	/** The vertex connected to this edge. */
 	private final JobVertex target;
 
 	/** The distribution pattern that should be used for this job edge. */
 	private final DistributionPattern distributionPattern;
-	
+
+	/** The channel rescaler that should be used for this job edge on downstream side. */
+	private SubtaskStateMapper downstreamSubtaskStateMapper = SubtaskStateMapper.ROUND_ROBIN;
+
+	/** The channel rescaler that should be used for this job edge on upstream side. */
+	private SubtaskStateMapper upstreamSubtaskStateMapper = SubtaskStateMapper.ROUND_ROBIN;
+
 	/** The data set at the source of the edge, may be null if the edge is not yet connected*/
 	private IntermediateDataSet source;
 	
@@ -162,6 +172,42 @@ public class JobEdge implements java.io.Serializable {
 	 */
 	public void setShipStrategyName(String shipStrategyName) {
 		this.shipStrategyName = shipStrategyName;
+	}
+
+	/**
+	 * Gets the channel state rescaler used for rescaling persisted data on downstream side of this JobEdge.
+	 *
+	 * @return The channel state rescaler to use, or null, if none was set.
+	 */
+	public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+		return downstreamSubtaskStateMapper;
+	}
+
+	/**
+	 * Sets the channel state rescaler used for rescaling persisted data on downstream side of this JobEdge.
+	 *
+	 * @param downstreamSubtaskStateMapper The channel state rescaler selector to use.
+	 */
+	public void setDownstreamSubtaskStateMapper(SubtaskStateMapper downstreamSubtaskStateMapper) {
+		this.downstreamSubtaskStateMapper = checkNotNull(downstreamSubtaskStateMapper);
+	}
+
+	/**
+	 * Gets the channel state rescaler used for rescaling persisted data on upstream side of this JobEdge.
+	 *
+	 * @return The channel state rescaler to use, or null, if none was set.
+	 */
+	public SubtaskStateMapper getUpstreamSubtaskStateMapper() {
+		return upstreamSubtaskStateMapper;
+	}
+
+	/**
+	 * Sets the channel state rescaler used for rescaling persisted data on upstream side of this JobEdge.
+	 *
+	 * @param upstreamSubtaskStateMapper The channel state rescaler selector to use.
+	 */
+	public void setUpstreamSubtaskStateMapper(SubtaskStateMapper upstreamSubtaskStateMapper) {
+		this.upstreamSubtaskStateMapper = checkNotNull(upstreamSubtaskStateMapper);
 	}
 
 	/**

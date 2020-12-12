@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -142,5 +143,31 @@ public class ExecutionCheckpointingOptions {
 					TextElement.code(CHECKPOINTING_MODE.key()),
 					TextElement.code(CheckpointingMode.EXACTLY_ONCE.toString()),
 					TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
+				.build());
+
+	@Documentation.ExcludeFromDocumentation("Do not advertise this option until timeout in unaligned checkpoint is completed.")
+	public static final ConfigOption<Duration> ALIGNMENT_TIMEOUT =
+		ConfigOptions.key("execution.checkpointing.alignment-timeout")
+			.durationType()
+			.defaultValue(Duration.ofSeconds(0L))
+			.withDescription(Description.builder()
+				.text("Only relevant if %s is enabled.", TextElement.code(ENABLE_UNALIGNED.key()))
+				.linebreak()
+				.linebreak()
+				.text("If timeout is 0, checkpoints will always start unaligned.")
+				.linebreak()
+				.linebreak()
+				.text("If timeout has a positive value, checkpoints will start aligned. " +
+					"If during checkpointing, checkpoint start delay exceeds this timeout, alignment " +
+					"will timeout and checkpoint barrier will start working as unaligned checkpoint.")
+				.build());
+
+	@Documentation.ExcludeFromDocumentation("Do not advertise this option until rescaling of unaligned checkpoint is completed.")
+	public static final ConfigOption<Boolean> FORCE_UNALIGNED =
+		ConfigOptions.key("execution.checkpointing.unaligned.forced")
+			.booleanType()
+			.defaultValue(true)
+			.withDescription(Description.builder()
+				.text("Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
 				.build());
 }

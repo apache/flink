@@ -28,10 +28,10 @@ import org.apache.flink.table.planner.codegen.SinkCodeGenerator.generateRowConve
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpdatingPlanChecker}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.runtime.typeutils.{RowDataTypeInfo, TypeCheckUtils}
+import org.apache.flink.table.runtime.typeutils.{InternalTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.logical.TimestampType
 
@@ -52,8 +52,8 @@ class StreamExecLegacySink[T](
     sink: TableSink[T],
     sinkName: String)
   extends LegacySink(cluster, traitSet, inputRel, sink, sinkName)
-          with StreamPhysicalRel
-          with StreamExecNode[Any] {
+  with StreamPhysicalRel
+  with LegacyStreamExecNode[Any] {
 
   override def requireWatermark: Boolean = false
 
@@ -62,16 +62,6 @@ class StreamExecLegacySink[T](
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[Any] = {
@@ -153,8 +143,8 @@ class StreamExecLegacySink[T](
 
     // get RowData plan
     val parTransformation = inputNode match {
-      // Sink's input must be StreamExecNode[RowData] now.
-      case node: StreamExecNode[RowData] =>
+      // Sink's input must be LegacyStreamExecNode[RowData] now.
+      case node: LegacyStreamExecNode[RowData] =>
         node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
@@ -171,15 +161,15 @@ class StreamExecLegacySink[T](
           s"Please select the rowtime field that should be used as event-time timestamp for the " +
           s"DataStream by casting all other fields to TIMESTAMP.")
     } else if (rowtimeFields.size == 1) {
-      val origRowType = parTransformation.getOutputType.asInstanceOf[RowDataTypeInfo]
-      val convFieldTypes = origRowType.getLogicalTypes.map { t =>
+      val origRowType = parTransformation.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+      val convFieldTypes = origRowType.toRowFieldTypes.map { t =>
         if (TypeCheckUtils.isRowTime(t)) {
           new TimestampType(3)
         } else {
           t
         }
       }
-      new RowDataTypeInfo(convFieldTypes, origRowType.getFieldNames)
+      InternalTypeInfo.ofFields(convFieldTypes, origRowType.toRowFieldNames)
     } else {
       parTransformation.getOutputType
     }
@@ -191,7 +181,7 @@ class StreamExecLegacySink[T](
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
         CodeGeneratorContext(config),
         config,
-        convType.asInstanceOf[RowDataTypeInfo].toRowType,
+        convType.asInstanceOf[InternalTypeInfo[RowData]].toRowType,
         sink,
         withChangeFlag,
         "SinkConversion"

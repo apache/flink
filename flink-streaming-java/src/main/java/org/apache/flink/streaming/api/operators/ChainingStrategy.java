@@ -49,5 +49,14 @@ public enum ChainingStrategy {
 	 * The operator will not be chained to the predecessor, but successors may chain to this
 	 * operator.
 	 */
-	HEAD
+	HEAD,
+
+	/**
+	 * This operator will run at the head of a chain (similar as in {@link #HEAD}, but it will additionally
+	 * try to chain source inputs if possible. This allows multi-input operators to be chained with multiple
+	 * sources into one task.
+	 */
+	HEAD_WITH_SOURCES;
+
+	public static final ChainingStrategy DEFAULT_CHAINING_STRATEGY = ALWAYS;
 }

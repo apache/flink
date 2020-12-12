@@ -50,7 +50,7 @@ import java.util.Map;
  * It's a simple reimplementation of Hadoop distcp
  * (see <a href="http://hadoop.apache.org/docs/r1.2.1/distcp.html">http://hadoop.apache.org/docs/r1.2.1/distcp.html</a>)
  * with a dynamic input format
- * Note that this tool does not deal with retriability. Additionally, empty directories are not copied over.
+ * Note that this tool does not deal with retries. Additionally, empty directories are not copied over.
  *
  * <p>When running locally, local file systems paths can be used.
  * However, in a distributed environment HDFS paths must be provided both as input and output.

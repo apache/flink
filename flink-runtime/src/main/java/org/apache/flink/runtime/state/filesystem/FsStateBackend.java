@@ -32,7 +32,7 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.BackendBuildingException;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -491,9 +491,9 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+	public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
 		checkNotNull(jobId, "jobId");
-		return new FsCheckpointStorage(
+		return new FsCheckpointStorageAccess(
 			getCheckpointPath(),
 			getSavepointPath(),
 			jobId,
@@ -527,7 +527,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		return new HeapKeyedStateBackendBuilder<>(
 			kvStateRegistry,
 			keySerializer,
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			numberOfKeyGroups,
 			keyGroupRange,
 			env.getExecutionConfig(),
@@ -548,7 +548,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		CloseableRegistry cancelStreamRegistry) throws BackendBuildingException {
 
 		return new DefaultOperatorStateBackendBuilder(
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			env.getExecutionConfig(),
 			isUsingAsynchronousSnapshots(),
 			stateHandles,

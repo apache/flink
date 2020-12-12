@@ -26,7 +26,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-这个连接器提供了一个 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{ site.baseurl}}/zh/ops/filesystems/index.html) 接口的文件系统中。
+这个连接器提供了一个 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({% link deployment/filesystems/index.zh.md %}) 接口的文件系统中。
 
 Streaming File Sink 会将数据写入到桶中。由于输入流可能是无界的，因此每个桶中的数据被划分为多个有限大小的文件。如何分桶是可以配置的，默认使用基于时间的分桶策略，这种策略每个小时创建一个新的桶，桶中包含的文件将记录所有该小时内从流中接收到的数据。
 
@@ -36,7 +36,7 @@ Streaming File Sink 会将数据写入到桶中。由于输入流可能是无界
      <b>重要:</b> 使用 StreamingFileSink 时需要启用 Checkpoint ，每次做 Checkpoint 时写入完成。如果 Checkpoint 被禁用，部分文件（part file）将永远处于 'in-progress' 或 'pending' 状态，下游系统无法安全地读取。
  </div>
 
- <img src="{{ site.baseurl }}/fig/streamfilesink_bucketing.png" class="center" style="width: 100%;" />
+ <img src="{% link /fig/streamfilesink_bucketing.png %}" class="center" style="width: 100%;" />
 
 ## 文件格式
 
@@ -182,6 +182,43 @@ val input: DataStream[GenericRecord] = ...
 
 val sink: StreamingFileSink[GenericRecord] = StreamingFileSink
     .forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+    .build()
+
+input.addSink(sink)
+
+{% endhighlight %}
+</div>
+</div>
+
+类似的，将 Protobuf 数据写入到 Parquet 格式可以通过：
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters;
+
+// ProtoRecord is a generated protobuf Message class.
+DataStream<ProtoRecord> stream = ...;
+
+final StreamingFileSink<ProtoRecord> sink = StreamingFileSink
+	.forBulkFormat(outputBasePath, ParquetProtoWriters.forType(ProtoRecord.class))
+	.build();
+
+input.addSink(sink);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters
+
+// ProtoRecord is a generated protobuf Message class.
+val input: DataStream[ProtoRecord] = ...
+
+val sink: StreamingFileSink[ProtoRecord] = StreamingFileSink
+    .forBulkFormat(outputBasePath, ParquetProtoWriters.forType(classOf[ProtoRecord]))
     .build()
 
 input.addSink(sink)

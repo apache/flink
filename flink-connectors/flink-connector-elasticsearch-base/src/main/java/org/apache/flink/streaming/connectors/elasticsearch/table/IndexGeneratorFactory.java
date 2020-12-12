@@ -55,7 +55,7 @@ import java.util.regex.Pattern;
  * convert a field value of TIMESTAMP/DATE/TIME type into the format specified by date_format_string. The
  * date_format_string is compatible with {@link java.text.SimpleDateFormat}. For example, if the option
  * value is 'myusers_{log_ts|yyyy-MM-dd}', then a record with log_ts field value 2020-03-27 12:25:55 will
- * be written into "myusers-2020-03-27" index.
+ * be written into "myusers_2020-03-27" index.
  */
 @Internal
 final class IndexGeneratorFactory {

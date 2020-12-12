@@ -23,10 +23,10 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.EmulatorCredentials;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudUnitTestBase;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.PubsubHelper;
 
-import com.google.cloud.NoCredentials;
 import com.google.pubsub.v1.ReceivedMessage;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.AfterClass;
@@ -66,8 +66,9 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 	@Test
 	public void testFlinkSink() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
 
-		List<String> input = Arrays.asList("One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eigth", "Nine", "Ten");
+		List<String> input = Arrays.asList("One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten");
 
 		// Create test stream
 		DataStream<String> theData = env
@@ -83,7 +84,7 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 								.withTopicName(TOPIC_NAME)
 							   // Specific for emulator
 							.withHostAndPortForEmulator(getPubSubHostPort())
-							.withCredentials(NoCredentials.getInstance())
+							.withCredentials(EmulatorCredentials.getInstance())
 							.build())
 			.name("PubSub sink");
 
@@ -122,14 +123,14 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 								.withTopicName(TOPIC_NAME)
 								// Specific for emulator
 								.withHostAndPortForEmulator("unknown-host-to-force-sink-crash:1234")
-								.withCredentials(NoCredentials.getInstance())
+								.withCredentials(EmulatorCredentials.getInstance())
 								.build()).name("PubSub sink");
 
 		// Run
 		env.execute();
 	}
 
-	private class SingleInputSourceFunction implements SourceFunction<String> {
+	private static class SingleInputSourceFunction implements SourceFunction<String> {
 
 		@Override
 		public void run(SourceContext<String> ctx) throws Exception {

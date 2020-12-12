@@ -39,6 +39,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.configuration.ConfigurationUtils.assembleDynamicConfigsStr;
+
 /**
  * Utility class for TaskExecutor memory configurations.
  *
@@ -89,14 +91,6 @@ public class TaskExecutorProcessUtils {
 		return assembleDynamicConfigsStr(configs);
 	}
 
-	private static String assembleDynamicConfigsStr(final Map<String, String> configs) {
-		final StringBuilder sb = new StringBuilder();
-		for (Map.Entry<String, String> entry : configs.entrySet()) {
-			sb.append("-D ").append(entry.getKey()).append("=").append(entry.getValue()).append(" ");
-		}
-		return sb.toString();
-	}
-
 	// ------------------------------------------------------------------------
 	//  Memory Configuration Calculations
 	// ------------------------------------------------------------------------
@@ -106,7 +100,11 @@ public class TaskExecutorProcessUtils {
 	}
 
 	public static TaskExecutorProcessSpec processSpecFromConfig(final Configuration config) {
-		return createMemoryProcessSpec(config, PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
+		try {
+			return createMemoryProcessSpec(config, PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
+		} catch (IllegalConfigurationException e) {
+			throw new IllegalConfigurationException("TaskManager memory configuration failed: " + e.getMessage(), e);
+		}
 	}
 
 	public static TaskExecutorProcessSpec processSpecFromWorkerResourceSpec(
@@ -170,6 +168,12 @@ public class TaskExecutorProcessUtils {
 	public static Configuration getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
 			final Configuration configuration,
 			final ConfigOption<MemorySize> configOption) {
-		return LEGACY_MEMORY_UTILS.getConfWithLegacyHeapSizeMappedToNewConfigOption(configuration, configOption);
+		try {
+			return LEGACY_MEMORY_UTILS.getConfWithLegacyHeapSizeMappedToNewConfigOption(configuration, configOption);
+		} catch (IllegalConfigurationException e) {
+			throw new IllegalConfigurationException(
+				"TaskManager failed to map legacy JVM heap option to the new one: " + e.getMessage(),
+				e);
+		}
 	}
 }

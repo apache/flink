@@ -22,6 +22,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<div class="codetabs" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 Due to historical reasons, before Flink 1.9, Flink's Table & SQL API data types were
 tightly coupled to Flink's `TypeInformation`. `TypeInformation` is used in the DataStream
 and DataSet API and is sufficient to describe all information needed to serialize and
@@ -31,7 +33,10 @@ However, `TypeInformation` was not designed to represent logical types independe
 an actual JVM class. In the past, it was difficult to map SQL standard types to this
 abstraction. Furthermore, some types were not SQL-compliant and introduced without a
 bigger picture in mind.
-
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 Starting with Flink 1.9, the Table & SQL API will receive a new type system that serves as a long-term
 solution for API stability and standard compliance.
 
@@ -42,8 +47,14 @@ Due to the simultaneous addition of a new planner for table programs (see [FLINK
 not every combination of planner and data type is supported. Furthermore, planners might not support every
 data type with the desired precision or parameter.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 <span class="label label-danger">Attention</span> Please see the planner compatibility table and limitations
 section before using a data type.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 * This will be replaced by the TOC
 {:toc}
@@ -67,21 +78,35 @@ A list of all pre-defined data types can be found [below](#list-of-data-types).
 
 ### Data Types in the Table API
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 Users of the JVM-based API work with instances of `org.apache.flink.table.types.DataType` within the Table API or when
-defining connectors, catalogs, or user-defined functions.
+defining connectors, catalogs, or user-defined functions. 
 
 A `DataType` instance has two responsibilities:
 - **Declaration of a logical type** which does not imply a concrete physical representation for transmission
-or storage but defines the boundaries between JVM-based languages and the table ecosystem.
-- *Optional:* **Giving hints about the physical representation of data to the planner** which is useful at the edges to other APIs .
+or storage but defines the boundaries between JVM-based/Python languages and the table ecosystem.
+- *Optional:* **Giving hints about the physical representation of data to the planner** which is useful at the edges to other APIs.
 
 For JVM-based languages, all pre-defined data types are available in `org.apache.flink.table.api.DataTypes`.
+</div>
+<div data-lang="Python" markdown="1">
+Users of the Python API work with instances of `pyflink.table.types.DataType` within the Python Table API or when 
+defining Python user-defined functions.
 
-It is recommended to add a star import to your table programs for having a fluent API:
+A `DataType` instance has such a responsibility:
+- **Declaration of a logical type** which does not imply a concrete physical representation for transmission
+or storage but defines the boundaries between Python languages and the table ecosystem.
+
+For Python language, those types are available in `pyflink.table.types.DataTypes`.
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 
 <div data-lang="Java" markdown="1">
+It is recommended to add a star import to your table programs for having a fluent API:
+
 {% highlight java %}
 import static org.apache.flink.table.api.DataTypes.*;
 
@@ -90,6 +115,8 @@ DataType t = INTERVAL(DAY(), SECOND(3));
 </div>
 
 <div data-lang="Scala" markdown="1">
+It is recommended to add a star import to your table programs for having a fluent API:
+
 {% highlight scala %}
 import org.apache.flink.table.api.DataTypes._
 
@@ -97,8 +124,19 @@ val t: DataType = INTERVAL(DAY(), SECOND(3));
 {% endhighlight %}
 </div>
 
+<div data-lang="Python" markdown="1">
+
+{% highlight python %}
+from pyflink.table.types import DataTypes
+
+t = DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(3))
+{% endhighlight %}
 </div>
 
+</div>
+
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 #### Physical Hints
 
 Physical hints are required at the edges of the table ecosystem where the SQL-based type system ends and
@@ -111,7 +149,7 @@ the produced class into its internal data format. In return, a data sink can dec
 
 Here are some examples of how to declare a bridging conversion class:
 
-<div class="codetabs" markdown="1">
+<div class="codetabs" data-hide-tabs="1"  markdown="1">
 
 <div data-lang="Java" markdown="1">
 {% highlight java %}
@@ -143,14 +181,29 @@ val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[A
 API is extended. Users of predefined sources/sinks/functions do not need to define such hints. Hints within
 a table program (e.g. `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`) are ignored.
 
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
+
 Planner Compatibility
 ---------------------
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 As mentioned in the introduction, reworking the type system will span multiple releases, and the support of each data
 type depends on the used planner. This section aims to summarize the most significant differences.
+</div>
+<div data-lang="Python" markdown="1">
+This part is for Java/Scala users.
+There are no known similiar planner compatibility issues on the data types of Python Table API currently. 
+</div>
+</div>
 
 ### Old Planner
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 Flink's old planner, introduced before Flink 1.9, primarily supports type information. It has only limited
 support for data types. It is possible to declare data types that can be translated into type information such that the
 old planner understands them.
@@ -189,9 +242,16 @@ For the *Data Type Representation* column the table omits the prefix `org.apache
 
 <span class="label label-danger">Attention</span> If there is a problem with the new type system. Users
 can fallback to type information defined in `org.apache.flink.table.api.Types` at any time.
+</div>
+<div data-lang="Python" markdown="1">
+N/A
+</div>
+</div>
 
 ### New Blink Planner
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 The new Blink planner supports all of types of the old planner. This includes in particular
 the listed Java expression strings and type information.
 
@@ -199,7 +259,9 @@ The following data types are supported:
 
 | Data Type | Remarks for Data Type |
 |:----------|:----------------------|
-| `STRING` | `CHAR` and `VARCHAR` are not supported yet. |
+| `CHAR` | |
+| `VARCHAR` | |
+| `STRING` | |
 | `BOOLEAN` | |
 | `BYTES` | `BINARY` and `VARBINARY` are not supported yet. |
 | `DECIMAL` | Supports fixed precision and scale. |
@@ -219,21 +281,43 @@ The following data types are supported:
 | `MAP` | |
 | `ROW` | |
 | `RAW` | |
-| stuctured types | Only exposed in user-defined functions yet. |
+| structured types | Only exposed in user-defined functions yet. |
+
+</div>
+<div data-lang="Python" markdown="1">
+N/A
+</div>
+</div>
 
 Limitations
 -----------
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 **Java Expression String**: Java expression strings in the Table API such as `table.select("field.cast(STRING)")`
 have not been updated to the new type system yet. Use the string representations declared in
 the [old planner section](#old-planner).
 
 **User-defined Functions**: User-defined aggregate functions cannot declare a data type yet. Scalar and table functions fully support data types.
+</div>
+<div data-lang="Python" markdown="1">
+This part is for Java/Scala users.
+There are no known similiar limitations on the data types of Python Table API currently.
+</div>
+</div>
 
 List of Data Types
 ------------------
 
-This section lists all pre-defined data types. For the JVM-based Table API those types are also available in `org.apache.flink.table.api.DataTypes`.
+This section lists all pre-defined data types.
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
+For the JVM-based Table API those types are also available in `org.apache.flink.table.api.DataTypes`.
+</div>
+<div data-lang="Python" markdown="1">
+For the Python Table API, those types are available in `pyflink.table.types.DataTypes`.
+</div>
+</div>
 
 ### Character Strings
 
@@ -256,12 +340,6 @@ CHAR(n)
 {% highlight java %}
 DataTypes.CHAR(n)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `CHAR(n)` where `n` is the number of code points. `n` must have a value between `1`
-and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
 
 **Bridging to JVM Types**
 
@@ -270,6 +348,24 @@ and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to
 |`java.lang.String`                       | X     | X      | *Default*                |
 |`byte[]`                                 | X     | X      | Assumes UTF-8 encoding.  |
 |`org.apache.flink.table.data.StringData` | X     | X      | Internal data structure. |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+Not supported.
+{% endhighlight %}
+</div>
+</div>
+
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
+The type can be declared using `CHAR(n)` where `n` is the number of code points. `n` must have a value between `1`
+and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 #### `VARCHAR` / `STRING`
 
@@ -294,14 +390,6 @@ DataTypes.VARCHAR(n)
 
 DataTypes.STRING()
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `VARCHAR(n)` where `n` is the maximum number of code points. `n` must have a value
-between `1` and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
-
-`STRING` is a synonym for `VARCHAR(2147483647)`.
 
 **Bridging to JVM Types**
 
@@ -310,6 +398,24 @@ between `1` and `2,147,483,647` (both inclusive). If no length is specified, `n`
 |`java.lang.String`                       | X     | X      | *Default*                |
 |`byte[]`                                 | X     | X      | Assumes UTF-8 encoding.  |
 |`org.apache.flink.table.data.StringData` | X     | X      | Internal data structure. |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.VARCHAR(n)
+
+DataTypes.STRING()
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> The specified maximum number of code points `n` in `DataTypes.VARCHAR(n)` must be `2,147,483,647` currently.
+</div>
+</div>
+
+The type can be declared using `VARCHAR(n)` where `n` is the maximum number of code points. `n` must have a value
+between `1` and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
+
+`STRING` is a synonym for `VARCHAR(2147483647)`.
 
 ### Binary Strings
 
@@ -332,18 +438,30 @@ BINARY(n)
 {% highlight java %}
 DataTypes.BINARY(n)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `BINARY(n)` where `n` is the number of bytes. `n` must have a value
-between `1` and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
 
 **Bridging to JVM Types**
 
 | Java Type          | Input | Output | Remarks                 |
 |:-------------------|:-----:|:------:|:------------------------|
 |`byte[]`            | X     | X      | *Default*               |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+Not supported.
+{% endhighlight %}
+</div>
+</div>
+
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
+The type can be declared using `BINARY(n)` where `n` is the number of bytes. `n` must have a value
+between `1` and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 #### `VARBINARY` / `BYTES`
 
@@ -368,8 +486,24 @@ DataTypes.VARBINARY(n)
 
 DataTypes.BYTES()
 {% endhighlight %}
+
+**Bridging to JVM Types**
+
+| Java Type          | Input | Output | Remarks                 |
+|:-------------------|:-----:|:------:|:------------------------|
+|`byte[]`            | X     | X      | *Default*               |
+
 </div>
 
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.VARBINARY(n)
+
+DataTypes.BYTES()
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> The specified maximum number of bytes `n` in `DataTypes.VARBINARY(n)` must be `2,147,483,647` currently.
+</div>
 </div>
 
 The type can be declared using `VARBINARY(n)` where `n` is the maximum number of bytes. `n` must
@@ -377,12 +511,6 @@ have a value between `1` and `2,147,483,647` (both inclusive). If no length is s
 equal to `1`.
 
 `BYTES` is a synonym for `VARBINARY(2147483647)`.
-
-**Bridging to JVM Types**
-
-| Java Type          | Input | Output | Remarks                 |
-|:-------------------|:-----:|:------:|:------------------------|
-|`byte[]`            | X     | X      | *Default*               |
 
 ### Exact Numerics
 
@@ -414,8 +542,23 @@ NUMERIC(p, s)
 {% highlight java %}
 DataTypes.DECIMAL(p, s)
 {% endhighlight %}
+
+**Bridging to JVM Types**
+
+| Java Type                                | Input | Output | Remarks                  |
+|:-----------------------------------------|:-----:|:------:|:-------------------------|
+|`java.math.BigDecimal`                    | X     | X      | *Default*                |
+|`org.apache.flink.table.data.DecimalData` | X     | X      | Internal data structure. |
+
 </div>
 
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.DECIMAL(p, s)
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> The `precision` and `scale` specified in `DataTypes.DECIMAL(p, s)` must be `38` and `18` separately currently.
+</div>
 </div>
 
 The type can be declared using `DECIMAL(p, s)` where `p` is the number of digits in a
@@ -425,13 +568,6 @@ must have a value between `0` and `p` (both inclusive). The default value for `p
 The default value for `s` is `0`.
 
 `NUMERIC(p, s)` and `DEC(p, s)` are synonyms for this type.
-
-**Bridging to JVM Types**
-
-| Java Type                                | Input | Output | Remarks                  |
-|:-----------------------------------------|:-----:|:------:|:-------------------------|
-|`java.math.BigDecimal`                    | X     | X      | *Default*                |
-|`org.apache.flink.table.data.DecimalData` | X     | X      | Internal data structure. |
 
 #### `TINYINT`
 
@@ -451,9 +587,6 @@ TINYINT
 {% highlight java %}
 DataTypes.TINYINT()
 {% endhighlight %}
-</div>
-
-</div>
 
 **Bridging to JVM Types**
 
@@ -461,6 +594,15 @@ DataTypes.TINYINT()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Byte`    | X     | X      | *Default*                                    |
 |`byte`              | X     | (X)    | Output only if type is not nullable.         |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.TINYINT()
+{% endhighlight %}
+</div>
+</div>
 
 #### `SMALLINT`
 
@@ -480,9 +622,6 @@ SMALLINT
 {% highlight java %}
 DataTypes.SMALLINT()
 {% endhighlight %}
-</div>
-
-</div>
 
 **Bridging to JVM Types**
 
@@ -490,6 +629,15 @@ DataTypes.SMALLINT()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Short`   | X     | X      | *Default*                                    |
 |`short`             | X     | (X)    | Output only if type is not nullable.         |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.SMALLINT()
+{% endhighlight %}
+</div>
+</div>
 
 #### `INT`
 
@@ -511,11 +659,6 @@ INTEGER
 {% highlight java %}
 DataTypes.INT()
 {% endhighlight %}
-</div>
-
-</div>
-
-`INTEGER` is a synonym for this type.
 
 **Bridging to JVM Types**
 
@@ -523,6 +666,17 @@ DataTypes.INT()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Integer` | X     | X      | *Default*                                    |
 |`int`               | X     | (X)    | Output only if type is not nullable.         |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.INT()
+{% endhighlight %}
+</div>
+</div>
+
+`INTEGER` is a synonym for this type.
 
 #### `BIGINT`
 
@@ -543,9 +697,6 @@ BIGINT
 {% highlight java %}
 DataTypes.BIGINT()
 {% endhighlight %}
-</div>
-
-</div>
 
 **Bridging to JVM Types**
 
@@ -553,6 +704,15 @@ DataTypes.BIGINT()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Long`    | X     | X      | *Default*                                    |
 |`long`              | X     | (X)    | Output only if type is not nullable.         |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.BIGINT()
+{% endhighlight %}
+</div>
+</div>
 
 ### Approximate Numerics
 
@@ -576,9 +736,6 @@ FLOAT
 {% highlight java %}
 DataTypes.FLOAT()
 {% endhighlight %}
-</div>
-
-</div>
 
 **Bridging to JVM Types**
 
@@ -586,6 +743,15 @@ DataTypes.FLOAT()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Float`   | X     | X      | *Default*                                    |
 |`float`             | X     | (X)    | Output only if type is not nullable.         |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.FLOAT()
+{% endhighlight %}
+</div>
+</div>
 
 #### `DOUBLE`
 
@@ -607,11 +773,6 @@ DOUBLE PRECISION
 {% highlight java %}
 DataTypes.DOUBLE()
 {% endhighlight %}
-</div>
-
-</div>
-
-`DOUBLE PRECISION` is a synonym for this type.
 
 **Bridging to JVM Types**
 
@@ -619,6 +780,17 @@ DataTypes.DOUBLE()
 |:-------------------|:-----:|:------:|:---------------------------------------------|
 |`java.lang.Double`  | X     | X      | *Default*                                    |
 |`double`            | X     | (X)    | Output only if type is not nullable.         |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.DOUBLE()
+{% endhighlight %}
+</div>
+</div>
+
+`DOUBLE PRECISION` is a synonym for this type.
 
 ### Date and Time
 
@@ -643,9 +815,6 @@ DATE
 {% highlight java %}
 DataTypes.DATE()
 {% endhighlight %}
-</div>
-
-</div>
 
 **Bridging to JVM Types**
 
@@ -656,14 +825,31 @@ DataTypes.DATE()
 |`java.lang.Integer`   | X     | X      | Describes the number of days since epoch.    |
 |`int`                 | X     | (X)    | Describes the number of days since epoch.<br>Output only if type is not nullable. |
 
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.DATE()
+{% endhighlight %}
+</div>
+</div>
+
 #### `TIME`
 
 Data type of a time *without* time zone consisting of `hour:minute:second[.fractional]` with
 up to nanosecond precision and values ranging from `00:00:00.000000000` to
 `23:59:59.999999999`.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as
 the semantics are closer to `java.time.LocalTime`. A time *with* time zone is not provided.
+</div>
+<div data-lang="Python" markdown="1">
+Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
+A time *with* time zone is not provided.
+</div>
+</div>
 
 **Declaration**
 
@@ -680,13 +866,6 @@ TIME(p)
 {% highlight java %}
 DataTypes.TIME(p)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `TIME(p)` where `p` is the number of digits of fractional
-seconds (*precision*). `p` must have a value between `0` and `9` (both inclusive). If no
-precision is specified, `p` is equal to `0`.
 
 **Bridging to JVM Types**
 
@@ -699,18 +878,43 @@ precision is specified, `p` is equal to `0`.
 |`java.lang.Long`      | X     | X      | Describes the number of nanoseconds of the day.     |
 |`long`                | X     | (X)    | Describes the number of nanoseconds of the day.<br>Output only if type is not nullable. |
 
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.TIME(p)
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> The `precision` specified in `DataTypes.TIME(p)` must be `0` currently.
+</div>
+</div>
+
+The type can be declared using `TIME(p)` where `p` is the number of digits of fractional
+seconds (*precision*). `p` must have a value between `0` and `9` (both inclusive). If no
+precision is specified, `p` is equal to `0`.
+
 #### `TIMESTAMP`
 
 Data type of a timestamp *without* time zone consisting of `year-month-day hour:minute:second[.fractional]`
 with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000` to
 `9999-12-31 23:59:59.999999999`.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as
 the semantics are closer to `java.time.LocalDateTime`.
 
 A conversion from and to `BIGINT` (a JVM `long` type) is not supported as this would imply a time
 zone. However, this type is time zone free. For more `java.time.Instant`-like semantics use
 `TIMESTAMP WITH LOCAL TIME ZONE`.
+</div>
+<div data-lang="Python" markdown="1">
+Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
+
+A conversion from and to `BIGINT` is not supported as this would imply a time zone.
+However, this type is time zone free. If you have such a requirement please use `TIMESTAMP WITH LOCAL TIME ZONE`.
+</div>
+</div>
 
 **Declaration**
 
@@ -730,15 +934,6 @@ TIMESTAMP(p) WITHOUT TIME ZONE
 {% highlight java %}
 DataTypes.TIMESTAMP(p)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `TIMESTAMP(p)` where `p` is the number of digits of fractional
-seconds (*precision*). `p` must have a value between `0` and `9` (both inclusive). If no precision
-is specified, `p` is equal to `6`.
-
-`TIMESTAMP(p) WITHOUT TIME ZONE` is a synonym for this type.
 
 **Bridging to JVM Types**
 
@@ -748,14 +943,38 @@ is specified, `p` is equal to `6`.
 |`java.sql.Timestamp`                        | X     | X      |                          |
 |`org.apache.flink.table.data.TimestampData` | X     | X      | Internal data structure. |
 
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.TIMESTAMP(p)
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> The `precision` specified in `DataTypes.TIMESTAMP(p)` must be `3` currently.
+</div>
+</div>
+
+The type can be declared using `TIMESTAMP(p)` where `p` is the number of digits of fractional
+seconds (*precision*). `p` must have a value between `0` and `9` (both inclusive). If no precision
+is specified, `p` is equal to `6`.
+
+`TIMESTAMP(p) WITHOUT TIME ZONE` is a synonym for this type.
+
 #### `TIMESTAMP WITH TIME ZONE`
 
 Data type of a timestamp *with* time zone consisting of `year-month-day hour:minute:second[.fractional] zone`
 with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000 +14:59` to
 `9999-12-31 23:59:59.999999999 -14:59`.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as the semantics
 are closer to `java.time.OffsetDateTime`.
+</div>
+<div data-lang="Python" markdown="1">
+Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
+</div>
+</div>
 
 Compared to `TIMESTAMP WITH LOCAL TIME ZONE`, the time zone offset information is physically
 stored in every datum. It is used individually for every computation, visualization, or communication
@@ -776,13 +995,6 @@ TIMESTAMP(p) WITH TIME ZONE
 {% highlight java %}
 DataTypes.TIMESTAMP_WITH_TIME_ZONE(p)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `TIMESTAMP(p) WITH TIME ZONE` where `p` is the number of digits of
-fractional seconds (*precision*). `p` must have a value between `0` and `9` (both inclusive). If no
-precision is specified, `p` is equal to `6`.
 
 **Bridging to JVM Types**
 
@@ -791,18 +1003,48 @@ precision is specified, `p` is equal to `6`.
 |`java.time.OffsetDateTime` | X     | X      | *Default*            |
 |`java.time.ZonedDateTime`  | X     |        | Ignores the zone ID. |
 
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+Not supported.
+{% endhighlight %}
+</div>
+</div>
+
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
+The type can be declared using `TIMESTAMP(p) WITH TIME ZONE` where `p` is the number of digits of
+fractional seconds (*precision*). `p` must have a value between `0` and `9` (both inclusive). If no
+precision is specified, `p` is equal to `6`.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
+
 #### `TIMESTAMP WITH LOCAL TIME ZONE`
 
 Data type of a timestamp *with local* time zone consisting of `year-month-day hour:minute:second[.fractional] zone`
 with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000 +14:59` to
 `9999-12-31 23:59:59.999999999 -14:59`.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 Leap seconds (`23:59:60` and `23:59:61`) are not supported as the semantics are closer to `java.time.OffsetDateTime`.
 
 Compared to `TIMESTAMP WITH TIME ZONE`, the time zone offset information is not stored physically
 in every datum. Instead, the type assumes `java.time.Instant` semantics in UTC time zone at
 the edges of the table ecosystem. Every datum is interpreted in the local time zone configured in
 the current session for computation and visualization.
+</div>
+<div data-lang="Python" markdown="1">
+Leap seconds (`23:59:60` and `23:59:61`) are not supported.
+
+Compared to `TIMESTAMP WITH TIME ZONE`, the time zone offset information is not stored physically
+in every datum. 
+Every datum is interpreted in the local time zone configured in the current session for computation and visualization.
+</div>
+</div>
 
 This type fills the gap between time zone free and time zone mandatory timestamp types by allowing
 the interpretation of UTC timestamps according to the configured session time zone.
@@ -822,13 +1064,6 @@ TIMESTAMP(p) WITH LOCAL TIME ZONE
 {% highlight java %}
 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `TIMESTAMP(p) WITH LOCAL TIME ZONE` where `p` is the number
-of digits of fractional seconds (*precision*). `p` must have a value between `0` and `9`
-(both inclusive). If no precision is specified, `p` is equal to `6`.
 
 **Bridging to JVM Types**
 
@@ -840,6 +1075,21 @@ of digits of fractional seconds (*precision*). `p` must have a value between `0`
 |`java.lang.Long`    | X     | X      | Describes the number of milliseconds since epoch. |
 |`long`              | X     | (X)    | Describes the number of milliseconds since epoch.<br>Output only if type is not nullable. |
 |`org.apache.flink.table.data.TimestampData` | X     | X      | Internal data structure. |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> The `precision` specified in `DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)` must be `3` currently.
+</div>
+</div>
+
+The type can be declared using `TIMESTAMP(p) WITH LOCAL TIME ZONE` where `p` is the number
+of digits of fractional seconds (*precision*). `p` must have a value between `0` and `9`
+(both inclusive). If no precision is specified, `p` is equal to `6`.
 
 #### `INTERVAL YEAR TO MONTH`
 
@@ -877,13 +1127,6 @@ DataTypes.INTERVAL(DataTypes.YEAR(p))
 DataTypes.INTERVAL(DataTypes.YEAR(p), DataTypes.MONTH())
 DataTypes.INTERVAL(DataTypes.MONTH())
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using the above combinations where `p` is the number of digits of years
-(*year precision*). `p` must have a value between `1` and `4` (both inclusive). If no year precision
-is specified, `p` is equal to `2`.
 
 **Bridging to JVM Types**
 
@@ -893,7 +1136,23 @@ is specified, `p` is equal to `2`.
 |`java.lang.Integer` | X     | X      | Describes the number of months.    |
 |`int`               | X     | (X)    | Describes the number of months.<br>Output only if type is not nullable. |
 
-#### `INTERVAL DAY TO MONTH`
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.INTERVAL(DataTypes.YEAR())
+DataTypes.INTERVAL(DataTypes.YEAR(p))
+DataTypes.INTERVAL(DataTypes.YEAR(p), DataTypes.MONTH())
+DataTypes.INTERVAL(DataTypes.MONTH())
+{% endhighlight %}
+</div>
+</div>
+
+The type can be declared using the above combinations where `p` is the number of digits of years
+(*year precision*). `p` must have a value between `1` and `4` (both inclusive). If no year precision
+is specified, `p` is equal to `2`.
+
+#### `INTERVAL DAY TO SECOND`
 
 Data type for a group of day-time interval types.
 
@@ -950,15 +1209,6 @@ DataTypes.INTERVAL(DataTypes.MINUTE(), DataTypes.SECOND(p2))
 DataTypes.INTERVAL(DataTypes.SECOND())
 DataTypes.INTERVAL(DataTypes.SECOND(p2))
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using the above combinations where `p1` is the number of digits of days
-(*day precision*) and `p2` is the number of digits of fractional seconds (*fractional precision*).
-`p1` must have a value between `1` and `6` (both inclusive). `p2` must have a value between `0`
-and `9` (both inclusive). If no `p1` is specified, it is equal to `2` by default. If no `p2` is
-specified, it is equal to `6` by default.
 
 **Bridging to JVM Types**
 
@@ -967,6 +1217,32 @@ specified, it is equal to `6` by default.
 |`java.time.Duration` | X     | X      | *Default*                             |
 |`java.lang.Long`     | X     | X      | Describes the number of milliseconds. |
 |`long`               | X     | (X)    | Describes the number of milliseconds.<br>Output only if type is not nullable. |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.INTERVAL(DataTypes.DAY())
+DataTypes.INTERVAL(DataTypes.DAY(p1))
+DataTypes.INTERVAL(DataTypes.DAY(p1), DataTypes.HOUR())
+DataTypes.INTERVAL(DataTypes.DAY(p1), DataTypes.MINUTE())
+DataTypes.INTERVAL(DataTypes.DAY(p1), DataTypes.SECOND(p2))
+DataTypes.INTERVAL(DataTypes.HOUR())
+DataTypes.INTERVAL(DataTypes.HOUR(), DataTypes.MINUTE())
+DataTypes.INTERVAL(DataTypes.HOUR(), DataTypes.SECOND(p2))
+DataTypes.INTERVAL(DataTypes.MINUTE())
+DataTypes.INTERVAL(DataTypes.MINUTE(), DataTypes.SECOND(p2))
+DataTypes.INTERVAL(DataTypes.SECOND())
+DataTypes.INTERVAL(DataTypes.SECOND(p2))
+{% endhighlight %}
+</div>
+</div>
+
+The type can be declared using the above combinations where `p1` is the number of digits of days
+(*day precision*) and `p2` is the number of digits of fractional seconds (*fractional precision*).
+`p1` must have a value between `1` and `6` (both inclusive). `p2` must have a value between `0`
+and `9` (both inclusive). If no `p1` is specified, it is equal to `2` by default. If no `p2` is
+specified, it is equal to `6` by default.
 
 ### Constructured Data Types
 
@@ -992,15 +1268,6 @@ t ARRAY
 {% highlight java %}
 DataTypes.ARRAY(t)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `ARRAY<t>` where `t` is the data type of the contained
-elements.
-
-`t ARRAY` is a synonym for being closer to the SQL standard. For example, `INT ARRAY` is
-equivalent to `ARRAY<INT>`.
 
 **Bridging to JVM Types**
 
@@ -1010,6 +1277,21 @@ equivalent to `ARRAY<INT>`.
 | `java.util.List<t>`                    | X     | X      |                                   |
 | *subclass* of `java.util.List<t>`      | X     |        |                                   |
 |`org.apache.flink.table.data.ArrayData` | X     | X      | Internal data structure.          |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.ARRAY(t)
+{% endhighlight %}
+</div>
+</div>
+
+The type can be declared using `ARRAY<t>` where `t` is the data type of the contained
+elements.
+
+`t ARRAY` is a synonym for being closer to the SQL standard. For example, `INT ARRAY` is
+equivalent to `ARRAY<INT>`.
 
 #### `MAP`
 
@@ -1034,12 +1316,6 @@ MAP<kt, vt>
 {% highlight java %}
 DataTypes.MAP(kt, vt)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `MAP<kt, vt>` where `kt` is the data type of the key elements
-and `vt` is the data type of the value elements.
 
 **Bridging to JVM Types**
 
@@ -1048,6 +1324,18 @@ and `vt` is the data type of the value elements.
 | `java.util.Map<kt, vt>`               | X     | X      | *Default*                |
 | *subclass* of `java.util.Map<kt, vt>` | X     |        |                          |
 |`org.apache.flink.table.data.MapData`  | X     | X      | Internal data structure. |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.MAP(kt, vt)
+{% endhighlight %}
+</div>
+</div>
+
+The type can be declared using `MAP<kt, vt>` where `kt` is the data type of the key elements
+and `vt` is the data type of the value elements.
 
 #### `MULTISET`
 
@@ -1071,15 +1359,6 @@ t MULTISET
 {% highlight java %}
 DataTypes.MULTISET(t)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `MULTISET<t>` where `t` is the data type
-of the contained elements.
-
-`t MULTISET` is a synonym for being closer to the SQL standard. For example, `INT MULTISET` is
-equivalent to `MULTISET<INT>`.
 
 **Bridging to JVM Types**
 
@@ -1088,6 +1367,21 @@ equivalent to `MULTISET<INT>`.
 |`java.util.Map<t, java.lang.Integer>`  | X     | X      | Assigns each value to an integer multiplicity. *Default* |
 | *subclass* of `java.util.Map<t, java.lang.Integer>>` | X     |        |                                           |
 |`org.apache.flink.table.data.MapData`  | X     | X      | Internal data structure.                                 |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.MULTISET(t)
+{% endhighlight %}
+</div>
+</div>
+
+The type can be declared using `MULTISET<t>` where `t` is the data type
+of the contained elements.
+
+`t MULTISET` is a synonym for being closer to the SQL standard. For example, `INT MULTISET` is
+equivalent to `MULTISET<INT>`.
 
 #### `ROW`
 
@@ -1121,15 +1415,6 @@ ROW(n0 t0 'd0', n1 t1 'd1', ...)
 DataTypes.ROW(DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...)
 DataTypes.ROW(DataTypes.FIELD(n0, t0, d0), DataTypes.FIELD(n1, t1, d1), ...)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `ROW<n0 t0 'd0', n1 t1 'd1', ...>` where `n` is the unique name of
-a field, `t` is the logical type of a field, `d` is the description of a field.
-
-`ROW(...)` is a synonym for being closer to the SQL standard. For example, `ROW(myField INT, myOtherField BOOLEAN)` is
-equivalent to `ROW<myField INT, myOtherField BOOLEAN>`.
 
 **Bridging to JVM Types**
 
@@ -1138,8 +1423,26 @@ equivalent to `ROW<myField INT, myOtherField BOOLEAN>`.
 |`org.apache.flink.types.Row`          | X     | X      | *Default*                |
 |`org.apache.flink.table.data.RowData` | X     | X      | Internal data structure. |
 
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.ROW([DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...])
+DataTypes.ROW([DataTypes.FIELD(n0, t0, d0), DataTypes.FIELD(n1, t1, d1), ...])
+{% endhighlight %}
+</div>
+</div>
+
+The type can be declared using `ROW<n0 t0 'd0', n1 t1 'd1', ...>` where `n` is the unique name of
+a field, `t` is the logical type of a field, `d` is the description of a field.
+
+`ROW(...)` is a synonym for being closer to the SQL standard. For example, `ROW(myField INT, myOtherField BOOLEAN)` is
+equivalent to `ROW<myField INT, myOtherField BOOLEAN>`.
+
 ### User-Defined Data Types
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 <span class="label label-danger">Attention</span> User-defined data types are not fully supported yet. They are
 currently (as of Flink 1.11) only exposed as unregistered structured types in parameters and return types of functions.
 
@@ -1185,6 +1488,10 @@ bridging classes defined for every data type in this document (e.g. `java.lang.I
 
 For some classes an annotation is required in order to map the class to a data type (e.g. `@DataTypeHint("DECIMAL(10, 2)")`
 to assign a fixed precision and scale for `java.math.BigDecimal`).
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 **Declaration**
 
@@ -1207,6 +1514,15 @@ class User {
 
 DataTypes.of(User.class);
 {% endhighlight %}
+
+**Bridging to JVM Types**
+
+| Java Type                            | Input | Output | Remarks                                 |
+|:-------------------------------------|:-----:|:------:|:----------------------------------------|
+|*class*                               | X     | X      | Originating class or subclasses (for input) or <br>superclasses (for output). *Default* |
+|`org.apache.flink.types.Row`          | X     | X      | Represent the structured type as a row. |
+|`org.apache.flink.table.data.RowData` | X     | X      | Internal data structure.                |
+
 </div>
 
 <div data-lang="Scala" markdown="1">
@@ -1226,9 +1542,6 @@ case class User(
 
 DataTypes.of(classOf[User])
 {% endhighlight %}
-</div>
-
-</div>
 
 **Bridging to JVM Types**
 
@@ -1237,6 +1550,15 @@ DataTypes.of(classOf[User])
 |*class*                               | X     | X      | Originating class or subclasses (for input) or <br>superclasses (for output). *Default* |
 |`org.apache.flink.types.Row`          | X     | X      | Represent the structured type as a row. |
 |`org.apache.flink.table.data.RowData` | X     | X      | Internal data structure.                |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+Not supported.
+{% endhighlight %}
+</div>
+</div>
 
 ### Other Data Types
 
@@ -1258,9 +1580,6 @@ BOOLEAN
 {% highlight java %}
 DataTypes.BOOLEAN()
 {% endhighlight %}
-</div>
-
-</div>
 
 **Bridging to JVM Types**
 
@@ -1268,6 +1587,15 @@ DataTypes.BOOLEAN()
 |:-------------------|:-----:|:------:|:-------------------------------------|
 |`java.lang.Boolean` | X     | X      | *Default*                            |
 |`boolean`           | X     | (X)    | Output only if type is not nullable. |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+DataTypes.BOOLEAN()
+{% endhighlight %}
+</div>
+</div>
 
 #### `RAW`
 
@@ -1292,16 +1620,6 @@ DataTypes.RAW(class, serializer)
 
 DataTypes.RAW(class)
 {% endhighlight %}
-</div>
-
-</div>
-
-The type can be declared using `RAW('class', 'snapshot')` where `class` is the originating class and
-`snapshot` is the serialized `TypeSerializerSnapshot` in Base64 encoding. Usually, the type string is not
-declared directly but is generated while persisting the type.
-
-In the API, the `RAW` type can be declared either by directly supplying a `Class` + `TypeSerializer` or
-by passing `Class` and letting the framework extract `Class` + `TypeSerializer` from there.
 
 **Bridging to JVM Types**
 
@@ -1310,6 +1628,28 @@ by passing `Class` and letting the framework extract `Class` + `TypeSerializer` 
 |*class*            | X     | X      | Originating class or subclasses (for input) or <br>superclasses (for output). *Default* |
 |`byte[]`           |       | X      |                                      |
 |`org.apache.flink.table.data.RawValueData` | X     | X      | Internal data structure. |
+
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+Not supported.
+{% endhighlight %}
+</div>
+</div>
+
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
+The type can be declared using `RAW('class', 'snapshot')` where `class` is the originating class and
+`snapshot` is the serialized `TypeSerializerSnapshot` in Base64 encoding. Usually, the type string is not
+declared directly but is generated while persisting the type.
+
+In the API, the `RAW` type can be declared either by directly supplying a `Class` + `TypeSerializer` or
+by passing `Class` and letting the framework extract `Class` + `TypeSerializer` from there.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 #### `NULL`
 
@@ -1337,9 +1677,6 @@ NULL
 {% highlight java %}
 DataTypes.NULL()
 {% endhighlight %}
-</div>
-
-</div>
 
 **Bridging to JVM Types**
 
@@ -1348,9 +1685,20 @@ DataTypes.NULL()
 |`java.lang.Object` | X     | X      | *Default*                            |
 |*any class*        |       | (X)    | Any non-primitive type.              |
 
+</div>
+
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+Not supported.
+{% endhighlight %}
+</div>
+</div>
+
 Data Type Extraction
 --------------------
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 At many locations in the API, Flink tries to automatically extract data type from class information using
 reflection to avoid repetitive manual schema work. However, extracting a data type reflectively is not always
 successful because logical information might be missing. Therefore, it might be necessary to add additional
@@ -1361,8 +1709,8 @@ The following table lists classes that can be implicitly mapped to a data type w
 If you intend to implement classes in Scala, *it is recommended to use boxed types* (e.g. `java.lang.Integer`)
 instead of Scala's primitives. Scala's primitives (e.g. `Int` or `Double`) are compiled to JVM primitives (e.g.
 `int`/`double`) and result in `NOT NULL` semantics as shown in the table below. Furthermore, Scala primitives that
-are used in generics (e.g. `java.lang.Map[Int, Double]`) are erased during compilation and lead to class
-information similar to `java.lang.Map[java.lang.Object, java.lang.Object]`.
+are used in generics (e.g. `java.util.Map[Int, Double]`) are erased during compilation and lead to class
+information similar to `java.util.Map[java.lang.Object, java.lang.Object]`.
 
 | Class                       | Data Type                           |
 |:----------------------------|:------------------------------------|
@@ -1393,7 +1741,7 @@ information similar to `java.lang.Map[java.lang.Object, java.lang.Object]`.
 | `java.time.Period`          | `INTERVAL YEAR(4) TO MONTH`         |
 | `byte[]`                    | `BYTES`                             |
 | `T[]`                       | `ARRAY<T>`                          |
-| `java.lang.Map<K, V>`       | `MAP<K, V>`                         |
+| `java.util.Map<K, V>`       | `MAP<K, V>`                         |
 | structured type `T`         | anonymous structured type `T`       |
 
 Other JVM bridging classes mentioned in this document require a `@DataTypeHint` annotation.
@@ -1404,6 +1752,10 @@ extent the default extraction logic should be modified by declaring a `@DataType
 
 The `@DataTypeHint` annotation provides a set of optional hint parameters. Some of those parameters are shown in the
 following example. More information can be found in the documentation of the annotation class.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 
@@ -1463,7 +1815,11 @@ class User {
 }
 {% endhighlight %}
 </div>
-
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+Not supported.
+{% endhighlight %}
+</div>
 </div>
 
 {% top %}

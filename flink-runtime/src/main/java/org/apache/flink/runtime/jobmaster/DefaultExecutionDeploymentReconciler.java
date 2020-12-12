@@ -22,6 +22,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.ExecutionDeploymentReport;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -37,21 +38,21 @@ public class DefaultExecutionDeploymentReconciler implements ExecutionDeployment
 	}
 
 	@Override
-	public void reconcileExecutionDeployments(ResourceID taskExecutorHost, ExecutionDeploymentReport executionDeploymentReport, Set<ExecutionAttemptID> expectedDeployedExecutions) {
-		final Set<ExecutionAttemptID> unknownExecutions = new HashSet<>();
-		final Set<ExecutionAttemptID> expectedExecutions = new HashSet<>(expectedDeployedExecutions);
+	public void reconcileExecutionDeployments(ResourceID taskExecutorHost, ExecutionDeploymentReport executionDeploymentReport, Map<ExecutionAttemptID, ExecutionDeploymentState> expectedDeployedExecutions) {
+		final Set<ExecutionAttemptID> unknownExecutions = new HashSet<>(executionDeploymentReport.getExecutions());
+		final Set<ExecutionAttemptID> missingExecutions = new HashSet<>();
 
-		for (ExecutionAttemptID executionAttemptID : executionDeploymentReport.getExecutions()) {
-			boolean isTracked = expectedExecutions.remove(executionAttemptID);
-			if (!isTracked) {
-				unknownExecutions.add(executionAttemptID);
+		for (Map.Entry<ExecutionAttemptID, ExecutionDeploymentState> execution : expectedDeployedExecutions.entrySet()) {
+			boolean deployed = unknownExecutions.remove(execution.getKey());
+			if (!deployed && execution.getValue() != ExecutionDeploymentState.PENDING) {
+				missingExecutions.add(execution.getKey());
 			}
 		}
 		if (!unknownExecutions.isEmpty()) {
 			handler.onUnknownDeploymentsOf(unknownExecutions, taskExecutorHost);
 		}
-		if (!expectedExecutions.isEmpty()) {
-			handler.onMissingDeploymentsOf(expectedExecutions, taskExecutorHost);
+		if (!missingExecutions.isEmpty()) {
+			handler.onMissingDeploymentsOf(missingExecutions, taskExecutorHost);
 		}
 	}
 }

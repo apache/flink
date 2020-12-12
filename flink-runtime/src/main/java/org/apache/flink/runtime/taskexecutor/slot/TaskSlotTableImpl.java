@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,6 +54,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
@@ -107,12 +109,18 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		"TaskSlotTableImpl is not initialized with proper main thread executor, " +
 			"call to TaskSlotTableImpl#start is required");
 
+	/**
+	 * {@link Executor} for background actions, e.g. verify all managed memory released.
+	 */
+	private final Executor memoryVerificationExecutor;
+
 	public TaskSlotTableImpl(
 			final int numberSlots,
 			final ResourceProfile totalAvailableResourceProfile,
 			final ResourceProfile defaultSlotResourceProfile,
 			final int memoryPageSize,
-			final TimerService<AllocationID> timerService) {
+			final TimerService<AllocationID> timerService,
+			final Executor memoryVerificationExecutor) {
 		Preconditions.checkArgument(0 < numberSlots, "The number of task slots must be greater than 0.");
 
 		this.numberSlots = numberSlots;
@@ -134,6 +142,8 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		slotActions = null;
 		state = State.CREATED;
 		closingFuture = new CompletableFuture<>();
+
+		this.memoryVerificationExecutor = memoryVerificationExecutor;
 	}
 
 	@Override
@@ -189,6 +199,25 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		} else {
 			return Collections.unmodifiableSet(allocationIds);
 		}
+	}
+
+	@Override
+	public Set<AllocationID> getActiveTaskSlotAllocationIds() {
+		return createAllocationIdSet(new TaskSlotIterator(TaskSlotState.ACTIVE));
+	}
+
+	@Override
+	public Set<AllocationID> getActiveTaskSlotAllocationIdsPerJob(JobID jobId) {
+		return createAllocationIdSet(new TaskSlotIterator(jobId, TaskSlotState.ACTIVE));
+	}
+
+	private Set<AllocationID> createAllocationIdSet(Iterator<TaskSlot<T>> taskSlotIterator) {
+		Set<AllocationID> allocationIds = new HashSet<>();
+		while (taskSlotIterator.hasNext()) {
+			allocationIds.add(taskSlotIterator.next().getAllocationId());
+		}
+
+		return allocationIds;
 	}
 
 	// ---------------------------------------------------------------------
@@ -289,7 +318,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 			return false;
 		}
 
-		taskSlot = new TaskSlot<>(index, resourceProfile, memoryPageSize, jobId, allocationId);
+		taskSlot = new TaskSlot<>(index, resourceProfile, memoryPageSize, jobId, allocationId, memoryVerificationExecutor);
 		if (index >= 0) {
 			taskSlots.put(index, taskSlot);
 		}
@@ -454,11 +483,6 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 	}
 
 	@Override
-	public Iterator<AllocationID> getActiveSlots(JobID jobId) {
-		return new AllocationIDIterator(jobId, TaskSlotState.ACTIVE);
-	}
-
-	@Override
 	@Nullable
 	public JobID getOwningJob(AllocationID allocationId) {
 		final TaskSlot<T> taskSlot = getTaskSlot(allocationId);
@@ -617,37 +641,6 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 	}
 
 	/**
-	 * Iterator over {@link AllocationID} of the {@link TaskSlot} of a given job. Additionally,
-	 * the task slots identified by the allocation ids are in the given state.
-	 */
-	private final class AllocationIDIterator implements Iterator<AllocationID> {
-		private final Iterator<TaskSlot<T>> iterator;
-
-		private AllocationIDIterator(JobID jobId, TaskSlotState state) {
-			iterator = new TaskSlotIterator(jobId, state);
-		}
-
-		@Override
-		public boolean hasNext() {
-			return iterator.hasNext();
-		}
-
-		@Override
-		public AllocationID next() {
-			try {
-				return iterator.next().getAllocationId();
-			} catch (NoSuchElementException e) {
-				throw new NoSuchElementException("No more allocation ids.");
-			}
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException("Cannot remove allocation ids via this iterator.");
-		}
-	}
-
-	/**
 	 * Iterator over {@link TaskSlot} which fulfill a given state condition and belong to the given
 	 * job.
 	 */
@@ -657,18 +650,22 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 
 		private TaskSlot<T> currentSlot;
 
+		private TaskSlotIterator(TaskSlotState state) {
+			this(slotsPerJob.values()
+					.stream()
+					.flatMap(Collection::stream)
+					.collect(Collectors.toSet())
+					.iterator(),
+				state);
+		}
+
 		private TaskSlotIterator(JobID jobId, TaskSlotState state) {
+			this(slotsPerJob.get(jobId) == null ? Collections.emptyIterator() : slotsPerJob.get(jobId).iterator(), state);
+		}
 
-			Set<AllocationID> allocationIds = slotsPerJob.get(jobId);
-
-			if (allocationIds == null || allocationIds.isEmpty()) {
-				allSlots = Collections.emptyIterator();
-			} else {
-				allSlots = allocationIds.iterator();
-			}
-
+		private TaskSlotIterator(Iterator<AllocationID> allocationIDIterator, TaskSlotState state) {
+			this.allSlots = Preconditions.checkNotNull(allocationIDIterator);
 			this.state = Preconditions.checkNotNull(state);
-
 			this.currentSlot = null;
 		}
 

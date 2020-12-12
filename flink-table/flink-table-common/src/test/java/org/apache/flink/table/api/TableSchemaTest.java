@@ -52,12 +52,16 @@ public class TableSchemaTest {
 	@Test
 	public void testTableSchema() {
 		TableSchema schema = TableSchema.builder()
-			.field("f0", DataTypes.BIGINT())
-			.field("f1", DataTypes.ROW(
-				DataTypes.FIELD("q1", DataTypes.STRING()),
-				DataTypes.FIELD("q2", DataTypes.TIMESTAMP(3))))
-			.field("f2", DataTypes.STRING())
-			.field("f3", DataTypes.BIGINT(), "f0 + 1")
+			.add(TableColumn.physical("f0", DataTypes.BIGINT()))
+			.add(
+				TableColumn.physical(
+					"f1",
+					DataTypes.ROW(
+						DataTypes.FIELD("q1", DataTypes.STRING()),
+						DataTypes.FIELD("q2", DataTypes.TIMESTAMP(3)))))
+			.add(TableColumn.physical("f2", DataTypes.STRING()))
+			.add(TableColumn.computed("f3", DataTypes.BIGINT(), "f0 + 1"))
+			.add(TableColumn.metadata("f4", DataTypes.BIGINT(), "other.key", true))
 			.watermark("f1.q2", WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
 			.build();
 
@@ -67,18 +71,19 @@ public class TableSchemaTest {
 			" |-- f1: ROW<`q1` STRING, `q2` TIMESTAMP(3)>\n" +
 			" |-- f2: STRING\n" +
 			" |-- f3: BIGINT AS f0 + 1\n" +
-			" |-- WATERMARK FOR f1.q2 AS now()\n";
+			" |-- f4: BIGINT METADATA FROM 'other.key' VIRTUAL\n" +
+			" |-- WATERMARK FOR f1.q2: TIMESTAMP(3) AS now()\n";
 		assertEquals(expected, schema.toString());
 
 		// test getFieldNames and getFieldDataType
 		assertEquals(Optional.of("f2"), schema.getFieldName(2));
 		assertEquals(Optional.of(DataTypes.BIGINT()), schema.getFieldDataType(3));
-		assertEquals(Optional.of(TableColumn.of("f3", DataTypes.BIGINT(), "f0 + 1")),
+		assertEquals(Optional.of(TableColumn.computed("f3", DataTypes.BIGINT(), "f0 + 1")),
 			schema.getTableColumn(3));
 		assertEquals(Optional.of(DataTypes.STRING()), schema.getFieldDataType("f2"));
 		assertEquals(Optional.of(DataTypes.STRING()), schema.getFieldDataType("f1")
 			.map(r -> r.getChildren().get(0)));
-		assertFalse(schema.getFieldName(4).isPresent());
+		assertFalse(schema.getFieldName(5).isPresent());
 		assertFalse(schema.getFieldType(-1).isPresent());
 		assertFalse(schema.getFieldType("c").isPresent());
 		assertFalse(schema.getFieldDataType("f1.q1").isPresent());
@@ -87,6 +92,69 @@ public class TableSchemaTest {
 		// test copy() and equals()
 		assertEquals(schema, schema.copy());
 		assertEquals(schema.hashCode(), schema.copy().hashCode());
+	}
+
+	@Test
+	public void testPersistedRowDataType() {
+		final TableSchema schema = TableSchema.builder()
+			.add(TableColumn.physical("f0", DataTypes.BIGINT()))
+			.add(TableColumn.metadata("f1", DataTypes.BIGINT(), true))
+			.add(TableColumn.metadata("f2", DataTypes.BIGINT(), false))
+			.add(TableColumn.physical("f3", DataTypes.STRING()))
+			.add(TableColumn.computed("f4", DataTypes.BIGINT(), "f0 + 1"))
+			.add(TableColumn.metadata("f5", DataTypes.BIGINT(), false))
+			.build();
+
+		final DataType expectedDataType = DataTypes.ROW(
+			DataTypes.FIELD("f0", DataTypes.BIGINT()),
+			DataTypes.FIELD("f2", DataTypes.BIGINT()),
+			DataTypes.FIELD("f3", DataTypes.STRING()),
+			DataTypes.FIELD("f5", DataTypes.BIGINT()))
+			.notNull();
+
+		assertThat(schema.toPersistedRowDataType(), equalTo(expectedDataType));
+	}
+
+	@Test
+	public void testPhysicalRowDataType() {
+		final TableSchema schema = TableSchema.builder()
+			.add(TableColumn.physical("f0", DataTypes.BIGINT()))
+			.add(TableColumn.metadata("f1", DataTypes.BIGINT(), true))
+			.add(TableColumn.metadata("f2", DataTypes.BIGINT(), false))
+			.add(TableColumn.physical("f3", DataTypes.STRING()))
+			.add(TableColumn.computed("f4", DataTypes.BIGINT(), "f0 + 1"))
+			.add(TableColumn.metadata("f5", DataTypes.BIGINT(), false))
+			.build();
+
+		final DataType expectedDataType = DataTypes.ROW(
+			DataTypes.FIELD("f0", DataTypes.BIGINT()),
+			DataTypes.FIELD("f3", DataTypes.STRING()))
+			.notNull();
+
+		assertThat(schema.toPhysicalRowDataType(), equalTo(expectedDataType));
+	}
+
+	@Test
+	public void testRowDataType() {
+		final TableSchema schema = TableSchema.builder()
+			.add(TableColumn.physical("f0", DataTypes.BIGINT()))
+			.add(TableColumn.metadata("f1", DataTypes.BIGINT(), true))
+			.add(TableColumn.metadata("f2", DataTypes.BIGINT(), false))
+			.add(TableColumn.physical("f3", DataTypes.STRING()))
+			.add(TableColumn.computed("f4", DataTypes.BIGINT(), "f0 + 1"))
+			.add(TableColumn.metadata("f5", DataTypes.BIGINT(), false))
+			.build();
+
+		final DataType expectedDataType = DataTypes.ROW(
+			DataTypes.FIELD("f0", DataTypes.BIGINT()),
+			DataTypes.FIELD("f1", DataTypes.BIGINT()),
+			DataTypes.FIELD("f2", DataTypes.BIGINT()),
+			DataTypes.FIELD("f3", DataTypes.STRING()),
+			DataTypes.FIELD("f4", DataTypes.BIGINT()),
+			DataTypes.FIELD("f5", DataTypes.BIGINT()))
+			.notNull();
+
+		assertThat(schema.toRowDataType(), equalTo(expectedDataType));
 	}
 
 	@Test
@@ -285,7 +353,7 @@ public class TableSchemaTest {
 	@Test
 	public void testPrimaryKeyGeneratedColumn() {
 		thrown.expect(ValidationException.class);
-		thrown.expectMessage("Could not create a PRIMARY KEY 'pk' with a generated column 'f0'.");
+		thrown.expectMessage("Could not create a PRIMARY KEY 'pk'. Column 'f0' is not a physical column.");
 
 		TableSchema.builder()
 			.field("f0", DataTypes.BIGINT().notNull(), "123")

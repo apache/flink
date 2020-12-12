@@ -120,8 +120,8 @@ We recommend packaging the application code and all its required dependencies in
 we refer to as the *application jar*. The application jar can be submitted to an already running Flink cluster,
 or added to a Flink application container image.
 
-Projects created from the [Java Project Template]({{ site.baseurl }}/dev/project-configuration.html) or
-[Scala Project Template]({{ site.baseurl }}/dev/project-configuration) are configured to automatically include
+Projects created from the [Java Project Template]({% link dev/project-configuration.md %}) or
+[Scala Project Template]({% link dev/project-configuration.md %}) are configured to automatically include
 the application dependencies into the application jar when running `mvn clean package`. For projects that are
 not set up from those templates, we recommend adding the Maven Shade Plugin (as listed in the Appendix below)
 to build the application jar with all required dependencies.
@@ -143,7 +143,7 @@ Scala version that they are built for, for example `flink-streaming-scala_2.11`.
 Developers that only use Java can pick any Scala version, Scala developers need to
 pick the Scala version that matches their application's Scala version.
 
-Please refer to the [build guide]({{ site.baseurl }}/flinkDev/building.html#scala-versions)
+Please refer to the [build guide]({% link flinkDev/building.md %}#scala-versions)
 for details on how to build Flink for a specific Scala version.
 
 ## Hadoop Dependencies
@@ -152,8 +152,12 @@ for details on how to build Flink for a specific Scala version.
 *(The only exception being when using existing Hadoop input-/output formats with Flink's Hadoop compatibility wrappers)*
 
 If you want to use Flink with Hadoop, you need to have a Flink setup that includes the Hadoop dependencies, rather than
-adding Hadoop as an application dependency. Please refer to the [Hadoop Setup Guide]({{ site.baseurl }}/ops/deployment/hadoop.html)
-for details.
+adding Hadoop as an application dependency. Flink will use the Hadoop dependencies specified by the `HADOOP_CLASSPATH`
+environment variable, which can be set in the following way:
+
+{% highlight bash %}
+export HADOOP_CLASSPATH=`hadoop classpath`
+{% endhighlight %}
 
 There are two main reasons for that design:
 
@@ -353,7 +357,7 @@ dependencies {
     // Dependencies that should be part of the shadow jar, e.g.
     // connectors. These must be in the flinkShadowJar configuration!
     // --------------------------------------------------------------
-    //flinkShadowJar "org.apache.flink:flink-connector-kafka-0.11_${scalaBinaryVersion}:${flinkVersion}"
+    //flinkShadowJar "org.apache.flink:flink-connector-kafka_${scalaBinaryVersion}:${flinkVersion}"
 
     compile "org.apache.logging.log4j:log4j-api:${log4jVersion}"
     compile "org.apache.logging.log4j:log4j-core:${log4jVersion}"

@@ -504,10 +504,11 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
 	@SuppressWarnings("unchecked")
 	public <T> T[] toObjectArray(LogicalType elementType) {
 		Class<T> elementClass = (Class<T>) LogicalTypeUtils.toInternalConversionClass(elementType);
+		ArrayData.ElementGetter elementGetter = ArrayData.createElementGetter(elementType);
 		T[] values = (T[]) Array.newInstance(elementClass, size);
 		for (int i = 0; i < size; i++) {
 			if (!isNullAt(i)) {
-				values[i] = (T) ArrayData.get(this, i, elementType);
+				values[i] = (T) elementGetter.getElementOrNull(this, i);
 			}
 		}
 		return values;

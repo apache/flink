@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.arrow;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
@@ -77,8 +76,7 @@ public class RowDataArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowD
 			.withCustomCheck(
 				(o1, o2) -> o1 instanceof RowData && o2 instanceof RowData,
 				(o1, o2, checker) -> {
-					RowDataSerializer serializer = new RowDataSerializer(
-						new ExecutionConfig(), fieldTypes.toArray(new LogicalType[0]));
+					RowDataSerializer serializer = new RowDataSerializer(fieldTypes.toArray(new LogicalType[0]));
 					return deepEqualsRowData(
 						(RowData) o1,
 						(RowData) o2,
@@ -169,8 +167,8 @@ public class RowDataArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowD
 		BinaryRowData row2 = StreamRecordUtils.binaryrow((byte) 1, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), DecimalData.fromUnscaledLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
 			Tuple2.of(TimestampData.fromEpochMillis(3600000), 0), Tuple2.of(TimestampData.fromEpochMillis(3600000), 2), Tuple2.of(TimestampData.fromEpochMillis(3600000, 100000), 4), Tuple2.of(TimestampData.fromEpochMillis(3600000, 100000), 8),
 			Tuple2.of(TimestampData.fromEpochMillis(3600000), 0), Tuple2.of(TimestampData.fromEpochMillis(3600000), 2), Tuple2.of(TimestampData.fromEpochMillis(3600000, 100000), 4), Tuple2.of(TimestampData.fromEpochMillis(3600000, 100000), 8),
-			Tuple2.of(new GenericArrayData(new String[] {null, null, null}), new ArrayDataSerializer(new VarCharType(), null)),
-			Tuple2.of(GenericRowData.of(1, null, new GenericArrayData(new StringData[] {StringData.fromString("hello")}), null, GenericRowData.of(1, StringData.fromString("hello"))), new RowDataSerializer(new ExecutionConfig(), rowFieldType)));
+			Tuple2.of(new GenericArrayData(new String[] {null, null, null}), new ArrayDataSerializer(new VarCharType())),
+			Tuple2.of(GenericRowData.of(1, null, new GenericArrayData(new StringData[] {StringData.fromString("hello")}), null, GenericRowData.of(1, StringData.fromString("hello"))), new RowDataSerializer(rowFieldType)));
 		RowData row3 = StreamRecordUtils.row(null, (short) 2, 3, 4L, false, 1.0f, 1.0, "中文", "中文".getBytes(), DecimalData.fromUnscaledLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
 			TimestampData.fromEpochMillis(3600000), TimestampData.fromEpochMillis(3600000), TimestampData.fromEpochMillis(3600000, 100000), TimestampData.fromEpochMillis(3600000, 100000),
 			TimestampData.fromEpochMillis(3600000), TimestampData.fromEpochMillis(3600000), TimestampData.fromEpochMillis(3600000, 100000), TimestampData.fromEpochMillis(3600000, 100000),
@@ -179,8 +177,8 @@ public class RowDataArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowD
 		BinaryRowData row4 = StreamRecordUtils.binaryrow((byte) 1, null, 3, 4L, true, 1.0f, 1.0, "hello", "hello".getBytes(), DecimalData.fromUnscaledLong(1, 10, 3), 100, 3600000, 3600000, 3600000, 3600000,
 			Tuple2.of(TimestampData.fromEpochMillis(3600000), 0), Tuple2.of(TimestampData.fromEpochMillis(3600000), 2), Tuple2.of(TimestampData.fromEpochMillis(3600000, 100000), 4), Tuple2.of(TimestampData.fromEpochMillis(3600000, 100000), 8),
 			Tuple2.of(TimestampData.fromEpochMillis(3600000), 0), Tuple2.of(TimestampData.fromEpochMillis(3600000), 2), Tuple2.of(TimestampData.fromEpochMillis(3600000, 100000), 4), Tuple2.of(TimestampData.fromEpochMillis(3600000, 100000), 8),
-			Tuple2.of(new GenericArrayData(new StringData[] {StringData.fromString("hello"), StringData.fromString("中文"), null}), new ArrayDataSerializer(new VarCharType(), null)),
-			Tuple2.of(GenericRowData.of(1, null, new GenericArrayData(new StringData[] {StringData.fromString("hello")}), null, null), new RowDataSerializer(new ExecutionConfig(), rowFieldType)));
+			Tuple2.of(new GenericArrayData(new StringData[] {StringData.fromString("hello"), StringData.fromString("中文"), null}), new ArrayDataSerializer(new VarCharType())),
+			Tuple2.of(GenericRowData.of(1, null, new GenericArrayData(new StringData[] {StringData.fromString("hello")}), null, null), new RowDataSerializer(rowFieldType)));
 		RowData row5 = StreamRecordUtils.row(new Object[fieldTypes.size()]);
 		BinaryRowData row6 = StreamRecordUtils.binaryrow(new Object[fieldTypes.size()]);
 		return new RowData[]{row1, row2, row3, row4, row5, row6};

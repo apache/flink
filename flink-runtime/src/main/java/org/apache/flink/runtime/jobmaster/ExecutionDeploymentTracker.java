@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
-import java.util.Set;
+import java.util.Map;
 
 /**
  * A tracker for deployed executions.
@@ -28,12 +28,19 @@ import java.util.Set;
 public interface ExecutionDeploymentTracker {
 
 	/**
-	 * Starts tracking the given execution that was deployed on the given host.
+	 * Starts tracking the given execution that is being deployed on the given host.
 	 *
 	 * @param executionAttemptId execution to start tracking
 	 * @param host hosting task executor
 	 */
-	void startTrackingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host);
+	void startTrackingPendingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host);
+
+	/**
+	 * Marks the deployment of the given execution as complete.
+	 *
+	 * @param executionAttemptId execution whose deployment to mark as complete
+	 */
+	void completeDeploymentOf(ExecutionAttemptID executionAttemptId);
 
 	/**
 	 * Stops tracking the given execution.
@@ -48,6 +55,5 @@ public interface ExecutionDeploymentTracker {
 	 * @param host hosting task executor
 	 * @return tracked executions
 	 */
-	Set<ExecutionAttemptID> getExecutionsOn(ResourceID host);
-
+	Map<ExecutionAttemptID, ExecutionDeploymentState> getExecutionsOn(ResourceID host);
 }

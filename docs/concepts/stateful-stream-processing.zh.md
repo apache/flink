@@ -46,8 +46,8 @@ Some examples of stateful operations:
     to events that occurred in the past.
 
 Flink needs to be aware of the state in order to make it fault tolerant using
-[checkpoints]({{ site.baseurl}}{% link dev/stream/state/checkpointing.zh.md %})
-and [savepoints]({{ site.baseurl }}{%link ops/state/savepoints.zh.md %}).
+[checkpoints]({% link dev/stream/state/checkpointing.zh.md %})
+and [savepoints]({%link ops/state/savepoints.zh.md %}).
 
 Knowledge about the state also allows for rescaling Flink applications, meaning
 that Flink takes care of redistributing state across parallel instances.
@@ -73,7 +73,7 @@ are local operations, guaranteeing consistency without transaction overhead.
 This alignment also allows Flink to redistribute the state and adjust the
 stream partitioning transparently.
 
-<img src="{{ site.baseurl }}/fig/state_partitioning.svg" alt="State and Partitioning" class="offset" width="50%" />
+<img src="{% link /fig/state_partitioning.svg %}" alt="State and Partitioning" class="offset" width="50%" />
 
 Keyed State is further organized into so-called *Key Groups*. Key Groups are
 the atomic unit by which Flink can redistribute Keyed State; there are exactly
@@ -155,7 +155,7 @@ the stream at the same time, which means that various snapshots may happen
 concurrently.
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/stream_barriers.svg" alt="Checkpoint barriers in data streams" style="width:60%; padding-top:10px; padding-bottom:10px;" />
+  <img src="{% link /fig/stream_barriers.svg %}" alt="Checkpoint barriers in data streams" style="width:60%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
 Stream barriers are injected into the parallel data flow at the stream sources.
@@ -178,7 +178,7 @@ for records from before <i>S<sub>n</sub></i>, since at that point these records
 topology.
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/stream_aligning.svg" alt="Aligning data streams at operators with multiple inputs" style="width:100%; padding-top:10px; padding-bottom:10px;" />
+  <img src="{% link /fig/stream_aligning.svg %}" alt="Aligning data streams at operators with multiple inputs" style="width:100%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
 Operators that receive more than one input stream need to *align* the input
@@ -208,7 +208,7 @@ snapshot barriers from their input streams, and before emitting the barriers to
 their output streams. At that point, all updates to the state from records
 before the barriers will have been made, and no updates that depend on records
 from after the barriers have been applied. Because the state of a snapshot may
-be large, it is stored in a configurable *[state backend]({{ site.baseurl }}{%
+be large, it is stored in a configurable *[state backend]({%
 link ops/state/state_backends.zh.md %})*. By default, this is the JobManager's
 memory, but for production use a distributed reliable storage should be
 configured (such as HDFS). After the state has been stored, the operator
@@ -223,7 +223,7 @@ The resulting snapshot now contains:
     snapshot
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/checkpointing.svg" alt="Illustration of the Checkpointing Mechanism" style="width:100%; padding-top:10px; padding-bottom:10px;" />
+  <img src="{% link /fig/checkpointing.svg %}" alt="Illustration of the Checkpointing Mechanism" style="width:100%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
 #### Recovery
@@ -254,7 +254,7 @@ snapshot of the key/value state and store that snapshot as part of a
 checkpoint. State backends can be configured without changing your application
 logic.
 
-<img src="{{ site.baseurl }}/fig/checkpoints.svg" alt="checkpoints and snapshots" class="offset" width="60%" />
+<img src="{% link /fig/checkpoints.svg %}" alt="checkpoints and snapshots" class="offset" width="60%" />
 
 {% top %}
 
@@ -302,13 +302,13 @@ give *exactly once* guarantees even in *at least once* mode.
 
 ## State and Fault Tolerance in Batch Programs
 
-Flink executes [batch programs](../dev/batch/index.html) as a special case of
+Flink executes [batch programs]({% link dev/batch/index.zh.md %}) as a special case of
 streaming programs, where the streams are bounded (finite number of elements).
 A *DataSet* is treated internally as a stream of data. The concepts above thus
 apply to batch programs in the same way as well as they apply to streaming
 programs, with minor exceptions:
 
-  - [Fault tolerance for batch programs](../dev/batch/fault_tolerance.html)
+  - [Fault tolerance for batch programs]({% link dev/task_failure_recovery.md %})
     does not use checkpointing.  Recovery happens by fully replaying the
     streams.  That is possible, because inputs are bounded. This pushes the
     cost more towards the recovery, but makes the regular processing cheaper,
@@ -319,6 +319,6 @@ programs, with minor exceptions:
 
   - The DataSet API introduces special synchronized (superstep-based)
     iterations, which are only possible on bounded streams. For details, check
-    out the [iteration docs]({{ site.baseurl }}/dev/batch/iterations.html).
+    out the [iteration docs]({% link dev/batch/iterations.zh.md %}).
 
 {% top %}

@@ -77,14 +77,14 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
 
 	@Before
 	public void setup() throws IOException, InterruptedException {
-		networkBufferPool = new NetworkBufferPool(8, BUFFER_SIZE, 8);
+		networkBufferPool = new NetworkBufferPool(8, BUFFER_SIZE);
 		inputGate = createSingleInputGate(1, networkBufferPool);
 		RemoteInputChannel inputChannel = createRemoteInputChannel(
 			inputGate,
 			new TestingPartitionRequestClient());
 		inputChannel.requestSubpartition(0);
 		inputGate.setInputChannels(inputChannel);
-		inputGate.assignExclusiveSegments();
+		inputGate.setupChannels();
 
 		CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 		handler.addInputChannel(inputChannel);

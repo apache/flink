@@ -70,6 +70,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.ResourceManagerAddress;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
@@ -228,6 +229,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final HardwareDescription hardwareDescription;
 
+	private final TaskExecutorMemoryConfiguration memoryConfiguration;
+
 	private FileCache fileCache;
 
 	/** The heartbeat manager for job manager in the task manager. */
@@ -297,6 +300,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 
 		this.hardwareDescription = HardwareDescription.extractFromSystem(taskExecutorServices.getManagedMemorySize());
+		this.memoryConfiguration = TaskExecutorMemoryConfiguration.create(taskManagerConfiguration.getConfiguration());
 
 		this.resourceManagerAddress = null;
 		this.resourceManagerConnection = null;
@@ -356,8 +360,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	public void onStart() throws Exception {
 		try {
 			startTaskExecutorServices();
-		} catch (Exception e) {
-			final TaskManagerException exception = new TaskManagerException(String.format("Could not start the TaskExecutor %s", getAddress()), e);
+		} catch (Throwable t) {
+			final TaskManagerException exception = new TaskManagerException(String.format("Could not start the TaskExecutor %s", getAddress()), t);
 			onFatalError(exception);
 			throw exception;
 		}
@@ -1061,7 +1065,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final Task task = taskSlotTable.getTask(executionAttemptID);
 		if (task == null) {
 			return FutureUtils.completedExceptionally(new TaskNotRunningException(
-				"Task " + executionAttemptID.toHexString() + " not running on TaskManager"));
+				"Task " + executionAttemptID + " not running on TaskManager"));
 		}
 
 		try {
@@ -1127,7 +1131,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			getAddress(),
 			getResourceID(),
 			unresolvedTaskManagerLocation.getDataPort(),
+			JMXService.getPort().orElse(-1),
 			hardwareDescription,
+			memoryConfiguration,
 			taskManagerConfiguration.getDefaultSlotResourceProfile(),
 			taskManagerConfiguration.getTotalResourceProfile()
 		);
@@ -1421,16 +1427,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		// 2. Move the active slots to state allocated (possible to time out again)
-		Iterator<AllocationID> activeSlots = taskSlotTable.getActiveSlots(jobId);
+		Set<AllocationID> activeSlotAllocationIDs = taskSlotTable.getActiveTaskSlotAllocationIdsPerJob(jobId);
 
 		final FlinkException freeingCause = new FlinkException("Slot could not be marked inactive.");
 
-		while (activeSlots.hasNext()) {
-			AllocationID activeSlot = activeSlots.next();
-
+		for (AllocationID activeSlotAllocationID : activeSlotAllocationIDs) {
 			try {
-				if (!taskSlotTable.markSlotInactive(activeSlot, taskManagerConfiguration.getTimeout())) {
-					freeSlotInternal(activeSlot, freeingCause);
+				if (!taskSlotTable.markSlotInactive(activeSlotAllocationID, taskManagerConfiguration.getTimeout())) {
+					freeSlotInternal(activeSlotAllocationID, freeingCause);
 				}
 			} catch (SlotNotFoundException e) {
 				log.debug("Could not mark the slot {} inactive.", jobId, e);
@@ -1685,15 +1689,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 							String.format(
 								"Slot %s on TaskExecutor %s is not allocated by job %s.",
 								allocatedSlotInfo.getSlotIndex(),
-								getResourceID(),
+								getResourceID().getStringWithMetadata(),
 								allocatedSlotReport.getJobId())));
 			}
 		}
 	}
 
 	private void freeNoLongerUsedSlots(AllocatedSlotReport allocatedSlotReport) {
-		final Iterator<AllocationID> slotsTaskManagerSide = taskSlotTable.getActiveSlots(allocatedSlotReport.getJobId());
-		final Set<AllocationID> activeSlots = Sets.newHashSet(slotsTaskManagerSide);
+		final Set<AllocationID> activeSlots = taskSlotTable.getActiveTaskSlotAllocationIdsPerJob(allocatedSlotReport.getJobId());
 		final Set<AllocationID> reportedSlots = allocatedSlotReport.getAllocatedSlotInfos().stream()
 				.map(AllocatedSlotInfo::getAllocationId).collect(Collectors.toSet());
 
@@ -1739,12 +1742,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 						throw new CompletionException(new FlinkException("Could not upload file " + fileTag + '.', e));
 					}
 				} else {
-					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID());
+					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID().getStringWithMetadata());
 					throw new CompletionException(new FlinkException("The file " + fileTag + " does not exist on the TaskExecutor."));
 				}
 			}, ioExecutor);
 		} else {
-			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID());
+			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID().getStringWithMetadata());
 			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileTag + " is not available on the TaskExecutor."));
 		}
 	}

@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.runtime.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.dataview.DataView;
 
 /**
  * A {@link DataView} which is implemented using state backend.
  */
+@Internal
 public interface StateDataView<N> extends DataView {
 
 	/**

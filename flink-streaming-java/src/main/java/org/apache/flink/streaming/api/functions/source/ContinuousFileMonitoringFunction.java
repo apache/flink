@@ -103,19 +103,10 @@ public class ContinuousFileMonitoringFunction<OUT>
 	private transient ListState<Long> checkpointedState;
 
 	public ContinuousFileMonitoringFunction(
-			FileInputFormat<OUT> format,
-			FileProcessingMode watchType,
-			int readerParallelism,
-			long interval) {
-		this(format, watchType, readerParallelism, interval, Long.MIN_VALUE);
-	}
-
-	public ContinuousFileMonitoringFunction(
 		FileInputFormat<OUT> format,
 		FileProcessingMode watchType,
 		int readerParallelism,
-		long interval,
-		long globalModificationTime) {
+		long interval) {
 
 		Preconditions.checkArgument(
 			watchType == FileProcessingMode.PROCESS_ONCE || interval >= MIN_MONITORING_INTERVAL,
@@ -133,7 +124,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 		this.interval = interval;
 		this.watchType = watchType;
 		this.readerParallelism = Math.max(readerParallelism, 1);
-		this.globalModificationTime = globalModificationTime;
+		this.globalModificationTime = Long.MIN_VALUE;
 	}
 
 	@VisibleForTesting
@@ -297,7 +288,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 	 * Returns the paths of the files not yet processed.
 	 * @param fileSystem The filesystem where the monitored directory resides.
 	 */
-	private Map<Path, FileStatus> listEligibleFiles(FileSystem fileSystem, Path path) throws IOException {
+	private Map<Path, FileStatus> listEligibleFiles(FileSystem fileSystem, Path path) {
 
 		final FileStatus[] statuses;
 		try {

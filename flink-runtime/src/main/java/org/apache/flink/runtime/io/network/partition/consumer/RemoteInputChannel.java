@@ -20,19 +20,26 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.util.CloseableIterator;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -40,10 +47,12 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -52,6 +61,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * An input channel, which requests a remote partition queue.
  */
 public class RemoteInputChannel extends InputChannel {
+
+	private static final int NONE = -1;
 
 	/** ID to distinguish this channel from other channels sharing the same TCP connection. */
 	private final InputChannelID id = new InputChannelID();
@@ -66,7 +77,7 @@ public class RemoteInputChannel extends InputChannel {
 	 * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
 	 * is consumed by the receiving task thread.
 	 */
-	private final ArrayDeque<Buffer> receivedBuffers = new ArrayDeque<>();
+	private final PrioritizedDeque<SequenceBuffer> receivedBuffers = new PrioritizedDeque<>();
 
 	/**
 	 * Flag indicating whether this channel has been released. Either called by the receiving task
@@ -78,28 +89,25 @@ public class RemoteInputChannel extends InputChannel {
 	private volatile PartitionRequestClient partitionRequestClient;
 
 	/**
-	 * The next expected sequence number for the next buffer. This is modified by the network
-	 * I/O thread only.
+	 * The next expected sequence number for the next buffer.
 	 */
 	private int expectedSequenceNumber = 0;
 
 	/** The initial number of exclusive buffers assigned to this channel. */
-	private int initialCredit;
+	private final int initialCredit;
 
 	/** The number of available buffers that have not been announced to the producer yet. */
 	private final AtomicInteger unannouncedCredit = new AtomicInteger(0);
 
-	/**
-	 * The latest already triggered checkpoint id which would be updated during
-	 * {@link #spillInflightBuffers(long, ChannelStateWriter)}.
-	 */
-	@GuardedBy("receivedBuffers")
-	private long lastRequestedCheckpointId = -1;
-
-	/** The current received checkpoint id from the network. */
-	private long receivedCheckpointId = -1;
-
 	private final BufferManager bufferManager;
+
+	@GuardedBy("receivedBuffers")
+	private int lastBarrierSequenceNumber = NONE;
+
+	@GuardedBy("receivedBuffers")
+	private long lastBarrierId = NONE;
+
+	private final ChannelStatePersister channelStatePersister;
 
 	public RemoteInputChannel(
 		SingleInputGate inputGate,
@@ -109,25 +117,35 @@ public class RemoteInputChannel extends InputChannel {
 		ConnectionManager connectionManager,
 		int initialBackOff,
 		int maxBackoff,
+		int networkBuffersPerChannel,
 		Counter numBytesIn,
-		Counter numBuffersIn) {
+		Counter numBuffersIn,
+		ChannelStateWriter stateWriter) {
 
 		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, numBytesIn, numBuffersIn);
 
+		this.initialCredit = networkBuffersPerChannel;
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
 		this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
+		this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
+	}
+
+	@VisibleForTesting
+	void setExpectedSequenceNumber(int expectedSequenceNumber) {
+		this.expectedSequenceNumber = expectedSequenceNumber;
 	}
 
 	/**
-	 * Assigns exclusive buffers to this input channel, and this method should be called only once
+	 * Setup includes assigning exclusive buffers to this input channel, and this method should be called only once
 	 * after this input channel is created.
 	 */
-	void assignExclusiveSegments() throws IOException {
-		checkState(initialCredit == 0, "Bug in input channel setup logic: exclusive buffers have " +
-			"already been set for this input channel.");
+	@Override
+	void setup() throws IOException {
+		checkState(bufferManager.unsynchronizedGetAvailableExclusiveBuffers() == 0,
+			"Bug in input channel setup logic: exclusive buffers have already been set for this input channel.");
 
-		initialCredit = bufferManager.requestExclusiveBuffers();
+		bufferManager.requestExclusiveBuffers(initialCredit);
 	}
 
 	// ------------------------------------------------------------------------
@@ -171,51 +189,24 @@ public class RemoteInputChannel extends InputChannel {
 	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
 		checkPartitionRequestQueueInitialized();
 
-		final Buffer next;
-		final boolean moreAvailable;
+		final SequenceBuffer next;
+		final DataType nextDataType;
 
 		synchronized (receivedBuffers) {
 			next = receivedBuffers.poll();
-			moreAvailable = !receivedBuffers.isEmpty();
+			nextDataType = receivedBuffers.peek() != null ? receivedBuffers.peek().buffer.getDataType() : DataType.NONE;
 		}
 
 		if (next == null) {
 			if (isReleased.get()) {
 				throw new CancelTaskException("Queried for a buffer after channel has been released.");
-			} else {
-				throw new IllegalStateException("There should always have queued buffers for unreleased channel.");
 			}
+			return Optional.empty();
 		}
 
-		numBytesIn.inc(next.getSize());
+		numBytesIn.inc(next.buffer.getSize());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(next, moreAvailable, 0));
-	}
-
-	@Override
-	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) throws IOException {
-		synchronized (receivedBuffers) {
-			checkState(checkpointId > lastRequestedCheckpointId, "Need to request the next checkpointId");
-
-			final List<Buffer> inflightBuffers = new ArrayList<>(receivedBuffers.size());
-			for (Buffer buffer : receivedBuffers) {
-				CheckpointBarrier checkpointBarrier = parseCheckpointBarrierOrNull(buffer);
-				if (checkpointBarrier != null && checkpointBarrier.getId() >= checkpointId) {
-					break;
-				}
-				if (buffer.isBuffer()) {
-					inflightBuffers.add(buffer.retainBuffer());
-				}
-			}
-
-			lastRequestedCheckpointId = checkpointId;
-
-			channelStateWriter.addInputData(
-				checkpointId,
-				channelInfo,
-				ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
-				CloseableIterator.fromList(inflightBuffers, Buffer::recycleBuffer));
-		}
+		return Optional.of(new BufferAndAvailability(next.buffer, nextDataType, 0, next.sequenceNumber));
 	}
 
 	// ------------------------------------------------------------------------
@@ -248,7 +239,8 @@ public class RemoteInputChannel extends InputChannel {
 
 			final ArrayDeque<Buffer> releasedBuffers;
 			synchronized (receivedBuffers) {
-				releasedBuffers = new ArrayDeque<>(receivedBuffers);
+				releasedBuffers = receivedBuffers.stream().map(sb -> sb.buffer)
+					.collect(Collectors.toCollection(ArrayDeque::new));
 				receivedBuffers.clear();
 			}
 			bufferManager.releaseAllBuffers(releasedBuffers);
@@ -307,7 +299,8 @@ public class RemoteInputChannel extends InputChannel {
 
 	@VisibleForTesting
 	public Buffer getNextReceivedBuffer() {
-		return receivedBuffers.poll();
+		final SequenceBuffer sequenceBuffer = receivedBuffers.poll();
+		return sequenceBuffer != null ? sequenceBuffer.buffer : null;
 	}
 
 	@VisibleForTesting
@@ -381,7 +374,7 @@ public class RemoteInputChannel extends InputChannel {
 	}
 
 	public int unsynchronizedGetExclusiveBuffersUsed() {
-		return Math.max(0, initialCredit - bufferManager.unsynchronizedGetExclusiveBuffersUsed());
+		return Math.max(0, initialCredit - bufferManager.unsynchronizedGetAvailableExclusiveBuffers());
 	}
 
 	public int unsynchronizedGetFloatingBuffersAvailable() {
@@ -440,9 +433,7 @@ public class RemoteInputChannel extends InputChannel {
 			}
 
 			final boolean wasEmpty;
-			final CheckpointBarrier notifyReceivedBarrier;
-			final Buffer notifyReceivedBuffer;
-			final BufferReceivedListener listener = inputGate.getBufferReceivedListener();
+			boolean firstPriorityEvent = false;
 			synchronized (receivedBuffers) {
 				// Similar to notifyBufferAvailable(), make sure that we never add a buffer
 				// after releaseAllResources() released all buffers from receivedBuffers
@@ -452,19 +443,26 @@ public class RemoteInputChannel extends InputChannel {
 				}
 
 				wasEmpty = receivedBuffers.isEmpty();
-				receivedBuffers.add(buffer);
 
-				if (listener != null && buffer.isBuffer() && receivedCheckpointId < lastRequestedCheckpointId) {
-					notifyReceivedBuffer = buffer.retainBuffer();
-				} else {
-					notifyReceivedBuffer = null;
+				SequenceBuffer sequenceBuffer = new SequenceBuffer(buffer, sequenceNumber);
+				DataType dataType = buffer.getDataType();
+				if (dataType.hasPriority()) {
+					firstPriorityEvent = addPriorityBuffer(sequenceBuffer);
 				}
-				notifyReceivedBarrier = listener != null ? parseCheckpointBarrierOrNull(buffer) : null;
+				else {
+					receivedBuffers.add(sequenceBuffer);
+					channelStatePersister.maybePersist(buffer);
+					if (dataType.requiresAnnouncement()) {
+						firstPriorityEvent = addPriorityBuffer(announce(sequenceBuffer));
+					}
+				}
+				++expectedSequenceNumber;
 			}
 			recycleBuffer = false;
 
-			++expectedSequenceNumber;
-
+			if (firstPriorityEvent) {
+				notifyPriorityEvent(sequenceNumber);
+			}
 			if (wasEmpty) {
 				notifyChannelNonEmpty();
 			}
@@ -472,19 +470,125 @@ public class RemoteInputChannel extends InputChannel {
 			if (backlog >= 0) {
 				onSenderBacklog(backlog);
 			}
-
-			if (notifyReceivedBarrier != null) {
-				receivedCheckpointId = notifyReceivedBarrier.getId();
-				if (notifyReceivedBarrier.isCheckpoint()) {
-					listener.notifyBarrierReceived(notifyReceivedBarrier, channelInfo);
-				}
-			} else if (notifyReceivedBuffer != null) {
-				listener.notifyBufferReceived(notifyReceivedBuffer, channelInfo);
-			}
 		} finally {
 			if (recycleBuffer) {
 				buffer.recycleBuffer();
 			}
+		}
+	}
+
+	/**
+	 * @return {@code true} if this was first priority buffer added.
+	 */
+	private boolean addPriorityBuffer(SequenceBuffer sequenceBuffer) throws IOException {
+		receivedBuffers.addPriorityElement(sequenceBuffer);
+		channelStatePersister
+			.checkForBarrier(sequenceBuffer.buffer)
+			.filter(id -> id > lastBarrierId)
+			.ifPresent(id -> {
+				lastBarrierId = id;
+				lastBarrierSequenceNumber = sequenceBuffer.sequenceNumber;
+			});
+		return receivedBuffers.getNumPriorityElements() == 1;
+	}
+
+	private SequenceBuffer announce(SequenceBuffer sequenceBuffer) throws IOException {
+		checkState(!sequenceBuffer.buffer.isBuffer(), "Only a CheckpointBarrier can be announced but found %s", sequenceBuffer.buffer);
+		AbstractEvent event = EventSerializer.fromBuffer(
+				sequenceBuffer.buffer,
+				getClass().getClassLoader());
+		checkState(event instanceof CheckpointBarrier, "Only a CheckpointBarrier can be announced but found %s", sequenceBuffer.buffer);
+		CheckpointBarrier barrier = (CheckpointBarrier) event;
+		return new SequenceBuffer(
+				EventSerializer.toBuffer(new EventAnnouncement(barrier, sequenceBuffer.sequenceNumber), true),
+				sequenceBuffer.sequenceNumber);
+	}
+
+	/**
+	 * Spills all queued buffers on checkpoint start. If barrier has already been received (and reordered), spill only
+	 * the overtaken buffers.
+	 */
+	public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
+		synchronized (receivedBuffers) {
+			channelStatePersister.startPersisting(
+				barrier.getId(),
+				getInflightBuffersUnsafe(barrier.getId()));
+		}
+	}
+
+	public void checkpointStopped(long checkpointId) {
+		synchronized (receivedBuffers) {
+			channelStatePersister.stopPersisting(checkpointId);
+			if (lastBarrierId == checkpointId) {
+				lastBarrierId = NONE;
+				lastBarrierSequenceNumber = NONE;
+			}
+		}
+	}
+
+	@VisibleForTesting
+	List<Buffer> getInflightBuffers(long checkpointId) throws CheckpointException {
+		synchronized (receivedBuffers) {
+			return getInflightBuffersUnsafe(checkpointId);
+		}
+	}
+
+	/**
+	 * Returns a list of buffers, checking the first n non-priority buffers, and skipping all events.
+	 */
+	private List<Buffer> getInflightBuffersUnsafe(long checkpointId) throws CheckpointException {
+		assert Thread.holdsLock(receivedBuffers);
+
+		if (checkpointId < lastBarrierId) {
+			throw new CheckpointException(
+				String.format("Sequence number for checkpoint %d is not known (it was likely been overwritten by a newer checkpoint %d)", checkpointId, lastBarrierId),
+				CheckpointFailureReason.CHECKPOINT_SUBSUMED); // currently, at most one active unaligned checkpoint is possible
+		}
+
+		final List<Buffer> inflightBuffers = new ArrayList<>();
+		Iterator<SequenceBuffer> iterator = receivedBuffers.iterator();
+		// skip all priority events (only buffers are stored anyways)
+		Iterators.advance(iterator, receivedBuffers.getNumPriorityElements());
+
+		while (iterator.hasNext()) {
+			SequenceBuffer sequenceBuffer = iterator.next();
+			if (sequenceBuffer.buffer.isBuffer()) {
+				if (shouldBeSpilled(sequenceBuffer.sequenceNumber)) {
+					inflightBuffers.add(sequenceBuffer.buffer.retainBuffer());
+				} else {
+					break;
+				}
+			}
+		}
+
+		return inflightBuffers;
+	}
+
+	/**
+	 * @return if given {@param sequenceNumber} should be spilled given {@link #lastBarrierSequenceNumber}.
+	 * We might not have yet received {@link CheckpointBarrier} and we might need to spill everything.
+	 * If we have already received it, there is a bit nasty corner case of {@link SequenceBuffer#sequenceNumber}
+	 * overflowing that needs to be handled as well.
+	 */
+	private boolean shouldBeSpilled(int sequenceNumber) {
+		if (lastBarrierSequenceNumber == NONE) {
+			return true;
+		}
+		checkState(
+			receivedBuffers.size() < Integer.MAX_VALUE / 2,
+			"Too many buffers for sequenceNumber overflow detection code to work correctly");
+
+		boolean possibleOverflowAfterOvertaking = Integer.MAX_VALUE / 2 < lastBarrierSequenceNumber;
+		boolean possibleOverflowBeforeOvertaking = lastBarrierSequenceNumber < -Integer.MAX_VALUE / 2;
+
+		if (possibleOverflowAfterOvertaking) {
+			return sequenceNumber < lastBarrierSequenceNumber && sequenceNumber > 0;
+		}
+		else if (possibleOverflowBeforeOvertaking) {
+			return sequenceNumber < lastBarrierSequenceNumber || sequenceNumber > 0;
+		}
+		else {
+			return sequenceNumber < lastBarrierSequenceNumber;
 		}
 	}
 
@@ -538,6 +642,16 @@ public class RemoteInputChannel extends InputChannel {
 		public String getMessage() {
 			return String.format("Buffer re-ordering: expected buffer with sequence number %d, but received %d.",
 				expectedSequenceNumber, actualSequenceNumber);
+		}
+	}
+
+	private static final class SequenceBuffer {
+		final Buffer buffer;
+		final int sequenceNumber;
+
+		private SequenceBuffer(Buffer buffer, int sequenceNumber) {
+			this.buffer = buffer;
+			this.sequenceNumber = sequenceNumber;
 		}
 	}
 }

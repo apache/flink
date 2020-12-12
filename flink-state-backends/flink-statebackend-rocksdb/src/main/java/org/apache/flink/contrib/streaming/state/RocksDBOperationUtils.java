@@ -36,6 +36,7 @@ import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -52,6 +53,7 @@ import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.
  * Utils for RocksDB Operations.
  */
 public class RocksDBOperationUtils {
+	private static final Logger LOG = LoggerFactory.getLogger(RocksDBOperationUtils.class);
 
 	private static final String MANAGED_MEMORY_RESOURCE_ID = "state-rocks-managed-memory";
 
@@ -131,22 +133,24 @@ public class RocksDBOperationUtils {
 		RegisteredStateMetaInfoBase metaInfoBase,
 		RocksDB db,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-		@Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+		@Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		@Nullable Long writeBufferManagerCapacity) {
 
 		ColumnFamilyDescriptor columnFamilyDescriptor = createColumnFamilyDescriptor(
-			metaInfoBase, columnFamilyOptionsFactory, ttlCompactFiltersManager);
+			metaInfoBase, columnFamilyOptionsFactory, ttlCompactFiltersManager, writeBufferManagerCapacity);
 		return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(createColumnFamily(columnFamilyDescriptor, db), metaInfoBase);
 	}
 
 	/**
-	 * Creates a column descriptor for sate column family.
+	 * Creates a column descriptor for a state column family.
 	 *
 	 * <p>Sets TTL compaction filter if {@code ttlCompactFiltersManager} is not {@code null}.
 	 */
 	public static ColumnFamilyDescriptor createColumnFamilyDescriptor(
 		RegisteredStateMetaInfoBase metaInfoBase,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-		@Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+		@Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		@Nullable Long writeBufferManagerCapacity) {
 
 		ColumnFamilyOptions options = createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
 		if (ttlCompactFiltersManager != null) {
@@ -156,7 +160,47 @@ public class RocksDBOperationUtils {
 		Preconditions.checkState(!Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
 			"The chosen state name 'default' collides with the name of the default column family!");
 
+		if (writeBufferManagerCapacity != null) {
+			// It'd be great to perform the check earlier, e.g. when creating write buffer manager.
+			// Unfortunately the check needs write buffer size that was just calculated.
+			sanityCheckArenaBlockSize(options.writeBufferSize(), options.arenaBlockSize(), writeBufferManagerCapacity);
+		}
+
 		return new ColumnFamilyDescriptor(nameBytes, options);
+	}
+
+	/**
+	 * Logs a warning if the arena block size is too high causing RocksDB to flush constantly.
+	 * Essentially, the condition
+	 * <a href="https://github.com/dataArtisans/frocksdb/blob/49bc897d5d768026f1eb816d960c1f2383396ef4/include/rocksdb/write_buffer_manager.h#L47">
+	 * here</a> will always be true.
+	 *
+	 * @param writeBufferSize the size of write buffer (bytes)
+	 * @param arenaBlockSizeConfigured the manually configured arena block size, zero or less means not configured
+	 * @param writeBufferManagerCapacity the size of the write buffer manager (bytes)
+	 * @return true if sanity check passes, false otherwise
+	 */
+	static boolean sanityCheckArenaBlockSize(
+		long writeBufferSize,
+		long arenaBlockSizeConfigured,
+		long writeBufferManagerCapacity) throws IllegalStateException {
+
+		long defaultArenaBlockSize = RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize);
+		long arenaBlockSize = arenaBlockSizeConfigured <= 0 ? defaultArenaBlockSize : arenaBlockSizeConfigured;
+		long mutableLimit = RocksDBMemoryControllerUtils.calculateRocksDBMutableLimit(writeBufferManagerCapacity);
+		if (RocksDBMemoryControllerUtils.validateArenaBlockSize(arenaBlockSize, mutableLimit)) {
+			return true;
+		} else {
+			LOG.warn("RocksDBStateBackend performance will be poor because of the current Flink memory configuration! " +
+					"RocksDB will flush memtable constantly, causing high IO and CPU. " +
+					"Typically the easiest fix is to increase task manager managed memory size. " +
+					"If running locally, see the parameter taskmanager.memory.managed.size. " +
+					"Details: arenaBlockSize {} > mutableLimit {} (writeBufferSize = {}, arenaBlockSizeConfigured = {}," +
+					" defaultArenaBlockSize = {}, writeBufferManagerCapacity = {})",
+				arenaBlockSize, mutableLimit, writeBufferSize, arenaBlockSizeConfigured,
+				defaultArenaBlockSize, writeBufferManagerCapacity);
+			return false;
+		}
 	}
 
 	public static ColumnFamilyOptions createColumnFamilyOptions(
@@ -190,6 +234,7 @@ public class RocksDBOperationUtils {
 	public static OpaqueMemoryResource<RocksDBSharedResources> allocateSharedCachesIfConfigured(
 			RocksDBMemoryConfiguration memoryConfig,
 			MemoryManager memoryManager,
+			double memoryFraction,
 			Logger logger) throws IOException {
 
 		if (!memoryConfig.isUsingFixedMemoryPerSlot() && !memoryConfig.isUsingManagedMemory()) {
@@ -212,7 +257,7 @@ public class RocksDBOperationUtils {
 			}
 			else {
 				logger.info("Getting managed memory shared cache for RocksDB.");
-				return memoryManager.getSharedMemoryResourceForManagedMemory(MANAGED_MEMORY_RESOURCE_ID, allocator);
+				return memoryManager.getSharedMemoryResourceForManagedMemory(MANAGED_MEMORY_RESOURCE_ID, allocator, memoryFraction);
 			}
 		}
 		catch (Exception e) {

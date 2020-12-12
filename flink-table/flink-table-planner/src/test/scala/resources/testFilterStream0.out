@@ -12,7 +12,7 @@ Stage 1 : Data Source
 
 	Stage 2 : Operator
 		content : from: (a, b)
-		ship_strategy : REBALANCE
+		ship_strategy : FORWARD
 
 		Stage 3 : Operator
 			content : where: (=(MOD(a, 2), 0)), select: (a, b)

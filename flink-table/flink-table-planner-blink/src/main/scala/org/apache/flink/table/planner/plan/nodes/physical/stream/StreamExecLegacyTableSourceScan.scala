@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
@@ -52,7 +52,6 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
-import java.util
 import java.util.function.{Function => JFunction}
 
 import scala.collection.JavaConversions._
@@ -65,8 +64,8 @@ class StreamExecLegacyTableSourceScan(
     traitSet: RelTraitSet,
     tableSourceTable: LegacyTableSourceTable[_])
   extends PhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
-          with StreamPhysicalRel
-          with StreamExecNode[RowData] {
+  with StreamPhysicalRel
+  with LegacyStreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -81,16 +80,6 @@ class StreamExecLegacyTableSourceScan(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {

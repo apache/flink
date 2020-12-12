@@ -383,7 +383,9 @@ public final class ConfigConstants {
 
 	/**
 	 * Whether to use the LargeRecordHandler when spilling.
+	 * @deprecated use {@link AlgorithmOptions#USE_LARGE_RECORDS_HANDLER}
 	 */
+	@Deprecated
 	public static final String USE_LARGE_RECORD_HANDLER_KEY = "taskmanager.runtime.large-record-handler";
 
 
@@ -1517,7 +1519,10 @@ public final class ConfigConstants {
 
 	/**
 	 * Whether to use the LargeRecordHandler when spilling.
+	 *
+	 * @deprecated use {@link AlgorithmOptions#USE_LARGE_RECORDS_HANDLER} instead
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_USE_LARGE_RECORD_HANDLER = false;
 
 

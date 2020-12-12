@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.operators.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -29,26 +28,24 @@ import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
-import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.memory.MemoryReservationException;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.concurrent.ScheduledFuture;
+
+import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
 
 /**
  * Base class for all stream operators to execute Python functions.
  */
 @Internal
-public abstract class AbstractPythonFunctionOperator<IN, OUT>
-	extends AbstractStreamOperator<OUT>
-	implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+public abstract class AbstractPythonFunctionOperator<OUT>
+	extends AbstractStreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -65,7 +62,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	/**
 	 * Number of processed elements in the current bundle.
 	 */
-	private transient int elementCount;
+	protected transient int elementCount;
 
 	/**
 	 * Max duration of a bundle.
@@ -88,14 +85,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	private transient Runnable bundleFinishedCallback;
 
 	/**
-	 * The size of the reserved memory from the MemoryManager.
-	 */
-	private transient long reservedMemory;
-
-	/**
 	 * The python config.
 	 */
-	private final PythonConfig config;
+	private PythonConfig config;
 
 	public AbstractPythonFunctionOperator(Configuration config) {
 		this.config = new PythonConfig(Preconditions.checkNotNull(config));
@@ -109,11 +101,6 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	@Override
 	public void open() throws Exception {
 		try {
-
-			if (config.isUsingManagedMemory()) {
-				reserveMemoryForPythonWorker();
-			}
-
 			this.maxBundleSize = config.getMaxBundleSize();
 			if (this.maxBundleSize <= 0) {
 				this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
@@ -156,6 +143,12 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 			invokeFinishBundle();
 		} finally {
 			super.close();
+
+			try {
+				cleanUpLeakingClasses(this.getClass().getClassLoader());
+			} catch (Throwable t) {
+				LOG.warn("Failed to clean up the leaking objects.", t);
+			}
 		}
 	}
 
@@ -170,18 +163,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 				pythonFunctionRunner.close();
 				pythonFunctionRunner = null;
 			}
-			if (reservedMemory > 0) {
-				getContainingTask().getEnvironment().getMemoryManager().releaseMemory(this, reservedMemory);
-				reservedMemory = -1;
-			}
 		} finally {
 			super.dispose();
 		}
-	}
-
-	@Override
-	public void endInput() throws Exception {
-		invokeFinishBundle();
 	}
 
 	@Override
@@ -221,7 +205,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		if (mark.getTimestamp() == Long.MAX_VALUE) {
 			invokeFinishBundle();
 			super.processWatermark(mark);
-		} else if (elementCount == 0) {
+		} else if (isBundleFinished()) {
 			// forward the watermark immediately if the bundle is already finished.
 			super.processWatermark(mark);
 		} else {
@@ -241,6 +225,27 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	}
 
 	/**
+	 * Returns whether the bundle is finished.
+	 */
+	public boolean isBundleFinished() {
+		return elementCount == 0;
+	}
+
+	/**
+	 * Reset the {@link PythonConfig} if needed.
+	 * */
+	public void setPythonConfig(PythonConfig pythonConfig) {
+		this.config = pythonConfig;
+	}
+
+	/**
+	 * Returns the {@link PythonConfig}.
+	 * */
+	public PythonConfig getConfig() {
+		return config;
+	}
+
+	/**
 	 * Creates the {@link PythonFunctionRunner} which is responsible for Python user-defined function execution.
 	 */
 	public abstract PythonFunctionRunner createPythonFunctionRunner() throws Exception;
@@ -255,32 +260,6 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 */
 	public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
 
-	/**
-	 * Reserves the memory used by the Python worker from the MemoryManager. This makes sure that
-	 * the memory used by the Python worker is managed by Flink.
-	 */
-	private void reserveMemoryForPythonWorker() throws MemoryReservationException {
-		long requiredPythonWorkerMemory = MemorySize.parse(config.getPythonFrameworkMemorySize())
-			.add(MemorySize.parse(config.getPythonDataBufferMemorySize()))
-			.getBytes();
-		MemoryManager memoryManager = getContainingTask().getEnvironment().getMemoryManager();
-		long availableManagedMemory = memoryManager.computeMemorySize(
-			getOperatorConfig().getManagedMemoryFraction());
-		if (requiredPythonWorkerMemory <= availableManagedMemory) {
-			memoryManager.reserveMemory(this, requiredPythonWorkerMemory);
-			LOG.info("Reserved memory {} for Python worker.", requiredPythonWorkerMemory);
-			this.reservedMemory = requiredPythonWorkerMemory;
-			// TODO enforce the memory limit of the Python worker
-		} else {
-			LOG.warn("Required Python worker memory {} exceeds the available managed off-heap " +
-					"memory {}. Skipping reserving off-heap memory from the MemoryManager. This does " +
-					"not affect the functionality. However, it may affect the stability of a job as " +
-					"the memory used by the Python worker is not managed by Flink.",
-				requiredPythonWorkerMemory, availableManagedMemory);
-			this.reservedMemory = -1;
-		}
-	}
-
 	protected void emitResults() throws Exception {
 		Tuple2<byte[], Integer> resultTuple;
 		while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
@@ -292,7 +271,6 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 * Checks whether to invoke finishBundle by elements count. Called in processElement.
 	 */
 	protected void checkInvokeFinishBundleByCount() throws Exception {
-		elementCount++;
 		if (elementCount >= maxBundleSize) {
 			invokeFinishBundle();
 		}
@@ -330,7 +308,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 			return new ProcessPythonEnvironmentManager(
 				dependencyInfo,
 				getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),
-				System.getenv());
+				new HashMap<>(System.getenv()));
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Execution type '%s' is not supported.", pythonEnv.getExecType()));

@@ -62,6 +62,7 @@ import java.util.function.Function;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.clearMetaDataFollowsFlag;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.hasMetaDataFollowsFlag;
+import static org.apache.flink.runtime.state.StateUtil.unexpectedStateHandleException;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -110,7 +111,8 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
 		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		@Nonnegative long writeBatchSize) {
+		@Nonnegative long writeBatchSize,
+		Long writeBufferManagerCapacity) {
 		super(
 			keyGroupRange,
 			keyGroupPrefixBytes,
@@ -126,7 +128,8 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 			nativeMetricOptions,
 			metricGroup,
 			restoreStateHandles,
-			ttlCompactFiltersManager);
+			ttlCompactFiltersManager,
+			writeBufferManagerCapacity);
 		checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative.");
 		this.writeBatchSize = writeBatchSize;
 	}
@@ -143,9 +146,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 			if (keyedStateHandle != null) {
 
 				if (!(keyedStateHandle instanceof KeyGroupsStateHandle)) {
-					throw new IllegalStateException("Unexpected state handle type, " +
-						"expected: " + KeyGroupsStateHandle.class +
-						", but found: " + keyedStateHandle.getClass());
+					throw unexpectedStateHandleException(KeyGroupsStateHandle.class, keyedStateHandle.getClass());
 				}
 				this.currentKeyGroupsStateHandle = (KeyGroupsStateHandle) keyedStateHandle;
 				restoreKeyGroupsInStateHandle();

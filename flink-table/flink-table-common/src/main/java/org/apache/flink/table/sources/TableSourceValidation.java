@@ -179,9 +179,9 @@ public class TableSourceValidation {
 	}
 
 	private static void validateNoGeneratedColumns(TableSchema tableSchema) {
-		if (TableSchemaUtils.containsGeneratedColumns(tableSchema)) {
+		if (!TableSchemaUtils.containsPhysicalColumnsOnly(tableSchema)) {
 			throw new ValidationException(
-				"TableSource#getTableSchema shouldn't contain generated columns, schema: \n" + tableSchema);
+				"TableSource#getTableSchema should only contain physical columns, schema: \n" + tableSchema);
 		}
 	}
 

@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.operators.join.NullAwareJoinHelper;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.IterableIterator;
 
 import java.util.ArrayList;
@@ -54,8 +54,8 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	protected static final String RIGHT_RECORDS_STATE_NAME = "right-records";
 
 	private final GeneratedJoinCondition generatedJoinCondition;
-	protected final RowDataTypeInfo leftType;
-	protected final RowDataTypeInfo rightType;
+	protected final InternalTypeInfo<RowData> leftType;
+	protected final InternalTypeInfo<RowData> rightType;
 
 	protected final JoinInputSideSpec leftInputSideSpec;
 	protected final JoinInputSideSpec rightInputSideSpec;
@@ -75,25 +75,25 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	 */
 	private final boolean filterAllNulls;
 
-	protected final long minRetentionTime;
+	protected final long stateRetentionTime;
 
 	protected transient JoinConditionWithNullFilters joinCondition;
 	protected transient TimestampedCollector<RowData> collector;
 
 	public AbstractStreamingJoinOperator(
-			RowDataTypeInfo leftType,
-			RowDataTypeInfo rightType,
+			InternalTypeInfo<RowData> leftType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			JoinInputSideSpec leftInputSideSpec,
 			JoinInputSideSpec rightInputSideSpec,
 			boolean[] filterNullKeys,
-			long minRetentionTime) {
+			long stateRetentionTime) {
 		this.leftType = leftType;
 		this.rightType = rightType;
 		this.generatedJoinCondition = generatedJoinCondition;
 		this.leftInputSideSpec = leftInputSideSpec;
 		this.rightInputSideSpec = rightInputSideSpec;
-		this.minRetentionTime = minRetentionTime;
+		this.stateRetentionTime = stateRetentionTime;
 		this.nullFilterKeys = NullAwareJoinHelper.getNullFilterKeys(filterNullKeys);
 		this.nullSafe = nullFilterKeys.length == 0;
 		this.filterAllNulls = nullFilterKeys.length == filterNullKeys.length;

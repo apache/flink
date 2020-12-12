@@ -18,10 +18,16 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BooleanSupplier;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A stream source that:
@@ -46,12 +52,30 @@ public class FiniteTestSource<T> implements SourceFunction<T>, CheckpointListene
 
 	private transient int numCheckpointsComplete;
 
+	@Nullable
+	private final BooleanSupplier couldExit;
+
+	private final long waitTimeOut;
+
 	@SafeVarargs
 	public FiniteTestSource(T... elements) {
-		this(Arrays.asList(elements));
+		this(null, 0, Arrays.asList(elements));
 	}
 
 	public FiniteTestSource(Iterable<T> elements) {
+		this(null, 0, elements);
+	}
+
+	public FiniteTestSource(@Nullable BooleanSupplier couldExit, long waitTimeOut, Iterable<T> elements) {
+		checkState(waitTimeOut >= 0);
+		this.couldExit = couldExit;
+		this.waitTimeOut = waitTimeOut;
+		this.elements = elements;
+	}
+
+	public FiniteTestSource(@Nullable BooleanSupplier couldExit, Iterable<T> elements) {
+		this.couldExit = couldExit;
+		this.waitTimeOut = 30_000;
 		this.elements = elements;
 	}
 
@@ -62,9 +86,25 @@ public class FiniteTestSource<T> implements SourceFunction<T>, CheckpointListene
 
 		// second round of the same
 		emitElementsAndWaitForCheckpoints(ctx, 2);
+
+		//verify the source could exit or not
+		if (couldExit != null) {
+			final long beginTime = System.currentTimeMillis();
+			synchronized (ctx.getCheckpointLock()) {
+				while (running && !couldExit.getAsBoolean()) {
+					ctx.getCheckpointLock().wait(10);
+					if ((System.currentTimeMillis() - beginTime) > waitTimeOut) {
+						throw new TimeoutException(
+								"Wait source exit time out " + waitTimeOut + "ms.");
+					}
+				}
+			}
+		}
 	}
 
-	private void emitElementsAndWaitForCheckpoints(SourceContext<T> ctx, int checkpointsToWaitFor) throws InterruptedException {
+	private void emitElementsAndWaitForCheckpoints(
+			SourceContext<T> ctx,
+			int checkpointsToWaitFor) throws InterruptedException {
 		final Object lock = ctx.getCheckpointLock();
 
 		final int checkpointToAwait;

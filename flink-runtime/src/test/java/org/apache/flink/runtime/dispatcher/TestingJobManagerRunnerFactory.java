@@ -59,7 +59,8 @@ public class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
 			HeartbeatServices heartbeatServices,
 			JobManagerSharedServices jobManagerServices,
 			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
+			FatalErrorHandler fatalErrorHandler,
+			long initializationTimestamp) throws Exception {
 		final TestingJobManagerRunner testingJobManagerRunner = createTestingJobManagerRunner(jobGraph);
 		createdJobManagerRunner.offer(testingJobManagerRunner);
 
@@ -77,7 +78,10 @@ public class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
 			blockingTermination = false;
 		}
 
-		return new TestingJobManagerRunner(jobGraph.getJobID(), blockingTermination);
+		return new TestingJobManagerRunner.Builder()
+			.setJobId(jobGraph.getJobID())
+			.setBlockingTermination(blockingTermination)
+			.build();
 	}
 
 	public TestingJobManagerRunner takeCreatedJobManagerRunner() throws InterruptedException {

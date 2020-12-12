@@ -57,7 +57,6 @@ echo "[INFO]Preparing Flink cluster..."
 set_config_key "taskmanager.memory.process.size" "4096m"
 set_config_key "taskmanager.numberOfTaskSlots" "4"
 set_config_key "parallelism.default" "4"
-set_config_key "akka.ask.timeout" "20 s"
 start_cluster
 
 
@@ -71,12 +70,6 @@ RESULT_DIR="$TARGET_DIR/result"
 mkdir -p "$RESULT_DIR"
 
 $FLINK_DIR/bin/flink run -c org.apache.flink.table.tpcds.TpcdsTestProgram "$TARGET_DIR/TpcdsTestProgram.jar" -sourceTablePath "$TPCDS_DATA_DIR" -queryPath "$TPCDS_QUERY_DIR" -sinkTablePath "$RESULT_DIR" -useTableStats "$USE_TABLE_STATS"
-
-function sql_cleanup() {
-  stop_cluster
-  $FLINK_DIR/bin/taskmanager.sh stop-all
-}
-on_exit sql_cleanup
 
 ################################################################################
 # validate result

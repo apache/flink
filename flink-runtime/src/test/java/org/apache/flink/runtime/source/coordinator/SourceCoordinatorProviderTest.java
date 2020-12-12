@@ -21,6 +21,7 @@ package org.apache.flink.runtime.source.coordinator;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
@@ -41,8 +43,10 @@ import static org.junit.Assert.assertTrue;
  * Unit tests for {@link SourceCoordinatorProvider}.
  */
 public class SourceCoordinatorProviderTest {
+
 	private static final OperatorID OPERATOR_ID = new OperatorID(1234L, 5678L);
 	private static final int NUM_SPLITS = 10;
+
 	private SourceCoordinatorProvider<MockSourceSplit> provider;
 
 	@Before
@@ -55,7 +59,7 @@ public class SourceCoordinatorProviderTest {
 	}
 
 	@Test
-	public void testCreate() {
+	public void testCreate() throws Exception {
 		OperatorCoordinator coordinator =
 				provider.create(new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SPLITS));
 		assertTrue(coordinator instanceof RecreateOnResetOperatorCoordinator);
@@ -85,7 +89,7 @@ public class SourceCoordinatorProviderTest {
 		}
 
 		// reset the coordinator to the checkpoint which only contains reader 0.
-		coordinator.resetToCheckpoint(bytes);
+		coordinator.resetToCheckpoint(0L, bytes);
 		final SourceCoordinator<?, ?> restoredSourceCoordinator =
 				(SourceCoordinator<?, ?>) coordinator.getInternalCoordinator();
 		assertNotEquals("The restored source coordinator should be a different instance",
@@ -96,4 +100,22 @@ public class SourceCoordinatorProviderTest {
 				restoredSourceCoordinator.getContext().registeredReaders().get(0));
 	}
 
+	@Test
+	public void testCallAsyncExceptionFailsJob() throws Exception {
+		MockOperatorCoordinatorContext context =
+			new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SPLITS);
+		RecreateOnResetOperatorCoordinator coordinator =
+			(RecreateOnResetOperatorCoordinator) provider.create(context);
+		SourceCoordinator<?, ?> sourceCoordinator =
+			(SourceCoordinator<?, ?>) coordinator.getInternalCoordinator();
+		sourceCoordinator.getContext().callAsync(
+			() -> null,
+			(ignored, e) -> {
+				throw new RuntimeException();
+			});
+		CommonTestUtils.waitUtil(
+			context::isJobFailed,
+			Duration.ofSeconds(10L),
+			"The job did not fail before timeout.");
+	}
 }

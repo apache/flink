@@ -51,7 +51,8 @@ public class QueryOperationTest {
 			tableOperation,
 			tableOperation,
 			SetQueryOperation.SetQueryOperationType.UNION,
-			true);
+			true,
+			schema);
 
 		assertEquals("Union: (all: [true])\n" +
 			"    Project: (projections: [a])\n" +

@@ -22,16 +22,17 @@ import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
-import org.apache.flink.table.data.{GenericRowData, JoinedRowData, RowData}
+import org.apache.flink.table.data.utils.JoinedRowData
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.functions.FunctionKind
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.util.StreamRecordCollector
 import org.apache.flink.table.types.logical.RowType
 
@@ -70,8 +71,10 @@ object CorrelateCodeGenerator {
     rexCall.getOperator match {
       case func: BridgingSqlFunction if func.getDefinition.getKind == FunctionKind.TABLE => // ok
       case _: TableSqlFunction => // ok
-      case _ =>
-        throw new ValidationException("Currently, only table functions can emit rows.")
+      case f@_ =>
+        throw new ValidationException(
+          s"Invalid use of function '$f'. " +
+            s"Currently, only table functions can be used in a correlate operation.")
     }
 
     val swallowInputOnly = if (projectProgram.isDefined) {
@@ -108,12 +111,13 @@ object CorrelateCodeGenerator {
       classOf[ProcessFunction[RowData, RowData]],
       retainHeader)
 
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       inputTransformation,
       transformationName,
       substituteStreamOperator,
-      RowDataTypeInfo.of(returnType),
-      parallelism)
+      InternalTypeInfo.of(returnType),
+      parallelism,
+      0)
   }
 
   /**

@@ -120,18 +120,14 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 	}
 
 	@Override
-	public DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes) {
-		try {
-			List<TypeInfo> argTypeInfo = new ArrayList<>();
-			for (DataType argType : argTypes) {
-				argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(argType, false));
-			}
-
-			Method evalMethod = hiveFunctionWrapper.createFunction().getResolver().getEvalMethod(argTypeInfo);
-			return HiveTypeUtil.toFlinkType(
-				ObjectInspectorFactory.getReflectionObjectInspector(evalMethod.getGenericReturnType(), ObjectInspectorFactory.ObjectInspectorOptions.JAVA));
-		} catch (UDFArgumentException e) {
-			throw new FlinkHiveUDFException(e);
+	protected DataType inferReturnType() throws UDFArgumentException {
+		List<TypeInfo> argTypeInfo = new ArrayList<>();
+		for (DataType argType : argTypes) {
+			argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(argType, false));
 		}
+
+		Method evalMethod = hiveFunctionWrapper.createFunction().getResolver().getEvalMethod(argTypeInfo);
+		return HiveTypeUtil.toFlinkType(
+				ObjectInspectorFactory.getReflectionObjectInspector(evalMethod.getGenericReturnType(), ObjectInspectorFactory.ObjectInspectorOptions.JAVA));
 	}
 }

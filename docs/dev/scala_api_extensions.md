@@ -315,29 +315,6 @@ data.reduceWith {
       </td>
     </tr>
     <tr>
-      <td><strong>foldWith</strong></td>
-      <td><strong>fold (KeyedStream, WindowedStream)</strong></td>
-      <td>
-{% highlight scala %}
-data.foldWith(User(bought = 0)) {
-  case (User(b), (_, items)) => User(b + items.size)
-}
-{% endhighlight %}
-      </td>
-    </tr>
-    <tr>
-      <td><strong>applyWith</strong></td>
-      <td><strong>apply (WindowedStream)</strong></td>
-      <td>
-{% highlight scala %}
-data.applyWith(0)(
-  foldFunction = case (sum, amount) => sum + amount
-  windowFunction = case (k, w, sum) => // [...]
-)
-{% endhighlight %}
-      </td>
-    </tr>
-    <tr>
       <td><strong>projecting</strong></td>
       <td><strong>apply (JoinedStream)</strong></td>
       <td>
@@ -357,7 +334,7 @@ data1.join(data2).
 
 
 For more information on the semantics of each method, please refer to the
-[DataSet]({{ site.baseurl }}/dev/batch/index.html) and [DataStream]({{ site.baseurl }}/dev/datastream_api.html) API documentation.
+[DataSet]({% link dev/batch/index.md %}) and [DataStream]({% link dev/datastream_api.md %}) API documentation.
 
 To use this extension exclusively, you can add the following `import`:
 

@@ -68,7 +68,7 @@ public abstract class EncodingUtils {
 			return new String(BASE64_ENCODER.encode(bytes), UTF_8);
 		} catch (Exception e) {
 			throw new ValidationException(
-				"Unable to serialize object '" + obj.toString() + "' of class '" + obj.getClass().getName() + "'.");
+				"Unable to serialize object '" + obj.toString() + "' of class '" + obj.getClass().getName() + "'.", e);
 		}
 	}
 

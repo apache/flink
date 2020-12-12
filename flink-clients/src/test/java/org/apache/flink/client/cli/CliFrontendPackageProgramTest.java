@@ -75,7 +75,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		frontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(new DefaultCLI(configuration)));
+			Collections.singletonList(new DefaultCLI()));
 	}
 
 	@Test

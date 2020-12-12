@@ -23,8 +23,8 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CalcCodeGenerator, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -61,20 +61,19 @@ class BatchExecCalc(
     val ctx = CodeGeneratorContext(config)
     val operator = CalcCodeGenerator.generateCalcOperator(
       ctx,
-      cluster,
       inputTransform,
       outputType,
-      config,
       calcProgram,
       condition,
       opName = "BatchCalc"
     )
 
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       inputTransform,
       getRelDetailedDescription,
       operator,
-      RowDataTypeInfo.of(outputType),
-      inputTransform.getParallelism)
+      InternalTypeInfo.of(outputType),
+      inputTransform.getParallelism,
+      0)
   }
 }

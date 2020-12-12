@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.SessionWithGapOnTimeWithAlias;
@@ -31,7 +30,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
@@ -44,7 +42,6 @@ import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionRequirement;
-import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
@@ -56,6 +53,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
@@ -79,6 +77,7 @@ import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
@@ -116,7 +115,7 @@ final class AggregateOperationFactory {
 
 		DataType[] fieldTypes = Stream.concat(
 			groupings.stream().map(ResolvedExpression::getOutputDataType),
-			aggregates.stream().flatMap(this::extractAggregateResultTypes)
+			aggregates.stream().flatMap(this::extractAggregateResultDataTypes)
 		).toArray(DataType[]::new);
 
 		String[] groupNames = groupings.stream()
@@ -153,7 +152,7 @@ final class AggregateOperationFactory {
 
 		DataType[] fieldTypes = concat(
 			groupings.stream().map(ResolvedExpression::getOutputDataType),
-			aggregates.stream().flatMap(this::extractAggregateResultTypes),
+			aggregates.stream().flatMap(this::extractAggregateResultDataTypes),
 			windowProperties.stream().map(ResolvedExpression::getOutputDataType)
 		).toArray(DataType[]::new);
 
@@ -180,11 +179,17 @@ final class AggregateOperationFactory {
 	 * Extract result types for the aggregate or the table aggregate expression. For a table aggregate,
 	 * it may return multi result types when the composite return type is flattened.
 	 */
-	private Stream<DataType> extractAggregateResultTypes(ResolvedExpression expression) {
-		if (ApiExpressionUtils.isFunctionOfKind(expression, TABLE_AGGREGATE)) {
-			TypeInformation<?> legacyInfo = TypeConversions.fromDataTypeToLegacyInfo(expression.getOutputDataType());
-			return Stream.of(FieldInfoUtils.getFieldTypes(legacyInfo))
-				.map(TypeConversions::fromLegacyInfoToDataType);
+	private Stream<DataType> extractAggregateResultDataTypes(ResolvedExpression expression) {
+		if (isFunctionOfKind(expression, TABLE_AGGREGATE)) {
+			final DataType outputDataType = expression.getOutputDataType();
+			final LogicalType outputType = expression.getOutputDataType().getLogicalType();
+			// legacy
+			if (outputType instanceof LegacyTypeInformationType) {
+				final TypeInformation<?> legacyInfo = TypeConversions.fromDataTypeToLegacyInfo(expression.getOutputDataType());
+				return Stream.of(FieldInfoUtils.getFieldTypes(legacyInfo))
+					.map(TypeConversions::fromLegacyInfoToDataType);
+			}
+			return DataTypeUtils.flattenToDataTypes(outputDataType).stream();
 		} else {
 			return Stream.of(expression.getOutputDataType());
 		}
@@ -193,13 +198,18 @@ final class AggregateOperationFactory {
 	/**
 	 * Extract names for the aggregate or the table aggregate expression. For a table aggregate, it
 	 * may return multi output names when the composite return type is flattened. If the result type
-	 * is not a {@link CompositeType}, the result name should not conflict with the group names.
+	 * is not a composite type, the result name should not conflict with the group names.
 	 */
-	private Stream<String> extractAggregateNames(Expression expression, List<String> groupNames) {
+	private Stream<String> extractAggregateNames(ResolvedExpression expression, List<String> groupNames) {
 		if (isFunctionOfKind(expression, TABLE_AGGREGATE)) {
-			final TableAggregateFunctionDefinition definition =
-				(TableAggregateFunctionDefinition) ((CallExpression) expression).getFunctionDefinition();
-			return Arrays.stream(FieldInfoUtils.getFieldNames(definition.getResultTypeInfo(), groupNames));
+			final DataType outputDataType = expression.getOutputDataType();
+			final LogicalType outputType = expression.getOutputDataType().getLogicalType();
+			// legacy
+			if (outputType instanceof LegacyTypeInformationType) {
+				final TypeInformation<?> legacyInfo = TypeConversions.fromDataTypeToLegacyInfo(expression.getOutputDataType());
+				return Arrays.stream(FieldInfoUtils.getFieldNames(legacyInfo, groupNames));
+			}
+			return DataTypeUtils.flattenToNames(outputDataType, groupNames).stream();
 		} else {
 			return Stream.of(extractName(expression).orElseGet(expression::toString));
 		}
@@ -554,28 +564,24 @@ final class AggregateOperationFactory {
 				throw fail();
 			}
 
-			validateAlias(
-				aliases,
-				(TableAggregateFunctionDefinition) ((CallExpression) children.get(0)).getFunctionDefinition());
+			validateAlias(aliases, (CallExpression) children.get(0));
+
 			alias = aliases;
+
 			return children.get(0);
 		}
 
-		private void validateAlias(
-			List<String> aliases,
-			TableAggregateFunctionDefinition aggFunctionDefinition) {
-
-			TypeInformation<?> resultType = aggFunctionDefinition.getResultTypeInfo();
-
-			int callArity = resultType.getTotalFields();
-			int aliasesSize = aliases.size();
+		private void validateAlias(List<String> aliases, CallExpression call) {
+			final int aliasesSize = aliases.size();
+			final LogicalType outputType = call.getOutputDataType().getLogicalType();
+			final int callArity = getFieldCount(outputType);
 
 			if (aliasesSize > 0 && aliasesSize != callArity) {
 				throw new ValidationException(String.format(
 					"List of column aliases must have same degree as table; " +
 						"the returned table of function '%s' has " +
 						"%d columns, whereas alias list has %d columns",
-					aggFunctionDefinition,
+					call.getFunctionName(),
 					callArity,
 					aliasesSize));
 			}

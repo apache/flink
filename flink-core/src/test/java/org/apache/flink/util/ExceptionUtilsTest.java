@@ -20,9 +20,9 @@ package org.apache.flink.util;
 
 import org.junit.Test;
 
+import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -90,8 +90,57 @@ public class ExceptionUtilsTest extends TestLogger {
 	}
 
 	@Test
-	public void testTryEnrichTaskExecutorErrorCanHandleNullValue() {
-		assertThat(ExceptionUtils.tryEnrichOutOfMemoryError(null, "", ""), is(nullValue()));
+	public void testTryEnrichTaskExecutorErrorCanHandleNullValueWithoutCausingException() {
+		ExceptionUtils.tryEnrichOutOfMemoryError(null, "", "", "");
+	}
+
+	@Test
+	public void testUpdateDetailMessageOfBasicThrowable() {
+		Throwable rootThrowable = new OutOfMemoryError("old message");
+		ExceptionUtils.updateDetailMessage(rootThrowable, t -> "new message");
+
+		assertThat(rootThrowable.getMessage(), is("new message"));
+	}
+
+	@Test
+	public void testUpdateDetailMessageOfRelevantThrowableAsCause() {
+		Throwable oomCause = new IllegalArgumentException("another message deep down in the cause tree");
+
+		Throwable oom = new OutOfMemoryError("old message").initCause(oomCause);
+		oom.setStackTrace(new StackTraceElement[] { new StackTraceElement("class", "method", "file", 1) });
+		oom.addSuppressed(new NullPointerException());
+
+		Throwable rootThrowable = new IllegalStateException("another message", oom);
+		ExceptionUtils.updateDetailMessage(rootThrowable, t -> t.getClass().equals(OutOfMemoryError.class) ? "new message" : null);
+
+		assertThat(rootThrowable.getCause(), sameInstance(oom));
+		assertThat(rootThrowable.getCause().getMessage(), is("new message"));
+		assertThat(rootThrowable.getCause().getStackTrace(), is(oom.getStackTrace()));
+		assertThat(rootThrowable.getCause().getSuppressed(), is(oom.getSuppressed()));
+
+		assertThat(rootThrowable.getCause().getCause(), sameInstance(oomCause));
+	}
+
+	@Test
+	public void testUpdateDetailMessageWithoutRelevantThrowable() {
+		Throwable originalThrowable = new IllegalStateException("root message", new IllegalArgumentException("cause message"));
+		ExceptionUtils.updateDetailMessage(originalThrowable, t -> null);
+
+		assertThat(originalThrowable.getMessage(), is("root message"));
+		assertThat(originalThrowable.getCause().getMessage(), is("cause message"));
+	}
+
+	@Test
+	public void testUpdateDetailMessageOfNullWithoutException() {
+		ExceptionUtils.updateDetailMessage(null, t -> "new message");
+	}
+
+	@Test
+	public void testUpdateDetailMessageWithMissingPredicate() {
+		Throwable root = new Exception("old message");
+		ExceptionUtils.updateDetailMessage(root, null);
+
+		assertThat(root.getMessage(), is("old message"));
 	}
 
 	@Test

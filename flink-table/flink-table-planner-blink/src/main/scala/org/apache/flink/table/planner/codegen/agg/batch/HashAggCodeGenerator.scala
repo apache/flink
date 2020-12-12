@@ -18,19 +18,19 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.data.binary.BinaryRowData
-import org.apache.flink.table.data.{GenericRowData, JoinedRowData, RowData}
-import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.data.utils.JoinedRowData
+import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.plan.utils.AggregateInfoList
+import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.runtime.operators.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
-import org.apache.flink.table.types.logical.RowType
-
-import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 /**
   * Operator code generator for HashAggregation, Only deal with [[DeclarativeAggregateFunction]]
@@ -48,17 +48,20 @@ class HashAggCodeGenerator(
     isMerge: Boolean,
     isFinal: Boolean) {
 
+  private lazy val aggInfos: Array[AggregateInfo] = aggInfoList.aggInfos
+
+  private lazy val functionIdentifiers: Map[AggregateFunction[_, _], String] =
+    AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
+
+  private lazy val aggBufferNames: Array[Array[String]] =
+    AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+
+  private lazy val aggBufferTypes: Array[Array[LogicalType]] = AggCodeGenHelper.getAggBufferTypes(
+    inputType,
+    auxGrouping,
+    aggInfos)
+
   private lazy val groupKeyRowType = AggCodeGenHelper.projectRowType(inputType, grouping)
-  private lazy val aggCallToAggFunction =
-    aggInfoList.aggInfos.map(info => (info.agg, info.function))
-  private lazy val aggregates: Seq[UserDefinedFunction] = aggInfoList.aggInfos.map(_.function)
-  private lazy val aggArgs: Array[Array[Int]] = aggInfoList.aggInfos.map(_.argIndexes)
-  // get udagg instance names
-  private lazy val udaggs = AggCodeGenHelper.getUdaggs(aggregates)
-  // currently put auxGrouping to aggBuffer in code-gen
-  private lazy val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggregates)
-  private lazy val aggBufferTypes =
-    AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggregates)
   private lazy val aggBufferRowType = RowType.of(aggBufferTypes.flatten, aggBufferNames.flatten)
 
   def genWithKeys(): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
@@ -119,9 +122,7 @@ class HashAggCodeGenerator(
       (grouping, auxGrouping),
       inputTerm,
       inputType,
-      aggCallToAggFunction,
-      aggArgs,
-      aggregates,
+      aggInfos,
       currentAggBufferTerm,
       aggBufferRowType,
       aggBufferTypes,
@@ -143,10 +144,8 @@ class HashAggCodeGenerator(
       ctx,
       builder,
       (grouping, auxGrouping),
-      aggCallToAggFunction,
-      aggArgs,
-      aggInfoList.aggInfos.map(_.externalResultType),
-      udaggs,
+      aggInfos,
+      functionIdentifiers,
       logTerm,
       aggregateMapTerm,
       (groupKeyTypesTerm, aggBufferTypesTerm),

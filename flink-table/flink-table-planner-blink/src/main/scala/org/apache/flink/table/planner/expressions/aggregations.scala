@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.MultisetTypeInfo
 import org.apache.flink.table.expressions.CallExpression
-import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions.ImperativeAggregateFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils
@@ -208,7 +208,7 @@ case class VarSamp(child: PlannerExpression) extends Aggregation {
   * Expression for calling a user-defined (table)aggregate function.
   */
 case class AggFunctionCall(
-    aggregateFunction: UserDefinedAggregateFunction[_, _],
+    aggregateFunction: ImperativeAggregateFunction[_, _],
     resultTypeInfo: TypeInformation[_],
     accTypeInfo: TypeInformation[_],
     args: Seq[PlannerExpression])

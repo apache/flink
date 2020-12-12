@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
@@ -69,13 +70,16 @@ class ChannelStateCheckpointWriter {
 	private boolean allInputsReceived = false;
 	private boolean allOutputsReceived = false;
 	private final RunnableWithException onComplete;
+	private final int subtaskIndex;
 
 	ChannelStateCheckpointWriter(
+			int subtaskIndex,
 			CheckpointStartRequest startCheckpointItem,
 			CheckpointStreamFactory streamFactory,
 			ChannelStateSerializer serializer,
 			RunnableWithException onComplete) throws Exception {
 		this(
+			subtaskIndex,
 			startCheckpointItem.getCheckpointId(),
 			startCheckpointItem.getTargetResult(),
 			streamFactory.createCheckpointStateOutputStream(EXCLUSIVE),
@@ -83,22 +87,27 @@ class ChannelStateCheckpointWriter {
 			onComplete);
 	}
 
+	@VisibleForTesting
 	ChannelStateCheckpointWriter(
+			int subtaskIndex,
 			long checkpointId,
 			ChannelStateWriteResult result,
 			CheckpointStateOutputStream stream,
 			ChannelStateSerializer serializer,
 			RunnableWithException onComplete) throws Exception {
-		this(checkpointId, result, serializer, onComplete, stream, new DataOutputStream(stream));
+		this(subtaskIndex, checkpointId, result, serializer, onComplete, stream, new DataOutputStream(stream));
 	}
 
+	@VisibleForTesting
 	ChannelStateCheckpointWriter(
+			int subtaskIndex,
 			long checkpointId,
 			ChannelStateWriteResult result,
 			ChannelStateSerializer serializer,
 			RunnableWithException onComplete,
 			CheckpointStateOutputStream checkpointStateOutputStream,
 			DataOutputStream dataStream) throws Exception {
+		this.subtaskIndex = subtaskIndex;
 		this.checkpointId = checkpointId;
 		this.result = checkNotNull(result);
 		this.checkpointStream = checkNotNull(checkpointStateOutputStream);
@@ -201,12 +210,13 @@ class ChannelStateCheckpointWriter {
 				randomUUID().toString(),
 				serializer.extractAndMerge(bytes.get(), contentMetaInfo.getOffsets()));
 			return handleFactory.create(
+				subtaskIndex,
 				channelInfo,
 				extracted,
 				singletonList(serializer.getHeaderLength()),
 				extracted.getStateSize());
 		} else {
-			return handleFactory.create(channelInfo, underlying, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
+			return handleFactory.create(subtaskIndex, channelInfo, underlying, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
 		}
 	}
 
@@ -226,7 +236,7 @@ class ChannelStateCheckpointWriter {
 	}
 
 	private interface HandleFactory<I, H extends AbstractChannelStateHandle<I>> {
-		H create(I info, StreamStateHandle underlying, List<Long> offsets, long size);
+		H create(int subtaskIndex, I info, StreamStateHandle underlying, List<Long> offsets, long size);
 
 		HandleFactory<InputChannelInfo, InputChannelStateHandle> INPUT_CHANNEL = InputChannelStateHandle::new;
 

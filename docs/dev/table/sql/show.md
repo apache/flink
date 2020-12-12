@@ -25,21 +25,46 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or list all functions including temp system functions, system functions, temp catalog functions and catalog functions in the current catalog and the current database.
+SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or list all functions including temp system functions, system functions, temp catalog functions and catalog functions in the current catalog and the current database.
 
 Flink SQL supports the following SHOW statements for now:
 - SHOW CATALOGS
+- SHOW CURRENT CATALOG
 - SHOW DATABASES
-- SHOW TABLES 
+- SHOW CURRENT DATABASE
+- SHOW TABLES
 - SHOW VIEWS
 - SHOW FUNCTIONS
 
 
 ## Run a SHOW statement
 
-SHOW statements can be executed with the `executeSql()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `executeSql()` method returns objects for a successful SHOW operation, otherwise will throw an exception.
+<div class="codetabs" data-hide-tabs="1" markdown="1">
 
-The following examples show how to run a SHOW statement in `TableEnvironment` and in SQL CLI.
+<div data-lang="java/scala" markdown="1">
+
+SHOW statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns objects for a successful SHOW operation, otherwise will throw an exception.
+
+The following examples show how to run a SHOW statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+SHOW statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns objects for a successful SHOW operation, otherwise will throw an exception.
+
+The following examples show how to run a SHOW statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+SHOW statements can be executed in [SQL CLI]({% link dev/table/sqlClient.md %}).
+
+The following examples show how to run a SHOW statement in SQL CLI.
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -55,6 +80,14 @@ tEnv.executeSql("SHOW CATALOGS").print();
 // | default_catalog |
 // +-----------------+
 
+// show current catalog
+tEnv.executeSql("SHOW CURRENT CATALOG").print();
+// +----------------------+
+// | current catalog name |
+// +----------------------+
+// |      default_catalog |
+// +----------------------+
+
 // show databases
 tEnv.executeSql("SHOW DATABASES").print();
 // +------------------+
@@ -62,6 +95,14 @@ tEnv.executeSql("SHOW DATABASES").print();
 // +------------------+
 // | default_database |
 // +------------------+
+
+// show current database
+tEnv.executeSql("SHOW CURRENT DATABASE").print();
+// +-----------------------+
+// | current database name |
+// +-----------------------+
+// |      default_database |
+// +-----------------------+
 
 // create a table
 tEnv.executeSql("CREATE TABLE my_table (...) WITH (...)");
@@ -244,6 +285,14 @@ SHOW CATALOGS
 
 Show all catalogs.
 
+## SHOW CURRENT CATALOG
+
+{% highlight sql %}
+SHOW CURRENT CATALOG
+{% endhighlight %}
+
+Show current catalog.
+
 ## SHOW DATABASES
 
 {% highlight sql %}
@@ -251,6 +300,14 @@ SHOW DATABASES
 {% endhighlight %}
 
 Show all databases in the current catalog.
+
+## SHOW CURRENT DATABASE
+
+{% highlight sql %}
+SHOW CURRENT DATABASE
+{% endhighlight %}
+
+Show current database.
 
 ## SHOW TABLES
 

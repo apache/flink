@@ -73,7 +73,7 @@ Calc(select=[b, f0 AS s])
          +- Exchange(distribution=[hash[b]])
             +- LocalSortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 3000)], select=[b, Partial_COLLECT(b) AS set])
                +- Sort(orderBy=[b ASC, rowtime ASC])
-                  +- Calc(select=[b, rowtime], where=[<(b, 3)])
+                  +- Calc(select=[b, rowtime], where=[(b < 3)])
                      +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
@@ -126,9 +126,9 @@ LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, _1, _2], where=[>(_1, a)])
+Calc(select=[a, b, _1, _2], where=[(_1 > a)])
 +- Correlate(invocation=[UNNEST($cor0.b)], correlate=[table(UNNEST($cor0.b))], select=[a,b,_1,_2], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2)], joinType=[INNER])
-   +- Calc(select=[a, b], where=[<(a, 3)])
+   +- Calc(select=[a, b], where=[(a < 3)])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
 ]]>
     </Resource>
@@ -163,7 +163,7 @@ Calc(select=[a, f0 AS s])
          +- Exchange(distribution=[hash[a]])
             +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COLLECT(b) AS set])
                +- Sort(orderBy=[a ASC])
-                  +- Calc(select=[a, b], where=[<(a, 5)])
+                  +- Calc(select=[a, b], where=[(a < 5)])
                      +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -221,7 +221,7 @@ Calc(select=[b, _1 AS id, _2 AS point])
          +- Exchange(distribution=[hash[b]])
             +- LocalSortAggregate(groupBy=[b], select=[b, Partial_COLLECT(c) AS set])
                +- Sort(orderBy=[b ASC])
-                  +- Calc(select=[b, c], where=[<(b, 3)])
+                  +- Calc(select=[b, c], where=[(b < 3)])
                      +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>

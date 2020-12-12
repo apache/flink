@@ -40,7 +40,6 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
 import org.apache.flink.util.SerializableObject;
 import org.apache.flink.util.TestLogger;
 
@@ -144,7 +143,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		ExecutionVertex[] arrayExecutionVertices =
 			allExecutionVertices.toArray(new ExecutionVertex[allExecutionVertices.size()]);
 
-		CompletedCheckpointStore store = new RecoverableCompletedCheckpointStore();
+		CompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore();
 
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord =
@@ -196,7 +195,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		assertEquals(1, completedCheckpoints.size());
 
 		// shutdown the store
-		store.shutdown(JobStatus.SUSPENDED);
+		store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {
+		});
 
 		// restore the store
 		Set<ExecutionJobVertex> tasks = new HashSet<>();
@@ -263,7 +263,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			tasks.add(stateful);
 			tasks.add(stateless);
 
-			CompletedCheckpointStore store = new RecoverableCompletedCheckpointStore(2);
+			CompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore(2);
 
 			CheckpointCoordinatorConfiguration chkConfig =
 				new CheckpointCoordinatorConfigurationBuilder()
@@ -295,11 +295,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 			subtaskStatesForCheckpoint.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(statefulId),
-				new OperatorSubtaskState(
-					StateObjectCollection.empty(),
-					StateObjectCollection.empty(),
-					StateObjectCollection.singleton(serializedKeyGroupStates),
-					StateObjectCollection.empty()));
+				OperatorSubtaskState.builder().setManagedKeyedState(serializedKeyGroupStates).build());
 
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStatesForCheckpoint), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId), TASK_MANAGER_LOCATION_INFO);
@@ -319,11 +315,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 			subtaskStatesForSavepoint.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(statefulId),
-				new OperatorSubtaskState(
-					StateObjectCollection.empty(),
-					StateObjectCollection.empty(),
-					StateObjectCollection.singleton(serializedKeyGroupStatesForSavepoint),
-					StateObjectCollection.empty()));
+				OperatorSubtaskState.builder().setManagedOperatorState(StateObjectCollection.empty()).setRawOperatorState(
+					StateObjectCollection.empty()).setManagedKeyedState(StateObjectCollection.singleton(
+					serializedKeyGroupStatesForSavepoint)).setRawKeyedState(StateObjectCollection.empty()).build());
 
 			manuallyTriggeredScheduledExecutor.triggerAll();
 			checkpointId = checkpointIDCounter.getLast();
@@ -432,7 +426,11 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			OperatorStateHandle opStateBackend = generatePartitionableStateHandle(jobVertexID1, index, 2, 8, false);
 			KeyGroupsStateHandle keyedStateBackend = generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index), false);
 			KeyGroupsStateHandle keyedStateRaw = generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index), true);
-			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(opStateBackend, null, keyedStateBackend, keyedStateRaw, null, null);
+			OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
+				.setManagedOperatorState(opStateBackend)
+				.setManagedKeyedState(keyedStateBackend)
+				.setRawKeyedState(keyedStateRaw)
+				.build();
 			TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
 			taskOperatorSubtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID1), operatorSubtaskState);
 
@@ -457,7 +455,12 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			expectedOpStatesBackend.add(new ChainedStateHandle<>(Collections.singletonList(opStateBackend)));
 			expectedOpStatesRaw.add(new ChainedStateHandle<>(Collections.singletonList(opStateRaw)));
 
-			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(opStateBackend, opStateRaw, keyedStateBackend, keyedStateRaw, null, null);
+			OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
+				.setManagedOperatorState(opStateBackend)
+				.setRawOperatorState(opStateRaw)
+				.setManagedKeyedState(keyedStateBackend)
+				.setRawKeyedState(keyedStateRaw)
+				.build();
 			TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
 			taskOperatorSubtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID2), operatorSubtaskState);
 
@@ -589,7 +592,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 		for (int index = 0; index < jobVertex1.getParallelism(); index++) {
 			KeyGroupsStateHandle keyGroupState = generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index), false);
-			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(null, null, keyGroupState, null, null, null);
+			OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
+				.setManagedKeyedState(keyGroupState)
+				.build();
 			TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
 			taskOperatorSubtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID1), operatorSubtaskState);
 			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
@@ -604,7 +609,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 		for (int index = 0; index < jobVertex2.getParallelism(); index++) {
 			KeyGroupsStateHandle keyGroupState = generateKeyGroupState(jobVertexID2, keyGroupPartitions2.get(index), false);
-			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(null, null, keyGroupState, null, null, null);
+			OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
+				.setManagedKeyedState(keyGroupState)
+				.build();
 			TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
 			taskOperatorSubtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID2), operatorSubtaskState);
 			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
@@ -703,17 +710,10 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			OperatorState taskState = new OperatorState(id.f1, parallelism1, maxParallelism1);
 			operatorStates.put(id.f1, taskState);
 			for (int index = 0; index < taskState.getParallelism(); index++) {
-				OperatorStateHandle subManagedOperatorState =
-					generatePartitionableStateHandle(id.f0, index, 2, 8, false);
-				OperatorStateHandle subRawOperatorState =
-					generatePartitionableStateHandle(id.f0, index, 2, 8, true);
-				OperatorSubtaskState subtaskState = new OperatorSubtaskState(
-					subManagedOperatorState,
-					subRawOperatorState,
-					null,
-					null,
-					null,
-					null);
+				OperatorSubtaskState subtaskState = OperatorSubtaskState.builder()
+					.setManagedOperatorState(generatePartitionableStateHandle(id.f0, index, 2, 8, false))
+					.setRawOperatorState(generatePartitionableStateHandle(id.f0, index, 2, 8, true))
+					.build();
 				taskState.putState(index, subtaskState);
 			}
 		}
@@ -730,29 +730,27 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			expectedRawOperatorStates.add(expectedRawOperatorState);
 
 			for (int index = 0; index < operatorState.getParallelism(); index++) {
+				final OperatorSubtaskState.Builder stateBuilder = OperatorSubtaskState.builder();
 				OperatorStateHandle subManagedOperatorState =
 					generateChainedPartitionableStateHandle(id.f0, index, 2, 8, false)
 						.get(0);
 				OperatorStateHandle subRawOperatorState =
 					generateChainedPartitionableStateHandle(id.f0, index, 2, 8, true)
 						.get(0);
-				KeyGroupsStateHandle subManagedKeyedState = id.f0.equals(id3.f0)
-					? generateKeyGroupState(id.f0, keyGroupPartitions2.get(index), false)
-					: null;
-				KeyGroupsStateHandle subRawKeyedState = id.f0.equals(id3.f0)
-					? generateKeyGroupState(id.f0, keyGroupPartitions2.get(index), true)
-					: null;
+				if (id.f0.equals(id3.f0)) {
+					stateBuilder.setManagedKeyedState(generateKeyGroupState(id.f0, keyGroupPartitions2.get(index), false));
+				}
+				if (id.f0.equals(id3.f0)) {
+					stateBuilder.setRawKeyedState(generateKeyGroupState(id.f0, keyGroupPartitions2.get(index), true));
+				}
 
 				expectedManagedOperatorState.add(ChainedStateHandle.wrapSingleHandle(subManagedOperatorState));
 				expectedRawOperatorState.add(ChainedStateHandle.wrapSingleHandle(subRawOperatorState));
 
-				OperatorSubtaskState subtaskState = new OperatorSubtaskState(
-					subManagedOperatorState,
-					subRawOperatorState,
-					subManagedKeyedState,
-					subRawKeyedState,
-					null,
-					null);
+				OperatorSubtaskState subtaskState = stateBuilder
+					.setManagedOperatorState(subManagedOperatorState)
+					.setRawOperatorState(subRawOperatorState)
+					.build();
 				operatorState.putState(index, subtaskState);
 			}
 		}
@@ -803,13 +801,15 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			operatorStates,
 			Collections.<MasterState>emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			new TestCompletedCheckpointStorageLocation());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord =
 			new CheckpointCoordinatorBuilder()
 				.setTasks(newJobVertex1.getTaskVertices())
-				.setCompletedCheckpointStore(CompletedCheckpointStore.storeFor(completedCheckpoint))
+				.setCompletedCheckpointStore(CompletedCheckpointStore.storeFor(() -> {
+				}, completedCheckpoint))
 				.setTimer(manuallyTriggeredScheduledExecutor)
 				.build();
 

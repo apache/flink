@@ -79,9 +79,12 @@
     "org.apache.flink.sql.parser.dql.SqlDescribeCatalog"
     "org.apache.flink.sql.parser.dql.SqlDescribeDatabase"
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs"
+    "org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog"
     "org.apache.flink.sql.parser.dql.SqlShowDatabases"
+    "org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase"
     "org.apache.flink.sql.parser.dql.SqlShowFunctions"
     "org.apache.flink.sql.parser.dql.SqlShowTables"
+    "org.apache.flink.sql.parser.dql.SqlShowPartitions"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
@@ -129,6 +132,7 @@
     "OVERWRITE"
     "OWNER"
     "PARTITIONED"
+    "PARTITIONS"
     "RAW"
     "RELY"
     "RENAME"
@@ -507,6 +511,7 @@
   statementParserMethods: [
     "RichSqlInsert()"
     "SqlShowCatalogs()"
+    "SqlShowCurrentCatalogOrDatabase()"
     "SqlDescribeCatalog()"
     "SqlUseCatalog()"
     "SqlShowDatabases()"
@@ -518,6 +523,7 @@
     "SqlShowFunctions()"
     "SqlAlterTable()"
     "SqlAlterView()"
+    "SqlShowPartitions()"
   ]
 
   # List of methods for parsing custom literals.

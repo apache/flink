@@ -1,9 +1,9 @@
 ---
-title: "Deployment & Operations"
+title: "Operations"
 nav-id: ops
-nav-title: '<i class="fa fa-sliders title maindish" aria-hidden="true"></i> Deployment & Operations'
+nav-title: '<i class="fa fa-cogs title maindish" aria-hidden="true"></i> Operations'
 nav-parent_id: root
-nav-pos: 10
+nav-pos: 11
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

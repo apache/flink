@@ -2,7 +2,7 @@
 title: "Elasticsearch SQL Connector"
 nav-title: Elasticsearch
 nav-parent_id: sql-connectors
-nav-pos: 4
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -38,12 +38,10 @@ If no primary key is defined on the DDL, the connector can only operate in appen
 Dependencies
 ------------
 
-In order to setup the Elasticsearch connector, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Elasticsearch Version   | Maven dependency                                                   | SQL Client JAR         |
-| :---------------------- | :----------------------------------------------------------------- | :----------------------|
-| 6.x                     | `flink-connector-elasticsearch6{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/elasticsearch.html) {% endif %}|
-| 7.x and later versions  | `flink-connector-elasticsearch7{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch7{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/elasticsearch.html) {% endif %}|
+{% assign connector = site.data.sql-connectors['elastic'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 <br>
 <span class="label label-danger">Attention</span> Elasticsearch connector works with JSON format which defines how to encode documents for the external system, therefore, it must be added as a [dependency]({% link dev/table/connectors/formats/index.zh.md %}).

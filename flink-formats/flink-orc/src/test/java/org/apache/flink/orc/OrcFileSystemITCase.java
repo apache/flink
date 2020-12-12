@@ -19,12 +19,14 @@
 package org.apache.flink.orc;
 
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
+import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
 import org.junit.Assert;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -34,10 +36,12 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 /**
- * ITCase for {@link OrcFileSystemFormatFactory}.
+ * ITCase for {@link OrcFileFormatFactory}.
  */
 @RunWith(Parameterized.class)
 public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
@@ -84,5 +88,82 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	@Override
+	public void before() {
+		super.before();
+		super.tableEnv().executeSql(String.format(
+			"create table orcFilterTable (" +
+				"x string," +
+				"y int," +
+				"a int," +
+				"b bigint," +
+				"c boolean," +
+				"d string," +
+				"e decimal(8,4)," +
+				"f date," +
+				"g timestamp" +
+				") with (" +
+				"'connector' = 'filesystem'," +
+				"'path' = '%s'," +
+			"%s)", super.resultPath(), String.join(",\n", formatProperties())));
+	}
+
+	@Test
+	public void testOrcFilterPushDown() throws ExecutionException, InterruptedException {
+		super.tableEnv().executeSql(
+				"insert into orcFilterTable select x, y, a, b, " +
+						"case when y >= 10 then false else true end as c, " +
+						"case when a = 1 then null else x end as d, " +
+						"y * 3.14 as e, " +
+						"date '2020-01-01' as f, " +
+						"timestamp '2020-01-01 05:20:00' as g " +
+						"from originalT").await();
+
+		check("select x, y from orcFilterTable where x = 'x11' and 11 = y",
+				Collections.singletonList(
+						Row.of("x11", "11")));
+
+		check("select x, y from orcFilterTable where 4 <= y and y < 8 and x <> 'x6'",
+				Arrays.asList(
+						Row.of("x4", "4"),
+						Row.of("x5", "5"),
+						Row.of("x7", "7")));
+
+		check("select x, y from orcFilterTable where x = 'x1' and not y >= 3",
+				Collections.singletonList(
+						Row.of("x1", "1")));
+
+		check("select x, y from orcFilterTable where c and y > 2 and y < 4",
+				Collections.singletonList(
+						Row.of("x3", "3")));
+
+		check("select x, y from orcFilterTable where d is null and x = 'x5'",
+				Collections.singletonList(
+						Row.of("x5", "5")));
+
+		check("select x, y from orcFilterTable where d is not null and y > 25",
+				Arrays.asList(
+						Row.of("x26", "26"),
+						Row.of("x27", "27")));
+
+		check("select x, y from orcFilterTable where (d is not null and y > 26) or (d is null and x = 'x3')",
+				Arrays.asList(
+						Row.of("x3", "3"),
+						Row.of("x27", "27")));
+
+		check("select x, y from orcFilterTable where e = 3.1400 or x = 'x10'",
+				Arrays.asList(
+						Row.of("x1", "1"),
+						Row.of("x10", "10")));
+
+		check("select x, y from orcFilterTable where f = date '2020-01-01' and x = 'x1'",
+				Collections.singletonList(
+						Row.of("x1", "1")));
+
+		check("select x, y from orcFilterTable where g = timestamp '2020-01-01 05:20:00' and x = 'x10'",
+				Collections.singletonList(
+						Row.of("x10", "10")));
 	}
 }

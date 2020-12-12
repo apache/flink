@@ -240,6 +240,10 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 		return env;
 	}
 
+	public void setEnvironmentVariable(String key, String value) {
+		this.systemEnv.put(key, value);
+	}
+
 	private void constructFilesDirectory(Map<String, String> env) throws IOException {
 		// link or copy python files to filesDirectory and add them to PYTHONPATH
 		List<String> pythonFilePaths = new ArrayList<>();

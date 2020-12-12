@@ -36,7 +36,7 @@ import org.apache.flink.runtime.clusterframework.overlays.KeytabOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.SSLStoreOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.UserLibOverlay;
-import org.apache.flink.runtime.util.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
@@ -153,7 +153,7 @@ public class MesosUtils {
 			HadoopConfOverlay.newBuilder().fromEnvironment(configuration).build(),
 			HadoopUserOverlay.newBuilder().fromEnvironment(configuration).build(),
 			KeytabOverlay.newBuilder().fromEnvironment(configuration).build(),
-			Krb5ConfOverlay.newBuilder().fromEnvironment(configuration).build(),
+			Krb5ConfOverlay.newBuilder().fromEnvironmentOrConfiguration(configuration).build(),
 			SSLStoreOverlay.newBuilder().fromEnvironment(configuration).build()
 		);
 

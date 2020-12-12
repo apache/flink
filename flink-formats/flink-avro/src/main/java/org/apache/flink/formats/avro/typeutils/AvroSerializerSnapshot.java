@@ -40,6 +40,8 @@ import java.util.Objects;
 
 import static org.apache.flink.formats.avro.typeutils.AvroSerializer.isGenericRecord;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.StringUtils.readString;
+import static org.apache.flink.util.StringUtils.writeString;
 
 /**
  * An {@code Avro} specific implementation of a {@link TypeSerializerSnapshot}.
@@ -63,7 +65,7 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
 	@Override
 	public int getCurrentVersion() {
-		return 2;
+		return 3;
 	}
 
 	@Override
@@ -71,8 +73,8 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		checkNotNull(runtimeType);
 		checkNotNull(schema);
 
-		out.writeUTF(runtimeType.getName());
-		out.writeUTF(schema.toString(false));
+		writeString(runtimeType.getName(), out);
+		writeString(schema.toString(false), out);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -85,6 +87,10 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			}
 			case 2: {
 				readV2(in, userCodeClassLoader);
+				return;
+			}
+			case 3: {
+				readV3(in, userCodeClassLoader);
 				return;
 			}
 			default:
@@ -102,6 +108,15 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 	private void readV2(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 		final String previousRuntimeTypeName = in.readUTF();
 		final String previousSchemaDefinition = in.readUTF();
+
+		this.runtimeType = findClassOrThrow(userCodeClassLoader, previousRuntimeTypeName);
+		this.schema = parseAvroSchema(previousSchemaDefinition);
+		this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
+	}
+
+	private void readV3(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+		final String previousRuntimeTypeName = readString(in);
+		final String previousSchemaDefinition =  readString(in);
 
 		this.runtimeType = findClassOrThrow(userCodeClassLoader, previousRuntimeTypeName);
 		this.schema = parseAvroSchema(previousSchemaDefinition);
@@ -185,7 +200,8 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			return null;
 		}
 		if (isSpecificRecord(runtimeType)) {
-			SpecificData d = new SpecificData(cl);
+			@SuppressWarnings("unchecked")
+			SpecificData d = AvroFactory.getSpecificDataForClass((Class<? extends SpecificData>) runtimeType, cl);
 			return AvroFactory.extractAvroSpecificSchema(runtimeType, d);
 		}
 		ReflectData d = new ReflectData(cl);

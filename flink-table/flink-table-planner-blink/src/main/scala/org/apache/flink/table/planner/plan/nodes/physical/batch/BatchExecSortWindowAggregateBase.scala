@@ -29,10 +29,11 @@ import org.apache.flink.table.planner.codegen.agg.batch.{SortWindowCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyBatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -40,10 +41,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.tools.RelBuilder
-
-import java.util
-
-import scala.collection.JavaConversions._
 
 abstract class BatchExecSortWindowAggregateBase(
     cluster: RelOptCluster,
@@ -77,7 +74,7 @@ abstract class BatchExecSortWindowAggregateBase(
     enableAssignPane,
     isMerge,
     isFinal)
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val inputRowCnt = mq.getRowCount(getInput)
@@ -94,15 +91,6 @@ abstract class BatchExecSortWindowAggregateBase(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -132,11 +120,12 @@ abstract class BatchExecSortWindowAggregateBase(
       generator.genWithKeys()
     }
     val operator = new CodeGenOperatorFactory[RowData](generatedOperator)
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
-      RowDataTypeInfo.of(outputType),
-      input.getParallelism)
+      InternalTypeInfo.of(outputType),
+      input.getParallelism,
+      0)
   }
 }

@@ -53,6 +53,11 @@ public class ParquetWriterUtil {
 
 	public static Path createTempParquetFile(File folder, MessageType schema, List<Row> records, int rowGroupSize) throws IOException {
 		Path path = new Path(folder.getPath(), UUID.randomUUID().toString());
+		writeParquetFile(path, schema, records, rowGroupSize);
+		return path;
+	}
+
+	public static void writeParquetFile(Path path, MessageType schema, List<Row> records, int rowGroupSize) throws IOException {
 		WriteSupport<Row> support = new WriteSupport<Row>() {
 			private RecordConsumer consumer;
 
@@ -127,7 +132,6 @@ public class ParquetWriterUtil {
 		}
 
 		writer.close();
-		return path;
 	}
 
 	private static class ParquetWriterBuilder extends ParquetWriter.Builder<Row, ParquetWriterBuilder> {

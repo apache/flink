@@ -25,7 +25,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink 的 [Table API]({{ site.baseurl }}/zh/dev/table/tableApi.html) 和 [SQL]({{ site.baseurl }}/zh/dev/table/sql/index.html) 是流批统一的 API。
+Flink 的 [Table API]({% link dev/table/tableApi.zh.md %}) 和 [SQL]({% link dev/table/sql/index.zh.md %}) 是流批统一的 API。
 这意味着 Table API & SQL 在无论有限的批式输入还是无限的流式输入下，都具有相同的语义。
 因为传统的关系代数以及 SQL 最开始都是为了批式处理而设计的，
 关系型查询在流式场景下不如在批式场景下容易懂。
@@ -35,10 +35,10 @@ Flink 的 [Table API]({{ site.baseurl }}/zh/dev/table/tableApi.html) 和 [SQL]({
 接下来？
 -----------------
 
-* [动态表]({{ site.baseurl }}/zh/dev/table/streaming/dynamic_tables.html): 描述了动态表的概念。
-* [时间属性]({{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html): 解释了时间属性以及它是如何在 Table API & SQL 中使用的。
-* [流上的 Join]({{ site.baseurl }}/zh/dev/table/streaming/joins.html): 支持的几种流上的 Join。
-* [时态（temporal）表]({{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html): 描述了时态表的概念。
-* [查询配置]({{ site.baseurl }}/zh/dev/table/streaming/query_configuration.html): Table API & SQL 特定的配置。
+* [动态表]({% link dev/table/streaming/dynamic_tables.zh.md %}): 描述了动态表的概念。
+* [时间属性]({% link dev/table/streaming/time_attributes.zh.md %}): 解释了时间属性以及它是如何在 Table API & SQL 中使用的。
+* [流上的 Join]({% link dev/table/streaming/joins.zh.md %}): 支持的几种流上的 Join。
+* [时态（temporal）表]({% link dev/table/streaming/versioned_tables.zh.md %}): 描述了时态表的概念。
+* [查询配置]({% link dev/table/streaming/query_configuration.zh.md %}): Table API & SQL 特定的配置。
 
 {% top %}

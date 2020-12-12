@@ -19,8 +19,6 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.client.ClientUtils;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -28,6 +26,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -41,7 +40,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.junit.Assert.fail;
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 
 /**
  * Test base for fault tolerant streaming programs.
@@ -120,27 +119,15 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.enableCheckpointing(500);
-						env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
 
 			testProgram(env);
 
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			try {
-				ClientUtils.submitJobAndWaitForResult(cluster.getClusterClient(), jobGraph, getClass().getClassLoader()).getJobExecutionResult();
-			} catch (ProgramInvocationException root) {
-				Throwable cause = root.getCause();
-
-				// search for nested SuccessExceptions
-				int depth = 0;
-				while (!(cause instanceof SuccessException)) {
-					if (cause == null || depth++ == 20) {
-						root.printStackTrace();
-						fail("Test failed: " + root.getMessage());
-					}
-					else {
-						cause = cause.getCause();
-					}
-				}
+				submitJobAndWaitForResult(cluster.getClusterClient(), jobGraph, getClass().getClassLoader());
+			} catch (Exception e) {
+				Assert.assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
 			}
 
 			postSubmit();

@@ -1,0 +1,25 @@
+flink-sql-avro-confluent-registry
+Copyright 2014-2020 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- org.apache.avro:avro:1.10.0
+- com.fasterxml.jackson.core:jackson-core:2.10.1
+- com.fasterxml.jackson.core:jackson-databind:2.10.1
+- com.fasterxml.jackson.core:jackson-annotations:2.10.1
+- org.apache.commons:commons-compress:1.20
+- io.confluent:kafka-schema-registry-client:5.5.2
+- org.apache.kafka:kafka-clients:5.5.2-ccs
+- io.confluent:common-config:5.5.2
+- io.confluent:common-utils:5.5.2
+- org.glassfish.jersey.core:jersey-common:2.30
+
+The binary distribution of this product bundles these dependencies under the Eclipse Public License - v 2.0 (https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.txt)
+
+- jakarta.annotation:jakarta.annotation-api:1.3.5
+- jakarta.ws.rs:jakarta.ws.rs-api:2.1.6
+- org.glassfish.hk2.external:jakarta.inject:2.6.1
+- org.glassfish.hk2:osgi-resource-locator:1.0.3

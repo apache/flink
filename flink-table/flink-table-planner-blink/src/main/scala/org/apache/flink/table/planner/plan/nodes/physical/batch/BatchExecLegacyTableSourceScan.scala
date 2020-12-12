@@ -18,12 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.core.io.InputSplit
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.api.TableException
@@ -31,7 +29,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
@@ -59,8 +57,8 @@ class BatchExecLegacyTableSourceScan(
     traitSet: RelTraitSet,
     tableSourceTable: LegacyTableSourceTable[_])
   extends PhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
-          with BatchPhysicalRel
-          with BatchExecNode[RowData]{
+  with BatchPhysicalRel
+  with LegacyBatchExecNode[RowData]{
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
@@ -79,15 +77,7 @@ class BatchExecLegacyTableSourceScan(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
-
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = List()
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
+  override def getInputEdges: util.List[ExecEdge] = List()
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -161,8 +151,7 @@ class BatchExecLegacyTableSourceScan(
     // to read multiple partitions which are multiple paths.
     // We can use InputFormatSourceFunction directly to support InputFormat.
     val func = new InputFormatSourceFunction[IN](format, t)
-    ExecNode.setManagedMemoryWeight(env.addSource(func, tableSource.explainSource(), t)
-        .getTransformation)
+    env.addSource(func, tableSource.explainSource(), t).getTransformation
   }
 
   private def computeIndexMapping()

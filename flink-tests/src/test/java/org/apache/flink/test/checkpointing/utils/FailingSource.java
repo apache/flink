@@ -19,10 +19,9 @@
 package org.apache.flink.test.checkpointing.utils;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 
@@ -66,20 +65,20 @@ public class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
 	public FailingSource(
 		@Nonnull EventEmittingGenerator eventEmittingGenerator,
 		@Nonnegative int numberOfGeneratorInvocations) {
-		this(eventEmittingGenerator, numberOfGeneratorInvocations, TimeCharacteristic.EventTime);
+		this(eventEmittingGenerator, numberOfGeneratorInvocations, false);
 	}
 
 	public FailingSource(
 		@Nonnull EventEmittingGenerator eventEmittingGenerator,
 		@Nonnegative int numberOfGeneratorInvocations,
-		@Nonnull TimeCharacteristic timeCharacteristic) {
+		boolean usingProcessingTime) {
 		this.eventEmittingGenerator = eventEmittingGenerator;
 		this.running = true;
 		this.emitCallCount = 0;
 		this.expectedEmitCalls = numberOfGeneratorInvocations;
 		this.failureAfterNumElements = numberOfGeneratorInvocations / 2;
 		this.checkpointStatus = new AtomicLong(INITIAL);
-		this.usingProcessingTime = timeCharacteristic == TimeCharacteristic.ProcessingTime;
+		this.usingProcessingTime = usingProcessingTime;
 	}
 
 	@Override

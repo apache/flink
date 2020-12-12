@@ -22,6 +22,9 @@ import org.apache.flink.runtime.scheduler.DeploymentOption;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.util.IterableUtils;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
@@ -61,9 +64,31 @@ class SchedulingStrategyUtils {
 			.collect(Collectors.toList());
 	}
 
+	static List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
+			final Collection<ExecutionVertexID> verticesToDeploy,
+			final Function<ExecutionVertexID, DeploymentOption> deploymentOptionRetriever) {
+
+		final List<ExecutionVertexDeploymentOption> deploymentOptions = new ArrayList<>(verticesToDeploy.size());
+		for (ExecutionVertexID executionVertexId : verticesToDeploy) {
+			final ExecutionVertexDeploymentOption deploymentOption = new ExecutionVertexDeploymentOption(
+				executionVertexId,
+				deploymentOptionRetriever.apply(executionVertexId));
+			deploymentOptions.add(deploymentOption);
+		}
+		return deploymentOptions;
+	}
+
 	static List<SchedulingPipelinedRegion> sortPipelinedRegionsInTopologicalOrder(
 			final SchedulingTopology topology,
 			final Set<SchedulingPipelinedRegion> regions) {
+
+		// Avoid the O(V) (V is the number of vertices in the topology) sorting
+		// complexity if the given set of regions is small enough
+		if (regions.size() == 0) {
+			return Collections.emptyList();
+		} else if (regions.size() == 1) {
+			return Collections.singletonList(regions.iterator().next());
+		}
 
 		return IterableUtils.toStream(topology.getVertices())
 			.map(SchedulingExecutionVertex::getId)

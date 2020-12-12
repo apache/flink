@@ -30,7 +30,6 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -63,17 +62,6 @@ public class TestingMiniCluster extends MiniCluster {
 
 	public TestingMiniCluster(TestingMiniClusterConfiguration miniClusterConfiguration) {
 		this(miniClusterConfiguration, null);
-	}
-
-	@Nonnull
-	@Override
-	public CompletableFuture<Void> terminateTaskExecutor(int index) {
-		return super.terminateTaskExecutor(index);
-	}
-
-	@Override
-	public void startTaskExecutor() throws Exception {
-		super.startTaskExecutor();
 	}
 
 	@Override

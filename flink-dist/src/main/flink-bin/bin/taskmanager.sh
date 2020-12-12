@@ -55,6 +55,8 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
     if [[ $? -ne 0 ]]; then
         echo "[ERROR] Could not get JVM parameters and dynamic configurations properly."
+        echo "[ERROR] Raw output from BashJavaUtils:"
+        echo "$java_utils_output"
         exit 1
     fi
 

@@ -48,22 +48,30 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 
 	private final long size;
 
-	private final long offset;
+	private final long globalOffset;
 
-	protected TumblingEventTimeWindows(long size, long offset) {
+	private Long staggerOffset = null;
+
+	private final WindowStagger windowStagger;
+
+	protected TumblingEventTimeWindows(long size, long offset, WindowStagger windowStagger) {
 		if (Math.abs(offset) >= size) {
 			throw new IllegalArgumentException("TumblingEventTimeWindows parameters must satisfy abs(offset) < size");
 		}
 
 		this.size = size;
-		this.offset = offset;
+		this.globalOffset = offset;
+		this.windowStagger = windowStagger;
 	}
 
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		if (timestamp > Long.MIN_VALUE) {
+			if (staggerOffset == null) {
+				staggerOffset = windowStagger.getStaggerOffset(context.getCurrentProcessingTime(), size);
+			}
 			// Long.MIN_VALUE is currently assigned when no timestamp is present
-			long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, size);
+			long start = TimeWindow.getWindowStartWithOffset(timestamp, (globalOffset + staggerOffset) % size, size);
 			return Collections.singletonList(new TimeWindow(start, start + size));
 		} else {
 			throw new RuntimeException("Record has Long.MIN_VALUE timestamp (= no timestamp marker). " +
@@ -90,7 +98,7 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 	 * @return The time policy.
 	 */
 	public static TumblingEventTimeWindows of(Time size) {
-		return new TumblingEventTimeWindows(size.toMilliseconds(), 0);
+		return new TumblingEventTimeWindows(size.toMilliseconds(), 0, WindowStagger.ALIGNED);
 	}
 
 	/**
@@ -108,10 +116,24 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 	 *
 	 * @param size The size of the generated windows.
 	 * @param offset The offset which window start would be shifted by.
-	 * @return The time policy.
 	 */
 	public static TumblingEventTimeWindows of(Time size, Time offset) {
-		return new TumblingEventTimeWindows(size.toMilliseconds(), offset.toMilliseconds());
+		return new TumblingEventTimeWindows(size.toMilliseconds(), offset.toMilliseconds(), WindowStagger.ALIGNED);
+	}
+
+
+	/**
+	 * Creates a new {@code TumblingEventTimeWindows} {@link WindowAssigner} that assigns
+	 * elements to time windows based on the element timestamp, offset and a staggering offset,
+	 * depending on the staggering policy.
+	 *
+	 * @param size The size of the generated windows.
+	 * @param offset The globalOffset which window start would be shifted by.
+	 * @param windowStagger The utility that produces staggering offset in runtime.
+	 */
+	@PublicEvolving
+	public static TumblingEventTimeWindows of(Time size, Time offset, WindowStagger windowStagger) {
+		return new TumblingEventTimeWindows(size.toMilliseconds(), offset.toMilliseconds(), windowStagger);
 	}
 
 	@Override

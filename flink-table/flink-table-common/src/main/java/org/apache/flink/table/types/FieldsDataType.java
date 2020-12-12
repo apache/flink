@@ -20,6 +20,7 @@ package org.apache.flink.table.types;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
@@ -27,6 +28,9 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /**
  * A data type that contains field data types (i.e. row, structured, and distinct types).
@@ -43,9 +47,10 @@ public final class FieldsDataType extends DataType {
 			@Nullable Class<?> conversionClass,
 			List<DataType> fieldDataTypes) {
 		super(logicalType, conversionClass);
-		this.fieldDataTypes = Preconditions.checkNotNull(
-			fieldDataTypes,
-			"Field data types must not be null.");
+		Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.");
+		this.fieldDataTypes = fieldDataTypes.stream()
+			.map(this::updateInnerDataType)
+			.collect(Collectors.toList());
 	}
 
 	public FieldsDataType(
@@ -106,5 +111,14 @@ public final class FieldsDataType extends DataType {
 	@Override
 	public int hashCode() {
 		return Objects.hash(super.hashCode(), fieldDataTypes);
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private DataType updateInnerDataType(DataType innerDataType) {
+		if (conversionClass == RowData.class) {
+			return innerDataType.bridgedTo(toInternalConversionClass(innerDataType.getLogicalType()));
+		}
+		return innerDataType;
 	}
 }

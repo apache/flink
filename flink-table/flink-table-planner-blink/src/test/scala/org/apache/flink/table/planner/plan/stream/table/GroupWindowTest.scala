@@ -95,7 +95,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, weightedAvg('long, 'int))
+      .select('string, call(weightedAvg, 'long, 'int))
     util.verifyPlan(windowedTable)
   }
 
@@ -162,7 +162,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .window(Slide over 8.millis every 10.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, weightedAvg('long, 'int))
+      .select('string, call(weightedAvg, 'long, 'int))
     util.verifyPlan(windowedTable)
   }
 
@@ -190,7 +190,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .window(Session withGap 7.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, weightedAvg('long, 'int))
+      .select('string, call(weightedAvg, 'long, 'int))
     util.verifyPlan(windowedTable)
   }
 
@@ -346,7 +346,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .window(Slide over 2.rows every 1.rows on 'proctime as 'w)
       .groupBy('w, 'int2, 'int3, 'string)
-      .select(weightAvgFun('long, 'int))
+      .select(call(weightAvgFun, 'long, 'int))
 
     util.verifyPlan(windowedTable)
   }

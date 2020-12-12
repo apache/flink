@@ -38,10 +38,9 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link PythonProgramOptions}.
+ * Test for {@link PythonProgramOptions}.
  */
 public class PythonProgramOptionsTest {
-
 	private Options options;
 
 	@Before
@@ -91,7 +90,6 @@ public class PythonProgramOptionsTest {
 			"--pyArchives", "g.zip,h.zip#data,h.zip#data2",
 			"userarg1", "userarg2"
 		};
-
 		CommandLine line = CliFrontendParser.parse(options, args, false);
 		PythonProgramOptions programOptions = (PythonProgramOptions) ProgramOptions.create(line);
 		Configuration config = new Configuration();

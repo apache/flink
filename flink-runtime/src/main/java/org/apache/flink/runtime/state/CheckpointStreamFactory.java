@@ -28,8 +28,8 @@ import java.io.OutputStream;
 /**
  * A factory for checkpoint output streams, which are used to persist data for checkpoints.
  *
- * <p>Stream factories can be created from the {@link CheckpointStorage} through
- * {@link CheckpointStorage#resolveCheckpointStorageLocation(long, CheckpointStorageLocationReference)}.
+ * <p>Stream factories can be created from the {@link CheckpointStorageAccess} through
+ * {@link CheckpointStorageAccess#resolveCheckpointStorageLocation(long, CheckpointStorageLocationReference)}.
  */
 public interface CheckpointStreamFactory {
 

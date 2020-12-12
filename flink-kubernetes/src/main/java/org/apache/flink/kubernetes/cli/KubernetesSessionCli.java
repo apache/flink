@@ -34,8 +34,8 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
+import org.apache.flink.kubernetes.kubeclient.DefaultKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -79,9 +79,10 @@ public class KubernetesSessionCli {
 		this.cli = new GenericCLI(baseConfiguration, configDir);
 	}
 
-	public Configuration getEffectiveConfiguration(String[] args) throws CliArgsException {
+	Configuration getEffectiveConfiguration(String[] args) throws CliArgsException {
 		final CommandLine commandLine = cli.parseCommandLineOptions(args, true);
-		final Configuration effectiveConfiguration = cli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
+		effectiveConfiguration.addAll(cli.toConfiguration(commandLine));
 		effectiveConfiguration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
 		return effectiveConfiguration;
 	}
@@ -99,7 +100,7 @@ public class KubernetesSessionCli {
 			final ClusterClient<String> clusterClient;
 			String clusterId = kubernetesClusterClientFactory.getClusterId(configuration);
 			final boolean detached = !configuration.get(DeploymentOptions.ATTACHED);
-			final FlinkKubeClient kubeClient = KubeClientFactory.fromConfiguration(configuration);
+			final FlinkKubeClient kubeClient = DefaultKubeClientFactory.getInstance().fromConfiguration(configuration);
 
 			// Retrieve or create a session cluster.
 			if (clusterId != null && kubeClient.getRestService(clusterId).isPresent()) {

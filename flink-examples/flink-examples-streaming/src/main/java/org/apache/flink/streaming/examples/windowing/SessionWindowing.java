@@ -19,7 +19,6 @@ package org.apache.flink.streaming.examples.windowing;
 
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -43,7 +42,6 @@ public class SessionWindowing {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.getConfig().setGlobalJobParameters(params);
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
 
 		final boolean fileOutput = params.has("output");
@@ -81,7 +79,7 @@ public class SessionWindowing {
 
 		// We create sessions for each id with max timeout of 3 time units
 		DataStream<Tuple3<String, Long, Integer>> aggregated = source
-				.keyBy(0)
+				.keyBy(value -> value.f0)
 				.window(EventTimeSessionWindows.withGap(Time.milliseconds(3L)))
 				.sum(2);
 

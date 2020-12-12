@@ -25,6 +25,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.Closeable;
 
+import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -88,7 +89,7 @@ public class BufferConsumer implements Closeable {
 	 * Checks whether the {@link BufferBuilder} has already been finished.
 	 *
 	 * <p>BEWARE: this method accesses the cached value of the position marker which is only updated
-	 * after calls to {@link #build()}!
+	 * after calls to {@link #build()} and {@link #skip(int)}!
 	 *
 	 * @return <tt>true</tt> if the buffer was finished, <tt>false</tt> otherwise
 	 */
@@ -106,6 +107,17 @@ public class BufferConsumer implements Closeable {
 		Buffer slice = buffer.readOnlySlice(currentReaderPosition, cachedWriterPosition - currentReaderPosition);
 		currentReaderPosition = cachedWriterPosition;
 		return slice.retainBuffer();
+	}
+
+	/**
+	 * @param bytesToSkip number of bytes to skip from currentReaderPosition
+	 */
+	void skip(int bytesToSkip) {
+		writerPosition.update();
+		int cachedWriterPosition = writerPosition.getCached();
+		int bytesReadable = cachedWriterPosition - currentReaderPosition;
+		checkState(bytesToSkip <= bytesReadable, "bytes to skip beyond readable range");
+		currentReaderPosition += bytesToSkip;
 	}
 
 	/**
@@ -136,6 +148,10 @@ public class BufferConsumer implements Closeable {
 		return buffer.isBuffer();
 	}
 
+	public Buffer.DataType getDataType() {
+		return buffer.getDataType();
+	}
+
 	@Override
 	public void close() {
 		if (!buffer.isRecycled()) {
@@ -153,6 +169,14 @@ public class BufferConsumer implements Closeable {
 
 	int getCurrentReaderPosition() {
 		return currentReaderPosition;
+	}
+
+	boolean isStartOfDataBuffer() {
+		return buffer.getDataType() == DATA_BUFFER && currentReaderPosition == 0;
+	}
+
+	int getBufferSize() {
+		return buffer.getMaxCapacity();
 	}
 
 	/**

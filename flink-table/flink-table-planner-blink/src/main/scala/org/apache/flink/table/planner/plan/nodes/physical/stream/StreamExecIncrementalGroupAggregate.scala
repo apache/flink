@@ -25,12 +25,12 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, _}
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchIncrementalGroupAggFunction
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.DataType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -81,7 +81,7 @@ class StreamExecIncrementalGroupAggregate(
     val finalAggGrouping: Array[Int],
     val partialAggGrouping: Array[Int])
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def deriveRowType(): RelDataType = outputRowType
 
@@ -117,16 +117,6 @@ class StreamExecIncrementalGroupAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
@@ -158,7 +148,7 @@ class StreamExecIncrementalGroupAggregate(
 
     val partialKeySelector = KeySelectorUtil.getRowDataSelector(
       partialAggGrouping,
-      RowDataTypeInfo.of(inRowType))
+      InternalTypeInfo.of(inRowType))
     val finalKeySelector = KeySelectorUtil.getRowDataSelector(
       finalAggGrouping,
       partialKeySelector.getProducedType)
@@ -166,7 +156,8 @@ class StreamExecIncrementalGroupAggregate(
     val aggFunction = new MiniBatchIncrementalGroupAggFunction(
       partialAggsHandler,
       finalAggsHandler,
-      finalKeySelector)
+      finalKeySelector,
+      config.getIdleStateRetention.toMillis)
 
     val operator = new KeyedMapBundleOperator(
       aggFunction,
@@ -177,7 +168,7 @@ class StreamExecIncrementalGroupAggregate(
       inputTransformation,
       getRelDetailedDescription,
       operator,
-      RowDataTypeInfo.of(outRowType),
+      InternalTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
 
     if (inputsContainSingleton()) {

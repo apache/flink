@@ -22,9 +22,11 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
+import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -64,6 +66,7 @@ import java.io.Serializable;
  * <ul>
  *     <li>{@link SupportsPartitioning}
  *     <li>{@link SupportsOverwrite}
+ *     <li>{@link SupportsWritingMetadata}
  * </ul>
  *
  * <p>In the last step, the planner will call {@link #getSinkRuntimeProvider(Context)} for obtaining a
@@ -97,6 +100,8 @@ public interface DynamicTableSink {
 	 * with minimal dependencies to internal data structures.
 	 *
 	 * <p>See {@code org.apache.flink.table.connector.sink.SinkFunctionProvider} in {@code flink-table-api-java-bridge}.
+	 *
+	 * @see ParallelismProvider
 	 */
 	SinkRuntimeProvider getSinkRuntimeProvider(Context context);
 
@@ -138,7 +143,7 @@ public interface DynamicTableSink {
 		 *
 		 * @see TableSchema#toPhysicalRowDataType()
 		 */
-		TypeInformation<?> createTypeInformation(DataType consumedDataType);
+		<T> TypeInformation<T> createTypeInformation(DataType consumedDataType);
 
 		/**
 		 * Creates a converter for mapping between Flink's internal data structures and objects specified

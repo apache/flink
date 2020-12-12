@@ -28,10 +28,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -162,14 +160,8 @@ public class RestoreStreamTaskTest extends TestLogger {
 		assertEquals(2, stateHandles.getSubtaskStateMappings().size());
 
 		// test empty state in case of scale up
-		OperatorSubtaskState emptyHeadOperatorState = StateAssignmentOperation.operatorSubtaskStateFrom(
-			new OperatorInstanceID(0, headOperatorID),
-			Collections.emptyMap(),
-			Collections.emptyMap(),
-			Collections.emptyMap(),
-			Collections.emptyMap(),
-			Collections.emptyMap(),
-			Collections.emptyMap());
+
+		OperatorSubtaskState emptyHeadOperatorState = OperatorSubtaskState.builder().build();
 
 		stateHandles.putSubtaskStateByOperatorID(headOperatorID, emptyHeadOperatorState);
 

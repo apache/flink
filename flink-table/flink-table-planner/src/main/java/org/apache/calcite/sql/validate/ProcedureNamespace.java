@@ -24,7 +24,9 @@ import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlTableFunction;
 import org.apache.calcite.sql.SqlUtil;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -58,14 +60,18 @@ public final class ProcedureNamespace extends AbstractNamespace {
 		final SqlOperator operator = call.getOperator();
 		final SqlCallBinding callBinding =
 			new SqlCallBinding(validator, scope, call);
-		// legacy table functions
-		if (operator instanceof SqlUserDefinedFunction) {
-			assert type.getSqlTypeName() == SqlTypeName.CURSOR
-				: "User-defined table function should have CURSOR type, not " + type;
-			final SqlUserDefinedTableFunction udf =
-				(SqlUserDefinedTableFunction) operator;
-			return udf.getRowType(validator.typeFactory, callBinding.operands());
+		if (operator instanceof SqlTableFunction) {
+			final SqlTableFunction tableFunction = (SqlTableFunction) operator;
+			if (type.getSqlTypeName() != SqlTypeName.CURSOR) {
+				throw new IllegalArgumentException("Table function should have CURSOR "
+						+ "type, not " + type);
+			}
+			final SqlReturnTypeInference rowTypeInference =
+					tableFunction.getRowTypeInference();
+			RelDataType retType = rowTypeInference.inferReturnType(callBinding);
+			return validator.getTypeFactory().createTypeWithNullability(retType, false);
 		}
+
 		// special handling of collection tables TABLE(function(...))
 		if (SqlUtil.stripAs(enclosingNode).getKind() == SqlKind.COLLECTION_TABLE) {
 			return toStruct(type, getNode());

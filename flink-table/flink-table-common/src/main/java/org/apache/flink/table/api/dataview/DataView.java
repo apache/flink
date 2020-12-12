@@ -19,18 +19,20 @@
 package org.apache.flink.table.api.dataview;
 
 import org.apache.flink.annotation.PublicEvolving;
-
-import java.io.Serializable;
+import org.apache.flink.table.functions.ImperativeAggregateFunction;
 
 /**
  * A {@link DataView} is a collection type that can be used in the accumulator of an
- * {@link org.apache.flink.table.functions.AggregateFunction}.
+ * {@link ImperativeAggregateFunction}.
  *
- * <p>Depending on the context in which the {@code AggregateFunction} is
- * used, a {@link DataView} can be backed by a Java heap collection or a state backend.
+ * <p>Depending on the context in which the function is used, a {@link DataView} can be backed by a
+ * Java heap collection or a state backend.
+ *
+ * @see ListView
+ * @see MapView
  */
 @PublicEvolving
-public interface DataView extends Serializable {
+public interface DataView {
 
 	/**
 	 * Clears the {@link DataView} and removes all data.

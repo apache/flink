@@ -35,6 +35,7 @@ import static org.apache.flink.streaming.util.StreamRecordMatchers.streamRecord;
 import static org.apache.flink.streaming.util.WatermarkMatchers.legacyWatermark;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -70,7 +71,7 @@ public class TimestampsAndWatermarksOperatorTest {
 	}
 
 	@Test
-	public void periodicWatermarksEmitOnPeriodicEmit() throws Exception {
+	public void periodicWatermarksEmitOnPeriodicEmitStreamMode() throws Exception {
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness = createTestHarness(
 				WatermarkStrategy
 						.forGenerator((ctx) -> new PeriodicWatermarkGenerator())
@@ -90,7 +91,27 @@ public class TimestampsAndWatermarksOperatorTest {
 	}
 
 	@Test
-	public void periodicWatermarksOnlyEmitOnPeriodicEmit() throws Exception {
+	public void periodicWatermarksBatchMode() throws Exception {
+		OneInputStreamOperatorTestHarness<Long, Long> testHarness = createBatchHarness(
+				WatermarkStrategy
+						.forGenerator((ctx) -> new PeriodicWatermarkGenerator())
+						.withTimestampAssigner((ctx) -> new LongExtractor()));
+
+		testHarness.processElement(new StreamRecord<>(2L, 1));
+		testHarness.setProcessingTime(AUTO_WATERMARK_INTERVAL);
+
+		assertThat(pollNextStreamRecord(testHarness), streamRecord(2L, 2L));
+		assertNull(pollNextLegacyWatermark(testHarness));
+
+		testHarness.processElement(new StreamRecord<>(4L, 1));
+		testHarness.setProcessingTime(AUTO_WATERMARK_INTERVAL * 2);
+
+		assertThat(pollNextStreamRecord(testHarness), streamRecord(4L, 4L));
+		assertNull(pollNextLegacyWatermark(testHarness));
+	}
+
+	@Test
+	public void periodicWatermarksOnlyEmitOnPeriodicEmitStreamMode() throws Exception {
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness = createTestHarness(
 				WatermarkStrategy
 						.forGenerator((ctx) -> new PeriodicWatermarkGenerator())
@@ -103,7 +124,7 @@ public class TimestampsAndWatermarksOperatorTest {
 	}
 
 	@Test
-	public void periodicWatermarksDoNotRegress() throws Exception {
+	public void periodicWatermarksDoNotRegressStreamMode() throws Exception {
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness = createTestHarness(
 				WatermarkStrategy
 						.forGenerator((ctx) -> new PeriodicWatermarkGenerator())
@@ -123,7 +144,7 @@ public class TimestampsAndWatermarksOperatorTest {
 	}
 
 	@Test
-	public void punctuatedWatermarksEmitImmediately() throws Exception {
+	public void punctuatedWatermarksEmitImmediatelyStreamMode() throws Exception {
 		OneInputStreamOperatorTestHarness<Tuple2<Boolean, Long>, Tuple2<Boolean, Long>> testHarness = createTestHarness(
 				WatermarkStrategy
 						.forGenerator((ctx) -> new PunctuatedWatermarkGenerator())
@@ -141,7 +162,25 @@ public class TimestampsAndWatermarksOperatorTest {
 	}
 
 	@Test
-	public void punctuatedWatermarksDoNotRegress() throws Exception {
+	public void punctuatedWatermarksBatchMode() throws Exception {
+		OneInputStreamOperatorTestHarness<Tuple2<Boolean, Long>, Tuple2<Boolean, Long>> testHarness = createBatchHarness(
+				WatermarkStrategy
+						.forGenerator((ctx) -> new PunctuatedWatermarkGenerator())
+						.withTimestampAssigner((ctx) -> new TupleExtractor()));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>(true, 2L), 1));
+
+		assertThat(pollNextStreamRecord(testHarness), streamRecord(new Tuple2<>(true, 2L), 2L));
+		assertNull(pollNextLegacyWatermark(testHarness));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>(true, 4L), 1));
+
+		assertThat(pollNextStreamRecord(testHarness), streamRecord(new Tuple2<>(true, 4L), 4L));
+		assertNull(pollNextLegacyWatermark(testHarness));
+	}
+
+	@Test
+	public void punctuatedWatermarksDoNotRegressStreamMode() throws Exception {
 		OneInputStreamOperatorTestHarness<Tuple2<Boolean, Long>, Tuple2<Boolean, Long>> testHarness = createTestHarness(
 				WatermarkStrategy
 						.forGenerator((ctx) -> new PunctuatedWatermarkGenerator())
@@ -184,12 +223,26 @@ public class TimestampsAndWatermarksOperatorTest {
 			WatermarkStrategy<T> watermarkStrategy) throws Exception {
 
 		final TimestampsAndWatermarksOperator<T> operator =
-				new TimestampsAndWatermarksOperator<>(watermarkStrategy);
+				new TimestampsAndWatermarksOperator<>(watermarkStrategy, true);
 
 		OneInputStreamOperatorTestHarness<T, T> testHarness =
 				new OneInputStreamOperatorTestHarness<>(operator);
 
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(AUTO_WATERMARK_INTERVAL);
+
+		testHarness.open();
+
+		return testHarness;
+	}
+
+	private static <T> OneInputStreamOperatorTestHarness<T, T> createBatchHarness(
+			WatermarkStrategy<T> watermarkStrategy) throws Exception {
+
+		final TimestampsAndWatermarksOperator<T> operator =
+				new TimestampsAndWatermarksOperator<>(watermarkStrategy, false);
+
+		OneInputStreamOperatorTestHarness<T, T> testHarness =
+				new OneInputStreamOperatorTestHarness<>(operator);
 
 		testHarness.open();
 

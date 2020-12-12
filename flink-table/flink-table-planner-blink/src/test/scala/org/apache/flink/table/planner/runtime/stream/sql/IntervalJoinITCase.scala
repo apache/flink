@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api._
@@ -179,6 +178,57 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     assertEquals(expected, sink.getAppendResults.sorted)
   }
 
+  /** test rowtime inner join without equal condition **/
+  @Test
+  def testRowTimeInnerJoinWithoutEqualCondition(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t2.key, t2.id, t1.id
+        |FROM T1 as t1 join T2 as t2 ON
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '5' SECOND AND
+        |    t2.rowtime + INTERVAL '6' SECOND
+        |""".stripMargin
+
+    val data1 = new mutable.MutableList[(String, String, Long)]
+    // for boundary test
+    data1.+=(("A", "LEFT0.999", 999L))
+    data1.+=(("A", "LEFT1", 1000L))
+    data1.+=(("A", "LEFT2", 2000L))
+    data1.+=(("A", "LEFT3", 3000L))
+    data1.+=(("B", "LEFT4", 4000L))
+    data1.+=(("A", "LEFT5", 5000L))
+    data1.+=(("A", "LEFT6", 6000L))
+    // test null key
+    data1.+=((null.asInstanceOf[String], "LEFT8", 8000L))
+
+    val data2 = new mutable.MutableList[(String, String, Long)]
+    data2.+=(("A", "RIGHT6", 6000L))
+    data2.+=(("B", "RIGHT7", 7000L))
+    // test null key
+    data2.+=((null.asInstanceOf[String], "RIGHT10", 10000L))
+
+    val t1 = env.fromCollection(data1)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+    val t2 = env.fromCollection(data2)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+    val sink = new TestingAppendSink
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(sink)
+    env.execute()
+    val expected = mutable.MutableList(
+      "A,RIGHT6,LEFT1", "A,RIGHT6,LEFT2", "A,RIGHT6,LEFT3", "A,RIGHT6,LEFT4",
+      "A,RIGHT6,LEFT5", "A,RIGHT6,LEFT6", "A,RIGHT6,LEFT8", "B,RIGHT7,LEFT2",
+      "B,RIGHT7,LEFT3", "B,RIGHT7,LEFT4", "B,RIGHT7,LEFT5", "B,RIGHT7,LEFT6",
+      "B,RIGHT7,LEFT8", "null,RIGHT10,LEFT5", "null,RIGHT10,LEFT6", "null,RIGHT10,LEFT8"
+    )
+    assertEquals(expected, sink.getAppendResults.sorted)
+  }
+
   @Test
   def testUnboundedAggAfterRowtimeInnerJoin(): Unit = {
     val innerSql=
@@ -231,7 +281,6 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   /** test row time inner join with equi-times **/
   @Test
   def testRowTimeInnerJoinWithEquiTimeAttrs(): Unit = {
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """

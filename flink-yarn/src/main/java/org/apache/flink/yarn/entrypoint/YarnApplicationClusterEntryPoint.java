@@ -27,6 +27,8 @@ import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.DynamicParametersConfigurationParserFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -82,7 +84,11 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
 			LOG.warn("Could not log YARN environment information.", e);
 		}
 
-		final Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
+		final Configuration dynamicParameters = ClusterEntrypointUtils.parseParametersOrExit(
+			args,
+			new DynamicParametersConfigurationParserFactory(),
+			YarnApplicationClusterEntryPoint.class);
+		final Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, dynamicParameters, env);
 
 		PackagedProgram program = null;
 		try {

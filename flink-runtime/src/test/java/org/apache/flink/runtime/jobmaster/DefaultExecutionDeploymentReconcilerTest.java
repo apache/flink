@@ -29,6 +29,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.clusterframework.types.ResourceID.generate;
 import static org.hamcrest.Matchers.empty;
@@ -52,7 +54,7 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
 		reconciler.reconcileExecutionDeployments(
 			resourceId,
 			new ExecutionDeploymentReport(Collections.singleton(attemptId)),
-			Collections.singleton(attemptId));
+			Collections.singletonMap(attemptId, ExecutionDeploymentState.DEPLOYED));
 
 		assertThat(handler.getMissingExecutions(), empty());
 		assertThat(handler.getUnknownExecutions(), empty());
@@ -70,7 +72,7 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
 		reconciler.reconcileExecutionDeployments(
 			resourceId,
 			new ExecutionDeploymentReport(Collections.emptySet()),
-			Collections.singleton(attemptId));
+			Collections.singletonMap(attemptId, ExecutionDeploymentState.DEPLOYED));
 
 		assertThat(handler.getUnknownExecutions(), empty());
 		assertThat(handler.getMissingExecutions(), hasItem(attemptId));
@@ -88,7 +90,7 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
 		reconciler.reconcileExecutionDeployments(
 			resourceId,
 			new ExecutionDeploymentReport(Collections.singleton(attemptId)),
-			Collections.emptySet());
+			Collections.emptyMap());
 
 		assertThat(handler.getMissingExecutions(), empty());
 		assertThat(handler.getUnknownExecutions(), hasItem(attemptId));
@@ -108,9 +110,29 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
 		reconciler.reconcileExecutionDeployments(
 			resourceId,
 			new ExecutionDeploymentReport(new HashSet<>(Arrays.asList(unknownId, matchingId))),
-			new HashSet<>(Arrays.asList(missingId, matchingId)));
+			Stream.of(missingId, matchingId).collect(Collectors.toMap(x -> x, x -> ExecutionDeploymentState.DEPLOYED)));
 
 		assertThat(handler.getMissingExecutions(), hasItem(missingId));
+		assertThat(handler.getUnknownExecutions(), hasItem(unknownId));
+	}
+
+	@Test
+	public void testPendingDeployments() {
+		TestingExecutionDeploymentReconciliationHandler handler = new TestingExecutionDeploymentReconciliationHandler();
+
+		DefaultExecutionDeploymentReconciler reconciler = new DefaultExecutionDeploymentReconciler(handler);
+
+		ResourceID resourceId = generate();
+		ExecutionAttemptID matchingId = new ExecutionAttemptID();
+		ExecutionAttemptID unknownId = new ExecutionAttemptID();
+		ExecutionAttemptID missingId = new ExecutionAttemptID();
+
+		reconciler.reconcileExecutionDeployments(
+			resourceId,
+			new ExecutionDeploymentReport(new HashSet<>(Arrays.asList(matchingId, unknownId))),
+			Stream.of(matchingId, missingId).collect(Collectors.toMap(x -> x, x -> ExecutionDeploymentState.PENDING)));
+
+		assertThat(handler.getMissingExecutions(), empty());
 		assertThat(handler.getUnknownExecutions(), hasItem(unknownId));
 	}
 

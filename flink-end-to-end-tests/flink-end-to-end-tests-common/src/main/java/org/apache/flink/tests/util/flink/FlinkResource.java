@@ -22,6 +22,7 @@ import org.apache.flink.tests.util.util.FactoryUtils;
 import org.apache.flink.util.ExternalResource;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,7 +39,7 @@ public interface FlinkResource extends ExternalResource {
 	 * <p>The exact constellation of the cluster is undefined.
 	 *
 	 * <p>In the case of per-job clusters this method may not start any Flink processes, deferring this to
-	 * {@link ClusterController#submitJob(JobSubmission)}.
+	 * {@link ClusterController#submitJob(JobSubmission, Duration)}.
 	 *
 	 * @return controller for interacting with the cluster
 	 * @throws IOException

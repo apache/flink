@@ -24,7 +24,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedInput;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,10 +42,10 @@ public class ValuesInputFormat
 	private static final long serialVersionUID = 1L;
 
 	private GeneratedInput<GenericInputFormat<RowData>> generatedInput;
-	private final RowDataTypeInfo returnType;
+	private final InternalTypeInfo<RowData> returnType;
 	private GenericInputFormat<RowData> format;
 
-	public ValuesInputFormat(GeneratedInput<GenericInputFormat<RowData>> generatedInput, RowDataTypeInfo returnType) {
+	public ValuesInputFormat(GeneratedInput<GenericInputFormat<RowData>> generatedInput, InternalTypeInfo<RowData> returnType) {
 		this.generatedInput = generatedInput;
 		this.returnType = returnType;
 	}
@@ -71,7 +71,7 @@ public class ValuesInputFormat
 	}
 
 	@Override
-	public RowDataTypeInfo getProducedType() {
+	public InternalTypeInfo<RowData> getProducedType() {
 		return returnType;
 	}
 

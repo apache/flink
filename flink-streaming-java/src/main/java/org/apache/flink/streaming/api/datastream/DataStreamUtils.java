@@ -19,20 +19,19 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
-import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
-import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
-import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
+import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
+import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.UUID;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A collection of utilities for {@link DataStream DataStreams}.
@@ -41,33 +40,121 @@ import java.util.UUID;
 public final class DataStreamUtils {
 
 	/**
-	 * Returns an iterator to iterate over the elements of the DataStream.
-	 * @return The iterator
+	 * Triggers the distributed execution of the streaming dataflow and returns an iterator over the elements
+	 * of the given DataStream.
+	 *
+	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
+	 * and the events from the stream are polled back to this application process and thread through
+	 * Flink's REST API.
+	 *
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
 	 */
+	@Deprecated
 	public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream) {
-		TypeSerializer<OUT> serializer = stream.getType().createSerializer(
-			stream.getExecutionEnvironment().getConfig());
-		String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
+		return collect(stream, "Data Stream Collect");
+	}
 
-		CollectSinkOperatorFactory<OUT> factory = new CollectSinkOperatorFactory<>(serializer, accumulatorName);
-		CollectSinkOperator<OUT> operator = (CollectSinkOperator<OUT>) factory.getOperator();
-		CollectResultIterator<OUT> iterator = new CollectResultIterator<>(
-			operator.getOperatorIdFuture(), serializer, accumulatorName);
-		CollectStreamSink<OUT> sink = new CollectStreamSink<>(stream, factory);
-		sink.name("Data stream collect sink");
-
-		StreamExecutionEnvironment env = stream.getExecutionEnvironment();
-		env.addOperator(sink.getTransformation());
-
+	/**
+	 * Triggers the distributed execution of the streaming dataflow and returns an iterator over the elements
+	 * of the given DataStream.
+	 *
+	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
+	 * and the events from the stream are polled back to this application process and thread through
+	 * Flink's REST API.
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
+	 */
+	@Deprecated
+	public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream, String executionJobName) {
 		try {
-			JobClient jobClient = env.executeAsync("Data Stream Collect");
-			iterator.setJobClient(jobClient);
+			return stream.executeAndCollect(executionJobName);
 		} catch (Exception e) {
+			// this "wrap as unchecked" step is here only to preserve the exception signature
+			// backwards compatible.
 			throw new RuntimeException("Failed to execute data stream", e);
 		}
-
-		return iterator;
 	}
+
+	/**
+	 * Starts the execution of the program and returns an iterator to read the result of the
+	 * given data stream, plus a {@link JobClient} to interact with the application execution.
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
+	 */
+	@Deprecated
+	public static <OUT> ClientAndIterator<OUT> collectWithClient(
+			DataStream<OUT> stream,
+			String jobExecutionName) throws Exception {
+		return stream.executeAndCollectWithClient(jobExecutionName);
+	}
+
+	/**
+	 * Collects contents the given DataStream into a list, assuming that the stream is a bounded stream.
+	 *
+	 * <p>This method blocks until the job execution is complete. By the time the method returns, the
+	 * job will have reached its FINISHED status.
+	 *
+	 * <p>Note that if the stream is unbounded, this method will never return and might fail with an
+	 * Out-of-Memory Error because it attempts to collect an infinite stream into a list.
+	 *
+	 * @throws Exception Exceptions that occur during the execution are forwarded.
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
+	 */
+	@Deprecated
+	public static <E> List<E> collectBoundedStream(DataStream<E> stream, String jobName) throws Exception {
+		final ArrayList<E> list = new ArrayList<>();
+		final Iterator<E> iter = collectWithClient(stream, jobName).iterator;
+		while (iter.hasNext()) {
+			list.add(iter.next());
+		}
+		list.trimToSize();
+		return list;
+	}
+
+	/**
+	 * Triggers execution of the DataStream application and collects the given number of records from the stream.
+	 * After the records are received, the execution is canceled.
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
+	 */
+	@Deprecated
+	public static <E> List<E> collectUnboundedStream(DataStream<E> stream, int numElements, String jobName) throws Exception {
+		final ClientAndIterator<E> clientAndIterator = collectWithClient(stream, jobName);
+		final List<E> result = collectRecordsFromUnboundedStream(clientAndIterator, numElements);
+
+		// cancel the job not that we have received enough elements
+		clientAndIterator.client.cancel().get();
+
+		return result;
+	}
+
+	/**
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
+	 */
+	@Deprecated
+	public static <E> List<E> collectRecordsFromUnboundedStream(
+			final ClientAndIterator<E> client,
+			final int numElements) {
+
+		checkNotNull(client, "client");
+		checkArgument(numElements > 0, "numElement must be > 0");
+
+		final ArrayList<E> result = new ArrayList<>(numElements);
+		final Iterator<E> iterator = client.iterator;
+
+		while (iterator.hasNext()) {
+			result.add(iterator.next());
+			if (result.size() == numElements) {
+				return result;
+			}
+		}
+
+		throw new IllegalArgumentException(String.format(
+				"The stream ended before reaching the requested %d records. Only %d records were received.",
+				numElements, result.size()));
+	}
+
+	// ------------------------------------------------------------------------
+	//  Deriving a KeyedStream from a stream already partitioned by key
+	//  without a shuffle
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Reinterprets the given {@link DataStream} as a {@link KeyedStream}, which extracts keys with the given
@@ -130,4 +217,7 @@ public final class DataStreamUtils {
 	 * Private constructor to prevent instantiation.
 	 */
 	private DataStreamUtils() {}
+
+	// ------------------------------------------------------------------------
+
 }

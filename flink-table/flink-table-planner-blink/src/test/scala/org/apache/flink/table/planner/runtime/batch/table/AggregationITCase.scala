@@ -184,7 +184,13 @@ class AggregationITCase extends BatchTestBase {
 
     val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
       .groupBy('b)
-      .select('b, 'a.sum, countFun('c), wAvgFun('b, 'a), wAvgFun('a, 'a), countDistinct('c))
+      .select(
+        'b,
+        'a.sum,
+        countFun('c),
+        call(wAvgFun, 'b, 'a),
+        call(wAvgFun, 'a, 'a),
+        countDistinct('c))
 
     val expected = "1,1,1,1,1,1\n" + "2,5,2,2,2,2\n" + "3,15,3,3,5,3\n" + "4,34,4,4,8,4\n" +
       "5,65,5,5,13,5\n" + "6,111,6,6,18,6\n"
@@ -433,10 +439,6 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
   }
 
   override def getValue(acc: Array[JTuple2[JInt, JFloat]]): Array[JTuple2[JInt, JFloat]] = acc
-
-  def resetAccumulator(acc: Array[JTuple2[JInt, JFloat]]): Unit = {
-    java.util.Arrays.fill(acc.asInstanceOf[Array[Object]], null)
-  }
 
   def merge(
       acc: Array[JTuple2[JInt, JFloat]],

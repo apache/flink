@@ -26,19 +26,15 @@ import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.mesos.util.MesosUtils;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.DynamicParametersConfigurationParserFactory;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -46,18 +42,6 @@ import java.util.concurrent.CompletableFuture;
  * Entry point for Mesos session clusters.
  */
 public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
-
-	// ------------------------------------------------------------------------
-	//  Command-line options
-	// ------------------------------------------------------------------------
-
-	private static final Options ALL_OPTIONS;
-
-	static {
-		ALL_OPTIONS =
-			new Options()
-				.addOption(BootstrapTools.newDynamicPropertiesOption());
-	}
 
 	private MesosConfiguration mesosConfig;
 
@@ -108,18 +92,10 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
 		// load configuration incl. dynamic properties
-		CommandLineParser parser = new PosixParser();
-		CommandLine cmd;
-		try {
-			cmd = parser.parse(ALL_OPTIONS, args);
-		}
-		catch (Exception e){
-			LOG.error("Could not parse the command-line options.", e);
-			System.exit(STARTUP_FAILURE_RETURN_CODE);
-			return;
-		}
-
-		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
+		Configuration dynamicProperties = ClusterEntrypointUtils.parseParametersOrExit(
+			args,
+			new DynamicParametersConfigurationParserFactory(),
+			MesosSessionClusterEntrypoint.class);
 		Configuration configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
 
 		MesosSessionClusterEntrypoint clusterEntrypoint = new MesosSessionClusterEntrypoint(configuration);

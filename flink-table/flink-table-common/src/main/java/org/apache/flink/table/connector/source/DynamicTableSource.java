@@ -22,8 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.RuntimeConverter;
-import org.apache.flink.table.connector.source.abilities.SupportsComputedColumnPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -54,7 +54,7 @@ import java.io.Serializable;
  * <p>Instances of the above mentioned interfaces can be seen as factories that eventually produce concrete
  * runtime implementation for reading the actual data.
  *
- * <p>Depending on the optionally declared abilities such as {@link SupportsComputedColumnPushDown} or
+ * <p>Depending on the optionally declared abilities such as {@link SupportsProjectionPushDown} or
  * {@link SupportsFilterPushDown}, the planner might apply changes to an instance and thus mutates
  * the produced runtime implementation.
  */
@@ -94,7 +94,7 @@ public interface DynamicTableSource {
 		 *
 		 * @see TableSchema#toPhysicalRowDataType()
 		 */
-		TypeInformation<?> createTypeInformation(DataType producedDataType);
+		<T> TypeInformation<T> createTypeInformation(DataType producedDataType);
 
 		/**
 		 * Creates a converter for mapping between objects specified by the given {@link DataType} and

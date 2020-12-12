@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.dispatcher.NoOpJobGraphListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphStore.JobGraphListener;
+import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.InstantiationUtil;
@@ -46,8 +47,13 @@ import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doAnswer;
@@ -57,7 +63,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Tests for basic {@link JobGraphStore} contract.
+ * IT tests for {@link DefaultJobGraphStore} with all ZooKeeper components(e.g. {@link ZooKeeperStateHandleStore},
+ * {@link ZooKeeperJobGraphStoreWatcher}, {@link ZooKeeperJobGraphStoreUtil}).
  */
 public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
@@ -82,7 +89,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
 	@Test
 	public void testPutAndRemoveJobGraph() throws Exception {
-		ZooKeeperJobGraphStore jobGraphs = createZooKeeperJobGraphStore("/testPutAndRemoveJobGraph");
+		JobGraphStore jobGraphs = createZooKeeperJobGraphStore("/testPutAndRemoveJobGraph");
 
 		try {
 			JobGraphStore.JobGraphListener listener = mock(JobGraphStore.JobGraphListener.class);
@@ -136,24 +143,26 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 	}
 
 	@Nonnull
-	private ZooKeeperJobGraphStore createZooKeeperJobGraphStore(String fullPath) throws Exception {
+	private JobGraphStore createZooKeeperJobGraphStore(String fullPath) throws Exception {
 		final CuratorFramework client = ZooKeeper.getClient();
 		// Ensure that the job graphs path exists
 		client.newNamespaceAwareEnsurePath(fullPath).ensure(client.getZookeeperClient());
 
 		// All operations will have the path as root
 		CuratorFramework facade = client.usingNamespace(client.getNamespace() + fullPath);
-		return new ZooKeeperJobGraphStore(
-			fullPath,
-			new ZooKeeperStateHandleStore<>(
-				facade,
-				localStateStorage),
-			new PathChildrenCache(facade, "/", false));
+		final ZooKeeperStateHandleStore<JobGraph> zooKeeperStateHandleStore = new ZooKeeperStateHandleStore<>(
+			facade,
+			localStateStorage);
+		return new DefaultJobGraphStore<>(
+			zooKeeperStateHandleStore,
+			new ZooKeeperJobGraphStoreWatcher(new PathChildrenCache(facade, "/", false)),
+			ZooKeeperJobGraphStoreUtil.INSTANCE
+		);
 	}
 
 	@Test
 	public void testRecoverJobGraphs() throws Exception {
-		ZooKeeperJobGraphStore jobGraphs = createZooKeeperJobGraphStore("/testRecoverJobGraphs");
+		JobGraphStore jobGraphs = createZooKeeperJobGraphStore("/testRecoverJobGraphs");
 
 		try {
 			JobGraphStore.JobGraphListener listener = mock(JobGraphStore.JobGraphListener.class);
@@ -199,8 +208,8 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
 	@Test
 	public void testConcurrentAddJobGraph() throws Exception {
-		ZooKeeperJobGraphStore jobGraphs = null;
-		ZooKeeperJobGraphStore otherJobGraphs = null;
+		JobGraphStore jobGraphs = null;
+		JobGraphStore otherJobGraphs = null;
 
 		try {
 			jobGraphs = createZooKeeperJobGraphStore("/testConcurrentAddJobGraph");
@@ -227,7 +236,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
 			// Test
 			jobGraphs.start(listener);
-			otherJobGraphs.start(null);
+			otherJobGraphs.start(NoOpJobGraphListener.INSTANCE);
 
 			jobGraphs.putJobGraph(jobGraph);
 
@@ -259,18 +268,59 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
 	@Test(expected = IllegalStateException.class)
 	public void testUpdateJobGraphYouDidNotGetOrAdd() throws Exception {
-		ZooKeeperJobGraphStore jobGraphs = createZooKeeperJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
+		JobGraphStore jobGraphs = createZooKeeperJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
 
-		ZooKeeperJobGraphStore otherJobGraphs = createZooKeeperJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
+		JobGraphStore otherJobGraphs = createZooKeeperJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
 
-		jobGraphs.start(null);
-		otherJobGraphs.start(null);
+		jobGraphs.start(NoOpJobGraphListener.INSTANCE);
+		otherJobGraphs.start(NoOpJobGraphListener.INSTANCE);
 
 		JobGraph jobGraph = createJobGraph(new JobID());
 
 		jobGraphs.putJobGraph(jobGraph);
 
 		otherJobGraphs.putJobGraph(jobGraph);
+	}
+
+	/**
+	 * Tests that we fail with an exception if the job cannot be removed from the
+	 * ZooKeeperJobGraphStore.
+	 *
+	 * <p>Tests that a close ZooKeeperJobGraphStore no longer holds any locks.
+	 */
+	@Test
+	public void testJobGraphRemovalFailureAndLockRelease() throws Exception {
+		final JobGraphStore submittedJobGraphStore =
+			createZooKeeperJobGraphStore("/testConcurrentAddJobGraph");
+		final JobGraphStore otherSubmittedJobGraphStore =
+			createZooKeeperJobGraphStore("/testConcurrentAddJobGraph");
+
+		final TestingJobGraphListener listener = new TestingJobGraphListener();
+		submittedJobGraphStore.start(listener);
+		otherSubmittedJobGraphStore.start(listener);
+
+		final JobGraph jobGraph = new JobGraph();
+		submittedJobGraphStore.putJobGraph(jobGraph);
+
+		final JobGraph recoveredJobGraph = otherSubmittedJobGraphStore.recoverJobGraph(jobGraph.getJobID());
+
+		assertThat(recoveredJobGraph, is(notNullValue()));
+
+		try {
+			otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobID());
+			fail("It should not be possible to remove the JobGraph since the first store still has a lock on it.");
+		} catch (Exception ignored) {
+			// expected
+		}
+
+		submittedJobGraphStore.stop();
+
+		// now we should be able to delete the job graph
+		otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobID());
+
+		assertThat(otherSubmittedJobGraphStore.recoverJobGraph(recoveredJobGraph.getJobID()), is(nullValue()));
+
+		otherSubmittedJobGraphStore.stop();
 	}
 
 	// ---------------------------------------------------------------------------------------------

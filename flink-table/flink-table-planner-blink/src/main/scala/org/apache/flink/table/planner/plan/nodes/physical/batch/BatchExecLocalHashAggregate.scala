@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
@@ -124,7 +125,14 @@ class BatchExecLocalHashAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = {
-    if (grouping.length == 0) DamBehavior.FULL_DAM else DamBehavior.MATERIALIZING
+  override def getInputEdges: util.List[ExecEdge] = {
+    if (grouping.length == 0) {
+      List(
+        ExecEdge.builder()
+          .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+          .build())
+    } else {
+      List(ExecEdge.DEFAULT)
+    }
   }
 }

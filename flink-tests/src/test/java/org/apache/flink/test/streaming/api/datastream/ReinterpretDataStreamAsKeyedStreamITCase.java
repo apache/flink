@@ -17,18 +17,23 @@
 
 package org.apache.flink.test.streaming.api.datastream;
 
+import org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
@@ -36,6 +41,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
@@ -79,7 +85,6 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		final int numUniqueKeys = 100;
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setMaxParallelism(maxParallelism);
 		env.setParallelism(parallelism);
 		env.enableCheckpointing(100);
@@ -97,14 +102,18 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
 		env.execute();
 
+		DataStream<Tuple2<Integer, Integer>> source = env
+				.addSource(new FromPartitionFileSource(partitionFiles))
+				.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create());
+
 		DataStreamUtils.reinterpretAsKeyedStream(
-			env.addSource(new FromPartitionFileSource(partitionFiles)),
-			(KeySelector<Tuple2<Integer, Integer>, Integer>) value -> value.f0,
-			TypeInformation.of(Integer.class))
-			.timeWindow(Time.seconds(1)) // test that also timers and aggregated state work as expected
-			.reduce((ReduceFunction<Tuple2<Integer, Integer>>) (value1, value2) ->
-				new Tuple2<>(value1.f0, value1.f1 + value2.f1))
-			.addSink(new ValidatingSink(numTotalEvents)).setParallelism(1);
+				source,
+				(KeySelector<Tuple2<Integer, Integer>, Integer>) value -> value.f0,
+				TypeInformation.of(Integer.class))
+				.window(TumblingEventTimeWindows.of(Time.seconds(1))) // test that also timers and aggregated state work as expected
+				.reduce((ReduceFunction<Tuple2<Integer, Integer>>) (value1, value2) ->
+						new Tuple2<>(value1.f0, value1.f1 + value2.f1))
+				.addSink(new ValidatingSink(numTotalEvents)).setParallelism(1);
 
 		env.execute();
 	}
@@ -328,6 +337,31 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 					runningSum += value;
 				}
 			}
+		}
+	}
+
+	/**
+	 * This {@link WatermarkStrategy} assigns the current system time as the event-time timestamp.
+	 * In a real use case you should use proper timestamps and an appropriate {@link
+	 * WatermarkStrategy}.
+	 */
+	private static class IngestionTimeWatermarkStrategy<T> implements WatermarkStrategy<T> {
+
+		private IngestionTimeWatermarkStrategy() {
+		}
+
+		public static <T> IngestionTimeWatermarkStrategy<T> create() {
+			return new IngestionTimeWatermarkStrategy<>();
+		}
+
+		@Override
+		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+			return new AscendingTimestampsWatermarks<>();
+		}
+
+		@Override
+		public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
+			return (event, timestamp) -> System.currentTimeMillis();
 		}
 	}
 }

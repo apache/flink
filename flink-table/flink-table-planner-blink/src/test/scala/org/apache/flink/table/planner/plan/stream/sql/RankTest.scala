@@ -123,7 +123,6 @@ class RankTest extends TableTestBase {
 
   @Test
   def testRowNumberWithRankEndLessThan1OrderByRowtimeAsc(): Unit = {
-    // can not be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -139,7 +138,6 @@ class RankTest extends TableTestBase {
 
   @Test
   def testRowNumberWithRankEndLessThan1OrderByRowtimeDesc(): Unit = {
-    // can not be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -636,6 +634,58 @@ class RankTest extends TableTestBase {
       """.stripMargin
 
     util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testCreateViewWithRowNumber(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE test_source (
+        |  name STRING,
+        |  eat STRING,
+        |  age BIGINT
+        |) WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'false'
+        |)
+      """.stripMargin)
+    util.tableEnv.executeSql("create view view1 as select name, eat ,sum(age) as cnt\n"
+      + "from test_source group by name, eat")
+    util.tableEnv.executeSql("create view view2 as\n"
+      + "select *, ROW_NUMBER() OVER (PARTITION BY name ORDER BY cnt DESC) as row_num\n"
+      + "from view1")
+    util.addTable(
+      s"""
+         |create table sink (
+         |  name varchar,
+         |  eat varchar,
+         |  cnt bigint
+         |)
+         |with(
+         |  'connector' = 'print'
+         |)
+         |""".stripMargin
+    )
+    util.verifyPlanInsert("insert into sink select name, eat, cnt\n"
+      + "from view2 where row_num <= 3")
+  }
+
+  @Test
+  def testCorrelateSortToRank(): Unit = {
+    val query =
+      s"""
+         |SELECT a, b
+         |FROM
+         |  (SELECT DISTINCT a FROM MyTable) T1,
+         |  LATERAL (
+         |    SELECT b, c
+         |    FROM MyTable
+         |    WHERE a = T1.a
+         |    ORDER BY c
+         |    DESC LIMIT 3
+         |  )
+      """.stripMargin
+    util.verifyPlan(query)
   }
 
   // TODO add tests about multi-sinks and udf

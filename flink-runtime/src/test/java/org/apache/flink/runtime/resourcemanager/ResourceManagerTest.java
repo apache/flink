@@ -39,6 +39,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -81,6 +82,8 @@ public class ResourceManagerTest extends TestLogger {
 		0L);
 
 	private static final int dataPort = 1234;
+
+	private static final int jmxPort = 23456;
 
 	private static TestingRpcService rpcService;
 
@@ -156,6 +159,7 @@ public class ResourceManagerTest extends TestLogger {
 		assertEquals(hardwareDescription, taskManagerInfo.getHardwareDescription());
 		assertEquals(taskExecutorGateway.getAddress(), taskManagerInfo.getAddress());
 		assertEquals(dataPort, taskManagerInfo.getDataPort());
+		assertEquals(jmxPort, taskManagerInfo.getJmxPort());
 		assertEquals(0, taskManagerInfo.getNumberSlots());
 		assertEquals(0, taskManagerInfo.getNumberAvailableSlots());
 	}
@@ -165,7 +169,9 @@ public class ResourceManagerTest extends TestLogger {
 			taskExecutorAddress,
 			taskExecutorId,
 			dataPort,
+			jmxPort,
 			hardwareDescription,
+			new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
 			ResourceProfile.ZERO,
 			ResourceProfile.ZERO);
 		final CompletableFuture<RegistrationResponse> registrationFuture = resourceManagerGateway.registerTaskExecutor(

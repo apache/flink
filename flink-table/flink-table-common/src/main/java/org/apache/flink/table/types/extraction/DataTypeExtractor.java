@@ -21,12 +21,22 @@ package org.apache.flink.table.types.extraction;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.dataview.DataView;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
 import org.apache.flink.types.Row;
 
@@ -43,9 +53,11 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.collectStructuredFields;
@@ -60,6 +72,8 @@ import static org.apache.flink.table.types.extraction.ExtractionUtils.toClass;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredClass;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredFieldReadability;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredSelfReference;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 
 /**
  * Reflection-based utility that analyzes a given {@link java.lang.reflect.Type}, method, or class to
@@ -67,6 +81,17 @@ import static org.apache.flink.table.types.extraction.ExtractionUtils.validateSt
  */
 @Internal
 public final class DataTypeExtractor {
+
+	private static final Set<Class<?>> INTERNAL_DATA_STRUCTURES = new HashSet<>();
+	static {
+		INTERNAL_DATA_STRUCTURES.add(RowData.class);
+		INTERNAL_DATA_STRUCTURES.add(StringData.class);
+		INTERNAL_DATA_STRUCTURES.add(TimestampData.class);
+		INTERNAL_DATA_STRUCTURES.add(DecimalData.class);
+		INTERNAL_DATA_STRUCTURES.add(ArrayData.class);
+		INTERNAL_DATA_STRUCTURES.add(MapData.class);
+		INTERNAL_DATA_STRUCTURES.add(RawValueData.class);
+	}
 
 	private final DataTypeFactory typeFactory;
 
@@ -221,7 +246,9 @@ public final class DataTypeExtractor {
 			}
 		}
 		// main work
-		final DataType dataType = extractDataTypeOrRawWithTemplate(template, typeHierarchy, resolvedType);
+		DataType dataType = extractDataTypeOrRawWithTemplate(template, typeHierarchy, resolvedType);
+		// handle data views
+		dataType = handleDataViewHints(dataType, clazz);
 		// final work
 		return closestBridging(dataType, clazz);
 	}
@@ -370,6 +397,11 @@ public final class DataTypeExtractor {
 					"Usually, this indicates that class information is missing or got lost. " +
 					"Please specify a more concrete class or treat it as a RAW type.",
 				Object.class.getName());
+		} else if (INTERNAL_DATA_STRUCTURES.contains(clazz)) {
+			throw extractionError(
+				"Cannot extract a data type from an internal '%s' class without further information. " +
+					"Please use annotations to define the full logical type.",
+				clazz.getName());
 		} else if (clazz.getName().startsWith("scala.Tuple")) {
 			throw extractionError(
 				"Scala tuples are not supported. Use case classes or '%s' instead.",
@@ -515,20 +547,11 @@ public final class DataTypeExtractor {
 			type,
 			fields);
 
-		final List<StructuredAttribute> attributes = createStructuredTypeAttributes(
+		final DataTypes.Field[] attributes = createStructuredTypeAttributes(
 			constructor,
 			fieldDataTypes);
 
-		final StructuredType.Builder builder = StructuredType.newBuilder(clazz);
-		builder.attributes(attributes);
-		builder.setFinal(true); // anonymous structured types should not allow inheritance
-		builder.setInstantiable(true);
-		return new FieldsDataType(
-			builder.build(),
-			clazz,
-			attributes.stream()
-				.map(a -> fieldDataTypes.get(a.getName()))
-				.collect(Collectors.toList()));
+		return DataTypes.STRUCTURED(clazz, attributes);
 	}
 
 	private Map<String, DataType> extractStructuredTypeFields(
@@ -560,7 +583,7 @@ public final class DataTypeExtractor {
 		return fieldDataTypes;
 	}
 
-	private List<StructuredAttribute> createStructuredTypeAttributes(
+	private DataTypes.Field[] createStructuredTypeAttributes(
 			ExtractionUtils.AssigningConstructor constructor,
 			Map<String, DataType> fieldDataTypes) {
 		return Optional.ofNullable(constructor)
@@ -572,11 +595,8 @@ public final class DataTypeExtractor {
 				// field order is sorted
 				return fieldDataTypes.keySet().stream().sorted();
 			})
-			.map(name -> {
-				final LogicalType logicalType = fieldDataTypes.get(name).getLogicalType();
-				return new StructuredAttribute(name, logicalType);
-			})
-			.collect(Collectors.toList());
+			.map(name -> DataTypes.FIELD(name, fieldDataTypes.get(name)))
+			.toArray(DataTypes.Field[]::new);
 	}
 
 	/**
@@ -609,5 +629,37 @@ public final class DataTypeExtractor {
 			return dataType.bridgedTo(clazz);
 		}
 		return dataType;
+	}
+
+	/**
+	 * Data type hints are allowed on top of {@link DataView}s. They are validated and mapped to the underlying
+	 * collection by this method.
+	 */
+	private DataType handleDataViewHints(DataType dataType, @Nullable Class<?> clazz) {
+		if (clazz == null || !DataView.class.isAssignableFrom(clazz)) {
+			return dataType;
+		}
+
+		// data type went through regular extraction logic
+		if (isCompositeType(dataType.getLogicalType())) {
+			return dataType;
+		}
+
+		// view was annotated
+		if (ListView.class.isAssignableFrom(clazz)) {
+			if (!hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ARRAY)) {
+				throw extractionError("Annotated list views should have a logical type of ARRAY.");
+			}
+			final CollectionDataType collectionDataType = (CollectionDataType) dataType;
+			return ListView.newListViewDataType(collectionDataType.getElementDataType());
+		} else if (MapView.class.isAssignableFrom(clazz)) {
+			if (!hasRoot(dataType.getLogicalType(), LogicalTypeRoot.MAP)) {
+				throw extractionError("Annotated map views should have a logical type of MAP.");
+			}
+			final KeyValueDataType keyValueDataType = (KeyValueDataType) dataType;
+			return MapView.newMapViewDataType(keyValueDataType.getKeyDataType(), keyValueDataType.getValueDataType());
+		} else {
+			throw extractionError("Invalid data view: %s", clazz.getName());
+		}
 	}
 }

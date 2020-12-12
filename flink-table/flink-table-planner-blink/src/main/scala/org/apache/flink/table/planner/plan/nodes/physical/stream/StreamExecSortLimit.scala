@@ -26,19 +26,17 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector
 import org.apache.flink.table.runtime.operators.rank._
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -57,7 +55,7 @@ class StreamExecSortLimit(
     rankStrategy: RankProcessStrategy)
   extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   private val limitStart: Long = SortUtil.getLimitStart(offset)
   private val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
@@ -101,16 +99,6 @@ class StreamExecSortLimit(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {
     if (fetch == null) {
@@ -120,7 +108,7 @@ class StreamExecSortLimit(
 
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
-    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
     val fieldCollations = sortCollation.getFieldCollations
     val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
     val sortKeySelector = KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo)
@@ -130,7 +118,7 @@ class StreamExecSortLimit(
       tableConfig,
       "StreamExecSortComparator",
       sortFields.indices.toArray,
-      sortKeyType.getLogicalTypes,
+      sortKeyType.toRowFieldTypes,
       sortDirections,
       nullsIsLast)
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
@@ -175,13 +163,19 @@ class StreamExecSortLimit(
 
       // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
       case RetractStrategy =>
-        val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getLogicalTypes)
+        val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.toRowFieldTypes)
         val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
+        val comparator = new ComparableRecordComparator(
+          sortKeyComparator,
+          sortFields.indices.toArray,
+          sortKeyType.toRowFieldTypes,
+          sortDirections,
+          nullsIsLast)
         new RetractableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
-          sortKeyComparator,
+          comparator,
           sortKeySelector,
           rankType,
           rankRange,
@@ -192,7 +186,7 @@ class StreamExecSortLimit(
     val operator = new KeyedProcessOperator(processFunction)
     processFunction.setKeyContext(operator)
 
-    val outputRowTypeInfo = RowDataTypeInfo.of(
+    val outputRowTypeInfo = InternalTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val ret = new OneInputTransformation(

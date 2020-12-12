@@ -19,7 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
@@ -44,7 +44,7 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
 	/**
 	 * Initialize new checkpoint.
 	 */
-	void initCheckpoint(long id, CheckpointOptions checkpointOptions);
+	void initCheckpoint(long id, CheckpointOptions checkpointOptions) throws IOException;
 
 	ChannelStateWriter getChannelStateWriter();
 
@@ -58,7 +58,7 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
 	void checkpointState(
 		CheckpointMetaData checkpointMetaData,
 		CheckpointOptions checkpointOptions,
-		CheckpointMetrics checkpointMetrics,
+		CheckpointMetricsBuilder checkpointMetrics,
 		OperatorChain<?, ?> operatorChain,
 		Supplier<Boolean> isCanceled) throws Exception;
 

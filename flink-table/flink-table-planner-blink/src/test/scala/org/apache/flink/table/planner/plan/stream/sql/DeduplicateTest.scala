@@ -23,6 +23,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
+import java.time.Duration
+
 import org.junit.{Before, Test}
 
 class DeduplicateTest extends TableTestBase {
@@ -68,9 +70,8 @@ class DeduplicateTest extends TableTestBase {
 
   @Test
   def testLastRowWithWindowOnRowtime(): Unit = {
-    // lastRow on rowtime followed by group window is not supported now.
     util.tableEnv.getConfig.getConfiguration
-      .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "500 ms")
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofMillis(500))
     util.addTable(
       """
         |CREATE TABLE T (
@@ -106,13 +107,12 @@ class DeduplicateTest extends TableTestBase {
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage("GroupWindowAggregate doesn't support consuming update " +
-      "and delete changes which is produced by node Rank(")
+      "and delete changes which is produced by node Deduplicate(")
     util.verifyExplain(windowSql)
   }
 
   @Test
   def testSimpleFirstRowOnRowtime(): Unit = {
-    // Deduplicate does not support sort on rowtime now, so it is translated to Rank currently
     val sql =
       """
         |SELECT a, b, c
@@ -128,7 +128,6 @@ class DeduplicateTest extends TableTestBase {
 
   @Test
   def testSimpleLastRowOnRowtime(): Unit = {
-    // Deduplicate does not support sort on rowtime now, so it is translated to Rank currently
     val sql =
       """
         |SELECT a, b, c

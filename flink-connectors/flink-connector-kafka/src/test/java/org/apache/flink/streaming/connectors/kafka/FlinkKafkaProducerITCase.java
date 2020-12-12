@@ -45,7 +45,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
@@ -156,7 +156,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 		}
 		catch (Exception ex) {
 			// testHarness1 will be fenced off after creating and closing testHarness2
-			if (!findSerializedThrowable(ex, ProducerFencedException.class, ClassLoader.getSystemClassLoader()).isPresent()) {
+			if (!findThrowable(ex, ProducerFencedException.class).isPresent()) {
 				throw ex;
 			}
 		}
@@ -395,7 +395,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 
 		OperatorSubtaskState operatorSubtaskState = repartitionAndExecute(
 			topic,
-			new OperatorSubtaskState(),
+			OperatorSubtaskState.builder().build(),
 			parallelism1,
 			parallelism1,
 			maxParallelism,
@@ -662,7 +662,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 	}
 
 	private boolean isCausedBy(FlinkKafkaErrorCode expectedErrorCode, Throwable ex) {
-		Optional<FlinkKafkaException> cause = findSerializedThrowable(ex, FlinkKafkaException.class, ClassLoader.getSystemClassLoader());
+		Optional<FlinkKafkaException> cause = findThrowable(ex, FlinkKafkaException.class);
 		if (cause.isPresent()) {
 			return cause.get().getErrorCode().equals(expectedErrorCode);
 		}

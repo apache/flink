@@ -22,8 +22,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.runtime.clusterframework.store.ZooKeeperMesosWorkerStore;
 import org.apache.flink.mesos.util.MesosArtifactServer;
+import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperSharedCount;
 import org.apache.flink.runtime.zookeeper.ZooKeeperSharedValue;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
@@ -33,8 +33,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
-
-import java.util.concurrent.Executor;
 
 /**
  * {@link MesosServices} implementation for the ZooKeeper high availability based mode.
@@ -50,7 +48,7 @@ public class ZooKeeperMesosServices extends AbstractMesosServices {
 	}
 
 	@Override
-	public MesosWorkerStore createMesosWorkerStore(Configuration configuration, Executor executor) throws Exception {
+	public MesosWorkerStore createMesosWorkerStore(Configuration configuration) throws Exception {
 		RetrievableStateStorageHelper<MesosWorkerStore.Worker> stateStorageHelper =
 			ZooKeeperUtils.createFileSystemStateStorage(configuration, "mesosWorkerStore");
 

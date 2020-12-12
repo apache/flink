@@ -147,7 +147,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 				writer.flushAll();
 			}
 			finally {
-				writer.clearBuffers();
+				writer.close();
 			}
 		}
 	}

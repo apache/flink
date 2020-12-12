@@ -181,7 +181,7 @@ public class UnregisteredMetricGroups {
 	 */
 	public static class UnregisteredTaskMetricGroup extends TaskMetricGroup {
 		private static final JobVertexID DEFAULT_VERTEX_ID = new JobVertexID(0, 0);
-		private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = new ExecutionAttemptID(0, 0);
+		private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = new ExecutionAttemptID();
 		private static final String DEFAULT_TASK_NAME = "UnregisteredTask";
 
 		protected UnregisteredTaskMetricGroup() {

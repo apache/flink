@@ -25,10 +25,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.util.RowDataUtil;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
+import org.apache.flink.table.runtime.generated.GeneratedNamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction;
@@ -39,10 +39,11 @@ import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.triggers.ElementTriggers;
 import org.apache.flink.table.runtime.operators.window.triggers.EventTimeTriggers;
 import org.apache.flink.table.runtime.operators.window.triggers.ProcessingTimeTriggers;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.runtime.util.RowDataTestUtil;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -115,7 +116,7 @@ public class WindowOperatorTest {
 			new IntType(),
 			new BigIntType()};
 
-	private RowDataTypeInfo outputType = new RowDataTypeInfo(
+	private InternalTypeInfo<RowData> outputType = InternalTypeInfo.ofFields(
 			new VarCharType(VarCharType.MAX_LENGTH),
 			new BigIntType(),
 			new BigIntType(),
@@ -130,7 +131,7 @@ public class WindowOperatorTest {
 	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[] { 0 }, inputFieldTypes);
 	private TypeInformation<RowData> keyType = keySelector.getProducedType();
 	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(
-			outputType.getFieldTypes(),
+			outputType.toRowFieldTypes(),
 			new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
 
 	private ConcurrentLinkedQueue<Object> doubleRecord(boolean isDouble, StreamRecord<RowData> record) {
@@ -283,6 +284,207 @@ public class WindowOperatorTest {
 		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 5L, 5L, 1000L, 4000L, 3999L)));
 		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 5L, 5L, 2000L, 5000L, 4999L)));
 		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 3000L, 6000L, 5999L)));
+
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.close();
+	}
+
+	@Test
+	public void testEventTimeCumulativeWindows() throws Exception {
+		closeCalled.set(0);
+
+		WindowOperator operator = WindowOperatorBuilder
+			.builder()
+			.withInputFields(inputFieldTypes)
+			.cumulative(Duration.ofSeconds(3), Duration.ofSeconds(1))
+			.withEventTime(2)
+			.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
+
+		testHarness.open();
+
+		// process elements
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		// add elements out-of-order
+		testHarness.processElement(insertRecord("key2", 1, 2999L));
+		testHarness.processElement(insertRecord("key2", 1, 3000L));
+
+		testHarness.processElement(insertRecord("key1", 1, 20L));
+		testHarness.processElement(insertRecord("key1", 1, 0L));
+		testHarness.processElement(insertRecord("key1", 1, 999L));
+
+		testHarness.processElement(insertRecord("key2", 1, 1998L));
+		testHarness.processElement(insertRecord("key2", 1, 1999L));
+		testHarness.processElement(insertRecord("key2", 1, 1000L));
+
+		testHarness.processWatermark(new Watermark(999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 0L, 1000L, 999L)));
+		expectedOutput.add(new Watermark(999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processWatermark(new Watermark(1999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 0L, 2000L, 1999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 2000L, 1999L)));
+		expectedOutput.add(new Watermark(1999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processWatermark(new Watermark(2999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 4L, 4L, 0L, 3000L, 2999L)));
+		expectedOutput.add(new Watermark(2999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// do a snapshot, close and restore again
+		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
+		testHarness.close();
+		expectedOutput.clear();
+
+		testHarness = createTestHarness(operator);
+		testHarness.setup();
+		testHarness.initializeState(snapshot);
+		testHarness.open();
+
+		testHarness.processWatermark(new Watermark(3999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 4000L, 3999L)));
+		expectedOutput.add(new Watermark(3999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processWatermark(new Watermark(4999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 5000L, 4999L)));
+		expectedOutput.add(new Watermark(4999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processWatermark(new Watermark(5999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 6000L, 5999L)));
+		expectedOutput.add(new Watermark(5999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// those don't have any effect...
+		testHarness.processWatermark(new Watermark(6999));
+		testHarness.processWatermark(new Watermark(7999));
+		expectedOutput.add(new Watermark(6999));
+		expectedOutput.add(new Watermark(7999));
+
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.close();
+
+		// we close once in the rest...
+		assertEquals("Close was not called.", 2, closeCalled.get());
+	}
+
+	@Test
+	public void testEventTimeCumulativeWindowsWithLateArrival() throws Exception {
+		WindowOperator operator = WindowOperatorBuilder
+			.builder()
+			.withInputFields(inputFieldTypes)
+			.cumulative(Duration.ofSeconds(3), Duration.ofSeconds(1))
+			.withEventTime(2)
+			.withAllowedLateness(Duration.ofMillis(500))
+			.produceUpdates()
+			.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
+
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		testHarness.processElement(insertRecord("key2", 1, 500L));
+		testHarness.processWatermark(new Watermark(1500));
+
+		expectedOutput.add(insertRecord("key2", 1L, 1L, 0L, 1000L, 999L));
+		expectedOutput.add(new Watermark(1500));
+
+		testHarness.processElement(insertRecord("key2", 1, 1300L));
+		testHarness.processWatermark(new Watermark(2300));
+
+		expectedOutput.add(insertRecord("key2", 2L, 2L, 0L, 2000L, 1999L));
+		expectedOutput.add(new Watermark(2300));
+
+		// this will not be dropped because window.maxTimestamp() + allowedLateness > currentWatermark
+		testHarness.processElement(insertRecord("key2", 1, 1997L));
+		testHarness.processWatermark(new Watermark(6000));
+
+		// this is 1 and not 3 because the trigger fires and purges
+		expectedOutput.add(updateBeforeRecord("key2", 2L, 2L, 0L, 2000L, 1999L));
+		expectedOutput.add(updateAfterRecord("key2", 3L, 3L, 0L, 2000L, 1999L));
+		expectedOutput.add(insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(new Watermark(6000));
+
+		// this will be dropped because window.maxTimestamp() + allowedLateness < currentWatermark
+		testHarness.processElement(insertRecord("key2", 1, 1998L));
+		testHarness.processWatermark(new Watermark(7000));
+
+		expectedOutput.add(new Watermark(7000));
+
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		assertEquals(1, operator.getNumLateRecordsDropped().getCount());
+
+		testHarness.close();
+	}
+
+	@Test
+	public void testProcessingTimeCumulativeWindows() throws Throwable {
+		closeCalled.set(0);
+
+		WindowOperator operator = WindowOperatorBuilder
+			.builder()
+			.withInputFields(inputFieldTypes)
+			.cumulative(Duration.ofSeconds(3), Duration.ofSeconds(1))
+			.withProcessingTime()
+			.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		// timestamp is ignored in processing time
+		testHarness.setProcessingTime(3);
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+
+		testHarness.setProcessingTime(1000);
+
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 0L, 1000L, 999L)));
+
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+
+		testHarness.setProcessingTime(2000);
+
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 2000L, 1999L)));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+
+		testHarness.setProcessingTime(3000);
+
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 0L, 3000L, 2999L)));
+
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+
+		testHarness.setProcessingTime(7000);
+
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 3000L, 4000L, 3999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 4000L, 3999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 3000L, 5000L, 4999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 5000L, 4999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 3000L, 6000L, 5999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 6000L, 5999L)));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -751,7 +953,8 @@ public class WindowOperatorTest {
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(
-				outputType.getFieldTypes(), new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
+			outputType.toRowFieldTypes(),
+			new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1125,6 +1328,26 @@ public class WindowOperatorTest {
 		assertEquals("Close was not called.", 2, closeCalled.get());
 	}
 
+	@Test
+	public void testWindowCloseWithoutOpen() throws Exception {
+		final int windowSize = 3;
+		LogicalType[] windowTypes = new LogicalType[] { new BigIntType() };
+
+		WindowOperator operator = WindowOperatorBuilder
+			.builder()
+			.withInputFields(inputFieldTypes)
+			.countWindow(windowSize)
+			.aggregate(
+				new GeneratedNamespaceTableAggsHandleFunction<>("MockClass", "MockCode", new Object[]{}),
+				accTypes,
+				aggResultTypes,
+				windowTypes)
+			.build();
+
+		// close() before open() called
+		operator.close();
+	}
+
 	// --------------------------------------------------------------------------------
 
 	private static class PointSessionWindowAssigner extends SessionWindowAssigner {
@@ -1389,8 +1612,8 @@ public class WindowOperatorTest {
 
 		@Override
 		public boolean equals(RowData row1, RowData row2) {
-			GenericRowData left = RowDataUtil.toGenericRow(row1, fieldTypes);
-			GenericRowData right = RowDataUtil.toGenericRow(row2, fieldTypes);
+			GenericRowData left = RowDataTestUtil.toGenericRowDeeply(row1, fieldTypes);
+			GenericRowData right = RowDataTestUtil.toGenericRowDeeply(row2, fieldTypes);
 			return left.equals(right);
 		}
 	}

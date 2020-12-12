@@ -20,15 +20,22 @@ package org.apache.flink.kubernetes.kubeclient;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMapWatcher;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPodsWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
-import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.util.ExceptionUtils;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
 import io.fabric8.kubernetes.api.model.OwnerReference;
@@ -38,6 +45,8 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,8 +56,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -64,17 +74,21 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	private final KubernetesClient internalClient;
 	private final String clusterId;
 	private final String namespace;
+	private final int maxRetryAttempts;
 
-	private final ExecutorService kubeClientExecutorService;
+	private final Executor kubeClientExecutorService;
 
 	public Fabric8FlinkKubeClient(
 			Configuration flinkConfig,
 			KubernetesClient client,
-			Supplier<ExecutorService> asyncExecutorFactory) {
+			Supplier<Executor> asyncExecutorFactory) {
 		this.internalClient = checkNotNull(client);
 		this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
 
 		this.namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
+
+		this.maxRetryAttempts = flinkConfig.getInteger(
+			KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
 
 		this.kubeClientExecutorService = asyncExecutorFactory.get();
 	}
@@ -210,7 +224,9 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	}
 
 	@Override
-	public KubernetesWatch watchPodsAndDoCallback(Map<String, String> labels, PodCallbackHandler podCallbackHandler) {
+	public KubernetesWatch watchPodsAndDoCallback(
+			Map<String, String> labels,
+			WatchCallbackHandler<KubernetesPod> podCallbackHandler) {
 		return new KubernetesWatch(
 			this.internalClient.pods()
 				.withLabels(labels)
@@ -218,9 +234,93 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	}
 
 	@Override
+	public KubernetesLeaderElector createLeaderElector(
+			KubernetesLeaderElectionConfiguration leaderElectionConfiguration,
+			KubernetesLeaderElector.LeaderCallbackHandler leaderCallbackHandler) {
+		return new KubernetesLeaderElector(
+			(NamespacedKubernetesClient) this.internalClient,
+			namespace,
+			leaderElectionConfiguration,
+			leaderCallbackHandler);
+	}
+
+	@Override
+	public CompletableFuture<Void> createConfigMap(KubernetesConfigMap configMap) {
+		final String configMapName = configMap.getName();
+		return CompletableFuture.runAsync(
+			() -> this.internalClient.configMaps().inNamespace(namespace).create(configMap.getInternalResource()),
+			kubeClientExecutorService)
+			.exceptionally(
+				throwable -> {
+					throw new CompletionException(
+						new KubernetesException("Failed to create ConfigMap " + configMapName, throwable));
+				});
+	}
+
+	@Override
+	public Optional<KubernetesConfigMap> getConfigMap(String name) {
+		final ConfigMap configMap = this.internalClient.configMaps().inNamespace(namespace).withName(name).get();
+		return configMap == null ? Optional.empty() : Optional.of(new KubernetesConfigMap(configMap));
+	}
+
+	@Override
+	public CompletableFuture<Boolean> checkAndUpdateConfigMap(
+			String configMapName,
+			Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> function) {
+		return FutureUtils.retry(
+			() -> CompletableFuture.supplyAsync(
+				() -> getConfigMap(configMapName)
+					.map(
+						configMap -> function.apply(configMap).map(
+							updatedConfigMap -> {
+								try {
+									this.internalClient.configMaps()
+										.inNamespace(namespace)
+										.withName(configMapName)
+										.lockResourceVersion(updatedConfigMap.getResourceVersion())
+										.replace(updatedConfigMap.getInternalResource());
+								} catch (Throwable throwable) {
+									LOG.debug("Failed to update ConfigMap {} with data {} because of concurrent " +
+										"modifications. Trying again.", configMap.getName(), configMap.getData());
+									throw throwable;
+								}
+								return true;
+							}).orElse(false))
+					.orElseThrow(() -> new CompletionException(
+						new KubernetesException("Cannot retry checkAndUpdateConfigMap with configMap "
+							+ configMapName + " because it does not exist."))),
+				kubeClientExecutorService),
+			maxRetryAttempts,
+			// Only KubernetesClientException is retryable
+			throwable -> ExceptionUtils.findThrowable(throwable, KubernetesClientException.class).isPresent(),
+			kubeClientExecutorService);
+	}
+
+	@Override
+	public KubernetesWatch watchConfigMaps(
+			String name,
+			WatchCallbackHandler<KubernetesConfigMap> callbackHandler) {
+		return new KubernetesWatch(
+			this.internalClient.configMaps().withName(name).watch(new KubernetesConfigMapWatcher(callbackHandler)));
+	}
+
+	@Override
+	public CompletableFuture<Void> deleteConfigMapsByLabels(Map<String, String> labels) {
+		return CompletableFuture.runAsync(
+			() -> this.internalClient.configMaps().inNamespace(namespace).withLabels(labels).delete(),
+			kubeClientExecutorService);
+	}
+
+	@Override
+	public CompletableFuture<Void> deleteConfigMap(String configMapName) {
+		return CompletableFuture.runAsync(
+			() -> this.internalClient.configMaps().inNamespace(namespace).withName(configMapName).delete(),
+			kubeClientExecutorService);
+	}
+
+	@Override
 	public void close() {
 		this.internalClient.close();
-		ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.kubeClientExecutorService);
 	}
 
 	private void setOwnerReference(Deployment deployment, List<HasMetadata> resources) {

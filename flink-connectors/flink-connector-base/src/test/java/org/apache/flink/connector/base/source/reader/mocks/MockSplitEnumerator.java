@@ -23,7 +23,8 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
-import org.apache.flink.connector.base.source.event.NoMoreSplitsEvent;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -46,14 +47,13 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Lis
 	}
 
 	@Override
-	public void start() {
-
-	}
+	public void start() {}
 
 	@Override
-	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
+	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {}
 
-	}
+	@Override
+	public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {}
 
 	@Override
 	public void addSplitsBack(List<MockSourceSplit> splits, int subtaskId) {
@@ -73,7 +73,7 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Lis
 			context.assignSplits(new SplitsAssignment<>(assignment));
 			splits.clear();
 			for (int i = 0; i < numReaders; i++) {
-				context.sendEventToSourceReader(i, new NoMoreSplitsEvent());
+				context.signalNoMoreSplits(i);
 			}
 		}
 	}

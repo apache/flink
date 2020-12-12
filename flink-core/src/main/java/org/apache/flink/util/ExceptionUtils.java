@@ -32,9 +32,11 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -110,51 +112,77 @@ public final class ExceptionUtils {
 	}
 
 	/**
-	 * Tries to enrich the passed exception with additional information.
+	 * Tries to enrich OutOfMemoryErrors being part of the passed root Throwable's cause tree.
 	 *
-	 * <p>This method improves error message for direct and metaspace {@link OutOfMemoryError}.
-	 * It adds description of possible causes and ways of resolution.
+	 * <p>This method improves error messages for direct and metaspace {@link OutOfMemoryError}.
+	 * It adds description about the possible causes and ways of resolution.
 	 *
-	 * @param exception exception to enrich if not {@code null}
-	 * @return the enriched exception or the original if no additional information could be added;
-	 * {@code null} if the argument was {@code null}
+	 * @param root The Throwable of which the cause tree shall be traversed.
+	 * @param jvmMetaspaceOomNewErrorMessage The message being used for JVM metaspace-related OutOfMemoryErrors. Passing
+	 *                                       <code>null</code> will disable handling this class of error.
+	 * @param jvmDirectOomNewErrorMessage The message being used for direct memory-related OutOfMemoryErrors. Passing
+	 *                                    <code>null</code> will disable handling this class of error.
+	 * @param jvmHeapSpaceOomNewErrorMessage The message being used for Heap space-related OutOfMemoryErrors. Passing
+	 *                                       <code>null</code> will disable handling this class of error.
 	 */
-	@Nullable
-	public static Throwable tryEnrichOutOfMemoryError(
-			@Nullable Throwable exception,
-			String jvmMetaspaceOomNewErrorMessage,
-			String jvmDirectOomNewErrorMessage) {
-		boolean isOom = exception instanceof OutOfMemoryError;
-		if (!isOom) {
-			return exception;
-		}
+	public static void tryEnrichOutOfMemoryError(
+			@Nullable Throwable root,
+			@Nullable String jvmMetaspaceOomNewErrorMessage,
+			@Nullable String jvmDirectOomNewErrorMessage,
+			@Nullable String jvmHeapSpaceOomNewErrorMessage) {
+		updateDetailMessage(root, t -> {
+			if (isMetaspaceOutOfMemoryError(t)) {
+				return jvmMetaspaceOomNewErrorMessage;
+			} else if (isDirectOutOfMemoryError(t)) {
+				return jvmDirectOomNewErrorMessage;
+			} else if (isHeapSpaceOutOfMemoryError(t)) {
+				return jvmHeapSpaceOomNewErrorMessage;
+			}
 
-		OutOfMemoryError oom = (OutOfMemoryError) exception;
-		if (isMetaspaceOutOfMemoryError(oom)) {
-			return changeOutOfMemoryErrorMessage(oom, jvmMetaspaceOomNewErrorMessage);
-		} else if (isDirectOutOfMemoryError(oom)) {
-			return changeOutOfMemoryErrorMessage(oom, jvmDirectOomNewErrorMessage);
-		}
-
-		return oom;
+			return null;
+		});
 	}
 
 	/**
-	 * Rewrites the error message of a {@link OutOfMemoryError}.
+	 * Updates error messages of Throwables appearing in the cause tree of the passed root Throwable. The passed Function
+	 * is applied on each Throwable of the cause tree. Returning a String will cause the detailMessage of the corresponding
+	 * Throwable to be updated. Returning <code>null</code>, instead, won't trigger any detailMessage update on that Throwable.
 	 *
-	 * @param oom original {@link OutOfMemoryError}
-	 * @param newMessage new error message
-	 * @return the origianl {@link OutOfMemoryError} if it already has the new error message or
-	 * a new {@link OutOfMemoryError} with the new error message
+	 * @param root The Throwable whose cause tree shall be traversed.
+	 * @param throwableToMessage The Function based on which the new messages are generated. The function implementation
+	 *                           should return the new message. Returning <code>null</code>, in contrast, will result in
+	 *                           not updating the message for the corresponding Throwable.
 	 */
-	private static OutOfMemoryError changeOutOfMemoryErrorMessage(OutOfMemoryError oom, String newMessage) {
-		if (oom.getMessage().equals(newMessage)) {
-			return oom;
+	public static void updateDetailMessage(@Nullable Throwable root, @Nullable Function<Throwable, String> throwableToMessage) {
+		if (throwableToMessage == null) {
+			return;
 		}
-		OutOfMemoryError newError = new OutOfMemoryError(newMessage);
-		newError.initCause(oom.getCause());
-		newError.setStackTrace(oom.getStackTrace());
-		return newError;
+
+		Throwable it = root;
+		while (it != null) {
+			String newMessage = throwableToMessage.apply(it);
+			if (newMessage != null) {
+				updateDetailMessageOfThrowable(it, newMessage);
+			}
+
+			it = it.getCause();
+		}
+	}
+
+	private static void updateDetailMessageOfThrowable(Throwable throwable, String newDetailMessage) {
+		Field field;
+		try {
+			field = Throwable.class.getDeclaredField("detailMessage");
+		} catch (NoSuchFieldException e) {
+			throw new IllegalStateException("The JDK Throwable contains a detailMessage member. The Throwable class provided on the classpath does not which is why this exception appears.", e);
+		}
+
+		field.setAccessible(true);
+		try {
+			field.set(throwable, newDetailMessage);
+		} catch (IllegalAccessException e) {
+			throw new IllegalStateException("The JDK Throwable contains a private detailMessage member that should be accessible through reflection. This is not the case for the Throwable class provided on the classpath.", e);
+		}
 	}
 
 	/**
@@ -175,6 +203,10 @@ public final class ExceptionUtils {
 	 */
 	public static boolean isDirectOutOfMemoryError(@Nullable Throwable t) {
 		return isOutOfMemoryErrorWithMessageStartingWith(t, "Direct buffer memory");
+	}
+
+	public static boolean isHeapSpaceOutOfMemoryError(@Nullable Throwable t) {
+		return isOutOfMemoryErrorWithMessageStartingWith(t, "Java heap space");
 	}
 
 	private static boolean isOutOfMemoryErrorWithMessageStartingWith(@Nullable Throwable t, String prefix) {

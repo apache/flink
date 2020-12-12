@@ -54,7 +54,9 @@ public abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOp
 			MigrationVersion.v1_6,
 			MigrationVersion.v1_7,
 			MigrationVersion.v1_8,
-			MigrationVersion.v1_9);
+			MigrationVersion.v1_9,
+			MigrationVersion.v1_10,
+			MigrationVersion.v1_11);
 	}
 
 	protected AbstractNonKeyedOperatorRestoreTestBase(MigrationVersion migrationVersion) {

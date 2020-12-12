@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -174,9 +175,12 @@ public class NettyTestUtil {
 
 	static <T extends NettyMessage> T encodeAndDecode(T msg, EmbeddedChannel channel) {
 		channel.writeOutbound(msg);
-		ByteBuf encoded = channel.readOutbound();
-
-		assertTrue(channel.writeInbound(encoded));
+		ByteBuf encoded;
+		boolean msgNotEmpty = false;
+		while ((encoded = channel.readOutbound()) != null) {
+			msgNotEmpty = channel.writeInbound(encoded);
+		}
+		assertTrue(msgNotEmpty);
 
 		return channel.readInbound();
 	}
@@ -220,6 +224,13 @@ public class NettyTestUtil {
 
 		NettyClient client() {
 			return client;
+		}
+
+		ConnectionID getConnectionID(int connectionIndex) {
+			return new ConnectionID(new InetSocketAddress(
+				server.getConfig().getServerAddress(),
+				server.getConfig().getServerPort()),
+				connectionIndex);
 		}
 	}
 }

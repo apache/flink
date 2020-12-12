@@ -93,11 +93,6 @@ under the License.
   </thead>
   <tbody>
     <tr>
-        <td>HDFS BucketingSink</td>
-        <td>精确一次</td>
-        <td>实现方法取决于 Hadoop 的版本</td>
-    </tr>
-    <tr>
         <td>Elasticsearch</td>
         <td>至少一次</td>
         <td></td>

@@ -28,6 +28,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -37,10 +39,12 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
@@ -50,6 +54,8 @@ import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
+import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -73,7 +79,6 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
-import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -96,10 +101,12 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -117,7 +124,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * MiniCluster to execute Flink jobs locally.
  */
-public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
+public class MiniCluster implements AutoCloseableAsync {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MiniCluster.class);
 
@@ -263,7 +270,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				// bring up all the RPC services
 				LOG.info("Starting RPC Service(s)");
 
-				final RpcServiceFactory dispatcherResourceManagreComponentRpcServiceFactory;
+				final RpcServiceFactory dispatcherResourceManagerComponentRpcServiceFactory;
 				final RpcService metricQueryServiceRpcService;
 
 				if (useSingleRpcService) {
@@ -271,7 +278,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					commonRpcService = createLocalRpcService(configuration);
 					final CommonRpcServiceFactory commonRpcServiceFactory = new CommonRpcServiceFactory(commonRpcService);
 					taskManagerRpcServiceFactory = commonRpcServiceFactory;
-					dispatcherResourceManagreComponentRpcServiceFactory = commonRpcServiceFactory;
+					dispatcherResourceManagerComponentRpcServiceFactory = commonRpcServiceFactory;
 					metricQueryServiceRpcService = MetricUtils.startLocalMetricsRpcService(configuration);
 				} else {
 
@@ -283,7 +290,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					final String jobManagerBindAddress = miniClusterConfiguration.getJobManagerBindAddress();
 					final String taskManagerBindAddress = miniClusterConfiguration.getTaskManagerBindAddress();
 
-					dispatcherResourceManagreComponentRpcServiceFactory =
+					dispatcherResourceManagerComponentRpcServiceFactory =
 						new DedicatedRpcServiceFactory(
 							configuration,
 							jobManagerExternalAddress,
@@ -329,7 +336,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				MetricQueryServiceRetriever metricQueryServiceRetriever = new RpcMetricQueryServiceRetriever(metricRegistry.getMetricQueryServiceRpcService());
 
-				setupDispatcherResourceManagerComponents(configuration, dispatcherResourceManagreComponentRpcServiceFactory, metricQueryServiceRetriever);
+				setupDispatcherResourceManagerComponents(configuration, dispatcherResourceManagerComponentRpcServiceFactory, metricQueryServiceRetriever);
 
 				resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 				dispatcherLeaderRetriever = haServices.getDispatcherLeaderRetriever();
@@ -339,14 +346,12 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					commonRpcService,
 					DispatcherGateway.class,
 					DispatcherId::fromUuid,
-					20,
-					Time.milliseconds(20L));
+					new ExponentialBackoffRetryStrategy(21, Duration.ofMillis(5L), Duration.ofMillis(20L)));
 				resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
 					commonRpcService,
 					ResourceManagerGateway.class,
 					ResourceManagerId::fromUuid,
-					20,
-					Time.milliseconds(20L));
+					new ExponentialBackoffRetryStrategy(21, Duration.ofMillis(5L), Duration.ofMillis(20L)));
 				webMonitorLeaderRetriever = new LeaderRetriever();
 
 				resourceManagerLeaderRetriever.start(resourceManagerGatewayRetriever);
@@ -374,10 +379,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	}
 
 	@GuardedBy("lock")
-	private void setupDispatcherResourceManagerComponents(Configuration configuration, RpcServiceFactory dispatcherResourceManagreComponentRpcServiceFactory, MetricQueryServiceRetriever metricQueryServiceRetriever) throws Exception {
+	private void setupDispatcherResourceManagerComponents(Configuration configuration, RpcServiceFactory dispatcherResourceManagerComponentRpcServiceFactory, MetricQueryServiceRetriever metricQueryServiceRetriever) throws Exception {
 		dispatcherResourceManagerComponents.addAll(createDispatcherResourceManagerComponents(
 			configuration,
-			dispatcherResourceManagreComponentRpcServiceFactory,
+			dispatcherResourceManagerComponentRpcServiceFactory,
 			haServices,
 			blobServer,
 			heartbeatServices,
@@ -428,11 +433,35 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	}
 
 	@VisibleForTesting
-	protected HighAvailabilityServices createHighAvailabilityServices(Configuration configuration, Executor executor) throws Exception {
+	protected HighAvailabilityServices createHighAvailabilityServices(
+			Configuration configuration,
+			Executor executor) throws Exception {
 		LOG.info("Starting high-availability services");
-		return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-			configuration,
-			executor);
+		final HaServices haServices = miniClusterConfiguration.getHaServices();
+		switch (haServices) {
+			case WITH_LEADERSHIP_CONTROL:
+				return new EmbeddedHaServicesWithLeadershipControl(executor);
+			case CONFIGURED:
+				return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(configuration, executor);
+			default:
+				throw new IllegalConfigurationException("Unkown HA Services " + haServices);
+		}
+	}
+
+	/**
+	 * Returns {@link HaLeadershipControl} if enabled.
+	 *
+	 * <p>{@link HaLeadershipControl} allows granting and revoking leadership of HA components,
+	 * e.g. JobManager. The method return {@link Optional#empty()} if the control is not enabled in
+	 * {@link MiniClusterConfiguration}.
+	 *
+	 * <p>Enabling this feature disables {@link HighAvailabilityOptions#HA_MODE} option.
+	 */
+	public Optional<HaLeadershipControl> getHaLeadershipControl() {
+		synchronized (lock) {
+			return haServices instanceof HaLeadershipControl ?
+				Optional.of((HaLeadershipControl) haServices) : Optional.empty();
+		}
 	}
 
 	/**
@@ -454,7 +483,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					final int numComponents = 2 + miniClusterConfiguration.getNumTaskManagers();
 					final Collection<CompletableFuture<Void>> componentTerminationFutures = new ArrayList<>(numComponents);
 
-					componentTerminationFutures.addAll(terminateTaskExecutors());
+					componentTerminationFutures.addAll(terminateTaskManagers());
 
 					componentTerminationFutures.add(shutDownResourceManagerComponents());
 
@@ -519,12 +548,20 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		LOG.info("Starting {} TaskManger(s)", numTaskManagers);
 
 		for (int i = 0; i < numTaskManagers; i++) {
-			startTaskExecutor();
+			startTaskManager();
 		}
 	}
 
-	@VisibleForTesting
-	void startTaskExecutor() throws Exception {
+	/**
+	 * Starts additional TaskManager process.
+	 *
+	 * <p>When the MiniCluster starts up, it always starts {@link MiniClusterConfiguration#getNumTaskManagers}
+	 * TaskManagers. All TaskManagers are indexed from 0 to the number of TaskManagers, started so far, minus one.
+	 * This method starts a TaskManager with the next index which is the number of TaskManagers, started so far.
+	 * The index always increases with each new started TaskManager. The indices of terminated TaskManagers
+	 * are not reused after {@link #terminateTaskManager(int)}.
+	 */
+	public void startTaskManager() throws Exception {
 		synchronized (lock) {
 			final Configuration configuration = miniClusterConfiguration.getConfiguration();
 
@@ -551,18 +588,27 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	}
 
 	@GuardedBy("lock")
-	private Collection<? extends CompletableFuture<Void>> terminateTaskExecutors() {
+	private Collection<? extends CompletableFuture<Void>> terminateTaskManagers() {
 		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(taskManagers.size());
 		for (int i = 0; i < taskManagers.size(); i++) {
-			terminationFutures.add(terminateTaskExecutor(i));
+			terminationFutures.add(terminateTaskManager(i));
 		}
 
 		return terminationFutures;
 	}
 
-	@VisibleForTesting
-	@Nonnull
-	protected CompletableFuture<Void> terminateTaskExecutor(int index) {
+	/**
+	 * Terminates a TaskManager with the given index.
+	 *
+	 * <p>See {@link #startTaskManager()} to understand how TaskManagers are indexed.
+	 * This method terminates a TaskManager with a given index but it does not clear the index.
+	 * The index stays occupied for the lifetime of the MiniCluster and its TaskManager stays terminated.
+	 * The index is not reused if more TaskManagers are started with {@link #startTaskManager()}.
+	 *
+	 * @param index index of the TaskManager to terminate
+	 * @return {@link CompletableFuture} of the given TaskManager termination
+	 */
+	public CompletableFuture<Void> terminateTaskManager(int index) {
 		synchronized (lock) {
 			final TaskExecutor taskExecutor = taskManagers.get(index);
 			return taskExecutor.closeAsync();
@@ -656,7 +702,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 * @throws JobExecutionException Thrown if anything went amiss during initial job launch,
 	 *         or if the job terminally failed.
 	 */
-	@Override
 	public JobExecutionResult executeJobBlocking(JobGraph job) throws JobExecutionException, InterruptedException {
 		checkNotNull(job, "job is null");
 
@@ -1032,5 +1077,23 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		private TerminatingFatalErrorHandler create(int index) {
 			return new TerminatingFatalErrorHandler(index);
 		}
+	}
+
+	/**
+	 * HA Services to use.
+	 */
+	public enum HaServices {
+		/**
+		 * Uses the configured HA Services in {@link HighAvailabilityOptions#HA_MODE} option.
+		 */
+		CONFIGURED,
+
+		/**
+		 * Enables or disables {@link HaLeadershipControl} in {@link MiniCluster#getHaLeadershipControl}.
+		 *
+		 * <p>{@link HaLeadershipControl} allows granting and revoking leadership of HA components.
+		 * Enabling this feature disables {@link HighAvailabilityOptions#HA_MODE} option.
+		 */
+		WITH_LEADERSHIP_CONTROL
 	}
 }

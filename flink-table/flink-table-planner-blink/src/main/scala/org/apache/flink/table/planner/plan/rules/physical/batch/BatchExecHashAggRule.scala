@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecHashAggregate
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
@@ -68,7 +69,8 @@ class BatchExecHashAggRule
     }
     val agg: FlinkLogicalAggregate = call.rel(0)
     // HashAgg cannot process aggregate whose agg buffer is not fix length
-    isAggBufferFixedLength(agg)
+    isAggBufferFixedLength(agg) &&
+      !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

@@ -48,7 +48,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -125,6 +124,11 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 	}
 
 	@Override
+	public void registerUserCodeClassLoaderReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
+		ctx.registerUserCodeClassLoaderReleaseHookIfAbsent(releaseHookName, releaseHook);
+	}
+
+	@Override
 	public <V, A extends Serializable> void addAccumulator(
 		String name, Accumulator<V, A> accumulator) {
 		ctx.addAccumulator(name, accumulator);
@@ -133,12 +137,6 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 	@Override
 	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
 		return ctx.getAccumulator(name);
-	}
-
-	@Override
-	@Deprecated
-	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
-		return ctx.getAllAccumulators();
 	}
 
 	@Override

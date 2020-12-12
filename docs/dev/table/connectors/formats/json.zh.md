@@ -34,11 +34,10 @@ under the License.
 依赖
 ------------
 
-为了使用 JSON format，下表列出了利用自动化构建工具（例如，Maven 或者 SBT ）构建项目以及 SQL Client 所需要的依赖。
-
-| Maven 依赖          | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | 内置                    |
+{% assign connector = site.data.sql-connectors['json'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 如何创建一张基于 JSON Format 的表
 ----------------
@@ -107,13 +106,35 @@ Format 参数
       <td>可选</td>
       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
-      <td>声明输入和输出的时间戳格式。当前支持的格式为<code>'SQL'</code> 以及 <code>'ISO-8601'</code>：
+      <td>声明输入和输出的 <code>TIMESTAMP</code> 和 <code>TIMESTAMP WITH LOCAL TIME ZONE</code> 的格式。当前支持的格式为<code>'SQL'</code> 以及 <code>'ISO-8601'</code>：
       <ul>
-        <li>可选参数 <code>'SQL'</code> 将会以 "yyyy-MM-dd HH:mm:ss.s{precision}" 的格式解析时间戳, 例如 '2020-12-30 12:13:14.123'，且会以相同的格式输出。</li>
-        <li>可选参数 <code>'ISO-8601'</code> 将会以 "yyyy-MM-ddTHH:mm:ss.s{precision}" 的格式解析输入时间戳, 例如 '2020-12-30T12:13:14.123' ，且会以相同的格式输出。</li>
+        <li>可选参数 <code>'SQL'</code> 将会以 "yyyy-MM-dd HH:mm:ss.s{precision}" 的格式解析 TIMESTAMP, 例如 "2020-12-30 12:13:14.123"，
+        以 "yyyy-MM-dd HH:mm:ss.s{precision}'Z'" 的格式解析 TIMESTAMP WITH LOCAL TIME ZONE, 例如 "2020-12-30 12:13:14.123Z" 且会以相同的格式输出。</li>
+        <li>可选参数 <code>'ISO-8601'</code> 将会以 "yyyy-MM-ddTHH:mm:ss.s{precision}" 的格式解析输入 TIMESTAMP, 例如 "2020-12-30T12:13:14.123" ，
+        以 "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" 的格式解析 TIMESTAMP WITH LOCAL TIME ZONE, 例如 "2020-12-30T12:13:14.123Z" 且会以相同的格式输出。</li>
       </ul>
       </td>
     </tr>
+    <tr>
+       <td><h5>json.map-null-key.mode</h5></td>
+       <td>选填</td>
+       <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+       <td>String</td>
+       <td>指定处理 Map 中 key 值为空的方法. 当前支持的值有 <code>'FAIL'</code>, <code>'DROP'</code> 和 <code>'LITERAL'</code>:
+       <ul>
+         <li>Option <code>'FAIL'</code> 将抛出异常，如果遇到 Map 中 key 值为空的数据。</li>
+         <li>Option <code>'DROP'</code> 将丢弃 Map 中 key 值为空的数据项。</li> 
+         <li>Option <code>'LITERAL'</code> 将使用字符串常量来替换 Map 中的空 key 值。字符串常量的值由 <code>'json.map-null-key.literal'</code> 定义。</li>
+       </ul>
+       </td>
+    </tr>
+    <tr>
+      <td><h5>json.map-null-key.literal</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">'null'</td>
+      <td>String</td>
+      <td>当 <code>'json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
+    </tr>        
     </tbody>
 </table>
 
@@ -185,6 +206,10 @@ Format 参数
     <tr>
       <td><code>TIMESTAMP</code></td>
       <td><code>string with format: date-time</code></td>
+    </tr>
+    <tr>
+      <td><code>TIMESTAMP_WITH_LOCAL_TIME_ZONE</code></td>
+      <td><code>string with format: date-time (with UTC time zone)</code></td>
     </tr>
     <tr>
       <td><code>INTERVAL</code></td>

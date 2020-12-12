@@ -18,15 +18,14 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.types.InternalSerializers;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 
 /**
@@ -40,16 +39,18 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
 	private final LogicalType[] inputFieldTypes;
 	private final LogicalType[] keyFieldTypes;
 	private final TypeSerializer[] keySers;
+	private final RowData.FieldGetter[] fieldGetters;
 
 	public BinaryRowDataKeySelector(int[] keyFields, LogicalType[] inputFieldTypes) {
 		this.keyFields = keyFields;
 		this.inputFieldTypes = inputFieldTypes;
 		this.keyFieldTypes = new LogicalType[keyFields.length];
 		this.keySers = new TypeSerializer[keyFields.length];
-		ExecutionConfig conf = new ExecutionConfig();
+		this.fieldGetters = new RowData.FieldGetter[keyFields.length];
 		for (int i = 0; i < keyFields.length; ++i) {
 			keyFieldTypes[i] = inputFieldTypes[keyFields[i]];
-			keySers[i] = InternalSerializers.create(keyFieldTypes[i], conf);
+			keySers[i] = InternalSerializers.create(keyFieldTypes[i]);
+			fieldGetters[i] = RowData.createFieldGetter(inputFieldTypes[keyFields[i]], keyFields[i]);
 		}
 	}
 
@@ -64,7 +65,7 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
 				BinaryWriter.write(
 						writer,
 						i,
-						RowData.get(value, keyFields[i], inputFieldTypes[keyFields[i]]),
+						fieldGetters[i].getFieldOrNull(value),
 						inputFieldTypes[keyFields[i]],
 						keySers[i]);
 			}
@@ -74,7 +75,7 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
 	}
 
 	@Override
-	public RowDataTypeInfo getProducedType() {
-		return new RowDataTypeInfo(keyFieldTypes);
+	public InternalTypeInfo<RowData> getProducedType() {
+		return InternalTypeInfo.ofFields(keyFieldTypes);
 	}
 }

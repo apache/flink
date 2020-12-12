@@ -22,9 +22,11 @@ import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableColumn;
+import org.apache.flink.table.api.TableColumn.ComputedColumn;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.Catalog;
@@ -55,6 +57,7 @@ import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -93,6 +96,7 @@ import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTab
 import static org.apache.flink.table.planner.utils.OperationMatchers.partitionedBy;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions;
 import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -188,7 +192,7 @@ public class SqlToOperationConverterTest {
 		assertEquals("db1", ((UseDatabaseOperation) operation2).getDatabaseName());
 	}
 
-	@Test(expected = SqlConversionException.class)
+	@Test(expected = ValidationException.class)
 	public void testUseDatabaseWithException() {
 		final String sql = "USE cat1.db1.tbl1";
 		Operation operation = parse(sql, SqlDialect.DEFAULT);
@@ -384,8 +388,8 @@ public class SqlToOperationConverterTest {
 	public void testPrimaryKeyOnGeneratedColumn() {
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
-			"Could not create a PRIMARY KEY with a generated column 'c', at line 5, column 34.\n" +
-				"PRIMARY KEY constraint is not allowed on computed columns.");
+			"Could not create a PRIMARY KEY with column 'c' at line 5, column 34.\n" +
+				"A PRIMARY KEY constraint must be declared on physical columns.");
 		final String sql2 = "CREATE TABLE tbl1 (\n" +
 			"  a bigint not null,\n" +
 			"  b varchar not null,\n" +
@@ -401,7 +405,7 @@ public class SqlToOperationConverterTest {
 	@Test
 	public void testPrimaryKeyNonExistentColumn() {
 		thrown.expect(ValidationException.class);
-		thrown.expectMessage("Primary key column 'd' is not defined in the schema, at line 5, column 34");
+		thrown.expectMessage("Primary key column 'd' is not defined in the schema at line 5, column 34");
 		final String sql2 = "CREATE TABLE tbl1 (\n" +
 			"  a bigint not null,\n" +
 			"  b varchar not null,\n" +
@@ -526,6 +530,39 @@ public class SqlToOperationConverterTest {
 				)
 			)
 		);
+	}
+
+	@Test
+	public void testCreateTableLikeWithFullPath(){
+		Map<String, String> sourceProperties = new HashMap<>();
+		sourceProperties.put("connector.type", "kafka");
+		sourceProperties.put("format.type", "json");
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			TableSchema.builder()
+				.field("f0", DataTypes.INT().notNull())
+				.field("f1", DataTypes.TIMESTAMP(3))
+				.build(),
+			sourceProperties,
+			null
+		);
+		catalogManager.createTable(catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+		final String sql = "create table mytable like `builtin`.`default`.sourceTable";
+		Operation operation = parseAndConvert(sql);
+
+		assertThat(
+			operation,
+			isCreateTableOperation(
+			withSchema(
+				TableSchema.builder()
+					.field("f0", DataTypes.INT().notNull())
+					.field("f1", DataTypes.TIMESTAMP(3))
+					.build()
+			),
+			withOptions(
+				entry("connector.type", "kafka"),
+				entry("format.type", "json")
+			)
+		));
 	}
 
 	@Test
@@ -901,8 +938,9 @@ public class SqlToOperationConverterTest {
 			catalogTable.getSchema().getFieldDataTypes());
 		String[] columnExpressions =
 			catalogTable.getSchema().getTableColumns().stream()
-				.filter(TableColumn::isGenerated)
-				.map(c -> c.getExpr().orElse(null))
+				.filter(ComputedColumn.class::isInstance)
+				.map(ComputedColumn.class::cast)
+				.map(ComputedColumn::getExpression)
 				.toArray(String[]::new);
 		String[] expected = new String[] {
 			"`a` - 1",
@@ -914,6 +952,37 @@ public class SqlToOperationConverterTest {
 		assertArrayEquals(
 			expected,
 			columnExpressions);
+	}
+
+	@Test
+	public void testCreateTableWithMetadataColumn() {
+		final String sql = "CREATE TABLE tbl1 (\n" +
+			"  a INT,\n" +
+			"  b STRING,\n" +
+			"  c INT METADATA,\n" +
+			"  d INT METADATA FROM 'other.key',\n" +
+			"  e INT METADATA VIRTUAL\n" +
+			")\n" +
+			"  WITH (\n" +
+			"    'connector' = 'kafka',\n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final Operation operation = parse(sql, planner, getParserBySqlDialect(SqlDialect.DEFAULT));
+		assert operation instanceof CreateTableOperation;
+		final CreateTableOperation op = (CreateTableOperation) operation;
+		final TableSchema actualSchema = op.getCatalogTable().getSchema();
+
+		final TableSchema expectedSchema = TableSchema.builder()
+			.add(TableColumn.physical("a", DataTypes.INT()))
+			.add(TableColumn.physical("b", DataTypes.STRING()))
+			.add(TableColumn.metadata("c", DataTypes.INT()))
+			.add(TableColumn.metadata("d", DataTypes.INT(), "other.key"))
+			.add(TableColumn.metadata("e", DataTypes.INT(), true))
+			.build();
+
+		assertEquals(expectedSchema, actualSchema);
 	}
 
 	@Test
@@ -1085,6 +1154,75 @@ public class SqlToOperationConverterTest {
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage("CONSTRAINT [ct2] does not exist");
 		parse("alter table tb1 drop constraint ct2", SqlDialect.DEFAULT);
+	}
+
+	@Test
+	public void testCreateViewWithMatchRecognize() {
+		Map<String, String> prop = new HashMap<>();
+		prop.put("connector", "values");
+		prop.put("bounded", "true");
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			TableSchema.builder()
+				.field("id", DataTypes.INT().notNull())
+				.field("measurement", DataTypes.BIGINT().notNull())
+				.field("ts", DataTypes.ROW(DataTypes.FIELD("tmstmp", DataTypes.TIMESTAMP(3))))
+				.build(),
+			prop,
+			null
+		);
+
+		catalogManager.createTable(
+			catalogTable,
+			ObjectIdentifier.of("builtin", "default", "events"),
+			false);
+
+		final String sql = ""
+			+ "CREATE TEMPORARY VIEW foo AS "
+			+ "SELECT * "
+			+ "FROM events MATCH_RECOGNIZE ("
+			+ "    PARTITION BY id "
+			+ "    ORDER BY ts ASC "
+			+ "    MEASURES "
+			+ "      next_step.measurement - this_step.measurement AS diff "
+			+ "    AFTER MATCH SKIP TO NEXT ROW "
+			+ "    PATTERN (this_step next_step)"
+			+ "    DEFINE "
+			+ "         this_step AS TRUE,"
+			+ "         next_step AS TRUE"
+			+ ")";
+
+		Operation operation = parse(sql, SqlDialect.DEFAULT);
+		assertThat(operation, instanceOf(CreateViewOperation.class));
+	}
+
+	@Test
+	public void testCreateViewWithDynamicTableOptions() {
+		tableConfig.getConfiguration().setBoolean(
+			TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true);
+		Map<String, String> prop = new HashMap<>();
+		prop.put("connector", "values");
+		prop.put("bounded", "true");
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			TableSchema.builder()
+				.field("f0", DataTypes.INT())
+				.field("f1", DataTypes.VARCHAR(20))
+				.build(),
+			prop,
+			null
+		);
+
+		catalogManager.createTable(
+			catalogTable,
+			ObjectIdentifier.of("builtin", "default", "sourceA"),
+			false);
+
+		final String sql = ""
+			+ "create view test_view as\n"
+			+ "select *\n"
+			+ "from sourceA /*+ OPTIONS('changelog-mode'='I') */";
+
+		Operation operation = parse(sql, SqlDialect.DEFAULT);
+		assertThat(operation, instanceOf(CreateViewOperation.class));
 	}
 
 	//~ Tool Methods ----------------------------------------------------------

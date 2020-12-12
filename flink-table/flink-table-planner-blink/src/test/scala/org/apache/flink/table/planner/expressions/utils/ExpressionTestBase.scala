@@ -149,7 +149,7 @@ abstract class ExpressionTestBase {
       val richMapper = mapper.asInstanceOf[RichMapFunction[_, _]]
       val t = new RuntimeUDFContext(
         new TaskInfo("ExpressionTest", 1, 0, 1, 1),
-        null,
+        classOf[ExpressionTestBase].getClassLoader,
         env.getConfig,
         Collections.emptyMap(),
         Collections.emptyMap(),
@@ -209,7 +209,7 @@ abstract class ExpressionTestBase {
 
   private def addTestExpr(relNode: RelNode, expected: String, summaryString: String): Unit = {
     val builder = new HepProgramBuilder()
-    builder.addRuleInstance(ProjectToCalcRule.INSTANCE)
+    builder.addRuleInstance(CoreRules.PROJECT_TO_CALC)
     val hep = new HepPlanner(builder.build())
     hep.setRoot(relNode)
     val optimized = hep.findBestExp()

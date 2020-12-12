@@ -63,17 +63,11 @@ public final class KeyGroupRangeInputSplit implements InputSplit {
 	}
 
 	public PrioritizedOperatorSubtaskState getPrioritizedOperatorSubtaskState() {
-		return new PrioritizedOperatorSubtaskState.Builder(
-			new OperatorSubtaskState(
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				new StateObjectCollection<>(managedKeyedState),
-				new StateObjectCollection<>(rawKeyedState),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty()
-			),
-			Collections.emptyList()
-		).build();
+		final OperatorSubtaskState subtaskState = OperatorSubtaskState.builder()
+			.setManagedKeyedState(new StateObjectCollection<>(managedKeyedState))
+			.setRawKeyedState(new StateObjectCollection<>(rawKeyedState))
+			.build();
+		return new PrioritizedOperatorSubtaskState.Builder(subtaskState, Collections.emptyList()).build();
 	}
 
 	public int getNumKeyGroups() {

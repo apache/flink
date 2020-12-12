@@ -2,7 +2,7 @@
 title: "JDBC SQL Connector"
 nav-title: JDBC
 nav-parent_id: sql-connectors
-nav-pos: 3
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -38,11 +38,10 @@ The JDBC sink operate in upsert mode for exchange UPDATE/DELETE messages with th
 Dependencies
 ------------
 
-In order to setup the JDBC connector, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-|  Maven dependency                                  |  SQL Client JAR                                           |
-| :------------------------------------------------- | :-------------------------------------------------------- |
-| `flink-connector-jdbc{{site.scala_version_suffix}}`| {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc{{site.scala_version_suffix}}/{{site.version}}/flink-connector-jdbc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/jdbc.html) {% endif %}|
+{% assign connector = site.data.sql-connectors['jdbc'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 <br>
 A driver dependency is also required to connect to a specified database. Here are drivers currently supported:
@@ -148,7 +147,7 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The JDBC password.</td>
-    </tr> 
+    </tr>
     <tr>
       <td><h5>scan.partition.column</h5></td>
       <td>optional</td>
@@ -162,7 +161,7 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
       <td>The number of partitions.</td>
-    </tr> 
+    </tr>
     <tr>
       <td><h5>scan.partition.lower-bound</h5></td>
       <td>optional</td>
@@ -183,7 +182,16 @@ Connector Options
       <td style="word-wrap: break-word;">0</td>
       <td>Integer</td>
       <td>The number of rows that should be fetched from the database when reading per round trip. If the value specified is zero, then the hint is ignored.</td>
-    </tr>     
+    </tr>
+    <tr>
+      <td><h5>scan.auto-commit</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>Sets the <a href="https://docs.oracle.com/javase/tutorial/jdbc/basics/transactions.html#commit_transactions">auto-commit</a> flag on the JDBC driver,
+      which determines whether each statement is committed in a transaction automatically. Some JDBC drivers, specifically
+      <a href="https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor">Postgres</a>, may require this to be set to false in order to stream results.</td>
+    </tr>
     <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
       <td>optional</td>
@@ -213,7 +221,7 @@ Connector Options
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
       <td>The max size of buffered records before flush. Can be set to zero to disable it.</td>
-    </tr> 
+    </tr>
     <tr>
       <td><h5>sink.buffer-flush.interval</h5></td>
       <td>optional</td>
@@ -227,7 +235,7 @@ Connector Options
       <td style="word-wrap: break-word;">3</td>
       <td>Integer</td>
       <td>The max retry times if writing records to database failed.</td>
-    </tr>          
+    </tr>
     </tbody>
 </table>
 
@@ -281,7 +289,7 @@ As there is no standard syntax for upsert, the following table describes the dat
         <th class="text-left">Database</th>
         <th class="text-left">Upsert Grammar</th>
        </tr>
-    </thead>    
+    </thead>
     <tbody>
         <tr>
             <td>MySQL</td>
@@ -301,7 +309,7 @@ The `JdbcCatalog` enables users to connect Flink to relational databases over JD
 Currently, `PostgresCatalog` is the only implementation of JDBC Catalog at the moment, `PostgresCatalog` only supports limited `Catalog` methods include:
 
 {% highlight java %}
-// The supported methods by Postgres Catalog. 
+// The supported methods by Postgres Catalog.
 PostgresCatalog.databaseExists(String databaseName)
 PostgresCatalog.listDatabases()
 PostgresCatalog.getDatabase(String databaseName)
@@ -375,6 +383,26 @@ tableEnv.registerCatalog("mypg", catalog)
 tableEnv.useCatalog("mypg")
 {% endhighlight %}
 </div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table.catalog import JdbcCatalog
+
+environment_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+t_env = StreamTableEnvironment.create(environment_settings=environment_settings)
+
+name = "mypg"
+default_database = "mydb"
+username = "..."
+password = "..."
+base_url = "..."
+
+catalog = JdbcCatalog(name, default_database, username, password, base_url)
+t_env.register_catalog("mypg", catalog)
+
+# set the JdbcCatalog as the current catalog of the session
+t_env.use_catalog("mypg")
+{% endhighlight %}
+</div>
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 
@@ -383,7 +411,7 @@ execution:
     ...
     current-catalog: mypg  # set the JdbcCatalog as the current catalog of the session
     current-database: mydb
-    
+
 catalogs:
    - name: mypg
      type: jdbc

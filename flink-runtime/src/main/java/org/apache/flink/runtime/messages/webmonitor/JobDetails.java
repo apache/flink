@@ -21,6 +21,9 @@ package org.apache.flink.runtime.messages.webmonitor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -97,6 +100,42 @@ public class JobDetails implements Serializable {
 			"tasksPerState argument must be of size %s.", ExecutionState.values().length);
 		this.tasksPerState = checkNotNull(tasksPerState);
 		this.numTasks = numTasks;
+	}
+
+	public static JobDetails createDetailsForJob(AccessExecutionGraph job) {
+		JobStatus status = job.getState();
+
+		long started = job.getStatusTimestamp(JobStatus.INITIALIZING);
+		long finished = status.isGloballyTerminalState() ? job.getStatusTimestamp(status) : -1L;
+		long duration = (finished >= 0L ? finished : System.currentTimeMillis()) - started;
+
+		int[] countsPerStatus = new int[ExecutionState.values().length];
+		long lastChanged = 0;
+		int numTotalTasks = 0;
+
+		for (AccessExecutionJobVertex ejv : job.getVerticesTopologically()) {
+			AccessExecutionVertex[] taskVertices = ejv.getTaskVertices();
+			numTotalTasks += taskVertices.length;
+
+			for (AccessExecutionVertex taskVertex : taskVertices) {
+				ExecutionState state = taskVertex.getExecutionState();
+				countsPerStatus[state.ordinal()]++;
+				lastChanged = Math.max(lastChanged, taskVertex.getStateTimestamp(state));
+			}
+		}
+
+		lastChanged = Math.max(lastChanged, finished);
+
+		return new JobDetails(
+			job.getJobID(),
+			job.getJobName(),
+			started,
+			finished,
+			duration,
+			status,
+			lastChanged,
+			countsPerStatus,
+			numTotalTasks);
 	}
 	
 	// ------------------------------------------------------------------------

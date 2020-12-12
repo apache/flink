@@ -86,6 +86,17 @@ public final class CallExpression implements ResolvedExpression {
 		return functionDefinition;
 	}
 
+	/**
+	 * Returns a string representation of the call's function for logging or printing to a console.
+	 */
+	public String getFunctionName() {
+		if (functionIdentifier == null) {
+			return functionDefinition.toString();
+		} else {
+			return functionIdentifier.asSummaryString();
+		}
+	}
+
 	@Override
 	public DataType getOutputDataType() {
 		return dataType;
@@ -98,18 +109,11 @@ public final class CallExpression implements ResolvedExpression {
 
 	@Override
 	public String asSummaryString() {
-		final String functionName;
-		if (functionIdentifier == null) {
-			functionName = functionDefinition.toString();
-		} else {
-			functionName = functionIdentifier.asSummaryString();
-		}
-
 		final String argList = args.stream()
 			.map(Expression::asSummaryString)
 			.collect(Collectors.joining(", ", "(", ")"));
 
-		return functionName + argList;
+		return getFunctionName() + argList;
 	}
 
 	@Override

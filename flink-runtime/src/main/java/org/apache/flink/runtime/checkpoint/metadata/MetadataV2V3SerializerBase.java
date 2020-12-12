@@ -36,7 +36,7 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -236,26 +236,31 @@ public abstract class MetadataV2V3SerializerBase {
 			DataInputStream dis,
 			@Nullable DeserializationContext context) throws IOException {
 
+		final OperatorSubtaskState.Builder state = OperatorSubtaskState.builder();
+
 		final boolean hasManagedOperatorState = dis.readInt() != 0;
-		final OperatorStateHandle managedOperatorState = hasManagedOperatorState ? deserializeOperatorStateHandle(dis, context) : null;
+		if (hasManagedOperatorState) {
+			state.setManagedOperatorState(deserializeOperatorStateHandle(dis, context));
+		}
 
 		final boolean hasRawOperatorState = dis.readInt() != 0;
-		final OperatorStateHandle rawOperatorState = hasRawOperatorState ? deserializeOperatorStateHandle(dis, context) : null;
+		if (hasRawOperatorState) {
+			state.setRawOperatorState(deserializeOperatorStateHandle(dis, context));
+		}
 
 		final KeyedStateHandle managedKeyedState = deserializeKeyedStateHandle(dis, context);
+		if (managedKeyedState != null) {
+			state.setManagedKeyedState(managedKeyedState);
+		}
 		final KeyedStateHandle rawKeyedState = deserializeKeyedStateHandle(dis, context);
+		if (rawKeyedState != null) {
+			state.setRawKeyedState(rawKeyedState);
+		}
 
-		StateObjectCollection<InputChannelStateHandle> inputChannelState = deserializeInputChannelStateHandle(dis, context);
+		state.setInputChannelState(deserializeInputChannelStateHandle(dis, context));
+		state.setResultSubpartitionState(deserializeResultSubpartitionStateHandle(dis, context));
 
-		StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState = deserializeResultSubpartitionStateHandle(dis, context);
-
-		return new OperatorSubtaskState(
-			managedOperatorState,
-			rawOperatorState,
-			managedKeyedState,
-			rawKeyedState,
-			inputChannelState,
-			resultSubpartitionState);
+		return state.build();
 	}
 
 	// ------------------------------------------------------------------------
@@ -295,6 +300,7 @@ public abstract class MetadataV2V3SerializerBase {
 		}
 	}
 
+	@Nullable
 	KeyedStateHandle deserializeKeyedStateHandle(
 			DataInputStream dis,
 			@Nullable DeserializationContext context) throws IOException {
@@ -464,8 +470,6 @@ public abstract class MetadataV2V3SerializerBase {
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle: " + stateHandle.getClass());
 		}
-
-		dos.flush();
 	}
 
 	@Nullable
@@ -623,7 +627,7 @@ public abstract class MetadataV2V3SerializerBase {
 
 		private static Path createExclusiveDirPath(String externalPointer) throws IOException {
 			try {
-				return AbstractFsCheckpointStorage.resolveCheckpointPointer(externalPointer).getExclusiveCheckpointDir();
+				return AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(externalPointer).getExclusiveCheckpointDir();
 			} catch (IOException e) {
 				throw new IOException("Could not parse external pointer as state base path", e);
 			}

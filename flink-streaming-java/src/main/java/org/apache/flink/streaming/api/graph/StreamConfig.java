@@ -21,15 +21,19 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
+import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -41,12 +45,15 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -66,45 +73,54 @@ public class StreamConfig implements Serializable {
 	public static final String SERIALIZEDUDF = "serializedUDF";
 
 	private static final String NUMBER_OF_OUTPUTS = "numberOfOutputs";
-	private static final String NUMBER_OF_INPUTS = "numberOfInputs";
+	private static final String NUMBER_OF_NETWORK_INPUTS = "numberOfNetworkInputs";
 	private static final String CHAINED_OUTPUTS = "chainedOutputs";
 	private static final String CHAINED_TASK_CONFIG = "chainedTaskConfig_";
 	private static final String IS_CHAINED_VERTEX = "isChainedSubtask";
 	private static final String CHAIN_INDEX = "chainIndex";
 	private static final String VERTEX_NAME = "vertexID";
 	private static final String ITERATION_ID = "iterationId";
-	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
-	private static final String BUFFER_TIMEOUT = "bufferTimeout";
-	private static final String TYPE_SERIALIZERS_IN_COUNT = "typeSerializer_in_count";
-	private static final String TYPE_SERIALIZERS_IN_PATTERN = "typeSerializer_in_%d";
+	private static final String INPUTS = "inputs";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out";
 	private static final String TYPE_SERIALIZER_SIDEOUT_PREFIX = "typeSerializer_sideout_";
 	private static final String ITERATON_WAIT = "iterationWait";
 	private static final String NONCHAINED_OUTPUTS = "nonChainedOutputs";
 	private static final String EDGES_IN_ORDER = "edgesInOrder";
-	private static final String OUT_STREAM_EDGES = "outStreamEdges";
 	private static final String IN_STREAM_EDGES = "inStreamEdges";
 	private static final String OPERATOR_NAME = "operatorName";
 	private static final String OPERATOR_ID = "operatorID";
 	private static final String CHAIN_END = "chainEnd";
+	private static final String GRAPH_CONTAINING_LOOPS = "graphContainingLoops";
 
 	private static final String CHECKPOINTING_ENABLED = "checkpointing";
 	private static final String CHECKPOINT_MODE = "checkpointMode";
 
 	private static final String STATE_BACKEND = "statebackend";
+	private static final String TIMER_SERVICE_PROVIDER = "timerservice";
 	private static final String STATE_PARTITIONER = "statePartitioner";
 
 	private static final String STATE_KEY_SERIALIZER = "statekeyser";
 
 	private static final String TIME_CHARACTERISTIC = "timechar";
 
-	private static final String MANAGED_MEMORY_FRACTION = "managedMemFraction";
+	private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
+	private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY = ConfigOptions
+		.key("statebackend.useManagedMemory")
+		.booleanType()
+		.noDefaultValue()
+		.withDescription("If state backend is specified, whether it uses managed memory.");
+
+	private static final ConfigOption<Boolean> SORTED_INPUTS =
+		ConfigOptions.key("sorted-inputs")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription(
+				"A flag to enable/disable sorting inputs of keyed operators.");
 
 	// ------------------------------------------------------------------------
 	//  Default Values
 	// ------------------------------------------------------------------------
 
-	private static final long DEFAULT_TIMEOUT = 100;
 	private static final CheckpointingMode DEFAULT_CHECKPOINTING_MODE = CheckpointingMode.EXACTLY_ONCE;
 
 	private static final double DEFAULT_MANAGED_MEMORY_FRACTION = 0.0;
@@ -135,16 +151,45 @@ public class StreamConfig implements Serializable {
 		return config.getInteger(VERTEX_NAME, -1);
 	}
 
-	public void setManagedMemoryFraction(double managedMemFraction) {
-		checkArgument(
-			managedMemFraction >= 0.0 && managedMemFraction <= 1.0,
-			String.format("managedMemFraction should be in range [0.0, 1.0], but was: %s", managedMemFraction));
+	/**
+	 * Fraction of managed memory reserved for the given use case that this operator should use.
+	 */
+	public void setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase managedMemoryUseCase, double fraction) {
+		final ConfigOption<Double> configOption = getManagedMemoryFractionConfigOption(managedMemoryUseCase);
 
-		config.setDouble(MANAGED_MEMORY_FRACTION, managedMemFraction);
+		checkArgument(
+			fraction >= 0.0 && fraction <= 1.0,
+			String.format("%s should be in range [0.0, 1.0], but was: %s", configOption.key(), fraction));
+
+		config.setDouble(configOption, fraction);
 	}
 
-	public double getManagedMemoryFraction() {
-		return config.getDouble(MANAGED_MEMORY_FRACTION, DEFAULT_MANAGED_MEMORY_FRACTION);
+	/**
+	 * Fraction of total managed memory in the slot that this operator should use for the given use case.
+	 */
+	public double getManagedMemoryFractionOperatorUseCaseOfSlot(
+			ManagedMemoryUseCase managedMemoryUseCase, Configuration taskManagerConfig, ClassLoader cl) {
+		return ManagedMemoryUtils.convertToFractionOfSlot(
+			managedMemoryUseCase,
+			config.getDouble(getManagedMemoryFractionConfigOption(managedMemoryUseCase)),
+			getAllManagedMemoryUseCases(),
+			taskManagerConfig,
+			config.getOptional(STATE_BACKEND_USE_MANAGED_MEMORY),
+			cl);
+	}
+
+	private static ConfigOption<Double> getManagedMemoryFractionConfigOption(ManagedMemoryUseCase managedMemoryUseCase) {
+		return ConfigOptions
+				.key(MANAGED_MEMORY_FRACTION_PREFIX + checkNotNull(managedMemoryUseCase))
+				.doubleType()
+				.defaultValue(DEFAULT_MANAGED_MEMORY_FRACTION);
+	}
+
+	private Set<ManagedMemoryUseCase> getAllManagedMemoryUseCases() {
+		return config.keySet().stream()
+			.filter((key) -> key.startsWith(MANAGED_MEMORY_FRACTION_PREFIX))
+			.map((key) -> ManagedMemoryUseCase.valueOf(key.replaceFirst(MANAGED_MEMORY_FRACTION_PREFIX, "")))
+			.collect(Collectors.toSet());
 	}
 
 	public void setTimeCharacteristic(TimeCharacteristic characteristic) {
@@ -160,56 +205,8 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setTypeSerializersIn(TypeSerializer<?> ...serializers) {
-		config.setInteger(TYPE_SERIALIZERS_IN_COUNT, serializers.length);
-		for (int i = 0; i < serializers.length; i++) {
-			setTypeSerializer(String.format(TYPE_SERIALIZERS_IN_PATTERN, i), serializers[i]);
-		}
-	}
-
 	public void setTypeSerializerOut(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
-	}
-
-	public void setTypeSerializerSideOut(OutputTag<?> outputTag, TypeSerializer<?> serializer) {
-		setTypeSerializer(TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), serializer);
-	}
-
-	@Deprecated
-	public <T> TypeSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
-		return getTypeSerializerIn(0, cl);
-	}
-
-	@Deprecated
-	public <T> TypeSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
-		return getTypeSerializerIn(1, cl);
-	}
-
-	public TypeSerializer<?>[] getTypeSerializersIn(ClassLoader cl) {
-		int typeSerializersCount = config.getInteger(TYPE_SERIALIZERS_IN_COUNT, -1);
-		checkState(
-			typeSerializersCount >= 0,
-			"Missing value for %s in the config? [%d]",
-			TYPE_SERIALIZERS_IN_COUNT,
-			typeSerializersCount);
-		TypeSerializer<?>[] typeSerializers = new TypeSerializer<?>[typeSerializersCount];
-		for (int i = 0; i < typeSerializers.length; i++) {
-			typeSerializers[i] = getTypeSerializerIn(i, cl);
-		}
-		return typeSerializers;
-	}
-
-	public <T> TypeSerializer<T> getTypeSerializerIn(int index, ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(
-				this.config,
-				String.format(TYPE_SERIALIZERS_IN_PATTERN, index),
-				cl);
-		} catch (Exception e) {
-			throw new StreamTaskException(
-				String.format("Could not instantiate serializer for [%d] input.", index),
-				e);
-		}
 	}
 
 	public <T> TypeSerializer<T> getTypeSerializerOut(ClassLoader cl) {
@@ -217,6 +214,18 @@ public class StreamConfig implements Serializable {
 			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_OUT_1, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
+		}
+	}
+
+	public void setTypeSerializerSideOut(OutputTag<?> outputTag, TypeSerializer<?> serializer) {
+		setTypeSerializer(TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), serializer);
+	}
+
+	private void setTypeSerializer(String key, TypeSerializer<?> typeWrapper) {
+		try {
+			InstantiationUtil.writeObjectToConfig(typeWrapper, this.config, key);
+		} catch (IOException e) {
+			throw new StreamTaskException("Could not serialize type serializer.", e);
 		}
 	}
 
@@ -229,24 +238,49 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	private void setTypeSerializer(String key, TypeSerializer<?> typeWrapper) {
+	public void setTypeSerializersIn(TypeSerializer<?> ...serializers) {
+		InputConfig[] inputs = new InputConfig[serializers.length];
+		for (int i = 0; i < serializers.length; i++) {
+			inputs[i] = new NetworkInputConfig(serializers[i], i);
+		}
+		setInputs(inputs);
+	}
+
+	public void setInputs(InputConfig...inputs) {
 		try {
-			InstantiationUtil.writeObjectToConfig(typeWrapper, this.config, key);
+			InstantiationUtil.writeObjectToConfig(inputs, this.config, INPUTS);
 		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize type serializer.", e);
+			throw new StreamTaskException("Could not serialize inputs.", e);
 		}
 	}
 
-	public void setBufferTimeout(long timeout) {
-		config.setLong(BUFFER_TIMEOUT, timeout);
+	public InputConfig[] getInputs(ClassLoader cl) {
+		try {
+			InputConfig[] inputs = InstantiationUtil.readObjectFromConfig(this.config, INPUTS, cl);
+			if (inputs == null) {
+				return new InputConfig[0];
+			}
+			return inputs;
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not deserialize inputs", e);
+		}
 	}
 
-	public long getBufferTimeout() {
-		return config.getLong(BUFFER_TIMEOUT, DEFAULT_TIMEOUT);
+	@Deprecated
+	public <T> TypeSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
+		return getTypeSerializerIn(0, cl);
 	}
 
-	public boolean isFlushAlwaysEnabled() {
-		return getBufferTimeout() == 0;
+	@Deprecated
+	public <T> TypeSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
+		return getTypeSerializerIn(1, cl);
+	}
+
+	public <T> TypeSerializer<T> getTypeSerializerIn(int index, ClassLoader cl) {
+		InputConfig[] inputs = getInputs(cl);
+		checkState(index < inputs.length);
+		checkState(inputs[index] instanceof NetworkInputConfig, "Input [%s] was assumed to be network input", index);
+		return (TypeSerializer<T>) ((NetworkInputConfig) inputs[index]).typeSerializer;
 	}
 
 	@VisibleForTesting
@@ -292,25 +326,6 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setOutputSelectors(List<OutputSelector<?>> outputSelectors) {
-		try {
-			InstantiationUtil.writeObjectToConfig(outputSelectors, this.config, OUTPUT_SELECTOR_WRAPPER);
-		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize output selectors", e);
-		}
-	}
-
-	public <T> List<OutputSelector<T>> getOutputSelectors(ClassLoader userCodeClassloader) {
-		try {
-			List<OutputSelector<T>> selectors =
-					InstantiationUtil.readObjectFromConfig(this.config, OUTPUT_SELECTOR_WRAPPER, userCodeClassloader);
-			return selectors == null ? Collections.<OutputSelector<T>>emptyList() : selectors;
-
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not read output selectors", e);
-		}
-	}
-
 	public void setIterationId(String iterationId) {
 		config.setString(ITERATION_ID, iterationId);
 	}
@@ -327,12 +342,12 @@ public class StreamConfig implements Serializable {
 		return config.getLong(ITERATON_WAIT, 0);
 	}
 
-	public void setNumberOfInputs(int numberOfInputs) {
-		config.setInteger(NUMBER_OF_INPUTS, numberOfInputs);
+	public void setNumberOfNetworkInputs(int numberOfInputs) {
+		config.setInteger(NUMBER_OF_NETWORK_INPUTS, numberOfInputs);
 	}
 
-	public int getNumberOfInputs() {
-		return config.getInteger(NUMBER_OF_INPUTS, 0);
+	public int getNumberOfNetworkInputs() {
+		return config.getInteger(NUMBER_OF_NETWORK_INPUTS, 0);
 	}
 
 	public void setNumberOfOutputs(int numberOfOutputs) {
@@ -374,23 +389,6 @@ public class StreamConfig implements Serializable {
 			return chainedOutputs == null ? new ArrayList<StreamEdge>() : chainedOutputs;
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate chained outputs.", e);
-		}
-	}
-
-	public void setOutEdges(List<StreamEdge> outEdges) {
-		try {
-			InstantiationUtil.writeObjectToConfig(outEdges, this.config, OUT_STREAM_EDGES);
-		} catch (IOException e) {
-			throw new StreamTaskException("Cannot serialize outward edges.", e);
-		}
-	}
-
-	public List<StreamEdge> getOutEdges(ClassLoader cl) {
-		try {
-			List<StreamEdge> outEdges = InstantiationUtil.readObjectFromConfig(this.config, OUT_STREAM_EDGES, cl);
-			return outEdges == null ? new ArrayList<StreamEdge>() : outEdges;
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate outputs.", e);
 		}
 	}
 
@@ -444,6 +442,16 @@ public class StreamConfig implements Serializable {
 
 	public boolean isExactlyOnceCheckpointMode() {
 		return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
+	}
+
+	public long getAlignmentTimeout() {
+		return config.getLong(
+				ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.key(),
+				ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue().toMillis());
+	}
+
+	public void setAlignmentTimeout(long alignmentTimeout) {
+		config.setLong(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.key(), alignmentTimeout);
 	}
 
 	public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
@@ -521,10 +529,16 @@ public class StreamConfig implements Serializable {
 		if (backend != null) {
 			try {
 				InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
+				setStateBackendUsesManagedMemory(backend.useManagedMemory());
 			} catch (Exception e) {
 				throw new StreamTaskException("Could not serialize stateHandle provider.", e);
 			}
 		}
+	}
+
+	@VisibleForTesting
+	public void setStateBackendUsesManagedMemory(boolean usesManagedMemory) {
+		this.config.setBoolean(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
 	}
 
 	public StateBackend getStateBackend(ClassLoader cl) {
@@ -535,8 +549,22 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public byte[] getSerializedStateBackend() {
-		return this.config.getBytes(STATE_BACKEND, null);
+	public void setTimerServiceProvider(InternalTimeServiceManager.Provider timerServiceProvider) {
+		if (timerServiceProvider != null) {
+			try {
+				InstantiationUtil.writeObjectToConfig(timerServiceProvider, this.config, TIMER_SERVICE_PROVIDER);
+			} catch (Exception e) {
+				throw new StreamTaskException("Could not serialize timer service provider.", e);
+			}
+		}
+	}
+
+	public InternalTimeServiceManager.Provider getTimerServiceProvider(ClassLoader cl) {
+		try {
+			return InstantiationUtil.readObjectFromConfig(this.config, TIMER_SERVICE_PROVIDER, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate timer service provider.", e);
+		}
 	}
 
 	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
@@ -547,7 +575,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
+	public <IN, K extends Serializable> KeySelector<IN, K> getStatePartitioner(int input, ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
 		} catch (Exception e) {
@@ -602,7 +630,7 @@ public class StreamConfig implements Serializable {
 		builder.append("\n=======================");
 		builder.append("Stream Config");
 		builder.append("=======================");
-		builder.append("\nNumber of non-chained inputs: ").append(getNumberOfInputs());
+		builder.append("\nNumber of non-chained inputs: ").append(getNumberOfNetworkInputs());
 		builder.append("\nNumber of non-chained outputs: ").append(getNumberOfOutputs());
 		builder.append("\nOutput names: ").append(getNonChainedOutputs(cl));
 		builder.append("\nPartitioning:");
@@ -619,7 +647,6 @@ public class StreamConfig implements Serializable {
 		catch (Exception e) {
 			builder.append("\nOperator: Missing");
 		}
-		builder.append("\nBuffer timeout: ").append(getBufferTimeout());
 		builder.append("\nState Monitoring: ").append(isCheckpointingEnabled());
 		if (isChainStart() && getChainedOutputs(cl).size() > 0) {
 			builder.append("\n\n\n---------------------\nChained task configs\n---------------------\n");
@@ -627,5 +654,85 @@ public class StreamConfig implements Serializable {
 		}
 
 		return builder.toString();
+	}
+
+	public void setShouldSortInputs(boolean sortInputs) {
+		config.set(SORTED_INPUTS, sortInputs);
+	}
+
+	public boolean shouldSortInputs() {
+		return config.get(SORTED_INPUTS);
+	}
+
+	public void setGraphContainingLoops(boolean graphContainingLoops) {
+		config.setBoolean(GRAPH_CONTAINING_LOOPS, graphContainingLoops);
+	}
+
+	public boolean isGraphContainingLoops() {
+		return config.getBoolean(GRAPH_CONTAINING_LOOPS, false);
+	}
+
+	/**
+	 * Interface representing chained inputs.
+	 */
+	public interface InputConfig extends Serializable {
+	}
+
+	/**
+	 * A representation of a Network {@link InputConfig}.
+	 */
+	public static class NetworkInputConfig implements InputConfig {
+		private final TypeSerializer<?> typeSerializer;
+		private int inputGateIndex;
+
+		public NetworkInputConfig(TypeSerializer<?> typeSerializer, int inputGateIndex) {
+			this.typeSerializer = typeSerializer;
+			this.inputGateIndex = inputGateIndex;
+		}
+
+		public TypeSerializer<?> getTypeSerializer() {
+			return typeSerializer;
+		}
+
+		public int getInputGateIndex() {
+			return inputGateIndex;
+		}
+	}
+
+	/**
+	 * A serialized representation of an input.
+	 */
+	public static class SourceInputConfig implements InputConfig {
+		private final StreamEdge inputEdge;
+
+		public SourceInputConfig(StreamEdge inputEdge) {
+			this.inputEdge = inputEdge;
+		}
+
+		public StreamEdge getInputEdge() {
+			return inputEdge;
+		}
+
+		@Override
+		public String toString() {
+			return inputEdge.toString();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this) {
+				return true;
+			}
+			if (!(obj instanceof SourceInputConfig)) {
+				return false;
+			}
+			SourceInputConfig other = (SourceInputConfig) obj;
+			return Objects.equals(other.inputEdge, inputEdge);
+		}
+
+		@Override
+		public int hashCode() {
+			return inputEdge.hashCode();
+		}
 	}
 }

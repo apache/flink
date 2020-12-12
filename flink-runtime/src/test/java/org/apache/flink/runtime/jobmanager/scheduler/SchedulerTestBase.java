@@ -161,7 +161,10 @@ public abstract class SchedulerTestBase extends TestLogger {
 
 		public void releaseTaskManager(ResourceID resourceId) {
 			try {
-				supplyInMainThreadExecutor(() -> slotPool.releaseTaskManager(resourceId, null));
+				supplyInMainThreadExecutor(
+					() -> slotPool.releaseTaskManager(
+						resourceId,
+						new Exception("Releasing TaskManager in SlotPool for tests")));
 			} catch (Exception e) {
 				throw new RuntimeException("Should not have happened.", e);
 			}

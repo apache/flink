@@ -62,7 +62,7 @@ public class OrcSplitReaderUtil {
 			DataType[] fullFieldTypes,
 			Map<String, Object> partitionSpec,
 			int[] selectedFields,
-			List<OrcSplitReader.Predicate> conjunctPredicates,
+			List<OrcFilters.Predicate> conjunctPredicates,
 			int batchSize,
 			Path path,
 			long splitStart,
@@ -80,7 +80,7 @@ public class OrcSplitReaderUtil {
 				LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
 				vectors[i] = partitionSpec.containsKey(name) ?
 						createFlinkVectorFromConstant(type, partitionSpec.get(name), batchSize) :
-						createFlinkVector(rowBatch.cols[nonPartNames.indexOf(name)]);
+						createFlinkVector(rowBatch.cols[nonPartNames.indexOf(name)], type);
 			}
 			return new VectorizedColumnBatch(vectors);
 		};
@@ -107,6 +107,12 @@ public class OrcSplitReaderUtil {
 					.toArray();
 	}
 
+	public static List<String> getNonPartNames(String[] fullFieldNames, Collection<String> partitionKeys) {
+		return Arrays.stream(fullFieldNames)
+				.filter(n -> !partitionKeys.contains(n))
+				.collect(Collectors.toList());
+	}
+
 	public static List<String> getNonPartNames(String[] fullFieldNames,
 			Map<String, Object> partitionSpec) {
 		return Arrays.stream(fullFieldNames)
@@ -118,13 +124,23 @@ public class OrcSplitReaderUtil {
 			String[] fullFieldNames,
 			DataType[] fullFieldTypes,
 			Collection<String> partitionKeys) {
+		return convertToOrcTypeWithPart(
+				fullFieldNames,
+				Arrays.stream(fullFieldTypes).map(DataType::getLogicalType).toArray(LogicalType[]::new),
+				partitionKeys);
+	}
+
+	public static TypeDescription convertToOrcTypeWithPart(
+			String[] fullFieldNames,
+			LogicalType[] fullFieldTypes,
+			Collection<String> partitionKeys) {
 		List<String> fullNameList = Arrays.asList(fullFieldNames);
 		String[] orcNames = fullNameList.stream()
 				.filter(n -> !partitionKeys.contains(n))
 				.toArray(String[]::new);
 		LogicalType[] orcTypes = Arrays.stream(orcNames)
 				.mapToInt(fullNameList::indexOf)
-				.mapToObj(i -> fullFieldTypes[i].getLogicalType())
+				.mapToObj(i -> fullFieldTypes[i])
 				.toArray(LogicalType[]::new);
 		return logicalTypeToOrcType(RowType.of(
 				orcTypes,

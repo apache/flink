@@ -51,7 +51,9 @@ public class StreamExecutor implements Executor {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot generate StreamGraph.");
 		}
 		return new StreamGraphGenerator(
-			transformations, executionEnvironment.getConfig(), executionEnvironment.getCheckpointConfig())
+				transformations,
+				executionEnvironment.getConfig(),
+				executionEnvironment.getCheckpointConfig())
 			.setStateBackend(executionEnvironment.getStateBackend())
 			.setChaining(executionEnvironment.isChainingEnabled())
 			.setUserArtifacts(executionEnvironment.getCachedFiles())

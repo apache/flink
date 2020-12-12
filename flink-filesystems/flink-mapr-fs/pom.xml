@@ -23,13 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-mapr-fs</artifactId>
-	<name>flink-mapr-fs</name>
-
+	<name>Flink : FileSystems : Mapr FS</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

@@ -46,6 +46,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorEx
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
+import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
@@ -60,6 +61,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -102,7 +104,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Function<ResourceID, CompletableFuture<Collection<LogInfo>>> requestTaskManagerLogListFunction;
 
+	private volatile Function<ResourceID, CompletableFuture<TaskManagerInfo>> requestTaskManagerInfoFunction;
+
 	private volatile Function<ResourceID, CompletableFuture<ThreadDumpInfo>> requestThreadDumpFunction;
+
+	private volatile BiFunction<JobMasterId, ResourceRequirements, CompletableFuture<Acknowledge>> declareRequiredResourcesFunction = (ignoredA, ignoredB) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 
 	public TestingResourceManagerGateway() {
 		this(
@@ -166,6 +172,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.requestTaskManagerLogListFunction = requestTaskManagerLogListFunction;
 	}
 
+	public void setRequestTaskManagerInfoFunction(Function<ResourceID, CompletableFuture<TaskManagerInfo>> requestTaskManagerInfoFunction) {
+		this.requestTaskManagerInfoFunction = requestTaskManagerInfoFunction;
+	}
+
 	public void setDisconnectTaskExecutorConsumer(Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer) {
 		this.disconnectTaskExecutorConsumer = disconnectTaskExecutorConsumer;
 	}
@@ -184,6 +194,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	public void setRequestThreadDumpFunction(Function<ResourceID, CompletableFuture<ThreadDumpInfo>> requestThreadDumpFunction) {
 		this.requestThreadDumpFunction = requestThreadDumpFunction;
+	}
+
+	public void setDeclareRequiredResourcesFunction(BiFunction<JobMasterId, ResourceRequirements, CompletableFuture<Acknowledge>> declareRequiredResourcesFunction) {
+		this.declareRequiredResourcesFunction = declareRequiredResourcesFunction;
 	}
 
 	@Override
@@ -218,6 +232,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		} else {
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		}
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> declareRequiredResources(JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Time timeout) {
+		return declareRequiredResourcesFunction.apply(jobMasterId, resourceRequirements);
 	}
 
 	@Override
@@ -313,7 +332,13 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(ResourceID resourceId, Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException("Not yet implemented"));
+		final Function<ResourceID, CompletableFuture<TaskManagerInfo>> function = requestTaskManagerInfoFunction;
+
+		if (function != null) {
+			return function.apply(resourceId);
+		} else {
+			return FutureUtils.completedExceptionally(new IllegalStateException("No requestTaskManagerInfoFunction was set."));
+		}
 	}
 
 	@Override

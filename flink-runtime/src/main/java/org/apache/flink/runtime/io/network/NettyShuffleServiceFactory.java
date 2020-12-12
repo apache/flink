@@ -112,7 +112,6 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(
 			config.numNetworkBuffers(),
 			config.networkBufferSize(),
-			config.networkBuffersPerChannel(),
 			config.getRequestSegmentsTimeout());
 
 		registerShuffleMetrics(metricGroup, networkBufferPool);
@@ -125,10 +124,12 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			config.networkBuffersPerChannel(),
 			config.floatingNetworkBuffersPerGate(),
 			config.networkBufferSize(),
-			config.isForcePartitionReleaseOnConsumption(),
 			config.isBlockingShuffleCompressionEnabled(),
 			config.getCompressionCodec(),
-			config.getMaxBuffersPerChannel());
+			config.getMaxBuffersPerChannel(),
+			config.sortShuffleMinBuffers(),
+			config.sortShuffleMinParallelism(),
+			config.isSSLEnabled());
 
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
 			taskExecutorResourceId,

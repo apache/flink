@@ -28,60 +28,126 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * A table column represents a table column's structure with
- * column name, column data type and computation expression(if it is a computed column).
+ * Representation of a table column in the API.
+ *
+ * <p>A table column is fully resolved with a name and {@link DataType}. It describes either a
+ * {@link PhysicalColumn}, {@link ComputedColumn}, or {@link MetadataColumn}.
  */
 @PublicEvolving
-public class TableColumn {
-
-	//~ Instance fields --------------------------------------------------------
+public abstract class TableColumn {
 
 	private final String name;
+
 	private final DataType type;
-	@Nullable
-	private final String expr;
 
-	//~ Constructors -----------------------------------------------------------
-
-	/**
-	 * Creates a {@link TableColumn} instance.
-	 *
-	 * @param name Column name
-	 * @param type Column data type
-	 * @param expr Column computation expression if it is a computed column
-	 */
-	private TableColumn(
-			String name,
-			DataType type,
-			@Nullable String expr) {
+	private TableColumn(String name, DataType type) {
 		this.name = name;
 		this.type = type;
-		this.expr = expr;
 	}
 
-	//~ Methods ----------------------------------------------------------------
-
 	/**
-	 * Creates a table column from given name and data type.
+	 * Creates a regular table column that represents physical data.
 	 */
-	public static TableColumn of(String name, DataType type) {
-		Preconditions.checkNotNull(name, "Column name can not be null!");
-		Preconditions.checkNotNull(type, "Column type can not be null!");
-		return new TableColumn(name, type, null);
+	public static PhysicalColumn physical(String name, DataType type) {
+		Preconditions.checkNotNull(name, "Column name can not be null.");
+		Preconditions.checkNotNull(type, "Column type can not be null.");
+		return new PhysicalColumn(name, type);
 	}
 
 	/**
-	 * Creates a table column from given name and computation expression.
+	 * Creates a computed column that is computed from the given SQL expression.
+	 */
+	public static ComputedColumn computed(String name, DataType type, String expression) {
+		Preconditions.checkNotNull(name, "Column name can not be null.");
+		Preconditions.checkNotNull(type, "Column type can not be null.");
+		Preconditions.checkNotNull(expression, "Column expression can not be null.");
+		return new ComputedColumn(name, type, expression);
+	}
+
+	/**
+	 * Creates a metadata column from metadata of the given column name.
 	 *
-	 * @param name Name of the column
-	 * @param expression SQL-style expression
+	 * <p>The column is not virtual by default.
 	 */
-	public static TableColumn of(String name, DataType type, String expression) {
-		Preconditions.checkNotNull(name, "Column name can not be null!");
-		Preconditions.checkNotNull(type, "Column type can not be null!");
-		Preconditions.checkNotNull(expression, "Column expression can not be null!");
-		return new TableColumn(name, type, expression);
+	public static MetadataColumn metadata(String name, DataType type) {
+		return metadata(name, type, null, false);
 	}
+
+	/**
+	 * Creates a metadata column from metadata of the given column name.
+	 *
+	 * <p>Allows to specify whether the column is virtual or not.
+	 */
+	public static MetadataColumn metadata(String name, DataType type, boolean isVirtual) {
+		return metadata(name, type, null, isVirtual);
+	}
+
+	/**
+	 * Creates a metadata column from metadata of the given alias.
+	 *
+	 * <p>The column is not virtual by default.
+	 */
+	public static MetadataColumn metadata(String name, DataType type, String metadataAlias) {
+		Preconditions.checkNotNull(metadataAlias, "Metadata alias can not be null.");
+		return metadata(name, type, metadataAlias, false);
+	}
+
+	/**
+	 * Creates a metadata column from metadata of the given column name or from metadata of the given
+	 * alias (if not null).
+	 *
+	 * <p>Allows to specify whether the column is virtual or not.
+	 */
+	public static MetadataColumn metadata(
+			String name,
+			DataType type,
+			@Nullable String metadataAlias,
+			boolean isVirtual) {
+		Preconditions.checkNotNull(name, "Column name can not be null.");
+		Preconditions.checkNotNull(type, "Column type can not be null.");
+		return new MetadataColumn(name, type, metadataAlias, isVirtual);
+	}
+
+	/**
+	 * Returns whether the given column is a physical column of a table; neither computed
+	 * nor metadata.
+	 */
+	public abstract boolean isPhysical();
+
+	/**
+	 * Returns whether the given column is persisted in a sink operation.
+	 */
+	public abstract boolean isPersisted();
+
+	/** Returns the data type of this column. */
+	public DataType getType() {
+		return this.type;
+	}
+
+	/** Returns the name of this column. */
+	public String getName() {
+		return name;
+	}
+
+	/**
+	 * Returns a string that summarizes this column for printing to a console.
+	 */
+	public String asSummaryString() {
+		final StringBuilder sb = new StringBuilder();
+		sb.append(name);
+		sb.append(": ");
+		sb.append(type);
+		explainExtras().ifPresent(e -> {
+			sb.append(" ");
+			sb.append(e);
+		});
+		return sb.toString();
+	}
+
+	/**
+	 * Returns an explanation of specific column extras next to name and type.
+	 */
+	public abstract Optional<String> explainExtras();
 
 	@Override
 	public boolean equals(Object o) {
@@ -93,40 +159,172 @@ public class TableColumn {
 		}
 		TableColumn that = (TableColumn) o;
 		return Objects.equals(this.name, that.name)
-			&& Objects.equals(this.type, that.type)
-			&& Objects.equals(this.expr, that.expr);
+			&& Objects.equals(this.type, that.type);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.name, this.type, this.expr);
+		return Objects.hash(this.name, this.type);
 	}
 
-	//~ Getter/Setter ----------------------------------------------------------
-
-	/** Returns data type of this column. */
-	public DataType getType() {
-		return this.type;
+	@Override
+	public String toString() {
+		return asSummaryString();
 	}
 
-	/** Returns name of this column. */
-	public String getName() {
-		return name;
-	}
+	// --------------------------------------------------------------------------------------------
+	// Specific kinds of columns
+	// --------------------------------------------------------------------------------------------
 
-	/** Returns computation expression of this column. Or empty if this column
-	 * is not a computed column. */
-	public Optional<String> getExpr() {
-		return Optional.ofNullable(this.expr);
+	/**
+	 * Representation of a physical column.
+	 */
+	public static class PhysicalColumn extends TableColumn {
+
+		private PhysicalColumn(String name, DataType type) {
+			super(name, type);
+		}
+
+		@Override
+		public boolean isPhysical() {
+			return true;
+		}
+
+		@Override
+		public boolean isPersisted() {
+			return true;
+		}
+
+		@Override
+		public Optional<String> explainExtras() {
+			return Optional.empty();
+		}
 	}
 
 	/**
-	 * Returns if this column is a computed column that is generated from an expression.
-	 *
-	 * @return true if this column is generated
+	 * Representation of a computed column.
 	 */
-	public boolean isGenerated() {
-		return this.expr != null;
+	public static class ComputedColumn extends TableColumn {
+
+		private final String expression;
+
+		private ComputedColumn(String name, DataType type, String expression) {
+			super(name, type);
+			this.expression = expression;
+		}
+
+		@Override
+		public boolean isPhysical() {
+			return false;
+		}
+
+		@Override
+		public boolean isPersisted() {
+			return false;
+		}
+
+		public String getExpression() {
+			return expression;
+		}
+
+		@Override
+		public Optional<String> explainExtras() {
+			return Optional.of("AS " + expression);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			if (!super.equals(o)) {
+				return false;
+			}
+			ComputedColumn that = (ComputedColumn) o;
+			return expression.equals(that.expression);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(super.hashCode(), expression);
+		}
 	}
 
+	/**
+	 * Representation of a metadata column.
+	 */
+	public static class MetadataColumn extends TableColumn {
+
+		private final @Nullable String metadataAlias;
+
+		private final boolean isVirtual;
+
+		private MetadataColumn(
+				String name,
+				DataType type,
+				@Nullable String metadataAlias,
+				boolean isVirtual) {
+			super(name, type);
+			this.metadataAlias = metadataAlias;
+			this.isVirtual = isVirtual;
+		}
+
+		public boolean isVirtual() {
+			return isVirtual;
+		}
+
+		public Optional<String> getMetadataAlias() {
+			return Optional.ofNullable(metadataAlias);
+		}
+
+		@Override
+		public boolean isPhysical() {
+			return false;
+		}
+
+		@Override
+		public boolean isPersisted() {
+			return !isVirtual;
+		}
+
+		@Override
+		public Optional<String> explainExtras() {
+			final StringBuilder sb = new StringBuilder();
+			sb.append("METADATA");
+			if (metadataAlias != null) {
+				sb.append(" FROM ");
+				sb.append("'");
+				sb.append(metadataAlias);
+				sb.append("'");
+			}
+			if (isVirtual) {
+				sb.append(" VIRTUAL");
+			}
+			return Optional.of(sb.toString());
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			if (!super.equals(o)) {
+				return false;
+			}
+			MetadataColumn that = (MetadataColumn) o;
+			return isVirtual == that.isVirtual &&
+				Objects.equals(metadataAlias, that.metadataAlias);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(super.hashCode(), metadataAlias, isVirtual);
+		}
+	}
 }

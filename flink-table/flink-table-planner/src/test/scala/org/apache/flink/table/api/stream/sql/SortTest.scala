@@ -53,13 +53,13 @@ class SortTest extends TableTestBase {
     val sqlQuery = "SELECT a FROM MyTable ORDER BY rowtime, c"
       
     val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode("DataStreamSort",
+      unaryNode("DataStreamSort",
+        unaryNode(
+          "DataStreamCalc",
           streamTableNode(table),
-          term("orderBy", "rowtime ASC, c ASC")),
-        term("select", "a", "rowtime", "c"))
-       
+          term("select", "a", "rowtime", "c")),
+        term("orderBy", "rowtime ASC, c ASC"))
+
     streamUtil.verifySql(sqlQuery, expected)
   }
 }

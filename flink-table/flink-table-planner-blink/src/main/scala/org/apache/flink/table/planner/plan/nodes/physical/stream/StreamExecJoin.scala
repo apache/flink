@@ -24,19 +24,17 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalJoin
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.{JoinUtil, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
 import org.apache.flink.table.runtime.operators.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -55,8 +53,24 @@ class StreamExecJoin(
     joinType: JoinRelType)
   extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
+  /**
+   * This is mainly used in `FlinkChangelogModeInferenceProgram.SatisfyUpdateKindTraitVisitor`.
+   * If the unique key of input contains join key, then it can support ignoring UPDATE_BEFORE.
+   * Otherwise, it can't ignore UPDATE_BEFORE. For example, if the input schema is [id, name, cnt]
+   * with the unique key (id). The join key is (id, name), then an insert and update on the id:
+   *
+   * +I(1001, Tim, 10)
+   * -U(1001, Tim, 10)
+   * +U(1001, Timo, 11)
+   *
+   * If the UPDATE_BEFORE is ignored, the `+I(1001, Tim, 10)` record in join will never be
+   * retracted. Therefore, if we want to ignore UPDATE_BEFORE, the unique key must contain
+   * join key.
+   *
+   * @see FlinkChangelogModeInferenceProgram
+   */
   def inputUniqueKeyContainsJoinKey(inputOrdinal: Int): Boolean = {
     val input = getInput(inputOrdinal)
     val inputUniqueKeys = getCluster.getMetadataQuery.getUniqueKeys(input)
@@ -102,29 +116,19 @@ class StreamExecJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {
 
     val tableConfig = planner.getTableConfig
-    val returnType = RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+    val returnType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val leftTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
     val rightTransform = getInputNodes.get(1).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
 
-    val leftType = leftTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val rightType = rightTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val leftType = leftTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val rightType = rightTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
 
     val (leftJoinKey, rightJoinKey) =
       JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
@@ -193,7 +197,7 @@ class StreamExecJoin(
     if (uniqueKeys == null || uniqueKeys.isEmpty) {
       JoinInputSideSpec.withoutUniqueKey()
     } else {
-      val inRowType = RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(input.getRowType))
+      val inRowType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(input.getRowType))
       val joinKeys = if (input == left) {
         keyPairs.map(_.source).toArray
       } else {

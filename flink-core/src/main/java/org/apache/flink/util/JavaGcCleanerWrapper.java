@@ -83,7 +83,6 @@ public enum JavaGcCleanerWrapper {
 				"clean"),
 			new PendingCleanersRunnerProvider(
 				name,
-				reflectionUtils,
 				"tryHandlePending",
 				LEGACY_WAIT_FOR_REFERENCE_PROCESSING_ARGS,
 				LEGACY_WAIT_FOR_REFERENCE_PROCESSING_ARG_TYPES));
@@ -126,7 +125,6 @@ public enum JavaGcCleanerWrapper {
 				"clean"),
 			new PendingCleanersRunnerProvider(
 				name,
-				reflectionUtils,
 				"waitForReferenceProcessing",
 				JAVA9_WAIT_FOR_REFERENCE_PROCESSING_ARGS,
 				JAVA9_WAIT_FOR_REFERENCE_PROCESSING_ARG_TYPES));
@@ -189,12 +187,13 @@ public enum JavaGcCleanerWrapper {
 	private static class CleanerManager {
 		private final String cleanerName;
 		private final CleanerFactory cleanerFactory;
+		@Nullable
 		private final PendingCleanersRunner pendingCleanersRunner;
 
 		private CleanerManager(
 				String cleanerName,
 				CleanerFactory cleanerFactory,
-				PendingCleanersRunner pendingCleanersRunner) {
+				@Nullable PendingCleanersRunner pendingCleanersRunner) {
 			this.cleanerName = cleanerName;
 			this.cleanerFactory = cleanerFactory;
 			this.pendingCleanersRunner = pendingCleanersRunner;
@@ -205,7 +204,7 @@ public enum JavaGcCleanerWrapper {
 		}
 
 		private boolean tryRunPendingCleaners() throws InterruptedException {
-			return pendingCleanersRunner.tryRunPendingCleaners();
+			return pendingCleanersRunner != null && pendingCleanersRunner.tryRunPendingCleaners();
 		}
 
 		@Override
@@ -303,32 +302,38 @@ public enum JavaGcCleanerWrapper {
 	private static class PendingCleanersRunnerProvider {
 		private static final String REFERENCE_CLASS = "java.lang.ref.Reference";
 		private final String cleanerName;
-		private final ReflectionUtils reflectionUtils;
 		private final String waitForReferenceProcessingName;
 		private final Object[] waitForReferenceProcessingArgs;
 		private final Class<?>[] waitForReferenceProcessingArgTypes;
 
 		private PendingCleanersRunnerProvider(
 			String cleanerName,
-			ReflectionUtils reflectionUtils,
 			String waitForReferenceProcessingName,
 			Object[] waitForReferenceProcessingArgs,
 			Class<?>[] waitForReferenceProcessingArgTypes) {
 			this.cleanerName = cleanerName;
-			this.reflectionUtils = reflectionUtils;
 			this.waitForReferenceProcessingName = waitForReferenceProcessingName;
 			this.waitForReferenceProcessingArgs = waitForReferenceProcessingArgs;
 			this.waitForReferenceProcessingArgTypes = waitForReferenceProcessingArgTypes;
 		}
 
+		@Nullable
 		private PendingCleanersRunner createPendingCleanersRunner() {
-			Class<?> referenceClass = reflectionUtils.findClass(REFERENCE_CLASS);
-			Method waitForReferenceProcessingMethod = reflectionUtils.findMethod(
-				referenceClass,
-				waitForReferenceProcessingName,
-				waitForReferenceProcessingArgTypes);
-			waitForReferenceProcessingMethod.setAccessible(true);
-			return new PendingCleanersRunner(waitForReferenceProcessingMethod, waitForReferenceProcessingArgs);
+			try {
+				Class<?> referenceClass = Class.forName(REFERENCE_CLASS);
+				Method waitForReferenceProcessingMethod = referenceClass.getDeclaredMethod(
+					waitForReferenceProcessingName,
+					waitForReferenceProcessingArgTypes);
+				waitForReferenceProcessingMethod.setAccessible(true);
+				return new PendingCleanersRunner(waitForReferenceProcessingMethod, waitForReferenceProcessingArgs);
+			} catch (ClassNotFoundException | NoSuchMethodException e) {
+				LOG.warn(
+					"Cannot run pending GC phantom cleaners. " +
+						"This can result in suboptimal memory management or failures. " +
+						"Try to upgrade to Java 8u72 or higher.",
+					e);
+				return null;
+			}
 		}
 
 		@Override

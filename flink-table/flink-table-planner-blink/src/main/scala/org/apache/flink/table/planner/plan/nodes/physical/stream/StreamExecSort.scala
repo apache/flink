@@ -28,10 +28,10 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.StreamSortOperator
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -39,7 +39,6 @@ import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rex.RexNode
 
 import java.lang.{Boolean => JBoolean}
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -63,7 +62,7 @@ class StreamExecSort(
     sortCollation: RelCollation)
   extends Sort(cluster, traitSet, inputRel, sortCollation)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -83,22 +82,6 @@ class StreamExecSort(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  /**
-    * Returns an array of this node's inputs. If there are no inputs,
-    * returns an empty list, not null.
-    *
-    * @return Array of this node's inputs
-    */
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
@@ -112,10 +95,10 @@ class StreamExecSort(
     val keyTypes = keys.map(inputType.getTypeAt)
     val rowComparator = ComparatorCodeGenerator.gen(config, "StreamExecSortComparator",
       keys, keyTypes, orders, nullsIsLast)
-    val sortOperator = new StreamSortOperator(RowDataTypeInfo.of(inputType), rowComparator)
+    val sortOperator = new StreamSortOperator(InternalTypeInfo.of(inputType), rowComparator)
     val input = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
-    val outputRowTypeInfo = RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+    val outputRowTypeInfo = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // as input node is singleton exchange, its parallelism is 1.
     val ret = new OneInputTransformation(

@@ -24,12 +24,10 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel, FlinkLogicalSnapshot}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecJoin
-import org.apache.flink.table.planner.plan.utils.{TemporalJoinUtil, IntervalJoinUtil}
-
+import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, TemporalJoinUtil}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-
 import java.util
 
 import scala.collection.JavaConversions._

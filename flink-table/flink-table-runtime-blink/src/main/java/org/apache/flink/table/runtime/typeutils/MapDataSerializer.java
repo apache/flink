@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -37,7 +36,6 @@ import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
-import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -55,26 +53,31 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
 	private final TypeSerializer keySerializer;
 	private final TypeSerializer valueSerializer;
 
+	private final ArrayData.ElementGetter keyGetter;
+	private final ArrayData.ElementGetter valueGetter;
+
 	private transient BinaryArrayData reuseKeyArray;
 	private transient BinaryArrayData reuseValueArray;
 	private transient BinaryArrayWriter reuseKeyWriter;
 	private transient BinaryArrayWriter reuseValueWriter;
 
-	public MapDataSerializer(LogicalType keyType, LogicalType valueType, ExecutionConfig conf) {
-		this.keyType = keyType;
-		this.valueType = valueType;
-
-		this.keySerializer = InternalSerializers.create(keyType, conf);
-		this.valueSerializer = InternalSerializers.create(valueType, conf);
+	public MapDataSerializer(LogicalType keyType, LogicalType valueType) {
+		this(keyType, valueType, InternalSerializers.create(keyType), InternalSerializers.create(valueType));
 	}
 
 	private MapDataSerializer(
-		LogicalType keyType, LogicalType valueType, TypeSerializer keySerializer, TypeSerializer valueSerializer) {
+			LogicalType keyType,
+			LogicalType valueType,
+			TypeSerializer keySerializer,
+			TypeSerializer valueSerializer) {
 		this.keyType = keyType;
 		this.valueType = valueType;
 
 		this.keySerializer = keySerializer;
 		this.valueSerializer = valueSerializer;
+
+		this.keyGetter = ArrayData.createElementGetter(keyType);
+		this.valueGetter = ArrayData.createElementGetter(valueType);
 	}
 
 	@Override
@@ -150,8 +153,8 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
 		ArrayData keyArray = from.keyArray();
 		ArrayData valueArray = from.valueArray();
 		for (int i = 0; i < from.size(); i++) {
-			Object key = ArrayData.get(keyArray, i, keyType);
-			Object value = ArrayData.get(valueArray, i, valueType);
+			Object key = keyGetter.getElementOrNull(keyArray, i);
+			Object value = valueGetter.getElementOrNull(valueArray, i);
 			if (key == null) {
 				reuseKeyWriter.setNullAt(i, keyType);
 			} else {
@@ -177,7 +180,9 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
 
 	@Override
 	public MapData deserialize(MapData reuse, DataInputView source) throws IOException {
-		return deserializeReuse(reuse instanceof GenericMapData ? new BinaryMapData() : (BinaryMapData) reuse, source);
+		return deserializeReuse(
+			reuse instanceof BinaryMapData ? (BinaryMapData) reuse : new BinaryMapData(),
+			source);
 	}
 
 	private BinaryMapData deserializeReuse(BinaryMapData reuse, DataInputView source) throws IOException {

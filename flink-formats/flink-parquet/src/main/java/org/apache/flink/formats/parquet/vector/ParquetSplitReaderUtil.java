@@ -133,7 +133,7 @@ public class ParquetSplitReaderUtil {
 				splitLength);
 	}
 
-	private static ColumnVector createVectorFromConstant(
+	public static ColumnVector createVectorFromConstant(
 			LogicalType type,
 			Object value,
 			int batchSize) {

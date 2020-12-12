@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -29,8 +28,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Test case for built-in ListAggWs with retraction aggregate function.
@@ -103,18 +100,6 @@ public final class ListAggWsWithRetractAggFunctionTest
 	@Override
 	protected Class<?> getAccClass() {
 		return ListAggWsWithRetractAccumulator.class;
-	}
-
-	@Override
-	protected <E> void validateResult(E expected, E result, TypeInformation<?> typeInfo) {
-		if (expected instanceof ListAggWsWithRetractAccumulator && result instanceof ListAggWsWithRetractAccumulator) {
-			ListAggWsWithRetractAccumulator e = (ListAggWsWithRetractAccumulator) expected;
-			ListAggWsWithRetractAccumulator r = (ListAggWsWithRetractAccumulator) result;
-			assertEquals(e.list, r.list);
-			assertEquals(e.list, r.list);
-		} else {
-			super.validateResult(expected, result, typeInfo);
-		}
 	}
 
 	@Override

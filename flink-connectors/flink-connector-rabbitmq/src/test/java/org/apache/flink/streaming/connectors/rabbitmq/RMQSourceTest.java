@@ -40,16 +40,14 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.Delivery;
 import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.QueueingConsumer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -57,13 +55,15 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 
 /**
  * Tests for the RMQSource. The source supports two operation modes.
@@ -75,7 +75,6 @@ import static org.mockito.Matchers.any;
  * <p>This tests assumes that the message ids are increasing monotonously. That doesn't have to be the
  * case. The correlation id is used to uniquely identify messages.
  */
-@RunWith(PowerMockRunner.class)
 public class RMQSourceTest {
 
 	private RMQSource<String> source;
@@ -218,7 +217,7 @@ public class RMQSourceTest {
 
 			assertEquals(numIds, messageIds.size());
 			if (messageIds.size() > 0) {
-				assertTrue(messageIds.contains(Long.toString(lastSnapshotId)));
+				assertTrue(messageIds.contains(Long.toString(lastSnapshotId - 1)));
 			}
 
 			// check if the messages are being acknowledged and the transaction committed
@@ -317,6 +316,17 @@ public class RMQSourceTest {
 		assertEquals("passTest", testObj.getFactory().getPassword());
 	}
 
+	@Test(timeout = 30000L)
+	public void testCustomIdentifiers() throws Exception {
+		source = new RMQTestSource(new CustomDeserializationSchema());
+		source.initializeState(getMockContext());
+		source.open(config);
+		sourceThread.start();
+		sourceThread.join();
+
+		assertThat(DummySourceContext.numElementsCollected, equalTo(2L));
+	}
+
 	@Test
 	public void testOpen() throws Exception {
 		MockDeserializationSchema<String> deserializationSchema = new MockDeserializationSchema<>();
@@ -348,6 +358,56 @@ public class RMQSourceTest {
 		source.open(new Configuration());
 
 		Mockito.verify(mockConnection, Mockito.times(1)).createChannel();
+	}
+
+	@Test
+	public void testSetPrefetchCount() throws Exception {
+		RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
+			.setHost("localhost")
+			.setPort(5000)
+			.setUserName("guest")
+			.setPassword("guest")
+			.setVirtualHost("/")
+			.setPrefetchCount(1000)
+			.build();
+		final Connection mockConnection = Mockito.mock(Connection.class);
+		Channel channel = Mockito.mock(Channel.class);
+		Mockito.when(mockConnection.createChannel()).thenReturn(channel);
+
+		RMQMockedRuntimeTestSource source = new RMQMockedRuntimeTestSource(connectionConfig) {
+			@Override
+			protected Connection setupConnection() throws Exception {
+				return mockConnection;
+			}
+		};
+
+		FunctionInitializationContext mockContext = getMockContext();
+		source.initializeState(mockContext);
+		source.open(new Configuration());
+
+		Mockito.verify(mockConnection, Mockito.times(1)).createChannel();
+		Mockito.verify(channel, Mockito.times(1)).basicQos(1000, true);
+	}
+
+	@Test
+	public void testUnsetPrefetchCount() throws Exception {
+		final Connection mockConnection = Mockito.mock(Connection.class);
+		Channel channel = Mockito.mock(Channel.class);
+		Mockito.when(mockConnection.createChannel()).thenReturn(channel);
+
+		RMQMockedRuntimeTestSource source = new RMQMockedRuntimeTestSource() {
+			@Override
+			protected Connection setupConnection() throws Exception {
+				return mockConnection;
+			}
+		};
+
+		FunctionInitializationContext mockContext = getMockContext();
+		source.initializeState(mockContext);
+		source.open(new Configuration());
+
+		Mockito.verify(mockConnection, Mockito.times(1)).createChannel();
+		Mockito.verify(channel, Mockito.times(0)).basicQos(anyInt());
 	}
 
 	private static class ConstructorTestClass extends RMQSource<String> {
@@ -403,6 +463,40 @@ public class RMQSourceTest {
 		}
 	}
 
+	private static class CustomDeserializationSchema implements RMQDeserializationSchema<String> {
+		@Override
+		public TypeInformation<String> getProducedType() {
+			return TypeExtractor.getForClass(String.class);
+		}
+
+		@Override
+		public void deserialize(
+				Envelope envelope,
+				AMQP.BasicProperties properties,
+				byte[] body,
+				RMQCollector<String> collector) {
+			String correlationId = properties.getCorrelationId();
+			if (correlationId.equals("1")) {
+				collector.setMessageIdentifiers("1", envelope.getDeliveryTag());
+				collector.collect("I Love Turtles");
+				collector.collect("Brush your teeth");
+			} else if (correlationId.equals("2")) {
+				// should not be emitted, because it has the same correlationId as the previous one
+				collector.setMessageIdentifiers("1", envelope.getDeliveryTag());
+				collector.collect("Brush your teeth");
+			} else {
+				// should end the stream, should not be emitted
+				collector.setMessageIdentifiers("2", envelope.getDeliveryTag());
+				collector.collect("FINISH");
+			}
+		}
+
+		@Override
+		public boolean isEndOfStream(String record) {
+			return record.equals("FINISH");
+		}
+	}
+
 	/**
 	 * A base class of {@link RMQTestSource} for testing functions that rely on the {@link RuntimeContext}.
 	 */
@@ -424,8 +518,16 @@ public class RMQSourceTest {
 			super(connectionConfig, QUEUE_NAME, true, deserializationSchema);
 		}
 
+		public RMQMockedRuntimeTestSource(RMQConnectionConfig connectionConfig, RMQDeserializationSchema<String> deliveryParser) {
+			super(connectionConfig, QUEUE_NAME, true, deliveryParser);
+		}
+
 		public RMQMockedRuntimeTestSource(DeserializationSchema<String> deserializationSchema) {
 			this(CONNECTION_CONFIG, deserializationSchema);
+		}
+
+		public RMQMockedRuntimeTestSource(RMQDeserializationSchema<String> deliveryParser){
+			this(CONNECTION_CONFIG, deliveryParser);
 		}
 
 		public RMQMockedRuntimeTestSource(RMQConnectionConfig connectionConfig) {
@@ -445,12 +547,20 @@ public class RMQSourceTest {
 	private class RMQTestSource extends RMQMockedRuntimeTestSource {
 		private ArrayDeque<Tuple2<Long, Set<String>>> restoredState;
 
+		private Delivery mockedDelivery;
+		public Envelope mockedAMQPEnvelope;
+		public AMQP.BasicProperties mockedAMQPProperties;
+
 		public RMQTestSource() {
 			super();
 		}
 
 		public RMQTestSource(DeserializationSchema<String> deserializationSchema) {
 			super(deserializationSchema);
+		}
+
+		public RMQTestSource(RMQDeserializationSchema<String> deliveryParser) {
+			super(deliveryParser);
 		}
 
 		@Override
@@ -463,27 +573,24 @@ public class RMQSourceTest {
 			return this.restoredState;
 		}
 
-		@Override
-		public void open(Configuration config) throws Exception {
-			super.open(config);
-
+		public void initAMQPMocks() {
 			consumer = Mockito.mock(QueueingConsumer.class);
 
 			// Mock for delivery
-			final QueueingConsumer.Delivery deliveryMock = Mockito.mock(QueueingConsumer.Delivery.class);
-			Mockito.when(deliveryMock.getBody()).thenReturn("test".getBytes(ConfigConstants.DEFAULT_CHARSET));
+			mockedDelivery = Mockito.mock(Delivery.class);
+			Mockito.when(mockedDelivery.getBody()).thenReturn("test".getBytes(ConfigConstants.DEFAULT_CHARSET));
 
 			try {
-				Mockito.when(consumer.nextDelivery()).thenReturn(deliveryMock);
+				Mockito.when(consumer.nextDelivery()).thenReturn(mockedDelivery);
 			} catch (InterruptedException e) {
 				fail("Couldn't setup up deliveryMock");
 			}
 
 			// Mock for envelope
-			Envelope envelope = Mockito.mock(Envelope.class);
-			Mockito.when(deliveryMock.getEnvelope()).thenReturn(envelope);
+			mockedAMQPEnvelope = Mockito.mock(Envelope.class);
+			Mockito.when(mockedDelivery.getEnvelope()).thenReturn(mockedAMQPEnvelope);
 
-			Mockito.when(envelope.getDeliveryTag()).thenAnswer(new Answer<Long>() {
+			Mockito.when(mockedAMQPEnvelope.getDeliveryTag()).thenAnswer(new Answer<Long>() {
 				@Override
 				public Long answer(InvocationOnMock invocation) throws Throwable {
 					return ++messageId;
@@ -491,16 +598,28 @@ public class RMQSourceTest {
 			});
 
 			// Mock for properties
-			AMQP.BasicProperties props = Mockito.mock(AMQP.BasicProperties.class);
-			Mockito.when(deliveryMock.getProperties()).thenReturn(props);
+			mockedAMQPProperties = Mockito.mock(AMQP.BasicProperties.class);
+			Mockito.when(mockedDelivery.getProperties()).thenReturn(mockedAMQPProperties);
 
-			Mockito.when(props.getCorrelationId()).thenAnswer(new Answer<String>() {
+			Mockito.when(mockedAMQPProperties.getCorrelationId()).thenAnswer(new Answer<String>() {
 				@Override
 				public String answer(InvocationOnMock invocation) throws Throwable {
 					return generateCorrelationIds ? "" + messageId : null;
 				}
 			});
 
+			Mockito.when(mockedAMQPProperties.getMessageId()).thenAnswer(new Answer<String>(){
+				@Override
+				public String answer(InvocationOnMock invocation) throws Throwable {
+					return messageId + "-MESSAGE_ID";
+				}
+			});
+		}
+
+		@Override
+		public void open(Configuration config) throws Exception {
+			super.open(config);
+			initAMQPMocks();
 		}
 
 		@Override

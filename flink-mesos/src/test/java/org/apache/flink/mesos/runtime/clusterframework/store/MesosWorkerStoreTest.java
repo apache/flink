@@ -18,7 +18,6 @@
 
 package org.apache.flink.mesos.runtime.clusterframework.store;
 
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
@@ -38,11 +37,10 @@ public class MesosWorkerStoreTest extends TestLogger {
 	@Test
 	public void workerIsSerializable() {
 		final Protos.TaskID taskId = Protos.TaskID.newBuilder().setValue("foobar").build();
-		final WorkerResourceSpec workerResourceSpec = new WorkerResourceSpec.Builder().build();
 		final Protos.SlaveID slaveId = Protos.SlaveID.newBuilder().setValue("barfoo").build();
 		final String hostname = "foobar";
 
-		final MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(taskId, workerResourceSpec);
+		final MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(taskId);
 		final MesosWorkerStore.Worker launchedWorker = worker.launchWorker(slaveId, hostname);
 
 		assertTrue(InstantiationUtil.isSerializable(worker));

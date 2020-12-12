@@ -41,6 +41,7 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.DualKeyLinkedMap;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -475,11 +476,11 @@ public class SlotPoolImpl implements SlotPool {
 	@Nonnull
 	public Collection<SlotInfoWithUtilization> getAvailableSlotsInformation() {
 		final Map<ResourceID, Set<AllocatedSlot>> availableSlotsByTaskManager = availableSlots.getSlotsByTaskManager();
-		final Map<ResourceID, Set<AllocatedSlot>> allocatedSlotsSlotsByTaskManager = allocatedSlots.getSlotsByTaskManager();
+		final Map<ResourceID, Set<AllocatedSlot>> allocatedSlotsByTaskManager = allocatedSlots.getSlotsByTaskManager();
 
 		return availableSlotsByTaskManager.entrySet().stream()
 			.flatMap(entry -> {
-				final int numberAllocatedSlots = allocatedSlotsSlotsByTaskManager.getOrDefault(entry.getKey(), Collections.emptySet()).size();
+				final int numberAllocatedSlots = allocatedSlotsByTaskManager.getOrDefault(entry.getKey(), Collections.emptySet()).size();
 				final int numberAvailableSlots = entry.getValue().size();
 				final double taskExecutorUtilization = (double) numberAllocatedSlots / (numberAllocatedSlots + numberAvailableSlots);
 
@@ -797,7 +798,7 @@ public class SlotPoolImpl implements SlotPool {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
-		log.debug("Register new TaskExecutor {}.", resourceID);
+		log.debug("Register new TaskExecutor {}.", resourceID.getStringWithMetadata());
 		return registeredTaskManagers.add(resourceID);
 	}
 

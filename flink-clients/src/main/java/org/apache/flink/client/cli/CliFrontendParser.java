@@ -31,6 +31,8 @@ import org.apache.commons.cli.ParseException;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A simple command line parser (based on Apache Commons CLI) that extracts command
@@ -56,14 +58,6 @@ public class CliFrontendParser {
 	public static final Option PARALLELISM_OPTION = new Option("p", "parallelism", true,
 			"The parallelism with which to run the program. Optional flag to override the default value " +
 			"specified in the configuration.");
-
-	/**
-	 * @deprecated This has no effect anymore, we're keeping it to not break existing bash scripts.
-	 */
-	@Deprecated
-	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "If present, " +
-			"suppress logging output to standard out.");
-
 	public static final Option DETACHED_OPTION = new Option("d", "detached", false, "If present, runs " +
 			"the job in detached mode");
 
@@ -162,7 +156,7 @@ public class CliFrontendParser {
 	public static final Option PYEXEC_OPTION = new Option("pyexec", "pyExecutable", true,
 		"Specify the path of the python interpreter used to execute the python UDF worker " +
 			"(e.g.: --pyExecutable /usr/local/bin/python3). " +
-			"The python UDF worker depends on Python 3.5+, Apache Beam (version == 2.19.0), " +
+			"The python UDF worker depends on Python 3.5+, Apache Beam (version == 2.23.0), " +
 			"Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). " +
 			"Please ensure that the specified environment meets the above requirements.");
 
@@ -184,7 +178,6 @@ public class CliFrontendParser {
 		PARALLELISM_OPTION.setRequired(false);
 		PARALLELISM_OPTION.setArgName("parallelism");
 
-		LOGGING_OPTION.setRequired(false);
 		DETACHED_OPTION.setRequired(false);
 		SHUTDOWN_IF_ATTACHED_OPTION.setRequired(false);
 		YARN_DETACHED_OPTION.setRequired(false);
@@ -245,7 +238,6 @@ public class CliFrontendParser {
 		options.addOption(CLASSPATH_OPTION);
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(ARGS_OPTION);
-		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		options.addOption(YARN_DETACHED_OPTION);
@@ -357,6 +349,7 @@ public class CliFrontendParser {
 		System.out.println("The following actions are available:");
 
 		printHelpForRun(customCommandLines);
+		printHelpForRunApplication(customCommandLines);
 		printHelpForInfo();
 		printHelpForList(customCommandLines);
 		printHelpForStop(customCommandLines);
@@ -378,6 +371,26 @@ public class CliFrontendParser {
 
 		printCustomCliOptions(customCommandLines, formatter, true);
 
+		System.out.println();
+	}
+
+	public static void printHelpForRunApplication(Collection<CustomCommandLine> customCommandLines) {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
+
+		System.out.println("\nAction \"run-application\" runs an application in Application Mode.");
+		System.out.println("\n  Syntax: run-application [OPTIONS] <jar-file> <arguments>");
+		formatter.setSyntaxPrefix("  \"run-application\" action options:");
+
+		// Only GenericCLI works with application mode, the other CLIs will be phased out
+		// in the future
+		List<CustomCommandLine> filteredCommandLines = customCommandLines
+				.stream()
+				.filter((cli) -> cli instanceof GenericCLI)
+				.collect(Collectors.toList());
+
+		printCustomCliOptions(filteredCommandLines, formatter, true);
 		System.out.println();
 	}
 

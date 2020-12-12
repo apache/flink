@@ -19,7 +19,7 @@
 package org.apache.flink.sql.parser;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.avatica.util.Casing;
@@ -38,8 +38,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
-import org.apache.calcite.sql.parser.SqlParserTest;
-import org.apache.calcite.sql.parser.SqlParserUtil;
+import org.apache.calcite.sql.parser.StringAndPos;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.apache.calcite.sql.test.SqlTestFactory;
 import org.apache.calcite.sql.test.SqlTests;
@@ -230,7 +229,7 @@ public class FlinkDDLDataTypeTest {
 			createTestItem("TIMESTAMP(3) WITH ^TIME^ ZONE",
 				"(?s).*Encountered \"TIME\" at .*"),
 			createTestItem("^NULL^",
-				"(?s).*Encountered \"NULL\" at line 2, column 6..*"),
+				"(?s).*Incorrect syntax near the keyword 'NULL' at line 2, column 6..*"),
 			createTestItem("cat.db.MyType", null, "`cat`.`db`.`MyType`"),
 			createTestItem("`db`.`MyType`", null, "`db`.`MyType`"),
 			createTestItem("MyType", null, "`MyType`"),
@@ -238,7 +237,7 @@ public class FlinkDDLDataTypeTest {
 			createTestItem("ROW<f0 MyType, f1 `c`.`d`.`t`>", null,
 				"ROW< `f0` `MyType`, `f1` `c`.`d`.`t` >"),
 			createTestItem("^INTERVAL^ YEAR",
-				"(?s).*Encountered \"INTERVAL\" at line 2, column 6..*"),
+				"(?s).*Incorrect syntax near the keyword 'INTERVAL' at line 2, column 6..*"),
 			createTestItem("RAW(^)^",
 				"(?s).*Encountered \"\\)\" at line 2, column 10.\n.*"
 					+ "Was expecting one of:\n"
@@ -395,7 +394,7 @@ public class FlinkDDLDataTypeTest {
 	}
 
 	/**
-	 * Default implementation of {@link SqlParserTest.Tester}.
+	 * Default implementation of {@code SqlParserTest.Tester}.
 	 */
 	protected class TesterImpl implements Tester {
 		private TestFactory factory;
@@ -410,7 +409,7 @@ public class FlinkDDLDataTypeTest {
 			final SqlCreateTable sqlCreateTable = (SqlCreateTable) sqlNode;
 			SqlNodeList columns = sqlCreateTable.getColumnList();
 			assert columns.size() == 1;
-			RelDataType columnType = ((SqlTableColumn) columns.get(0)).getType()
+			RelDataType columnType = ((SqlRegularColumn) columns.get(0)).getType()
 				.deriveType(factory.getValidator());
 			assertEquals(type, columnType);
 		}
@@ -428,7 +427,7 @@ public class FlinkDDLDataTypeTest {
 		public void checkFails(
 			String sql,
 			String expectedMsgPattern) {
-			SqlParserUtil.StringAndPos sap = SqlParserUtil.findPos(sql);
+			StringAndPos sap = StringAndPos.of(sql);
 			Throwable thrown = null;
 			try {
 				final SqlNode sqlNode;
@@ -447,20 +446,20 @@ public class FlinkDDLDataTypeTest {
 			final SqlCreateTable sqlCreateTable = (SqlCreateTable) sqlNode;
 			SqlNodeList columns = sqlCreateTable.getColumnList();
 			assert columns.size() == 1;
-			SqlDataTypeSpec dataTypeSpec = ((SqlTableColumn) columns.get(0)).getType();
+			SqlDataTypeSpec dataTypeSpec = ((SqlRegularColumn) columns.get(0)).getType();
 			SqlWriter sqlWriter = new SqlPrettyWriter(factory.createSqlDialect(), false);
 			dataTypeSpec.unparse(sqlWriter, 0, 0);
 			// SqlDataTypeSpec does not take care of the nullable attribute unparse,
 			// So we unparse nullable attribute specifically, this unparsing logic should
 			// keep sync with SqlTableColumn.
-			if (!dataTypeSpec.getNullable()) {
+			if (dataTypeSpec.getNullable() != null && !dataTypeSpec.getNullable()) {
 				sqlWriter.keyword("NOT NULL");
 			}
 			assertEquals(expectedUnparsed, sqlWriter.toSqlString().getSql());
 		}
 
 		private void checkEx(String expectedMsgPattern,
-				SqlParserUtil.StringAndPos sap,
+				StringAndPos sap,
 				Throwable thrown) {
 			SqlTests.checkEx(thrown, expectedMsgPattern, sap, SqlTests.Stage.VALIDATE);
 		}
@@ -523,8 +522,9 @@ public class FlinkDDLDataTypeTest {
 			return validatorFactory.create(operatorTable,
 				catalogReader,
 				typeFactory,
-				conformance)
-				.setEnableTypeCoercion(enableTypeCoercion);
+				SqlValidator.Config.DEFAULT
+					.withSqlConformance(conformance)
+					.withTypeCoercionEnabled(enableTypeCoercion));
 		}
 
 		private static SqlOperatorTable createOperatorTable(SqlOperatorTable opTab0) {

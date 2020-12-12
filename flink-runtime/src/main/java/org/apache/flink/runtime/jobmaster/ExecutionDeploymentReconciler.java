@@ -21,7 +21,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.ExecutionDeploymentReport;
 
-import java.util.Set;
+import java.util.Map;
 
 /**
  * Component for reconciling the deployment state of executions.
@@ -40,8 +40,11 @@ public interface ExecutionDeploymentReconciler {
 	 *
 	 * @param taskExecutorHost hosting task executor
 	 * @param executionDeploymentReport task executor report for deployed executions
-	 * @param expectedDeployedExecutionIds set of expected deployed executions
+	 * @param expectedDeployedExecutionIds map of expected executions and their current deployment status
 	 */
-	void reconcileExecutionDeployments(ResourceID taskExecutorHost, ExecutionDeploymentReport executionDeploymentReport, Set<ExecutionAttemptID> expectedDeployedExecutionIds);
+	void reconcileExecutionDeployments(
+		ResourceID taskExecutorHost,
+		ExecutionDeploymentReport executionDeploymentReport,
+		Map<ExecutionAttemptID, ExecutionDeploymentState> expectedDeployedExecutionIds);
 
 }

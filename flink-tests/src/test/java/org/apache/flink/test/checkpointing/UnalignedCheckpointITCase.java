@@ -19,48 +19,35 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
+import org.apache.flink.util.Collector;
 
-import org.apache.commons.lang3.ArrayUtils;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ErrorCollector;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
-import javax.annotation.Nonnull;
-
-import java.io.IOException;
 import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
+import java.util.BitSet;
+import java.util.Random;
 
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
 
 /**
  * Integration test for performing the unaligned checkpoint.
@@ -101,244 +88,189 @@ import static org.hamcrest.Matchers.greaterThan;
  *     <li>The number of successful checkpoints is indeed {@code >=n}.</li>
  * </ul>
  */
-public class UnalignedCheckpointITCase extends TestLogger {
-	public static final String NUM_INPUTS = "inputs";
-	public static final String NUM_OUTPUTS = "outputs";
-	private static final String NUM_OUT_OF_ORDER = "outOfOrder";
-	private static final String NUM_DUPLICATES = "duplicates";
-	private static final String NUM_LOST = "lost";
-	private static final Logger LOG = LoggerFactory.getLogger(UnalignedCheckpointITCase.class);
+@RunWith(Parameterized.class)
+public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
-	@Rule
-	public ErrorCollector collector = new ErrorCollector();
+	@Parameterized.Parameters(name = "{0}")
+	public static Object[][] parameters() {
+		return new Object[][]{
+			new Object[]{"non-parallel pipeline with local channels", createPipelineSettings(1, 1, true)},
+			new Object[]{"non-parallel pipeline with remote channels", createPipelineSettings(1, 1, false)},
+			new Object[]{"parallel pipeline with local channels, p = 5", createPipelineSettings(5, 5, true)},
+			new Object[]{"parallel pipeline with remote channels, p = 5", createPipelineSettings(5, 1, false)},
+			new Object[]{"parallel pipeline with mixed channels, p = 5", createPipelineSettings(5, 3, true)},
+			new Object[]{"parallel pipeline with mixed channels, p = 20", createPipelineSettings(20, 10, true)},
 
-	@Rule
-	public final TemporaryFolder temp = new TemporaryFolder();
+			new Object[]{"Parallel cogroup, p = 5", createCogroupSettings(5)},
+			new Object[]{"Parallel cogroup, p = 10", createCogroupSettings(10)},
 
-	@Rule
-	public final Timeout timeout = Timeout.builder()
-			.withTimeout(300, TimeUnit.SECONDS)
-			.build();
+			new Object[]{"Parallel union, p = 5", createUnionSettings(5)},
+			new Object[]{"Parallel union, p = 10", createUnionSettings(10)},
+		};
+	}
 
-	@Test
-	public void shouldPerformUnalignedCheckpointOnNonParallelLocalChannel() throws Exception {
-		execute(1, 1, true);
+	private static UnalignedSettings createPipelineSettings(int parallelism, int slotsPerTaskManager, boolean slotSharing) {
+		int numShuffles = 4;
+		return new UnalignedSettings(UnalignedCheckpointITCase::createPipeline)
+			.setParallelism(parallelism)
+			.setSlotSharing(slotSharing)
+			.setNumSlots(slotSharing ? parallelism : parallelism * numShuffles)
+			.setNumBuffers(getNumBuffers(parallelism, numShuffles))
+			.setSlotsPerTaskManager(slotsPerTaskManager)
+			.setExpectedFailures(5);
+	}
+
+	private static UnalignedSettings createCogroupSettings(int parallelism) {
+		int numShuffles = 10;
+		return new UnalignedSettings(UnalignedCheckpointITCase::createMultipleInputTopology)
+			.setParallelism(parallelism)
+			.setSlotSharing(true)
+			.setNumSlots(parallelism * numShuffles)
+			.setNumBuffers(getNumBuffers(parallelism, numShuffles))
+			.setSlotsPerTaskManager(parallelism)
+			.setExpectedFailures(5);
+	}
+
+	private static UnalignedSettings createUnionSettings(int parallelism) {
+		int numShuffles = 6;
+		return new UnalignedSettings(UnalignedCheckpointITCase::createUnionTopology)
+			.setParallelism(parallelism)
+			.setSlotSharing(true)
+			.setNumSlots(parallelism * numShuffles)
+			.setNumBuffers(getNumBuffers(parallelism, numShuffles))
+			.setSlotsPerTaskManager(parallelism)
+			.setExpectedFailures(5);
+	}
+
+	private static int getNumBuffers(int parallelism, int numShuffles) {
+		int buffersPerSubtask =	parallelism + 1 + // output side
+			2 * BUFFER_PER_CHANNEL * parallelism; // input side including recovery (=local channels count fully)
+		return buffersPerSubtask * parallelism * numShuffles;
+	}
+
+	private final UnalignedSettings settings;
+
+	public UnalignedCheckpointITCase(String desc, UnalignedSettings settings) {
+		this.settings = settings;
 	}
 
 	@Test
-	public void shouldPerformUnalignedCheckpointOnParallelLocalChannel() throws Exception {
-		execute(5, 5, true);
+	public void execute() throws Exception {
+		execute(settings);
 	}
 
-	@Test
-	public void shouldPerformUnalignedCheckpointOnNonParallelRemoteChannel() throws Exception {
-		execute(1, 1, false);
-	}
-
-	@Test
-	public void shouldPerformUnalignedCheckpointOnParallelRemoteChannel() throws Exception {
-		execute(5, 1, false);
-	}
-
-	@Test
-	public void shouldPerformUnalignedCheckpointOnLocalAndRemoteChannel() throws Exception {
-		execute(5, 3, true);
-	}
-
-	@Test
-	public void shouldPerformUnalignedCheckpointMassivelyParallel() throws Exception {
-		execute(20, 20, true);
-	}
-
-	private void execute(int parallelism, int slotsPerTaskManager, boolean slotSharing) throws Exception {
-		StreamExecutionEnvironment env = createEnv(parallelism, slotsPerTaskManager, slotSharing);
-
-		long minCheckpoints = 10;
-		createDAG(env, minCheckpoints, slotSharing);
-		final JobExecutionResult result = env.execute();
-
-		collector.checkThat(result.<Long>getAccumulatorResult(NUM_OUT_OF_ORDER), equalTo(0L));
-		collector.checkThat(result.<Long>getAccumulatorResult(NUM_DUPLICATES), equalTo(0L));
-		collector.checkThat(result.<Long>getAccumulatorResult(NUM_LOST), equalTo(0L));
-
-		// at this point, there is no way that #input != #output, but still perform these sanity checks
-		Long inputs = result.<Long>getAccumulatorResult(NUM_INPUTS);
-		collector.checkThat(inputs, greaterThan(0L));
-		collector.checkThat(result.<Long>getAccumulatorResult(NUM_OUTPUTS), equalTo(inputs));
-	}
-
-	@Nonnull
-	private LocalStreamEnvironment createEnv(int parallelism, int slotsPerTaskManager, boolean slotSharing) throws IOException {
-		Configuration conf = new Configuration();
-		conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
-		conf.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, .9f);
-		conf.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
-				slotSharing ? (parallelism + slotsPerTaskManager - 1) / slotsPerTaskManager : parallelism * 3);
-
-		conf.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
-		conf.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, temp.newFolder().toURI().toString());
-
-		final LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(parallelism, conf);
-		env.enableCheckpointing(100);
-		// keep in sync with FailingMapper in #createDAG
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.milliseconds(100)));
-		env.getCheckpointConfig().enableUnalignedCheckpoints(true);
-		return env;
-	}
-
-	private void createDAG(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing) {
-		env.addSource(new LongSource(minCheckpoints))
+	private static void createPipeline(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing) {
+		final int parallelism = env.getParallelism();
+		final SingleOutputStreamOperator<Long> stream = env.fromSource(new LongSource(minCheckpoints, parallelism), WatermarkStrategy.noWatermarks(), "source")
 			.slotSharingGroup(slotSharing ? "default" : "source")
+			.disableChaining()
+			.map(i -> i).name("forward").uid("forward")
+			.slotSharingGroup(slotSharing ? "default" : "forward")
+			.keyBy(i -> i % parallelism * parallelism)
+			.process(new KeyedIdentityFunction())
+			.name("keyed").uid("keyed");
+		addFailingPipeline(minCheckpoints, slotSharing, stream);
+	}
+
+	private static void createMultipleInputTopology(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing) {
+		final int parallelism = env.getParallelism();
+		DataStream<Long> combinedSource = null;
+		for (int inputIndex = 0; inputIndex < 4; inputIndex++) {
+			final SingleOutputStreamOperator<Long> source = env.fromSource(new LongSource(minCheckpoints, parallelism), WatermarkStrategy.noWatermarks(),
+				"source" + inputIndex)
+				.slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
+				.disableChaining();
+			combinedSource = combinedSource == null ? source : combinedSource.connect(source).flatMap(new MinEmittingFunction());
+		}
+
+		addFailingPipeline(minCheckpoints, slotSharing, combinedSource);
+	}
+
+	private static void createUnionTopology(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing) {
+		final int parallelism = env.getParallelism();
+		DataStream<Long> combinedSource = null;
+		final int numSources = 4;
+		for (int inputIndex = 0; inputIndex < numSources; inputIndex++) {
+			final SingleOutputStreamOperator<Long> source = env.fromSource(new LongSource(minCheckpoints, parallelism), WatermarkStrategy.noWatermarks(),
+				"source" + inputIndex)
+				.slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
+				.disableChaining();
+			combinedSource = combinedSource == null ? source : combinedSource.union(source);
+		}
+
+		final SingleOutputStreamOperator<Long> deduplicated = combinedSource
+			.partitionCustom((key, numPartitions) -> (int) (key % numPartitions), l -> l)
+			.flatMap(new CountingMapFunction(numSources));
+		addFailingPipeline(minCheckpoints, slotSharing, deduplicated);
+	}
+
+	private static DataStreamSink<Long> addFailingPipeline(long minCheckpoints, boolean slotSharing, DataStream<Long> combinedSource) {
+		return combinedSource
 			// shifts records from one partition to another evenly to retain order
 			.partitionCustom(new ShiftingPartitioner(), l -> l)
-			.map(new FailingMapper(state -> state.completedCheckpoints == minCheckpoints / 4 && state.runNumber == 0
-					|| state.completedCheckpoints == minCheckpoints * 3 / 4 && state.runNumber == 2,
-				state -> state.completedCheckpoints == minCheckpoints / 2 && state.runNumber == 1,
+			.map(new FailingMapper(
+				state -> state.completedCheckpoints >= minCheckpoints / 4 && state.runNumber == 0
+					|| state.completedCheckpoints >= minCheckpoints * 3 / 4 && state.runNumber == 2,
+				state -> state.completedCheckpoints >= minCheckpoints / 2 && state.runNumber == 1,
 				state -> state.runNumber == 3,
 				state -> state.runNumber == 4))
+			.name("failing-map").uid("failing-map")
 			.slotSharingGroup(slotSharing ? "default" : "map")
-			.partitionCustom(new DistributingPartitioner(), l -> l)
-			.addSink(new VerifyingSink(minCheckpoints))
+			.partitionCustom(new ChunkDistributingPartitioner(), l -> l)
+			.addSink(new StrictOrderVerifyingSink(minCheckpoints))
+			.name("sink").uid("sink")
 			.slotSharingGroup(slotSharing ? "default" : "sink");
 	}
 
-	private static class LongSource extends RichParallelSourceFunction<Long> implements CheckpointListener,
-			CheckpointedFunction {
+	/**
+	 * Shifts the partitions one up.
+	 */
+	protected static class ShiftingPartitioner implements Partitioner<Long> {
+		@Override
+		public int partition(Long key, int numPartitions) {
+			return (int) ((key + 1) % numPartitions);
+		}
+	}
 
-		private final long minCheckpoints;
-		private volatile boolean running = true;
-		private static final ListStateDescriptor<State> STATE_DESCRIPTOR =
-				new ListStateDescriptor<>("state", State.class);
-		private final LongCounter numInputsCounter = new LongCounter();
-		private ListState<State> stateList;
-		private State state;
+	/**
+	 * Distributes chunks of the size of numPartitions in a round robin fashion.
+	 */
+	protected static class ChunkDistributingPartitioner implements Partitioner<Long> {
+		@Override
+		public int partition(Long key, int numPartitions) {
+			return (int) ((key / numPartitions) % numPartitions);
+		}
+	}
 
-		public LongSource(final long minCheckpoints) {
-			this.minCheckpoints = minCheckpoints;
+	/**
+	 * A sink that checks if the members arrive in the expected order without any missing values.
+	 */
+	protected static class StrictOrderVerifyingSink extends VerifyingSinkBase<StrictOrderVerifyingSink.State> {
+		private Random random = new Random();
+		protected boolean backpressure;
+		private boolean firstOutOfOrder = true;
+		private boolean firstDuplicate = true;
+		private boolean firstLostValue = true;
+
+		protected StrictOrderVerifyingSink(long minCheckpoints) {
+			super(minCheckpoints);
 		}
 
 		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			getRuntimeContext().addAccumulator(NUM_INPUTS, numInputsCounter);
+		protected State createState() {
+			return new State(getRuntimeContext().getNumberOfParallelSubtasks());
 		}
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
-			stateList = context.getOperatorStateStore().getListState(STATE_DESCRIPTOR);
-			state = getOnlyElement(stateList.get(), new State(0, getRuntimeContext().getIndexOfThisSubtask()));
+			super.initializeState(context);
+			backpressure = false;
 		}
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			stateList.clear();
-			stateList.add(state);
-			info("Snapshotted next input {}", state.nextNumber);
-		}
-
-		private void info(String description, Object... args) {
-			UnalignedCheckpointITCase.info(getRuntimeContext(), description, args);
-		}
-
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
-			state.numCompletedCheckpoints++;
-		}
-
-		@Override
-		public void notifyCheckpointAborted(long checkpointId) {
-		}
-
-		@Override
-		public void run(SourceContext<Long> ctx) throws Exception {
-			int increment = getRuntimeContext().getNumberOfParallelSubtasks();
-			info("First emitted input {}", state.nextNumber);
-			while (running) {
-				synchronized (ctx.getCheckpointLock()) {
-					ctx.collect(state.nextNumber);
-					state.nextNumber += increment;
-
-					if (state.numCompletedCheckpoints >= minCheckpoints) {
-						cancel();
-					}
-				}
-			}
-
-			numInputsCounter.add(state.nextNumber / increment);
-			info("Last emitted input {} = {} total emits", state.nextNumber - increment, numInputsCounter.getLocalValue());
-		}
-
-		@Override
-		public void cancel() {
-			running = false;
-		}
-
-		private static class State {
-			private long numCompletedCheckpoints;
-			private long nextNumber;
-
-			private State(long numCompletedCheckpoints, long nextNumber) {
-				this.numCompletedCheckpoints = numCompletedCheckpoints;
-				this.nextNumber = nextNumber;
-			}
-		}
-	}
-
-	static void info(RuntimeContext runtimeContext, String description, Object[] args) {
-		LOG.info(description + " @ {} subtask ({} attempt)",
-				ArrayUtils.addAll(args, new Object[]{runtimeContext.getIndexOfThisSubtask(), runtimeContext.getAttemptNumber()}));
-	}
-
-	private static class VerifyingSink extends RichSinkFunction<Long> implements CheckpointedFunction {
-		private final LongCounter numOutputCounter = new LongCounter();
-		private final LongCounter outOfOrderCounter = new LongCounter();
-		private final LongCounter lostCounter = new LongCounter();
-		private final LongCounter duplicatesCounter = new LongCounter();
-		private static final ListStateDescriptor<State> STATE_DESCRIPTOR =
-				new ListStateDescriptor<>("state", State.class);
-		private ListState<State> stateList;
-		private State state;
-		private final long minCheckpoints;
-
-		private VerifyingSink(long minCheckpoints) {
-			this.minCheckpoints = minCheckpoints;
-		}
-
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			getRuntimeContext().addAccumulator(NUM_OUTPUTS, numOutputCounter);
-			getRuntimeContext().addAccumulator(NUM_OUT_OF_ORDER, outOfOrderCounter);
-			getRuntimeContext().addAccumulator(NUM_DUPLICATES, duplicatesCounter);
-			getRuntimeContext().addAccumulator(NUM_LOST, lostCounter);
-		}
-
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			stateList = context.getOperatorStateStore().getListState(STATE_DESCRIPTOR);
-			state = getOnlyElement(stateList.get(), new State(getRuntimeContext().getNumberOfParallelSubtasks()));
-			info("Initialized last snapshotted records {}", Arrays.asList(state.lastRecordInPartitions));
-		}
-
-		private void info(String description, Object... args) {
-			UnalignedCheckpointITCase.info(getRuntimeContext(), description, args);
-		}
-
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			stateList.clear();
-			stateList.add(state);
-			info("Last snapshotted records {}", Arrays.asList(state.lastRecordInPartitions));
-		}
-
-		@Override
-		public void close() throws Exception {
-			numOutputCounter.add(state.numOutput);
-			outOfOrderCounter.add(state.numOutOfOrderness);
-			duplicatesCounter.add(state.numDuplicates);
-			lostCounter.add(state.numLostValues);
-			info("Last received records {}", Arrays.asList(state.lastRecordInPartitions));
-			super.close();
+			super.snapshotState(context);
+			backpressure = state.completedCheckpoints < minCheckpoints;
 		}
 
 		@Override
@@ -348,128 +280,149 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			long lastRecord = state.lastRecordInPartitions[partition];
 			if (value < lastRecord) {
 				state.numOutOfOrderness++;
-				info("Out of order records current={} and last={}", value, lastRecord);
+				if (firstOutOfOrder) {
+					LOG.info(
+						"Out of order records current={} and last={} @ {} subtask ({} attempt)",
+						value,
+						lastRecord,
+						getRuntimeContext().getIndexOfThisSubtask(),
+						getRuntimeContext().getAttemptNumber());
+					firstOutOfOrder = false;
+				}
 			} else if (value == lastRecord) {
 				state.numDuplicates++;
-				info("Duplicate record {}", value);
+				if (firstDuplicate) {
+					LOG.info(
+						"Duplicate record {} @ {} subtask ({} attempt)",
+						value,
+						getRuntimeContext().getIndexOfThisSubtask(),
+						getRuntimeContext().getAttemptNumber());
+					firstDuplicate = false;
+				}
 			} else if (lastRecord != -1) {
 				long expectedValue = lastRecord + parallelism * parallelism;
 				if (value != expectedValue) {
 					state.numLostValues++;
-					info("Lost records {}-{}", expectedValue, value);
+					if (firstLostValue) {
+						LOG.info(
+							"Lost records current={}, expected={}, and last={} @ {} subtask ({} attempt)",
+							value,
+							expectedValue,
+							lastRecord,
+							getRuntimeContext().getIndexOfThisSubtask(),
+							getRuntimeContext().getAttemptNumber());
+						firstLostValue = false;
+					}
 				}
 			}
 			state.lastRecordInPartitions[partition] = value;
 			state.numOutput++;
+
+			if (backpressure) {
+				// induce backpressure until enough checkpoints have been written
+				if (random.nextInt(100) == 42) {
+					Thread.sleep(0, 100_000);
+				}
+			}
+			// after all checkpoints have been completed, the remaining data should be flushed out fairly quickly
 		}
 
-		private static class State {
-			private long numOutOfOrderness;
-			private long numLostValues;
-			private long numDuplicates;
-			private long numOutput = 0;
-			private long[] lastRecordInPartitions;
+		static class State extends VerifyingSinkStateBase {
+			private final long[] lastRecordInPartitions;
 
 			private State(int numberOfParallelSubtasks) {
 				lastRecordInPartitions = new long[numberOfParallelSubtasks];
-				for (int index = 0; index < lastRecordInPartitions.length; index++) {
-					lastRecordInPartitions[index] = -1;
-				}
+				Arrays.fill(lastRecordInPartitions, -1);
 			}
 		}
 	}
 
-	private static class ShiftingPartitioner implements Partitioner<Long> {
-		@Override
-		public int partition(Long key, int numPartitions) {
-			return (int) ((key + 1) % numPartitions);
-		}
-	}
-
-	private static class DistributingPartitioner implements Partitioner<Long> {
-		@Override
-		public int partition(Long key, int numPartitions) {
-			return (int) ((key / numPartitions) % numPartitions);
-		}
-	}
-
-	private static class FailingMapperState {
-		private long completedCheckpoints;
-		private long runNumber;
-
-		private FailingMapperState(long completedCheckpoints, long runNumber) {
-			this.completedCheckpoints = completedCheckpoints;
-			this.runNumber = runNumber;
-		}
-	}
-
-	private static class FailingMapper extends RichMapFunction<Long, Long> implements CheckpointedFunction, CheckpointListener {
-		private static final ListStateDescriptor<FailingMapperState> FAILING_MAPPER_STATE_DESCRIPTOR =
-				new ListStateDescriptor<>("state", FailingMapperState.class);
-		private ListState<FailingMapperState> listState;
-		private FailingMapperState state;
-		private final FilterFunction<FailingMapperState> failDuringMap;
-		private final FilterFunction<FailingMapperState> failDuringSnapshot;
-		private final FilterFunction<FailingMapperState> failDuringRecovery;
-		private final FilterFunction<FailingMapperState> failDuringClose;
-		private long lastValue;
-
-		private FailingMapper(
-				FilterFunction<FailingMapperState> failDuringMap,
-				FilterFunction<FailingMapperState> failDuringSnapshot,
-				FilterFunction<FailingMapperState> failDuringRecovery,
-				FilterFunction<FailingMapperState> failDuringClose) {
-			this.failDuringMap = failDuringMap;
-			this.failDuringSnapshot = failDuringSnapshot;
-			this.failDuringRecovery = failDuringRecovery;
-			this.failDuringClose = failDuringClose;
-		}
-
-		@Override
-		public Long map(Long value) throws Exception {
-			lastValue = value;
-			checkFail(failDuringMap, "map");
-			return value;
-		}
-
-		public void checkFail(FilterFunction<FailingMapperState> failFunction, String description) throws Exception {
-			if (getRuntimeContext().getIndexOfThisSubtask() == 0 && failFunction.filter(state)) {
-				failMapper(description);
-			}
-		}
-
-		private void failMapper(String description) throws Exception {
-			throw new Exception("Failing " + description + " @ " + state.completedCheckpoints + " (" + state.runNumber + " attempt); last value " + lastValue);
-		}
-
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
-			state.completedCheckpoints++;
-		}
-
-		@Override
-		public void notifyCheckpointAborted(long checkpointId) {
-		}
+	private static class MinEmittingFunction extends RichCoFlatMapFunction<Long, Long, Long> implements CheckpointedFunction {
+		private ListState<State> stateList;
+		private State state;
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			checkFail(failDuringSnapshot, "snapshotState");
-			listState.clear();
-			listState.add(state);
-		}
-
-		@Override
-		public void close() throws Exception {
-			checkFail(failDuringClose, "close");
-			super.close();
+			stateList.clear();
+			stateList.add(state);
 		}
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
-			listState = context.getOperatorStateStore().getListState(FAILING_MAPPER_STATE_DESCRIPTOR);
-			state = getOnlyElement(listState.get(), new FailingMapperState(0, 0));
-			state.runNumber = getRuntimeContext().getAttemptNumber();
-			checkFail(failDuringRecovery, "initializeState");
+			stateList = context.getOperatorStateStore().getListState(new ListStateDescriptor<>("state", State.class));
+			this.state = getOnlyElement(stateList.get(), new State());
+		}
+
+		@Override
+		public void flatMap1(Long value, Collector<Long> out) {
+			state.lastLeft = value;
+			if (state.lastRight >= value) {
+				out.collect(value);
+			}
+		}
+
+		@Override
+		public void flatMap2(Long value, Collector<Long> out) {
+			state.lastRight = value;
+			if (state.lastLeft >= value) {
+				out.collect(value);
+			}
+		}
+
+		private static class State {
+			private long lastLeft = Long.MIN_VALUE;
+			private long lastRight = Long.MIN_VALUE;
+		}
+	}
+
+	private static class KeyedIdentityFunction extends KeyedProcessFunction<Long, Long, Long> {
+		ValueState<Long> state;
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+			state = getRuntimeContext().getState(new ValueStateDescriptor<>("keyedState", BasicTypeInfo.LONG_TYPE_INFO));
+		}
+
+		@Override
+		public void processElement(Long value, Context ctx, Collector<Long> out) {
+			out.collect(value);
+		}
+	}
+
+	private static class CountingMapFunction extends RichFlatMapFunction<Long, Long> implements CheckpointedFunction {
+		private BitSet seenRecords;
+
+		private final int withdrawnCount;
+
+		private ListState<BitSet> stateList;
+
+		public CountingMapFunction(int numSources) {
+			this.withdrawnCount = numSources - 1;
+		}
+
+		@Override
+		public void flatMap(Long value, Collector<Long> out) throws Exception {
+			final int offset = StrictMath.toIntExact(value * withdrawnCount);
+			for (int index = 0; index < withdrawnCount; index++) {
+				if (!seenRecords.get(index + offset)) {
+					seenRecords.set(index + offset);
+					return;
+				}
+			}
+			out.collect(value);
+		}
+
+		@Override
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			stateList.clear();
+			stateList.add(seenRecords);
+		}
+
+		@Override
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			stateList = context.getOperatorStateStore().getListState(new ListStateDescriptor<>("state", BitSet.class));
+			this.seenRecords = getOnlyElement(stateList.get(), new BitSet());
 		}
 	}
 }

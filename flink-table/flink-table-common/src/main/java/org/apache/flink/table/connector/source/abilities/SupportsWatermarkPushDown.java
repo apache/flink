@@ -19,10 +19,16 @@
 package org.apache.flink.table.connector.source.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceProvider;
+import org.apache.flink.table.data.RowData;
 
 /**
- * Enables to push down watermarks into a {@link ScanTableSource}.
+ * Enables to push down a watermark strategy into a {@link ScanTableSource}.
  *
  * <p>The concept of watermarks defines when time operations based on an event time attribute will be
  * triggered. A watermark tells operators that no elements with a timestamp older or equal to the watermark
@@ -35,45 +41,35 @@ import org.apache.flink.table.connector.source.ScanTableSource;
  *
  * <p>In the above example, generated watermarks are lagging 5 seconds behind the highest seen timestamp.
  *
- * <p>By default, if this interface is not implemented, watermarks are generated in a subsequent operation
- * after the source.
- *
- * <p>However, for correctness, it might be necessary to perform the watermark generation as early as
+ * <p>For correctness, it might be necessary to perform the watermark generation as early as
  * possible in order to be close to the actual data generation within a source's data partition.
  *
- * <p>This interface provides a {@link WatermarkProvider} that needs to be applied to a runtime
- * implementation. Most built-in Flink sources provide a way of setting the watermark generator.
+ * <p>If the {@link ScanTableSource#getScanRuntimeProvider(ScanTableSource.ScanContext)} returns
+ * {@link SourceProvider}, watermarks will be automatically pushed into the runtime source operator
+ * by the framework. In this case, this interface does not need to be implemented.
  *
- * <p>Note: In many cases, watermarks are generated from computed columns. If a source implements this
- * interface, it is recommended to also implement {@link SupportsComputedColumnPushDown}.
+ * <p>If the {@link ScanTableSource} does not return a {@link SourceProvider} and this interface is
+ * not implemented, watermarks are generated in a subsequent operation after the source. In this case,
+ * it is recommended to implement this interface to perform the watermark generation within source's
+ * data partition.
+ *
+ * <p>This interface provides a {@link WatermarkStrategy} that needs to be applied to the runtime
+ * implementation. Most built-in Flink sources provide a way of setting the watermark generator.
  */
 @PublicEvolving
 public interface SupportsWatermarkPushDown {
 
 	/**
-	 * Provides actual runtime implementation for generating watermarks.
+	 * Provides a {@link WatermarkStrategy} which defines how to generate {@link Watermark}s in
+	 * the stream source.
 	 *
-	 * <p>There exist different interfaces for runtime implementation which is why {@link WatermarkProvider}
-	 * serves as the base interface. Concrete {@link WatermarkProvider} interfaces might be located
-	 * in other Flink modules.
+	 * <p>The {@link WatermarkStrategy} is a builder/factory for the actual runtime implementation
+	 * consisting of {@link TimestampAssigner} (assigns the event-time timestamps to each record) and
+	 * the {@link WatermarkGenerator} (generates the watermarks).
 	 *
-	 * <p>See {@code org.apache.flink.table.connector.source.abilities} in {@code flink-table-api-java-bridge}.
-	 *
-	 * <p>Implementations need to perform an {@code instanceof} check and fail with an exception if the given
-	 * {@link WatermarkProvider} is unsupported.
+	 * <p>Note: If necessary, the watermark strategy will contain required computed column expressions
+	 * and consider metadata columns (if {@link SupportsReadingMetadata} is implemented).
 	 */
-	void applyWatermark(WatermarkProvider provider);
+	void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy);
 
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Provides actual runtime implementation for generating watermarks.
-	 *
-	 * <p>There exist different interfaces for runtime implementation which is why {@link WatermarkProvider}
-	 * serves as the base interface.
-	 */
-	interface WatermarkProvider {
-		// marker interface that will be filled after FLIP-126:
-		// WatermarkGenerator<RowData> getWatermarkGenerator();
-	}
 }

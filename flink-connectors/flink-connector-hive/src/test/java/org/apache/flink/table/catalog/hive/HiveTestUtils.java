@@ -18,19 +18,29 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.sql.parser.SqlPartitionUtils;
+import org.apache.flink.sql.parser.hive.ddl.SqlAddHivePartitions;
+import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTest;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import com.klarna.hiverunner.HiveShell;
+import org.apache.calcite.config.Lex;
+import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedWriter;
@@ -59,7 +69,7 @@ public class HiveTestUtils {
 	private static final int MIN_EPH_PORT = 49152;
 	private static final int MAX_EPH_PORT = 61000;
 
-	private static final byte[] SEPARATORS = new byte[]{(byte) 1, (byte) 2, (byte) 3};
+	private static final byte[] SEPARATORS = new byte[]{(byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8};
 
 	/**
 	 * Create a HiveCatalog with an embedded Hive Metastore.
@@ -71,6 +81,11 @@ public class HiveTestUtils {
 	public static HiveCatalog createHiveCatalog(String name, String hiveVersion) {
 		return new HiveCatalog(name, null, createHiveConf(),
 				StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion, true);
+	}
+
+	public static HiveCatalog createHiveCatalog(String name, String hiveConfDir, String hadoopConfDir, String hiveVersion) {
+		return new HiveCatalog(name, null, hiveConfDir, hadoopConfDir,
+			StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion);
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
@@ -146,13 +161,9 @@ public class HiveTestUtils {
 		return tableEnv;
 	}
 
-	public static void waitForJobFinish(TableResult tableResult) throws Exception {
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
-	}
-
 	// Insert into a single partition of a text table.
-	public static TextTableInserter createTextTableInserter(HiveShell hiveShell, String dbName, String tableName) {
-		return new TextTableInserter(hiveShell, dbName, tableName);
+	public static TextTableInserter createTextTableInserter(HiveCatalog hiveCatalog, String dbName, String tableName) {
+		return new TextTableInserter(hiveCatalog, dbName, tableName);
 	}
 
 	/**
@@ -160,13 +171,16 @@ public class HiveTestUtils {
 	 */
 	public static class TextTableInserter {
 
-		private final HiveShell hiveShell;
+		private final HiveCatalog hiveCatalog;
+		private final TableEnvironment tableEnv;
 		private final String dbName;
 		private final String tableName;
 		private final List<Object[]> rows;
 
-		public TextTableInserter(HiveShell hiveShell, String dbName, String tableName) {
-			this.hiveShell = hiveShell;
+		public TextTableInserter(HiveCatalog hiveCatalog, String dbName, String tableName) {
+			this.hiveCatalog = hiveCatalog;
+			tableEnv = createTableEnvWithHiveCatalog(hiveCatalog);
+			tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
 			this.dbName = dbName;
 			this.tableName = tableName;
 			rows = new ArrayList<>();
@@ -177,31 +191,42 @@ public class HiveTestUtils {
 			return this;
 		}
 
-		public void commit() {
+		public void commit() throws Exception {
 			commit(null);
 		}
 
-		public void commit(String partitionSpec) {
-			try {
-				File file = File.createTempFile("table_data_", null);
-				try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-					for (int i = 0; i < rows.size(); i++) {
-						if (i > 0) {
-							writer.newLine();
-						}
-						writer.write(toText(rows.get(i)));
+		public void commit(String partitionSpec) throws Exception {
+			File file = File.createTempFile("table_data_", null);
+			try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+				for (int i = 0; i < rows.size(); i++) {
+					if (i > 0) {
+						writer.newLine();
 					}
-					// new line at the end of file
-					writer.newLine();
+					writer.write(toText(rows.get(i)));
 				}
-				String load = String.format("load data local inpath '%s' into table %s.%s", file.getAbsolutePath(), dbName, tableName);
-				if (partitionSpec != null) {
-					load += String.format(" partition (%s)", partitionSpec);
-				}
-				hiveShell.execute(load);
-			} catch (IOException e) {
-				throw new RuntimeException(e);
+				// new line at the end of file
+				writer.newLine();
 			}
+			Path src = new Path(file.toURI());
+			Path dest;
+			ObjectPath tablePath = new ObjectPath(dbName, tableName);
+			Table hiveTable = hiveCatalog.getHiveTable(tablePath);
+			if (partitionSpec != null) {
+				String ddl = String.format("alter table `%s`.`%s` add if not exists partition (%s)", dbName, tableName, partitionSpec);
+				tableEnv.executeSql(ddl);
+				// we need parser to parse the partition spec
+				SqlParser parser = SqlParser.create(
+						ddl,
+						SqlParser.config().withParserFactory(FlinkHiveSqlParserImpl.FACTORY).withLex(Lex.JAVA));
+				SqlAddHivePartitions sqlAddPart = (SqlAddHivePartitions) parser.parseStmt();
+				Map<String, String> spec = SqlPartitionUtils.getPartitionKVs(sqlAddPart.getPartSpecs().get(0));
+				Partition hivePart = hiveCatalog.getHivePartition(hiveTable, new CatalogPartitionSpec(spec));
+				dest = new Path(hivePart.getSd().getLocation(), src.getName());
+			} else {
+				dest = new Path(hiveTable.getSd().getLocation(), src.getName());
+			}
+			FileSystem fs = dest.getFileSystem(hiveCatalog.getHiveConf());
+			Preconditions.checkState(fs.rename(src, dest));
 		}
 
 		private String toText(Object[] row) {
@@ -210,7 +235,7 @@ public class HiveTestUtils {
 				if (builder.length() > 0) {
 					builder.appendCodePoint(SEPARATORS[0]);
 				}
-				String colStr = toText(col);
+				String colStr = toText(col, 1);
 				if (colStr != null) {
 					builder.append(colStr);
 				}
@@ -218,7 +243,7 @@ public class HiveTestUtils {
 			return builder.toString();
 		}
 
-		private String toText(Object obj) {
+		private String toText(Object obj, final int level) {
 			if (obj == null) {
 				return null;
 			}
@@ -226,26 +251,26 @@ public class HiveTestUtils {
 			if (obj instanceof Map) {
 				for (Object key : ((Map) obj).keySet()) {
 					if (builder.length() > 0) {
-						builder.appendCodePoint(SEPARATORS[1]);
+						builder.appendCodePoint(SEPARATORS[level]);
 					}
-					builder.append(toText(key));
-					builder.appendCodePoint(SEPARATORS[2]);
-					builder.append(toText(((Map) obj).get(key)));
+					builder.append(toText(key, level + 2));
+					builder.appendCodePoint(SEPARATORS[level + 1]);
+					builder.append(toText(((Map) obj).get(key), level + 2));
 				}
 			} else if (obj instanceof Object[]) {
 				Object[] array = (Object[]) obj;
 				for (Object element : array) {
 					if (builder.length() > 0) {
-						builder.appendCodePoint(SEPARATORS[1]);
+						builder.appendCodePoint(SEPARATORS[level]);
 					}
-					builder.append(toText(element));
+					builder.append(toText(element, level + 1));
 				}
 			} else if (obj instanceof List) {
 				for (Object element : (List) obj) {
 					if (builder.length() > 0) {
-						builder.appendCodePoint(SEPARATORS[1]);
+						builder.appendCodePoint(SEPARATORS[level]);
 					}
-					builder.append(toText(element));
+					builder.append(toText(element, level + 1));
 				}
 			} else {
 				builder.append(obj);

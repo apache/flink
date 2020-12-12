@@ -38,5 +38,11 @@
             <td>Integer</td>
             <td>Defines the maximum number of slots that the Flink cluster allocates. This configuration option is meant for limiting the resource consumption for batch workloads. It is not recommended to configure this option for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take effect for standalone clusters, where how many slots are allocated is not controlled by Flink.</td>
         </tr>
+        <tr>
+            <td><h5>slotmanager.redundant-taskmanager-num</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The number of redundant task managers. Redundant task managers are extra task managers started by Flink, in order to speed up job recovery in case of failures due to task manager lost. Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).</td>
+        </tr>
     </tbody>
 </table>

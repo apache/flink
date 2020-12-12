@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
@@ -34,10 +35,10 @@ import org.junit.Test;
 
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.stream.Stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
 
 /**
  * Tests the failure handling logic of the {@link RestartPipelinedRegionFailoverStrategy}.
@@ -64,12 +65,12 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	public void testRegionFailoverForRegionInternalErrors() {
 		final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex(ExecutionState.SCHEDULED);
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex(ExecutionState.RUNNING);
 
 		topology.connect(v1, v4, ResultPartitionType.BLOCKING);
 		topology.connect(v1, v5, ResultPartitionType.BLOCKING);
@@ -79,46 +80,12 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		// when v1 fails, {v1,v4,v5} should be restarted
-		HashSet<ExecutionVertexID> expectedResult = new HashSet<>();
-		expectedResult.add(v1.getId());
-		expectedResult.add(v4.getId());
-		expectedResult.add(v5.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v1.getId(), new Exception("Test failure")));
-
-		// when v2 fails, {v2,v4,v5} should be restarted
-		expectedResult.clear();
-		expectedResult.add(v2.getId());
-		expectedResult.add(v4.getId());
-		expectedResult.add(v5.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v2.getId(), new Exception("Test failure")));
-
-		// when v3 fails, {v3,v6} should be restarted
-		expectedResult.clear();
-		expectedResult.add(v3.getId());
-		expectedResult.add(v6.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v3.getId(), new Exception("Test failure")));
-
-		// when v4 fails, {v4} should be restarted
-		expectedResult.clear();
-		expectedResult.add(v4.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v4.getId(), new Exception("Test failure")));
-
-		// when v5 fails, {v5} should be restarted
-		expectedResult.clear();
-		expectedResult.add(v5.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v5.getId(), new Exception("Test failure")));
-
-		// when v6 fails, {v6} should be restarted
-		expectedResult.clear();
-		expectedResult.add(v6.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v6.getId(), new Exception("Test failure")));
+		verifyThatFailedExecution(strategy, v1).restarts(v1, v4, v5);
+		verifyThatFailedExecution(strategy, v2).restarts(v2, v4, v5);
+		verifyThatFailedExecution(strategy, v3).restarts(v3, v6);
+		verifyThatFailedExecution(strategy, v4).restarts(v4);
+		verifyThatFailedExecution(strategy, v5).restarts(v5);
+		verifyThatFailedExecution(strategy, v6).restarts(v6);
 	}
 
 	/**
@@ -142,12 +109,12 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	public void testRegionFailoverForDataConsumptionErrors() throws Exception {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex(ExecutionState.RUNNING);
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex(ExecutionState.RUNNING);
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex(ExecutionState.RUNNING);
 
 		topology.connect(v1, v4, ResultPartitionType.BLOCKING);
 		topology.connect(v1, v5, ResultPartitionType.BLOCKING);
@@ -157,70 +124,30 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		// when v4 fails to consume data from v1, {v1,v4,v5} should be restarted
-		HashSet<ExecutionVertexID> expectedResult = new HashSet<>();
 		Iterator<TestingSchedulingResultPartition> v4InputEdgeIterator = v4.getConsumedResults().iterator();
-		expectedResult.add(v1.getId());
-		expectedResult.add(v4.getId());
-		expectedResult.add(v5.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v4.getId(),
-				new PartitionConnectionException(
-					new ResultPartitionID(
-						v4InputEdgeIterator.next().getId(),
-						new ExecutionAttemptID()),
-					new Exception("Test failure"))));
+		TestingSchedulingResultPartition v1out = v4InputEdgeIterator.next();
+		verifyThatFailedExecution(strategy, v4)
+				.partitionConnectionCause(v1out)
+				.restarts(v1, v4, v5);
+		TestingSchedulingResultPartition v2out = v4InputEdgeIterator.next();
+		verifyThatFailedExecution(strategy, v4)
+				.partitionConnectionCause(v2out)
+				.restarts(v2, v4, v5);
 
-		// when v4 fails to consume data from v2, {v2,v4,v5} should be restarted
-		expectedResult.clear();
-		expectedResult.add(v2.getId());
-		expectedResult.add(v4.getId());
-		expectedResult.add(v5.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v4.getId(),
-				new PartitionNotFoundException(
-					new ResultPartitionID(
-						v4InputEdgeIterator.next().getId(),
-						new ExecutionAttemptID()))));
-
-		// when v5 fails to consume data from v1, {v1,v4,v5} should be restarted
-		expectedResult.clear();
 		Iterator<TestingSchedulingResultPartition> v5InputEdgeIterator = v5.getConsumedResults().iterator();
-		expectedResult.add(v1.getId());
-		expectedResult.add(v4.getId());
-		expectedResult.add(v5.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v5.getId(),
-				new PartitionConnectionException(
-					new ResultPartitionID(
-						v5InputEdgeIterator.next().getId(),
-						new ExecutionAttemptID()),
-					new Exception("Test failure"))));
+		v1out = v5InputEdgeIterator.next();
+		verifyThatFailedExecution(strategy, v5)
+				.partitionConnectionCause(v1out)
+				.restarts(v1, v4, v5);
+		v2out = v5InputEdgeIterator.next();
+		verifyThatFailedExecution(strategy, v5)
+				.partitionConnectionCause(v2out)
+				.restarts(v2, v4, v5);
 
-		// when v5 fails to consume data from v2, {v2,v4,v5} should be restarted
-		expectedResult.clear();
-		expectedResult.add(v2.getId());
-		expectedResult.add(v4.getId());
-		expectedResult.add(v5.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v5.getId(),
-				new PartitionNotFoundException(
-					new ResultPartitionID(
-						v5InputEdgeIterator.next().getId(),
-						new ExecutionAttemptID()))));
-
-		// when v6 fails to consume data from v3, {v3,v6} should be restarted
-		expectedResult.clear();
-		Iterator<TestingSchedulingResultPartition> v6InputEdgeIterator = v6.getConsumedResults().iterator();
-		expectedResult.add(v3.getId());
-		expectedResult.add(v6.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v6.getId(),
-				new PartitionConnectionException(
-					new ResultPartitionID(
-						v6InputEdgeIterator.next().getId(),
-						new ExecutionAttemptID()),
-					new Exception("Test failure"))));
+		TestingSchedulingResultPartition v3out = v6.getConsumedResults().iterator().next();
+		verifyThatFailedExecution(strategy, v6)
+				.partitionConnectionCause(v3out)
+				.restarts(v3, v6);
 	}
 
 	/**
@@ -241,9 +168,9 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	public void testRegionFailoverForVariousResultPartitionAvailabilityCombinations() throws Exception {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex(ExecutionState.RUNNING);
 
 		topology.connect(v1, v3, ResultPartitionType.BLOCKING);
 		topology.connect(v2, v3, ResultPartitionType.BLOCKING);
@@ -255,66 +182,33 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 		IntermediateResultPartitionID rp2ID = v2.getProducedResults().iterator().next().getId();
 
 		// -------------------------------------------------
-		// Combination1: (rp1 == available, rp == available)
+		// Combination1: (rp1 == available, rp2 == available)
 		// -------------------------------------------------
 		availabilityChecker.failedPartitions.clear();
 
-		// when v1 fails, {v1,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v1.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v1.getId(), v3.getId()));
-
-		// when v2 fails, {v2,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v2.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v2.getId(), v3.getId()));
-
-		// when v3 fails, {v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v3.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v3.getId()));
+		verifyThatFailedExecution(strategy, v1).restarts(v1, v3);
+		verifyThatFailedExecution(strategy, v2).restarts(v2, v3);
+		verifyThatFailedExecution(strategy, v3).restarts(v3);
 
 		// -------------------------------------------------
-		// Combination2: (rp1 == unavailable, rp == available)
+		// Combination2: (rp1 == unavailable, rp2 == available)
 		// -------------------------------------------------
 		availabilityChecker.failedPartitions.clear();
 		availabilityChecker.markResultPartitionFailed(rp1ID);
 
-		// when v1 fails, {v1,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v1.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v1.getId(), v3.getId()));
-
-		// when v2 fails, {v1,v2,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v2.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v1.getId(), v2.getId(), v3.getId()));
-
-		// when v3 fails, {v1,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v3.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v1.getId(), v3.getId()));
+		verifyThatFailedExecution(strategy, v1).restarts(v1, v3);
+		verifyThatFailedExecution(strategy, v2).restarts(v1, v2, v3);
+		verifyThatFailedExecution(strategy, v3).restarts(v1, v3);
 
 		// -------------------------------------------------
-		// Combination3: (rp1 == available, rp == unavailable)
+		// Combination3: (rp1 == available, rp2 == unavailable)
 		// -------------------------------------------------
 		availabilityChecker.failedPartitions.clear();
 		availabilityChecker.markResultPartitionFailed(rp2ID);
 
-		// when v1 fails, {v1,v2,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v1.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v1.getId(), v2.getId(), v3.getId()));
-
-		// when v2 fails, {v2,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v2.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v2.getId(), v3.getId()));
-
-		// when v3 fails, {v2,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v3.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v2.getId(), v3.getId()));
+		verifyThatFailedExecution(strategy, v1).restarts(v1, v2, v3);
+		verifyThatFailedExecution(strategy, v2).restarts(v2, v3);
+		verifyThatFailedExecution(strategy, v3).restarts(v2, v3);
 
 		// -------------------------------------------------
 		// Combination4: (rp1 == unavailable, rp == unavailable)
@@ -323,20 +217,9 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 		availabilityChecker.markResultPartitionFailed(rp1ID);
 		availabilityChecker.markResultPartitionFailed(rp2ID);
 
-		// when v1 fails, {v1,v2,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v1.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v1.getId(), v2.getId(), v3.getId()));
-
-		// when v2 fails, {v1,v2,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v2.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v1.getId(), v2.getId(), v3.getId()));
-
-		// when v3 fails, {v1,v2,v3} should be restarted
-		assertThat(
-			strategy.getTasksNeedingRestart(v3.getId(), new Exception("Test failure")),
-			containsInAnyOrder(v1.getId(), v2.getId(), v3.getId()));
+		verifyThatFailedExecution(strategy, v1).restarts(v1, v2, v3);
+		verifyThatFailedExecution(strategy, v2).restarts(v1, v2, v3);
+		verifyThatFailedExecution(strategy, v3).restarts(v1, v2, v3);
 	}
 
 	/**
@@ -354,12 +237,12 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	public void testRegionFailoverForMultipleVerticesRegions() throws Exception {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex(ExecutionState.FINISHED);
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex(ExecutionState.RUNNING);
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex(ExecutionState.RUNNING);
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex(ExecutionState.FAILED);
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex(ExecutionState.CANCELED);
 
 		topology.connect(v1, v2, ResultPartitionType.PIPELINED);
 		topology.connect(v2, v3, ResultPartitionType.BLOCKING);
@@ -369,35 +252,107 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		// when v3 fails due to internal error, {v3,v4,v5,v6} should be restarted
-		HashSet<ExecutionVertexID> expectedResult = new HashSet<>();
-		expectedResult.add(v3.getId());
-		expectedResult.add(v4.getId());
-		expectedResult.add(v5.getId());
-		expectedResult.add(v6.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v3.getId(), new Exception("Test failure")));
+		verifyThatFailedExecution(strategy, v3).restarts(v3, v4, v5, v6);
 
-		// when v3 fails to consume from v2, {v1,v2,v3,v4,v5,v6} should be restarted
-		expectedResult.clear();
-		expectedResult.add(v1.getId());
-		expectedResult.add(v2.getId());
-		expectedResult.add(v3.getId());
-		expectedResult.add(v4.getId());
-		expectedResult.add(v5.getId());
-		expectedResult.add(v6.getId());
-		assertEquals(expectedResult,
-			strategy.getTasksNeedingRestart(v3.getId(),
-				new PartitionConnectionException(
-					new ResultPartitionID(
-						v3.getConsumedResults().iterator().next().getId(),
-						new ExecutionAttemptID()),
-					new Exception("Test failure"))));
+		TestingSchedulingResultPartition v2out = v3.getConsumedResults().iterator().next();
+		verifyThatFailedExecution(strategy, v3)
+				.partitionConnectionCause(v2out)
+				.restarts(v1, v2, v3, v4, v5, v6);
 	}
 
-	// ------------------------------------------------------------------------
-	//  utilities
-	// ------------------------------------------------------------------------
+	/**
+	 * Tests region failover does not restart vertexes which are already in initial CREATED state.
+	 * <pre>
+	 *     (v1) --|--> (v2)
+	 *
+	 *            ^
+	 *            |
+	 *       (blocking)
+	 * </pre>
+	 * Component 1: 1; component 2: 2
+	 */
+	@Test
+	public void testRegionFailoverDoesNotRestartCreatedExecutions() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.CREATED);
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex(ExecutionState.CREATED);
+
+		topology.connect(v1, v2, ResultPartitionType.BLOCKING);
+
+		FailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
+
+		verifyThatFailedExecution(strategy, v2).restarts();
+		TestingSchedulingResultPartition v1out = v2.getConsumedResults().iterator().next();
+		verifyThatFailedExecution(strategy, v2).partitionConnectionCause(v1out).restarts();
+	}
+
+	/**
+	 * Tests approximate local recovery downstream failover .
+	 * <pre>
+	 *     (v1) -----> (v2) -----> (v4)
+	 *      |                       ^
+	 *      |--------> (v3) --------|
+	 * </pre>
+	 */
+	@Test
+	public void testRegionFailoverForPipelinedApproximate() {
+		final TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.RUNNING);
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex(ExecutionState.RUNNING);
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex(ExecutionState.RUNNING);
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex(ExecutionState.RUNNING);
+
+		topology.connect(v1, v2, ResultPartitionType.PIPELINED_APPROXIMATE);
+		topology.connect(v1, v3, ResultPartitionType.PIPELINED_APPROXIMATE);
+		topology.connect(v2, v4, ResultPartitionType.PIPELINED_APPROXIMATE);
+		topology.connect(v3, v4, ResultPartitionType.PIPELINED_APPROXIMATE);
+
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
+
+		verifyThatFailedExecution(strategy, v1).restarts(v1, v2, v3, v4);
+		verifyThatFailedExecution(strategy, v2).restarts(v2, v4);
+		verifyThatFailedExecution(strategy, v3).restarts(v3, v4);
+		verifyThatFailedExecution(strategy, v4).restarts(v4);
+	}
+
+	private static VerificationContext verifyThatFailedExecution(
+			FailoverStrategy strategy,
+			SchedulingExecutionVertex executionVertex) {
+		return new VerificationContext(strategy, executionVertex);
+	}
+
+	private static class VerificationContext {
+		private final FailoverStrategy strategy;
+		private final SchedulingExecutionVertex executionVertex;
+		private Throwable cause = new Exception("Test failure");
+
+		private VerificationContext(
+				FailoverStrategy strategy,
+				SchedulingExecutionVertex executionVertex) {
+			this.strategy = strategy;
+			this.executionVertex = executionVertex;
+		}
+
+		private VerificationContext partitionConnectionCause(
+				SchedulingResultPartition failedProducer) {
+			return cause(new PartitionConnectionException(
+					new ResultPartitionID(failedProducer.getId(), new ExecutionAttemptID()),
+					new Exception("Test failure")));
+		}
+
+		private VerificationContext cause(Throwable cause) {
+			this.cause = cause;
+			return this;
+		}
+
+		private void restarts(SchedulingExecutionVertex ... expectedResult) {
+			assertThat(
+					strategy.getTasksNeedingRestart(executionVertex.getId(), cause),
+					containsInAnyOrder(Stream.of(expectedResult).map(SchedulingExecutionVertex::getId).toArray()));
+		}
+	}
 
 	private static class TestResultPartitionAvailabilityChecker implements ResultPartitionAvailabilityChecker {
 

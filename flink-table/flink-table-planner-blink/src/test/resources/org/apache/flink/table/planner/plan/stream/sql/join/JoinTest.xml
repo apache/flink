@@ -215,8 +215,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[FullOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[FullOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -252,8 +252,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[FullOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[FullOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -283,7 +283,7 @@ LogicalProject(a1=[$0], b1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(a1 = b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a1]])
 :  +- Calc(select=[a1])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
@@ -381,8 +381,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA])
-+- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA])
++- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -418,7 +418,7 @@ LogicalProject(i=[$0], j=[$1], t=[$2], i0=[$3], k=[$4])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[FullOuterJoin], where=[AND(=(i, i0), =(i, k))], select=[i, j, t, i0, k], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[FullOuterJoin], where=[((i = i0) AND (i = k))], select=[i, j, t, i0, k], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[i, i]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(i, j, t)]]], fields=[i, j, t])
 +- Exchange(distribution=[hash[i, k]])
@@ -532,8 +532,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[LeftOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[LeftOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -569,8 +569,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -660,7 +660,7 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[((a = z) AND (b < 2))], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -685,7 +685,7 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[((a = z) AND (b < x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -734,7 +734,7 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[=(a, z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[(a = z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -759,7 +759,7 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[RightOuterJoin], where=[=(a, z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[RightOuterJoin], where=[(a = z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -847,8 +847,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[RightOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[RightOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -884,8 +884,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -1012,7 +1012,7 @@ LogicalProject(b=[$1], x=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, x])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), <(x, 2))], select=[a, b, x, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[RightOuterJoin], where=[((a = z) AND (x < 2))], select=[a, b, x, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -1037,7 +1037,7 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[RightOuterJoin], where=[((a = z) AND (b < x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])

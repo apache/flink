@@ -26,7 +26,9 @@ public class ByteHashSet {
 
 	protected boolean[] used;
 
-	public ByteHashSet() {
+	// Do not remove the param "dummy", it is needed to simplify
+	// the code generation, see CodeGeneratorContext.addReusableHashSet.
+	public ByteHashSet(final int dummy) {
 		used = new boolean[Byte.MAX_VALUE - Byte.MIN_VALUE + 1];
 	}
 

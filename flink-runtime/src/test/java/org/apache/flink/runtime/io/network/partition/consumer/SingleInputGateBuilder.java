@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -44,6 +45,8 @@ public class SingleInputGateBuilder {
 
 	private final IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
 
+	private final int bufferSize = 4096;
+
 	private ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 
 	private int consumedSubpartitionIndex = 0;
@@ -57,6 +60,8 @@ public class SingleInputGateBuilder {
 	private BufferDecompressor bufferDecompressor = null;
 
 	private MemorySegmentProvider segmentProvider = InputChannelTestUtils.StubMemorySegmentProvider.getInstance();
+
+	private ChannelStateWriter channelStateWriter = ChannelStateWriter.NO_OP;
 
 	@Nullable
 	private BiFunction<InputChannelBuilder, SingleInputGate, InputChannel> channelFactory = null;
@@ -128,6 +133,11 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
+	public SingleInputGateBuilder setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+		this.channelStateWriter = channelStateWriter;
+		return this;
+	}
+
 	public SingleInputGate build() {
 		SingleInputGate gate = new SingleInputGate(
 			"Single Input Gate",
@@ -139,10 +149,11 @@ public class SingleInputGateBuilder {
 			partitionProducerStateProvider,
 			bufferPoolFactory,
 			bufferDecompressor,
-			segmentProvider);
+			segmentProvider,
+			bufferSize);
 		if (channelFactory != null) {
 			gate.setInputChannels(IntStream.range(0, numberOfChannels)
-				.mapToObj(index -> channelFactory.apply(InputChannelBuilder.newBuilder().setChannelIndex(index), gate))
+				.mapToObj(index -> channelFactory.apply(InputChannelBuilder.newBuilder().setStateWriter(channelStateWriter).setChannelIndex(index), gate))
 				.toArray(InputChannel[]::new));
 		}
 		return gate;

@@ -18,17 +18,16 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
+import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -76,9 +75,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * will have an input gate attached to it. This will provide its input, which will consist of one
  * subpartition from each partition of the intermediate result.
  */
-public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>, AutoCloseable {
+public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>, AutoCloseable, ChannelStateHolder {
 
 	protected final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
+
+	protected final AvailabilityHelper priorityAvailabilityHelper = new AvailabilityHelper();
+
+	@Override
+	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+		for (int index = 0, numChannels = getNumberOfInputChannels(); index < numChannels; index++) {
+			final InputChannel channel = getChannel(index);
+			if (channel instanceof ChannelStateHolder) {
+				((ChannelStateHolder) channel).setChannelStateWriter(channelStateWriter);
+			}
+		}
+	}
 
 	public abstract int getNumberOfInputChannels();
 
@@ -114,7 +125,7 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 		return availabilityHelper.getAvailableFuture();
 	}
 
-	public abstract void resumeConsumption(int channelIndex) throws IOException;
+	public abstract void resumeConsumption(InputChannelInfo channelInfo) throws IOException;
 
 	/**
 	 * Returns the channel of this gate.
@@ -131,17 +142,37 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	}
 
 	/**
+	 * Notifies when a priority event has been enqueued. If this future is queried from task thread, it is guaranteed
+	 * that a priority event is available and retrieved through {@link #getNext()}.
+	 */
+	public CompletableFuture<?> getPriorityEventAvailableFuture() {
+		return priorityAvailabilityHelper.getAvailableFuture();
+	}
+
+	/**
 	 * Simple pojo for INPUT, DATA and moreAvailable.
 	 */
 	protected static class InputWithData<INPUT, DATA> {
 		protected final INPUT input;
 		protected final DATA data;
 		protected final boolean moreAvailable;
+		protected final boolean morePriorityEvents;
 
-		InputWithData(INPUT input, DATA data, boolean moreAvailable) {
+		InputWithData(INPUT input, DATA data, boolean moreAvailable, boolean morePriorityEvents) {
 			this.input = checkNotNull(input);
 			this.data = checkNotNull(data);
 			this.moreAvailable = moreAvailable;
+			this.morePriorityEvents = morePriorityEvents;
+		}
+
+		@Override
+		public String toString() {
+			return "InputWithData{" +
+				"input=" + input +
+				", data=" + data +
+				", moreAvailable=" + moreAvailable +
+				", morePriorityEvents=" + morePriorityEvents +
+				'}';
 		}
 	}
 
@@ -150,16 +181,9 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	 */
 	public abstract void setup() throws IOException;
 
-	/**
-	 * Reads the previous unaligned checkpoint states before requesting partition data.
-	 *
-	 * @param executor the dedicated executor for performing this action for all the internal channels.
-	 * @param reader the dedicated reader for unspilling the respective channel state from snapshots.
-	 * @return the future indicates whether the recovered states have already been drained or not.
-	 */
-	public abstract CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) throws IOException;
-
 	public abstract void requestPartitions() throws IOException;
 
-	public abstract void registerBufferReceivedListener(BufferReceivedListener listener);
+	public abstract CompletableFuture<Void> getStateConsumedFuture();
+
+	public abstract void finishReadRecoveredState() throws IOException;
 }
