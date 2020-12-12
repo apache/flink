@@ -528,7 +528,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				+ "Supported values are ['at-least-once', 'exactly-once', 'none'].")));
 
 		final Map<String, String> modifiedOptions = getModifiedOptions(
-			getBasicSourceOptions(),
+			getBasicSinkOptions(),
 			options -> options.put("sink.semantic", "xyz"));
 
 		createTableSink(SCHEMA, modifiedOptions);
@@ -537,7 +537,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 	@Test
 	public void testSinkWithTopicListOrTopicPattern() {
 		Map<String, String> modifiedOptions = getModifiedOptions(
-			getBasicSourceOptions(),
+			getBasicSinkOptions(),
 			options -> {
 				options.put("topic", TOPICS);
 				options.put("scan.startup.mode", "earliest-offset");
@@ -553,7 +553,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 		}
 
 		modifiedOptions = getModifiedOptions(
-			getBasicSourceOptions(),
+			getBasicSinkOptions(),
 			options -> options.put("topic-pattern", TOPIC_REGEX));
 
 		try {
@@ -575,7 +575,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 			.build();
 
 		Map<String, String> options1 = getModifiedOptions(
-			getBasicSourceOptions(),
+			getBasicSinkOptions(),
 			options ->
 				options.put(
 					String.format(
@@ -584,7 +584,6 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 						TestFormatFactory.CHANGELOG_MODE.key()),
 					"I;UA;UB;D"));
 		// pk can be defined on cdc table, should pass
-		createTableSink(pkSchema, options1);
 		createTableSink(pkSchema, options1);
 
 		try {
@@ -598,7 +597,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 		}
 
 		try {
-			createTableSource(pkSchema, getBasicSinkOptions());
+			createTableSource(pkSchema, getBasicSourceOptions());
 			fail();
 		} catch (Throwable t) {
 			String error = "The Kafka table 'default.default.scanTable' with 'test-format' format" +
