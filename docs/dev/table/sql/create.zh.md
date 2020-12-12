@@ -374,7 +374,7 @@ Flink 提供了几种常用的 watermark 策略。
 
 {% highlight sql %}
 CREATE TABLE Orders (
-    user BIGINT,
+    `user` BIGINT,
     product STRING,
     order_time TIMESTAMP(3),
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
@@ -421,7 +421,7 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 
 {% highlight sql %}
 CREATE TABLE Orders (
-    user BIGINT,
+    `user` BIGINT,
     product STRING,
     order_time TIMESTAMP(3)
 ) WITH ( 
@@ -443,7 +443,7 @@ LIKE Orders;
 
 {% highlight sql %}
 CREATE TABLE Orders_with_watermark (
-    user BIGINT,
+    `user` BIGINT,
     product STRING,
     order_time TIMESTAMP(3),
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
@@ -476,13 +476,13 @@ CREATE TABLE Orders_with_watermark (
 
 -- 存储在文件系统的源表
 CREATE TABLE Orders_in_file (
-    user BIGINT,
+    `user` BIGINT,
     product STRING,
     order_time_string STRING,
     order_time AS to_timestamp(order_time)
     
 )
-PARTITIONED BY user 
+PARTITIONED BY `user` 
 WITH ( 
     'connector' = 'filesystem'
     'path' = '...'
