@@ -364,6 +364,7 @@ function check_logs_for_errors {
       | grep -v "HeapDumpOnOutOfMemoryError" \
       | grep -v "error_prone_annotations" \
       | grep -v "Error sending fetch request" \
+      | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"
@@ -401,6 +402,7 @@ function check_logs_for_exceptions {
    | grep -v "org.elasticsearch.ElasticsearchException" \
    | grep -v "Elasticsearch exception" \
    | grep -v "org.apache.flink.runtime.JobException: Recovery is suppressed" \
+   | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files; printing first 500 lines; see full logs for details:"
