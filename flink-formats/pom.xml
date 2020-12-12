@@ -46,6 +46,7 @@ under the License.
 		<module>flink-sequence-file</module>
 		<module>flink-compress</module>
 		<module>flink-csv</module>
+		<module>flink-protobuf</module>
 		<module>flink-orc</module>
 		<module>flink-orc-nohive</module>
 		<module>flink-hadoop-bulk</module>
@@ -88,6 +89,7 @@ under the License.
 				<module>flink-sql-parquet</module>
 				<module>flink-sql-avro</module>
 				<module>flink-sql-avro-confluent-registry</module>
+				<module>flink-sql-protobuf</module>
 			</modules>
 		</profile>
 	</profiles>
