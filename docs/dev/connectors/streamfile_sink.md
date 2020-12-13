@@ -409,8 +409,9 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
   override def vectorize(element: Person, batch: VectorizedRowBatch): Unit = {
     val nameColVector = batch.cols(0).asInstanceOf[BytesColumnVector]
     val ageColVector = batch.cols(1).asInstanceOf[LongColumnVector]
-    nameColVector.setVal(batch.size + 1, element.getName.getBytes(StandardCharsets.UTF_8))
-    ageColVector.vector(batch.size + 1) = element.getAge
+    nameColVector.setVal(batch.size, element.getName.getBytes(StandardCharsets.UTF_8))
+    ageColVector.vector(batch.size) = element.getAge
+    batch.size+=1
   }
 
 }
