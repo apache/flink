@@ -33,8 +33,8 @@ For full syntax of each join, please check the join sections in [Table API](../t
 Regular Joins
 -------------
 
-Regular joins are the most generic type of join in which any new record, or changes to either side of the join, are visible and affect the entirety of the join result. 
-For example, if there is a new record on the left side, it will be joined with all the previous and future records on the right side. 
+Regular joins are the most generic type of join in which any new records or changes to either side of the join input are visible and are affecting the whole join result.
+For example, if there is a new record on the left side, it will be joined with all of the previous and future records on the right side.
 
 {% highlight sql %}
 SELECT * FROM Orders
@@ -42,10 +42,18 @@ INNER JOIN Product
 ON Orders.productId = Product.id
 {% endhighlight %}
 
+These semantics allow for any kind of updating (insert, update, delete) input tables.
 
-These semantics are the most flexible and allow for any kind of updating (insert, update, delete) input table.
-However, this operation has important operational implications: it requires to keep both sides of the join input in Flinks state forever.
-Thus, the resource usage may grow indefinitely if both input tables are append-only. 
+The regular joins present a lot of challenges though. Let's assume all the rows in table are represented as `(t, k, v)` where t is the timestamp of arrival, k is the key of the row which may or may not be unique and v represents the value to be joined. All of them can be followed by suffix `l` or `r` where l implies the left side of the join and r the right side of the join.
+
+Taking a case for a single key K, we can have the following cases - 
+* **tl != tr** - This implies that to do a join you have to keep the value in left table in the state until the value in the right table arrives for the same key. The question is how to decide for how long to hold the key, since the delay between the streams is generally not constant.
+
+* **tl = Infinity or tr = Infinity**  - what if one of the streams doesn't contain any values for the key. Do you keep on holding to value from one of the streams indefinitely or do you discard it after some time? If you want to discard it, what should be the right interval after which it can be considered safe to discard the key.
+
+The only solution is to keep both sides of the join input in Flink's state forever.
+Thus, the resource usage will grow indefinitely as well, if one or both input tables are continuously growing. 
+Flink offers `Interval Joins` to tackle the indefinitely growing state problem. Let's take a look at these in the next section.
 
 Interval Joins
 --------------

@@ -101,7 +101,7 @@ CREATE TABLE products (
 ## Versioned Table Views
 
 Flink also supports defining versioned views if the underlying query contains a unique key constraint
-and event-time attribute. Imagine an append-only table of currency rates. 
+and event-time attribute. Let's create an append-only table of currency rates. 
 
 {% highlight sql %}
 CREATE TABLE currency_rates (
