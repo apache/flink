@@ -111,7 +111,8 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testUnionNullableTypes(): Unit = {
     util.addTableSource[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
-    util.verifyExecPlan("SELECT a FROM A UNION ALL SELECT CASE WHEN c > 0 THEN b ELSE NULL END FROM A")
+    util.verifyExecPlan(
+      "SELECT a FROM A UNION ALL SELECT CASE WHEN c > 0 THEN b ELSE NULL END FROM A")
   }
 
   @Test

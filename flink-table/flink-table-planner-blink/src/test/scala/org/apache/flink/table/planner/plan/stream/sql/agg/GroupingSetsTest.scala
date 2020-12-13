@@ -126,7 +126,8 @@ class GroupingSetsTest extends TableTestBase {
 
   @Test
   def testBasicGroupingSets(): Unit = {
-    util.verifyExecPlan("SELECT deptno, COUNT(*) AS c FROM emps GROUP BY GROUPING SETS ((), (deptno))")
+    util.verifyExecPlan(
+      "SELECT deptno, COUNT(*) AS c FROM emps GROUP BY GROUPING SETS ((), (deptno))")
   }
 
   @Test
