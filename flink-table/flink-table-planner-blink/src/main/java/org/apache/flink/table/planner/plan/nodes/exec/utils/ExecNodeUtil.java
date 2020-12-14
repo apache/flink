@@ -25,9 +25,12 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * An Utility class that helps translating {@link ExecNode} to {@link Transformation}.
@@ -37,7 +40,7 @@ public class ExecNodeUtil {
 	/**
 	 * Set memoryBytes to {@link Transformation#declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase, int)}.
 	 */
-	public static <T> Transformation<T> setManagedMemoryWeight(
+	public static <T> void setManagedMemoryWeight(
 			Transformation<T> transformation,
 			long memoryBytes) {
 		// Using Bytes can easily overflow
@@ -51,7 +54,6 @@ public class ExecNodeUtil {
 				throw new TableException("Managed memory weight has been set, this should not happen.");
 			}
 		}
-		return transformation;
 	}
 
 	/**
@@ -85,5 +87,28 @@ public class ExecNodeUtil {
 				input1, input2, name, operatorFactory, outputType, parallelism);
 		setManagedMemoryWeight(transformation, memoryBytes);
 		return transformation;
+	}
+
+	/**
+	 * Return description for multiple input node.
+	 */
+	public static String getMultipleInputDescription(
+			ExecNode<?> rootNode,
+			List<ExecNode<?>> inputNodes,
+			List<ExecEdge> inputEdges) {
+		String members = ExecNodePlanDumper.treeToString(rootNode, inputNodes, true).replace("\n", "\\n");
+		StringBuilder sb = new StringBuilder();
+		sb.append("MultipleInput(");
+		List<String> readOrders = inputEdges.stream()
+				.map(ExecEdge::getPriority)
+				.map(Object::toString)
+				.collect(Collectors.toList());
+		boolean hasDiffReadOrder = readOrders.stream().distinct().count() > 1;
+		if (hasDiffReadOrder) {
+			sb.append("readOrder=[").append(String.join(",", readOrders)).append("], ");
+		}
+		sb.append("members=[\\n").append(members).append("]");
+		sb.append(")");
+		return sb.toString();
 	}
 }
