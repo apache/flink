@@ -219,6 +219,15 @@ class JobScopedResourceTracker {
 			this.resourceProfile = resourceProfile;
 			this.numExcessResources = numExcessResources;
 		}
+
+		@Override
+		public String toString() {
+			return "ExcessResource{" +
+				"numExcessResources=" + numExcessResources +
+				", requirementProfile=" + requirementProfile +
+				", resourceProfile=" + resourceProfile +
+				'}';
+		}
 	}
 
 }
