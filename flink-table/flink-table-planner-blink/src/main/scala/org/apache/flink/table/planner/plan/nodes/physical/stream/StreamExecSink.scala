@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalSink
 import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -64,9 +65,9 @@ class StreamExecSink(
 
     // get RowData plan
     val inputTransformation = getInputNodes.get(0) match {
-      // Sink's input must be LegacyStreamExecNode[RowData] now.
-      case node: LegacyStreamExecNode[RowData] =>
-        node.translateToPlan(planner)
+      // Sink's input must be LegacyStreamExecNode[RowData] or StreamExecNode[RowData] now.
+      case legacyNode: LegacyStreamExecNode[RowData] => legacyNode.translateToPlan(planner)
+      case node: StreamExecNode[RowData] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
