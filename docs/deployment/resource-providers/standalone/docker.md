@@ -35,7 +35,7 @@ This *Getting Started* section guides you through the local setup (on one machin
 
 [Docker](https://www.docker.com) is a popular container runtime.
 There are Docker images for Apache Flink available [on Docker Hub](https://hub.docker.com/_/flink).
-You can use the Docker images to deploy a *Session* or *Application cluster* on Docker. This page focuses on the setup of Flink on Docker, Docker Swarm and Docker compose.
+You can use the Docker images to deploy a *Session* or *Application cluster* on Docker. This page focuses on the setup of Flink on Docker, Docker Swarm and Docker Compose.
 
 Deployment into managed containerized environments, such as [standalone Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) or [native Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}), are described on separate pages.
 
@@ -91,9 +91,9 @@ You can run its entry point in the following modes:
 * [JobManager]({% link concepts/glossary.md %}#flink-jobmanager) for [a Application cluster](#application-mode-on-docker)
 * [TaskManager]({% link concepts/glossary.md %}#flink-taskmanager) for any cluster
 
-This allows you to deploy a standalone cluster (Session or Per-Job Mode) in any containerised environment, for example:
+This allows you to deploy a standalone cluster (Session or Application Mode) in any containerised environment, for example:
 * manually in a local Docker setup,
-* [in a (native) Kubernetes cluster]({% link deployment/resource-providers/standalone/kubernetes.md %}),
+* [in a Kubernetes cluster]({% link deployment/resource-providers/standalone/kubernetes.md %}),
 * [with Docker Compose](#flink-with-docker-compose),
 * [with Docker swarm](#flink-with-docker-swarm).
 
@@ -152,7 +152,6 @@ To make the **job artifacts available** locally in the container, you can
 
 * **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the JobManager and TaskManagers:
 
-  *Dockerfile*:
 
     ```dockerfile
     FROM flink
@@ -198,9 +197,9 @@ You can provide the following additional command line arguments to the cluster e
 
 If the main function of the user job main class accepts arguments, you can also pass them at the end of the `docker run` command.
 
-### Per-Job Cluster Mode
+### Per-Job Mode on Docker
 
-Per-Job Cluster Mode is not supported by Docker.
+[Per-Job Mode]({% link deployment/index.md %}#per-job-mode) is not supported by Docker.
 
 ### Session Mode on Docker
 
@@ -267,7 +266,6 @@ To provide a custom location for the Flink configuration files, you can
 
 * or add them to your **custom Flink image**, build and run it:
 
-  *Dockerfile*:
 
     ```dockerfile
     FROM flink
@@ -375,7 +373,6 @@ You can customize the Flink image in several ways:
 
 * **extend the Flink image** by writing a custom `Dockerfile` and build a custom image:
 
-  *Dockerfile*:
 
     ```dockerfile
     FROM flink
@@ -463,9 +460,9 @@ The next sections show examples of configuration files to run Flink.
     $ docker exec -t -i "${JM_CONTAINER}" flink run -d -c ${JOB_CLASS_NAME} /job.jar
     ```
 
-Here, we provide the **docker-compose.yml:** <a id="app-cluster-yml">file</a> for *Application Cluster*.
+Here, we provide the <a id="app-cluster-yml">docker-compose.yml</a> for *Application Cluster*.
 
-Note: For the application cluster, the artifacts must be available in the Flink containers, check details [here](#application-mode-on-docker).
+Note: For the Application Mode cluster, the artifacts must be available in the Flink containers, check details [here](#application-mode-on-docker).
 See also [how to specify the JobManager arguments](#jobmanager-additional-command-line-arguments)
 in the `command` for the `jobmanager` service.
 
@@ -613,6 +610,6 @@ See also [how to specify the JobManager arguments](#jobmanager-additional-comman
 to the `flink-jobmanager` container.
 
 The example assumes that you run the swarm locally and expects the *job artifacts* to be in `/host/path/to/job/artifacts`.
-It also mounts the host path with the artifacts as a volume to the container's path `/opt/flink/usrlib`.    
+It also mounts the host path with the artifacts as a volume to the container's path `/opt/flink/usrlib`.
 
 {% top %}

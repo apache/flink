@@ -30,7 +30,7 @@ under the License.
 
 ## Getting Started
 
-This *Getting Started* section guides you through the local setup (on one machine, but in separate processes) of a Flink cluster. This can easily be expanded to set up a distributed standalone cluster, which we describe in the [reference section](#the-start-and-stop-scripts).
+This *Getting Started* section guides you through the local setup (on one machine, but in separate processes) of a Flink cluster. This can easily be expanded to set up a distributed standalone cluster, which we describe in the [reference section](#example-2-start-a-distributed-cluster-jobmangers).
 
 ### Introduction
 
@@ -104,7 +104,7 @@ $ ./bin/standalone-job.sh stop
 
 ### Per-Job Mode
 
-Per-Job Mode is not supported by the the Standalone Cluster.
+Per-Job Mode is not supported by the Standalone Cluster.
 
 ### Session Mode
 
@@ -221,7 +221,7 @@ master1:webUIPort1
 masterX:webUIPortX
   </pre>
 
-By default, the job manager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({% link deployment/config.md %}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
+By default, the JobManager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({% link deployment/config.md %}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
 
 #### Example: Standalone HA Cluster with 2 JobManagers
 
