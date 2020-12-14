@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec;
+package org.apache.flink.table.planner.plan.nodes.exec.visitor;
+
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 
 /**
  * Visitor pattern for traversing a dag of {@link ExecNode} objects.

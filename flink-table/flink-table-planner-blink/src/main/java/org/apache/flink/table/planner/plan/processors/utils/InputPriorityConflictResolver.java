@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.processors.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
-import org.apache.flink.table.planner.plan.nodes.exec.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecExchange;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 
