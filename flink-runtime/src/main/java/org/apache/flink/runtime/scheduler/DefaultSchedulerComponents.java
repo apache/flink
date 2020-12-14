@@ -24,7 +24,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
@@ -32,11 +31,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkCheckerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
-import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
-import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
-import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.util.clock.SystemClock;
@@ -91,33 +87,6 @@ public class DefaultSchedulerComponents {
 			jobMasterConfiguration,
 			slotPool,
 			slotRequestTimeout);
-	}
-
-	private static DefaultSchedulerComponents createLegacySchedulerComponents(
-			final ScheduleMode scheduleMode,
-			final Configuration jobMasterConfiguration,
-			final SlotPool slotPool,
-			final Time slotRequestTimeout) {
-
-		final SlotSelectionStrategy slotSelectionStrategy = selectSlotSelectionStrategy(jobMasterConfiguration);
-		final Scheduler scheduler = new SchedulerImpl(slotSelectionStrategy, slotPool);
-		final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
-			scheduleMode,
-			scheduler,
-			slotRequestTimeout);
-		return new DefaultSchedulerComponents(
-			createLegacySchedulingStrategyFactory(scheduleMode),
-			scheduler::start,
-			new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy));
-	}
-
-	private static SchedulingStrategyFactory createLegacySchedulingStrategyFactory(final ScheduleMode scheduleMode) {
-		switch (scheduleMode) {
-			case EAGER:
-				return new EagerSchedulingStrategy.Factory();
-			default:
-				throw new IllegalStateException("Unsupported schedule mode " + scheduleMode);
-		}
 	}
 
 	private static DefaultSchedulerComponents createPipelinedRegionSchedulerComponents(

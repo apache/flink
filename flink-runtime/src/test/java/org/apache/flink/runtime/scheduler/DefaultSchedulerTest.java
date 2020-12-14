@@ -45,8 +45,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -754,7 +754,7 @@ public class DefaultSchedulerTest extends TestLogger {
 
 	private DefaultScheduler createSchedulerAndStartScheduling(final JobGraph jobGraph) {
 		final SchedulingStrategyFactory schedulingStrategyFactory =
-				new EagerSchedulingStrategy.Factory();
+				new PipelinedRegionSchedulingStrategy.Factory();
 
 		try {
 			final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
