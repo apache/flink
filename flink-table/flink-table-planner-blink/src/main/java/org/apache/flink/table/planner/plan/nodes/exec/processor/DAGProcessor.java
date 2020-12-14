@@ -16,27 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.process;
+package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
-import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+
+import java.util.List;
 
 /**
- * Context for processors to process dag.
+ * DAGProcess plugin, use it can set resource of dag or change other node info.
  */
-public class DAGProcessContext {
-
-	private final PlannerBase planner;
-
-	public DAGProcessContext(PlannerBase planner) {
-		this.planner = planner;
-	}
+public interface DAGProcessor {
 
 	/**
-	 * Gets {@link PlannerBase}, {@link org.apache.flink.table.planner.delegation.BatchPlanner} for batch job.
-	 * and {@link org.apache.flink.table.planner.delegation.StreamPlanner} for stream job.
+	 * Given a dag, process it and return the result dag.
 	 */
-	public PlannerBase getPlanner() {
-		return planner;
-	}
-
+	List<ExecNode<?>> process(List<ExecNode<?>> sinkNodes, DAGProcessContext context);
 }

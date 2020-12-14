@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.processors;
+package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -30,7 +30,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecGraphGenerator;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
-import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
