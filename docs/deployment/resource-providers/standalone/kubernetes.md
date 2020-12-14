@@ -62,41 +62,32 @@ Using the file contents provided in the [the common resource definitions](#commo
 
 ```sh
     # Configuration and service definition
-    kubectl create -f flink-configuration-configmap.yaml
-    kubectl create -f jobmanager-service.yaml
+    $ kubectl create -f flink-configuration-configmap.yaml
+    $ kubectl create -f jobmanager-service.yaml
     # Create the deployments for the cluster
-    kubectl create -f jobmanager-session-deployment.yaml
-    kubectl create -f taskmanager-session-deployment.yaml
+    $ kubectl create -f jobmanager-session-deployment.yaml
+    $ kubectl create -f taskmanager-session-deployment.yaml
 ```
 
-You can then access the Flink UI and submit jobs via different ways:
-*  `kubectl proxy`:
+Next, we set up a port forward to access the Flink UI and submit jobs:
 
-    1. Run `kubectl proxy` in a terminal.
-    2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy) in your browser.
+1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
+2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
+3. Moreover, you could use the following command below to submit jobs to the cluster:
+{% highlight bash %}
+$ ./bin/flink run -m localhost:8081 
+$ ./examples/streaming/TopSpeedWindowing.jar
+{% endhighlight %}
 
-*  `kubectl port-forward`:
-    1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
-    2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
-    3. Moreover, you could use the following command below to submit jobs to the cluster:
-    {% highlight bash %}./bin/flink run -m localhost:8081 ./examples/streaming/WordCount.jar{% endhighlight %}
-
-*  Create a `NodePort` service on the rest service of jobmanager:
-    1. Run `kubectl create -f jobmanager-rest-service.yaml` to create the `NodePort` service on jobmanager. The example of `jobmanager-rest-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
-    2. Run `kubectl get svc flink-jobmanager-rest` to know the `node-port` of this service and navigate to [http://&lt;public-node-ip&gt;:&lt;node-port&gt;](http://<public-node-ip>:<node-port>) in your browser.
-    3. If you use minikube, you can get its public ip by running `minikube ip`.
-    4. Similarly to the `port-forward` solution, you could also use the following command below to submit jobs to the cluster:
-
-        {% highlight bash %}./bin/flink run -m <public-node-ip>:<node-port> ./examples/streaming/WordCount.jar{% endhighlight %}
 
 
 You can tear down the cluster using the following commands:
 
 ```sh
-    kubectl delete -f jobmanager-service.yaml
-    kubectl delete -f flink-configuration-configmap.yaml
-    kubectl delete -f taskmanager-session-deployment.yaml
-    kubectl delete -f jobmanager-session-deployment.yaml
+    $ kubectl delete -f jobmanager-service.yaml
+    $ kubectl delete -f flink-configuration-configmap.yaml
+    $ kubectl delete -f taskmanager-session-deployment.yaml
+    $ kubectl delete -f jobmanager-session-deployment.yaml
 ```
 
 
@@ -128,16 +119,16 @@ Alternatively, you can build [a custom image]({% link deployment/resource-provid
 After creating [the common cluster components](#common-cluster-resource-definitions), use [the Application cluster specific resource definitions](#application-cluster-resource-definitions) to launch the cluster with the `kubectl` command:
 
 ```sh
-    kubectl create -f jobmanager-job.yaml
-    kubectl create -f taskmanager-job-deployment.yaml
+    $ kubectl create -f jobmanager-job.yaml
+    $ kubectl create -f taskmanager-job-deployment.yaml
 ```
 
 To terminate the single application cluster, these components can be deleted along with [the common ones](#common-cluster-resource-definitions)
 with the `kubectl` command:
 
 ```sh
-    kubectl delete -f taskmanager-job-deployment.yaml
-    kubectl delete -f jobmanager-job.yaml
+    $ kubectl delete -f taskmanager-job-deployment.yaml
+    $ kubectl delete -f jobmanager-job.yaml
 ```
 
 ### Per-Job Cluster Mode
@@ -155,6 +146,34 @@ Deployment of a Session cluster is explained in the [Getting Started](#getting-s
 
 All configuration options are listed on the [configuration page]({% link deployment/config.md %}). Configuration options can be added to the `flink-conf.yaml` section of the `flink-configuration-configmap.yaml` config map.
 
+### Accessing Flink in Kubernetes
+
+You can then access the Flink UI and submit jobs via different ways:
+*  `kubectl proxy`:
+
+    1. Run `kubectl proxy` in a terminal.
+    2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy) in your browser.
+
+*  `kubectl port-forward`:
+    1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
+    2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
+    3. Moreover, you can use the following command below to submit jobs to the cluster:
+    {% highlight bash %}
+    $ ./bin/flink run -m localhost:8081 
+    $ ./examples/streaming/TopSpeedWindowing.jar
+    {% endhighlight %}
+
+*  Create a `NodePort` service on the rest service of jobmanager:
+    1. Run `kubectl create -f jobmanager-rest-service.yaml` to create the `NodePort` service on jobmanager. The example of `jobmanager-rest-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
+    2. Run `kubectl get svc flink-jobmanager-rest` to know the `node-port` of this service and navigate to [http://&lt;public-node-ip&gt;:&lt;node-port&gt;](http://<public-node-ip>:<node-port>) in your browser.
+    3. If you use minikube, you can get its public ip by running `minikube ip`.
+    4. Similarly to the `port-forward` solution, you can also use the following command below to submit jobs to the cluster:
+
+    {% highlight bash %}
+    $ ./bin/flink run -m <public-node-ip>:<node-port> 
+    $ ./examples/streaming/TopSpeedWindowing.jar
+    {% endhighlight %}
+
 ### Debugging and Log Access
 
 Many common errors are easy to detect by checking Flink's log files. If you have access to Flink's web user interface, you can access the JobManager and TaskManager logs from there.
@@ -169,7 +188,7 @@ flink-taskmanager-64847444ff-7rdl4   1/1     Running            3          3m28s
 flink-taskmanager-64847444ff-nnd6m   1/1     Running            3          3m28s
 ```
 
-You can now access the logs by running `kubectl logs flink-jobmanager-589967dcfc-m49xv`.
+You can now access the logs by running `kubectl logs flink-jobmanager-589967dcfc-m49xv`
 
 ### High-Availability with Standalone Kubernetes
 
@@ -201,7 +220,7 @@ data:
 
 You can access the queryable state of TaskManager if you create a `NodePort` service for it:
   1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service for the `taskmanager` pod. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
-  2. Run `kubectl get svc flink-taskmanager-query-state` to know the `node-port` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({% link dev/stream/state/queryable_state.md %}#querying-state) to submit the state queries.
+  2. Run `kubectl get svc flink-taskmanager-query-state` to get the `&lt;node-port&gt;` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({% link dev/stream/state/queryable_state.md %}#querying-state) to submit the state queries.
 
 {% top %}
 

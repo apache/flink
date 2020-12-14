@@ -43,28 +43,28 @@ Deployment into managed containerized environments, such as [standalone Kubernet
 ### Starting a Session Cluster on Docker
 
 A *Flink Session cluster* can be used to run multiple jobs. Each job needs to be submitted to the cluster after the cluster has been deployed.
-To deploy a *Flink Session cluster* with Docker, you need to start a *JobManager* container. To enable communication between the containers, we first set a required Flink configuration property and create a network:
+To deploy a *Flink Session cluster* with Docker, you need to start a JobManager container. To enable communication between the containers, we first set a required Flink configuration property and create a network:
 ```sh
-FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
-docker network create flink-network
+$ FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
+$ docker network create flink-network
 ```
 
 Then we launch the JobManager:
 
 ```sh
-docker run \
+$ docker run \
     --rm \
     --name=jobmanager \
     --network flink-network \
-    -p 8081:8081 \
+    --publish 8081:8081 \
     --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
     flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} jobmanager
 ```
 
-and one or more *TaskManager* containers:
+and one or more TaskManager containers:
 
 ```sh
-docker run \
+$ docker run \
     --rm \
     --name=taskmanager \
     --network flink-network \
@@ -78,7 +78,7 @@ The web interface is now available at [localhost:8081](http://localhost:8081).
 Submission of a job is now possible like this (assuming you have a local distribution of Flink available):
 
 ```sh
-./bin/flink run ./examples/streaming/TopSpeedWindowing.jar
+$ ./bin/flink run ./examples/streaming/TopSpeedWindowing.jar
 ```
 
 To shut down the cluster, either terminate (e.g. with `CTRL-C`) the JobManager and TaskManager processes, or use `docker ps` to identify and `docker stop` to terminate the containers.
@@ -98,7 +98,7 @@ This allows you to deploy a standalone cluster (Session or Per-Job Mode) in any 
 * [with Docker swarm](#flink-with-docker-swarm).
 
 <span class="label label-info">Note</span> [The native Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}) also runs the same image by default
-and deploys *TaskManagers* on demand so that you do not have to do it manually.
+and deploys TaskManagers on demand so that you do not have to do it manually.
 
 The next chapters describe how to start a single Flink Docker container for various purposes.
 
@@ -117,20 +117,20 @@ The *job artifacts* are included into the class path of Flink's JVM process with
 * all other necessary dependencies or resources, not included into Flink.
 
 To deploy a cluster for a single job with Docker, you need to
-* make *job artifacts* available locally *in all containers* under `/opt/flink/usrlib`,
-* start a *JobManager* container in the *Application Cluster* mode
-* start the required number of *TaskManager* containers.
+* make *job artifacts* available locally in all containers under `/opt/flink/usrlib`,
+* start a JobManager container in the *Application cluster* mode
+* start the required number of TaskManager containers.
 
 To make the **job artifacts available** locally in the container, you can
 
 * **either mount a volume** (or multiple volumes) with the artifacts to `/opt/flink/usrlib` when you start
-  the *JobManager* and *TaskManagers*:
+  the JobManager and TaskManagers:
 
     ```sh
-    FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
-    docker network create flink-network
+    $ FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
+    $ docker network create flink-network
 
-    docker run \
+    $ docker run \
         --mount type=bind,src=/host/path/to/job/artifacts1,target=/opt/flink/usrlib/artifacts1 \
         --mount type=bind,src=/host/path/to/job/artifacts2,target=/opt/flink/usrlib/artifacts2 \
         --rm \
@@ -143,14 +143,14 @@ To make the **job artifacts available** locally in the container, you can
         [--fromSavepoint /path/to/savepoint [--allowNonRestoredState]] \
         [job arguments]
 
-    docker run \
+    $ docker run \
         --mount type=bind,src=/host/path/to/job/artifacts1,target=/opt/flink/usrlib/artifacts1 \
         --mount type=bind,src=/host/path/to/job/artifacts2,target=/opt/flink/usrlib/artifacts2 \
         --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} taskmanager
     ```
 
-* **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the *JobManager* and *TaskManagers*:
+* **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the JobManager and TaskManagers:
 
   *Dockerfile*:
 
@@ -161,15 +161,15 @@ To make the **job artifacts available** locally in the container, you can
     ```
 
     ```sh
-    docker build -t flink_with_job_artifacts .
-    docker run \
+    $ docker build --tag flink_with_job_artifacts .
+    $ docker run \
         flink_with_job_artifacts standalone-job \
         --job-classname com.job.ClassName \
         [--job-id <job id>] \
         [--fromSavepoint /path/to/savepoint [--allowNonRestoredState]] \
         [job arguments]
 
-    docker run flink_with_job_artifacts taskmanager
+    $ docker run flink_with_job_artifacts taskmanager
     ```
 
 The `standalone-job` argument starts a JobManager container in the Application Mode.
@@ -240,11 +240,11 @@ that do not include a bundled Hadoop distribution.
 When you run Flink image, you can also change its configuration options by setting the environment variable `FLINK_PROPERTIES`:
 
 ```sh
-FLINK_PROPERTIES="jobmanager.rpc.address: host
+$ FLINK_PROPERTIES="jobmanager.rpc.address: host
 taskmanager.numberOfTaskSlots: 3
 blob.server.port: 6124
 "
-docker run --env FLINK_PROPERTIES=${FLINK_PROPERTIES} flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} <jobmanager|standalone-job|taskmanager>
+$ docker run --env FLINK_PROPERTIES=${FLINK_PROPERTIES} flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} <jobmanager|standalone-job|taskmanager>
 ```
 
 The [`jobmanager.rpc.address`]({% link deployment/config.md %}#jobmanager-rpc-address) option must be configured, others are optional to set.
@@ -260,7 +260,7 @@ To provide a custom location for the Flink configuration files, you can
 * **either mount a volume** with the custom configuration files to this path `/opt/flink/conf` when you run the Flink image:
 
     ```sh
-    docker run \
+    $ docker run \
         --mount type=bind,src=/host/path/to/custom/conf,target=/opt/flink/conf \
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} <jobmanager|standalone-job|taskmanager>
     ```
@@ -287,7 +287,7 @@ If you want to enable plugins provided with Flink (in the `opt/` directory of th
 The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names separated by `;`. A valid plugin name is for example `flink-s3-fs-hadoop-{{site.version}}.jar`
 
 ```sh
-    docker run \
+    $ docker run \
         --env ENABLE_BUILT_IN_PLUGINS=flink-plugin1.jar;flink-plugin2.jar \
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} <jobmanager|standalone-job|taskmanager>
 ```
@@ -312,7 +312,7 @@ RUN pip3 install apache-flink[=={{site.version}}]
 Build the image named as **pyflink:latest**:
 
 {% highlight bash %}
-docker build -t pyflink:latest .
+$ docker build --tag pyflink:latest .
 {% endhighlight %}
 
 ### Switch memory allocator
@@ -323,7 +323,7 @@ You could switch back to use `glibc` as memory allocator to restore the old beha
 (and please report the issue via JIRA or mailing list if you found any), by passing `disable-jemalloc` parameter:
 
 ```sh
-    docker run <jobmanager|standalone-job|taskmanager> disable-jemalloc
+    $ docker run <jobmanager|standalone-job|taskmanager> disable-jemalloc
 ```
 
 ### Advanced customization
@@ -349,22 +349,26 @@ You can customize the Flink image in several ways:
     # create custom_lib.jar
     # create custom_plugin.jar
 
-    echo "
-    ln -fs /opt/flink/opt/flink-queryable-state-runtime-*.jar /opt/flink/lib/.  # enable an optional library
-    ln -fs /mnt/custom_lib.jar /opt/flink/lib/.  # enable a custom library
+    $ echo "
+    # enable an optional library
+    ln -fs /opt/flink/opt/flink-queryable-state-runtime-*.jar /opt/flink/lib/
+    # enable a custom library
+    ln -fs /mnt/custom_lib.jar /opt/flink/lib/
 
     mkdir -p /opt/flink/plugins/flink-s3-fs-hadoop
-    ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/flink-s3-fs-hadoop/.  # enable an optional plugin
+    # enable an optional plugin
+    ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/flink-s3-fs-hadoop/  
 
     mkdir -p /opt/flink/plugins/custom_plugin
-    ln -fs /mnt/custom_plugin.jar /opt/flink/plugins/custom_plugin/.  # enable a custom plugin
+    # enable a custom plugin
+    ln -fs /mnt/custom_plugin.jar /opt/flink/plugins/custom_plugin/
 
     /docker-entrypoint.sh <jobmanager|standalone-job|taskmanager>
     " > custom_entry_point_script.sh
 
-    chmod 755 custom_entry_point_script.sh
+    $ chmod 755 custom_entry_point_script.sh
 
-    docker run \
+    $ docker run \
         --mount type=bind,src=$(pwd),target=/mnt
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} /mnt/custom_entry_point_script.sh
     ```
@@ -392,10 +396,10 @@ You can customize the Flink image in several ways:
   **Commands for building**:
 
     ```sh
-    docker build -t custom_flink_image .
+    $ docker build --tag custom_flink_image .
     # optional push to your docker image registry if you have it,
     # e.g. to distribute the custom image to your cluster
-    docker push custom_flink_image
+    $ docker push custom_flink_image
     ```
 
 
@@ -416,25 +420,25 @@ The next sections show examples of configuration files to run Flink.
 * Launch a cluster in the foreground (use `-d` for background)
 
     ```sh
-    docker-compose up
+    $ docker-compose up
     ```
 
-* Scale the cluster up or down to *N TaskManagers*
+* Scale the cluster up or down to `N` TaskManagers
 
     ```sh
-    docker-compose scale taskmanager=<N>
+    $ docker-compose scale taskmanager=<N>
     ```
 
-* Access the *JobManager* container
+* Access the JobManager container
 
     ```sh
-    docker exec -it $(docker ps --filter name=jobmanager --format={% raw %}{{.ID}}{% endraw %}) /bin/sh
+    $ docker exec -it $(docker ps --filter name=jobmanager --format={% raw %}{{.ID}}{% endraw %}) /bin/sh
     ```
 
 * Kill the cluster
 
     ```sh
-    docker-compose kill
+    $ docker-compose kill
     ```
 
 * Access Web UI
@@ -447,31 +451,25 @@ The next sections show examples of configuration files to run Flink.
   * use [Flink CLI]({% link deployment/cli.md %}) on the host if it is installed:
 
     ```sh
-    flink run -d -c ${JOB_CLASS_NAME} /job.jar
+    $ ./bin/flink run --detached --class ${JOB_CLASS_NAME} /job.jar
     ```
 
-  * or copy the JAR to the *JobManager* container and submit the job using the [CLI]({% link deployment/cli.md %}) from there, for example:
+  * or copy the JAR to the JobManager container and submit the job using the [CLI]({% link deployment/cli.md %}) from there, for example:
 
     ```sh
-    JOB_CLASS_NAME="com.job.ClassName"
-    JM_CONTAINER=$(docker ps --filter name=jobmanager --format={% raw %}{{.ID}}{% endraw %}))
-    docker cp path/to/jar "${JM_CONTAINER}":/job.jar
-    docker exec -t -i "${JM_CONTAINER}" flink run -d -c ${JOB_CLASS_NAME} /job.jar
+    $ JOB_CLASS_NAME="com.job.ClassName"
+    $ JM_CONTAINER=$(docker ps --filter name=jobmanager --format={% raw %}{{.ID}}{% endraw %}))
+    $ docker cp path/to/jar "${JM_CONTAINER}":/job.jar
+    $ docker exec -t -i "${JM_CONTAINER}" flink run -d -c ${JOB_CLASS_NAME} /job.jar
     ```
 
-Here, we provide the **docker-compose.yml:** file for *Application Cluster* (click to expand).
+Here, we provide the **docker-compose.yml:** <a id="app-cluster-yml">file</a> for *Application Cluster*.
 
 Note: For the application cluster, the artifacts must be available in the Flink containers, check details [here](#application-mode-on-docker).
 See also [how to specify the JobManager arguments](#jobmanager-additional-command-line-arguments)
 in the `command` for the `jobmanager` service.
 
-<p>
-  <a class="btn" data-toggle="collapse" href="#app-cluster-yml" role="button" aria-expanded="false" aria-controls="app-cluster-yml">
-    Application Cluster
-  </a>
-</p>
-<div class="collapse" id="app-cluster-yml">
-  {% highlight yaml %}
+{% highlight yaml %}
 version: "2.2"
 services:
   jobmanager:
@@ -501,17 +499,13 @@ services:
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 2
         parallelism.default: 2
-  {% endhighlight %}
-</div>
+{% endhighlight %}
 
-As well as the configuration file for *Session Cluster* (click to expand):
-<p>
-    <a class="btn" data-toggle="collapse" href="#session-cluster-yml" role="button" aria-expanded="false" aria-controls="session-cluster-yml">
-    Session Cluster
-  </a>
-</p>
-<div class="collapse" id="session-cluster-yml">
-  {% highlight yaml %}
+
+As well as the <a id="session-cluster-yml">configuration file</a> for *Session Cluster*:
+
+
+{% highlight yaml %}
 version: "2.2"
 services:
   jobmanager:
@@ -535,15 +529,15 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 2
-  {% endhighlight %}
-</div>
+{% endhighlight %}
+
 
 ### Flink with Docker Swarm
 
 The [Docker swarm](https://docs.docker.com/engine/swarm) is a container orchestration tool, that
 allows you to manage multiple containers deployed across multiple host machines.
 
-The following chapters contain examples of how to configure and start *JobManager* and *TaskManager* containers.
+The following chapters contain examples of how to configure and start JobManager and TaskManager containers.
 You can adjust them accordingly to start a cluster.
 See also [the Flink Docker image tags](#image-tags) and [how to customize the Flink Docker image](#advanced-customization) for usage in the provided scripts.
 
@@ -553,24 +547,24 @@ If you run the swarm locally, you can visit the web UI at [http://localhost:8081
 #### Session Cluster with Docker Swarm
 
 ```sh
-FLINK_PROPERTIES="jobmanager.rpc.address: flink-session-jobmanager
+$ FLINK_PROPERTIES="jobmanager.rpc.address: flink-session-jobmanager
 taskmanager.numberOfTaskSlots: 2
 "
 
 # Create overlay network
-docker network create -d overlay flink-session
+$ docker network create -d overlay flink-session
 
 # Create the JobManager service
-docker service create \
+$ docker service create \
   --name flink-session-jobmanager \
   --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
-  -p 8081:8081 \
+  --publish 8081:8081 \
   --network flink-session \
   flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} \
     jobmanager
 
 # Create the TaskManager service (scale this out as needed)
-docker service create \
+$ docker service create \
   --name flink-session-taskmanager \
   --replicas 2 \
   --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
@@ -582,19 +576,19 @@ docker service create \
 #### Application Cluster with Docker Swarm
 
 ```sh
-FLINK_PROPERTIES="jobmanager.rpc.address: flink-jobmanager
+$ FLINK_PROPERTIES="jobmanager.rpc.address: flink-jobmanager
 taskmanager.numberOfTaskSlots: 2
 "
 
 # Create overlay network
-docker network create -d overlay flink-job
+$ docker network create -d overlay flink-job
 
 # Create the JobManager service
-docker service create \
+$ docker service create \
   --name flink-jobmanager \
   --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
   --mount type=bind,source=/host/path/to/job/artifacts,target=/opt/flink/usrlib \
-  -p 8081:8081 \
+  --publish 8081:8081 \
   --network flink-job \
   flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} \
     standalone-job \
@@ -604,7 +598,7 @@ docker service create \
     [job arguments]
 
 # Create the TaskManager service (scale this out as needed)
-docker service create \
+$ docker service create \
   --name flink-job-taskmanager \
   --replicas 2 \
   --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
@@ -614,7 +608,7 @@ docker service create \
     taskmanager
 ```
 
-The *job artifacts* must be available in the *JobManager* container, as outlined [here](#application-mode-on-docker).
+The *job artifacts* must be available in the JobManager container, as outlined [here](#application-mode-on-docker).
 See also [how to specify the JobManager arguments](#jobmanager-additional-command-line-arguments) to pass them
 to the `flink-jobmanager` container.
 

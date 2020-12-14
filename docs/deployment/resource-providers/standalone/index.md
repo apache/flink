@@ -53,15 +53,15 @@ These steps show how to launch a Flink standalone cluster, and submit an example
 # we assume to be in the root directory of the unzipped Flink distribution
 
 # (1) Start Cluster
-./bin/start-cluster.sh
+$ ./bin/start-cluster.sh
 
 # (2) You can now access the Flink Web Interface on http://localhost:8081
 
 # (3) Submit example job
-./bin/flink run ./examples/streaming/TopSpeedWindowing.jar
+$ ./bin/flink run ./examples/streaming/TopSpeedWindowing.jar
 
 # (4) Stop the cluster again
-./bin/stop-cluster.sh
+$ ./bin/stop-cluster.sh
 {% endhighlight %}
 
 In step `(1)`, we've started 2 processes: A JVM for the JobManager, and a JVM for the TaskManager. The JobManager is serving the web interface accessible at [localhost:8081](http://localhost:8081).
@@ -74,34 +74,37 @@ In step `(3)`, we are starting a Flink Client (a short-lived JVM process) that s
 To start a Flink JobManager with an embedded application, we use the `bin/standalone-job.sh` script. 
 We demonstrate this mode by locally starting the `TopSpeedWindowing.jar` example, running on a single TaskManager.
 
-
 The application jar file needs to be available in the classpath. The easiest approach to achieve that is putting the jar into the `lib/` folder:
 
 {% highlight bash %}
-cp ./examples/streaming/TopSpeedWindowing.jar lib/
+$ cp ./examples/streaming/TopSpeedWindowing.jar lib/
 {% endhighlight %}
 
 Then, we can launch the JobManager:
 
 {% highlight bash %}
-./bin/standalone-job.sh start --job-classname org.apache.flink.streaming.examples.windowing.TopSpeedWindowing
+$ ./bin/standalone-job.sh start --job-classname org.apache.flink.streaming.examples.windowing.TopSpeedWindowing
 {% endhighlight %}
 
 The web interface is now available at [localhost:8081](http://localhost:8081). However, the application won't be able to start, because there are no TaskManagers running yet:
 
 {% highlight bash %}
-./bin/taskmanager.sh start
+$ ./bin/taskmanager.sh start
 {% endhighlight %}
 
 Note: You can start multiple TaskManagers, if your application needs more resources.
 
-Stopping the services is also supported via the scripts:
+Stopping the services is also supported via the scripts. Call them multiple times if you want to stop multiple instances, or use `stop-all`:
 
 {% highlight bash %}
-./bin/taskmanager.sh stop
-./bin/standalone-job.sh stop
+$ ./bin/taskmanager.sh stop
+$ ./bin/standalone-job.sh stop
 {% endhighlight %}
 
+
+### Per-Job Mode
+
+Per-Job Mode is not supported by the the Standalone Cluster.
 
 ### Session Mode
 
@@ -117,7 +120,7 @@ All available configuration options are listed on the [configuration page]({% li
 
 If Flink is behaving unexpectedly, we recommend looking at Flink's log files as a starting point for further investigations.
 
-The log files are located in the `logs/` directory. There's a `.log` file for each Flink service running on this machine.
+The log files are located in the `logs/` directory. There's a `.log` file for each Flink service running on this machine. In the default configuration, log files are rotated on each start of a Flink service -- older runs of a service will have a number suffixed to the log file.
 
 Alternatively, logs are available from the Flink web frontend (both for the JobManager and each TaskManager).
 
@@ -126,15 +129,15 @@ Setting `rootLogger.level = DEBUG` will boostrap Flink on the DEBUG log level.
 
 There's a dedicated page on the [logging]({%link deployment/advanced/logging.md %}) in Flink.
 
-### The start and stop scripts
+### Component Management Scripts
 
-#### start-cluster.sh
+#### Starting and Stopping a cluster
 
 `bin/start-cluster.sh` and `bin/stop-cluster.sh` rely on `conf/masters` and `conf/workers` to determine the number of cluster component instances.
 
 If password-less SSH access to the listed machines is configured, and they share the same directory structure, the scripts also support starting and stopping instances remotely.
 
-**Example 1: Start a cluster with 2 TaskManagers locally**
+##### Example 1: Start a cluster with 2 TaskManagers locally
 
 `conf/masters` contents:
 {% highlight bash %}
@@ -147,7 +150,7 @@ localhost
 localhost
 {% endhighlight %}
 
-**Example 2: Start a distributed cluster JobMangers**
+##### Example 2: Start a distributed cluster JobMangers
 
 This assumes a cluster with 4 machines (`master1, worker1, worker2, worker3`), which all can reach each other over the network.
 
@@ -167,7 +170,7 @@ Note that the configuration key [jobmanager.rpc.address]({% link deployment/conf
 
 We show a third example with a standby JobManager in the [high-availability section](#setting-up-high-availability).
 
-#### Start and Stop Flink Components
+#### Starting and Stopping Flink Components
 
 The `bin/jobmanager.sh` and `bin/taskmanager.sh` scripts support starting the respective daemon in the background (using the `start` argument), or in the foreground (using `start-foreground`). In the foreground mode, the logs are printed to standard out. This mode is useful for deployment scenarios where another process is controlling the Flink daemon (e.g. Docker).
 
@@ -187,20 +190,20 @@ This error occurs because git is automatically transforming UNIX line endings to
 
 2. Determine your home directory by entering
 
-{% highlight bash %}
-cd; pwd
-{% endhighlight %}
+    ```bash
+    cd; pwd
+    ```
 
     This will return a path under the Cygwin root path.
 
 3. Using NotePad, WordPad or a different text editor open the file `.bash_profile` in the home directory and append the following (if the file does not exist you will have to create it):
 
-{% highlight bash %}
-export SHELLOPTS
-set -o igncr
-{% endhighlight %}
+    ```bash
+    $ export SHELLOPTS
+    $ set -o igncr
+    ```
 
-Save the file and open a new bash shell.
+4. Save the file and open a new bash shell.
 
 ### Setting up High-Availability
 
@@ -220,7 +223,7 @@ masterX:webUIPortX
 
 By default, the job manager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({% link deployment/config.md %}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
 
-**Example: Standalone Cluster with 2 JobManagers**
+#### Example: Standalone HA Cluster with 2 JobManagers
 
 1. **Configure high availability mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
 
@@ -244,13 +247,13 @@ localhost:8082</pre>
 4. **Start ZooKeeper quorum**:
 
    <pre>
-$ bin/start-zookeeper-quorum.sh
+$ ./bin/start-zookeeper-quorum.sh
 Starting zookeeper daemon on host localhost.</pre>
 
 5. **Start an HA-cluster**:
 
    <pre>
-$ bin/start-cluster.sh
+$ ./bin/start-cluster.sh
 Starting HA cluster with 2 masters and 1 peers in ZooKeeper quorum.
 Starting standalonesession daemon on host localhost.
 Starting standalonesession daemon on host localhost.
@@ -259,11 +262,11 @@ Starting taskexecutor daemon on host localhost.</pre>
 6. **Stop ZooKeeper quorum and cluster**:
 
    <pre>
-$ bin/stop-cluster.sh
+$ ./bin/stop-cluster.sh
 Stopping taskexecutor daemon (pid: 7647) on localhost.
 Stopping standalonesession daemon (pid: 7495) on host localhost.
 Stopping standalonesession daemon (pid: 7349) on host localhost.
-$ bin/stop-zookeeper-quorum.sh
+$ ./bin/stop-zookeeper-quorum.sh
 Stopping zookeeper daemon (pid: 7101) on host localhost.</pre>
 
 
