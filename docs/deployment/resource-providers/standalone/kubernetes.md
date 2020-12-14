@@ -44,7 +44,7 @@ If you want to run Kubernetes locally, we recommend using [MiniKube](https://min
 
 <div class="alert alert-info" markdown="span">
   <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster.
-  Otherwise Flink components are not able to self reference themselves through a Kubernetes service.
+  Otherwise Flink components are not able to reference themselves through a Kubernetes service.
 </div>
 
 ### Starting a Kubernetes Cluster (Session Mode)
@@ -114,7 +114,7 @@ A basic *Flink Application cluster* deployment in Kubernetes has three component
 * a *Deployment* for a pool of *TaskManagers*
 * a *Service* exposing the *JobManager's* REST and UI ports
 
-Check [the Job cluster specific resource definitions](#application-cluster-resource-definitions) and adjust them accordingly:
+Check [the Application cluster specific resource definitions](#application-cluster-resource-definitions) and adjust them accordingly:
 
 The `args` attribute in the `jobmanager-job.yaml` has to specify the main class of the user job.
 See also [how to specify the JobManager arguments]({% link deployment/resource-providers/standalone/docker.md %}#jobmanager-additional-command-line-arguments) to understand
@@ -200,7 +200,7 @@ data:
 ### Enabling Queryable State
 
 You can access the queryable state of TaskManager if you create a `NodePort` service for it:
-  1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service on taskmanager. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
+  1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service for the `taskmanager` pod. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
   2. Run `kubectl get svc flink-taskmanager-query-state` to know the `node-port` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({% link dev/stream/state/queryable_state.md %}#querying-state) to submit the state queries.
 
 {% top %}

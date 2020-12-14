@@ -29,15 +29,15 @@ under the License.
 
 ## Getting Started
 
-This *Getting Started* section guides you through the local setup (on one machine, but in separate containers) of a Flink cluster.
+This *Getting Started* section guides you through the local setup (on one machine, but in separate containers) of a Flink cluster using Docker containers.
 
 ### Introduction
 
 [Docker](https://www.docker.com) is a popular container runtime.
 There are Docker images for Apache Flink available [on Docker Hub](https://hub.docker.com/_/flink).
-You can use the docker images to deploy a *Session* or *Application cluster* on Docker. This page focuses on the setup of Flink on Docker, Docker Swarm and Docker compose.
+You can use the Docker images to deploy a *Session* or *Application cluster* on Docker. This page focuses on the setup of Flink on Docker, Docker Swarm and Docker compose.
 
-Deployment into managed containerized environments, such as [standalone Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) or [native Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %})) are described on separate pages.
+Deployment into managed containerized environments, such as [standalone Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) or [native Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}), are described on separate pages.
 
 
 ### Starting a Session Cluster on Docker
@@ -75,13 +75,13 @@ docker run \
 The web interface is now available at [localhost:8081](http://localhost:8081).
 
 
-Submission of a job is now possible like this (assuming you have a local distribution of Flink available)
+Submission of a job is now possible like this (assuming you have a local distribution of Flink available):
 
 ```sh
 ./bin/flink run ./examples/streaming/TopSpeedWindowing.jar
 ```
 
-To shut down the cluster, either terminate (e.g. with CTRL-C) the JobManager and TaskManager processes, or use `docker ps` to identify and `docker stop` to terminate the containers.
+To shut down the cluster, either terminate (e.g. with `CTRL-C`) the JobManager and TaskManager processes, or use `docker ps` to identify and `docker stop` to terminate the containers.
 
 ## Deployment Modes
 
@@ -91,7 +91,7 @@ You can run its entry point in the following modes:
 * [JobManager]({% link concepts/glossary.md %}#flink-jobmanager) for [a Application cluster](#application-mode-on-docker)
 * [TaskManager]({% link concepts/glossary.md %}#flink-taskmanager) for any cluster
 
-This allows you to deploy a standalone cluster (Session or Job) in any containerised environment, for example:
+This allows you to deploy a standalone cluster (Session or Per-Job Mode) in any containerised environment, for example:
 * manually in a local Docker setup,
 * [in a (native) Kubernetes cluster]({% link deployment/resource-providers/standalone/kubernetes.md %}),
 * [with Docker Compose](#flink-with-docker-compose),
@@ -104,12 +104,12 @@ The next chapters describe how to start a single Flink Docker container for vari
 
 Once you've started Flink on Docker, you can access the Flink Webfrontend on [localhost:8081](http://localhost:8081/#/overview) or submit jobs like this `./bin/flink run ./examples/streaming/TopSpeedWindowing.jar`.
 
-We recommend using [Docker Compose](#flink-with-docker-compose) or [Docker Swarm](#flink-with-docker-swarm) for deploying Flink as a Session Cluster to ease system configuration.
+We recommend using [Docker Compose](#flink-with-docker-compose) or [Docker Swarm](#flink-with-docker-swarm) for deploying Flink in Session Mode to ease system configuration.
 
 
 ### Application Mode on Docker
 
-A *Flink Application cluster* is a dedicated cluster which runs a single job. This is sometimes also called a *Per-Job cluster*.
+A *Flink Application cluster* is a dedicated cluster which runs a single job.
 In this case, you deploy the cluster with the job as one step, thus, there is no extra job submission needed.
 
 The *job artifacts* are included into the class path of Flink's JVM process within the container and consist of:
@@ -172,7 +172,7 @@ To make the **job artifacts available** locally in the container, you can
     docker run flink_with_job_artifacts taskmanager
     ```
 
-The `standalone-job` argument starts a *JobManager* container in the *Standalone Application Cluster* mode.
+The `standalone-job` argument starts a JobManager container in the Application Mode.
 
 #### JobManager additional command line arguments
 
@@ -204,7 +204,7 @@ Per-Job Cluster Mode is not supported by Docker.
 
 ### Session Mode on Docker
 
-Local deployment in the session mode has already been described in the [introduction](#starting-a-session-cluster-on-docker) above.
+Local deployment in the Session Mode has already been described in the [Getting Started](#starting-a-session-cluster-on-docker) section above.
 
 
 {% top %}
@@ -280,7 +280,7 @@ The `flink-conf.yaml` file must have write permission so that the Docker entry p
 
 ### Using filesystem plugins
 
-As described in the [plugins]({% link deployment/filesystems/plugins.md %}) documentation page: in order to use plugins they must be
+As described in the [plugins]({% link deployment/filesystems/plugins.md %}) documentation page: In order to use plugins they must be
 copied to the correct location in the Flink installation in the Docker container for them to work.
 
 If you want to enable plugins provided with Flink (in the `opt/` directory of the Flink distribution), you can pass the environment variable `ENABLE_BUILT_IN_PLUGINS` when you run the Flink image.
@@ -296,7 +296,7 @@ There are also more [advanced ways](#advanced-customization) for customizing the
 
 ### Enabling Python
 
-To build a custom image which has Python and Pyflink prepared, you can refer to the following Dockerfile:
+To build a custom image which has Python and PyFlink prepared, you can refer to the following Dockerfile:
 {% highlight Dockerfile %}
 FROM flink:{{site.version}}
 
