@@ -63,7 +63,6 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
-import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
@@ -172,7 +171,7 @@ public class SchedulerTestingUtils {
 		return newSchedulerBuilder(jobGraph)
 			.setFutureExecutor(asyncExecutor)
 			.setDelayExecutor(asyncExecutor)
-			.setSchedulingStrategyFactory(new EagerSchedulingStrategy.Factory())
+			.setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
 			.setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0))
 			.setExecutionSlotAllocatorFactory(new TestExecutionSlotAllocatorFactory(taskManagerGateway));
 	}
