@@ -67,7 +67,7 @@ $ ./bin/stop-cluster.sh
 In step `(1)`, we've started 2 processes: A JVM for the JobManager, and a JVM for the TaskManager. The JobManager is serving the web interface accessible at [localhost:8081](http://localhost:8081).
 In step `(3)`, we are starting a Flink Client (a short-lived JVM process) that submits an application to the JobManager.
 
-## Deployment Modes Supported by the Standalone Cluster
+## Deployment Modes
 
 ### Application Mode
 
