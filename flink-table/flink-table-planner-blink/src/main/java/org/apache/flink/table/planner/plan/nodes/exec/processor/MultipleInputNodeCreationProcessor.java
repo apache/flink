@@ -26,11 +26,12 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputOrderCalculator;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputPriorityConflictResolver;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDataStreamScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecMultipleInput;
 import org.apache.flink.util.Preconditions;
@@ -494,8 +495,8 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			List<Tuple2<ExecNode<?>, ExecEdge>> inputs) {
 		// first calculate the input orders using InputPriorityConflictResolver
 		Set<ExecNode<?>> inputSet = new HashSet<>();
-		for (Tuple2<ExecNode<?>, ExecEdge> t : inputs) {
-			inputSet.add(t.f0);
+		for (Tuple2<ExecNode<?>, ExecEdge> tuple2 : inputs) {
+			inputSet.add(tuple2.f0);
 		}
 		InputOrderCalculator calculator = new InputOrderCalculator(
 			group.root.execNode,
@@ -504,31 +505,26 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 		Map<ExecNode<?>, Integer> inputOrderMap = calculator.calculate();
 
 		// then create input rels and edges with the input orders
-		RelNode outputRel = (RelNode) group.root.execNode;
-		RelNode[] inputRels = new RelNode[inputs.size()];
+		ExecNode<?> rootNode = group.root.execNode;
 		List<ExecNode<?>> inputNodes = new ArrayList<>();
-		ExecEdge[] inputEdges = new ExecEdge[inputs.size()];
-		for (int i = 0; i < inputs.size(); i++) {
-			ExecNode<?> inputNode = inputs.get(i).f0;
-			ExecEdge originalInputEdge = inputs.get(i).f1;
-			inputRels[i] = (RelNode) inputNode;
+		List<ExecEdge> inputEdges = new ArrayList<>();
+		for (Tuple2<ExecNode<?>, ExecEdge> tuple2 : inputs) {
+			ExecNode<?> inputNode = tuple2.f0;
+			ExecEdge originalInputEdge = tuple2.f1;
 			inputNodes.add(inputNode);
-			inputEdges[i] = ExecEdge.builder()
+			inputEdges.add(ExecEdge.builder()
 				.requiredShuffle(originalInputEdge.getRequiredShuffle())
 				.damBehavior(originalInputEdge.getDamBehavior())
 				.priority(inputOrderMap.get(inputNode))
-				.build();
+				.build());
 		}
 
-		BatchExecMultipleInput multipleInput = new BatchExecMultipleInput(
-			outputRel.getCluster(),
-			outputRel.getTraitSet(),
-			inputRels,
-			outputRel,
-			inputEdges);
-		// TODO remove this later
-		multipleInput.setInputNodes(inputNodes);
-		return multipleInput;
+		String description = ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, inputEdges);
+		return new BatchExecMultipleInput(
+				inputNodes,
+				inputEdges,
+				rootNode,
+				description);
 	}
 
 	// --------------------------------------------------------------------------------

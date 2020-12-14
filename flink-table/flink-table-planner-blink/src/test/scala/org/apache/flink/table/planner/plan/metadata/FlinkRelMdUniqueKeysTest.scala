@@ -280,12 +280,6 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
-  def testGetUniqueKeysOnMultipleInput(): Unit = {
-    assertEquals(uniqueKeys(Array(0), Array(2), Array(0, 2)),
-      mq.getUniqueKeys(batchMultipleInput).toSet)
-  }
-
-  @Test
   def testGetUniqueKeysOnDefault(): Unit = {
     assertNull(mq.getUniqueKeys(testRel))
   }
