@@ -59,7 +59,7 @@ class PartitionableSinkTest extends TableTestBase {
   @Test
   def testDynamicShuffleBy(): Unit = {
     createTable("sinkShuffleBy", shuffleBy = true)
-    util.verifyExecPlanInsert("INSERT INTO sinkShuffleBy SELECT a, b, c FROM MyTable")
+    util.verifyExecPlan("INSERT INTO sinkShuffleBy SELECT a, b, c FROM MyTable")
   }
 
   @Test

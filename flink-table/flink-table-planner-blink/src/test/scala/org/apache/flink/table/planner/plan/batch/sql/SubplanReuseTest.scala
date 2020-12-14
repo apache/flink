@@ -56,7 +56,7 @@ class SubplanReuseTest extends TableTestBase {
         |)
         |SELECT r1.a, r1.b, r2.e FROM r r1, r r2 WHERE r1.b > 10 AND r2.e < 20 AND r1.a = r2.a
       """.stripMargin
-    util.verifyRelPlanNotExpected(sqlQuery, "Reused")
+    util.verifyOptimizedRelPlanNotExpected(sqlQuery, "Reused")
   }
 
   @Test
@@ -70,7 +70,7 @@ class SubplanReuseTest extends TableTestBase {
         |     t2 AS (SELECT CAST(a as DOUBLE) AS a, SUM(b) AS b FROM x GROUP BY CAST(a as DOUBLE))
         |SELECT t1.*, t2.* FROM t1, t2 WHERE t1.b = t2.b
       """.stripMargin
-    util.verifyRelPlanNotExpected(sqlQuery, "Reused")
+    util.verifyOptimizedRelPlanNotExpected(sqlQuery, "Reused")
   }
 
   @Test
