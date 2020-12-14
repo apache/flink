@@ -29,15 +29,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputOrderCalculator;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputPriorityConflictResolver;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDataStreamScan;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecMultipleInput;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.RelDistribution;
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Exchange;
 import org.apache.calcite.rel.core.Union;
 
@@ -472,22 +471,17 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 	private StreamExecMultipleInput createStreamMultipleInputNode(
 			MultipleInputGroup group,
 			List<Tuple2<ExecNode<?>, ExecEdge>> inputs) {
-		RelNode outputRel = (RelNode) group.root.execNode;
-		RelNode[] inputRels = new RelNode[inputs.size()];
+		ExecNode<?> rootNode = group.root.execNode;
 		List<ExecNode<?>> inputNodes = new ArrayList<>();
-		for (int i = 0; i < inputs.size(); i++) {
-			inputRels[i] = (RelNode) inputs.get(i).f0;
-			inputNodes.add(inputs.get(i).f0);
+		for (Tuple2<ExecNode<?>, ExecEdge> tuple2 : inputs) {
+			inputNodes.add(tuple2.f0);
 		}
 
-		StreamExecMultipleInput multipleInput = new StreamExecMultipleInput(
-			outputRel.getCluster(),
-			outputRel.getTraitSet(),
-			inputRels,
-			outputRel);
-		// TODO remove this later
-		multipleInput.setInputNodes(inputNodes);
-		return multipleInput;
+		String description = ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, new ArrayList<>());
+		return new StreamExecMultipleInput(
+				inputNodes,
+				rootNode,
+				description);
 	}
 
 	private BatchExecMultipleInput createBatchMultipleInputNode(
