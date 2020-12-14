@@ -37,7 +37,6 @@ import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
-import org.apache.flink.runtime.scheduler.strategy.LazyFromSourcesSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.util.clock.SystemClock;
@@ -116,9 +115,6 @@ public class DefaultSchedulerComponents {
 		switch (scheduleMode) {
 			case EAGER:
 				return new EagerSchedulingStrategy.Factory();
-			case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
-			case LAZY_FROM_SOURCES:
-				return new LazyFromSourcesSchedulingStrategy.Factory();
 			default:
 				throw new IllegalStateException("Unsupported schedule mode " + scheduleMode);
 		}

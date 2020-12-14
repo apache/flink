@@ -22,11 +22,9 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
-import org.apache.flink.runtime.scheduler.strategy.LazyFromSourcesSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.util.TestLogger;
 
@@ -51,16 +49,6 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
 		final DefaultSchedulerComponents components = createSchedulerComponents(new Configuration());
 		assertThat(components.getSchedulingStrategyFactory(), instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
 		assertThat(components.getAllocatorFactory(), instanceOf(SlotSharingExecutionSlotAllocatorFactory.class));
-	}
-
-	@Test
-	public void testCreatingLegacySchedulingStrategyFactory() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.SCHEDULING_STRATEGY, "legacy");
-
-		final DefaultSchedulerComponents components = createSchedulerComponents(configuration);
-		assertThat(components.getSchedulingStrategyFactory(), instanceOf(LazyFromSourcesSchedulingStrategy.Factory.class));
-		assertThat(components.getAllocatorFactory(), instanceOf(DefaultExecutionSlotAllocatorFactory.class));
 	}
 
 	@Test
