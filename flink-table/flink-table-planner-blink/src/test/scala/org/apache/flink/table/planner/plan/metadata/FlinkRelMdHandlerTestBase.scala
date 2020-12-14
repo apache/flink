@@ -39,7 +39,6 @@ import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkR
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.calcite._
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -75,7 +74,6 @@ import org.apache.calcite.util._
 import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
-
 import java.util
 
 import scala.collection.JavaConversions._
@@ -2421,46 +2419,6 @@ class FlinkRelMdHandlerTestBase {
     .scan("MyTable1")
     .scan("MyTable2")
     .minus(false).build()
-
-  // select * from
-  //  (select b, sum(e) from MyTable1 group by b) v1,
-  //  (select a, sum(c) from MyTable4 group by a) v2
-  //   where a = b
-  protected lazy val batchMultipleInput: RelNode = {
-    val leftInput = createGlobalAgg("MyTable1", "b", "e")
-    val leftEdge = leftInput.getInputEdges.get(0)
-    val rightInput = createGlobalAgg("MyTable4", "a", "c")
-    val rightEdge = rightInput.getInputEdges.get(0)
-    val join = new BatchExecHashJoin(
-      cluster,
-      batchPhysicalTraits,
-      leftInput,
-      rightInput,
-      rexBuilder.makeCall(SqlStdOperatorTable.EQUALS,
-        rexBuilder.makeInputRef(longType, 0),
-        rexBuilder.makeInputRef(longType, 2)),
-      JoinRelType.INNER,
-      leftIsBuild = true,
-      isBroadcast = false,
-      tryDistinctBuildRow = false
-    )
-   new BatchExecMultipleInput(
-      cluster,
-      batchPhysicalTraits,
-      Array(leftInput.getInput, rightInput.getInput),
-      join,
-      Array(
-        ExecEdge.builder()
-          .requiredShuffle(leftEdge.getRequiredShuffle)
-          .damBehavior(leftEdge.getDamBehavior)
-          .priority(0)
-          .build(),
-        ExecEdge.builder()
-          .requiredShuffle(rightEdge.getRequiredShuffle)
-          .damBehavior(rightEdge.getDamBehavior)
-          .priority(1)
-          .build()))
-  }
 
   private def createGlobalAgg(
       table: String, groupBy: String, sum: String): BatchExecHashAggregate = {
