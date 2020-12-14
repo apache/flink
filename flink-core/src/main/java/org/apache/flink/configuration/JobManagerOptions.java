@@ -355,22 +355,6 @@ public class JobManagerOptions {
 				.build());
 
 	/**
-	 * Config parameter determining the scheduling strategy.
-	 */
-	@Documentation.ExcludeFromDocumentation("User normally should not be expected to change this config.")
-	public static final ConfigOption<String> SCHEDULING_STRATEGY =
-		key("jobmanager.scheduler.scheduling-strategy")
-			.stringType()
-			.defaultValue("region")
-			.withDescription(Description.builder()
-				.text("Determines which scheduling strategy is used to schedule tasks. Accepted values are:")
-				.list(
-					text("'region': pipelined region scheduling"),
-					text("'legacy': legacy scheduling strategy, which is eager scheduling for streaming jobs " +
-						"and lazy from sources scheduling for batch jobs"))
-				.build());
-
-	/**
 	 * Config parameter controlling whether partitions should already be released during the job execution.
 	 */
 	@Documentation.ExcludeFromDocumentation("User normally should not be expected to deactivate this feature. " +

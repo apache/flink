@@ -87,7 +87,6 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
 		final Configuration configuration = new Configuration();
 		configuration.setString(RestOptions.BIND_PORT, "0");
 		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
-		configuration.setString(JobManagerOptions.SCHEDULING_STRATEGY, "region");
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)

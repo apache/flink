@@ -23,7 +23,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -48,13 +47,9 @@ import java.util.function.Consumer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Components to create a {@link DefaultScheduler} which depends on the
- * configured {@link JobManagerOptions#SCHEDULING_STRATEGY}.
+ * Components to create a {@link DefaultScheduler}. Currently only supports {@link PipelinedRegionSchedulingStrategy}.
  */
 public class DefaultSchedulerComponents {
-
-	private static final String PIPELINED_REGION_SCHEDULING = "region";
-	private static final String LEGACY_SCHEDULING = "legacy";
 
 	private final SchedulingStrategyFactory schedulingStrategyFactory;
 	private final Consumer<ComponentMainThreadExecutor> startUpAction;
@@ -89,29 +84,14 @@ public class DefaultSchedulerComponents {
 			final SlotPool slotPool,
 			final Time slotRequestTimeout) {
 
-		final String schedulingStrategy = jobMasterConfiguration.getString(JobManagerOptions.SCHEDULING_STRATEGY);
-		switch (schedulingStrategy) {
-			case PIPELINED_REGION_SCHEDULING:
-				checkArgument(
-					!isApproximateLocalRecoveryEnabled,
-					"Approximate local recovery can not be used together with PipelinedRegionScheduler for now! " +
-						"Please set %s to legacy.", JobManagerOptions.SCHEDULING_STRATEGY.key());
-				return createPipelinedRegionSchedulerComponents(
-					scheduleMode,
-					jobMasterConfiguration,
-					slotPool,
-					slotRequestTimeout);
-			case LEGACY_SCHEDULING:
-				checkArgument(!isApproximateLocalRecoveryEnabled || !scheduleMode.allowLazyDeployment(),
-					"Approximate local recovery can only be used together with EAGER schedule mode!");
-				return createLegacySchedulerComponents(
-					scheduleMode,
-					jobMasterConfiguration,
-					slotPool,
-					slotRequestTimeout);
-			default:
-				throw new IllegalStateException("Unsupported scheduling strategy " + schedulingStrategy);
-		}
+		checkArgument(
+			!isApproximateLocalRecoveryEnabled,
+			"Approximate local recovery can not be used together with PipelinedRegionScheduler for now! ");
+		return createPipelinedRegionSchedulerComponents(
+			scheduleMode,
+			jobMasterConfiguration,
+			slotPool,
+			slotRequestTimeout);
 	}
 
 	private static DefaultSchedulerComponents createLegacySchedulerComponents(
