@@ -47,25 +47,25 @@ class FlinkRewriteSubQueryRuleTest extends SubQueryTestBase {
   @Test
   def testUnsupportedConversionWithUnexpectedComparisonNumber(): Unit = {
     // without correlation
-    util.verifyOptimizedRelPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > 1", "joinType=[semi]")
-    util.verifyOptimizedRelPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) >= 0", "joinType=[semi]")
-    util.verifyOptimizedRelPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > -1", "joinType=[semi]")
-    util.verifyOptimizedRelPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE 0 <= (SELECT COUNT(*) FROM y WHERE d > 10)", "joinType=[semi]")
-    util.verifyOptimizedRelPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE -1 < (SELECT COUNT(*) FROM y WHERE d > 10)", "joinType=[semi]")
 
     // with correlation
-    util.verifyOptimizedRelPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) > 1", "joinType=[semi]")
-    util.verifyOptimizedRelPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) >= 0", "joinType=[semi]")
-    util.verifyOptimizedRelPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE 1 < (SELECT COUNT(*) FROM y WHERE a = d)", "joinType=[semi]")
-    util.verifyOptimizedRelPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE 0 <= (SELECT COUNT(*) FROM y WHERE a = d)", "joinType=[semi]")
   }
 

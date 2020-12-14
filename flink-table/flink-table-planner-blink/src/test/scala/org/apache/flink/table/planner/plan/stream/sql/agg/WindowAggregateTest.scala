@@ -94,7 +94,7 @@ class WindowAggregateTest extends TableTestBase {
       |FROM MyTable
       |    GROUP BY rollup(TUMBLE(rowtime, INTERVAL '15' MINUTE), b)
     """.stripMargin
-    util.verifyOptimizedRelPlanNotExpected(sql, "TUMBLE(rowtime")
+    util.verifyRelPlanNotExpected(sql, "TUMBLE(rowtime")
   }
 
   @Test

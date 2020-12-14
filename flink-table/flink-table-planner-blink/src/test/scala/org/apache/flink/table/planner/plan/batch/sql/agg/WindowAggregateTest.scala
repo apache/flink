@@ -120,7 +120,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
       |FROM MyTable1
       |    GROUP BY rollup(TUMBLE(ts, INTERVAL '15' MINUTE), b)
     """.stripMargin
-    util.verifyOptimizedRelPlanNotExpected(sql, "TUMBLE(ts")
+    util.verifyRelPlanNotExpected(sql, "TUMBLE(ts")
   }
 
   @Test
