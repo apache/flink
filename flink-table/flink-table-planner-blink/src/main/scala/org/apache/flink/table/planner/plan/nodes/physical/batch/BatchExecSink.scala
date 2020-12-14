@@ -26,7 +26,8 @@ import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalSink
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -66,8 +67,9 @@ class BatchExecSink(
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[Any] = {
     val inputTransformation = getInputNodes.get(0) match {
-      // Sink's input must be LegacyBatchExecNode[RowData] now.
-      case node: LegacyBatchExecNode[RowData] => node.translateToPlan(planner)
+      // Sink's input must be LegacyBatchExecNode[RowData] or BatchExecNode[RowData] now.
+      case legacyNode: LegacyBatchExecNode[RowData] => legacyNode.translateToPlan(planner)
+      case node: BatchExecNode[RowData] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
