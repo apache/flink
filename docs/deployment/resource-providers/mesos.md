@@ -278,3 +278,138 @@ See [Mesos Architecture](http://mesos.apache.org/documentation/latest/architectu
 on how frameworks are handled by Mesos.
 
 {% top %}
+
+## Appendix
+The following resource files can be used to set up a local Mesos cluster running the Marathon framework 
+and having Flink 1.11.2 installed.
+ 
+### Dockerfile
+
+{% highlight yaml %}
+FROM mesosphere/mesos:1.7.1
+
+# install Java 11 and wget
+RUN apt update && \
+    apt -y install wget && \
+    wget -nv https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz && \
+    tar xzf openjdk-11.0.2_linux-x64_bin.tar.gz && \
+    mv jdk-11* /usr/local/jdk-11.0.2 && \
+    update-alternatives --install /usr/bin/java java /usr/local/jdk-11.0.2/bin/java 2048 && \
+    update-alternatives --auto java
+ENV JAVA_HOME=/usr/local/jdk-11.0.2
+
+WORKDIR /opt
+
+# install Hadoop
+RUN wget -nv https://apache.mirror.digionline.de/hadoop/common/hadoop-2.10.1/hadoop-2.10.1.tar.gz && \
+    tar -xf hadoop-2.10.1.tar.gz
+ENV HADOOP_CLASSPATH=/opt/hadoop-2.10.1/etc/hadoop:/opt/hadoop-2.10.1/share/hadoop/common/lib/*:/opt/hadoop-2.10.1/share/hadoop/common/*:/opt/hadoop-2.10.1/share/hadoop/hdfs:/opt/hadoop-2.10.1/share/hadoop/hdfs/lib/*:/opt/hadoop-2.10.1/share/hadoop/hdfs/*:/opt/hadoop-2.10.1/share/hadoop/yarn:/opt/hadoop-2.10.1/share/hadoop/yarn/lib/*:/opt/hadoop-2.10.1/share/hadoop/yarn/*:/opt/hadoop-2.10.1/share/hadoop/mapreduce/lib/*:/opt/hadoop-2.10.1/share/hadoop/mapreduce/*:/contrib/capacity-scheduler/*.jar
+
+# install Flink on Mesos
+RUN wget -nv https://apache.mirror.digionline.de/flink/flink-1.11.2/flink-1.11.2-bin-scala_2.11.tgz && \
+    tar -xf flink-1.11.2-bin-scala_2.11.tgz
+ENV MESOS_NATIVE_JAVA_LIBRARY=/usr/lib/libmesos.so
+{% endhighlight %}
+
+### Docker Compose
+
+The `docker-compose.yml` provided below is based on the work done by 
+[Sean Bennet](https://github.com/sean-bennett112/mesos-docker/blob/master/fig.yml).
+
+Keep in mind that it requires the `Dockerfile` of the previous section to be found in the same 
+directory and the file being named `Dockerfile`. It might make sense to scale the worker nodes up to 
+have enough workers to run Flink on Mesos next 
+to the Marathon framework:
+{% highlight bash %}
+docker-compose up -d --scale worker=2
+{% endhighlight %}
+
+{% highlight yaml %}
+version: "3.8"
+services:
+  zookeeper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: /usr/share/zookeeper/bin/zkServer.sh start-foreground
+    container_name: zookeeper
+  master:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: mesos-master --registry=in_memory
+    container_name: master
+    environment:
+      - MESOS_ZK=zk://zookeeper:2181/mesos
+      - MESOS_LOG_DIR=/var/log/mesos
+      - MESOS_QUORUM=1
+      - MESOS_WORK_DIR=/var/lib/mesos
+    depends_on:
+      - zookeeper
+    ports:
+      - "5050:5050"
+      - "8081:8081"
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: mesos-slave --launcher=posix
+    environment:
+      - MESOS_MASTER=zk://zookeeper:2181/mesos
+      - MESOS_WORK_DIR=/var/lib/mesos
+      - MESOS_LOG_DIR=/var/log/mesos
+      - MESOS_LOGGING_LEVEL=INFO
+      - MESOS_SYSTEMD_ENABLE_SUPPORT=false
+    depends_on:
+      - zookeeper
+      - master
+    ports:
+      - "8081"
+  marathon:
+    image: mesosphere/marathon:v1.11.24
+    container_name: marathon
+    environment:
+      - MARATHON_MASTER=zk://zookeeper:2181/mesos
+      - MARATHON_ZK=zk://zookeeper:2181/marathon
+      - MARATHON_ZK_CONNECTION_TIMEOUT=60000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - zookeeper
+      - master
+{% endhighlight %}
+
+### Marathon configuration
+
+The following Marathon configuration can be applied through the Marathon UI: http://localhost:8080/
+It will start a Flink on Mesos cluster on any of the worker machines. Flink's default port `8081` is 
+forwarded to random ports due to the scaling of the worker nodes. Use `docker ps` to figure out the 
+host system's ports that to be able to access Flink's web interface. 
+
+{% highlight javascript %}
+{
+  "id": "flink",
+  "cmd": "/opt/flink-1.11.2/bin/mesos-appmaster.sh -Dmesos.resourcemanager.framework.user=root -Dmesos.master=master:5050 -Djobmanager.rpc.address=$HOST -Dparallelism.default=2",
+  "cpus": 2,
+  "mem": 4096,
+  "disk": 0,
+  "instances": 1,
+  "env": {
+    "HADOOP_CLASSPATH": "/opt/hadoop-2.10.1/etc/hadoop:/opt/hadoop-2.10.1/share/hadoop/common/lib/*:/opt/hadoop-2.10.1/share/hadoop/common/*:/opt/hadoop-2.10.1/share/hadoop/hdfs:/opt/hadoop-2.10.1/share/hadoop/hdfs/lib/*:/opt/hadoop-2.10.1/share/hadoop/hdfs/*:/opt/hadoop-2.10.1/share/hadoop/yarn:/opt/hadoop-2.10.1/share/hadoop/yarn/lib/*:/opt/hadoop-2.10.1/share/hadoop/yarn/*:/opt/hadoop-2.10.1/share/hadoop/mapreduce/lib/*:/opt/hadoop-2.10.1/share/hadoop/mapreduce/*:/opt/hadoop-2.10.1/etc/hadoop:/opt/hadoop-2.10.1/share/hadoop/common/lib/*:/opt/hadoop-2.10.1/share/hadoop/common/*:/opt/hadoop-2.10.1/share/hadoop/hdfs:/opt/hadoop-2.10.1/share/hadoop/hdfs/lib/*:/opt/hadoop-2.10.1/share/hadoop/hdfs/*:/opt/hadoop-2.10.1/share/hadoop/yarn:/opt/hadoop-2.10.1/share/hadoop/yarn/lib/*:/opt/hadoop-2.10.1/share/hadoop/yarn/*:/opt/hadoop-2.10.1/share/hadoop/mapreduce/lib/*:/opt/hadoop-2.10.1/share/hadoop/mapreduce/*:/contrib/capacity-scheduler/*.jar:/contrib/capacity-scheduler/*.jar"
+  },
+  "healthChecks": [
+    {
+      "protocol": "HTTP",
+      "path": "/",
+      "port": 8081,
+      "gracePeriodSeconds": 300,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 20,
+      "maxConsecutiveFailures": 3
+    }
+  ],
+  "user": "root"
+}
+{% endhighlight %}
+
+{% top %}
