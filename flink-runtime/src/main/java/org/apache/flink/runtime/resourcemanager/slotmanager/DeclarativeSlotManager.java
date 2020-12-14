@@ -516,6 +516,10 @@ public class DeclarativeSlotManager implements SlotManager {
 
 		CompletableFuture<Void> slotAllocationResponseProcessingFuture = completableFuture.handleAsync(
 			(Acknowledge acknowledge, Throwable throwable) -> {
+				if (!taskExecutorManager.isTaskManagerRegistered(instanceId)) {
+					LOG.debug("Ignoring slot allocation response from task executor (instanceID={}) for job {} and slot {} because the task executor is no longer registered.", instanceId,  jobId, slotId);
+					return null;
+				}
 				if (acknowledge != null) {
 					LOG.trace("Completed allocation of slot {} for job {}.", slotId, jobId);
 					slotTracker.notifyAllocationComplete(slotId, jobId);

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -43,6 +44,7 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
@@ -968,6 +970,41 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 			Tuple2<JobID, Collection<ResourceRequirement>> notification = notEnoughResourceNotifications.get(0);
 			assertThat(notification.f0, is(jobId));
 			assertThat(notification.f1, hasItem(ResourceRequirement.create(ResourceProfile.ANY, numExistingSlots)));
+		}
+	}
+
+	@Test
+	public void testAllocationUpdatesIgnoredIfTaskExecutorUnregistered() throws Exception {
+		final ManuallyTriggeredScheduledExecutorService executor = new ManuallyTriggeredScheduledExecutorService();
+
+		final ResourceTracker resourceTracker = new DefaultResourceTracker();
+
+		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			// it is important that the returned future is already completed
+			// otherwise it will be cancelled when the task executor is unregistered
+			.setRequestSlotFunction(ignored -> CompletableFuture.completedFuture(Acknowledge.get()))
+			.createTestingTaskExecutorGateway();
+
+		final SystemExitTrackingSecurityManager trackingSecurityManager = new SystemExitTrackingSecurityManager();
+		System.setSecurityManager(trackingSecurityManager);
+		try (final DeclarativeSlotManager slotManager = createDeclarativeSlotManagerBuilder()
+			.setResourceTracker(resourceTracker)
+			.buildAndStart(ResourceManagerId.generate(), executor, new TestingResourceActionsBuilder().build())) {
+
+			JobID jobId = new JobID();
+			slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
+
+			final TaskExecutorConnection taskExecutionConnection = createTaskExecutorConnection(taskExecutorGateway);
+			final SlotReport slotReport = createSlotReport(taskExecutionConnection.getResourceID(), 1);
+
+			slotManager.registerTaskManager(taskExecutionConnection, slotReport);
+			slotManager.unregisterTaskManager(taskExecutionConnection.getInstanceID(), TEST_EXCEPTION);
+
+			executor.triggerAll();
+
+			assertThat(trackingSecurityManager.getSystemExitFuture().isDone(), is(false));
+		} finally {
+			System.setSecurityManager(null);
 		}
 	}
 
