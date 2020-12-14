@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.utils;
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink;
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeVisitor;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeVisitorImpl;
+import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
+import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitorImpl;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
