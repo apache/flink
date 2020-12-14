@@ -199,7 +199,7 @@ If the main function of the user job main class accepts arguments, you can also 
 
 ### Per-Job Mode on Docker
 
-[Per-Job Mode]({% link deployment/index.md %}#per-job-mode) is not supported by Docker.
+[Per-Job Mode]({% link deployment/index.md %}#per-job-mode) is not supported by Flink on Docker.
 
 ### Session Mode on Docker
 
