@@ -1086,8 +1086,8 @@ public class FlinkKafkaProducer<IN>
 		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
 			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR_V2);
 
-		if (context.getOperatorStateStore().getRegisteredStateNames().contains(NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR)) {
-			migrateNextTransactionalIdHindState(context);
+		if (context.getOperatorStateStore().getRegisteredStateNames().contains(NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR.getName())) {
+			migrateNextTransactionalIdHintState(context);
 		}
 
 		String taskName = getRuntimeContext().getTaskName();
@@ -1305,7 +1305,7 @@ public class FlinkKafkaProducer<IN>
 		in.defaultReadObject();
 	}
 
-	private void migrateNextTransactionalIdHindState(FunctionInitializationContext context) throws Exception {
+	private void migrateNextTransactionalIdHintState(FunctionInitializationContext context) throws Exception {
 		ListState<NextTransactionalIdHint> oldNextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
 			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR);
 		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR_V2);
