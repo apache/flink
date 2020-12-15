@@ -20,7 +20,6 @@ package org.apache.flink.testutils;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.types.Row;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -33,7 +32,6 @@ import java.util.function.BiFunction;
  * <ul>
  *     <li>{@link Tuple}s</li>
  *     <li>Java arrays</li>
- *     <li>{@link Row}</li>
  *     <li>{@link Throwable}</li>
  * </ul>
  *
@@ -90,8 +88,6 @@ public class DeeplyEqualsChecker {
 			return deepEqualsArray(e1, e2);
 		} else if (e1 instanceof Tuple && e2 instanceof Tuple) {
 			return deepEqualsTuple((Tuple) e1, (Tuple) e2);
-		} else if (e1 instanceof Row && e2 instanceof Row) {
-			return deepEqualsRow((Row) e1, (Row) e2);
 		} else if (e1 instanceof Throwable && e2 instanceof Throwable) {
 			return ((Throwable) e1).getMessage().equals(((Throwable) e2).getMessage());
 		} else {
@@ -129,24 +125,6 @@ public class DeeplyEqualsChecker {
 			Object o2 = Array.get(array2, i);
 
 			if (!deepEquals(o1, o2)) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	private boolean deepEqualsRow(Row row1, Row row2) {
-		int arity = row1.getArity();
-
-		if (row1.getArity() != row2.getArity()) {
-			return false;
-		}
-
-		for (int i = 0; i < arity; i++) {
-			Object copiedValue = row1.getField(i);
-			Object element = row2.getField(i);
-			if (!deepEquals(copiedValue, element)) {
 				return false;
 			}
 		}
