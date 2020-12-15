@@ -185,8 +185,9 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 
 	private List<BufferResponse> createMessageList(
 		boolean hasEmptyBuffer,
-		boolean hasBufferForRemovedChannel,
-		boolean hasBufferForReleasedChannel) {
+		boolean hasBufferForReleasedChannel,
+		boolean hasBufferForRemovedChannel
+		) {
 
 		int seqNumber = 1;
 		List<BufferResponse> messages = new ArrayList<>();
