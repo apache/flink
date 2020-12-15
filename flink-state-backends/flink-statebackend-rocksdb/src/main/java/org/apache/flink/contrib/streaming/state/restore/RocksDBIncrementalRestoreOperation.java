@@ -54,8 +54,6 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -86,7 +84,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Encapsulates the process of restoring a RocksDB instance from an incremental snapshot.
  */
 public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestoreOperation<K> {
-	private static final Logger LOG = LoggerFactory.getLogger(RocksDBIncrementalRestoreOperation.class);
 
 	private final String operatorIdentifier;
 	private final SortedMap<Long, Set<StateHandleID>> restoredSstFiles;
@@ -166,6 +163,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 	 */
 	@SuppressWarnings("unchecked")
 	private void restoreWithoutRescaling(KeyedStateHandle keyedStateHandle) throws Exception {
+		logger.info("Starting to restore from state handle: {} without rescaling.", keyedStateHandle);
 		if (keyedStateHandle instanceof IncrementalRemoteKeyedStateHandle) {
 			IncrementalRemoteKeyedStateHandle incrementalRemoteKeyedStateHandle =
 				(IncrementalRemoteKeyedStateHandle) keyedStateHandle;
@@ -181,6 +179,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 					new Class[]{IncrementalRemoteKeyedStateHandle.class, IncrementalLocalKeyedStateHandle.class},
 					keyedStateHandle.getClass());
 		}
+		logger.info("Finished restoring from state handle: {} without rescaling.", keyedStateHandle);
 	}
 
 	private void restorePreviousIncrementalFilesStatus(IncrementalKeyedStateHandle localKeyedStateHandle) {
@@ -210,12 +209,12 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 
 		Path restoreSourcePath = localKeyedStateHandle.getDirectoryStateHandle().getDirectory();
 
-		LOG.debug("Restoring keyed backend uid in operator {} from incremental snapshot to {}.",
+		logger.debug("Restoring keyed backend uid in operator {} from incremental snapshot to {}.",
 			operatorIdentifier, backendUID);
 
 		if (!instanceRocksDBPath.mkdirs()) {
 			String errMsg = "Could not create RocksDB data directory: " + instanceBasePath.getAbsolutePath();
-			LOG.error(errMsg);
+			logger.error(errMsg);
 			throw new IOException(errMsg);
 		}
 
@@ -252,7 +251,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		try {
 			FileUtils.deleteDirectory(path.toFile());
 		} catch (IOException ex) {
-			LOG.warn("Failed to clean up path " + path, ex);
+			logger.warn("Failed to clean up path " + path, ex);
 		}
 	}
 
@@ -295,6 +294,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 				throw unexpectedStateHandleException(IncrementalRemoteKeyedStateHandle.class, rawStateHandle.getClass());
 			}
 
+			logger.info("Starting to restore from state handle: {} with rescaling.", rawStateHandle);
 			Path temporaryRestoreInstancePath = instanceBasePath.getAbsoluteFile().toPath().resolve(UUID.randomUUID().toString());
 			try (RestoredDBInstance tmpRestoreDBInfo = restoreDBInstanceFromStateHandle(
 				(IncrementalRemoteKeyedStateHandle) rawStateHandle,
@@ -330,6 +330,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 						}
 					} // releases native iterator resources
 				}
+				logger.info("Finished restoring from state handle: {} with rescaling.", rawStateHandle);
 			} finally {
 				cleanUpPathQuietly(temporaryRestoreInstancePath);
 			}
@@ -354,7 +355,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 				writeBatchSize);
 		} catch (RocksDBException e) {
 			String errMsg = "Failed to clip DB after initialization.";
-			LOG.error(errMsg, e);
+			logger.error(errMsg, e);
 			throw new BackendBuildingException(errMsg, e);
 		}
 	}
