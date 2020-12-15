@@ -296,7 +296,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = ModifyKindSetTrait.ALL_CHANGES
         createNewNode(materialize, children, providedTrait, requiredTrait, requester)
 
-      case ts: StreamExecTableSourceScan =>
+      case ts: StreamPhysicalTableSourceScan =>
         // ScanTableSource supports produces updates and deletions
         val providedTrait = ModifyKindSetTrait.fromChangelogMode(ts.tableSource.getChangelogMode)
         createNewNode(ts, List(), providedTrait, requiredTrait, requester)
@@ -628,7 +628,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // because changelog normalize supports all kinds of UpdateKind
         createNewNode(rel, children, requiredTrait)
 
-      case ts: StreamExecTableSourceScan =>
+      case ts: StreamPhysicalTableSourceScan =>
         // currently only support BEFORE_AND_AFTER if source produces updates
         val providedTrait = UpdateKindTrait.fromChangelogMode(ts.tableSource.getChangelogMode)
         val newSource = createNewNode(rel, Some(List()), providedTrait)
