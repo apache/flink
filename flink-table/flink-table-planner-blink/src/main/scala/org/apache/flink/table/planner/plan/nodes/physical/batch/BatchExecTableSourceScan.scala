@@ -24,8 +24,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
+import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
@@ -38,16 +39,17 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Batch physical RelNode to read data from an external source defined by a
-  * bounded [[org.apache.flink.table.connector.source.ScanTableSource]].
-  */
+ * Batch physical RelNode to read data from an external source defined by a
+ * bounded [[org.apache.flink.table.connector.source.ScanTableSource]].
+ */
 class BatchExecTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     tableSourceTable: TableSourceTable)
   extends CommonPhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData]{
+  with LegacyBatchExecNode[RowData]
+  with CommonExecTableSourceScan {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecTableSourceScan(cluster, traitSet, tableSourceTable)
@@ -71,8 +73,8 @@ class BatchExecTableSourceScan(
   override protected def createInputFormatTransformation(
       env: StreamExecutionEnvironment,
       inputFormat: InputFormat[RowData, _],
-      name: String,
-      outTypeInfo: InternalTypeInfo[RowData]): Transformation[RowData] = {
+      outTypeInfo: InternalTypeInfo[RowData],
+      name: String): Transformation[RowData] = {
     // env.createInput will use ContinuousFileReaderOperator, but it do not support multiple
     // paths. If read partitioned source, after partition pruning, we need let InputFormat
     // to read multiple partitions which are multiple paths.
@@ -81,8 +83,8 @@ class BatchExecTableSourceScan(
     env.addSource(func, name, outTypeInfo).getTransformation
   }
 
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    createSourceTransformation(planner.getExecEnv, getRelDetailedDescription)
+  override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[RowData] = {
+    createSourceTransformation(
+      planner.getExecEnv, tableSource, getOutputType, getRelDetailedDescription)
   }
 }

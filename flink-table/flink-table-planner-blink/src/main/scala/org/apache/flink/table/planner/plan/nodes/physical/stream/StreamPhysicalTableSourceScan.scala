@@ -18,36 +18,31 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.api.common.io.InputFormat
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 
 /**
-  * Stream physical RelNode to read data from an external source defined by a
+ * Stream physical RelNode to read data from an external source defined by a
  * [[org.apache.flink.table.connector.source.ScanTableSource]].
-  */
-class StreamExecTableSourceScan(
+ */
+class StreamPhysicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     tableSourceTable: TableSourceTable)
   extends CommonPhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
-  with StreamPhysicalRel
-  with LegacyStreamExecNode[RowData] {
+  with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamExecTableSourceScan(cluster, traitSet, tableSourceTable)
+    new StreamPhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -56,23 +51,10 @@ class StreamExecTableSourceScan(
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override protected def createInputFormatTransformation(
-      env: StreamExecutionEnvironment,
-      inputFormat: InputFormat[RowData, _],
-      name: String,
-      outTypeInfo: InternalTypeInfo[RowData]): Transformation[RowData] = {
-    // It's better to use StreamExecutionEnvironment.createInput()
-    // rather than addLegacySource() for streaming, because it take care of checkpoint.
-    env
-      .createInput(inputFormat, outTypeInfo)
-      .name(name)
-      .getTransformation
-  }
-
-  override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[RowData] = {
-    createSourceTransformation(planner.getExecEnv, getRelDetailedDescription)
+  override def translateToExecNode(): ExecNode[_] = {
+    new StreamExecTableSourceScan(
+      tableSource,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription)
   }
 }

@@ -62,7 +62,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       case _: FlinkLogicalDataStreamTableScan | _: StreamExecDataStreamScan =>
         val table = rel.getTable.unwrap(classOf[FlinkPreparingTableBase])
         table.getStatistic.getRelModifiedMonotonicity
-      case _: FlinkLogicalTableSourceScan | _: StreamExecTableSourceScan =>
+      case _: FlinkLogicalTableSourceScan | _: StreamPhysicalTableSourceScan =>
         val table = rel.getTable.unwrap(classOf[TableSourceTable])
         table.tableSource match {
           case sts: ScanTableSource if !sts.getChangelogMode.containsOnly(RowKind.INSERT) =>

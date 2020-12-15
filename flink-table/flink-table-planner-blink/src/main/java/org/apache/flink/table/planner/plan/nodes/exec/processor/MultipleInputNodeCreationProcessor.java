@@ -23,11 +23,11 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
-import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputOrderCalculator;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputPriorityConflictResolver;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleInput;
@@ -398,7 +398,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 		} else if (node instanceof StreamExecDataStreamScan) {
 			StreamExecDataStreamScan scan = (StreamExecDataStreamScan) node;
 			return scan.dataStreamTable().dataStream().getTransformation() instanceof SourceTransformation;
-		} else if (node instanceof CommonPhysicalTableSourceScan) {
+		} else if (node instanceof CommonExecTableSourceScan) {
 			// translateToPlan will cache the transformation,
 			// this is OK because sources do not have any input so the transformation will never change.
 			Transformation<?> transformation = node.translateToPlan(Preconditions.checkNotNull(context).getPlanner());
