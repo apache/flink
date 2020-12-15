@@ -111,7 +111,8 @@ class RemoveCollationTest extends TableTestBase {
         |WITH r AS (SELECT a, b, COUNT(c) AS cnt FROM x GROUP BY a, b)
         |SELECT * FROM r ORDER BY a
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    // exec node does not support range sort yet, so we verify rel plan here
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test

@@ -37,7 +37,7 @@ import scala.collection.JavaConversions._
   * and converts it to
   * {{{
   * BatchExecRank (global)
-  * +- BatchExecExchange (singleton if partition keys is empty, else hash)
+  * +- BatchPhysicalExchange (singleton if partition keys is empty, else hash)
   *    +- BatchExecRank (local)
   *       +- input of rank
   * }}}

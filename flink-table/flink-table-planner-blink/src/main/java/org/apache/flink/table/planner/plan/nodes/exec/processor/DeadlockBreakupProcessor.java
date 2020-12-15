@@ -44,7 +44,8 @@ public class DeadlockBreakupProcessor implements DAGProcessor {
 		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(
 			rootNodes,
 			ExecEdge.DamBehavior.END_INPUT,
-			ShuffleMode.BATCH);
+			ShuffleMode.BATCH,
+			context.getPlanner().getTableConfig().getConfiguration());
 		resolver.detectAndResolve();
 		return rootNodes;
 	}

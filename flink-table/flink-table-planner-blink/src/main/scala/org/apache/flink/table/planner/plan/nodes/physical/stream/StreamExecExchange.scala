@@ -26,8 +26,9 @@ import org.apache.flink.streaming.runtime.partitioner.{GlobalPartitioner, KeyGro
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalExchange
 import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange
+import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalExchange
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
@@ -46,7 +47,8 @@ class StreamExecExchange(
     relDistribution: RelDistribution)
   extends CommonPhysicalExchange(cluster, traitSet, relNode, relDistribution)
   with StreamPhysicalRel
-  with LegacyStreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData]
+  with CommonExecExchange {
 
   override def requireWatermark: Boolean = false
 

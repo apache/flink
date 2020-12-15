@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecExpand, BatchExecHashAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchExecExpand, BatchExecHashAggregate}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.RelOptRuleCall
@@ -50,7 +50,7 @@ import org.apache.calcite.plan.RelOptRuleCall
   */
 class EnforceLocalHashAggRule extends EnforceLocalAggRuleBase(
   operand(classOf[BatchExecHashAggregate],
-    operand(classOf[BatchExecExchange],
+    operand(classOf[BatchPhysicalExchange],
       operand(classOf[BatchExecExpand], any))),
   "EnforceLocalHashAggRule") {
 

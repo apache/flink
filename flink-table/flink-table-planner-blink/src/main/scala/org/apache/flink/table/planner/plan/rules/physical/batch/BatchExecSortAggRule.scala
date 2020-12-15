@@ -38,7 +38,7 @@ import scala.collection.JavaConversions._
   * {{{
   *   BatchExecSortAggregate (global)
   *   +- Sort (exists if group keys are not empty)
-  *      +- BatchExecExchange (hash by group keys if group keys is not empty, else singleton)
+  *      +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
   *         +- BatchExecLocalSortAggregate (local)
   *           +- Sort (exists if group keys are not empty)
   *              +- input of agg
@@ -48,7 +48,7 @@ import scala.collection.JavaConversions._
   * {{{
   *   BatchExecSortAggregate
   *   +- Sort (exists if group keys are not empty)
-  *      +- BatchExecExchange (hash by group keys if group keys is not empty, else singleton)
+  *      +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
   *         +- input of agg
   * }}}
   * when some aggregate functions are not mergeable

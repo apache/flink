@@ -38,7 +38,7 @@ import scala.collection.JavaConversions._
   * and converts it to
   * {{{
   *   BatchExecHashAggregate (global)
-  *   +- BatchExecExchange (hash by group keys if group keys is not empty, else singleton)
+  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
   *      +- BatchExecLocalHashAggregate (local)
   *         +- input of agg
   * }}}
@@ -46,7 +46,7 @@ import scala.collection.JavaConversions._
   * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
   * {{{
   *   BatchExecHashAggregate
-  *   +- BatchExecExchange (hash by group keys if group keys is not empty, else singleton)
+  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
   *      +- input of agg
   * }}}
   * when some aggregate functions are not mergeable
