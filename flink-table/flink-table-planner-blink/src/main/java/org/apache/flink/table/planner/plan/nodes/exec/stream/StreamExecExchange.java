@@ -57,13 +57,13 @@ public class StreamExecExchange extends StreamExecNode<RowData> implements Commo
 	@SuppressWarnings("unchecked")
 	@Override
 	protected Transformation<RowData> translateToPlanInternal(StreamPlanner planner) {
-		ExecNode<?> inputNode = getInputNodes().get(0);
-		Transformation<RowData> inputTransform = (Transformation<RowData>) inputNode.translateToPlan(planner);
+		final Transformation<RowData> inputTransform =
+				(Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
 
 		final StreamPartitioner<RowData> partitioner;
 		final int parallelism;
-		ExecEdge inputEdge = getInputEdges().get(0);
-		ExecEdge.ShuffleType shuffleType = inputEdge.getRequiredShuffle().getType();
+		final ExecEdge inputEdge = getInputEdges().get(0);
+		final ExecEdge.ShuffleType shuffleType = inputEdge.getRequiredShuffle().getType();
 		switch (shuffleType) {
 			case SINGLETON:
 				partitioner = new GlobalPartitioner<>();
@@ -81,7 +81,7 @@ public class StreamExecExchange extends StreamExecNode<RowData> implements Commo
 				throw new TableException(String.format("%s is not supported now!", shuffleType));
 		}
 
-		Transformation<RowData> transformation = new PartitionTransformation<>(inputTransform, partitioner);
+		final Transformation<RowData> transformation = new PartitionTransformation<>(inputTransform, partitioner);
 		transformation.setParallelism(parallelism);
 		transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
 		return transformation;
