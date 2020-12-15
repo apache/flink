@@ -20,76 +20,21 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.execution.SuppressRestartsException;
-import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-
 public class ExecutionGraphVariousFailuesTest extends TestLogger {
-
-	/**
-	 * Test that failing in state restarting will retrigger the restarting logic. This means that
-	 * it only goes into the state FAILED after the restart strategy says the job is no longer
-	 * restartable.
-	 */
-	@Test
-	public void testFailureWhileRestarting() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(2));
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
-
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
-
-		eg.failGlobal(new Exception("Test 1"));
-		assertEquals(JobStatus.FAILING, eg.getState());
-		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-
-		// we should restart since we have two restart attempts left
-		assertEquals(JobStatus.RESTARTING, eg.getState());
-
-		eg.failGlobal(new Exception("Test 2"));
-
-		// we should restart since we have one restart attempts left
-		assertEquals(JobStatus.RESTARTING, eg.getState());
-
-		eg.failGlobal(new Exception("Test 3"));
-
-		// after depleting all our restart attempts we should go into Failed
-		assertEquals(JobStatus.FAILED, eg.getState());
-	}
-
-	/**
-	 * Tests that a {@link SuppressRestartsException} in state RESTARTING stops the restarting
-	 * immediately and sets the execution graph's state to FAILED.
-	 */
-	@Test
-	public void testSuppressRestartFailureWhileRestarting() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
-
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
-
-		eg.failGlobal(new Exception("test"));
-		assertEquals(JobStatus.FAILING, eg.getState());
-
-		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-		assertEquals(JobStatus.RESTARTING, eg.getState());
-
-		// suppress a possible restart
-		eg.failGlobal(new SuppressRestartsException(new Exception("Test")));
-
-		assertEquals(JobStatus.FAILED, eg.getState());
-	}
 
 	/**
 	 * Tests that a failing scheduleOrUpdateConsumers call with a non-existing execution attempt
@@ -97,9 +42,11 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
 	 */
 	@Test
 	public void testFailingScheduleOrUpdateConsumers() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
+		final SchedulerBase scheduler = SchedulerTestingUtils.newSchedulerBuilder(new JobGraph()).build();
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.startScheduling();
+
+		final ExecutionGraph eg = scheduler.getExecutionGraph();
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
@@ -112,10 +59,11 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
 		// should fail
 
 		try {
-			eg.scheduleOrUpdateConsumers(resultPartitionId);
+			scheduler.scheduleOrUpdateConsumers(resultPartitionId);
 			fail("Expected ExecutionGraphException.");
-		} catch (ExecutionGraphException e) {
+		} catch (RuntimeException e) {
 			// we've expected this exception to occur
+			assertThat(e.getCause(), instanceOf(ExecutionGraphException.class));
 		}
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
