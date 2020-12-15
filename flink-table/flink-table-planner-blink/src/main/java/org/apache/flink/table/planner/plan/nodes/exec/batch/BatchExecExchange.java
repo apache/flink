@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -52,13 +53,6 @@ import java.util.Optional;
  * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
  */
 public class BatchExecExchange extends BatchExecNode<RowData> implements CommonExecExchange {
-
-	// TODO reuse PartitionTransformation
-	// currently, an Exchange' input transformation will be reused if it is reusable,
-	// and different PartitionTransformation objects will be created which have same input.
-	// cache input transformation to reuse
-	private Transformation<RowData> reusedInput;
-
 	// the required shuffle mode for reusable ExchangeBatchExec
 	// if it's None, use value from getShuffleMode
 	@Nullable
@@ -102,15 +96,13 @@ public class BatchExecExchange extends BatchExecNode<RowData> implements CommonE
 	@SuppressWarnings("unchecked")
 	@Override
 	protected Transformation<RowData> translateToPlanInternal(BatchPlanner planner) {
-		ExecNode<?> inputNode = getInputNodes().get(0);
-		if (reusedInput == null) {
-			reusedInput = (Transformation<RowData>) inputNode.translateToPlan(planner);
-		}
+		final ExecNode<?> inputNode = getInputNodes().get(0);
+		final Transformation<RowData> inputTransform = (Transformation<RowData>) inputNode.translateToPlan(planner);
 
 		final StreamPartitioner<RowData> partitioner;
 		final int parallelism;
-		ExecEdge inputEdge = getInputEdges().get(0);
-		ExecEdge.ShuffleType shuffleType = inputEdge.getRequiredShuffle().getType();
+		final ExecEdge inputEdge = getInputEdges().get(0);
+		final ExecEdge.ShuffleType shuffleType = inputEdge.getRequiredShuffle().getType();
 		switch (shuffleType) {
 			case ANY:
 				partitioner = null;
@@ -139,12 +131,12 @@ public class BatchExecExchange extends BatchExecNode<RowData> implements CommonE
 				parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 				break;
 			default:
-				throw new UnsupportedOperationException(
-						String.format("not support RelDistribution: %s now!", shuffleType));
+				throw new TableException(shuffleType + "is not supported now!");
 		}
 
-		ShuffleMode shuffleMode = getShuffleMode(planner.getTableConfig().getConfiguration(), requiredShuffleMode);
-		Transformation<RowData> transformation = new PartitionTransformation<>(reusedInput, partitioner, shuffleMode);
+		final ShuffleMode shuffleMode = getShuffleMode(planner.getTableConfig().getConfiguration(), requiredShuffleMode);
+		final Transformation<RowData> transformation =
+				new PartitionTransformation<>(inputTransform, partitioner, shuffleMode);
 		transformation.setParallelism(parallelism);
 		transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
 		return transformation;
