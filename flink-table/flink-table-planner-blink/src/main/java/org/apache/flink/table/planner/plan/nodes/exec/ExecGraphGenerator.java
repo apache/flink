@@ -26,8 +26,10 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.common.CommonIntermediateTableScan;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge.RequiredShuffle;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalExchange;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 
 import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.RelNode;
@@ -87,6 +89,8 @@ public class ExecGraphGenerator {
 			execNode = baseNode;
 		} else if (rel instanceof BatchPhysicalExchange) {
 			execNode = translateBatchExchange((BatchPhysicalExchange) rel, inputNodes.get(0));
+		} else if (rel instanceof StreamPhysicalExchange) {
+			execNode = translateStreamExchange((StreamPhysicalExchange) rel, inputNodes.get(0));
 		} else {
 			throw new TableException(rel.getClass().getSimpleName() + " can't be converted to ExecNode." +
 					"This is a bug and should not happen. Please file an issue.");
@@ -116,6 +120,15 @@ public class ExecGraphGenerator {
 				inputNode,
 				inputEdge,
 				FlinkTypeFactory.toLogicalRowType(exchange.getRowType()));
+	}
+
+	private StreamExecExchange translateStreamExchange(StreamPhysicalExchange exchange, ExecNode<?> inputNode) {
+		final RequiredShuffle requiredShuffle = getRequiredShuffle(exchange.getDistribution());
+		return new StreamExecExchange(
+				inputNode,
+				ExecEdge.builder().requiredShuffle(requiredShuffle).build(),
+				FlinkTypeFactory.toLogicalRowType(exchange.getRowType()),
+				exchange.getRelDetailedDescription());
 	}
 
 	private RequiredShuffle getRequiredShuffle(RelDistribution relDistribution) {
