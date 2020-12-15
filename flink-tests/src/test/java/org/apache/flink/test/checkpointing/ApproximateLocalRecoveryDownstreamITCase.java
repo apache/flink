@@ -67,10 +67,12 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
 
 	/**
 	 * Test the following topology.
+	 *
 	 * <pre>
 	 *     (source1/1) -----> (map1/1) -----> (sink1/1)
 	 * </pre>
-	 * (map1/1) fails, (map1/1) and (sink1/1) restart
+	 *
+	 * <p>(map1/1) fails, (map1/1) and (sink1/1) restart
 	 */
 	@Test
 	public void localTaskFailureRecoveryThreeTasks() throws Exception {
@@ -97,12 +99,14 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
 
 	/**
 	 * Test the following topology.
+	 *
 	 * <pre>
 	 *     (source1/1) -----> (map1/2) -----> (sink1/1)
 	 *         |                                ^
 	 *         -------------> (map2/2) ---------|
 	 * </pre>
-	 * (map1/2) fails, (map1/2) and (sink1/1) restart
+	 *
+	 * <p>(map1/2) fails, (map1/2) and (sink1/1) restart
 	 */
 	@Test
 	public void localTaskFailureRecoveryTwoMapTasks() throws Exception {

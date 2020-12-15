@@ -45,24 +45,25 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
  * <p>The following steps summarize the envisioned type inference process. Not all features are implemented
  * or exposed through the API yet (*).
  *
- * <p><ul>
- * <li>1. Validate number of arguments.
- * <li>2. (*) Apply assignment operators on the call by permuting operands and adding default values. These
- *        are preparations for {@link CallContext}.
- * <li>3. For resolving unknown (NULL) operands: Access the outer wrapping call and try to get its operand
- *        type for the return type of the actual call. E.g. for {@code takes_string(this_function(NULL))}
- *        infer operands from {@code takes_string(NULL)} and use the inferred string type as the return
- *        type of {@code this_function(NULL)}.
- * <li>4. Try infer unknown operands, fail if not possible.
- * <li>5. (*) Check the usage of DEFAULT operands are correct using validator.isOptional().
- * <li>6. Perform input type validation.
- * <li>7. (Optional) Infer accumulator type.
- * <li>8. Infer return type.
- * <li>9. (*) In the planner: Call the strategies again at any point in time to enrich a DataType that
- *        has been created from a logical type with a conversion class.
- * <li>10. (*) In the planner: Check for an implementation evaluation method matching the operands. The
- *        matching happens class-based. Thus, for example, eval(Object) is valid for (INT). Or eval(Object...)
- *        is valid for (INT, STRING). We rely on the conversion classes specified by DataType.
+ * <ul>
+ *   <li>1. Validate number of arguments.
+ *   <li>2. (*) Apply assignment operators on the call by permuting operands and adding default
+ *       values. These are preparations for {@link CallContext}.
+ *   <li>3. For resolving unknown (NULL) operands: Access the outer wrapping call and try to get its
+ *       operand type for the return type of the actual call. E.g. for {@code
+ *       takes_string(this_function(NULL))} infer operands from {@code takes_string(NULL)} and use
+ *       the inferred string type as the return type of {@code this_function(NULL)}.
+ *   <li>4. Try infer unknown operands, fail if not possible.
+ *   <li>5. (*) Check the usage of DEFAULT operands are correct using validator.isOptional().
+ *   <li>6. Perform input type validation.
+ *   <li>7. (Optional) Infer accumulator type.
+ *   <li>8. Infer return type.
+ *   <li>9. (*) In the planner: Call the strategies again at any point in time to enrich a DataType
+ *       that has been created from a logical type with a conversion class.
+ *   <li>10. (*) In the planner: Check for an implementation evaluation method matching the
+ *       operands. The matching happens class-based. Thus, for example, eval(Object) is valid for
+ *       (INT). Or eval(Object...) is valid for (INT, STRING). We rely on the conversion classes
+ *       specified by DataType.
  * </ul>
  */
 @Internal

@@ -36,7 +36,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
  *
  * <p>This program implements the following SQL equivalent:
  *
- * <p><pre>{@code
+ * <pre>{@code
  * SELECT
  *        c_custkey,
  *        c_name,

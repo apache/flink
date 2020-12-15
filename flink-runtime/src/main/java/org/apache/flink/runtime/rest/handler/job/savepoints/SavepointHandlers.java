@@ -64,12 +64,15 @@ import java.util.concurrent.CompletableFuture;
  * <p>A savepoint is triggered by sending an HTTP {@code POST} request to
  * {@code /jobs/:jobid/savepoints}. The HTTP request may contain a JSON body to specify the target
  * directory of the savepoint, e.g.,
+ *
  * <pre>
  * { "target-directory": "/tmp" }
  * </pre>
- * If the body is omitted, or the field {@code target-property} is {@code null}, the default
+ *
+ * <p>If the body is omitted, or the field {@code target-property} is {@code null}, the default
  * savepoint directory as specified by {@link CheckpointingOptions#SAVEPOINT_DIRECTORY} will be used.
  * As written above, the response will contain a request id, e.g.,
+ *
  * <pre>
  * { "request-id": "7d273f5a62eb4730b9dea8e833733c1e" }
  * </pre>
@@ -77,6 +80,7 @@ import java.util.concurrent.CompletableFuture;
  * <p>To poll for the status of an ongoing savepoint, an HTTP {@code GET} request is issued to
  * {@code /jobs/:jobid/savepoints/:savepointtriggerid}. If the specified savepoint is still ongoing,
  * the response will be
+ *
  * <pre>
  * {
  *     "status": {
@@ -84,8 +88,10 @@ import java.util.concurrent.CompletableFuture;
  *     }
  * }
  * </pre>
- * If the specified savepoint has completed, the status id will transition to {@code COMPLETED}, and
+ *
+ * <p>If the specified savepoint has completed, the status id will transition to {@code COMPLETED}, and
  * the response will additionally contain information about the savepoint, such as the location:
+ *
  * <pre>
  * {
  *     "status": {

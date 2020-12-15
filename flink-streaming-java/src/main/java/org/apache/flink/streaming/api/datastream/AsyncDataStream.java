@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * A helper class to apply {@link AsyncFunction} to a data stream.
  *
- * <p><pre>{@code
+ * <pre>{@code
  * DataStream<String> input = ...
  * AsyncFunction<String, Tuple<String, String>> asyncFunc = ...
  *

@@ -224,10 +224,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	 *     'connector' = 'csv'
 	 *   )
 	 * </pre>
-	 * is equivalent with query:
 	 *
-	 * <p>"col1, col2, to_timestamp(col2) as col3", caution that the "computed column" operands
-	 * have been reversed.
+	 * <p>is equivalent with query "col1, col2, to_timestamp(col2) as col3", caution that the
+	 * "computed column" operandshave been reversed.
 	 */
 	public String getColumnSqlString() {
 		SqlPrettyWriter writer = new SqlPrettyWriter(

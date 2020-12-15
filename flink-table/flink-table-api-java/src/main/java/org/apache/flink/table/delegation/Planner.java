@@ -29,12 +29,13 @@ import java.util.List;
 
 /**
  * This interface serves two purposes:
+ *
  * <ul>
  * <li>SQL parser via {@link #getParser()} - transforms a SQL string into a Table API specific objects
  * e.g. tree of {@link Operation}s</li>
  * <li>relational planner - provides a way to plan, optimize and transform tree of
  * {@link ModifyOperation} into a runnable form ({@link Transformation})</li>
- * </ul>.
+ * </ul>
  *
  * <p>The Planner is execution agnostic. It is up to the
  * {@link org.apache.flink.table.api.TableEnvironment} to ensure that if any of the

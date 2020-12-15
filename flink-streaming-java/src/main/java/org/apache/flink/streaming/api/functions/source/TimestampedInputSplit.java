@@ -24,11 +24,13 @@ import java.io.Serializable;
 
 /**
  * An extended {@link InputSplit} that also includes information about:
+ *
  * <ul>
  *     <li>The modification time of the file this split belongs to.</li>
  *     <li>When checkpointing, the state of the split at the moment of the checkpoint.</li>
  * </ul>
- * This class is used by the {@link ContinuousFileMonitoringFunction} and the
+ *
+ * <p>This class is used by the {@link ContinuousFileMonitoringFunction} and the
  * {@link ContinuousFileReaderOperator} to perform continuous file processing.
  * */
 public interface TimestampedInputSplit extends InputSplit, Comparable<TimestampedInputSplit> {

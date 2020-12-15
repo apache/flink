@@ -48,10 +48,13 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>An operation is triggered by sending an HTTP {@code POST} request to a registered {@code url}. The HTTP
  * request may contain a JSON body to specify additional parameters, e.g.,
+ *
  * <pre>
  * { "target-directory": "/tmp" }
  * </pre>
- * As written above, the response will contain a request id, e.g.,
+ *
+ * <p>As written above, the response will contain a request id, e.g.,
+ *
  * <pre>
  * { "request-id": "7d273f5a62eb4730b9dea8e833733c1e" }
  * </pre>
@@ -59,6 +62,7 @@ import java.util.concurrent.CompletableFuture;
  * <p>To poll for the status of an ongoing operation, an HTTP {@code GET} request is issued to
  * {@code url/:triggerid}. If the specified savepoint is still ongoing,
  * the response will be
+ *
  * <pre>
  * {
  *     "status": {
@@ -66,8 +70,10 @@ import java.util.concurrent.CompletableFuture;
  *     }
  * }
  * </pre>
- * If the specified operation has completed, the status id will transition to {@code COMPLETED}, and
+ *
+ * <p>If the specified operation has completed, the status id will transition to {@code COMPLETED}, and
  * the response will additionally contain information about the operation result:
+ *
  * <pre>
  * {
  *     "status": {
