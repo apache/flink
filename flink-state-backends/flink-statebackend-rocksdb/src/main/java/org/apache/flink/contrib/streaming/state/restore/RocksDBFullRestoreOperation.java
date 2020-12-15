@@ -162,11 +162,13 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 	private void restoreKeyGroupsInStateHandle()
 		throws IOException, StateMigrationException, RocksDBException {
 		try {
+			logger.info("Starting to restore from state handle: {}.", currentKeyGroupsStateHandle);
 			currentStateHandleInStream = currentKeyGroupsStateHandle.openInputStream();
 			cancelStreamRegistry.registerCloseable(currentStateHandleInStream);
 			currentStateHandleInView = new DataInputViewStreamWrapper(currentStateHandleInStream);
 			restoreKVStateMetaData();
 			restoreKVStateData();
+			logger.info("Finished restoring from state handle: {}.", currentKeyGroupsStateHandle);
 		} finally {
 			if (cancelStreamRegistry.unregisterCloseable(currentStateHandleInStream)) {
 				IOUtils.closeQuietly(currentStateHandleInStream);

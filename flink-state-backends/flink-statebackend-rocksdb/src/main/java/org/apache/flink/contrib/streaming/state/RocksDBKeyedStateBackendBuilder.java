@@ -55,8 +55,6 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -82,7 +80,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBuilder<K> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(RocksDBKeyedStateBackendBuilder.class);
 	static final String DB_INSTANCE_DIR_STRING = "db";
 
 	/** String that identifies the operator that owns this backend. */
@@ -317,14 +314,14 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			try {
 				FileUtils.deleteDirectory(instanceBasePath);
 			} catch (Exception ex) {
-				LOG.warn("Failed to instance base path for RocksDB: " + instanceBasePath, ex);
+				logger.warn("Failed to delete base path for RocksDB: " + instanceBasePath, ex);
 			}
 			// Log and rethrow
 			if (e instanceof BackendBuildingException) {
 				throw (BackendBuildingException) e;
 			} else {
 				String errMsg = "Caught unexpected exception.";
-				LOG.error(errMsg, e);
+				logger.error(errMsg, e);
 				throw new BackendBuildingException(errMsg, e);
 			}
 		}
@@ -332,6 +329,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			keyGroupRange,
 			numberOfKeyGroups
 		);
+		logger.info("Finished building RocksDB keyed state-backend at {}.", instanceBasePath);
 		return new RocksDBKeyedStateBackend<>(
 			this.userCodeClassLoader,
 			this.instanceBasePath,

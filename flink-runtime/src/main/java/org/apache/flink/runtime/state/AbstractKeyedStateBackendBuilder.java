@@ -24,6 +24,9 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
@@ -33,6 +36,8 @@ import java.util.Collection;
  */
 public abstract class AbstractKeyedStateBackendBuilder<K>
 	implements StateBackendBuilder<AbstractKeyedStateBackend, BackendBuildingException> {
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
+
 	protected final TaskKvStateRegistry kvStateRegistry;
 	protected final StateSerializerProvider<K> keySerializerProvider;
 	protected final ClassLoader userCodeClassLoader;
