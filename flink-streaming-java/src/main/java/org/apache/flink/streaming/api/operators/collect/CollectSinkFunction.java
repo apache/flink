@@ -107,11 +107,13 @@ import java.util.concurrent.locks.ReentrantLock;
  * </ol>
  *
  * <p>Note that
+ *
  * <ol>
  *     <li>user can only see results before a <code>lastCheckpointedOffset</code>, and</li>
  *     <li>client will go back to the latest <code>lastCheckpointedOffset</code> when sink restarts,</li>
  * </ol>
- * client will never throw away results in user-visible buffer.
+ *
+ * <p>client will never throw away results in user-visible buffer.
  * So this communication protocol achieves exactly-once semantics.
  *
  * <p>In order not to block job finishing/cancelling, if there are still results in sink's buffer when job terminates,

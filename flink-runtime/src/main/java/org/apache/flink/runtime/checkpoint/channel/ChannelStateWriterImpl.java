@@ -46,7 +46,8 @@ import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteReque
  * (and more latency on restore)</li>
  * <li>one thread; having multiple threads means more connections, couples with the implementation and increases complexity</li>
  * </ul>
- * Thread-safety: this class is thread-safe when used with a thread-safe {@link ChannelStateWriteRequestExecutor executor}
+ *
+ * <p>Thread-safety: this class is thread-safe when used with a thread-safe {@link ChannelStateWriteRequestExecutor executor}
  * (e.g. default {@link ChannelStateWriteRequestExecutorImpl}.
  */
 @Internal

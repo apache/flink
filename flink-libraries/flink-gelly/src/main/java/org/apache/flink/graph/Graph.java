@@ -1474,6 +1474,7 @@ public class Graph<K, VV, EV> {
 
 		return removeVertices(vertexToBeRemoved);
 	}
+
 	/**
 	 * Removes the given list of vertices and its edges from the graph.
 	 *
@@ -1481,7 +1482,6 @@ public class Graph<K, VV, EV> {
 	 * @return the resulted graph containing the initial vertices and edges minus the vertices
 	 * 		   and edges removed.
 	 */
-
 	public Graph<K, VV, EV> removeVertices(List<Vertex<K, VV>> verticesToBeRemoved) {
 		return removeVertices(this.context.fromCollection(verticesToBeRemoved));
 	}

@@ -32,10 +32,14 @@ import java.util.Map;
  * initialization configuration such as if the queries should be executed in batch mode.
  *
  * <p><b>Important:</b> The implementations of this interface should also implement method
- * <pre>{@code public Executor create(Map<String, String> properties, StreamExecutionEnvironment executionEnvironment);}
- * </pre> This method will be used when instantiating a {@link org.apache.flink.table.api.TableEnvironment} from a
- * bridging module which enables conversion from/to {@code DataStream} API and requires a pre configured
- * {@code StreamTableEnvironment}.
+ *
+ * <pre>
+ * {@code public Executor create(Map<String, String> properties, StreamExecutionEnvironment executionEnvironment);}
+ * </pre>
+ *
+ * <p>This method will be used when instantiating a {@link org.apache.flink.table.api.TableEnvironment}
+ * from a bridging module which enables conversion from/to {@code DataStream} API and requires a pre
+ * configured {@code StreamTableEnvironment}.
  */
 @Internal
 public interface ExecutorFactory extends ComponentFactory {

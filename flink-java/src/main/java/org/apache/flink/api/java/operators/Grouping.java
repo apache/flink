@@ -65,11 +65,13 @@ public abstract class Grouping<T> {
 	 * Returns the input DataSet of a grouping operation, that is the one before the grouping. This means that
 	 * if it is applied directly to the result of a grouping operation, it will cancel its effect. As an example, in the
 	 * following snippet:
+	 *
 	 * <pre>{@code
 	 * DataSet<X> notGrouped = input.groupBy().getDataSet();
 	 * DataSet<Y> allReduced = notGrouped.reduce()
 	 * }</pre>
-	 * the {@code groupBy()} is as if it never happened, as the {@code notGrouped} DataSet corresponds
+	 *
+	 * <p>the {@code groupBy()} is as if it never happened, as the {@code notGrouped} DataSet corresponds
 	 * to the input of the {@code groupBy()} (because of the {@code getDataset()}).
 	 * */
 	@Internal
