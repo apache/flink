@@ -40,7 +40,7 @@ class DagOptimizationTest extends TableTestBase {
   def testSingleSink1(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT c, COUNT(a) AS cnt FROM MyTable GROUP BY c")
     val retractSink = util.createRetractTableSink(Array("c", "cnt"), Array(STRING, LONG))
-    util.verifyPlanInsert(table, retractSink, "retractSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, retractSink, "retractSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -58,7 +58,7 @@ class DagOptimizationTest extends TableTestBase {
     val table6 = util.tableEnv.sqlQuery("SELECT a1, b, c1 FROM table4, table5 WHERE a1 = a3")
 
     val appendSink = util.createAppendTableSink(Array("a1", "b", "c1"), Array(INT, LONG, STRING))
-    util.verifyPlanInsert(table6, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table6, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -71,7 +71,7 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT * FROM table1 UNION ALL SELECT * FROM table2")
 
     val appendSink = util.createAppendTableSink(Array("a1", "b1"), Array(INT, LONG))
-    util.verifyPlanInsert(table3, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table3, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -91,7 +91,7 @@ class DagOptimizationTest extends TableTestBase {
     val table7 = util.tableEnv.sqlQuery("SELECT a1, b1, c1 FROM table1, table6 WHERE a1 = a3")
 
     val appendSink = util.createAppendTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.verifyPlanInsert(table7, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table7, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -110,7 +110,7 @@ class DagOptimizationTest extends TableTestBase {
     val appendSink = util.createAppendTableSink(
       Array("a", "b", "c", "d", "e", "f", "i", "j", "k", "l", "m", "s"),
       Array(INT, LONG, STRING, INT, LONG, STRING, INT, LONG, INT, STRING, LONG, STRING))
-    util.verifyPlanInsert(table, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -122,7 +122,7 @@ class DagOptimizationTest extends TableTestBase {
       "(SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1)"
     val table = util.tableEnv.sqlQuery(sqlQuery)
     val retractSink = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.verifyPlanInsert(table, retractSink, "retractSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, retractSink, "retractSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -145,7 +145,7 @@ class DagOptimizationTest extends TableTestBase {
       "retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table3)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -171,7 +171,7 @@ class DagOptimizationTest extends TableTestBase {
       "appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table3)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -197,7 +197,7 @@ class DagOptimizationTest extends TableTestBase {
       "appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table3)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -225,7 +225,7 @@ class DagOptimizationTest extends TableTestBase {
       "appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table6)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -250,7 +250,7 @@ class DagOptimizationTest extends TableTestBase {
       "retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table3)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -294,7 +294,7 @@ class DagOptimizationTest extends TableTestBase {
       "retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table6)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -319,7 +319,7 @@ class DagOptimizationTest extends TableTestBase {
       "retractSink", retractSink)
     stmtSet.addInsert("retractSink", table3)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -361,7 +361,7 @@ class DagOptimizationTest extends TableTestBase {
       "appendSink3", appendSink3)
     stmtSet.addInsert("appendSink3", table3)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -396,7 +396,7 @@ class DagOptimizationTest extends TableTestBase {
       .registerTableSinkInternal("upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table3)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -429,7 +429,7 @@ class DagOptimizationTest extends TableTestBase {
       "retractSink", retractSink)
     stmtSet.addInsert("retractSink", table2)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -444,7 +444,7 @@ class DagOptimizationTest extends TableTestBase {
 
     val upsertSink = util.createUpsertTableSink(Array(), Array("b", "c", "a_sum"),
       Array(LONG, STRING, INT))
-    util.verifyPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -474,7 +474,7 @@ class DagOptimizationTest extends TableTestBase {
       "upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table2)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -503,7 +503,7 @@ class DagOptimizationTest extends TableTestBase {
       "upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table2)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -546,7 +546,7 @@ class DagOptimizationTest extends TableTestBase {
       "upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table5)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -595,7 +595,7 @@ class DagOptimizationTest extends TableTestBase {
       "upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table6)
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
 }

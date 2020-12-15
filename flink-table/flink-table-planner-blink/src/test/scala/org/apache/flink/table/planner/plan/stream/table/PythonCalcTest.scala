@@ -37,6 +37,6 @@ class PythonCalcTest extends TableTestBase {
   @Test
   def testPythonFunctionMixedWithJavaFunction(): Unit = {
     val sqlQuery = "SELECT pyFunc1(a, b), c + 1 FROM MyTable"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

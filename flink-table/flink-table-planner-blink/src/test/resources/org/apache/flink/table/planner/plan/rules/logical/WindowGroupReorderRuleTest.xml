@@ -28,13 +28,13 @@ SELECT
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST), null:INTEGER)], EXPR$1=[MAX($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)], EXPR$2=[CAST(/(CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST), null:INTEGER), COUNT($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST))):INTEGER], EXPR$3=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], EXPR$4=[MIN($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>($3, 0), $4, null:INTEGER)], EXPR$1=[$6], EXPR$2=[CAST(/(CASE(>($7, 0), $8, null:INTEGER), $7)):INTEGER], EXPR$3=[$5], EXPR$4=[$9])
 +- LogicalWindow(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [COUNT($0), $SUM0($0), RANK()])], window#1=[window(partition {1} order by [2 ASC-nulls-first] aggs [MAX($0)])], window#2=[window(partition {2} order by [0 ASC-nulls-first] aggs [COUNT($0), $SUM0($0), MIN($0)])])
@@ -54,13 +54,13 @@ SELECT
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST), null:INTEGER)], EXPR$1=[MAX($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)], EXPR$2=[MIN($0) OVER (ORDER BY $2 NULLS FIRST, $0 NULLS FIRST)], EXPR$3=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)], EXPR$4=[CAST(/(CASE(>(COUNT($0) OVER (ORDER BY $1 NULLS FIRST), 0), $SUM0($0) OVER (ORDER BY $1 NULLS FIRST), null:INTEGER), COUNT($0) OVER (ORDER BY $1 NULLS FIRST))):INTEGER])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>($3, 0), $4, null:INTEGER)], EXPR$1=[$6], EXPR$2=[$7], EXPR$3=[$5], EXPR$4=[CAST(/(CASE(>($8, 0), $9, null:INTEGER), $8)):INTEGER])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], w0$o0=[$6], w0$o1=[$7], w0$o2=[$8], w1$o0=[$9], w2$o0=[$5], w3$o0=[$3], w3$o1=[$4])
@@ -81,13 +81,13 @@ SELECT
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST), null:INTEGER)], EXPR$1=[MAX($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], EXPR$2=[CAST(/(CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST), null:INTEGER), COUNT($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST))):INTEGER], EXPR$3=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], EXPR$4=[MIN($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>($3, 0), $4, null:INTEGER)], EXPR$1=[$5], EXPR$2=[CAST(/(CASE(>($7, 0), $8, null:INTEGER), $7)):INTEGER], EXPR$3=[$6], EXPR$4=[$9])
 +- LogicalWindow(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [COUNT($0), $SUM0($0), MAX($0), RANK()])], window#1=[window(partition {2} order by [0 ASC-nulls-first] aggs [COUNT($0), $SUM0($0), MIN($0)])])
@@ -107,13 +107,13 @@ SELECT
  FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING)], EXPR$1=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST), null:INTEGER)], EXPR$2=[RANK() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST)], EXPR$3=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN 1 PRECEDING AND 10 FOLLOWING), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN 1 PRECEDING AND 10 FOLLOWING), null:INTEGER)], EXPR$4=[COUNT() OVER (PARTITION BY $2 ORDER BY $2 NULLS FIRST ROWS BETWEEN 1 PRECEDING AND 10 FOLLOWING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[$2], EXPR$1=[CASE(>($3, 0), $4, null:INTEGER)], EXPR$2=[$5], EXPR$3=[CASE(>($6, 0), $7, null:INTEGER)], EXPR$4=[$8])
 +- LogicalProject(a=[$0], c=[$1], w0$o0=[$2], w1$o0=[$3], w1$o1=[$4], w2$o0=[$7], w3$o0=[$5], w3$o1=[$6], w4$o0=[$8])
@@ -135,13 +135,13 @@ SELECT
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST), null:INTEGER)], EXPR$1=[MAX($0) OVER (PARTITION BY $1 ORDER BY $1 NULLS FIRST)], EXPR$2=[CAST(/(CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST), null:INTEGER), COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST))):INTEGER], EXPR$3=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)], EXPR$4=[MIN($0) OVER (PARTITION BY $1 ORDER BY $1 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>($3, 0), $4, null:INTEGER)], EXPR$1=[$6], EXPR$2=[CAST(/(CASE(>($8, 0), $9, null:INTEGER), $8)):INTEGER], EXPR$3=[$5], EXPR$4=[$7])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], w0$o0=[$7], w0$o1=[$8], w0$o2=[$9], w1$o0=[$5], w1$o1=[$6], w2$o0=[$3], w2$o1=[$4])
@@ -162,13 +162,13 @@ SELECT
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST), null:INTEGER)], EXPR$1=[MAX($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], EXPR$2=[CAST(/(CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST), null:INTEGER), COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST))):INTEGER], EXPR$3=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $1 NULLS FIRST)], EXPR$4=[MIN($0) OVER (PARTITION BY $1 ORDER BY $1 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>($3, 0), $4, null:INTEGER)], EXPR$1=[$5], EXPR$2=[CAST(/(CASE(>($6, 0), $7, null:INTEGER), $6)):INTEGER], EXPR$3=[$8], EXPR$4=[$9])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], w0$o0=[$8], w0$o1=[$9], w1$o0=[$3], w2$o0=[$5], w2$o1=[$6], w3$o0=[$4], w4$o0=[$7])
@@ -189,13 +189,13 @@ SELECT
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST), null:INTEGER)], EXPR$1=[MAX($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], EXPR$2=[CAST(/(CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 DESC NULLS LAST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $0 DESC NULLS LAST), null:INTEGER), COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 DESC NULLS LAST))):INTEGER], EXPR$3=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], EXPR$4=[MIN($0) OVER (PARTITION BY $1 ORDER BY $0 DESC NULLS LAST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>($2, 0), $3, null:INTEGER)], EXPR$1=[$4], EXPR$2=[CAST(/(CASE(>($6, 0), $7, null:INTEGER), $6)):INTEGER], EXPR$3=[$5], EXPR$4=[$8])
 +- LogicalWindow(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [COUNT($0), $SUM0($0), MAX($0), RANK()])], window#1=[window(partition {1} order by [0 DESC-nulls-last] aggs [COUNT($0), $SUM0($0), MIN($0)])])
@@ -213,13 +213,13 @@ SELECT
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[RANK() OVER (PARTITION BY $1 ORDER BY $0 DESC NULLS LAST)], EXPR$1=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject($0=[$3], $1=[$4])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], w0$o0=[$4], w1$o0=[$3])
@@ -238,13 +238,13 @@ SELECT
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST), null:INTEGER)], EXPR$1=[MIN($0) OVER (PARTITION BY $1)], EXPR$2=[MAX($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[CASE(>($2, 0), $3, null:INTEGER)], EXPR$1=[$5], EXPR$2=[$4])
 +- LogicalProject(a=[$0], b=[$1], w0$o0=[$3], w0$o1=[$4], w0$o2=[$5], w1$o0=[$2])
@@ -263,13 +263,13 @@ SELECT a,
 FROM MyTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST, $0 DESC NULLS LAST)], EXPR$2=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST, $1 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], $1=[$3], $2=[$4])
 +- LogicalWindow(window#0=[window(partition {1} order by [2 ASC-nulls-first, 0 DESC-nulls-last] aggs [RANK()])], window#1=[window(partition {1} order by [2 ASC-nulls-first, 1 ASC-nulls-first] aggs [RANK()])])

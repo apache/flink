@@ -39,7 +39,7 @@ class AggregateTest extends TableTestBase {
       .select('a, 'a.avg, 'b.sum, 'c.count)
       .where('a === 1)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -48,7 +48,7 @@ class AggregateTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a.avg,'b.sum,'c.count)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -59,7 +59,7 @@ class AggregateTest extends TableTestBase {
     val resultTable = sourceTable.select('a,'b,'c).where('a === 1)
       .select('a.avg,'b.sum,'c.count)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -70,6 +70,6 @@ class AggregateTest extends TableTestBase {
     val resultTable = sourceTable.select('a,'b,'c).where('a === 1)
       .select('a.avg,'b.sum,'c.count, 'c.get("_1").sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 }

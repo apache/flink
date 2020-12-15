@@ -34,7 +34,7 @@ class RankTest extends TableTestBase {
       """
         |SELECT ROW_NUMBER() over (partition by a) FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -45,7 +45,7 @@ class RankTest extends TableTestBase {
         |       ROW_NUMBER() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -54,7 +54,7 @@ class RankTest extends TableTestBase {
       """
         |SELECT RANK() over (partition by a) FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -65,7 +65,7 @@ class RankTest extends TableTestBase {
         |       RANK() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -74,7 +74,7 @@ class RankTest extends TableTestBase {
       """
         |SELECT dense_rank() over (partition by a) FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -85,7 +85,7 @@ class RankTest extends TableTestBase {
         |       DENSE_RANK() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
   
   @Test
@@ -96,7 +96,7 @@ class RankTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable) t
         |WHERE rk <= 2 AND a > 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -107,7 +107,7 @@ class RankTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b, c ORDER BY a) rk FROM MyTable) t
         |WHERE rk <= 2 AND rk > -2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -118,7 +118,7 @@ class RankTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a, c) rk FROM MyTable) t
         |WHERE rk = 2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -129,7 +129,7 @@ class RankTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (ORDER BY a) rk FROM MyTable) t
         |WHERE rk < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -142,7 +142,7 @@ class RankTest extends TableTestBase {
         |        RANK() OVER (PARTITION BY b ORDER BY a) rk2 FROM MyTable) t
         |WHERE rk1 < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -154,7 +154,7 @@ class RankTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable2) t
         |WHERE rk < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -165,7 +165,7 @@ class RankTest extends TableTestBase {
         | SELECT a, RANK() OVER (PARTITION BY a ORDER BY a) rk, b, c FROM MyTable) t
         |WHERE rk < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -198,7 +198,7 @@ class RankTest extends TableTestBase {
          |)
          |""".stripMargin
     )
-    util.verifyPlanInsert("insert into sink select name, eat, cnt\n"
+    util.verifyExecPlanInsert("insert into sink select name, eat, cnt\n"
       + "from view2 where row_num <= 3")
   }
 }

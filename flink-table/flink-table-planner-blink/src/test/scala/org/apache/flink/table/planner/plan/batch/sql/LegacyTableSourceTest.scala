@@ -59,7 +59,7 @@ class LegacyTableSourceTest extends TableTestBase {
   @Test
   def testBoundedStreamTableSource(): Unit = {
     TestTableSource.createTemporaryTable(util.tableEnv, isBounded = true, tableSchema, "MyTable")
-    util.verifyPlan("SELECT * FROM MyTable")
+    util.verifyExecPlan("SELECT * FROM MyTable")
   }
 
   @Test
@@ -67,17 +67,17 @@ class LegacyTableSourceTest extends TableTestBase {
     TestTableSource.createTemporaryTable(util.tableEnv, isBounded = false, tableSchema, "MyTable")
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Cannot query on an unbounded source in batch mode")
-    util.verifyPlan("SELECT * FROM MyTable")
+    util.verifyExecPlan("SELECT * FROM MyTable")
   }
 
   @Test
   def testSimpleProject(): Unit = {
-    util.verifyPlan("SELECT a, c FROM ProjectableTable")
+    util.verifyExecPlan("SELECT a, c FROM ProjectableTable")
   }
 
   @Test
   def testProjectWithoutInputRef(): Unit = {
-    util.verifyPlan("SELECT COUNT(1) FROM ProjectableTable")
+    util.verifyExecPlan("SELECT COUNT(1) FROM ProjectableTable")
   }
 
   @Test
@@ -118,38 +118,38 @@ class LegacyTableSourceTest extends TableTestBase {
         |    deepNested.nested2.num AS nestedNum
         |FROM T
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testFilterCanPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2")
   }
 
   @Test
   def testFilterCannotPushDown(): Unit = {
     // TestFilterableTableSource only accept predicates with `amount`
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE price > 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE price > 10")
   }
 
   @Test
   def testFilterPartialPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND price > 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND price > 10")
   }
 
   @Test
   def testFilterFullyPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND amount < 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND amount < 10")
   }
 
   @Test
   def testFilterCannotPushDown2(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR price > 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR price > 10")
   }
 
   @Test
   def testFilterCannotPushDown3(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10")
   }
 
   @Test
@@ -159,24 +159,25 @@ class LegacyTableSourceTest extends TableTestBase {
         |SELECT * FROM FilterableTable WHERE
         |    amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testFilterPushDownWithUdf(): Unit = {
     util.addFunction("myUdf", Func1)
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
   }
 
   @Test
   def testPartitionTableSource(): Unit = {
-    util.verifyPlan("SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
+    util.verifyExecPlan(
+      "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
   }
 
   @Test
   def testPartitionTableSourceWithUdf(): Unit = {
     util.addFunction("MyUdf", Func1)
-    util.verifyPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
+    util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
   @Test
@@ -209,6 +210,6 @@ class LegacyTableSourceTest extends TableTestBase {
          |  dv > DATE '2017-02-03' AND
          |  tsv > TIMESTAMP '2017-02-03 14:25:02.000'
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

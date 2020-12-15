@@ -67,59 +67,59 @@ class FlinkCalcMergeRuleTest extends TableTestBase {
 
   @Test
   def testCalcMergeWithSameDigest(): Unit = {
-    util.verifyPlan("SELECT a, b FROM (SELECT * FROM MyTable WHERE a = b) t WHERE b = a")
+    util.verifyRelPlan("SELECT a, b FROM (SELECT * FROM MyTable WHERE a = b) t WHERE b = a")
   }
 
   @Test
   def testCalcMergeWithNonDeterministicExpr1(): Unit = {
     val sqlQuery = "SELECT a, a1 FROM (SELECT a, random_udf(a) AS a1 FROM MyTable) t WHERE a1 > 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testCalcMergeWithNonDeterministicExpr2(): Unit = {
     val sqlQuery = "SELECT a FROM (SELECT a FROM MyTable) t WHERE random_udf(a) > 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testCalcMergeWithNestedNonDeterministicExpr(): Unit = {
     val sqlQuery = "SELECT random_udf(a1) as a2 FROM (SELECT random_udf(a) as" +
       " a1, b FROM MyTable) t WHERE b > 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testCalcMergeWithTopMultiNonDeterministicExpr(): Unit = {
     val sqlQuery = "SELECT random_udf(a1) as a2, random_udf(a1) as a3 FROM" +
       " (SELECT random_udf(a) as a1, b FROM MyTable) t WHERE b > 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testCalcMergeTopFilterHasNonDeterministicExpr(): Unit = {
     val sqlQuery = "SELECT a, c FROM" +
       " (SELECT a, random_udf(b) as b1, c FROM MyTable) t WHERE b1 > 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testCalcMergeWithBottomMultiNonDeterministicExpr(): Unit = {
     val sqlQuery = "SELECT a1, b2 FROM" +
       " (SELECT random_udf(a) as a1, random_udf(b) as b2, c FROM MyTable) t WHERE c > 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testCalcMergeWithBottomMultiNonDeterministicInConditionExpr(): Unit = {
     val sqlQuery = "SELECT c FROM" +
       " (SELECT random_udf(a) as a1, random_udf(b) as b2, c FROM MyTable) t WHERE a1 > b2"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testCalcMergeWithoutInnerNonDeterministicExpr(): Unit = {
     val sqlQuery = "SELECT a, c FROM (SELECT a, random_udf(a) as a1, c FROM MyTable) t WHERE c > 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM LimitTable ORDER BY c LIMIT 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
 +- LogicalProject(a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- FlinkLogicalSort(sort0=[$2], dir0=[ASC-nulls-first], fetch=[10])
@@ -39,14 +39,14 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM LimitTable OFFSET 10 ROWS]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[10])
 +- LogicalProject(a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- FlinkLogicalSort(offset=[10])
@@ -58,14 +58,14 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM LimitTable OFFSET 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[10])
 +- LogicalProject(a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- FlinkLogicalSort(offset=[10])
@@ -77,14 +77,14 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[10])
 +- LogicalProject(a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- FlinkLogicalSort(fetch=[10])
@@ -96,14 +96,14 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[10], fetch=[10])
 +- LogicalProject(a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- FlinkLogicalSort(offset=[10], fetch=[10])
@@ -115,14 +115,14 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM LimitTable LIMIT 5]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[5])
 +- LogicalProject(a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- FlinkLogicalSort(fetch=[5])
@@ -134,14 +134,14 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[1], fetch=[10])
 +- LogicalProject(a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- FlinkLogicalSort(offset=[1], fetch=[10])

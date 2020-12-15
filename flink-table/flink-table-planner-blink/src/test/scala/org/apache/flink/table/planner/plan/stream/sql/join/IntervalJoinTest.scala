@@ -44,7 +44,7 @@ class IntervalJoinTest extends TableTestBase {
         |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
         |  t1.a = t2.a AND t1.proctime > t2.proctime - INTERVAL '5' SECOND
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   /** Both time attributes in a join condition must be of the same type **/
@@ -57,7 +57,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime > t2.proctime - INTERVAL '5' SECOND AND
         |  t1.proctime < t2.rowtime + INTERVAL '5' SECOND
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   /** The time conditions should be an And condition **/
@@ -70,7 +70,7 @@ class IntervalJoinTest extends TableTestBase {
         |  (t1.proctime > t2.proctime - INTERVAL '5' SECOND OR
         |   t1.proctime < t2.rowtime + INTERVAL '5' SECOND)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   /** Validates that no rowtime attribute is in the output schema **/
@@ -83,7 +83,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime BETWEEN t2.proctime - INTERVAL '5' SECOND AND t2.proctime
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   /**
@@ -99,7 +99,7 @@ class IntervalJoinTest extends TableTestBase {
         |    t1.a = t2.a AND pyFunc(t1.a, t2.a) = t1.a + t2.a AND
         |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -111,7 +111,7 @@ class IntervalJoinTest extends TableTestBase {
         |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -123,7 +123,7 @@ class IntervalJoinTest extends TableTestBase {
         |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -134,7 +134,7 @@ class IntervalJoinTest extends TableTestBase {
         |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -146,7 +146,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -157,7 +157,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -169,7 +169,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' MINUTE AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -181,7 +181,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.a = t2.a AND t1.proctime = t2.proctime
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -193,7 +193,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.a = t2.a AND t1.rowtime = t2.rowtime
         """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -210,7 +210,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t2.proctime + INTERVAL '5' SECOND
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -224,7 +224,7 @@ class IntervalJoinTest extends TableTestBase {
         |GROUP BY TUMBLE(t1.rowtime, INTERVAL '6' HOUR), t1.b
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -238,7 +238,7 @@ class IntervalJoinTest extends TableTestBase {
         |GROUP BY TUMBLE(t2.rowtime, INTERVAL '6' HOUR), t2.b
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Tests for left outer join
@@ -252,7 +252,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -265,7 +265,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Tests for right outer join
@@ -279,7 +279,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -293,7 +293,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Tests for full outer join
@@ -307,7 +307,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -320,7 +320,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Test for outer join optimization
@@ -335,7 +335,7 @@ class IntervalJoinTest extends TableTestBase {
         |  WHERE t1.b LIKE t2.b
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Other tests

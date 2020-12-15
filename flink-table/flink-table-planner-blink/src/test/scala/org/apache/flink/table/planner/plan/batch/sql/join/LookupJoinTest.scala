@@ -161,7 +161,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
         |LEFT OUTER JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         |ON T.a = D.id AND D.age = 10 AND pyFunc(D.age, T.a) > 100
       """.stripMargin
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test
@@ -190,7 +190,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
     val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig.getConfiguration)
     programs.remove(FlinkBatchProgram.PHYSICAL)
     testUtil.replaceBatchProgram(programs)
-    testUtil.verifyPlan(sql)
+    testUtil.verifyRelPlan(sql)
   }
 
   @Test
@@ -202,7 +202,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("VARCHAR(2147483647) and INTEGER does not have common type now")
 
-    testUtil.verifyPlan("SELECT * FROM MyTable AS T JOIN LookupTable "
+    testUtil.verifyRelPlan("SELECT * FROM MyTable AS T JOIN LookupTable "
       + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
   }
 
@@ -210,14 +210,14 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   def testJoinTemporalTable(): Unit = {
     val sql = "SELECT * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test
   def testLeftJoinTemporalTable(): Unit = {
     val sql = "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test
@@ -226,7 +226,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
       "(SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T " +
       "JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test
@@ -238,7 +238,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         |ON T.a = D.id
       """.stripMargin
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test
@@ -250,7 +250,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
         |ON T.a = D.id AND D.age = 10
         |WHERE T.c > 1000
       """.stripMargin
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test
@@ -276,7 +276,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
          |FROM ($sql2) AS T
          |GROUP BY b
       """.stripMargin
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test
@@ -288,7 +288,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
         |ON true
         |WHERE T.c > 1000
       """.stripMargin
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test
@@ -303,7 +303,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
         |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
         |  ON T.a = D.id
       """.stripMargin
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test
@@ -318,7 +318,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
         |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
         |  ON T.a = D.id and D.nominal_age > 12
       """.stripMargin
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test
@@ -351,7 +351,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
          |GROUP BY T1.b, T2.b
       """.stripMargin
 
-    testUtil.verifyPlan(sql)
+    testUtil.verifyExecPlan(sql)
   }
 
   // ==========================================================================================

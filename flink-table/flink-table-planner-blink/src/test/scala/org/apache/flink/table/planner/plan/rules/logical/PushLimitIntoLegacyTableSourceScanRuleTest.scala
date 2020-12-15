@@ -66,52 +66,52 @@ class PushLimitIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
   @Test(expected = classOf[SqlParserException])
   def testLimitWithNegativeOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET -1")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET -1")
   }
 
   @Test(expected = classOf[SqlParserException])
   def testNegativeLimitWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable LIMIT -1")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT -1")
   }
 
   @Test(expected = classOf[SqlParserException])
   def testMysqlLimit(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable LIMIT 1, 10")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 1, 10")
   }
 
   @Test
   def testCanPushdownLimitWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable LIMIT 5")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 5")
   }
 
   @Test
   def testCanPushdownLimitWithOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1")
   }
 
   @Test
   def testCanPushdownFetchWithOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY")
   }
 
   @Test
   def testCanPushdownFetchWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY")
   }
 
   @Test
   def testCannotPushDownWithoutLimit(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable OFFSET 10")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable OFFSET 10")
   }
 
   @Test
   def testCannotPushDownWithoutFetch(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable OFFSET 10 ROWS")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable OFFSET 10 ROWS")
   }
 
   @Test
   def testCannotPushDownWithOrderBy(): Unit = {
     val sqlQuery = "SELECT a, c FROM LimitTable ORDER BY c LIMIT 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

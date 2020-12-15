@@ -77,12 +77,12 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testSimpleProject(): Unit = {
-    util.verifyPlan("SELECT a, c FROM ProjectableTable")
+    util.verifyExecPlan("SELECT a, c FROM ProjectableTable")
   }
 
   @Test
   def testProjectWithoutInputRef(): Unit = {
-    util.verifyPlan("SELECT COUNT(1) FROM ProjectableTable")
+    util.verifyExecPlan("SELECT COUNT(1) FROM ProjectableTable")
   }
 
   @Test
@@ -96,7 +96,7 @@ class TableSourceTest extends TableTestBase {
         |    deepNested.nested2.num AS nestedNum
         |FROM NestedTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -108,6 +108,6 @@ class TableSourceTest extends TableTestBase {
         |       deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
         |FROM T
         |""".stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

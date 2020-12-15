@@ -38,7 +38,7 @@ public class NullTypeTest extends TableTestBase {
 	public void testValues() {
 		expectedException().expect(ValidationException.class);
 		expectedException().expectMessage("Illegal use of 'NULL'");
-		util.verifyPlan("SELECT * FROM (VALUES (1, NULL), (2, NULL)) AS T(a, b)");
+		util.verifyExecPlan("SELECT * FROM (VALUES (1, NULL), (2, NULL)) AS T(a, b)");
 	}
 
 	@Test
@@ -46,7 +46,7 @@ public class NullTypeTest extends TableTestBase {
 		// should work if we enable type coercion, works already in Table API
 		expectedException().expect(ValidationException.class);
 		expectedException().expectMessage("Illegal use of 'NULL'");
-		util.verifyPlan("SELECT * FROM (VALUES (1, NULL), (2, 1)) AS T(a, b)");
+		util.verifyExecPlan("SELECT * FROM (VALUES (1, NULL), (2, 1)) AS T(a, b)");
 	}
 
 	@Test
@@ -54,28 +54,28 @@ public class NullTypeTest extends TableTestBase {
 		// we might want to support type coercion here
 		expectedException().expect(ValidationException.class);
 		expectedException().expectMessage("Parameters must be of the same type");
-		util.verifyPlan("SELECT ARRAY[1,2] IN (ARRAY[1], ARRAY[1,2], ARRAY[NULL, NULL, NULL])");
+		util.verifyExecPlan("SELECT ARRAY[1,2] IN (ARRAY[1], ARRAY[1,2], ARRAY[NULL, NULL, NULL])");
 	}
 
 	@Test
 	public void testBuiltInFunction() {
 		expectedException().expect(ValidationException.class);
 		expectedException().expectMessage("Illegal use of 'NULL'");
-		util.verifyPlan("SELECT ABS(NULL)");
+		util.verifyExecPlan("SELECT ABS(NULL)");
 	}
 
 	@Test
 	public void testArrayConstructor() {
 		expectedException().expect(ValidationException.class);
 		expectedException().expectMessage("Parameters must be of the same type");
-		util.verifyPlan("SELECT ARRAY[NULL]");
+		util.verifyExecPlan("SELECT ARRAY[NULL]");
 	}
 
 	@Test
 	public void testMapConstructor() {
 		expectedException().expect(ValidationException.class);
 		expectedException().expectMessage("Parameters must be of the same type");
-		util.verifyPlan("SELECT MAP[NULL, NULL]");
+		util.verifyExecPlan("SELECT MAP[NULL, NULL]");
 	}
 
 	@Test
@@ -83,7 +83,7 @@ public class NullTypeTest extends TableTestBase {
 		expectedException().expect(ValidationException.class);
 		expectedException().expectMessage("SQL validation failed. Invalid function call");
 		util.addTemporarySystemFunction("NullTypeFunction", NullTypeFunction.class);
-		util.verifyPlan("SELECT NullTypeFunction(12)");
+		util.verifyExecPlan("SELECT NullTypeFunction(12)");
 	}
 
 	@Test
@@ -91,7 +91,7 @@ public class NullTypeTest extends TableTestBase {
 		expectedException().expect(ValidationException.class);
 		expectedException().expectMessage("SQL validation failed. Invalid function call");
 		util.addTemporarySystemFunction("NestedNullTypeFunction", NestedNullTypeFunction.class);
-		util.verifyPlan("SELECT NestedNullTypeFunction(12)");
+		util.verifyExecPlan("SELECT NestedNullTypeFunction(12)");
 	}
 
 	// --------------------------------------------------------------------------------------------

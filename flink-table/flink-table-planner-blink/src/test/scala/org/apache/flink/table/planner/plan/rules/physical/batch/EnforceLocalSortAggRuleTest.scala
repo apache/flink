@@ -63,17 +63,17 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
 
   @Test
   def testRollupWithUnmergeableAggCall(): Unit = {
-    util.verifyPlan("SELECT weightedAvg(a, 1) FROM t GROUP BY ROLLUP (b, c)")
+    util.verifyRelPlan("SELECT weightedAvg(a, 1) FROM t GROUP BY ROLLUP (b, c)")
   }
 
   @Test
   def testCubeWithUnmergeableAggCall(): Unit = {
-    util.verifyPlan("SELECT weightedAvg(d, 1) FROM t GROUP BY CUBE (a, b)")
+    util.verifyRelPlan("SELECT weightedAvg(d, 1) FROM t GROUP BY CUBE (a, b)")
   }
 
   @Test
   def testGroupSetsWithUnmergeableAggCall(): Unit = {
-    util.verifyPlan("select weightedAvg(a, 1) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))")
+    util.verifyRelPlan("select weightedAvg(a, 1) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))")
   }
 }
 

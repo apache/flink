@@ -25,7 +25,7 @@ SELECT * FROM x
   WHERE x.b > 10
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7], a0=[$8], b0=[$9], c0=[$10])
 +- LogicalFilter(condition=[>($1, 10)])
@@ -36,7 +36,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7],
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, c, nx, d, e, f, ny, a0, b0, c0], build=[right])\n:- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, b, c, nx, d, e, f, ny], build=[right])\n:  :- [#2] Calc(select=[a, b, c, nx], where=[(b > 10)])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
@@ -57,7 +57,7 @@ SELECT * FROM x
   WHERE x.b > 10
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7], a0=[$8], b0=[$9], c0=[$10])
 +- LogicalFilter(condition=[>($1, 10)])
@@ -68,7 +68,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7],
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, c, nx, d, e, f, ny, a0, b0, c0], build=[right])\n:- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, b, c, nx, d, e, f, ny], build=[right])\n:  :- [#2] Calc(select=[a, b, c, nx], where=[(b > 10)])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
@@ -89,7 +89,7 @@ SELECT * FROM chainable
   WHERE chainable.a > 10
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4], a0=[$5], b=[$6], c=[$7])
 +- LogicalFilter(condition=[>($0, 10)])
@@ -100,7 +100,7 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4], a0=[$5], b=[$6], c=[$7])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, d, e, f, ny, a0, b, c], build=[right])\n:- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:  :- Calc(select=[a], where=[(a > 10)])\n:  :  +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
@@ -124,7 +124,7 @@ WITH
 SELECT a FROM T2 LEFT JOIN z ON T2.a = z.g
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
@@ -142,7 +142,7 @@ LogicalProject(a=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(g, h, i, nz)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- MultipleInput(readOrder=[0,1,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = g)], select=[a, g], build=[right])\n:- Union(all=[true], union=[a])\n:  :- Calc(select=[a])\n:  :  +- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[left])\n:  :     :- [#3] Exchange(distribution=[broadcast])\n:  :     +- [#4] Calc(select=[d])\n:  +- [#2] Calc(select=[a])\n+- [#1] Exchange(distribution=[broadcast])\n])
@@ -180,7 +180,7 @@ WITH
 SELECT a FROM T2 LEFT JOIN z ON T2.a = z.g
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
@@ -198,7 +198,7 @@ LogicalProject(a=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(g, h, i, nz)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- MultipleInput(readOrder=[0,1,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = g)], select=[a, g], build=[right])\n:- Union(all=[true], union=[a])\n:  :- Calc(select=[a])\n:  :  +- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[left])\n:  :     :- [#3] Exchange(distribution=[broadcast])\n:  :     +- [#4] Calc(select=[d])\n:  +- [#2] Calc(select=[a])\n+- [#1] Exchange(distribution=[broadcast])\n])
@@ -231,7 +231,7 @@ SELECT * FROM
   LEFT JOIN y ON T1.a = y.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
@@ -243,7 +243,7 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])
 :- Union(all=[true], union=[a])
@@ -264,7 +264,7 @@ SELECT * FROM
   LEFT JOIN y ON T1.a = y.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
@@ -276,7 +276,7 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])
 :- Union(all=[true], union=[a])
@@ -299,7 +299,7 @@ SELECT * FROM
   ON T1.a = T2.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$1])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
@@ -313,7 +313,7 @@ LogicalProject(a=[$0], d=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[2,1,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])\n:- Calc(select=[a])\n:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])\n:     :- [#1] Exchange(distribution=[hash[a]])\n:     +- [#2] Exchange(distribution=[hash[d]])\n+- Calc(select=[d])\n   +- HashJoin(joinType=[InnerJoin], where=[(d = a)], select=[d, a], build=[right])\n      :- [#2] Exchange(distribution=[hash[d]])\n      +- [#4] Exchange(distribution=[hash[a]])\n])
 :- Exchange(distribution=[hash[a]])
@@ -340,7 +340,7 @@ SELECT * FROM
   (SELECT a, b FROM x)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], EXPR$1=[+($0, 1)])
@@ -351,7 +351,7 @@ LogicalUnion(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[a, EXPR$1])
 :- Calc(select=[a, CAST((a + 1)) AS EXPR$1])
@@ -378,7 +378,7 @@ SELECT * FROM
   (SELECT a, b FROM x)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], EXPR$1=[+($0, 1)])
@@ -389,7 +389,7 @@ LogicalUnion(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[a, EXPR$1])
 :- Calc(select=[a, CAST((a + 1)) AS EXPR$1])
@@ -414,7 +414,7 @@ WITH T1 AS (
 SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9])
 +- LogicalFilter(condition=[AND(>($0, 0), =($9, 0))])
@@ -427,7 +427,7 @@ LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9]
                +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, a0, b0, c, nx, k, CAST(0:BIGINT) AS v])
 +- MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = k)], select=[a, b, a0, b0, c, nx, k], build=[right])\n:- [#1] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n+- Calc(select=[a, b, c, nx, a0 AS k])\n   +- HashJoin(joinType=[InnerJoin], where=[((a = a0) AND ((b + b0) = 0:BIGINT))], select=[a, b, c, nx, a0, b0], build=[right])\n      :- [#2] Exchange(distribution=[hash[a]])\n      +- [#3] Exchange(distribution=[hash[a]])\n])
@@ -450,7 +450,7 @@ WITH T1 AS (
 SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9])
 +- LogicalFilter(condition=[AND(>($0, 0), =($9, 0))])
@@ -463,7 +463,7 @@ LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9]
                +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, a0, b0, c, nx, k, CAST(0:BIGINT) AS v])
 +- MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = k)], select=[a, b, a0, b0, c, nx, k], build=[right])\n:- [#1] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n+- Calc(select=[a, b, c, nx, a0 AS k])\n   +- HashJoin(joinType=[InnerJoin], where=[((a = a0) AND ((b + b0) = 0:BIGINT))], select=[a, b, c, nx, a0, b0], build=[right])\n      :- [#2] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n      +- [#3] Exchange(distribution=[hash[a]])\n])
@@ -485,7 +485,7 @@ SELECT * FROM x
   INNER JOIN t ON x.a = t.a
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7], a0=[$8], b0=[$9], c0=[$10])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
@@ -495,7 +495,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7],
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, nx, d, e, f, ny, a0, b0, c0])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, nx, d, e, f, ny])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[hash[a]])\n])
 :- Exchange(distribution=[hash[a]])
@@ -517,7 +517,7 @@ SELECT * FROM
   ON T1.a = T2.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$1])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
@@ -531,7 +531,7 @@ LogicalProject(a=[$0], d=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[2,1,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])\n:- Calc(select=[a])\n:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])\n:     :- [#1] Exchange(distribution=[hash[a]])\n:     +- [#2] Exchange(distribution=[hash[d]])\n+- Calc(select=[d])\n   +- HashJoin(joinType=[InnerJoin], where=[(d = a)], select=[d, a], build=[right])\n      :- [#2] Exchange(distribution=[hash[d]])\n      +- [#4] Exchange(distribution=[hash[a]])\n])
 :- Exchange(distribution=[hash[a]])
@@ -556,7 +556,7 @@ SELECT * FROM chainable
   WHERE chainable.a > 10
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4], a0=[$5], b=[$6], c=[$7])
 +- LogicalFilter(condition=[>($0, 10)])
@@ -567,7 +567,7 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4], a0=[$5], b=[$6], c=[$7])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, d, e, f, ny, a0, b, c], build=[right])\n:- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:  :- Calc(select=[a], where=[(a > 10)])\n:  :  +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
@@ -586,7 +586,7 @@ SELECT * FROM
   LEFT JOIN y ON T1.a = y.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
@@ -598,7 +598,7 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- [#3] Calc(select=[a])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
@@ -617,7 +617,7 @@ SELECT * FROM
   LEFT JOIN y ON T1.a = y.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
@@ -629,7 +629,7 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- [#3] Calc(select=[a])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
@@ -651,7 +651,7 @@ SELECT * FROM
   ON T1.a = T2.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], cnt=[$1], d=[$2], sm=[$3])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
@@ -667,7 +667,7 @@ LogicalProject(a=[$0], cnt=[$1], d=[$2], sm=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], build=[right])
 :- Exchange(distribution=[hash[a]])
@@ -696,7 +696,7 @@ SELECT * FROM
   ON T1.a = T2.d
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], cnt=[$1], d=[$2], sm=[$3])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
@@ -712,7 +712,7 @@ LogicalProject(a=[$0], cnt=[$1], d=[$2], sm=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], build=[right])
 :- Exchange(distribution=[hash[a]])
@@ -734,7 +734,7 @@ HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], buil
     <Resource name="sql">
       <![CDATA[SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], a0=[$1], b=[$2], c=[$3], nx=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
@@ -742,7 +742,7 @@ LogicalProject(a=[$0], a0=[$1], b=[$2], c=[$3], nx=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, a0, b, c, nx], build=[right])\n:- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n+- [#2] Exchange(distribution=[broadcast])\n])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
@@ -755,7 +755,7 @@ MultipleInput(readOrder=[1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin
     <Resource name="sql">
       <![CDATA[SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], a0=[$1], b=[$2], c=[$3], nx=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
@@ -763,7 +763,7 @@ LogicalProject(a=[$0], a0=[$1], b=[$2], c=[$3], nx=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, a0, b, c, nx], build=[right])\n:- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n+- [#2] Exchange(distribution=[broadcast])\n])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
@@ -784,7 +784,7 @@ SELECT * FROM
   (SELECT a FROM T2)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0])
@@ -797,7 +797,7 @@ LogicalUnion(all=[true])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a])\n:- Calc(select=[a])\n:  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, a0], build=[right])\n:     :- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:     +- [#2] Exchange(distribution=[broadcast])\n+- Calc(select=[a])\n   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d], build=[right])\n      :- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n      +- [#4] Exchange(distribution=[broadcast])\n])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])(reuse_id=[1])
@@ -835,7 +835,7 @@ SELECT * FROM
   (SELECT y.e, sd, sy, sz FROM T5 LEFT JOIN y ON T5.b = y.e)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(b=[$5], sd=[$1], sy=[$2], sz=[$3])
@@ -870,7 +870,7 @@ LogicalUnion(all=[true])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[0,0,1,1], members=[\nUnion(all=[true], union=[b, sd, sy, sz])\n:- Calc(select=[b0 AS b, sd, sy, sz])\n:  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = b0)], select=[b, sd, sy, sz, b0], build=[right])\n:     :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n:     :  +- [#3] Exchange(distribution=[hash[b]])\n:     +- [#1] Exchange(distribution=[broadcast])\n+- Calc(select=[e, sd, sy, sz])\n   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, sd, sy, sz, e], build=[right])\n      :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n      :  +- [#4] Exchange(distribution=[hash[b]])\n      +- [#2] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
@@ -932,7 +932,7 @@ SELECT * FROM
   (SELECT y.e, sd, sy, sz FROM T5 LEFT JOIN y ON T5.b = y.e)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(b=[$5], sd=[$1], sy=[$2], sz=[$3])
@@ -967,7 +967,7 @@ LogicalUnion(all=[true])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[0,0,1,1], members=[\nUnion(all=[true], union=[b, sd, sy, sz])\n:- Calc(select=[b0 AS b, sd, sy, sz])\n:  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = b0)], select=[b, sd, sy, sz, b0], build=[right])\n:     :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n:     :  +- [#3] Exchange(distribution=[hash[b]])\n:     +- [#1] Exchange(distribution=[broadcast])\n+- Calc(select=[e, sd, sy, sz])\n   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, sd, sy, sz, e], build=[right])\n      :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n      :  +- [#4] Exchange(distribution=[hash[b]])\n      +- [#2] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
@@ -1018,7 +1018,7 @@ WITH
 SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
@@ -1035,7 +1035,7 @@ LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, a0, b0, c])
 +- MultipleInput(readOrder=[0,1,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a00)], select=[a, b, a0, b0, c, a00], build=[right])\n:- Union(all=[true], union=[a, b])\n:  :- Calc(select=[CAST(a) AS a, CAST(d) AS b])\n:  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, a], build=[right])\n:  :     :- [#2] Calc(select=[d])\n:  :     +- [#3] Exchange(distribution=[broadcast])\n:  +- Calc(select=[CAST(a) AS a, b])\n:     +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS a])\n:        +- [#4] Exchange(distribution=[hash[b]])\n+- [#1] Exchange(distribution=[broadcast])\n])
@@ -1066,7 +1066,7 @@ SELECT * FROM
   (SELECT a FROM T2)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0])
@@ -1079,7 +1079,7 @@ LogicalUnion(all=[true])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a])\n:- Calc(select=[a])\n:  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, a0], build=[right])\n:     :- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:     +- [#2] Exchange(distribution=[broadcast])\n+- Calc(select=[a])\n   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d], build=[right])\n      :- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n      +- [#4] Exchange(distribution=[broadcast])\n])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])(reuse_id=[1])
@@ -1101,7 +1101,7 @@ SELECT * FROM x
   INNER JOIN t ON x.a = t.a
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7], a0=[$8], b0=[$9], c0=[$10])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
@@ -1111,7 +1111,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7],
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, nx, d, e, f, ny, a0, b0, c0])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, nx, d, e, f, ny])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[hash[a]])\n])
 :- Exchange(distribution=[hash[a]])
@@ -1136,7 +1136,7 @@ WITH
 SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
@@ -1150,7 +1150,7 @@ LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[0,1,2,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, a0, b0, c], build=[right])\n:- Union(all=[true], union=[a, b])\n:  :- Calc(select=[a, CAST(d) AS b])\n:  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, a], build=[right])\n:  :     :- [#3] Calc(select=[d])\n:  :     +- [#4] Exchange(distribution=[broadcast])\n:  +- [#2] Calc(select=[a, b])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
@@ -1179,7 +1179,7 @@ SELECT cnt FROM
   (SELECT cnt FROM (SELECT cnt FROM T3) UNION ALL (SELECT cnt FROM T4))
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(cnt=[$0])
@@ -1203,7 +1203,7 @@ LogicalUnion(all=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[cnt])
 :- Union(all=[true], union=[cnt])
@@ -1246,7 +1246,7 @@ WITH
 SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
@@ -1260,7 +1260,7 @@ LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[0,1,2,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, a0, b0, c], build=[right])\n:- Union(all=[true], union=[a, b])\n:  :- Calc(select=[a, CAST(d) AS b])\n:  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, a], build=[right])\n:  :     :- [#3] Calc(select=[d])\n:  :     +- [#4] Exchange(distribution=[broadcast])\n:  +- [#2] Calc(select=[a, b])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
@@ -1287,7 +1287,7 @@ SELECT * FROM
   (SELECT a, b FROM x)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], b=[$2])
@@ -1304,7 +1304,7 @@ LogicalUnion(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[a, b])
@@ -1342,7 +1342,7 @@ WITH
 SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
@@ -1359,7 +1359,7 @@ LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, a0, b0, c])
 +- MultipleInput(readOrder=[0,2,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a00)], select=[a, b, a0, b0, c, a00], build=[right])\n:- Union(all=[true], union=[a, b])\n:  :- Calc(select=[CAST(a) AS a, CAST(d) AS b])\n:  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, a], build=[right])\n:  :     :- [#2] Calc(select=[d])\n:  :     +- [#3] Exchange(distribution=[broadcast])\n:  +- Calc(select=[CAST(a) AS a, b])\n:     +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS a])\n:        +- [#4] Exchange(distribution=[hash[b]])\n+- [#1] Exchange(distribution=[broadcast])\n])
@@ -1392,7 +1392,7 @@ SELECT cnt FROM
   (SELECT cnt FROM (SELECT cnt FROM T3) UNION ALL (SELECT cnt FROM T4))
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(cnt=[$0])
@@ -1416,7 +1416,7 @@ LogicalUnion(all=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[cnt])
 :- Union(all=[true], union=[cnt])
@@ -1458,7 +1458,7 @@ SELECT * FROM
   (SELECT a, b FROM x)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], b=[$2])
@@ -1475,7 +1475,7 @@ LogicalUnion(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[a, b])

@@ -44,7 +44,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("SELECT rowtime, id, name, val FROM rowTimeT")
+    util.verifyExecPlan("SELECT rowtime, id, name, val FROM rowTimeT")
   }
 
   @Test
@@ -73,7 +73,7 @@ class TableSourceTest extends TableTestBase {
         |   GROUP BY name, TUMBLE(rowtime, INTERVAL '10' MINUTE)
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -95,7 +95,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("SELECT pTime, id, name, val FROM procTimeT")
+    util.verifyExecPlan("SELECT pTime, id, name, val FROM procTimeT")
   }
 
   @Test
@@ -116,7 +116,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("SELECT ptime, name, val, id FROM T")
+    util.verifyExecPlan("SELECT ptime, name, val, id FROM T")
   }
 
   @Test
@@ -137,7 +137,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("select name, val, rtime, id from T")
+    util.verifyExecPlan("select name, val, rtime, id from T")
   }
 
   @Test
@@ -158,7 +158,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("SELECT rtime FROM T")
+    util.verifyExecPlan("SELECT rtime FROM T")
   }
 
   @Test
@@ -188,7 +188,7 @@ class TableSourceTest extends TableTestBase {
         |    deepNested.nested2.num AS nestedNum
         |FROM T
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -205,7 +205,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("SELECT COUNT(1) FROM T")
+    util.verifyExecPlan("SELECT COUNT(1) FROM T")
   }
 
   @Test
@@ -234,6 +234,6 @@ class TableSourceTest extends TableTestBase {
         |       deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
         |FROM T
         |""".stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

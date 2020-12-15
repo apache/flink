@@ -42,7 +42,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Slide over 20.millis every 10.millis on 'proctime as 'w2)
       .groupBy('w2)
       .select('string.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -55,7 +55,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble over 50.millis on 'proctime as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -68,7 +68,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble over 2.rows on 'proctime as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -81,7 +81,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -96,7 +96,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
       .select('string, call(weightedAvg, 'long, 'int))
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -109,7 +109,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Slide over 50.millis every 50.millis on 'proctime as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -122,7 +122,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Slide over 2.rows every 1.rows on 'proctime as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -135,7 +135,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Slide over 8.millis every 10.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -148,7 +148,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Slide over 8.millis every 10.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -163,7 +163,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Slide over 8.millis every 10.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
       .select('string, call(weightedAvg, 'long, 'int))
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -176,7 +176,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Session withGap 7.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -191,7 +191,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Session withGap 7.millis on 'rowtime as 'w)
       .groupBy('w, 'string)
       .select('string, call(weightedAvg, 'long, 'int))
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -204,7 +204,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble over 50.millis on 'proctime as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -217,7 +217,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble over 2.rows on 'proctime as 'w)
       .groupBy('w)
       .select('int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -230,7 +230,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -243,7 +243,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -256,7 +256,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Slide over 50.millis every 50.millis on 'proctime as 'w)
       .groupBy('w)
       .select('int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -270,7 +270,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -284,7 +284,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -298,7 +298,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -312,7 +312,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -326,7 +326,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -348,7 +348,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'int2, 'int3, 'string)
       .select(call(weightAvgFun, 'long, 'int))
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -362,7 +362,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -376,7 +376,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('w.end as 'we1, 'string, 'int.count as 'cnt, 'w.start as 'ws, 'w.end as 'we2)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -391,7 +391,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.sum + 1 as 's1, 'int.sum + 3 as 's2, 'w.start as 'x, 'w.start as 'x2,
         'w.end as 'x3, 'w.end)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -405,7 +405,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('c.varPop, 'c.varSamp, 'c.stddevPop, 'c.stddevSamp, 'w.start, 'w.end)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -431,6 +431,6 @@ class GroupWindowTest extends TableTestBase {
 
     val unionTable = tableWindow1hr.unionAll(tableWindow2hr)
 
-    util.verifyPlan(unionTable)
+    util.verifyExecPlan(unionTable)
   }
 }

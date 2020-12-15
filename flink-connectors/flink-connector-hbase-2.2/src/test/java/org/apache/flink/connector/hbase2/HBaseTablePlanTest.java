@@ -47,7 +47,7 @@ public class HBaseTablePlanTest extends TableTestBase {
 				" 'zookeeper.quorum' = 'localhost:2021'" +
 				")");
 		thrown().expect(containsCause(new IllegalArgumentException("Row key can't be set multiple times.")));
-		util.verifyPlan("SELECT * FROM hTable");
+		util.verifyExecPlan("SELECT * FROM hTable");
 	}
 
 	@Test
@@ -65,7 +65,7 @@ public class HBaseTablePlanTest extends TableTestBase {
 			"HBase table requires to define a row key field. " +
 				"A row key field is defined as an atomic type, " +
 				"column families and qualifiers are defined as ROW type.")));
-		util.verifyPlan("SELECT * FROM hTable");
+		util.verifyExecPlan("SELECT * FROM hTable");
 	}
 
 	@Test
@@ -85,7 +85,7 @@ public class HBaseTablePlanTest extends TableTestBase {
 			"Primary key of HBase table must be defined on the row key field. " +
 				"A row key field is defined as an atomic type, " +
 				"column families and qualifiers are defined as ROW type.")));
-		util.verifyPlan("SELECT * FROM hTable");
+		util.verifyExecPlan("SELECT * FROM hTable");
 	}
 
 	@Test
@@ -104,7 +104,7 @@ public class HBaseTablePlanTest extends TableTestBase {
 				")");
 		thrown().expect(containsCause(new IllegalArgumentException(
 			"Unsupported field type 'ARRAY<STRING>' for HBase.")));
-		util.verifyPlan("SELECT * FROM hTable");
+		util.verifyExecPlan("SELECT * FROM hTable");
 	}
 
 	@Test
@@ -121,7 +121,7 @@ public class HBaseTablePlanTest extends TableTestBase {
 				" 'table-name' = 'my_table'," +
 				" 'zookeeper.quorum' = 'localhost:2021'" +
 				")");
-		util.verifyPlan("SELECT h.family3, h.family2.col2 FROM hTable AS h");
+		util.verifyExecPlan("SELECT h.family3, h.family2.col2 FROM hTable AS h");
 	}
 
 }

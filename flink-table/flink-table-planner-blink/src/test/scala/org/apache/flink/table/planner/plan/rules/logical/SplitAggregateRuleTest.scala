@@ -38,24 +38,24 @@ class SplitAggregateRuleTest extends TableTestBase {
 
   @Test
   def testSingleDistinctAgg(): Unit = {
-    util.verifyPlan("SELECT COUNT(DISTINCT c) FROM MyTable")
+    util.verifyRelPlan("SELECT COUNT(DISTINCT c) FROM MyTable")
   }
 
   @Test
   def testSingleMinAgg(): Unit = {
     // does not contain distinct agg
-    util.verifyPlan("SELECT MIN(c) FROM MyTable")
+    util.verifyRelPlan("SELECT MIN(c) FROM MyTable")
   }
 
   @Test
   def testSingleFirstValueAgg(): Unit = {
     // does not contain distinct agg
-    util.verifyPlan("SELECT FIRST_VALUE(c) FROM MyTable GROUP BY a")
+    util.verifyRelPlan("SELECT FIRST_VALUE(c) FROM MyTable GROUP BY a")
   }
 
   @Test
   def testMultiDistinctAggs(): Unit = {
-    util.verifyPlan("SELECT COUNT(DISTINCT a), SUM(DISTINCT b) FROM MyTable")
+    util.verifyRelPlan("SELECT COUNT(DISTINCT a), SUM(DISTINCT b) FROM MyTable")
   }
 
   @Test
@@ -66,22 +66,22 @@ class SplitAggregateRuleTest extends TableTestBase {
         |FROM MyTable
         |GROUP BY a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testSingleFirstValueWithDistinctAgg(): Unit = {
-    util.verifyPlan("SELECT a, FIRST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
+    util.verifyRelPlan("SELECT a, FIRST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
   def testSingleLastValueWithDistinctAgg(): Unit = {
-    util.verifyPlan("SELECT a, LAST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
+    util.verifyRelPlan("SELECT a, LAST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
   def testSingleListAggWithDistinctAgg(): Unit = {
-    util.verifyPlan("SELECT a, LISTAGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
+    util.verifyRelPlan("SELECT a, LISTAGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
@@ -92,23 +92,23 @@ class SplitAggregateRuleTest extends TableTestBase {
         |FROM MyTable
         |GROUP BY a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testSingleDistinctAggWithGroupBy(): Unit = {
-    util.verifyPlan("SELECT a, COUNT(DISTINCT c) FROM MyTable GROUP BY a")
+    util.verifyRelPlan("SELECT a, COUNT(DISTINCT c) FROM MyTable GROUP BY a")
   }
 
   @Test
   def testSingleDistinctAggWithAndNonDistinctAggOnSameColumn(): Unit = {
-    util.verifyPlan("SELECT a, COUNT(DISTINCT b), SUM(b), AVG(b) FROM MyTable GROUP BY a")
+    util.verifyRelPlan("SELECT a, COUNT(DISTINCT b), SUM(b), AVG(b) FROM MyTable GROUP BY a")
   }
 
   @Test
   def testSomeColumnsBothInDistinctAggAndGroupBy(): Unit = {
     // TODO: the COUNT(DISTINCT a) can be optimized to literal 1
-    util.verifyPlan("SELECT a, COUNT(DISTINCT a), COUNT(b) FROM MyTable GROUP BY a")
+    util.verifyRelPlan("SELECT a, COUNT(DISTINCT a), COUNT(b) FROM MyTable GROUP BY a")
   }
 
   @Test
@@ -123,7 +123,7 @@ class SplitAggregateRuleTest extends TableTestBase {
          |FROM MyTable
          |GROUP BY a
        """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -139,7 +139,7 @@ class SplitAggregateRuleTest extends TableTestBase {
          |  GROUP BY a
          |) GROUP BY c
        """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -158,7 +158,7 @@ class SplitAggregateRuleTest extends TableTestBase {
          |  GROUP BY c
          |) as MyTable1 JOIN MyTable ON MyTable1.b = MyTable.a
        """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -166,6 +166,6 @@ class SplitAggregateRuleTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setInteger(
       OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM, 100)
     val sqlQuery = "SELECT COUNT(DISTINCT c) FROM MyTable"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

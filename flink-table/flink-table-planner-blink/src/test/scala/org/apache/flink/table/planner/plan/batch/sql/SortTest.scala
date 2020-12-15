@@ -36,7 +36,7 @@ class SortTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_SORT_RANGE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, -1)
-    util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
+    util.verifyExecPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 
   @Test
@@ -45,7 +45,7 @@ class SortTest extends TableTestBase {
       TABLE_EXEC_SORT_RANGE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, -1)
-    util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC, b")
+    util.verifyExecPlan("SELECT * FROM MyTable ORDER BY a DESC, b")
   }
 
   @Test
@@ -54,7 +54,7 @@ class SortTest extends TableTestBase {
       TABLE_EXEC_SORT_RANGE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, 200)
-    util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
+    util.verifyExecPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 
   @Test
@@ -62,7 +62,7 @@ class SortTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_SORT_RANGE_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, -1)
-    util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
+    util.verifyExecPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 
   @Test
@@ -70,6 +70,6 @@ class SortTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_SORT_RANGE_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, 200)
-    util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
+    util.verifyExecPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 }

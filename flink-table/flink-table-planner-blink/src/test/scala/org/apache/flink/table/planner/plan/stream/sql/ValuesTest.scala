@@ -28,22 +28,22 @@ class ValuesTest extends TableTestBase {
 
   @Test
   def testNullValues(): Unit = {
-    util.verifyPlan("SELECT * FROM (VALUES CAST(NULL AS INT))")
+    util.verifyExecPlan("SELECT * FROM (VALUES CAST(NULL AS INT))")
   }
 
   @Test
   def testSingleRow(): Unit = {
-    util.verifyPlan("SELECT * FROM (VALUES (1, 2, 3)) AS T(a, b, c)")
+    util.verifyExecPlan("SELECT * FROM (VALUES (1, 2, 3)) AS T(a, b, c)")
   }
 
   @Test
   def testMultiRows(): Unit = {
-    util.verifyPlan("SELECT * FROM (VALUES (1, 2), (3, CAST(NULL AS INT)), (4, 5)) AS T(a, b)")
+    util.verifyExecPlan("SELECT * FROM (VALUES (1, 2), (3, CAST(NULL AS INT)), (4, 5)) AS T(a, b)")
   }
 
   @Test
   def testDiffTypes(): Unit = {
-    util.verifyPlanWithType("SELECT * FROM (VALUES (1, 2.0), (3, CAST(4 AS BIGINT))) AS T(a, b)")
+    util.verifyRelPlanWithType("SELECT * FROM (VALUES (1, 2.0), (3, CAST(4 AS BIGINT))) AS T(a, b)")
   }
 
 }

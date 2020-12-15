@@ -110,31 +110,31 @@ class SourceWatermarkTest extends TableTestBase {
 
   @Test
   def testSimpleWatermarkPushDown(): Unit = {
-    util.verifyPlan("SELECT a, b, c FROM VirtualTable")
+    util.verifyExecPlan("SELECT a, b, c FROM VirtualTable")
   }
 
   @Test
   def testWatermarkOnComputedColumnExcludedRowTime2(): Unit = {
-    util.verifyPlan("SELECT a, b, SECOND(d) FROM VirtualTable")
+    util.verifyExecPlan("SELECT a, b, SECOND(d) FROM VirtualTable")
   }
 
   @Test
   def testWatermarkOnComputedColumnExcluedRowTime1(): Unit = {
-    util.verifyPlan("SELECT a, b FROM VirtualTable WHERE b > 10")
+    util.verifyExecPlan("SELECT a, b FROM VirtualTable WHERE b > 10")
   }
 
   @Test
   def testWatermarkOnNestedRowWithNestedProjection(): Unit = {
-    util.verifyPlan("select c.e, c.d from NestedTable")
+    util.verifyExecPlan("select c.e, c.d from NestedTable")
   }
 
   @Test
   def testWatermarkWithUdf(): Unit = {
-    util.verifyPlan("SELECT a - b FROM UdfTable")
+    util.verifyExecPlan("SELECT a - b FROM UdfTable")
   }
 
   @Test
   def testWatermarkWithMetadata(): Unit = {
-    util.verifyPlan("SELECT a, b FROM MyTable")
+    util.verifyExecPlan("SELECT a, b FROM MyTable")
   }
 }

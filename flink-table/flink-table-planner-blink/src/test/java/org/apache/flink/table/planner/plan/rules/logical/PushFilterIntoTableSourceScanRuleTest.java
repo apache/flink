@@ -89,6 +89,6 @@ public class PushFilterIntoTableSourceScanRuleTest extends PushFilterIntoLegacyT
 				" 'bounded' = 'true'\n" +
 				")";
 		util().tableEnv().executeSql(ddl);
-		util().verifyPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'");
+		util().verifyRelPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'");
 	}
 }

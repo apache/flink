@@ -62,7 +62,7 @@ class CalcPythonCorrelateTransposeRuleTest extends TableTestBase {
   def testPythonFunctionInCorrelateCondition(): Unit = {
     val sqlQuery = "SELECT a, b, c, x, y FROM MyTable, LATERAL TABLE(func(a * a, b)) AS T(x, y) " +
       "WHERE x = a and pyFunc(x, x) = 2 and y + 1 = y * y"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

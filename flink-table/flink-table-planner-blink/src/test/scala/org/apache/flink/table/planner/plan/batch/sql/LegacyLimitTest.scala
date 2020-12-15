@@ -46,92 +46,92 @@ class LegacyLimitTest extends TableTestBase {
 
   @Test
   def testLimitWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable LIMIT 5")
+    util.verifyExecPlan("SELECT * FROM MyTable LIMIT 5")
   }
 
   @Test
   def testLimit0WithoutOffset(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable LIMIT 0")
+    util.verifyExecPlan("SELECT * FROM MyTable LIMIT 0")
   }
 
   @Test(expected = classOf[SqlParserException])
   def testNegativeLimitWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable LIMIT -1")
+    util.verifyExecPlan("SELECT * FROM MyTable LIMIT -1")
   }
 
   @Test
   def testLimitWithOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET 1")
+    util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET 1")
   }
 
   @Test
   def testLimitWithOffset0(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET 0")
+    util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET 0")
   }
 
   @Test
   def testLimit0WithOffset0(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable LIMIT 0 OFFSET 0")
+    util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 0 OFFSET 0")
   }
 
   @Test
   def testLimit0WithOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable LIMIT 0 OFFSET 10")
+    util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 0 OFFSET 10")
   }
 
   @Test(expected = classOf[SqlParserException])
   def testLimitWithNegativeOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET -1")
+    util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET -1")
   }
 
   @Test
   def testFetchWithOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY")
+    util.verifyExecPlan("SELECT a, c FROM MyTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY")
   }
 
   @Test
   def testFetchWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable FETCH FIRST 10 ROWS ONLY")
+    util.verifyExecPlan("SELECT a, c FROM MyTable FETCH FIRST 10 ROWS ONLY")
   }
 
   @Test
   def testFetch0WithoutOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable FETCH FIRST 0 ROWS ONLY")
+    util.verifyExecPlan("SELECT a, c FROM MyTable FETCH FIRST 0 ROWS ONLY")
   }
 
   @Test
   def testOnlyOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable OFFSET 10 ROWS")
+    util.verifyExecPlan("SELECT a, c FROM MyTable OFFSET 10 ROWS")
   }
 
   @Test
   def testFetchWithLimitSource(): Unit = {
     val sqlQuery = "SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testOrderByWithLimitSource(): Unit = {
     val sqlQuery = "SELECT a, c FROM LimitTable ORDER BY c LIMIT 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testLimitWithLimitSource(): Unit = {
     val sqlQuery = "SELECT a, c FROM LimitTable LIMIT 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testLimitWithOffsetAndLimitSource(): Unit = {
     val sqlQuery = "SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testFetchWithOffsetAndLimitSource(): Unit = {
     val sqlQuery = "SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
 }

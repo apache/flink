@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(a), SUM(b), SUM(DISTINCT b) FROM MyTable GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($0)], EXPR$2=[SUM($1)], EXPR$3=[SUM(DISTINCT $1)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2, EXPR$3])
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MIN(min$0) AS EXPR$1, Final_MIN(min$1) AS EXPR$2, Final_SUM(sum$2) AS EXPR$3])
@@ -48,14 +48,14 @@ Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2, EXPR$3])
       <![CDATA[SELECT a, COUNT(c) FILTER (WHERE b > 1),
 COUNT(DISTINCT d) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $2], EXPR$2=[COUNT(DISTINCT $3) FILTER $2])
 +- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, 1))], d=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2])
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MIN(min$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
@@ -75,7 +75,7 @@ Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT SUM(DISTINCT a), COUNT(DISTINCT c) FROM MyTable GROUP BY b]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM(DISTINCT $1)], EXPR$1=[COUNT(DISTINCT $2)])
@@ -83,7 +83,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1])
@@ -102,14 +102,14 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(DISTINCT a), SUM(DISTINCT b), MAX(a), MIN(a) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[MIN($0)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2, Final_MIN(min$3) AS EXPR$3])
 +- Exchange(distribution=[single])
@@ -128,7 +128,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(
     <Resource name="sql">
       <![CDATA[SELECT COUNT(DISTINCT a), SUM(DISTINCT b), MAX(a), MIN(a) FROM MyTable GROUP BY c]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT(DISTINCT $1)], EXPR$1=[SUM(DISTINCT $2)], EXPR$2=[MAX($1)], EXPR$3=[MIN($1)])
@@ -136,7 +136,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3])
 +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2, Final_MIN(min$3) AS EXPR$3])
@@ -156,14 +156,14 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3])
       <![CDATA[SELECT COUNT(DISTINCT a), SUM(DISTINCT b),
 COUNT(DISTINCT c) FILTER (WHERE a > 5) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $2) FILTER $3])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[IS TRUE(>($0, 5))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_COUNT(count$2) AS EXPR$2])
 +- Exchange(distribution=[single])
@@ -182,7 +182,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(
     <Resource name="sql">
       <![CDATA[SELECT COUNT(DISTINCT a), SUM(DISTINCT b) FROM MyTable2 GROUP BY GROUPING SETS (c, d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2], EXPR$1=[$3])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], EXPR$0=[COUNT(DISTINCT $2)], EXPR$1=[SUM(DISTINCT $3)])
@@ -190,7 +190,7 @@ LogicalProject(EXPR$0=[$2], EXPR$1=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- HashAggregate(isMerge=[true], groupBy=[c, d, $e], select=[c, d, $e, Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1])
@@ -212,14 +212,14 @@ Calc(select=[EXPR$0, EXPR$1])
       <![CDATA[SELECT COUNT(DISTINCT a), SUM(DISTINCT a) FILTER (WHERE b > 0),
 MAX(DISTINCT a) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $0) FILTER $1], EXPR$2=[MAX($0)])
 +- LogicalProject(a=[$0], $f1=[IS TRUE(>($1, 0))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2])
 +- Exchange(distribution=[single])
@@ -238,7 +238,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(
     <Resource name="sql">
       <![CDATA[SELECT COUNT(DISTINCT a), SUM(DISTINCT a), MAX(DISTINCT a) FROM MyTable2 GROUP BY GROUPING SETS (b, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$4])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], EXPR$0=[COUNT(DISTINCT $2)], EXPR$1=[SUM(DISTINCT $2)], EXPR$2=[MAX($2)])
@@ -246,7 +246,7 @@ LogicalProject(EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1, EXPR$2])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MAX(max$2) AS EXPR$2])
@@ -266,14 +266,14 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2])
       <![CDATA[SELECT COUNT(DISTINCT a) FILTER (WHERE c > 0),
 SUM(DISTINCT b), COUNT(c) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0) FILTER $1], EXPR$1=[SUM(DISTINCT $2)], EXPR$2=[COUNT($3)])
 +- LogicalProject(a=[$0], $f1=[IS TRUE(>($2, 0))], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1, CASE(EXPR$2 IS NOT NULL, EXPR$2, 0) AS EXPR$2])
 +- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2])
@@ -293,7 +293,7 @@ Calc(select=[EXPR$0, EXPR$1, CASE(EXPR$2 IS NOT NULL, EXPR$2, 0) AS EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(DISTINCT a), SUM(DISTINCT b), COUNT(c) FROM MyTable2 GROUP BY GROUPING SETS (d, e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$4])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], EXPR$0=[COUNT(DISTINCT $2)], EXPR$1=[SUM(DISTINCT $3)], EXPR$2=[COUNT($4)])
@@ -301,7 +301,7 @@ LogicalProject(EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1, CAST(EXPR$2) AS EXPR$2])
 +- HashAggregate(isMerge=[true], groupBy=[d, e, $e], select=[d, e, $e, Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2])
@@ -323,14 +323,14 @@ Calc(select=[EXPR$0, EXPR$1, CAST(EXPR$2) AS EXPR$2])
 COUNT(DISTINCT c) FILTER (WHERE a > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)
 FROM MyTable2 GROUP BY d]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[MAX($1) FILTER $2], EXPR$3=[COUNT(DISTINCT $3)], EXPR$4=[COUNT(DISTINCT $3) FILTER $4], EXPR$5=[COUNT(DISTINCT $5) FILTER $6])
 +- LogicalProject(d=[$3], e=[$4], $f2=[IS TRUE(<($0, 10))], c=[$2], $f4=[IS TRUE(>($0, 5))], b=[$1], $f6=[IS TRUE(>($1, 3))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[true], groupBy=[d], select=[d, Final_MIN(min$0) AS EXPR$1, Final_MIN(min$1) AS EXPR$2, Final_COUNT(count$2) AS EXPR$3, Final_COUNT(count$3) AS EXPR$4, Final_COUNT(count$4) AS EXPR$5])
 +- Sort(orderBy=[d ASC])
@@ -352,14 +352,14 @@ SortAggregate(isMerge=[true], groupBy=[d], select=[d, Final_MIN(min$0) AS EXPR$1
       <![CDATA[SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 0),
 COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY d]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[COUNT(DISTINCT $3) FILTER $4])
 +- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 0))], b=[$1], $f4=[IS TRUE(>($1, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2, Final_COUNT(count$2) AS EXPR$3])
 +- Exchange(distribution=[hash[d]])
@@ -379,14 +379,14 @@ HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EX
       <![CDATA[SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 10),
 COUNT(DISTINCT c) FILTER (WHERE a < 10) FROM MyTable2 GROUP BY d]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[COUNT(DISTINCT $1) FILTER $3])
 +- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 10))], $f3=[IS TRUE(<($0, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2, Final_COUNT(count$2) AS EXPR$3])
 +- Exchange(distribution=[hash[d]])
@@ -406,14 +406,14 @@ HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EX
       <![CDATA[SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 0),
 MAX(e), MIN(e) FROM MyTable2 GROUP BY d]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[MAX($3)], EXPR$4=[MIN($3)])
 +- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 0))], e=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2, Final_MIN(min$2) AS EXPR$3, Final_MIN(min$3) AS EXPR$4])
 +- Sort(orderBy=[d ASC])
@@ -434,14 +434,14 @@ SortAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EX
     <Resource name="sql">
       <![CDATA[SELECT COUNT(DISTINCT a) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
 +- LogicalProject(a=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])
@@ -458,14 +458,14 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(DISTINCT a) FILTER (WHERE a > 0), SUM(b) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0) FILTER $1], EXPR$1=[SUM($2)])
 +- LogicalProject(a=[$0], $f1=[IS TRUE(>($0, 0))], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_MIN(min$1) AS EXPR$1])
 +- Exchange(distribution=[single])
@@ -484,14 +484,14 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_MIN(
     <Resource name="sql">
       <![CDATA[SELECT COUNT(a) filter (WHERE a > 0), SUM(DISTINCT b) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0) FILTER $1], EXPR$1=[SUM(DISTINCT $2)])
 +- LogicalProject(a=[$0], $f1=[IS TRUE(>($0, 0))], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE(EXPR$0 IS NOT NULL, EXPR$0, 0) AS EXPR$0, EXPR$1])
 +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1])
@@ -511,7 +511,7 @@ Calc(select=[CASE(EXPR$0 IS NOT NULL, EXPR$0, 0) AS EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(DISTINCT a), SUM(b) FROM MyTable2 GROUP BY GROUPING SETS (b, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2], EXPR$1=[$3])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], EXPR$0=[COUNT(DISTINCT $2)], EXPR$1=[SUM($0)])
@@ -519,7 +519,7 @@ LogicalProject(EXPR$0=[$2], EXPR$1=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- HashAggregate(isMerge=[true], groupBy=[b, c, $e], select=[b, c, $e, Final_COUNT(count$0) AS EXPR$0, Final_MIN(min$1) AS EXPR$1])
@@ -540,7 +540,7 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(a), SUM(DISTINCT b) FROM MyTable2 GROUP BY GROUPING SETS (c, d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2], EXPR$1=[$3])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], EXPR$0=[COUNT($2)], EXPR$1=[SUM(DISTINCT $3)])
@@ -548,7 +548,7 @@ LogicalProject(EXPR$0=[$2], EXPR$1=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CAST(EXPR$0) AS EXPR$0, EXPR$1])
 +- HashAggregate(isMerge=[true], groupBy=[c, d, $e], select=[c, d, $e, Final_MIN(min$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1])
@@ -569,14 +569,14 @@ Calc(select=[CAST(EXPR$0) AS EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(*), SUM(DISTINCT b), COUNT(DISTINCT b) FROM MyTable GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[SUM(DISTINCT $1)], EXPR$3=[COUNT(DISTINCT $1)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2, EXPR$3])
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MIN(min$0) AS EXPR$1, Final_SUM(sum$1) AS EXPR$2, Final_COUNT(count$2) AS EXPR$3])
@@ -596,14 +596,14 @@ Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2, EXPR$3])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(a), SUM(DISTINCT b) FROM MyTable GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($0)], EXPR$2=[SUM(DISTINCT $1)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2])
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MIN(min$0) AS EXPR$1, Final_SUM(sum$1) AS EXPR$2])
@@ -623,14 +623,14 @@ Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(*), SUM(DISTINCT b) FROM MyTable GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[SUM(DISTINCT $1)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2])
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MIN(min$0) AS EXPR$1, Final_SUM(sum$1) AS EXPR$2])
@@ -650,14 +650,14 @@ Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT d, COUNT(DISTINCT c) FILTER (WHERE a > 0) FROM MyTable2 GROUP BY d]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2])
 +- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 0))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EXPR$1])
 +- Exchange(distribution=[hash[d]])
@@ -674,13 +674,13 @@ HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EX
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(*), SUM(DISTINCT b), COUNT(DISTINCT c) FROM MyTable GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[SUM(DISTINCT $1)], EXPR$3=[COUNT(DISTINCT $2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2, EXPR$3])
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MIN(min$0) AS EXPR$1, Final_SUM(sum$1) AS EXPR$2, Final_COUNT(count$2) AS EXPR$3])

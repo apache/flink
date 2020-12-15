@@ -135,6 +135,6 @@ public class PushPartitionIntoTableSourceScanRuleTest extends PushPartitionIntoL
 	public void testUnconvertedExpression() {
 		String sql =
 			"select * from MyTable where trim(part1) = 'A' and part2 > 1";
-		util().verifyPlan(sql);
+		util().verifyRelPlan(sql);
 	}
 }

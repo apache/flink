@@ -36,7 +36,7 @@ class PythonTableAggregateTest extends TableTestBase {
       .flatAggregate(func('a, 'c) as ('d, 'e))
       .select('d, 'e)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -47,7 +47,7 @@ class PythonTableAggregateTest extends TableTestBase {
 
     val resultTable = sourceTable.flatAggregate(func('a, 'c) as ('d, 'e)).select('d, 'e)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -60,6 +60,6 @@ class PythonTableAggregateTest extends TableTestBase {
       .flatAggregate(func('a, 'c + 1) as ('d, 'e))
       .select('d, 'e)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 }

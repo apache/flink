@@ -89,7 +89,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 						"  'disable-lookup' = 'true'" +
 						")";
 		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("select a, c from MyTable");
+		util.verifyRelPlan("select a, c from MyTable");
 	}
 
 	@Test
@@ -108,7 +108,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 						" 'disable-lookup' = 'true'" +
 						")";
 		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * from MyTable");
+		util.verifyRelPlan("SELECT * from MyTable");
 	}
 
 	@Test
@@ -127,7 +127,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 						"  'disable-lookup' = 'true'" +
 						")";
 		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT a, b FROM MyTable WHERE d > TO_TIMESTAMP('2020-10-09 12:12:12')");
+		util.verifyRelPlan("SELECT a, b FROM MyTable WHERE d > TO_TIMESTAMP('2020-10-09 12:12:12')");
 	}
 
 	@Test
@@ -145,7 +145,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 						"  'disable-lookup' = 'true'" +
 						")";
 		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * FROM MyTable");
+		util.verifyRelPlan("SELECT * FROM MyTable");
 	}
 
 	@Test
@@ -164,7 +164,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 						"  'disable-lookup' = 'true'" +
 						")";
 		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * FROM MyTable");
+		util.verifyRelPlan("SELECT * FROM MyTable");
 	}
 
 	@Test
@@ -183,7 +183,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 						"  'disable-lookup' = 'true'" +
 						")";
 		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * FROM MyTable");
+		util.verifyRelPlan("SELECT * FROM MyTable");
 	}
 
 	@Test
@@ -206,7 +206,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 						"  'disable-lookup' = 'true'" +
 						")";
 		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * FROM MyTable");
+		util.verifyRelPlan("SELECT * FROM MyTable");
 	}
 
 	@Test
@@ -227,6 +227,6 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 						"  'disable-lookup' = 'true'" +
 						")";
 		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * FROM MyTable");
+		util.verifyRelPlan("SELECT * FROM MyTable");
 	}
 }

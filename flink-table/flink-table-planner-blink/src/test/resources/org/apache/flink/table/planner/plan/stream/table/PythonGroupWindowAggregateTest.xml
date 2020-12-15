@@ -17,14 +17,14 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testPandasEventTimeSlidingGroupWindowOverCount">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1])
 +- LogicalWindowAggregate(group=[{1}], EXPR$0=[PandasAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, proctime, 5, 2)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, proctime, 5, 2)], select=[b, PandasAggregateFunction(a, c) AS EXPR$0])
 +- Exchange(distribution=[hash[b]])
@@ -33,14 +33,14 @@ PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, proctime,
     </Resource>
   </TestCase>
   <TestCase name="testPandasEventTimeTumblingGroupWindowOverTime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
 +- LogicalWindowAggregate(group=[{1}], EXPR$2=[PandasAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
 +- PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1], select=[b, PandasAggregateFunction(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
@@ -50,14 +50,14 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
     </Resource>
   </TestCase>
   <TestCase name="testPandasEventTimeSlidingGroupWindowOverTime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
 +- LogicalWindowAggregate(group=[{1}], EXPR$2=[PandasAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
 +- PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1], select=[b, PandasAggregateFunction(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
@@ -67,14 +67,14 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
     </Resource>
   </TestCase>
   <TestCase name="testPandasEventTimeTumblingGroupWindowOverCount">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1])
 +- LogicalWindowAggregate(group=[{1}], EXPR$0=[PandasAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, proctime, 2)], select=[b, PandasAggregateFunction(a, c) AS EXPR$0])
 +- Exchange(distribution=[hash[b]])

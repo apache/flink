@@ -301,6 +301,12 @@ abstract class PlannerBase(
   @VisibleForTesting
   private[flink] def translateToExecNodePlan(
       optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_]] = {
+    val nonPhysicalRel = optimizedRelNodes.filterNot(_.isInstanceOf[FlinkPhysicalRel])
+    if (nonPhysicalRel.nonEmpty) {
+      throw new TableException("The expected optimized plan is FlinkPhysicalRel plan, " +
+        s"actual plan is ${nonPhysicalRel.head.getClass.getSimpleName} plan.")
+    }
+
     require(optimizedRelNodes.forall(_.isInstanceOf[FlinkPhysicalRel]))
     // Rewrite same rel object to different rel objects
     // in order to get the correct dag (dag reuse is based on object not digest)

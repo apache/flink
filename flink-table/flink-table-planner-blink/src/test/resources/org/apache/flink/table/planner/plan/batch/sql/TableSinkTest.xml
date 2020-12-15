@@ -17,7 +17,7 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testDynamicPartWithOrderBy">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b])
 +- LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
@@ -25,7 +25,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[a, b])
 +- Sort(orderBy=[a ASC])
@@ -36,7 +36,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b])
     </Resource>
   </TestCase>
   <TestCase name="testSingleSink">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[cnt])
 +- LogicalProject(cnt=[$1])
@@ -45,7 +45,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[cnt])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[cnt])
 +- Calc(select=[cnt])
@@ -58,7 +58,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[cnt])
     </Resource>
   </TestCase>
   <TestCase name="testMultiSinks">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink1], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
@@ -75,7 +75,7 @@ LogicalSink(table=[default_catalog.default_database.sink2], fields=[total_min])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[sum_a])(reuse_id=[1])
 +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
