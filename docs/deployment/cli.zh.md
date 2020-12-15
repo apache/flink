@@ -337,4 +337,76 @@ specified in the `config/flink-config.yaml`.
 For more details on the commands and the available options, please refer to the Resource Provider-specific 
 pages of the documentation.
 
+### Submitting PyFlink Jobs
+
+Currently, users are able to submit a PyFlink job via the CLI. It does not require to specify the
+JAR file path or the entry main class, which is different from the Java job submission.
+
+<span class="label label-info">Note</span> When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.5+.
+{% highlight bash %}
+$ python --version
+# the version printed here must be 3.5+
+{% endhighlight %}
+
+The following commands show different PyFlink job submission use-cases:
+
+- Run a PyFlink job:
+{% highlight bash %}
+$ ./bin/flink run --python examples/python/table/batch/word_count.py
+{% endhighlight %}
+
+- Run a PyFlink job with additional source and resource files. Files specified in `--pyFiles` will be
+added to the `PYTHONPATH` and, therefore, available in the Python code.
+{% highlight bash %}
+$ ./bin/flink run \
+      --python examples/python/table/batch/word_count.py \
+      --pyFiles file:///user.txt,hdfs:///$namenode_address/username.txt
+{% endhighlight %}
+
+- Run a PyFlink job which will reference Java UDF or external connectors. JAR file specified in `--jarfile` will be uploaded
+to the cluster.:
+{% highlight bash %}
+$ ./bin/flink run \
+      --python examples/python/table/batch/word_count.py \
+      --jarfile <jarFile>
+{% endhighlight %}
+
+- Run a PyFlink job with pyFiles and the main entry module specified in `--pyModule`:
+{% highlight bash %}
+$ ./bin/flink run \
+      --pyModule batch.word_count \
+      --pyFiles examples/python/table/batch
+{% endhighlight %}
+
+- Submit a PyFlink job on a specific JobManager running on host `<jobmanagerHost>` (adapt the command accordingly):
+{% highlight bash %}
+$ ./bin/flink run \
+      --jobmanager <jobmanagerHost>:8081 \
+      --python examples/python/table/batch/word_count.py
+{% endhighlight %}
+
+- Run a PyFlink job using a [YARN cluster in Per-Job Mode]({% link deployment/resource-providers/yarn.zh.md %}#per-job-cluster-mode):
+{% highlight bash %}
+$ ./bin/flink run \
+      --target yarn-per-job
+      --python examples/python/table/batch/word_count.py
+{% endhighlight %}
+
+- Run a PyFlink application on a native Kubernetes cluster having the cluster ID `<ClusterId>`, it requires a docker image with PyFlink installed, please refer to [Enabling PyFlink in docker]({% link deployment/resource-providers/standalone/docker.zh.md %}#enabling-python):
+{% highlight bash %}
+$ ./bin/flink run-application \
+      --target kubernetes-application \
+      --parallelism 8 \
+      -Dkubernetes.cluster-id=<ClusterId> \
+      -Dtaskmanager.memory.process.size=4096m \
+      -Dkubernetes.taskmanager.cpu=2 \
+      -Dtaskmanager.numberOfTaskSlots=4 \
+      -Dkubernetes.container.image=<PyFlinkImageName> \
+      --pyModule word_count \
+      --pyFiles /opt/flink/examples/python/table/batch/word_count.py
+{% endhighlight %}
+
+To learn more available options, please refer to [Kubernetes]({% link deployment/resource-providers/native_kubernetes.zh.md %})
+or [YARN]({% link deployment/resource-providers/yarn.zh.md %}) which are described in more detail in the
+Resource Provider section.
 {% top %}
