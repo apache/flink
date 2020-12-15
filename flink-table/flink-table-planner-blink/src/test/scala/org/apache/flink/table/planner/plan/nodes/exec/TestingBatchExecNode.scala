@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.{FlinkContextImpl, FlinkRelOptClusterFactory, FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRel
+import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.hep.{HepPlanner, HepProgram}
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner, RelTraitSet}
@@ -50,6 +51,8 @@ class TestingBatchExecNode
     inputNodes.add(node)
     inputEdges.add(edge)
   }
+
+  override def getOutputType: RowType = RowType.of()
 
   override def getInputNodes: util.List[ExecNode[_]] = inputNodes
 

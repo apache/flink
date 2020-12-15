@@ -46,7 +46,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Sort(orderBy=[a DESC])
 +- Exchange(distribution=[range[a DESC]])
@@ -84,7 +84,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Sort(orderBy=[a DESC])
 +- Exchange(distribution=[range[a DESC]])

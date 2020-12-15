@@ -35,14 +35,14 @@ import org.apache.calcite.sql.`type`.SqlTypeName
   * and converts it to
   * {{{
   * BatchExecLimit (global)
-  * +- BatchExecExchange (singleton)
+  * +- BatchPhysicalExchange (singleton)
   *    +- BatchExecLimit (local)
   *       +- input of sort
   * }}}
   * when fetch is not null, or
   * {{{
   * BatchExecLimit
-  * +- BatchExecExchange (singleton)
+  * +- BatchPhysicalExchange (singleton)
   *    +- input of sort
   * }}}
   * when fetch is null.

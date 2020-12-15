@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecExpand, BatchExecSort, BatchExecSortAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchExecExpand, BatchExecSort, BatchExecSortAggregate}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.RelOptRuleCall
@@ -56,7 +56,7 @@ import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
 class EnforceLocalSortAggRule extends EnforceLocalAggRuleBase(
   operand(classOf[BatchExecSortAggregate],
     operand(classOf[BatchExecSort],
-      operand(classOf[BatchExecExchange],
+      operand(classOf[BatchPhysicalExchange],
         operand(classOf[BatchExecExpand], any)))),
   "EnforceLocalSortAggRule") {
 
