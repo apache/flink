@@ -49,11 +49,11 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
@@ -79,7 +79,7 @@ public class DeclarativeSlotManager implements SlotManager {
 	private final SlotManagerMetricGroup slotManagerMetricGroup;
 
 	private final Map<JobID, String> jobMasterTargetAddresses = new HashMap<>();
-	private final HashMap<SlotID, CompletableFuture<Acknowledge>> pendingSlotAllocationFutures;
+	private final Set<SlotID> pendingSlotAllocations;
 
 	private boolean sendNotEnoughResourceNotifications = true;
 
@@ -110,7 +110,7 @@ public class DeclarativeSlotManager implements SlotManager {
 		this.slotManagerMetricGroup = Preconditions.checkNotNull(slotManagerMetricGroup);
 		this.resourceTracker = Preconditions.checkNotNull(resourceTracker);
 
-		pendingSlotAllocationFutures = new HashMap<>(16);
+		pendingSlotAllocations = new HashSet<>(16);
 
 		this.slotTracker = Preconditions.checkNotNull(slotTracker);
 		slotTracker.registerSlotStatusUpdateListener(createSlotStatusUpdateListener());
@@ -139,7 +139,7 @@ public class DeclarativeSlotManager implements SlotManager {
 	private SlotStatusUpdateListener createSlotStatusUpdateListener() {
 		return (taskManagerSlot, previous, current, jobId) -> {
 			if (previous == SlotState.PENDING) {
-				cancelAllocationFuture(taskManagerSlot.getSlotId());
+				pendingSlotAllocations.remove(taskManagerSlot.getSlotId());
 			}
 
 			if (current == SlotState.PENDING) {
@@ -156,14 +156,6 @@ public class DeclarativeSlotManager implements SlotManager {
 				taskExecutorManager.freeSlot(taskManagerSlot.getInstanceId());
 			}
 		};
-	}
-
-	private void cancelAllocationFuture(SlotID slotId) {
-		final CompletableFuture<Acknowledge> acknowledgeCompletableFuture = pendingSlotAllocationFutures.remove(slotId);
-		// the future may be null if we are just re-playing the state transitions due to a slot report
-		if (acknowledgeCompletableFuture != null) {
-			acknowledgeCompletableFuture.cancel(false);
-		}
 	}
 
 	@Override
@@ -489,11 +481,9 @@ public class DeclarativeSlotManager implements SlotManager {
 		final TaskExecutorConnection taskExecutorConnection = taskManagerSlot.getTaskManagerConnection();
 		final TaskExecutorGateway gateway = taskExecutorConnection.getTaskExecutorGateway();
 
-		final CompletableFuture<Acknowledge> completableFuture = new CompletableFuture<>();
-
 		slotTracker.notifyAllocationStart(slotId, jobId);
 		taskExecutorManager.markUsed(instanceId);
-		pendingSlotAllocationFutures.put(slotId, completableFuture);
+		pendingSlotAllocations.add(slotId);
 
 		// RPC call to the task manager
 		CompletableFuture<Acknowledge> requestFuture = gateway.requestSlot(
@@ -505,17 +495,12 @@ public class DeclarativeSlotManager implements SlotManager {
 			resourceManagerId,
 			taskManagerRequestTimeout);
 
-		requestFuture.whenComplete(
+		CompletableFuture<Void> slotAllocationResponseProcessingFuture = requestFuture.handleAsync(
 			(Acknowledge acknowledge, Throwable throwable) -> {
-				if (acknowledge != null) {
-					completableFuture.complete(acknowledge);
-				} else {
-					completableFuture.completeExceptionally(throwable);
+				if (!pendingSlotAllocations.contains(slotId)) {
+					LOG.debug("Ignoring slot allocation update from task executor {} for slot {} and job {}, because the allocation was already completed or cancelled.", instanceId, slotId, jobId);
+					return null;
 				}
-			});
-
-		CompletableFuture<Void> slotAllocationResponseProcessingFuture = completableFuture.handleAsync(
-			(Acknowledge acknowledge, Throwable throwable) -> {
 				if (acknowledge != null) {
 					LOG.trace("Completed allocation of slot {} for job {}.", slotId, jobId);
 					slotTracker.notifyAllocationComplete(slotId, jobId);
@@ -527,12 +512,8 @@ public class DeclarativeSlotManager implements SlotManager {
 						// this could be a problem if we ever assume that the task executor always reports about all slots
 						slotTracker.notifySlotStatus(Collections.singleton(new SlotStatus(slotId, taskManagerSlot.getResourceProfile(), exception.getJobId(), exception.getAllocationId())));
 					} else {
-						if (throwable instanceof CancellationException) {
-							LOG.debug("Cancelled allocation of slot {} for job {}.", slotId, jobId, throwable);
-						} else {
-							LOG.warn("Slot allocation for slot {} for job {} failed.", slotId, jobId, throwable);
-							slotTracker.notifyFree(slotId);
-						}
+						LOG.warn("Slot allocation for slot {} for job {} failed.", slotId, jobId, throwable);
+						slotTracker.notifyFree(slotId);
 					}
 					checkResourceRequirements();
 				}
