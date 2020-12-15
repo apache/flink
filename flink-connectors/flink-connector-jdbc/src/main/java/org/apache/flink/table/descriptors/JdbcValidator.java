@@ -42,6 +42,7 @@ public class JdbcValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_DRIVER = "connector.driver";
 	public static final String CONNECTOR_USERNAME = "connector.username";
 	public static final String CONNECTOR_PASSWORD = "connector.password";
+	public static final String CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT = "connector.connection.max-retry-timeout";
 
 	public static final String CONNECTOR_READ_QUERY = "connector.read.query";
 	public static final String CONNECTOR_READ_PARTITION_COLUMN = "connector.read.partition.column";
@@ -73,6 +74,7 @@ public class JdbcValidator extends ConnectorDescriptorValidator {
 		properties.validateString(CONNECTOR_DRIVER, true);
 		properties.validateString(CONNECTOR_USERNAME, true);
 		properties.validateString(CONNECTOR_PASSWORD, true);
+		properties.validateDuration(CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT, true, 1000);
 
 		final String url = properties.getString(CONNECTOR_URL);
 		final Optional<JdbcDialect> dialect = JdbcDialects.get(url);

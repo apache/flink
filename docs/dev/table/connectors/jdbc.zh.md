@@ -149,6 +149,13 @@ Connector Options
       <td>The JDBC password.</td>
     </tr>
     <tr>
+      <td><h5>connection.max-retry-timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">60s</td>
+      <td>Duration</td>
+      <td>Maximum timeout between retries. The timeout should be in second granularity and shouldn't be smaller than 1 second.</td>
+    </tr>
+    <tr>
       <td><h5>scan.partition.column</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>

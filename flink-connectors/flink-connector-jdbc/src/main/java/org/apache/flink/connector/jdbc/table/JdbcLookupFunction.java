@@ -48,7 +48,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.connector.jdbc.internal.options.JdbcOptions.CONNECTION_CHECK_TIMEOUT_SECONDS;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.getFieldFromResultSet;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -74,6 +73,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 	private final String dbURL;
 	private final String username;
 	private final String password;
+	private final int connectionCheckTimeoutSeconds;
 	private final TypeInformation[] keyTypes;
 	private final int[] keySqlTypes;
 	private final String[] fieldNames;
@@ -95,6 +95,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 		this.dbURL = options.getDbURL();
 		this.username = options.getUsername().orElse(null);
 		this.password = options.getPassword().orElse(null);
+		this.connectionCheckTimeoutSeconds = options.getConnectionCheckTimeoutSeconds();
 		this.fieldNames = fieldNames;
 		this.fieldTypes = fieldTypes;
 		this.keyNames = keyNames;
@@ -177,7 +178,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 				}
 
 				try {
-					if (!dbConn.isValid(CONNECTION_CHECK_TIMEOUT_SECONDS)) {
+					if (!dbConn.isValid(connectionCheckTimeoutSeconds)) {
 						statement.close();
 						dbConn.close();
 						establishConnectionAndStatement();

@@ -80,6 +80,11 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		.noDefaultValue()
 		.withDescription("the class name of the JDBC driver to use to connect to this URL. " +
 			"If not set, it will automatically be derived from the URL.");
+	public static final ConfigOption<Duration> MAX_RETRY_TIMEOUT = ConfigOptions
+		.key("connection.max-retry-timeout")
+		.durationType()
+		.defaultValue(Duration.ofSeconds(60))
+		.withDescription("Maximum timeout between retries.");
 
 	// read config options
 	private static final ConfigOption<String> SCAN_PARTITION_COLUMN = ConfigOptions
@@ -192,7 +197,8 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 			.setDBUrl(url)
 			.setTableName(readableConfig.get(TABLE_NAME))
 			.setDialect(JdbcDialects.get(url).get())
-			.setParallelism(readableConfig.getOptional(FactoryUtil.SINK_PARALLELISM).orElse(null));
+			.setParallelism(readableConfig.getOptional(FactoryUtil.SINK_PARALLELISM).orElse(null))
+			.setConnectionCheckTimeoutSeconds((int) readableConfig.get(MAX_RETRY_TIMEOUT).getSeconds());
 
 		readableConfig.getOptional(DRIVER).ifPresent(builder::setDriverName);
 		readableConfig.getOptional(USERNAME).ifPresent(builder::setUsername);
@@ -274,6 +280,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		optionalOptions.add(SINK_BUFFER_FLUSH_INTERVAL);
 		optionalOptions.add(SINK_MAX_RETRIES);
 		optionalOptions.add(FactoryUtil.SINK_PARALLELISM);
+		optionalOptions.add(MAX_RETRY_TIMEOUT);
 		return optionalOptions;
 	}
 
@@ -323,6 +330,13 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 				"The value of '%s' option shouldn't be negative, but is %s.",
 				SINK_MAX_RETRIES.key(),
 				config.get(SINK_MAX_RETRIES)));
+		}
+
+		if (config.get(MAX_RETRY_TIMEOUT).getSeconds() <= 0) {
+			throw new IllegalArgumentException(String.format(
+				"The value of '%s' option must be in second granularity and shouldn't be smaller than 1 second, but is %s.",
+				MAX_RETRY_TIMEOUT.key(),
+				config.get(ConfigOptions.key(MAX_RETRY_TIMEOUT.key()).stringType().noDefaultValue())));
 		}
 	}
 
