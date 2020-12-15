@@ -72,6 +72,7 @@ class RelTreeWriterImpl(
       case name if name.startsWith("BatchExec") => s.append(name.substring(9))
       case name if name.startsWith("BatchPhysical") => s.append(name.substring(13))
       case name if name.startsWith("StreamExec") => s.append(name.substring(10))
+      case name if name.startsWith("StreamPhysical") => s.append(name.substring(14))
       case name => s.append(name)
     }
 

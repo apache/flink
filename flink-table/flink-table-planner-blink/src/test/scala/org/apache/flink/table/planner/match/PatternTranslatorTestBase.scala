@@ -95,7 +95,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     val optimized: RelNode = plannerBase.optimize(Seq(converted)).head
 
     // throw exception if plan contains more than a match
-    // the plan should be: StreamExecMatch -> StreamExecExchange -> StreamExecDataStreamScan
+    // the plan should be: StreamExecMatch -> StreamPhysicalExchange -> StreamExecDataStreamScan
     if (!optimized.getInput(0).getInput(0).isInstanceOf[StreamExecDataStreamScan]) {
       fail("Expression is converted into more than a Match operation. Use a different test method.")
     }

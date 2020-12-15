@@ -272,7 +272,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(temporalJoin, children, leftTrait, requiredTrait, requester)
 
       case _: StreamExecCalc | _: StreamExecPythonCalc | _: StreamExecCorrelate |
-           _: StreamExecPythonCorrelate | _: StreamExecLookupJoin | _: StreamExecExchange |
+           _: StreamExecPythonCorrelate | _: StreamExecLookupJoin | _: StreamPhysicalExchange |
            _: StreamExecExpand | _: StreamExecMiniBatchAssigner |
            _: StreamExecWatermarkAssigner =>
         // transparent forward requiredTrait to children
@@ -572,7 +572,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
 
       case _: StreamExecCorrelate | _: StreamExecPythonCorrelate | _: StreamExecLookupJoin |
-           _: StreamExecExchange | _: StreamExecExpand | _: StreamExecMiniBatchAssigner |
+           _: StreamPhysicalExchange | _: StreamExecExpand | _: StreamExecMiniBatchAssigner |
            _: StreamExecWatermarkAssigner =>
         // transparent forward requiredTrait to children
         visitChildren(rel, requiredTrait) match {

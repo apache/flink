@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.rules.physical.stream;
 
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecChangelogNormalize;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecWatermarkAssigner;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -63,7 +63,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
 			// with calc
 			final StreamExecCalc calc = call.rel(1);
 			final StreamExecChangelogNormalize changelogNormalize = call.rel(2);
-			final StreamExecExchange exchange = call.rel(3);
+			final StreamPhysicalExchange exchange = call.rel(3);
 
 			final RelNode newTree = buildTreeInOrder(
 				changelogNormalize,
@@ -75,7 +75,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
 		} else if (node instanceof StreamExecChangelogNormalize) {
 			// without calc
 			final StreamExecChangelogNormalize changelogNormalize = call.rel(1);
-			final StreamExecExchange exchange = call.rel(2);
+			final StreamPhysicalExchange exchange = call.rel(2);
 
 			final RelNode newTree = buildTreeInOrder(
 				changelogNormalize,
@@ -117,7 +117,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
 				b0.operand(StreamExecWatermarkAssigner.class).oneInput(
 					b1 -> b1.operand(StreamExecCalc.class).oneInput(
 						b2 -> b2.operand(StreamExecChangelogNormalize.class).oneInput(
-							b3 -> b3.operand(StreamExecExchange.class).anyInputs()))))
+							b3 -> b3.operand(StreamPhysicalExchange.class).anyInputs()))))
 				.as(Config.class);
 		}
 
@@ -125,7 +125,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
 			return withOperandSupplier(b0 ->
 				b0.operand(StreamExecWatermarkAssigner.class).oneInput(
 					b1 -> b1.operand(StreamExecChangelogNormalize.class).oneInput(
-						b2 -> b2.operand(StreamExecExchange.class).anyInputs())))
+						b2 -> b2.operand(StreamPhysicalExchange.class).anyInputs())))
 				.as(Config.class);
 		}
 	}

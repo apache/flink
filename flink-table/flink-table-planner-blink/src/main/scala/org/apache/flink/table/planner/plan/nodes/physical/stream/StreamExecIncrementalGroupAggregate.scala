@@ -49,10 +49,10 @@ import scala.collection.JavaConversions._
   * <p>Considering the following sub-plan:
   * {{{
   *   StreamExecGlobalGroupAggregate (final-global-aggregate)
-  *   +- StreamExecExchange
+  *   +- StreamPhysicalExchange
   *      +- StreamExecLocalGroupAggregate (final-local-aggregate)
   *         +- StreamExecGlobalGroupAggregate (partial-global-aggregate)
-  *            +- StreamExecExchange
+  *            +- StreamPhysicalExchange
   *               +- StreamExecLocalGroupAggregate (partial-local-aggregate)
   * }}}
   *
@@ -61,9 +61,9 @@ import scala.collection.JavaConversions._
   * now the sub-plan is
   * {{{
   *   StreamExecGlobalGroupAggregate (final-global-aggregate)
-  *   +- StreamExecExchange
+  *   +- StreamPhysicalExchange
   *      +- StreamExecIncrementalGroupAggregate
-  *         +- StreamExecExchange
+  *         +- StreamPhysicalExchange
   *            +- StreamExecLocalGroupAggregate (partial-local-aggregate)
   * }}}
   *
