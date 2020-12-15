@@ -63,6 +63,7 @@ public class JdbcDynamicTableFactoryTest {
 		properties.put("driver", "org.apache.derby.jdbc.EmbeddedDriver");
 		properties.put("username", "user");
 		properties.put("password", "pass");
+		properties.put("connection.max-retry-timeout", "120s");
 
 		// validation for source
 		DynamicTableSource actualSource = createTableSource(properties);
@@ -72,6 +73,7 @@ public class JdbcDynamicTableFactoryTest {
 			.setDriverName("org.apache.derby.jdbc.EmbeddedDriver")
 			.setUsername("user")
 			.setPassword("pass")
+			.setConnectionCheckTimeoutSeconds(120)
 			.build();
 		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder()
 			.setCacheMaxSize(-1)
@@ -337,6 +339,18 @@ public class JdbcDynamicTableFactoryTest {
 		} catch (Throwable t) {
 			assertTrue(ExceptionUtils.findThrowableWithMessage(t,
 				"The value of 'sink.max-retries' option shouldn't be negative, but is -1.")
+				.isPresent());
+		}
+
+		// connection.max-retry-timeout shouldn't be smaller than 1 second
+		try {
+			Map<String, String> properties = getAllOptions();
+			properties.put("connection.max-retry-timeout", "100ms");
+			createTableSource(properties);
+			fail("exception expected");
+		} catch (Throwable t) {
+			assertTrue(ExceptionUtils.findThrowableWithMessage(t,
+				"The value of 'connection.max-retry-timeout' option must be in second granularity and shouldn't be smaller than 1 second, but is 100ms.")
 				.isPresent());
 		}
 	}

@@ -65,6 +65,7 @@ public class JdbcTableSourceSinkFactoryTest {
 		properties.put("connector.driver", "org.apache.derby.jdbc.EmbeddedDriver");
 		properties.put("connector.username", "user");
 		properties.put("connector.password", "pass");
+		properties.put("connector.connection.max-retry-timeout", "120s");
 
 		final StreamTableSource<?> actual = TableFactoryService.find(StreamTableSourceFactory.class, properties)
 			.createStreamTableSource(properties);
@@ -75,6 +76,7 @@ public class JdbcTableSourceSinkFactoryTest {
 			.setDriverName("org.apache.derby.jdbc.EmbeddedDriver")
 			.setUsername("user")
 			.setPassword("pass")
+			.setConnectionCheckTimeoutSeconds(120)
 			.build();
 		final JdbcTableSource expected = JdbcTableSource.builder()
 			.setOptions(options)
@@ -261,6 +263,17 @@ public class JdbcTableSourceSinkFactoryTest {
 		try {
 			Map<String, String> properties = getBasicProperties();
 			properties.put("connector.lookup.max-retries", "-1");
+
+			TableFactoryService.find(StreamTableSourceFactory.class, properties)
+				.createStreamTableSource(properties);
+			fail("exception expected");
+		} catch (ValidationException ignored) {
+		}
+
+		// connection.max-retry-timeout property is smaller than 1 second
+		try {
+			Map<String, String> properties = getBasicProperties();
+			properties.put("connector.connection.max-retry-timeout", "100ms");
 
 			TableFactoryService.find(StreamTableSourceFactory.class, properties)
 				.createStreamTableSource(properties);
