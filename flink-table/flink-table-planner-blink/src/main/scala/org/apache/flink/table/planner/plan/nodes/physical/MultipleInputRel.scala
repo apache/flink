@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical
 
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.utils.ExecNodePlanDumper
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType

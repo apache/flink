@@ -48,9 +48,10 @@ import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.operations.{DataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.sinks.CollectRowTableSink
 import org.apache.flink.table.planner.utils.PlanKind.PlanKind
