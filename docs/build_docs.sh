@@ -53,6 +53,9 @@ JEKYLL_CMD="build"
 
 JEKYLL_CONFIG=""
 
+# config options that only apply to the barebone "build" without any arguments.
+JEKYLL_BUILD_CONFIG=${JEKYLL_BUILD_CONFIG:-}
+
 DOC_LANGUAGES="en zh"
 
 # if -p flag is provided, serve site on localhost
@@ -88,7 +91,7 @@ if [ "${JEKYLL_CMD}" = "build" ] && [ -z "${JEKYLL_CONFIG}" ]; then
   echo "Spawning parallel builds for languages: ${DOC_LANGUAGES}..."
   pids=""
   for lang in ${DOC_LANGUAGES}; do
-    bundle exec jekyll ${JEKYLL_CMD} --config _config.yml,_config_dev_${lang}.yml --source "${DOCS_SRC}" --destination "${DOCS_DST}_${lang}" &
+    bundle exec jekyll ${JEKYLL_CMD} ${JEKYLL_BUILD_CONFIG} --config _config.yml,_config_dev_${lang}.yml --source "${DOCS_SRC}" --destination "${DOCS_DST}_${lang}" &
     pid=$!
     pids="${pids} ${pid}"
   done

@@ -34,27 +34,17 @@ wget --spider -r -nd -nv -e robots=off -p -o $DOCS_CHECK_DIR/spider.log "$target
 
 # Abort for anything other than 0 and 4 ("Network failure")
 status=$?
+
 if [ $status -ne 0 ] && [ $status -ne 4 ]; then
     exit $status
 fi
 
 # Fail the build if any broken links are found
-broken_links_str=$(grep -e 'broken link' $DOCS_CHECK_DIR/spider.log)
-if [ -n "$broken_links_str" ]; then
+no_broken_links_str_count=$(grep 'Found no broken links' $DOCS_CHECK_DIR/spider.log | wc -l)
+if [ $no_broken_links_str_count -ne 1 ]; then
     grep -B 1 "Remote file does not exist -- broken link!!!" $DOCS_CHECK_DIR/spider.log
     echo "---------------------------------------------------------------------------"
-    echo -e "$broken_links_str"
-    echo "Search for page containing broken link using 'grep -R BROKEN_PATH DOCS_DIR'"
-    exit 1
-fi
-
-# Fail the build if any broken links are found for Chinese
-broken_links_str=$(grep -e '死链接' $DOCS_CHECK_DIR/spider.log)
-if [ -n "$broken_links_str" ]; then
-    grep -B 1 "远程文件不存在 -- 链接失效！！！" $DOCS_CHECK_DIR/spider.log
-    echo "---------------------------------------------------------------------------"
-    echo -e "$broken_links_str"
-    echo "Search for page containing broken link using 'grep -R BROKEN_PATH DOCS_DIR'"
+    echo "Check the spider.log file for errors!"
     exit 1
 fi
 

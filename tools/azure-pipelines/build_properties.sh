@@ -49,11 +49,11 @@ function github_num_commits() {
 # Returns 0 if the change is a documentation-only pull request
 #
 function is_docs_only_pullrequest() {
-  github_num_commits
-  GITHUB_NUM_COMMITS=$?
-  if [[ $GITHUB_NUM_COMMITS == 0 ]]; then
-    return 1
-  fi
+	github_num_commits
+	GITHUB_NUM_COMMITS=$?
+	if [[ $GITHUB_NUM_COMMITS == 0 ]]; then
+		return 1
+	fi
 
 	if [[ $(git diff --name-only HEAD..HEAD~$GITHUB_NUM_COMMITS | grep -v "docs/") == "" ]] ; then
 		echo "INFO: This is a docs only change. Changed files:"
@@ -64,17 +64,17 @@ function is_docs_only_pullrequest() {
 }
 
 #
-# Returns 1 if the change contains documentation pull request
+# Returns 1 if the PR contains documentation changes
 #
-function contains_docs_pullrequest() {
-  github_num_commits
-  GITHUB_NUM_COMMITS=$?
-  if [[ $GITHUB_NUM_COMMITS == 0 ]]; then
-    return 0
-  fi
+function pr_contains_docs_changes() {
+	github_num_commits
+	GITHUB_NUM_COMMITS=$?
+	if [[ $GITHUB_NUM_COMMITS == 0 ]]; then
+		return 0
+	fi
 
 	if [[ $(git diff --name-only HEAD..HEAD~"$GITHUB_NUM_COMMITS" | grep "docs/") != "" ]] ; then
-		echo "INFO: This is a change contains docs. Changed files:"
+		echo "INFO: This PR contains changes to the documentation. Changed files:"
 		git diff --name-only HEAD..HEAD~"$GITHUB_NUM_COMMITS"
 		return 1
 	fi

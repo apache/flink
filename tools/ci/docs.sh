@@ -20,7 +20,19 @@
 gem update --system
 gem install bundler -v 1.17.2
 
-CACHE_DIR=$HOME/gem_cache ./docs/build_docs.sh -p &
+# build the docs w/o any additional arguments, to build both the en and zh variant
+JEKYLL_BUILD_CONFIG="--baseurl=" CACHE_DIR=$HOME/gem_cache ./docs/build_docs.sh
+
+if [ $? -ne 0 ]; then
+	echo "Error building the docs"
+	exit 1
+fi
+
+# serve the docs
+cd docs/content
+python -m SimpleHTTPServer 4000 &
+cd ../..
+
 
 for i in `seq 1 90`;
 do
