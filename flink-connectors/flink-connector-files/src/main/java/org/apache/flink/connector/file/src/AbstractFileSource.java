@@ -230,12 +230,14 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
 	/**
 	 * The generic base builder. This builder carries a <i>SELF</i> type to make it convenient to
 	 * extend this for subclasses, using the following pattern.
+	 *
 	 * <pre>{@code
 	 * public class SubBuilder<T> extends AbstractFileSourceBuilder<T, SubBuilder<T>> {
 	 *     ...
 	 * }
 	 * }</pre>
-	 * That way, all return values from builder method defined here are typed to the sub-class
+	 *
+     * <p>That way, all return values from builder method defined here are typed to the sub-class
 	 * type and support fluent chaining.
 	 *
 	 * <p>We don't make the publicly visible builder generic with a SELF type, because it leads to

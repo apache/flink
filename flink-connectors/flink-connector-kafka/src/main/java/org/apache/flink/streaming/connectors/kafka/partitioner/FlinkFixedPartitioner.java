@@ -26,8 +26,9 @@ import org.apache.flink.util.Preconditions;
  *
  * <p>Note, one Kafka partition can contain multiple Flink partitions.
  *
- * <p>Cases:
- * 	# More Flink partitions than kafka partitions
+ * <p>There are a couple of cases to consider.
+ *
+ * <h3>More Flink partitions than kafka partitions</h3>
  * <pre>
  * 		Flink Sinks:		Kafka Partitions
  * 			1	----------------&gt;	1
@@ -35,9 +36,11 @@ import org.apache.flink.util.Preconditions;
  * 			3   -------------/
  * 			4	------------/
  * </pre>
- * Some (or all) kafka partitions contain the output of more than one flink partition
  *
- * <p>Fewer Flink partitions than Kafka
+ * <p>Some (or all) kafka partitions contain the output of more than one flink partition
+ *
+ * <h3>Fewer Flink partitions than Kafka</h3>
+ *
  * <pre>
  * 		Flink Sinks:		Kafka Partitions
  * 			1	----------------&gt;	1

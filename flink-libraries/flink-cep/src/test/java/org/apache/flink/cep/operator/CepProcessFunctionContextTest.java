@@ -285,7 +285,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 
 	/**
 	 * Creates a {@link PatternProcessFunction} that as a result will produce Strings as follows:
-	 * <pre>[timestamp]:[Event.getName]...</pre> The Event.getName will occur stateNumber times. If the match does not
+	 * {@code [timestamp]:[Event.getName]...}. The Event.getName will occur stateNumber times. If the match does not
 	 * contain n-th pattern it will replace this position with "null".
 	 *
 	 * @param stateNumber number of states in the pattern
@@ -298,7 +298,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 
 	/**
 	 * Creates a {@link PatternProcessFunction} that as a result will produce Strings as follows:
-	 * <pre>[timestamp]:[Event.getName]...</pre> The Event.getName will occur stateNumber times. If the match does not
+	 * {@code [timestamp]:[Event.getName]...} The Event.getName will occur stateNumber times. If the match does not
 	 * contain n-th pattern it will replace this position with "null".
 	 *
 	 * <p>This function will also apply the same logic for timed out partial matches and emit those results into
@@ -318,7 +318,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 
 	/**
 	 * Creates a {@link PatternProcessFunction} that as a result will produce Strings as follows:
-	 * <pre>[currentProcessingTime]:[Event.getName]...</pre> The Event.getName will occur stateNumber times.
+	 * {@code [currentProcessingTime]:[Event.getName]...}. The Event.getName will occur stateNumber times.
 	 * If the match does not contain n-th pattern it will replace this position with "null".
 	 *
 	 * @param stateNumber number of states in the pattern
@@ -330,7 +330,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 
 	/**
 	 * Creates a {@link PatternProcessFunction} that as a result will produce Strings as follows:
-	 * <pre>[currentProcessingTime]:[Event.getName]...</pre> The Event.getName will occur stateNumber times.
+	 * {@code [currentProcessingTime]:[Event.getName]...}. The Event.getName will occur stateNumber times.
 	 * If the match does not contain n-th pattern it will replace this position with "null".
 	 *
 	 * <p>This function will also apply the same logic for timed out partial matches and emit those results into

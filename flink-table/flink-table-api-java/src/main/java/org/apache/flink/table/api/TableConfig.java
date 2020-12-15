@@ -136,6 +136,7 @@ public class TableConfig {
 	 * is used during conversion.
 	 *
 	 * <p>Example:
+	 *
 	 * <pre>{@code
 	 * TableEnvironment tEnv = ...
 	 * TableConfig config = tEnv.getConfig
@@ -144,7 +145,9 @@ public class TableConfig {
 	 * tEnv("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
 	 * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+2
 	 * }</pre>
-	 * should produce:
+	 *
+	 * <p>should produce:
+	 *
 	 * <pre>
 	 * =============================
 	 *    id   |       tmstmp
@@ -152,12 +155,16 @@ public class TableConfig {
 	 *    1    | 2000-01-01 2:00:00'
 	 *    2    | 2000-01-01 2:00:00'
 	 * </pre>
-	 * If we change the local time zone and query the same table:
+	 *
+	 * <p>If we change the local time zone and query the same table:
+	 *
 	 * <pre>{@code
 	 * config.setLocalTimeZone(ZoneOffset.ofHours(0));
 	 * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+0
 	 * }</pre>
-	 * we should get:
+	 *
+	 * <p>we should get:
+	 *
 	 * <pre>
 	 * =============================
 	 *    id   |       tmstmp

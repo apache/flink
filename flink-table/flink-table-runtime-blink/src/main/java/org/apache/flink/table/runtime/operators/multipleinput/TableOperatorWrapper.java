@@ -63,6 +63,7 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 	 * <p>NOTE:The inputs of an operator may not all be in the multiple-input operator, e.g.
 	 * The multiple-input operator contains A and J, and A is one of the input of J,
 	 * and another input of J is not in the multiple-input operator.
+	 *
 	 * <pre>
 	 * -------
 	 *        \
@@ -70,7 +71,8 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 	 *        /
 	 * -- A --
 	 * </pre>
-	 * For this example, `allInputTypes` contains two input types.
+	 *
+	 * <p>For this example, `allInputTypes` contains two input types.
 	 */
 	private final List<TypeInformation<?>> allInputTypes;
 

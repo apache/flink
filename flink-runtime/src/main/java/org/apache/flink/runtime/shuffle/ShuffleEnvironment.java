@@ -75,7 +75,8 @@ import java.util.List;
  *     e.g. to manage the lifecycle of BLOCKING result partitions which can outlive their producers.
  *     The BLOCKING partitions can be consumed multiple times.</li>
  * </ol>
- * The partitions, which currently still occupy local resources, can be queried with
+ *
+ * <p>The partitions, which currently still occupy local resources, can be queried with
  * {@link ShuffleEnvironment#getPartitionsOccupyingLocalResources}.
  *
  * <h2>Input gate management.</h2>

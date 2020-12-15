@@ -116,7 +116,6 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * that changes the automatically generated hashes. In this case, providing the previous hashes
 	 * directly through this method (e.g. obtained from old logs) can help to reestablish a lost
 	 * mapping from states to their target operator.
-	 * <p/>
 	 *
 	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID,
 	 *                  which is shown in the logs and web ui.

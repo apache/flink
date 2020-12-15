@@ -121,34 +121,36 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <h3>Examples</h3>
  *
- * <ul>
- *     <li>For <b>fault-tolerant distributed file systems</b>, data is considered persistent once
- *     it has been received and acknowledged by the file system, typically by having been replicated
- *     to a quorum of machines (<i>durability requirement</i>). In addition the absolute file path
- *     must be visible to all other machines that will potentially access the file (<i>visibility
- *     requirement</i>).
+ * <h4>Fault-tolerant distributed file systems</h4>
  *
- *     <p>Whether data has hit non-volatile storage on the storage nodes depends on the specific
- *     guarantees of the particular file system.
+ * <p>For <b>fault-tolerant distributed file systems</b>, data is considered persistent once
+ * it has been received and acknowledged by the file system, typically by having been replicated
+ * to a quorum of machines (<i>durability requirement</i>). In addition the absolute file path
+ * must be visible to all other machines that will potentially access the file (<i>visibility
+ * requirement</i>).
  *
- *     <p>The metadata updates to the file's parent directory are not required to have reached
- *     a consistent state. It is permissible that some machines see the file when listing the parent
- *     directory's contents while others do not, as long as access to the file by its absolute path
- *     is possible on all nodes.</li>
+ * <p>Whether data has hit non-volatile storage on the storage nodes depends on the specific
+ * guarantees of the particular file system.
  *
- *     <li>A <b>local file system</b> must support the POSIX <i>close-to-open</i> semantics.
- *     Because the local file system does not have any fault tolerance guarantees, no further
- *     requirements exist.
+ * <p>The metadata updates to the file's parent directory are not required to have reached
+ * a consistent state. It is permissible that some machines see the file when listing the parent
+ * directory's contents while others do not, as long as access to the file by its absolute path
+ * is possible on all nodes.
  *
- *     <p>The above implies specifically that data may still be in the OS cache when considered
- *     persistent from the local file system's perspective. Crashes that cause the OS cache to loose
- *     data are considered fatal to the local machine and are not covered by the local file system's
- *     guarantees as defined by Flink.
+ * <h4>Local file systems</h4>
  *
- *     <p>That means that computed results, checkpoints, and savepoints that are written only to
- *     the local filesystem are not guaranteed to be recoverable from the local machine's failure,
- *     making local file systems unsuitable for production setups.</li>
- * </ul>
+ * <p>A <b>local file system</b> must support the POSIX <i>close-to-open</i> semantics.
+ * Because the local file system does not have any fault tolerance guarantees, no further
+ * requirements exist.
+ *
+ * <p>The above implies specifically that data may still be in the OS cache when considered
+ * persistent from the local file system's perspective. Crashes that cause the OS cache to loose
+ * data are considered fatal to the local machine and are not covered by the local file system's
+ * guarantees as defined by Flink.
+ *
+ * <p>That means that computed results, checkpoints, and savepoints that are written only to
+ * the local filesystem are not guaranteed to be recoverable from the local machine's failure,
+ * making local file systems unsuitable for production setups.
  *
  * <h2>Updating File Contents</h2>
  *

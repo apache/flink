@@ -53,7 +53,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <li>serialization via reflection (ReflectDatumReader / -Writer)</li>
  * <li>serialization of generic records via GenericDatumReader / -Writer</li>
  * </ul>
- * The serializer instantiates them depending on the class of the type it should serialize.
+ *
+ * <p>The serializer instantiates them depending on the class of the type it should serialize.
  *
  * <p><b>Important:</b> This serializer is NOT THREAD SAFE, because it reuses the data encoders
  * and decoders which have buffers that would be shared between the threads if used concurrently

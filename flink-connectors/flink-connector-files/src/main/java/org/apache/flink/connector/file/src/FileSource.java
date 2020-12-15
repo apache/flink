@@ -46,12 +46,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * accessed via the Flink's {@link FileSystem} class.
  *
  * <p>Start building a file source via one of the following calls:
+ *
  * <ul>
  *   <li>{@link FileSource#forRecordStreamFormat(StreamFormat, Path...)}</li>
  *   <li>{@link FileSource#forBulkFileFormat(BulkFormat, Path...)}</li>
  *   <li>{@link FileSource#forRecordFileFormat(FileRecordFormat, Path...)}</li>
  * </ul>
- * This creates a {@link FileSource.FileSourceBuilder} on which you can configure all the
+ *
+ * <p>This creates a {@link FileSource.FileSourceBuilder} on which you can configure all the
  * properties of the file source.
  *
  * <h2>Batch and Streaming</h2>
@@ -71,6 +73,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The reading of each file happens through file readers defined by <i>file formats</i>.
  * These define the parsing logic for the contents of the file. There are multiple classes that
  * the source supports. Their interfaces trade of simplicity of implementation and flexibility/efficiency.
+ *
  * <ul>
  *     <li>A {@link StreamFormat} reads the contents of a file from a file stream. It is the simplest
  *         format to implement, and provides many features out-of-the-box (like checkpointing logic)

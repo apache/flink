@@ -85,6 +85,7 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
 	/**
 	 * Tests if the consumed inputs of the pipelined regions are computed
 	 * correctly using the Job graph below.
+	 *
 	 * <pre>
 	 *          c
 	 *        /  X
@@ -92,7 +93,8 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
 	 *       \  /
 	 *        d
 	 * </pre>
-	 * Pipelined regions: {a}, {b, c, d, e}
+	 *
+	 * <p>Pipelined regions: {a}, {b, c, d, e}
 	 */
 	@Test
 	public void returnsIncidentBlockingPartitions() throws Exception {

@@ -36,7 +36,8 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * abstraction represented by this interface.
  *
  * <h1>Initialization</h1>
- * The {@link CheckpointedFunction#initializeState(FunctionInitializationContext)} is called when
+ *
+ * <p>The {@link CheckpointedFunction#initializeState(FunctionInitializationContext)} is called when
  * the parallel instance of the transformation function is created during distributed execution.
  * The method gives access to the {@link FunctionInitializationContext} which in turn gives access
  * to the to the {@link OperatorStateStore} and {@link KeyedStateStore}.
@@ -50,7 +51,8 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * <i>keyed state</i>, i.e., when it is applied on a keyed stream (after a {@code keyBy(...)}).
  *
  * <h1>Snapshot</h1>
- * The {@link CheckpointedFunction#snapshotState(FunctionSnapshotContext)} is called whenever a
+ *
+ * <p>The {@link CheckpointedFunction#snapshotState(FunctionSnapshotContext)} is called whenever a
  * checkpoint takes a state snapshot of the transformation function. Inside this method, functions typically
  * make sure that the checkpointed data structures (obtained in the initialization phase) are up
  * to date for a snapshot to be taken. The given snapshot context gives access to the metadata
@@ -60,14 +62,15 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * external systems.
  *
  * <h1>Example</h1>
- * The code example below illustrates how to use this interface for a function that keeps counts
+ *
+ * <p>The code example below illustrates how to use this interface for a function that keeps counts
  * of events per key and per parallel partition (parallel instance of the transformation function
  * during distributed execution).
  * The example also changes of parallelism, which affect the count-per-parallel-partition by
  * adding up the counters of partitions that get merged on scale-down. Note that this is a
  * toy example, but should illustrate the basic skeleton for a stateful function.
  *
- * <p><pre>{@code
+ * <pre>{@code
  * public class MyFunction<T> implements MapFunction<T, T>, CheckpointedFunction {
  *
  *     private ReducingState<Long> countPerKey;
@@ -110,15 +113,19 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * <hr>
  *
  * <h1><a name="shortcuts">Shortcuts</a></h1>
- * There are various ways that transformation functions can use state without implementing the
+ *
+ * <p>There are various ways that transformation functions can use state without implementing the
  * full-fledged {@code CheckpointedFunction} interface:
  *
  * <h4>Operator State</h4>
- * Checkpointing some state that is part of the function object itself is possible in a simpler way
+ *
+ * <p>Checkpointing some state that is part of the function object itself is possible in a simpler way
  * by directly implementing the {@link ListCheckpointed} interface.
  *
  * <h4>Keyed State</h4>
- * Access to keyed state is possible via the {@link RuntimeContext}'s methods:
+ *
+ * <p>Access to keyed state is possible via the {@link RuntimeContext}'s methods:
+ *
  * <pre>{@code
  * public class CountPerKeyFunction<T> extends RichMapFunction<T, T> {
  *

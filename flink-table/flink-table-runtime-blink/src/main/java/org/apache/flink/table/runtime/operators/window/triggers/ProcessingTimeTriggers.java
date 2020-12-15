@@ -32,14 +32,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link Trigger} that reacts to processing-time timers.
  * The behavior can be one of the following:
- * <p><ul>
+ *
+ * <ul>
  *     <li> fire when the processing time passes the end of the
  *          window ({@link ProcessingTimeTriggers#afterEndOfWindow()}),
  *     <li> fire when the processing time advances by a certain interval
  *          after reception of the first element after the last firing for
  *          a given window ({@link ProcessingTimeTriggers#every(Duration)}).
- * </ul></p>
- * In the first case, the trigger can also specify an <tt>early</tt> trigger.
+ * </ul>
+ *
+ * <p>In the first case, the trigger can also specify an <tt>early</tt> trigger.
  * The <tt>early trigger</tt> will be responsible for specifying when the trigger should fire in the period
  * between the beginning of the window and the time when the processing time passes the end of the window.
  */

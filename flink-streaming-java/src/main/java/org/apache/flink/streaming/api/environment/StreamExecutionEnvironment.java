@@ -312,7 +312,7 @@ public class StreamExecutionEnvironment {
 	 * defines the number of key groups used for partitioned state.
 	 *
 	 * @param maxParallelism Maximum degree of parallelism to be used for the program.,
-	 *              with 0 < maxParallelism <= 2^15 - 1
+	 *              with {@code 0 < maxParallelism <= 2^15 - 1}.
 	 */
 	public StreamExecutionEnvironment setMaxParallelism(int maxParallelism) {
 		Preconditions.checkArgument(maxParallelism > 0 &&

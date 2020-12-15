@@ -66,23 +66,29 @@ import static org.apache.flink.util.Preconditions.checkState;
  * {@link ContinuousFileMonitoringFunction}. Contrary to the {@link ContinuousFileMonitoringFunction}
  * which has a parallelism of 1, this operator can have DOP > 1.
  *
- * <p>This implementation uses {@link MailboxExecutor} to execute each action and state machine approach. The workflow is the following :<ol>
- *     <li>start in {@link ReaderState#IDLE IDLE}</li>
+ * <p>This implementation uses {@link MailboxExecutor} to execute each action and state machine approach. The workflow is the following:
+ *
+ * <ol>
+ *     <li>start in {@link ReaderState#IDLE IDLE}
  *     <li>upon receiving a split add it to the queue, switch to {@link ReaderState#OPENING OPENING} and enqueue a
- *     {@link org.apache.flink.streaming.runtime.tasks.mailbox.Mail mail} to process it</li>
- *     <li>open file, switch to {@link ReaderState#READING READING}, read one record, re-enqueue self</li>
- *     <li>if no more records or splits available, switch back to {@link ReaderState#IDLE IDLE}</li>
- *     </ol>
- *     On close:
- *     <ol>
- *     <li>if {@link ReaderState#IDLE IDLE} then close immediately</li>
+ *     {@link org.apache.flink.streaming.runtime.tasks.mailbox.Mail mail} to process it
+ *     <li>open file, switch to {@link ReaderState#READING READING}, read one record, re-enqueue self
+ *     <li>if no more records or splits available, switch back to {@link ReaderState#IDLE IDLE}
+ * </ol>
+ *
+ * <p>On close:
+ *
+ * <ol>
+ *     <li>if {@link ReaderState#IDLE IDLE} then close immediately
  *     <li>otherwise switch to {@link ReaderState#CLOSING CLOSING}, call {@link MailboxExecutor#yield() yield} in a loop
- *     until state is {@link ReaderState#CLOSED CLOSED}</li>
- *     <li>{@link MailboxExecutor#yield() yield()} causes remaining records (and splits) to be processed in the same way as above</li>
- * </ol></p>
+ *     until state is {@link ReaderState#CLOSED CLOSED}
+ *     <li>{@link MailboxExecutor#yield() yield()} causes remaining records (and splits) to be processed in the same way as above
+ * </ol>
+ *
  * <p>Using {@link MailboxExecutor} allows to avoid explicit synchronization. At most one mail should be enqueued at any
- * given time.</p>
- * <p>Using FSM approach allows to explicitly define states and enforce {@link ReaderState#VALID_TRANSITIONS transitions} between them.</p>
+ * given time.
+ *
+ * <p>Using FSM approach allows to explicitly define states and enforce {@link ReaderState#VALID_TRANSITIONS transitions} between them.
  */
 @Internal
 public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit> extends AbstractStreamOperator<OUT>

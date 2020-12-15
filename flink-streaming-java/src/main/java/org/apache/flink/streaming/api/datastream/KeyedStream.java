@@ -476,8 +476,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		/**
 		 * Specifies the time boundaries over which the join operation works, so that
+		 *
 		 * <pre>leftElement.timestamp + lowerBound <= rightElement.timestamp <= leftElement.timestamp + upperBound</pre>
-		 * By default both the lower and the upper bound are inclusive. This can be configured
+		 *
+		 * <p>By default both the lower and the upper bound are inclusive. This can be configured
 		 * with {@link IntervalJoined#lowerBoundExclusive()} and
 		 * {@link IntervalJoined#upperBoundExclusive()}
 		 *

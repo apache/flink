@@ -31,18 +31,21 @@ import java.util.Optional;
  * have a priority that can be used to retrieve only relevant letters.
  *
  * <h3>Threading model</h3>
- * The mailbox is bound to a mailbox thread passed during creation. Most operations may only occur through that thread.
+ *
+ * <p>The mailbox is bound to a mailbox thread passed during creation. Most operations may only occur through that thread.
  * Write operations ({@link #put(Mail)}, {@link #putFirst(Mail)}) can be executed by any thread. All other methods can
  * only be invoked by the mailbox thread, which is passed upon construction. To verify that the current thread is
  * allowed to take any mail, use {@link #isMailboxThread()}, but all methods will perform the check themselves and fail
  * accordingly if called from another thread.
  *
  * <h3>Life cycle</h3>
- * In the open state, the mailbox supports put and take operations. In the quiesced state, the mailbox supports only
+ *
+ * <p>In the open state, the mailbox supports put and take operations. In the quiesced state, the mailbox supports only
  * take operations.
  *
  * <h3>Batch</h3>
- * A batch is a local view on the mailbox that does not contain simultaneously added mails similar to iterators of
+ *
+ * <p>A batch is a local view on the mailbox that does not contain simultaneously added mails similar to iterators of
  * copy-on-write collections.
  *
  * <p>A batch serves two purposes: it reduces synchronization if more than one mail is processable at the time of the

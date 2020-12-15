@@ -100,6 +100,7 @@ public class DeltaIteration<ST, WT> {
 	 * Gets the initial solution set. This is the data set on which the delta iteration was started.
 	 *
 	 * <p>Consider the following example:
+	 *
 	 * <pre>
 	 * {@code
 	 * DataSet<MyType> solutionSetData = ...;
@@ -108,7 +109,8 @@ public class DeltaIteration<ST, WT> {
 	 * DeltaIteration<MyType, AnotherType> iteration = solutionSetData.iteratorDelta(worksetData, 10, ...);
 	 * }
 	 * </pre>
-	 * The <tt>solutionSetData</tt> would be the data set returned by {@code iteration.getInitialSolutionSet();}.
+	 *
+	 * <p>The <tt>solutionSetData</tt> would be the data set returned by {@code iteration.getInitialSolutionSet();}.
 	 *
 	 * @return The data set that forms the initial solution set.
 	 */
@@ -121,6 +123,7 @@ public class DeltaIteration<ST, WT> {
 	 * iteration.
 	 *
 	 * <p>Consider the following example:
+	 *
 	 * <pre>
 	 * {@code
 	 * DataSet<MyType> solutionSetData = ...;
@@ -129,7 +132,8 @@ public class DeltaIteration<ST, WT> {
 	 * DeltaIteration<MyType, AnotherType> iteration = solutionSetData.iteratorDelta(worksetData, 10, ...);
 	 * }
 	 * </pre>
-	 * The <tt>worksetData</tt> would be the data set returned by {@code iteration.getInitialWorkset();}.
+	 *
+	 * <p>The <tt>worksetData</tt> would be the data set returned by {@code iteration.getInitialWorkset();}.
 	 *
 	 * @return The data set that forms the initial workset.
 	 */

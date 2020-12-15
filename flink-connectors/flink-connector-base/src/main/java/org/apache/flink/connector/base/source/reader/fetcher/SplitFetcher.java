@@ -229,12 +229,14 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	 * <p>The correctness can be think of in the following way. The purpose of wake up
 	 * is to let the fetcher thread go to the very beginning of the running loop.
 	 * There are three major events in each run of the loop.
+	 *
 	 * <ol>
 	 *     <li>pick a task (blocking)
 	 * 	   <li>assign the task to runningTask variable.
 	 * 	   <li>run the runningTask. (blocking)
 	 * </ol>
-	 * We don't need to worry about things after step 3 because there is no blocking point
+	 *
+	 * <p>We don't need to worry about things after step 3 because there is no blocking point
 	 * anymore.
 	 *
 	 * <p>We always first set the wakeup flag when waking up the fetcher, then use the

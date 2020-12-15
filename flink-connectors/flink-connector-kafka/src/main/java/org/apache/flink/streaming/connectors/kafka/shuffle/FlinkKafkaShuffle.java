@@ -52,7 +52,7 @@ import java.util.Properties;
  * a {@link FlinkKafkaShuffleConsumer} together into a {@link FlinkKafkaShuffle}.
  * Here is an example how to use a {@link FlinkKafkaShuffle}.
  *
- * <p><pre>{@code
+ * <pre>{@code
  *	StreamExecutionEnvironment env = ... 					// create execution environment
  * 	DataStream<X> source = env.addSource(...)				// add data stream source
  * 	DataStream<Y> dataStream = ...							// some transformation(s) based on source
@@ -91,7 +91,7 @@ import java.util.Properties;
  * 			decoupled to three regions: `KafkaShuffleProducer', `KafkaShuffleConsumer' and `KafkaShuffleConsumerReuse'
  * 			through `PERSISTENT DATA` as shown below. If any region fails the execution, the other two keep progressing.
  *
- * <p><pre>
+ * <pre>
  *     source -> ... KafkaShuffleProducer -> PERSISTENT DATA -> KafkaShuffleConsumer -> ...
  *                                                |
  *                                                | ----------> KafkaShuffleConsumerReuse -> ...

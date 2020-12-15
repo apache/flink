@@ -26,7 +26,7 @@ import java.util.Objects;
 /**
  * A quantifier describing the Pattern. There are three main groups of {@link Quantifier}.
  *
- * <p><ol>
+ * <ol>
  *     <li>Single</li>
  *     <li>Looping</li>
  *     <li>Times</li>

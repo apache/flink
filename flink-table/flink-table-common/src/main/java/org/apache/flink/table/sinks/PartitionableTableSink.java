@@ -41,7 +41,8 @@ import java.util.Map;
  *     INSERT INTO my_table PARTITION (dt='2019-06-20', country='bar') select a, b, c from my_view
  * </code>
  * </pre>
- * When all the partition columns are set a value in PARTITION clause, it is inserting into a
+ *
+ * <p>When all the partition columns are set a value in PARTITION clause, it is inserting into a
  * static partition. It will writes the query result into a static partition,
  * i.e. {@code dt='2019-06-20', country='bar'}. The user specified static partitions will be told
  * to the sink via {@link #setStaticPartition(Map)}.
@@ -52,7 +53,8 @@ import java.util.Map;
  *     INSERT INTO my_table PARTITION (dt='2019-06-20') select a, b, c, country from another_view
  * </code>
  * </pre>
- * When partial partition columns (prefix part of all partition columns) are set a value in
+ *
+ * <p>When partial partition columns (prefix part of all partition columns) are set a value in
  * PARTITION clause, it is writing the query result into a dynamic partition. In the above example,
  * the static partition part is {@code dt='2019-06-20'} which will be told to the sink via
  * {@link #setStaticPartition(Map)}. And the {@code country} is the dynamic partition which will be

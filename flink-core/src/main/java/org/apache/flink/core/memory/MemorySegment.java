@@ -61,7 +61,7 @@ import java.nio.ReadOnlyBufferException;
  * Note that this code realizes both the byte order swapping and the reinterpret cast access to
  * get a long from the byte array.
  *
- * <p><pre>
+ * <pre>
  * [Verified Entry Point]
  *   0x00007fc403e19920: sub    $0x18,%rsp
  *   0x00007fc403e19927: mov    %rbp,0x10(%rsp)    ;*synchronization entry

@@ -37,7 +37,7 @@ import org.apache.flink.util.Preconditions;
  *
  * <p>A pattern definition is used by {@link org.apache.flink.cep.nfa.compiler.NFACompiler} to create a {@link NFA}.
  *
- * <p><pre>{@code
+ * <pre>{@code
  * Pattern<T, F> pattern = Pattern.<T>begin("start")
  *   .next("middle").subtype(F.class)
  *   .followedBy("end").where(new MyCondition());
