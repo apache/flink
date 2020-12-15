@@ -173,8 +173,8 @@ public class DefaultSlotTracker implements SlotTracker {
 
 	private void transitionSlotToAllocated(DeclarativeTaskManagerSlot slot, JobID jobId) {
 		Preconditions.checkNotNull(slot);
-		Preconditions.checkState(slot.getState() == SlotState.PENDING);
-		Preconditions.checkState(jobId.equals(slot.getJobId()));
+		Preconditions.checkState(jobId.equals(slot.getJobId()), "Job ID from slot status updated (%s) does not match currently assigned job ID (%s) for slot %s.", jobId, slot.getJobId(), slot.getSlotId());
+		Preconditions.checkState(slot.getState() == SlotState.PENDING, "State of slot %s must be %s, but was %s.", slot.getSlotId(), SlotState.PENDING, slot.getState());
 
 		slot.completeAllocation();
 		slotStatusUpdateListeners.notifySlotStatusChange(slot, SlotState.PENDING, SlotState.ALLOCATED, jobId);
@@ -267,6 +267,7 @@ public class DefaultSlotTracker implements SlotTracker {
 
 		@Override
 		public void notifySlotStatusChange(TaskManagerSlotInformation slot, SlotState previous, SlotState current, JobID jobId) {
+			LOG.trace("Slot {} transitioned from {} to {} for job {}.", slot.getSlotId(), previous, current, jobId);
 			listeners.forEach(listeners -> listeners.notifySlotStatusChange(slot, previous, current, jobId));
 		}
 	}
