@@ -187,7 +187,7 @@ $ python WordCount.py
 
 The command builds and runs the Python Table API program in a local mini cluster.
 You can also submit the Python Table API program to a remote cluster, you can refer
-[Job Submission Examples]({% link deployment/cli.md %}#job-submission-examples)
+[Job Submission Examples]({% link deployment/cli.md %}#submitting-pyflink-jobs)
 for more details.
 
 Finally, you can see the execution result on the command line:
