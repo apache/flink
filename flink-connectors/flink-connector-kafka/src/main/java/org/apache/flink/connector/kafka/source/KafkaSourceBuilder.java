@@ -56,7 +56,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     .setDeserializer(KafkaRecordDeserializer.valueOnly(StringDeserializer.class))
  *     .build();
  * }</pre>
- * The bootstrap servers, group id, topics/partitions to consume, and the record deserializer
+ *
+ * <p>The bootstrap servers, group id, topics/partitions to consume, and the record deserializer
  * are required fields that must be set.
  *
  * <p>To specify the starting offsets of the KafkaSource, one can call

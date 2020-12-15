@@ -41,13 +41,15 @@ public interface KeySelector<IN, KEY> extends Function, Serializable {
 	 * User-defined function that deterministically extracts the key from an object.
 	 *
 	 * <p>For example for a class:
+	 *
 	 * <pre>
 	 * 	public class Word {
 	 * 		String word;
 	 * 		int count;
 	 * 	}
 	 * </pre>
-	 * The key extractor could return the word as
+	 *
+	 * <p>The key extractor could return the word as
 	 * a key to group all Word objects by the String they contain.
 	 *
 	 * <p>The code would look like this

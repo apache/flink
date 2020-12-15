@@ -57,7 +57,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  *     <li>There is at least one {@link #availableMemorySegments}.</li>
  *     <li>No subpartitions has reached {@link #maxBuffersPerChannel}.</li>
  * </ul>
- * To ensure this contract, the implementation eagerly fetches additional memory segments from {@link NetworkBufferPool}
+ *
+ * <p>To ensure this contract, the implementation eagerly fetches additional memory segments from {@link NetworkBufferPool}
  * as long as it hasn't reached {@link #maxNumberOfMemorySegments} or one subpartition reached the quota.
  */
 class LocalBufferPool implements BufferPool {

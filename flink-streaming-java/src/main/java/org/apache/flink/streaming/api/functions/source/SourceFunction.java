@@ -86,7 +86,8 @@ import java.io.Serializable;
  *
  *
  * <h3>Timestamps and watermarks:</h3>
- * Sources may assign timestamps to elements and may manually emit watermarks.
+ *
+ * <p>Sources may assign timestamps to elements and may manually emit watermarks.
  * However, these are only interpreted if the streaming program runs on
  * {@link TimeCharacteristic#EventTime}. On other time characteristics
  * ({@link TimeCharacteristic#IngestionTime} and {@link TimeCharacteristic#ProcessingTime}),

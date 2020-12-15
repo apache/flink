@@ -29,7 +29,9 @@ import org.apache.flink.util.FlinkRuntimeException;
  * <pre>{@code
  * TypeInformation<Tuple2<String, Long>> info = TypeInformation.of(new TypeHint<Tuple2<String, Long>>(){});
  * }</pre>
- * or
+ *
+ * <p>or
+ *
  * <pre>{@code
  * TypeInformation<Tuple2<String, Long>> info = new TypeHint<Tuple2<String, Long>>(){}.getTypeInfo();
  * }</pre>

@@ -76,12 +76,14 @@ import java.util.function.Consumer;
  * <p>The WebInterface only displays the "Completed Jobs" page.
  *
  * <p>The REST API is limited to
+ *
  * <ul>
  *     <li>/config</li>
  *     <li>/joboverview</li>
  *     <li>/jobs/:jobid/*</li>
  * </ul>
- * and relies on static files that are served by the {@link HistoryServerStaticFileServerHandler}.
+ *
+ * <p>and relies on static files that are served by the {@link HistoryServerStaticFileServerHandler}.
  */
 public class HistoryServer {
 

@@ -40,7 +40,7 @@ import java.util.Date;
  *
  * <p>This program implements the following SQL equivalent:
  *
- * <p><pre>{@code
+ * <pre>{@code
  * SELECT
  *      l_orderkey,
  *      SUM(l_extendedprice*(1-l_discount)) AS revenue,

@@ -129,7 +129,9 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
 	 *   EXCLUDING PARTITIONS
 	 * )
 	 * }</pre>
-	 * is equivalent to:
+	 *
+	 * <p>is equivalent to:
+	 *
 	 * <pre>{@code
 	 * LIKE `sourceTable` (
 	 *   INCLUDING GENERATED
