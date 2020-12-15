@@ -22,7 +22,7 @@ import org.apache.flink.table.connector.source.ScanTableSource
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecChangelogNormalize, StreamExecTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecChangelogNormalize, StreamPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.DynamicSourceUtils.{isSourceChangeEventsDuplicate, isUpsertSource}
@@ -34,17 +34,17 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 
 /**
-  * Rule that converts [[FlinkLogicalTableSourceScan]] to [[StreamExecTableSourceScan]].
+  * Rule that converts [[FlinkLogicalTableSourceScan]] to [[StreamPhysicalTableSourceScan]].
  *
  * <p>Depends whether this is a scan source, this rule will also generate
  * [[StreamExecChangelogNormalize]] to materialize the upsert stream.
   */
-class StreamExecTableSourceScanRule
+class StreamPhysicalTableSourceScanRule
   extends ConverterRule(
     classOf[FlinkLogicalTableSourceScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecTableSourceScanRule") {
+    "StreamPhysicalTableSourceScanRule") {
 
   /** Rule must only match if TableScan targets a [[ScanTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -66,7 +66,7 @@ class StreamExecTableSourceScanRule
     val config = ShortcutUtils.unwrapContext(rel.getCluster).getTableConfig
     val table = scan.getTable.asInstanceOf[TableSourceTable]
 
-    val newScan = new StreamExecTableSourceScan(
+    val newScan = new StreamPhysicalTableSourceScan(
       rel.getCluster,
       traitSet,
       table)
@@ -96,7 +96,6 @@ class StreamExecTableSourceScanRule
   }
 }
 
-object StreamExecTableSourceScanRule {
-  val INSTANCE = new StreamExecTableSourceScanRule
+object StreamPhysicalTableSourceScanRule {
+  val INSTANCE = new StreamPhysicalTableSourceScanRule
 }
-

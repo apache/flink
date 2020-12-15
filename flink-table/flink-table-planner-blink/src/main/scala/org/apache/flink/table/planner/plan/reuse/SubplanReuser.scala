@@ -22,8 +22,8 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalTableSourceScan}
-import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, FlinkRelOptUtil}
 
 import com.google.common.collect.{Maps, Sets}
