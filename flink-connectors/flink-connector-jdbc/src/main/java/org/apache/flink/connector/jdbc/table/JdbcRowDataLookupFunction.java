@@ -50,7 +50,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.connector.jdbc.internal.options.JdbcOptions.CONNECTION_CHECK_TIMEOUT_SECONDS;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -68,6 +67,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 	private final String dbURL;
 	private final String username;
 	private final String password;
+	private final int connectionCheckTimeoutSeconds;
 	private final DataType[] keyTypes;
 	private final String[] keyNames;
 	private final long cacheMaxSize;
@@ -97,6 +97,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 		this.username = options.getUsername().orElse(null);
 		this.password = options.getPassword().orElse(null);
 		this.keyNames = keyNames;
+		this.connectionCheckTimeoutSeconds = options.getConnectionCheckTimeoutSeconds();
 		List<String> nameList = Arrays.asList(fieldNames);
 		this.keyTypes = Arrays.stream(keyNames)
 			.map(s -> {
@@ -175,7 +176,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 				}
 
 				try {
-					if (!dbConn.isValid(CONNECTION_CHECK_TIMEOUT_SECONDS)) {
+					if (!dbConn.isValid(connectionCheckTimeoutSeconds)) {
 						statement.close();
 						dbConn.close();
 						establishConnectionAndStatement();

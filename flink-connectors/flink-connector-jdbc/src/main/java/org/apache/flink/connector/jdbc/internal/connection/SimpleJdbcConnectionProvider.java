@@ -85,4 +85,9 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
 		connection = getConnection();
 		return connection;
 	}
+
+	@Override
+	public boolean isConnectionValid() throws Exception {
+		return connection.isValid(jdbcOptions.getConnectionCheckTimeoutSeconds());
+	}
 }

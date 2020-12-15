@@ -35,16 +35,19 @@ public class JdbcConnectionOptions implements Serializable {
 
 	protected final String url;
 	protected final String driverName;
+	protected final int connectionCheckTimeoutSeconds;
 	@Nullable
 	protected final String username;
 	@Nullable
 	protected final String password;
 
-	protected JdbcConnectionOptions(String url, String driverName, String username, String password) {
+	protected JdbcConnectionOptions(String url, String driverName, String username, String password, int connectionCheckTimeoutSeconds) {
+		Preconditions.checkArgument(connectionCheckTimeoutSeconds > 0);
 		this.url = Preconditions.checkNotNull(url, "jdbc url is empty");
 		this.driverName = Preconditions.checkNotNull(driverName, "driver name is empty");
 		this.username = username;
 		this.password = password;
+		this.connectionCheckTimeoutSeconds = connectionCheckTimeoutSeconds;
 	}
 
 	public String getDbURL() {
@@ -63,6 +66,10 @@ public class JdbcConnectionOptions implements Serializable {
 		return Optional.ofNullable(password);
 	}
 
+	public int getConnectionCheckTimeoutSeconds() {
+		return connectionCheckTimeoutSeconds;
+	}
+
 	/**
 	 * Builder for {@link JdbcConnectionOptions}.
 	 */
@@ -71,6 +78,7 @@ public class JdbcConnectionOptions implements Serializable {
 		private String driverName;
 		private String username;
 		private String password;
+		private int connectionCheckTimeoutSeconds = 60;
 
 		public JdbcConnectionOptionsBuilder withUrl(String url) {
 			this.url = url;
@@ -92,8 +100,17 @@ public class JdbcConnectionOptions implements Serializable {
 			return this;
 		}
 
+		/**
+		 * Set the maximum timeout between retries, default is 60 seconds.
+		 * @param connectionCheckTimeoutSeconds the timeout seconds, shouldn't smaller than 1 second.
+		 */
+		public JdbcConnectionOptionsBuilder withConnectionCheckTimeoutSeconds(int connectionCheckTimeoutSeconds) {
+			this.connectionCheckTimeoutSeconds = connectionCheckTimeoutSeconds;
+			return this;
+		}
+
 		public JdbcConnectionOptions build() {
-			return new JdbcConnectionOptions(url, driverName, username, password);
+			return new JdbcConnectionOptions(url, driverName, username, password, connectionCheckTimeoutSeconds);
 		}
 	}
 }

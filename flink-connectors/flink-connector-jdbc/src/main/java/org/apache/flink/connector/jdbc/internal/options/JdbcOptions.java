@@ -36,15 +36,12 @@ public class JdbcOptions extends JdbcConnectionOptions {
 
 	private static final long serialVersionUID = 1L;
 
-	public static final int CONNECTION_CHECK_TIMEOUT_SECONDS = 60;
-
 	private String tableName;
 	private JdbcDialect dialect;
 	private final @Nullable Integer parallelism;
 
-	private JdbcOptions(String dbURL, String tableName, String driverName, String username,
-						String password, JdbcDialect dialect, Integer parallelism) {
-		super(dbURL, driverName, username, password);
+	private JdbcOptions(String dbURL, String tableName, String driverName, String username, String password, JdbcDialect dialect, Integer parallelism, int connectionCheckTimeoutSeconds) {
+		super(dbURL, driverName, username, password, connectionCheckTimeoutSeconds);
 		this.tableName = tableName;
 		this.dialect = dialect;
 		this.parallelism = parallelism;
@@ -76,15 +73,17 @@ public class JdbcOptions extends JdbcConnectionOptions {
 				Objects.equals(username, options.username) &&
 				Objects.equals(password, options.password) &&
 				Objects.equals(dialect.getClass().getName(), options.dialect.getClass().getName()) &&
-				Objects.equals(parallelism, options.parallelism);
+				Objects.equals(parallelism, options.parallelism) &&
+				Objects.equals(connectionCheckTimeoutSeconds, options.connectionCheckTimeoutSeconds);
 		} else {
 			return false;
 		}
+
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(url, tableName, driverName, username, password, dialect, parallelism);
+		return Objects.hash(url, tableName, driverName, username, password, dialect.getClass().getName(), parallelism, connectionCheckTimeoutSeconds);
 	}
 
 	/**
@@ -98,6 +97,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
 		private String password;
 		private JdbcDialect dialect;
 		private Integer parallelism;
+		private int connectionCheckTimeoutSeconds = 60;
 
 		/**
 		 * required, table name.
@@ -120,6 +120,14 @@ public class JdbcOptions extends JdbcConnectionOptions {
 		 */
 		public Builder setPassword(String password) {
 			this.password = password;
+			return this;
+		}
+
+		/**
+		 * optional, connectionCheckTimeoutSeconds.
+		 */
+		public Builder setConnectionCheckTimeoutSeconds(int connectionCheckTimeoutSeconds) {
+			this.connectionCheckTimeoutSeconds = connectionCheckTimeoutSeconds;
 			return this;
 		}
 
@@ -170,7 +178,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
 				});
 			}
 
-			return new JdbcOptions(dbURL, tableName, driverName, username, password, dialect, parallelism);
+			return new JdbcOptions(dbURL, tableName, driverName, username, password, dialect, parallelism, connectionCheckTimeoutSeconds);
 		}
 	}
 }

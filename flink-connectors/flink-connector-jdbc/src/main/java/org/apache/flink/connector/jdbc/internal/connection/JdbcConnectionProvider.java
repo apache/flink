@@ -29,4 +29,6 @@ public interface JdbcConnectionProvider {
 	Connection getConnection() throws Exception;
 
 	Connection reestablishConnection() throws Exception;
+
+	boolean isConnectionValid() throws Exception;
 }

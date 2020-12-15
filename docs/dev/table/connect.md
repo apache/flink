@@ -1301,6 +1301,9 @@ CREATE TABLE MyUserTable (
   'connector.username' = 'name',
   'connector.password' = 'password',
   
+  -- optional: jdbc connection max-retry-timeout
+  'connector.connection.max-retry-timeout' = '60s',
+  
   -- **followings are scan options, optional, used when reading from a table**
 
   -- optional: SQL query / prepared statement.
