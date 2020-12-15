@@ -24,9 +24,14 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowUtils;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
 
 /** Converter for {@link RowType} of {@link Row} external type. */
 @Internal
@@ -38,11 +43,15 @@ public class RowRowConverter implements DataStructureConverter<RowData, Row> {
 
     private final RowData.FieldGetter[] fieldGetters;
 
+    private final LinkedHashMap<String, Integer> positionByName;
+
     private RowRowConverter(
             DataStructureConverter<Object, Object>[] fieldConverters,
-            RowData.FieldGetter[] fieldGetters) {
+            RowData.FieldGetter[] fieldGetters,
+            LinkedHashMap<String, Integer> positionByName) {
         this.fieldConverters = fieldConverters;
         this.fieldGetters = fieldGetters;
+        this.positionByName = positionByName;
     }
 
     @Override
@@ -56,22 +65,45 @@ public class RowRowConverter implements DataStructureConverter<RowData, Row> {
     public RowData toInternal(Row external) {
         final int length = fieldConverters.length;
         final GenericRowData genericRow = new GenericRowData(external.getKind(), length);
-        for (int pos = 0; pos < length; pos++) {
-            final Object value = external.getField(pos);
-            genericRow.setField(pos, fieldConverters[pos].toInternalOrNull(value));
+
+        final Set<String> fieldNames = external.getFieldNames(false);
+
+        // position-based field access
+        if (fieldNames == null) {
+            for (int pos = 0; pos < length; pos++) {
+                final Object value = external.getField(pos);
+                genericRow.setField(pos, fieldConverters[pos].toInternalOrNull(value));
+            }
         }
+        // name-based field access
+        else {
+            for (String fieldName : fieldNames) {
+                final Integer targetPos = positionByName.get(fieldName);
+                if (targetPos == null) {
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Unknown field name '%s' for mapping to a row position. "
+                                            + "Available names are: %s",
+                                    fieldName, positionByName.keySet()));
+                }
+                final Object value = external.getField(fieldName);
+                genericRow.setField(targetPos, fieldConverters[targetPos].toInternalOrNull(value));
+            }
+        }
+
         return genericRow;
     }
 
     @Override
     public Row toExternal(RowData internal) {
         final int length = fieldConverters.length;
-        final Row row = new Row(internal.getRowKind(), length);
+        final Object[] fieldByPosition = new Object[length];
         for (int pos = 0; pos < length; pos++) {
             final Object value = fieldGetters[pos].getFieldOrNull(internal);
-            row.setField(pos, fieldConverters[pos].toExternalOrNull(value));
+            fieldByPosition[pos] = fieldConverters[pos].toExternalOrNull(value);
         }
-        return row;
+        return RowUtils.createRowWithNamedPositions(
+                internal.getRowKind(), fieldByPosition, positionByName);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -92,6 +124,11 @@ public class RowRowConverter implements DataStructureConverter<RowData, Row> {
                                         RowData.createFieldGetter(
                                                 fields.get(pos).getLogicalType(), pos))
                         .toArray(RowData.FieldGetter[]::new);
-        return new RowRowConverter(fieldConverters, fieldGetters);
+        final List<String> fieldNames = getFieldNames(dataType.getLogicalType());
+        final LinkedHashMap<String, Integer> positionByName = new LinkedHashMap<>();
+        for (int i = 0; i < fieldNames.size(); i++) {
+            positionByName.put(fieldNames.get(i), i);
+        }
+        return new RowRowConverter(fieldConverters, fieldGetters, positionByName);
     }
 }

@@ -181,7 +181,7 @@ public class PythonTypeUtilsTest {
                         rowTypeInfo);
         assertEquals(
                 convertedTypeSerializer,
-                new RowSerializer(new TypeSerializer[] {IntSerializer.INSTANCE}, false));
+                new RowSerializer(new TypeSerializer[] {IntSerializer.INSTANCE}, null));
 
         TupleTypeInfo tupleTypeInfo = (TupleTypeInfo) Types.TUPLE(Types.INT);
         convertedTypeSerializer =
