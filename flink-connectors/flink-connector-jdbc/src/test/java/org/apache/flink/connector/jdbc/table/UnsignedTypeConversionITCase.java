@@ -99,7 +99,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 			i++;
 		}
 		if (!initDbSuccess) {
-			throw new IllegalStateException(String.format("Initialize MySQL database instance failed after {} attempts," +
+			throw new IllegalStateException(String.format("Initialize MySQL database instance failed after %s attempts," +
 				" please open an issue.", INITIALIZE_DB_MAX_RETRY));
 		}
 	}
