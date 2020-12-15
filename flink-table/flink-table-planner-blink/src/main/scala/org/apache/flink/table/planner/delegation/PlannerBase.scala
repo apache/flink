@@ -315,7 +315,7 @@ abstract class PlannerBase(
     // reuse subplan
     val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
     // convert FlinkPhysicalRel DAG to ExecNode DAG
-    val generator = new ExecGraphGenerator()
+    val generator = new ExecGraphGenerator(getTableConfig)
     generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
   }
 

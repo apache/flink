@@ -513,7 +513,7 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
       +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Sort(orderBy=[a ASC])
 +- Exchange(distribution=[range[a ASC]])

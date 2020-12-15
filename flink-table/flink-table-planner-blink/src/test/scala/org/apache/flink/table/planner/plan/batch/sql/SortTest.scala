@@ -62,7 +62,8 @@ class SortTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_SORT_RANGE_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, -1)
-    util.verifyExecPlan("SELECT * FROM MyTable ORDER BY a DESC")
+    // exec node does not support range sort yet, so we verify rel plan here
+    util.verifyRelPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 
   @Test
@@ -70,6 +71,7 @@ class SortTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_SORT_RANGE_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, 200)
-    util.verifyExecPlan("SELECT * FROM MyTable ORDER BY a DESC")
+    // exec node does not support range sort yet, so we verify rel plan here
+    util.verifyRelPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 }
