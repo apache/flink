@@ -18,9 +18,9 @@
 from pandas.util.testing import assert_frame_equal
 
 from pyflink.common import Row
-from pyflink.table import expressions as expr
+from pyflink.table import expressions as expr, ListView
 from pyflink.table.types import DataTypes
-from pyflink.table.udf import udf, udtf, udaf, AggregateFunction
+from pyflink.table.udf import udf, udtf, udaf, AggregateFunction, TableAggregateFunction, udtaf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
     PyFlinkBlinkStreamTableTestCase
@@ -223,6 +223,52 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamT
             .to_pandas()
         assert_frame_equal(result, pd.DataFrame([[1, 3, 15], [2, 2, 4]], columns=['a', 'c', 'd']))
 
+    def test_flat_aggregate(self):
+        import pandas as pd
+        self.t_env.register_function("mytop", Top2())
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
+                                      (3, 'Hi', 'hi'),
+                                      (5, 'Hi2', 'hi'),
+                                      (7, 'Hi', 'Hello'),
+                                      (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+        result = t.group_by("c") \
+            .flat_aggregate("mytop(a)") \
+            .select("c, a") \
+            .flat_aggregate("mytop(a)") \
+            .select("a") \
+            .to_pandas()
+
+        assert_frame_equal(result, pd.DataFrame([[7], [5]], columns=['a']))
+
+    def test_flat_aggregate_list_view(self):
+        import pandas as pd
+        my_concat = udtaf(ListViewConcatTableAggregateFunction())
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "2")
+        # trigger the cache eviction in a bundle.
+        self.t_env.get_config().get_configuration().set_string(
+            "python.state.cache-size", "2")
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
+                                      (3, 'Hi', 'hi'),
+                                      (3, 'Hi2', 'hi'),
+                                      (3, 'Hi', 'hi'),
+                                      (2, 'Hi', 'Hello'),
+                                      (1, 'Hi2', 'Hello'),
+                                      (3, 'Hi3', 'hi'),
+                                      (3, 'Hi2', 'Hello'),
+                                      (3, 'Hi3', 'hi'),
+                                      (2, 'Hi3', 'Hello')], ['a', 'b', 'c'])
+        result = t.group_by(t.c) \
+            .flat_aggregate(my_concat(t.b, ',').alias("b")) \
+            .select(t.b, t.c) \
+            .alias("a, c")
+        assert_frame_equal(result.to_pandas(),
+                           pd.DataFrame([["Hi,Hi2,Hi,Hi3,Hi3", "hi"],
+                                         ["Hi,Hi2,Hi,Hi3,Hi3", "hi"],
+                                         ["Hi,Hi,Hi2,Hi2,Hi3", "Hello"],
+                                         ["Hi,Hi,Hi2,Hi2,Hi3", "Hello"]],
+                                        columns=['a', 'c']))
+
 
 class CountAndSumAggregateFunction(AggregateFunction):
 
@@ -256,6 +302,65 @@ class CountAndSumAggregateFunction(AggregateFunction):
         return DataTypes.ROW(
             [DataTypes.FIELD("a", DataTypes.BIGINT()),
              DataTypes.FIELD("b", DataTypes.BIGINT())])
+
+
+class Top2(TableAggregateFunction):
+
+    def emit_value(self, accumulator):
+        yield Row(accumulator[0])
+        yield Row(accumulator[1])
+
+    def create_accumulator(self):
+        return [None, None]
+
+    def accumulate(self, accumulator, *args):
+        if args[0] is not None:
+            if accumulator[0] is None or args[0] > accumulator[0]:
+                accumulator[1] = accumulator[0]
+                accumulator[0] = args[0]
+            elif accumulator[1] is None or args[0] > accumulator[1]:
+                accumulator[1] = args[0]
+
+    def retract(self, accumulator, *args):
+        accumulator[0] = accumulator[0] - 1
+
+    def merge(self, accumulator, accumulators):
+        for other_acc in accumulators:
+            self.accumulate(accumulator, other_acc[0])
+            self.accumulate(accumulator, other_acc[1])
+
+    def get_accumulator_type(self):
+        return DataTypes.ARRAY(DataTypes.BIGINT())
+
+    def get_result_type(self):
+        return DataTypes.ROW(
+            [DataTypes.FIELD("a", DataTypes.BIGINT())])
+
+
+class ListViewConcatTableAggregateFunction(TableAggregateFunction):
+
+    def emit_value(self, accumulator):
+        result = accumulator[1].join(accumulator[0])
+        yield Row(result)
+        yield Row(result)
+
+    def create_accumulator(self):
+        return Row(ListView(), '')
+
+    def accumulate(self, accumulator, *args):
+        accumulator[1] = args[1]
+        accumulator[0].add(args[0])
+
+    def retract(self, accumulator, *args):
+        raise NotImplementedError
+
+    def get_accumulator_type(self):
+        return DataTypes.ROW([
+            DataTypes.FIELD("f0", DataTypes.LIST_VIEW(DataTypes.STRING())),
+            DataTypes.FIELD("f1", DataTypes.BIGINT())])
+
+    def get_result_type(self):
+        return DataTypes.ROW([DataTypes.FIELD("a", DataTypes.STRING())])
 
 
 if __name__ == '__main__':
