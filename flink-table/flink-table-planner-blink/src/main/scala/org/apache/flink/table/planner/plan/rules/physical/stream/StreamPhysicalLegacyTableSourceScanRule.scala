@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacyTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.sources.StreamTableSource
 
@@ -30,18 +30,19 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 
 /**
-  * Rule that converts [[FlinkLogicalLegacyTableSourceScan]] to [[StreamExecLegacyTableSourceScan]].
-  */
-class StreamExecLegacyTableSourceScanRule
+ * Rule that converts [[FlinkLogicalLegacyTableSourceScan]] to
+ * [[StreamPhysicalLegacyTableSourceScan]].
+ */
+class StreamPhysicalLegacyTableSourceScanRule
   extends ConverterRule(
     classOf[FlinkLogicalLegacyTableSourceScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecLegacyTableSourceScanRule") {
+    "StreamPhysicalLegacyTableSourceScanRule") {
 
   /** Rule must only match if TableScan targets a [[StreamTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
-    val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
+    val scan: TableScan = call.rel(0)
     val tableSourceTable = scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]])
     tableSourceTable match {
       case tst: LegacyTableSourceTable[_] =>
@@ -57,7 +58,7 @@ class StreamExecLegacyTableSourceScanRule
     val scan = rel.asInstanceOf[FlinkLogicalLegacyTableSourceScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
-    new StreamExecLegacyTableSourceScan(
+    new StreamPhysicalLegacyTableSourceScan(
       rel.getCluster,
       traitSet,
       scan.getTable.asInstanceOf[LegacyTableSourceTable[_]]
@@ -65,6 +66,6 @@ class StreamExecLegacyTableSourceScanRule
   }
 }
 
-object StreamExecLegacyTableSourceScanRule {
-  val INSTANCE: RelOptRule = new StreamExecLegacyTableSourceScanRule
+object StreamPhysicalLegacyTableSourceScanRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalLegacyTableSourceScanRule
 }
