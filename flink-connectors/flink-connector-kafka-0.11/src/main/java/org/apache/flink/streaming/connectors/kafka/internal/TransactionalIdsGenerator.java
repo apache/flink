@@ -34,7 +34,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 	<li>generated ids to abort will never clash with ids to abort from different subtasks
  * 	<li>generated ids to use will never clash with ids to abort from different subtasks
  * </ul>
- * In other words, any particular generated id will always be assigned to one and only one subtask.
+ *
+ * <p>In other words, any particular generated id will always be assigned to one and only one subtask.
  */
 @Internal
 public class TransactionalIdsGenerator {

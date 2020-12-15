@@ -99,13 +99,16 @@ public interface TableEnvironment {
 	 * <p>Examples:
 	 *
 	 * <p>You can use a {@code row(...)} expression to create a composite rows:
+	 *
 	 * <pre>{@code
 	 *  tEnv.fromValues(
 	 *      row(1, "ABC"),
 	 *      row(2L, "ABCDE")
 	 *  )
 	 * }</pre>
-	 * will produce a Table with a schema as follows:
+	 *
+	 * <p>will produce a Table with a schema as follows:
+	 *
 	 * <pre>{@code
 	 *  root
 	 *  |-- f0: BIGINT NOT NULL     // original types INT and BIGINT are generalized to BIGINT
@@ -133,7 +136,9 @@ public interface TableEnvironment {
 	 *      call(new RowFunction())
 	 *  )
 	 * }</pre>
-	 * will produce a Table with a schema as follows:
+	 *
+	 * <p>will produce a Table with a schema as follows:
+	 *
 	 * <pre>{@code
 	 *  root
 	 *  |-- f0: ROW<`f0` BIGINT, `f1` VARCHAR(5)>
@@ -142,6 +147,7 @@ public interface TableEnvironment {
 	 * <p>The row constructor can be dropped to create a table with a single column:
 	 *
 	 * <p>ROWs that are a result of e.g. a function call are not flattened
+	 *
 	 * <pre>{@code
 	 *  tEnv.fromValues(
 	 *      1,
@@ -149,7 +155,9 @@ public interface TableEnvironment {
 	 *      3
 	 *  )
 	 * }</pre>
-	 * will produce a Table with a schema as follows:
+	 *
+	 * <p>will produce a Table with a schema as follows:
+	 *
 	 * <pre>{@code
 	 *  root
 	 *  |-- f0: BIGINT NOT NULL
@@ -172,6 +180,7 @@ public interface TableEnvironment {
 	 * e.g. DECIMAL or naming the columns.
 	 *
 	 * <p>Examples:
+	 *
 	 * <pre>{@code
 	 *  tEnv.fromValues(
 	 *      DataTypes.ROW(
@@ -182,7 +191,9 @@ public interface TableEnvironment {
 	 *      row(2L, "ABCDE")
 	 *  )
 	 * }</pre>
-	 * will produce a Table with a schema as follows:
+	 *
+	 * <p>will produce a Table with a schema as follows:
+	 *
 	 * <pre>{@code
 	 *  root
 	 *  |-- id: DECIMAL(10, 2)
@@ -208,13 +219,16 @@ public interface TableEnvironment {
 	 * <p>Examples:
 	 *
 	 * <p>You can use a {@code row(...)} expression to create a composite rows:
+	 *
 	 * <pre>{@code
 	 *  tEnv.fromValues(
 	 *      row(1, "ABC"),
 	 *      row(2L, "ABCDE")
 	 *  )
 	 * }</pre>
-	 * will produce a Table with a schema as follows:
+	 *
+	 * <p>will produce a Table with a schema as follows:
+	 *
 	 * <pre>{@code
 	 *  root
 	 *  |-- f0: BIGINT NOT NULL     // original types INT and BIGINT are generalized to BIGINT
@@ -231,6 +245,7 @@ public interface TableEnvironment {
 	 * {@code row} expressions.
 	 *
 	 * <p>ROWs that are a result of e.g. a function call are not flattened
+	 *
 	 * <pre>{@code
 	 *  public class RowFunction extends ScalarFunction {
 	 *      {@literal @}DataTypeHint("ROW<f0 BIGINT, f1 VARCHAR(5)>")
@@ -242,7 +257,9 @@ public interface TableEnvironment {
 	 *      call(new RowFunction())
 	 *  )
 	 * }</pre>
-	 * will produce a Table with a schema as follows:
+	 *
+	 * <p>will produce a Table with a schema as follows:
+	 *
 	 * <pre>{@code
 	 *  root
 	 *  |-- f0: ROW<`f0` BIGINT, `f1` VARCHAR(5)>
@@ -251,6 +268,7 @@ public interface TableEnvironment {
 	 * <p>The row constructor can be dropped to create a table with a single column:
 	 *
 	 * <p>ROWs that are a result of e.g. a function call are not flattened
+	 *
 	 * <pre>{@code
 	 *  tEnv.fromValues(
 	 *      lit(1).plus(2),
@@ -258,7 +276,9 @@ public interface TableEnvironment {
 	 *      lit(3)
 	 *  )
 	 * }</pre>
-	 * will produce a Table with a schema as follows:
+	 *
+	 * <p>will produce a Table with a schema as follows:
+	 *
 	 * <pre>{@code
 	 *  root
 	 *  |-- f0: BIGINT NOT NULL
@@ -276,6 +296,7 @@ public interface TableEnvironment {
 	 * e.g. DECIMAL or naming the columns.
 	 *
 	 * <p>Examples:
+	 *
 	 * <pre>{@code
 	 *  tEnv.fromValues(
 	 *      DataTypes.ROW(
@@ -286,7 +307,9 @@ public interface TableEnvironment {
 	 *      row(2L, "ABCDE")
 	 *  )
 	 * }</pre>
-	 * will produce a Table with a schema as follows:
+	 *
+	 * <p>will produce a Table with a schema as follows:
+	 *
 	 * <pre>{@code
 	 *  root
 	 *  |-- id: DECIMAL(10, 2)
@@ -981,7 +1004,8 @@ public interface TableEnvironment {
 	 *    tEnv.sqlUpdate(query);
 	 *    tEnv.execute("MyJob");
 	 * </pre></blockquote>
-	 * This code snippet creates a job to read data from Kafka source into a CSV sink.
+	 *
+	 * <p>This code snippet creates a job to read data from Kafka source into a CSV sink.
 	 *
 	 * @param stmt The SQL statement to evaluate.
 	 * @deprecated use {@link #executeSql(String)} for single statement,

@@ -311,32 +311,34 @@ public class XmlOutput {
 	}
 
 	/**
-	 * Writes a CDATA section.  Such sections always appear on their own line.
-	 * The nature in which the CDATA section is written depends on the actual
-	 * string content with respect to these special characters/sequences:
+	 * Writes a CDATA section. Such sections always appear on their own line. The nature in which
+	 * the CDATA section is written depends on the actual string content with respect to these
+	 * special characters/sequences:
+	 *
 	 * <ul>
-	 * <li><code>&amp;</code>
-	 * <li><code>&quot;</code>
-	 * <li><code>'</code>
-	 * <li><code>&lt;</code>
-	 * <li><code>&gt;</code>
+	 *   <li><code>&amp;</code>
+	 *   <li><code>&quot;</code>
+	 *   <li><code>'</code>
+	 *   <li><code>&lt;</code>
+	 *   <li><code>&gt;</code>
 	 * </ul>
-	 * Additionally, the sequence <code>]]&gt;</code> is special.
+	 *
+	 * <p>Additionally, the sequence <code>]]&gt;</code> is special.
+	 *
 	 * <ul>
-	 * <li>Content containing no special characters will be left as-is.
-	 * <li>Content containing one or more special characters but not the
-	 * sequence <code>]]&gt;</code> will be enclosed in a CDATA section.
-	 * <li>Content containing special characters AND at least one
-	 * <code>]]&gt;</code> sequence will be left as-is but have all of its
-	 * special characters encoded as entities.
+	 *   <li>Content containing no special characters will be left as-is.
+	 *   <li>Content containing one or more special characters but not the sequence <code>]]&gt;
+	 *       </code> will be enclosed in a CDATA section.
+	 *   <li>Content containing special characters AND at least one <code>]]&gt;</code> sequence
+	 *       will be left as-is but have all of its special characters encoded as entities.
 	 * </ul>
-	 * These special treatment rules are required to allow cdata sections
-	 * to contain XML strings which may themselves contain cdata sections.
-	 * Traditional CDATA sections <b>do not nest</b>.
+	 *
+	 * <p>These special treatment rules are required to allow cdata sections to contain XML strings
+	 * which may themselves contain cdata sections. Traditional CDATA sections <b>do not nest</b>.
 	 */
 	public void cdata(String data) {
 		cdata(data, false);
-	}
+    }
 
 	/**
 	 * Writes a CDATA section (as {@link #cdata(String)}).

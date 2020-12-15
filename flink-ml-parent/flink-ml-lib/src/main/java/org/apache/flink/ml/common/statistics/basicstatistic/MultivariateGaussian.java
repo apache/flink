@@ -104,11 +104,11 @@ public class MultivariateGaussian {
 	 * A) u = log((2*pi)^(-k/2)^ * det(sigma)^(-1/2)^)
 	 * B) rootSigmaInv = sqrt(inv(sigma)) =  U * D^(-1/2)^
 	 *
-	 * <p><ul>
+	 * <ul>
 	 * <li> sigma = U * D * U.t
 	 * <li> inv(sigma) = U * inv(D) * U.t = (U * D^(-1/2)^) * (U * D^(-1/2)^).t
 	 * <li> sqrt(inv(sigma)) = U * D^(-1/2)^
-	 * </ul></p>
+	 * </ul>
 	 */
 	private void calculateCovarianceConstants() {
 		int k = this.mean.size();

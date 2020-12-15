@@ -222,6 +222,7 @@ public final class Expressions {
 	 * <p>It evaluates: leftEnd >= rightStart && rightEnd >= leftStart
 	 *
 	 * <p>e.g.
+	 *
 	 * <pre>{@code
 	 * temporalOverlaps(
 	 *      lit("2:55:00").toTime(),
@@ -230,7 +231,8 @@ public final class Expressions {
 	 *      lit(2).hours()
 	 * )
 	 * }</pre>
-	 * leads to true
+	 *
+	 * <p>leads to true
 	 */
 	public static ApiExpression temporalOverlaps(
 			Object leftTimePoint,

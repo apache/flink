@@ -48,6 +48,19 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * <p>The size of this pool can be dynamically changed at runtime ({@link #setNumBuffers(int)}. It
  * will then lazily return the required number of buffers to the {@link NetworkBufferPool} to
  * match its new size.
+<<<<<<< HEAD
+=======
+ *
+ * <p>Availability is defined as returning a segment on a subsequent {@link #requestBuffer()}/
+ * {@link #requestBufferBuilder()} and heaving a non-blocking {@link #requestBufferBuilderBlocking(int)}. In particular,
+ * <ul>
+ *     <li>There is at least one {@link #availableMemorySegments}.</li>
+ *     <li>No subpartitions has reached {@link #maxBuffersPerChannel}.</li>
+ * </ul>
+ *
+ * <p>To ensure this contract, the implementation eagerly fetches additional memory segments from {@link NetworkBufferPool}
+ * as long as it hasn't reached {@link #maxNumberOfMemorySegments} or one subpartition reached the quota.
+>>>>>>> f05c0f0418 ([FLINK-20651] Fix formatting that doesn't work with google-java-format/checkstyle)
  */
 class LocalBufferPool implements BufferPool {
 	private static final Logger LOG = LoggerFactory.getLogger(LocalBufferPool.class);

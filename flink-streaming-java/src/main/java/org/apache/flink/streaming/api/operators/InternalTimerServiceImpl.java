@@ -117,12 +117,14 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
 
 	/**
 	 * Starts the local {@link InternalTimerServiceImpl} by:
+	 *
 	 * <ol>
 	 *     <li>Setting the {@code keySerialized} and {@code namespaceSerializer} for the timers it will contain.</li>
 	 *     <li>Setting the {@code triggerTarget} which contains the action to be performed when a timer fires.</li>
 	 *     <li>Re-registering timers that were retrieved after recovering from a node failure, if any.</li>
 	 * </ol>
-	 * This method can be called multiple times, as long as it is called with the same serializers.
+	 *
+	 * <p>This method can be called multiple times, as long as it is called with the same serializers.
 	 */
 	public void startTimerService(
 			TypeSerializer<K> keySerializer,

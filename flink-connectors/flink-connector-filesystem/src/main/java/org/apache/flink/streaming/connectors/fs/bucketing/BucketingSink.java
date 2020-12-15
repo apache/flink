@@ -104,7 +104,8 @@ import java.util.UUID;
  *     <li>the minimum amount of time a bucket has to not receive any data before it is considered inactive,
  *     configured by {@link #setInactiveBucketThreshold(long)}</li>
  * </ol>
- * Both of these parameters default to {@code 60, 000 ms}, or {@code 1 min}.
+ *
+ * <p>Both of these parameters default to {@code 60, 000 ms}, or {@code 1 min}.
  *
  *
  * <p>Part files can be in one of three states: {@code in-progress}, {@code pending} or {@code finished}.

@@ -63,7 +63,8 @@ public interface OperatorCoordinatorCheckpointContext extends OperatorInfo, Chec
 	 *   <li>There is a recovery from a completed checkpoint/savepoint but it contained no state
 	 *       for the coordinator.</li>
 	 * </ul>
-	 * In both cases, the coordinator should reset to an empty (new) state.
+	 *
+	 * <p>In both cases, the coordinator should reset to an empty (new) state.
 	 */
 	void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception;
 
