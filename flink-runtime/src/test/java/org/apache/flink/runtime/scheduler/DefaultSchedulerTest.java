@@ -40,7 +40,6 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -165,6 +164,33 @@ public class DefaultSchedulerTest extends TestLogger {
 	}
 
 	@Test
+	public void deployTasksOnlyWhenAllSlotRequestsAreFulfilled() throws Exception {
+		final JobGraph jobGraph = singleJobVertexJobGraph(4);
+		final JobVertexID onlyJobVertexId = getOnlyJobVertex(jobGraph).getID();
+
+		testExecutionSlotAllocator.disableAutoCompletePendingRequests();
+		final TestSchedulingStrategy.Factory schedulingStrategyFactory = new TestSchedulingStrategy.Factory();
+		final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
+		final TestSchedulingStrategy schedulingStrategy = schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
+		startScheduling(scheduler);
+
+		final List<ExecutionVertexID> verticesToSchedule = Arrays.asList(
+			new ExecutionVertexID(onlyJobVertexId, 0),
+			new ExecutionVertexID(onlyJobVertexId, 1),
+			new ExecutionVertexID(onlyJobVertexId, 2),
+			new ExecutionVertexID(onlyJobVertexId, 3));
+		schedulingStrategy.schedule(verticesToSchedule);
+
+		assertThat(testExecutionVertexOperations.getDeployedVertices(), hasSize(0));
+
+		testExecutionSlotAllocator.completePendingRequest(verticesToSchedule.get(0));
+		assertThat(testExecutionVertexOperations.getDeployedVertices(), hasSize(0));
+
+		testExecutionSlotAllocator.completePendingRequests();
+		assertThat(testExecutionVertexOperations.getDeployedVertices(), hasSize(4));
+	}
+
+	@Test
 	public void scheduledVertexOrderFromSchedulingStrategyIsRespected() throws Exception {
 		final JobGraph jobGraph = singleJobVertexJobGraph(10);
 		final JobVertexID onlyJobVertexId = getOnlyJobVertex(jobGraph).getID();
@@ -203,20 +229,6 @@ public class DefaultSchedulerTest extends TestLogger {
 
 		final ExecutionVertexID executionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
 		assertThat(deployedExecutionVertices, contains(executionVertexId, executionVertexId));
-	}
-
-	@Test
-	public void scheduleWithLazyStrategy() {
-		final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
-		jobGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
-		final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
-
-		createSchedulerAndStartScheduling(jobGraph);
-
-		final List<ExecutionVertexID> deployedExecutionVertices = testExecutionVertexOperations.getDeployedVertices();
-
-		final ExecutionVertexID executionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
-		assertThat(deployedExecutionVertices, contains(executionVertexId));
 	}
 
 	@Test
@@ -721,7 +733,6 @@ public class DefaultSchedulerTest extends TestLogger {
 
 	private static JobGraph singleJobVertexJobGraph(final int parallelism) {
 		final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Testjob");
-		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 		final JobVertex vertex = new JobVertex("source");
 		vertex.setInvokableClass(NoOpInvokable.class);
 		vertex.setParallelism(parallelism);
@@ -731,7 +742,6 @@ public class DefaultSchedulerTest extends TestLogger {
 
 	private static JobGraph nonParallelSourceSinkJobGraph() {
 		final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Testjob");
-		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
 		final JobVertex source = new JobVertex("source");
 		source.setInvokableClass(NoOpInvokable.class);

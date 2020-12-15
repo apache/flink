@@ -37,6 +37,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -444,16 +446,14 @@ public class ExecutionGraphTestUtils {
 		JobGraph jobGraph = new JobGraph(jobVertex);
 		jobGraph.setScheduleMode(scheduleMode);
 
-		ExecutionGraph graph = TestingExecutionGraphBuilder
-			.newBuilder()
-			.setJobGraph(jobGraph)
+		SchedulerBase scheduler = SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
 			.setIoExecutor(executor)
 			.setFutureExecutor(executor)
 			.build();
 
-		graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
-		return graph.getJobVertex(jobVertex.getID());
+		return scheduler.getExecutionJobVertex(jobVertex.getID());
 	}
 
 	public static ExecutionJobVertex getExecutionJobVertex(JobVertexID id) throws Exception {

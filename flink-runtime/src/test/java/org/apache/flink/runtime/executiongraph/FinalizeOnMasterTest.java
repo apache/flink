@@ -20,13 +20,15 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createSimpleTestGraph;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createScheduler;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.spy;
@@ -49,11 +51,14 @@ public class FinalizeOnMasterTest extends TestLogger {
 		vertex2.setInvokableClass(NoOpInvokable.class);
 		vertex2.setParallelism(2);
 
-		final ExecutionGraph eg = createSimpleTestGraph(vertex1, vertex2);
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
+		final SchedulerBase scheduler = createScheduler(new JobGraph("Test Job", vertex1, vertex2));
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.startScheduling();
+
+		final ExecutionGraph eg = scheduler.getExecutionGraph();
+
 		assertEquals(JobStatus.RUNNING, eg.getState());
-		
+
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		// move all vertices to finished state
@@ -72,9 +77,12 @@ public class FinalizeOnMasterTest extends TestLogger {
 		vertex.setInvokableClass(NoOpInvokable.class);
 		vertex.setParallelism(1);
 
-		final ExecutionGraph eg = createSimpleTestGraph(vertex);
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
+		final SchedulerBase scheduler = createScheduler(new JobGraph("Test Job", vertex));
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.startScheduling();
+
+		final ExecutionGraph eg = scheduler.getExecutionGraph();
+
 		assertEquals(JobStatus.RUNNING, eg.getState());
 
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
