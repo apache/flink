@@ -72,15 +72,15 @@ stages:
         pool:
           vmImage: 'ubuntu-16.04'
         steps:
-          # Skip docs check if this is a pull request doesn't contain documentation change
+          # Skip docs check if this is a pull request that doesn't contain a documentation change
           - bash: |
               source ./tools/azure-pipelines/build_properties.sh
-              contains_docs_pullrequest
+              pr_contains_docs_changes
               if [[ "$?" == 0 ]] ; then
-                echo "##[debug]This is a pull request doesn't contain documentation. Skipping docs check."
+                echo "##[debug]This pull request doesn't contain a documentation change. Skipping docs check."
                 echo "##vso[task.setvariable variable=skip;]1"
               else
-                echo "##[debug]This is a regular CI build. Continuing ..."
+                echo "##[debug]This pull request contains a documentation change. Running docs check."
                 echo "##vso[task.setvariable variable=skip;]0"
               fi
             displayName: Check if PR contains docs change
