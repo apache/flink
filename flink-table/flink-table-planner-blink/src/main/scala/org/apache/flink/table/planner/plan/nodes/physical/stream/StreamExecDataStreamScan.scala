@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.ELEMENT
 import org.apache.flink.table.planner.delegation.StreamPlanner
@@ -42,7 +42,6 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
@@ -108,9 +107,8 @@ class StreamExecDataStreamScan(
         transform,
         dataStreamTable.fieldIndexes,
         dataStreamTable.dataType,
-        getRowType,
+        FlinkTypeFactory.toLogicalRowType(getRowType),
         getTable.getQualifiedName,
-        config,
         rowtimeExpr,
         beforeConvert = extractElement,
         afterConvert = resetElement)

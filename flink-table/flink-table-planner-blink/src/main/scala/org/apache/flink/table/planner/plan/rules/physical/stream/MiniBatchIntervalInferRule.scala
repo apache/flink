@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecGroupWindowAggregate, StreamExecLegacyTableSourceScan, StreamExecMiniBatchAssigner, StreamExecWatermarkAssigner, StreamPhysicalRel, StreamPhysicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecGroupWindowAggregate, StreamExecMiniBatchAssigner, StreamExecWatermarkAssigner, StreamPhysicalLegacyTableSourceScan, StreamPhysicalRel, StreamPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 
 import org.apache.calcite.plan.RelOptRule._
@@ -123,7 +123,7 @@ class MiniBatchIntervalInferRule extends RelOptRule(
       .getMiniBatchInterval
       .mode
     node match {
-      case _: StreamExecDataStreamScan | _: StreamExecLegacyTableSourceScan |
+      case _: StreamExecDataStreamScan | _: StreamPhysicalLegacyTableSourceScan |
            _: StreamPhysicalTableSourceScan =>
         // append minibatch node if the mode is not NONE and reach a source leaf node
         mode == MiniBatchMode.RowTime || mode == MiniBatchMode.ProcTime
