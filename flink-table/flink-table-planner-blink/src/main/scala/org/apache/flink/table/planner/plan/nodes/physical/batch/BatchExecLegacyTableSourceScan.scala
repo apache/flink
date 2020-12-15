@@ -29,36 +29,37 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
-import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
+import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
-import org.apache.flink.table.sources.{DefinedFieldMapping, StreamTableSource}
-import org.apache.flink.table.utils.TypeMappingUtils
+import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
-import java.util.function.{Function => JFunction}
 import java.{lang, util}
 
 import scala.collection.JavaConversions._
 
 /**
-  * Batch physical RelNode to read data from an external source defined by a
-  * bounded [[StreamTableSource]].
-  */
+ * Batch physical RelNode to read data from an external source defined by a
+ * bounded [[StreamTableSource]].
+ */
 class BatchExecLegacyTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     tableSourceTable: LegacyTableSourceTable[_])
-  extends PhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
+  extends CommonPhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
   with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData]{
+  with LegacyBatchExecNode[RowData]
+  with CommonExecLegacyTableSourceScan {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
@@ -82,9 +83,7 @@ class BatchExecLegacyTableSourceScan(
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
-    val inputTransform = getSourceTransformation(planner.getExecEnv)
-
-    val fieldIndexes = computeIndexMapping()
+    val inputTransform = getSourceTransformation(planner.getExecEnv, tableSource)
 
     val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
@@ -106,11 +105,12 @@ class BatchExecLegacyTableSourceScan(
         desc.getTimestampExtractor,
         producedDataType,
         planner.getRelBuilder,
-        nameMapping
+        getNameRemapping(tableSource)
       )
     )
 
-    if (needInternalConversion) {
+    val fieldIndexes = computeIndexMapping(tableSource, getOutputType.asInstanceOf[RowType], false)
+    if (needInternalConversion(tableSource, fieldIndexes)) {
       // the produced type may not carry the correct precision user defined in DDL, because
       // it may be converted from legacy type. Fix precision using logical schema from DDL.
       // code generation requires the correct precision of input fields.
@@ -122,20 +122,12 @@ class BatchExecLegacyTableSourceScan(
         inputTransform.asInstanceOf[Transformation[Any]],
         fieldIndexes,
         fixedProducedDataType,
-        getRowType,
+        getOutputType.asInstanceOf[RowType],
         getTable.getQualifiedName,
-        config,
         rowtimeExpression)
     } else {
       inputTransform.asInstanceOf[Transformation[RowData]]
     }
-
-  }
-
-  def needInternalConversion: Boolean = {
-    val fieldIndexes = computeIndexMapping()
-    ScanUtil.hasTimeAttributeField(fieldIndexes) ||
-      ScanUtil.needsConversion(tableSource.getProducedDataType)
   }
 
   def getEstimatedRowCount: lang.Double = {
@@ -152,23 +144,5 @@ class BatchExecLegacyTableSourceScan(
     // We can use InputFormatSourceFunction directly to support InputFormat.
     val func = new InputFormatSourceFunction[IN](format, t)
     env.addSource(func, tableSource.explainSource(), t).getTransformation
-  }
-
-  private def computeIndexMapping()
-    : Array[Int] = {
-    TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
-      tableSource,
-      FlinkTypeFactory.toTableSchema(getRowType).getTableColumns,
-      false,
-      nameMapping
-    )
-  }
-
-  private lazy val nameMapping: JFunction[String, String] = tableSource match {
-    case mapping: DefinedFieldMapping if mapping.getFieldMapping != null =>
-      new JFunction[String, String] {
-        override def apply(t: String): String = mapping.getFieldMapping.get(t)
-      }
-    case _ => JFunction.identity()
   }
 }

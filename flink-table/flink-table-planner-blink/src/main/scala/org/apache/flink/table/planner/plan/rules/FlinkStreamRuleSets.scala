@@ -397,7 +397,7 @@ object FlinkStreamRuleSets {
     // source
     StreamExecDataStreamScanRule.INSTANCE,
     StreamPhysicalTableSourceScanRule.INSTANCE,
-    StreamExecLegacyTableSourceScanRule.INSTANCE,
+    StreamPhysicalLegacyTableSourceScanRule.INSTANCE,
     StreamExecIntermediateTableScanRule.INSTANCE,
     StreamExecWatermarkAssignerRule.INSTANCE,
     StreamExecValuesRule.INSTANCE,
