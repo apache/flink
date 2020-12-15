@@ -141,7 +141,7 @@ class CommonPhysicalSink (
               s"is not INSERT_ONLY mode, primary key is required but no primary key is found")
         } else {
           //key by before sink
-          //according to [[StreamExecExchange]]
+          //according to [[StreamPhysicalExchange]]
           val selector = KeySelectorUtil.getRowDataSelector(primaryKeys, inputTypeInfo)
           val partitioner = new KeyGroupStreamPartitioner(selector,
             DEFAULT_LOWER_BOUND_MAX_PARALLELISM)

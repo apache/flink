@@ -301,7 +301,7 @@ class FlinkRelMdHandlerTestBase {
       studentBatchScan,
       hash6
     )
-    val streamExchange = new StreamExecExchange(
+    val streamExchange = new StreamPhysicalExchange(
       cluster,
       streamPhysicalTraits.replace(hash6),
       studentStreamScan,
@@ -659,7 +659,7 @@ class FlinkRelMdHandlerTestBase {
     val scan: StreamExecDataStreamScan =
       createDataStreamScan(ImmutableList.of("TemporalTable3"), streamPhysicalTraits)
     val hash1 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
-    val streamExchange1 = new StreamExecExchange(
+    val streamExchange1 = new StreamPhysicalExchange(
       cluster, scan.getTraitSet.replace(hash1), scan, hash1)
     val firstRow = new StreamExecDeduplicate(
       cluster,
@@ -712,7 +712,7 @@ class FlinkRelMdHandlerTestBase {
   protected lazy val streamChangelogNormalize = {
     val key = Array(1, 0)
     val hash1 = FlinkRelDistribution.hash(key, requireStrict = true)
-    val streamExchange = new StreamExecExchange(
+    val streamExchange = new StreamPhysicalExchange(
       cluster, studentStreamScan.getTraitSet.replace(hash1), studentStreamScan, hash1)
     new StreamExecChangelogNormalize(
       cluster,
@@ -895,7 +895,7 @@ class FlinkRelMdHandlerTestBase {
       createDataStreamScan(ImmutableList.of("TemporalTable1"), streamPhysicalTraits)
     val streamCalc = new BatchExecCalc(
       cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
-    val streamExchange = new StreamExecExchange(
+    val streamExchange = new StreamPhysicalExchange(
       cluster, streamPhysicalTraits.replace(hash01), streamCalc, hash01)
     val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
     val streamWindowAgg = new StreamExecGroupWindowTableAggregate(
@@ -1036,7 +1036,7 @@ class FlinkRelMdHandlerTestBase {
       localAggInfoList,
       PartialFinalType.NONE)
 
-    val streamExchange1 = new StreamExecExchange(
+    val streamExchange1 = new StreamPhysicalExchange(
       cluster, streamLocalAgg.getTraitSet.replace(hash0), streamLocalAgg, hash0)
     val globalAggInfoList = transformToStreamAggregateInfoList(
       aggCalls,
@@ -1055,7 +1055,7 @@ class FlinkRelMdHandlerTestBase {
       globalAggInfoList,
       PartialFinalType.NONE)
 
-    val streamExchange2 = new StreamExecExchange(cluster,
+    val streamExchange2 = new StreamPhysicalExchange(cluster,
       studentStreamScan.getTraitSet.replace(hash3), studentStreamScan, hash3)
     val streamGlobalAggWithoutLocal = new StreamExecGroupAggregate(
       cluster,
@@ -1317,7 +1317,7 @@ class FlinkRelMdHandlerTestBase {
       createDataStreamScan(ImmutableList.of("TemporalTable1"), streamPhysicalTraits)
     val streamCalc = new BatchExecCalc(
       cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
-    val streamExchange = new StreamExecExchange(
+    val streamExchange = new StreamPhysicalExchange(
       cluster, streamPhysicalTraits.replace(hash01), streamCalc, hash01)
     val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
     val streamWindowAgg = new StreamExecGroupWindowAggregate(
@@ -1462,7 +1462,7 @@ class FlinkRelMdHandlerTestBase {
       createDataStreamScan(ImmutableList.of("TemporalTable1"), streamPhysicalTraits)
     val streamCalc = new BatchExecCalc(
       cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
-    val streamExchange = new StreamExecExchange(
+    val streamExchange = new StreamPhysicalExchange(
       cluster, streamPhysicalTraits.replace(hash1), streamCalc, hash1)
     val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
     val streamWindowAgg = new StreamExecGroupWindowAggregate(
@@ -1855,7 +1855,7 @@ class FlinkRelMdHandlerTestBase {
     val calc = new StreamExecCalc(
       cluster, streamPhysicalTraits, streamScan, rexProgram, rowTypeOfCalc)
     val hash4 = FlinkRelDistribution.hash(Array(4), requireStrict = true)
-    val exchange = new StreamExecExchange(cluster, calc.getTraitSet.replace(hash4), calc, hash4)
+    val exchange = new StreamPhysicalExchange(cluster, calc.getTraitSet.replace(hash4), calc, hash4)
 
     val windowAgg = new StreamExecOverAggregate(
       cluster,
