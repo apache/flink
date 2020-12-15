@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.connector.source.ScanTableSource
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext
 
@@ -31,14 +31,14 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 
 /**
-  * Rule that converts [[FlinkLogicalTableSourceScan]] to [[BatchExecTableSourceScan]].
+  * Rule that converts [[FlinkLogicalTableSourceScan]] to [[BatchPhysicalTableSourceScan]].
   */
-class BatchExecTableSourceScanRule
+class BatchPhysicalTableSourceScanRule
   extends ConverterRule(
     classOf[FlinkLogicalTableSourceScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecTableSourceScanRule") {
+    "BatchPhysicalTableSourceScanRule") {
 
   /** Rule must only match if TableScan targets a bounded [[ScanTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -58,7 +58,7 @@ class BatchExecTableSourceScanRule
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    new BatchExecTableSourceScan(
+    new BatchPhysicalTableSourceScan(
       rel.getCluster,
       newTrait,
       scan.getTable.asInstanceOf[TableSourceTable]
@@ -66,6 +66,6 @@ class BatchExecTableSourceScanRule
   }
 }
 
-object BatchExecTableSourceScanRule {
-  val INSTANCE = new BatchExecTableSourceScanRule
+object BatchPhysicalTableSourceScanRule {
+  val INSTANCE = new BatchPhysicalTableSourceScanRule
 }
