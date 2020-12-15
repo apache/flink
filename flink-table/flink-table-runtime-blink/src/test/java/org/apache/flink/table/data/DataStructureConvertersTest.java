@@ -237,6 +237,16 @@ public class DataStructureConvertersTest {
                                                         FIELD("b_1", DOUBLE()),
                                                         FIELD("b_2", BOOLEAN())))))
                         .convertedTo(Row.class, Row.ofKind(RowKind.DELETE, 12, Row.of(2.0, null)))
+                        .convertedToSupplier(
+                                Row.class,
+                                () -> {
+                                    final Row namedRow = Row.withNames(RowKind.DELETE);
+                                    namedRow.setField("a", 12);
+                                    final Row sparseNamedRow = Row.withNames();
+                                    sparseNamedRow.setField("b_1", 2.0); // "b_2" is omitted
+                                    namedRow.setField("b", sparseNamedRow);
+                                    return namedRow;
+                                })
                         .convertedTo(
                                 RowData.class,
                                 GenericRowData.ofKind(

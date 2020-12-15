@@ -25,15 +25,21 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.RowUtils;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Objects;
+import java.util.Set;
 
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.readIntoAndCopyMask;
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.readIntoMask;
@@ -57,6 +63,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     bitmask with row kind:  |RK RK F1 F2 ... FN|
  *     bitmask in legacy mode: |F1 F2 ... FN|
  * </pre>
+ *
+ * <p>Field names are an optional part of this serializer. They allow to use rows in named-based
+ * field mode. However, the support for name-based rows is limited. Usually, name-based mode should
+ * not be used in state but only for in-flight data. For now, names are not part of serializer
+ * snapshot or equals/hashCode (similar to {@link RowTypeInfo}).
  */
 @Internal
 public final class RowSerializer extends TypeSerializer<Row> {
@@ -74,19 +85,34 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
     private final int arity;
 
+    private final @Nullable LinkedHashMap<String, Integer> positionByName;
+
     private transient boolean[] mask;
 
+    private transient Row reuseRowPositionBased;
+
     public RowSerializer(TypeSerializer<?>[] fieldSerializers) {
-        this(fieldSerializers, false);
+        this(fieldSerializers, null, false);
+    }
+
+    public RowSerializer(
+            TypeSerializer<?>[] fieldSerializers,
+            @Nullable LinkedHashMap<String, Integer> positionByName) {
+        this(fieldSerializers, positionByName, false);
     }
 
     @SuppressWarnings("unchecked")
-    public RowSerializer(TypeSerializer<?>[] fieldSerializers, boolean legacyModeEnabled) {
+    public RowSerializer(
+            TypeSerializer<?>[] fieldSerializers,
+            @Nullable LinkedHashMap<String, Integer> positionByName,
+            boolean legacyModeEnabled) {
         this.legacyModeEnabled = legacyModeEnabled;
         this.legacyOffset = legacyModeEnabled ? 0 : ROW_KIND_OFFSET;
         this.fieldSerializers = (TypeSerializer<Object>[]) checkNotNull(fieldSerializers);
         this.arity = fieldSerializers.length;
+        this.positionByName = positionByName;
         this.mask = new boolean[legacyOffset + fieldSerializers.length];
+        this.reuseRowPositionBased = new Row(fieldSerializers.length);
     }
 
     @Override
@@ -100,75 +126,139 @@ public final class RowSerializer extends TypeSerializer<Row> {
         for (int i = 0; i < fieldSerializers.length; i++) {
             duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
         }
-        return new RowSerializer(duplicateFieldSerializers, legacyModeEnabled);
+        return new RowSerializer(duplicateFieldSerializers, positionByName, legacyModeEnabled);
     }
 
     @Override
     public Row createInstance() {
-        return new Row(fieldSerializers.length);
+        return RowUtils.createRowWithNamedPositions(
+                RowKind.INSERT, new Object[fieldSerializers.length], positionByName);
     }
 
     @Override
     public Row copy(Row from) {
-        int len = fieldSerializers.length;
+        final Set<String> fieldNames = from.getFieldNames(false);
+        if (fieldNames == null) {
+            return copyPositionBased(from);
+        } else {
+            return copyNameBased(from, fieldNames);
+        }
+    }
 
-        if (from.getArity() != len) {
+    private Row copyPositionBased(Row from) {
+        final int length = fieldSerializers.length;
+        if (from.getArity() != length) {
             throw new RuntimeException(
                     "Row arity of from ("
                             + from.getArity()
-                            + ") does not match this serializers field length ("
-                            + len
+                            + ") does not match "
+                            + "this serializer's field length ("
+                            + length
                             + ").");
         }
-
-        Row result = new Row(from.getKind(), len);
-        for (int i = 0; i < len; i++) {
-            Object fromField = from.getField(i);
+        final Object[] fieldByPosition = new Object[length];
+        for (int i = 0; i < length; i++) {
+            final Object fromField = from.getField(i);
             if (fromField != null) {
-                Object copy = fieldSerializers[i].copy(fromField);
-                result.setField(i, copy);
-            } else {
-                result.setField(i, null);
+                final Object copy = fieldSerializers[i].copy(fromField);
+                fieldByPosition[i] = copy;
             }
         }
-        return result;
+        return RowUtils.createRowWithNamedPositions(
+                from.getKind(), fieldByPosition, positionByName);
+    }
+
+    private Row copyNameBased(Row from, Set<String> fieldNames) {
+        if (positionByName == null) {
+            throw new RuntimeException("Serializer does not support named field positions.");
+        }
+        final Row newRow = Row.withNames(from.getKind());
+        for (String fieldName : fieldNames) {
+            final int targetPos = getPositionByName(fieldName);
+            final Object fromField = from.getField(fieldName);
+            if (fromField != null) {
+                final Object copy = fieldSerializers[targetPos].copy(fromField);
+                newRow.setField(fieldName, copy);
+            } else {
+                newRow.setField(fieldName, null);
+            }
+        }
+        return newRow;
     }
 
     @Override
     public Row copy(Row from, Row reuse) {
-        int len = fieldSerializers.length;
-
         // cannot reuse, do a non-reuse copy
         if (reuse == null) {
             return copy(from);
         }
 
-        if (from.getArity() != len || reuse.getArity() != len) {
+        final Set<String> fieldNames = from.getFieldNames(false);
+        if (fieldNames == null) {
+            // reuse uses name-based field mode, do a non-reuse copy
+            if (reuse.getFieldNames(false) != null) {
+                return copy(from);
+            }
+            return copyPositionBased(from, reuse);
+        } else {
+            // reuse uses position-based field mode, do a non-reuse copy
+            if (reuse.getFieldNames(false) == null) {
+                return copy(from);
+            }
+            return copyNameBased(from, fieldNames, reuse);
+        }
+    }
+
+    private Row copyPositionBased(Row from, Row reuse) {
+        final int length = fieldSerializers.length;
+        if (from.getArity() != length || reuse.getArity() != length) {
             throw new RuntimeException(
                     "Row arity of reuse ("
                             + reuse.getArity()
                             + ") or from ("
                             + from.getArity()
-                            + ") is incompatible with this serializers field length ("
-                            + len
+                            + ") is "
+                            + "incompatible with this serializer's field length ("
+                            + length
                             + ").");
         }
-
         reuse.setKind(from.getKind());
-
-        for (int i = 0; i < len; i++) {
-            Object fromField = from.getField(i);
+        for (int i = 0; i < length; i++) {
+            final Object fromField = from.getField(i);
             if (fromField != null) {
-                Object reuseField = reuse.getField(i);
+                final Object reuseField = reuse.getField(i);
                 if (reuseField != null) {
-                    Object copy = fieldSerializers[i].copy(fromField, reuseField);
+                    final Object copy = fieldSerializers[i].copy(fromField, reuseField);
                     reuse.setField(i, copy);
                 } else {
-                    Object copy = fieldSerializers[i].copy(fromField);
+                    final Object copy = fieldSerializers[i].copy(fromField);
                     reuse.setField(i, copy);
                 }
             } else {
                 reuse.setField(i, null);
+            }
+        }
+        return reuse;
+    }
+
+    private Row copyNameBased(Row from, Set<String> fieldNames, Row reuse) {
+        if (positionByName == null) {
+            throw new RuntimeException("Serializer does not support named field positions.");
+        }
+        reuse.clear();
+        reuse.setKind(from.getKind());
+        for (String fieldName : fieldNames) {
+            final int targetPos = getPositionByName(fieldName);
+            final Object fromField = from.getField(fieldName);
+            if (fromField != null) {
+                final Object reuseField = reuse.getField(fieldName);
+                if (reuseField != null) {
+                    final Object copy = fieldSerializers[targetPos].copy(fromField, reuseField);
+                    reuse.setField(fieldName, copy);
+                } else {
+                    final Object copy = fieldSerializers[targetPos].copy(fromField);
+                    reuse.setField(fieldName, copy);
+                }
             }
         }
         return reuse;
@@ -185,23 +275,32 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
     @Override
     public void serialize(Row record, DataOutputView target) throws IOException {
-        final int len = fieldSerializers.length;
+        final Set<String> fieldNames = record.getFieldNames(false);
+        if (fieldNames == null) {
+            serializePositionBased(record, target);
+        } else {
+            serializeNameBased(record, fieldNames, target);
+        }
+    }
 
-        if (record.getArity() != len) {
+    private void serializePositionBased(Row record, DataOutputView target) throws IOException {
+        final int length = fieldSerializers.length;
+        if (record.getArity() != length) {
             throw new RuntimeException(
                     "Row arity of record ("
                             + record.getArity()
-                            + ") does not match this serializers field length ("
-                            + len
+                            + ") does not match this "
+                            + "serializer's field length ("
+                            + length
                             + ").");
         }
 
         // write bitmask
-        fillMask(len, record, mask, legacyModeEnabled, legacyOffset);
+        fillMask(length, record, mask, legacyModeEnabled, legacyOffset);
         writeMask(mask, target);
 
         // serialize non-null fields
-        for (int fieldPos = 0; fieldPos < len; fieldPos++) {
+        for (int fieldPos = 0; fieldPos < length; fieldPos++) {
             final Object o = record.getField(fieldPos);
             if (o != null) {
                 fieldSerializers[fieldPos].serialize(o, target);
@@ -209,39 +308,62 @@ public final class RowSerializer extends TypeSerializer<Row> {
         }
     }
 
+    private void serializeNameBased(Row record, Set<String> fieldNames, DataOutputView target)
+            throws IOException {
+        if (positionByName == null) {
+            throw new RuntimeException("Serializer does not support named field positions.");
+        }
+        reuseRowPositionBased.clear();
+        reuseRowPositionBased.setKind(record.getKind());
+        for (String fieldName : fieldNames) {
+            final int targetPos = getPositionByName(fieldName);
+            final Object value = record.getField(fieldName);
+            reuseRowPositionBased.setField(targetPos, value);
+        }
+        serializePositionBased(reuseRowPositionBased, target);
+    }
+
     @Override
     public Row deserialize(DataInputView source) throws IOException {
-        final int len = fieldSerializers.length;
+        final int length = fieldSerializers.length;
 
         // read bitmask
         readIntoMask(source, mask);
-        final Row result;
+
+        // read row kind
+        final RowKind kind;
         if (legacyModeEnabled) {
-            result = new Row(len);
+            kind = RowKind.INSERT;
         } else {
-            result = new Row(readKindFromMask(mask), len);
+            kind = readKindFromMask(mask);
         }
 
         // deserialize fields
-        for (int fieldPos = 0; fieldPos < len; fieldPos++) {
+        final Object[] fieldByPosition = new Object[length];
+        for (int fieldPos = 0; fieldPos < length; fieldPos++) {
             if (!mask[legacyOffset + fieldPos]) {
-                result.setField(fieldPos, fieldSerializers[fieldPos].deserialize(source));
+                fieldByPosition[fieldPos] = fieldSerializers[fieldPos].deserialize(source);
             }
         }
 
-        return result;
+        return RowUtils.createRowWithNamedPositions(kind, fieldByPosition, positionByName);
     }
 
     @Override
     public Row deserialize(Row reuse, DataInputView source) throws IOException {
-        final int len = fieldSerializers.length;
+        // reuse uses name-based field mode, do a non-reuse deserialize
+        if (reuse == null || reuse.getFieldNames(false) != null) {
+            return deserialize(source);
+        }
+        final int length = fieldSerializers.length;
 
-        if (reuse.getArity() != len) {
+        if (reuse.getArity() != length) {
             throw new RuntimeException(
                     "Row arity of reuse ("
                             + reuse.getArity()
-                            + ") does not match this serializers field length ("
-                            + len
+                            + ") does not match "
+                            + "this serializer's field length ("
+                            + length
                             + ").");
         }
 
@@ -252,7 +374,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
         }
 
         // deserialize fields
-        for (int fieldPos = 0; fieldPos < len; fieldPos++) {
+        for (int fieldPos = 0; fieldPos < length; fieldPos++) {
             if (mask[legacyOffset + fieldPos]) {
                 reuse.setField(fieldPos, null);
             } else {
@@ -306,9 +428,23 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
     // --------------------------------------------------------------------------------------------
 
+    private int getPositionByName(String fieldName) {
+        assert positionByName != null;
+        final Integer targetPos = positionByName.get(fieldName);
+        if (targetPos == null) {
+            throw new RuntimeException(
+                    String.format(
+                            "Unknown field name '%s' for mapping to a row position. "
+                                    + "Available names are: %s",
+                            fieldName, positionByName.keySet()));
+        }
+        return targetPos;
+    }
+
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         this.mask = new boolean[legacyOffset + fieldSerializers.length];
+        this.reuseRowPositionBased = new Row(fieldSerializers.length);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -426,7 +562,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
         protected RowSerializer createOuterSerializerWithNestedSerializers(
                 TypeSerializer<?>[] nestedSerializers) {
             return new RowSerializer(
-                    nestedSerializers, readVersion <= LAST_VERSION_WITHOUT_ROW_KIND);
+                    nestedSerializers, null, readVersion <= LAST_VERSION_WITHOUT_ROW_KIND);
         }
     }
 }
