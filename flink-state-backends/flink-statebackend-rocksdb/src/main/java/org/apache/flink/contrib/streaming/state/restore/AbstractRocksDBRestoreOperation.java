@@ -42,6 +42,8 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -60,6 +62,8 @@ import java.util.function.Function;
  * @param <K> The data type that the serializer serializes.
  */
 public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBRestoreOperation, AutoCloseable {
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
+
 	protected final KeyGroupRange keyGroupRange;
 	protected final int keyGroupPrefixBytes;
 	protected final int numberOfTransferringThreads;
