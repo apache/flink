@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.utils;
+package org.apache.flink.table.planner.plan.nodes.exec.utils;
 
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink;
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink;
