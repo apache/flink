@@ -86,7 +86,7 @@ It differs from a traditional database because Flink does not manage data at res
 
 Flink data processing pipelines begin with source tables. Source tables produce rows operated over during the query's execution; they are the tables referenced in the `FROM` clause of a query.  These could be Kafka topics, databases, filesystems, or any other system that Flink knows how to consume. 
 
-Tables can be defined through the SQL client or using environment config file. The SQL client support [SQL DDL commands]({% link dev/table/sql/index.md %}) similar to traditional SQL. Standard SQL DDL is used to [create]({% link dev/table/sql/create.md %}), [alter]({% link dev/table/sql/alter.md %}), [drop]({% link dev/table/sql/drop.md %}) tables. 
+Tables can be defined through the SQL client or using environment config file. The SQL client support [SQL DDL commands]({% link dev/table/sql/index.zh.md %}) similar to traditional SQL. Standard SQL DDL is used to [create]({% link dev/table/sql/create.zh.md %}), [alter]({% link dev/table/sql/alter.zh.md %}), [drop]({% link dev/table/sql/drop.zh.md %}) tables. 
 
 Flink has a support for different [connectors]({% link dev/table/connect.zh.md %}) and [formats]({%link dev/table/connectors/formats/index.zh.md %}) that can be used with tables. Following is an example to define a source table backed by a [CSV file]({%link dev/table/connectors/formats/csv.zh.md %}) with `emp_id`, `name`, `dept_id` as columns in a `CREATE` table statement.
 
@@ -156,12 +156,12 @@ In particular, Apache Flink's [user mailing list](https://flink.apache.org/commu
 
 ## Resources to Learn more
 
-* [SQL]({% link dev/table/sql/index.md %}): Supported operations and syntax for SQL.
-* [SQL Client]({% link dev/table/sqlClient.md %}): Play around with Flink SQL and submit a table program to a cluster without programming knowledge
-* [Concepts & Common API]({% link dev/table/common.md %}): Shared concepts and APIs of the Table API and SQL.
-* [Streaming Concepts]({% link dev/table/streaming/index.md %}): Streaming-specific documentation for the Table API or SQL such as configuration of time attributes and handling of updating results.
-* [Built-in Functions]({% link dev/table/functions/systemFunctions.md %}): Supported functions in Table API and SQL.
-* [Connect to External Systems]({% link dev/table/connect.md %}): Available connectors and formats for reading and writing data to external systems.
+* [SQL]({% link dev/table/sql/index.zh.md %}): Supported operations and syntax for SQL.
+* [SQL Client]({% link dev/table/sqlClient.zh.md %}): Play around with Flink SQL and submit a table program to a cluster without programming knowledge
+* [Concepts & Common API]({% link dev/table/common.zh.md %}): Shared concepts and APIs of the Table API and SQL.
+* [Streaming Concepts]({% link dev/table/streaming/index.zh.md %}): Streaming-specific documentation for the Table API or SQL such as configuration of time attributes and handling of updating results.
+* [Built-in Functions]({% link dev/table/functions/systemFunctions.zh.md %}): Supported functions in Table API and SQL.
+* [Connect to External Systems]({% link dev/table/connect.zh.md %}): Available connectors and formats for reading and writing data to external systems.
 
 ---------------
 
