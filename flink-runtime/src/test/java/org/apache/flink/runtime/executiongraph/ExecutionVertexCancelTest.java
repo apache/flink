@@ -20,21 +20,24 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexResource;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexState;
@@ -224,9 +227,12 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
 	@Test
 	public void testSendCancelAndReceiveFail() throws Exception {
-		final ExecutionGraph graph = ExecutionGraphTestUtils.createSimpleTestGraph();
+		final SchedulerBase scheduler = SchedulerTestingUtils.createScheduler(new JobGraph(createNoOpVertex(10)));
+		final ExecutionGraph graph = scheduler.getExecutionGraph();
 
-		graph.scheduleForExecution();
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.startScheduling();
+
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(graph);
 		assertEquals(JobStatus.RUNNING, graph.getState());
 
@@ -242,104 +248,6 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
 		assertFalse(exec.getAssignedResource().isAlive());
 		assertEquals(vertices.length - 1, exec.getVertex().getExecutionGraph().getRegisteredExecutions().size());
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Actions after a vertex has been canceled or while canceling
-	// --------------------------------------------------------------------------------------------
-
-	@Test
-	public void testScheduleOrDeployAfterCancel() {
-		try {
-			final ExecutionVertex vertex = getExecutionVertex();
-			setVertexState(vertex, ExecutionState.CANCELED);
-
-			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
-
-			// 1)
-			// scheduling after being canceled should be tolerated (no exception) because
-			// it can occur as the result of races
-			{
-				vertex.scheduleForExecution(
-					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1)),
-					LocationPreferenceConstraint.ALL,
-					Collections.emptySet());
-
-				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
-			}
-
-			// 2)
-			// deploying after canceling from CREATED needs to raise an exception, because
-			// the scheduler (or any caller) needs to know that the slot should be released
-			try {
-
-				final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
-
-				vertex.deployToSlot(slot);
-				fail("Method should throw an exception");
-			}
-			catch (IllegalStateException e) {
-				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testActionsWhileCancelling() {
-
-		try {
-			// scheduling while canceling is an illegal state transition
-			try {
-				final ExecutionVertex vertex = getExecutionVertex();
-				setVertexState(vertex, ExecutionState.CANCELING);
-				vertex.scheduleForExecution(
-					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1)),
-					LocationPreferenceConstraint.ALL,
-					Collections.emptySet());
-			}
-			catch (Exception e) {
-				fail("should not throw an exception");
-			}
-
-			// deploying while in canceling state is illegal (should immediately go to canceled)
-			try {
-				final ExecutionVertex vertex = getExecutionVertex();
-				setVertexState(vertex, ExecutionState.CANCELING);
-
-				final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
-
-				vertex.deployToSlot(slot);
-				fail("Method should throw an exception");
-			}
-			catch (IllegalStateException e) {
-				// that is what we expect
-			}
-
-			// fail while canceling
-			{
-				final ExecutionVertex vertex = getExecutionVertex();
-
-				final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
-
-				setVertexResource(vertex, slot);
-				setVertexState(vertex, ExecutionState.CANCELING);
-
-				Exception failureCause = new Exception("test exception");
-
-				vertex.fail(failureCause);
-				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
-
-				assertFalse(slot.isAlive());
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 	}
 
 	private static class CancelSequenceSimpleAckingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
