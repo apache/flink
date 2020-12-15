@@ -121,7 +121,7 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 		String sqlQuery =
 				"SELECT id, testMap['e']\n" +
 						"FROM NestedTable";
-		util().verifyPlan(sqlQuery);
+		util().verifyRelPlan(sqlQuery);
 	}
 
 	@Override
@@ -133,7 +133,7 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 				"    deepNested.nested2.flag AS nestedFlag,\n" +
 				"    deepNested.nested2.num AS nestedNum\n" +
 				"FROM NestedTable";
-		util().verifyPlan(sqlQuery);
+		util().verifyRelPlan(sqlQuery);
 	}
 
 	@Test
@@ -142,7 +142,7 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 				"    deepNested.nested1.name AS nestedName,\n" +
 				"    (`deepNestedWith.`.`.value` + `deepNestedWith.`.nested.`.value`) AS nestedSum\n" +
 				"FROM NestedTable";
-		util().verifyPlan(sqlQuery);
+		util().verifyRelPlan(sqlQuery);
 	}
 
 	@Test
@@ -152,7 +152,7 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 				"    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results\n" +
 				"FROM MetadataTable";
 
-		util().verifyPlan(sqlQuery);
+		util().verifyRelPlan(sqlQuery);
 	}
 
 	@Test
@@ -162,6 +162,6 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 				"    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results\n" +
 				"FROM MetadataTable";
 
-		util().verifyPlan(sqlQuery);
+		util().verifyRelPlan(sqlQuery);
 	}
 }

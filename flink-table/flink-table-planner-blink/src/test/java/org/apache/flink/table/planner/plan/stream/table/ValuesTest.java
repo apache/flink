@@ -53,7 +53,7 @@ public class ValuesTest extends TableTestBase {
 			row(3, 4L, "DEF"),
 			row(4, 5L, "ABC")
 		);
-		util.verifyPlan(t);
+		util.verifyExecPlan(t);
 	}
 
 	@Test
@@ -65,7 +65,7 @@ public class ValuesTest extends TableTestBase {
 			99L,
 			null
 		);
-		util.verifyPlan(t);
+		util.verifyExecPlan(t);
 	}
 
 	@Test
@@ -79,7 +79,7 @@ public class ValuesTest extends TableTestBase {
 			row(99L, "DEFG", map("a", 1)),
 			row(0d, "D", lit(null, DataTypes.MAP(DataTypes.CHAR(1), DataTypes.INT())))
 		);
-		util.verifyPlan(t);
+		util.verifyExecPlan(t);
 	}
 
 	@Test
@@ -92,7 +92,7 @@ public class ValuesTest extends TableTestBase {
 			Row.of(99L, "DEFG", 3),
 			Row.of(0d, "D", 4)
 		);
-		util.verifyPlan(t);
+		util.verifyExecPlan(t);
 	}
 
 	@Test
@@ -105,7 +105,7 @@ public class ValuesTest extends TableTestBase {
 			row(99L, "DEFG", nullOf(DataTypes.INT())),
 			Row.of(0d, "D", 4)
 		);
-		util.verifyPlan(t);
+		util.verifyExecPlan(t);
 	}
 
 	@Test
@@ -127,7 +127,7 @@ public class ValuesTest extends TableTestBase {
 			rowType,
 			data
 		);
-		util.verifyPlan(t);
+		util.verifyExecPlan(t);
 	}
 
 	@Test
@@ -137,7 +137,7 @@ public class ValuesTest extends TableTestBase {
 			Row.of(1, Row.of("A", 2), singletonList(1)),
 			Row.of(Math.PI, Row.of("ABC", 3.0), singletonList(3L))
 		);
-		util.verifyPlan(t);
+		util.verifyExecPlan(t);
 	}
 
 	@Test
@@ -150,7 +150,7 @@ public class ValuesTest extends TableTestBase {
 			row(lit(1).plus(2), "ABC"),
 			row(2, "ABC")
 		);
-		util.verifyPlan(t);
+		util.verifyExecPlan(t);
 	}
 
 	@Test
@@ -164,7 +164,7 @@ public class ValuesTest extends TableTestBase {
 			),
 			row(lit(1).plus(2), "ABC", new byte[]{1, 2, 3})
 		);
-		util.verifyPlan(t);
+		util.verifyExecPlan(t);
 	}
 
 	@Test
@@ -187,7 +187,7 @@ public class ValuesTest extends TableTestBase {
 			Row.of(1, Row.of("A", 2, Row.of(LocalTime.of(0, 0, 0))), singletonList(1)),
 			Row.of(Math.PI, Row.of("ABC", 3.0, Row.of(100 /* uses integer for a TIME(4)*/)), singletonList(3L))
 		);
-		util.verifyPlan(t);
+		util.verifyExecPlan(t);
 	}
 
 	@Test

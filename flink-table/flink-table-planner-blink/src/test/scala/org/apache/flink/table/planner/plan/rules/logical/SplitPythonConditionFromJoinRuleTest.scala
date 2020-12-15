@@ -62,7 +62,7 @@ class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
   @Test
   def testPythonFunctionInJoinCondition(): Unit = {
     val sqlQuery = "SELECT a, b, d FROM leftTable JOIN rightTable ON a=d and pyFunc(a, d)=b "
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -76,6 +76,6 @@ class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
         |    a = d and pyFunc(a, a) = a + d)
         |  WHERE pyFunc(a, d) = a * d)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

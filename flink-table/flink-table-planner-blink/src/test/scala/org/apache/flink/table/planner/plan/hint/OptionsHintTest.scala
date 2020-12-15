@@ -83,7 +83,7 @@ class OptionsHintTest(param: Param)
     expectedException.expect(isA(classOf[ValidationException]))
     expectedException.expectMessage(s"OPTIONS hint is allowed only when "
       + s"${TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key} is set to true")
-    util.verifyPlan("select * from t1/*+ OPTIONS(connector='COLLECTION', k2='#v2') */")
+    util.verifyExecPlan("select * from t1/*+ OPTIONS(connector='COLLECTION', k2='#v2') */")
   }
 
   @Test
@@ -106,12 +106,12 @@ class OptionsHintTest(param: Param)
 
   @Test
   def testAppendOptions(): Unit = {
-    util.verifyPlan("select * from t1/*+ OPTIONS(k5='v5', 'a.b.c'='fakeVal') */")
+    util.verifyExecPlan("select * from t1/*+ OPTIONS(k5='v5', 'a.b.c'='fakeVal') */")
   }
 
   @Test
   def testOverrideOptions(): Unit = {
-    util.verifyPlan("select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */")
+    util.verifyExecPlan("select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */")
   }
 
   @Test
@@ -124,7 +124,7 @@ class OptionsHintTest(param: Param)
          |t2 /*+ OPTIONS(k6='v6', 'd.e.f'='fakeVal') */
          |on t1.a = t2.d
          |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -137,7 +137,7 @@ class OptionsHintTest(param: Param)
          |t2 /*+ OPTIONS(k3='#v3', k4='#v4') */
          |on t1.a = t2.d
          |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -146,7 +146,7 @@ class OptionsHintTest(param: Param)
     util.tableEnv.createTemporaryView("view1", view1)
     // The table hints on view expect to be ignored.
     val sql = "select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -179,7 +179,7 @@ class OptionsHintTest(param: Param)
       false)
     // The table hints on view expect to be ignored.
     val sql = "select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 }
 

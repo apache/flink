@@ -57,14 +57,14 @@ class FlinkFilterJoinRuleTest extends TableTestBase {
   def testFilterPushDownLeftSemi1(): Unit = {
     val sqlQuery =
       "SELECT * FROM (SELECT * FROM leftT WHERE a IN (SELECT c FROM rightT)) T WHERE T.b > 2"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testFilterPushDownLeftSemi2(): Unit = {
     val sqlQuery =
       "SELECT * FROM (SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT)) T WHERE T.b > 2"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -74,22 +74,23 @@ class FlinkFilterJoinRuleTest extends TableTestBase {
         |SELECT * FROM (SELECT * FROM leftT WHERE EXISTS
         |    (SELECT * FROM rightT WHERE a = c)) T WHERE T.b > 2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testJoinConditionPushDownLeftSemi1(): Unit = {
-    util.verifyPlan("SELECT * FROM leftT WHERE a IN (SELECT c FROM rightT WHERE b > 2)")
+    util.verifyRelPlan("SELECT * FROM leftT WHERE a IN (SELECT c FROM rightT WHERE b > 2)")
   }
 
   @Test
   def testJoinConditionPushDownLeftSemi2(): Unit = {
-    util.verifyPlan("SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE b > 2)")
+    util.verifyRelPlan("SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE b > 2)")
   }
 
   @Test
   def testJoinConditionPushDownLeftSemi3(): Unit = {
-    util.verifyPlan("SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE a = c AND b > 2)")
+    util.verifyRelPlan(
+      "SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE a = c AND b > 2)")
   }
 
   @Test
@@ -99,7 +100,7 @@ class FlinkFilterJoinRuleTest extends TableTestBase {
         |SELECT * FROM (SELECT * FROM leftT WHERE a NOT IN
         |    (SELECT c FROM rightT WHERE c < 3)) T WHERE T.b > 2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -109,7 +110,7 @@ class FlinkFilterJoinRuleTest extends TableTestBase {
         |SELECT * FROM (SELECT * FROM leftT WHERE NOT EXISTS
         |    (SELECT * FROM rightT where c > 10)) T WHERE T.b > 2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -119,7 +120,7 @@ class FlinkFilterJoinRuleTest extends TableTestBase {
         |SELECT * FROM (SELECT * FROM leftT WHERE a NOT IN
         |(SELECT c FROM rightT WHERE b = d AND c < 3)) T WHERE T.b > 2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -129,30 +130,30 @@ class FlinkFilterJoinRuleTest extends TableTestBase {
         |SELECT * FROM (SELECT * FROM leftT WHERE NOT EXISTS
         |    (SELECT * FROM rightT WHERE a = c)) T WHERE T.b > 2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testJoinConditionPushDownLeftAnti1(): Unit = {
-    util.verifyPlan("SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b > 2)")
+    util.verifyRelPlan("SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b > 2)")
   }
 
   @Test
   def testJoinConditionPushDownLeftAnti2(): Unit = {
-    util.verifyPlan("SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE b > 2)")
+    util.verifyRelPlan("SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE b > 2)")
   }
 
   @Test
   def testJoinConditionPushDownLeftAnti3(): Unit = {
     val sqlQuery = "SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b = d AND b > 1)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testJoinConditionPushDownLeftAnti4(): Unit = {
     val sqlQuery =
       "SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE a = c AND b > 2)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

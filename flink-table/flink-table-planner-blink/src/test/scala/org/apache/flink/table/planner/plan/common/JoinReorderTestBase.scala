@@ -81,7 +81,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE a1 = a2 AND a1 = a3 AND a1 = a4 AND a1 = a5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -91,7 +91,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE b1 = b2 AND b1 = b3 AND b1 = b4 AND b1 = b5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -101,7 +101,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE a1 = a2 AND a2 = a3 AND a1 = a4 AND a3 = a5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -111,7 +111,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE b1 = b2 AND b2 = b3 AND b1 = b4 AND b3 = b5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -121,7 +121,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE c1 = c2 AND c1 = c3 AND c2 = c4 AND c1 = c5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -135,7 +135,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM V3, T5 where a4 = a5
          """.stripMargin
     // can not reorder now
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -148,7 +148,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |
          |SELECT * FROM V3, T5 WHERE a4 = a5 AND b5 < 15
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -162,7 +162,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   JOIN T5 ON a4 = a5
          """.stripMargin
     // T1, T2, T3 can reorder
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -176,7 +176,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   JOIN T5 ON a4 = a5
          """.stripMargin
     // T3, T4, T5 can reorder
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -189,7 +189,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   JOIN T4 ON a1 = a4
          |   JOIN T5 ON a4 = a5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -203,7 +203,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   LEFT OUTER JOIN T5 ON a4 = a5
          """.stripMargin
     // can not reorder
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -217,7 +217,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   RIGHT OUTER JOIN T5 ON a4 = a5
          """.stripMargin
     // can not reorder
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -231,7 +231,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   FULL OUTER JOIN T5 ON a4 = a5
          """.stripMargin
     // can not reorder
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -274,6 +274,6 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   INNER JOIN T7 ON b6 = b7
          |   INNER JOIN T8 ON a6 = a8
          |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 }

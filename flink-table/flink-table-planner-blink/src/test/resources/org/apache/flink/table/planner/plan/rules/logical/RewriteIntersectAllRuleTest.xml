@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[true])
 :- LogicalProject(c=[$2])
@@ -29,7 +29,7 @@ LogicalIntersect(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
@@ -51,7 +51,7 @@ LogicalProject(c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 WHERE 1=0 INTERSECT ALL SELECT f FROM T2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[true])
 :- LogicalProject(c=[$2])
@@ -61,7 +61,7 @@ LogicalIntersect(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
@@ -84,7 +84,7 @@ LogicalProject(c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT c FROM ((SELECT * FROM T1) INTERSECT ALL (SELECT * FROM T2)) WHERE a > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[>($0, 1)])
@@ -95,7 +95,7 @@ LogicalProject(c=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[>($0, 1)])
@@ -119,7 +119,7 @@ LogicalProject(c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2 WHERE 1=0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[true])
 :- LogicalProject(c=[$2])
@@ -129,7 +129,7 @@ LogicalIntersect(all=[true])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])

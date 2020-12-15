@@ -50,7 +50,7 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the rank condition is not 1, so it will not be translate to LastRow, but Rank
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -65,7 +65,7 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the rank condition is not 1, so it will not be translate to LastRow, but Rank
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -123,7 +123,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rank_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -138,7 +138,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rank_num = 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -153,7 +153,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rank_num = 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -169,7 +169,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rowNum = 1
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -184,7 +184,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rank_num = 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -200,7 +200,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rowNum = 1
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
 }

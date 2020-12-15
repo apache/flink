@@ -38,7 +38,7 @@ class PythonOverWindowAggregateTest extends TableTestBase {
       .window(Over partitionBy 'b orderBy  'rowtime preceding 10.second as 'w)
       .select('b, func('a, 'c) over 'w)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -52,7 +52,7 @@ class PythonOverWindowAggregateTest extends TableTestBase {
       .window(Over partitionBy 'b orderBy  'proctime preceding 10.second as 'w)
       .select('b, func('a, 'c) over 'w)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -66,7 +66,7 @@ class PythonOverWindowAggregateTest extends TableTestBase {
       .window(Over partitionBy 'b orderBy  'rowtime preceding 10.rows as 'w)
       .select('b, func('a, 'c) over 'w)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -80,6 +80,6 @@ class PythonOverWindowAggregateTest extends TableTestBase {
       .window(Over partitionBy 'b orderBy  'proctime preceding 10.rows as 'w)
       .select('b, func('a, 'c) over 'w)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 }

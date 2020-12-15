@@ -36,7 +36,7 @@ class CalcTest extends TableTestBase {
 
     val result = table.select('a.flatten(), 'c, 'b.flatten())
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -47,7 +47,7 @@ class CalcTest extends TableTestBase {
 
     val result = table.select('a.flatten(), 'b.flatten())
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -61,7 +61,7 @@ class CalcTest extends TableTestBase {
       giveMeCaseClass().get("clazz"),
       giveMeCaseClass().flatten())
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.select('a, 'b)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -94,7 +94,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.select('a.sum, 'b.max)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -106,7 +106,7 @@ class CalcTest extends TableTestBase {
 
     val resultTable = sourceTable.select(call("hashCode", $"c"), $"b")
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -115,7 +115,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy('a, 'c).select('a)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -124,7 +124,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy('a, 'c).select('a, 'c)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -133,7 +133,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy('c).select('a.sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -142,7 +142,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy('c.upperCase() as 'k).select('a.sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -151,7 +151,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy(MyHashCode('c) as 'k).select('a.sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -163,7 +163,7 @@ class CalcTest extends TableTestBase {
       .select('word, 'frequency.sum as 'frequency)
       .filter('frequency === 2)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -175,7 +175,7 @@ class CalcTest extends TableTestBase {
       .filter('b < 2)
       .filter(('a % 2) === 1)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 }
 

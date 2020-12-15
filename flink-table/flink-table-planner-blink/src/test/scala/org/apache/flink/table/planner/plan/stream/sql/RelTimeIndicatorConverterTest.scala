@@ -49,40 +49,40 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         |SELECT rowtime FROM
         |    (SELECT FLOOR(rowtime TO DAY) AS rowtime, long FROM MyTable WHERE long > 0) t
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testSelectAll(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable")
+    util.verifyExecPlan("SELECT * FROM MyTable")
   }
 
   @Test
   def testFilteringOnRowtime(): Unit = {
     val sqlQuery =
       "SELECT rowtime FROM MyTable1 WHERE rowtime > CAST('1990-12-02 12:11:11' AS TIMESTAMP(3))"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testGroupingOnRowtime(): Unit = {
-    util.verifyPlan("SELECT COUNT(long) FROM MyTable GROUP BY rowtime")
+    util.verifyExecPlan("SELECT COUNT(long) FROM MyTable GROUP BY rowtime")
   }
 
   @Test
   def testAggregationOnRowtime(): Unit = {
-    util.verifyPlan("SELECT MIN(rowtime) FROM MyTable1 GROUP BY long")
+    util.verifyExecPlan("SELECT MIN(rowtime) FROM MyTable1 GROUP BY long")
   }
 
 
   @Test
   def testGroupingOnProctime(): Unit = {
-    util.verifyPlan("SELECT COUNT(long) FROM MyTable2 GROUP BY proctime")
+    util.verifyExecPlan("SELECT COUNT(long) FROM MyTable2 GROUP BY proctime")
   }
 
   @Test
   def testAggregationOnProctime(): Unit = {
-    util.verifyPlan("SELECT MIN(proctime) FROM MyTable2 GROUP BY long")
+    util.verifyExecPlan("SELECT MIN(proctime) FROM MyTable2 GROUP BY long")
   }
 
   @Test
@@ -93,12 +93,12 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         |SELECT rowtime, proctime, s
         |FROM MyTable, LATERAL TABLE(tableFunc(rowtime, proctime, '')) AS T(s)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testUnion(): Unit = {
-    util.verifyPlan("SELECT rowtime FROM MyTable1 UNION ALL SELECT rowtime FROM MyTable1")
+    util.verifyExecPlan("SELECT rowtime FROM MyTable1 UNION ALL SELECT rowtime FROM MyTable1")
   }
 
   @Test
@@ -111,7 +111,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         |FROM MyTable1
         |    GROUP BY TUMBLE(rowtime, INTERVAL '10' SECOND), long
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -125,7 +125,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         |   GROUP BY `long`, TUMBLE(rowtime, INTERVAL '0.1' SECOND)
         |
         """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -141,7 +141,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         |        GROUP BY TUMBLE(rowtime, INTERVAL '10' SECOND), long
         |) t GROUP BY TUMBLE(newrowtime, INTERVAL '30' SECOND), long
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -151,7 +151,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         |SELECT MIN(rowtime), long FROM MyTable1
         |GROUP BY long, TUMBLE(rowtime, INTERVAL '0.1' SECOND)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -162,7 +162,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         |GROUP BY long, TUMBLE(rowtime, INTERVAL '1' SECOND)
         |HAVING QUARTER(TUMBLE_END(rowtime, INTERVAL '1' SECOND)) = 1
       """.stripMargin
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -193,7 +193,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
       "appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 
   // TODO add temporal table join case

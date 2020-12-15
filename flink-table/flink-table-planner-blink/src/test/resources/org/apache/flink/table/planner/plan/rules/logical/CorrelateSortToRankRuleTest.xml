@@ -31,7 +31,7 @@ FROM
   )
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(mf0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
@@ -44,7 +44,7 @@ LogicalProject(mf0=[$0], f1=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(mf0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
@@ -73,7 +73,7 @@ FROM
   )
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
@@ -86,7 +86,7 @@ LogicalProject(f0=[$0], f1=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
@@ -115,7 +115,7 @@ FROM
   )
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
@@ -128,7 +128,7 @@ LogicalProject(f0=[$0], f1=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[$0], orderBy=[$2 DESC], select=[f0=$0, f1=$1, f2=$2])
@@ -152,7 +152,7 @@ FROM
   )
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
@@ -165,7 +165,7 @@ LogicalProject(f0=[$0], f1=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
@@ -194,7 +194,7 @@ FROM
   )
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
@@ -207,7 +207,7 @@ LogicalProject(f0=[$0], f1=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
@@ -236,7 +236,7 @@ FROM
   )
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f2=[$2])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
@@ -249,7 +249,7 @@ LogicalProject(f0=[$0], f2=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(f0=[$0], f2=[$2])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
@@ -279,7 +279,7 @@ FROM
   )
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
@@ -292,7 +292,7 @@ LogicalProject(f0=[$0], f1=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
@@ -321,7 +321,7 @@ FROM
   )
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
@@ -334,7 +334,7 @@ LogicalProject(f0=[$0], f1=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])

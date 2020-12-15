@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r) AND NOT EXISTS (SELECT * FROM t WHERE l.a = t.i AND t.j < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
@@ -32,7 +32,7 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -55,7 +55,7 @@ Join(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT MAX(e) FROM r WHERE l.b = r.e AND d < 100 AND l.c = r.f GROUP BY d, true, f, 1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -67,7 +67,7 @@ LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[MAX($4)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((b = e) AND (c = f))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b, c]])
@@ -85,7 +85,7 @@ Join(joinType=[LeftSemiJoin], where=[((b = e) AND (c = f))], select=[a, b, c], l
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -97,7 +97,7 @@ LogicalFilter(condition=[=($cor1.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -113,7 +113,7 @@ Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE l.a < r.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -123,7 +123,7 @@ LogicalFilter(condition=[<($cor0.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a < d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -138,7 +138,7 @@ Join(joinType=[LeftSemiJoin], where=[(a < d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE l.a < 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -148,7 +148,7 @@ LogicalFilter(condition=[<($cor0.a, 10)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -164,7 +164,7 @@ Join(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], leftInputSpec=[NoU
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT MAX(r.e) OVER() FROM r WHERE l.c = r.f GROUP BY r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -176,7 +176,7 @@ LogicalAggregate(group=[{0}])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(c = f)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[c]])
@@ -194,7 +194,7 @@ Join(joinType=[LeftSemiJoin], where=[(c = f)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE a = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -204,7 +204,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -219,7 +219,7 @@ Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT a + 10, c FROM l WHERE b > 10 AND NOT (c like 'abc' OR NOT EXISTS (SELECT d FROM r))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), NOT(OR(LIKE($2, _UTF-16LE'abc'), NOT(EXISTS({
@@ -228,7 +228,7 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(a + 10) AS EXPR$0, c])
 +- Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -248,7 +248,7 @@ Calc(select=[(a + 10) AS EXPR$0, c])
     <Resource name="sql">
       <![CDATA[SELECT c FROM l WHERE EXISTS (SELECT d, j + 1 FROM r FULL JOIN (SELECT j FROM t WHERE i > 10) t2 ON r.e = t2.j)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -261,7 +261,7 @@ LogicalJoin(condition=[=($1, $3)], joinType=[full])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[$f0], select=[c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -286,7 +286,7 @@ Join(joinType=[LeftSemiJoin], where=[$f0], select=[c], leftInputSpec=[NoUniqueKe
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE EXISTS (SELECT * FROM t))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -300,7 +300,7 @@ LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -328,7 +328,7 @@ Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUn
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -337,7 +337,7 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -355,7 +355,7 @@ Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUn
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r) AND b > 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(EXISTS({
@@ -364,7 +364,7 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -383,7 +383,7 @@ Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUn
     <Resource name="sql">
       <![CDATA[SELECT a FROM l WHERE EXISTS (SELECT e, f FROM r WHERE d > 10 UNION SELECT j, k FROM t WHERE i < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[EXISTS({
@@ -398,7 +398,7 @@ LogicalUnion(all=[false])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[$f0], select=[a], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -423,7 +423,7 @@ Join(joinType=[LeftSemiJoin], where=[$f0], select=[a], leftInputSpec=[NoUniqueKe
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE l.a = r.d) AND a IN (SELECT i FROM t WHERE l.b = t.j)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(EXISTS({
@@ -437,7 +437,7 @@ LogicalProject(i=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((a = i) AND (b = j))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a, b]])
@@ -457,7 +457,7 @@ Join(joinType=[LeftSemiJoin], where=[((a = i) AND (b = j))], select=[a, b, c], l
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b IN (SELECT j FROM t)  AND EXISTS (SELECT * FROM r WHERE l.a = r.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($1, {
@@ -470,7 +470,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -490,7 +490,7 @@ Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r)  AND b NOT IN (SELECT i FROM t WHERE l.c = t.k AND i > 10)  AND EXISTS (SELECT COUNT(l) FROM t2 where n like 'Test' GROUP BY l) AND NOT EXISTS (SELECT * FROM r WHERE l.b <> r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
@@ -512,7 +512,7 @@ LogicalFilter(condition=[<>($cor0.b, $1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[(b <> e)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -548,7 +548,7 @@ Join(joinType=[LeftAntiJoin], where=[(b <> e)], select=[a, b, c], leftInputSpec=
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b IN (SELECT MAX(r.e) FROM r WHERE l.c = r.f AND r.d < 3 GROUP BY r.f)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($1, {
@@ -561,7 +561,7 @@ LogicalProject(EXPR$0=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (c = f))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
 :- Exchange(distribution=[hash[b, c]])
@@ -579,7 +579,7 @@ Join(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (c = f))], select=[a, b, 
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, 1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($1, $0, {
@@ -592,7 +592,7 @@ LogicalProject(EXPR$0=[$4], d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (a = d) AND (c = f))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b, a, c]])
@@ -609,7 +609,7 @@ Join(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (a = d) AND (c = f))], se
     <Resource name="sql">
       <![CDATA[SELECT a + 10, c FROM l WHERE NOT(NOT(substring(c, 1, 5) IN (SELECT substring(f, 1, 5) FROM r WHERE l.b + 1 = r.e)))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 +- LogicalFilter(condition=[IN(SUBSTRING($2, 1, 5), {
@@ -620,7 +620,7 @@ LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(a + 10) AS EXPR$0, c])
 +- Join(joinType=[LeftSemiJoin], where=[(($f3 = EXPR$0) AND ($f4 = e))], select=[a, c, $f3, $f4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -637,7 +637,7 @@ Calc(select=[(a + 10) AS EXPR$0, c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b > 10 AND NOT (c like 'abc' OR a NOT IN (SELECT d FROM r WHERE l.b = r.e))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), NOT(LIKE($2, _UTF-16LE'abc')), IN($0, {
@@ -648,7 +648,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a, b]])
@@ -664,7 +664,7 @@ Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], l
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE  (CASE WHEN a IN (SELECT 1 FROM t) THEN 1 ELSE 2 END) IN (SELECT d FROM r WHERE l.c = r.f)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[IN(CASE(IN($0, {
@@ -678,7 +678,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b])
 +- Join(joinType=[LeftSemiJoin], where=[(($f3 = d) AND (c = f))], select=[b, c, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -709,7 +709,7 @@ Calc(select=[b])
     <Resource name="sql">
       <![CDATA[SELECT c FROM l WHERE b IN (WITH r1 AS (SELECT e FROM r WHERE l.a = r.d AND r.e < 50) SELECT e FROM r1 INNER JOIN (SELECT j FROM t WHERE l.c = t.k AND i > 10) t2 ON r1.e = t2.j)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[IN($1, {
@@ -725,7 +725,7 @@ LogicalProject(e=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c])
 +- Join(joinType=[LeftSemiJoin], where=[((b = e) AND (a = d) AND (c = k))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -747,7 +747,7 @@ Calc(select=[c])
     <Resource name="sql">
       <![CDATA[SELECT c FROM l WHERE b IN (WITH r1 AS (SELECT e, f FROM r WHERE l.a = r.d AND r.e < 50) SELECT t.j FROM r1 LEFT JOIN t ON r1.f = t.k)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[IN($1, {
@@ -761,7 +761,7 @@ LogicalProject(j=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c])
 +- Join(joinType=[LeftSemiJoin], where=[((b = j) AND (a = d))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -783,7 +783,7 @@ Calc(select=[c])
     <Resource name="sql">
       <![CDATA[SELECT c FROM l WHERE a IN (SELECT d FROM r RIGHT JOIN (SELECT i FROM t WHERE l.c = t.k AND i > 10) t2 ON r.d = t2.i)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[IN($0, {
@@ -797,7 +797,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c])
 +- Join(joinType=[LeftSemiJoin], where=[((a = d) AND (c = k))], select=[a, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -820,7 +820,7 @@ Calc(select=[c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE c IN (SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($2, {
@@ -833,7 +833,7 @@ LogicalProject(f1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((c = f1) AND (a = d))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[c, a]])
@@ -849,7 +849,7 @@ Join(joinType=[LeftSemiJoin], where=[((c = f1) AND (a = d))], select=[a, b, c], 
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a, SUBSTRING(c, 1, 5)) IN (SELECT d, SUBSTRING(f, 1, 5) FROM r WHERE l.b = r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, SUBSTRING($2, 1, 5), {
@@ -860,7 +860,7 @@ LogicalProject(d=[$0], EXPR$1=[SUBSTRING($2, 1, 5)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
 +- Join(joinType=[LeftSemiJoin], where=[((a = d) AND ($f3 = EXPR$1) AND (b = e))], select=[a, b, c, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -877,7 +877,7 @@ Calc(select=[a, b, c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE l.b > r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
@@ -888,7 +888,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b > e))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -903,7 +903,7 @@ Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b > e))], select=[a, b, c], l
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE l.b > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
@@ -914,7 +914,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -930,7 +930,7 @@ Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b IN (SELECT rk FROM (SELECT d, e, RANK() OVER(PARTITION BY d ORDER BY e) AS rk FROM r) t WHERE l.a <> t.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($1, {
@@ -942,7 +942,7 @@ LogicalProject(rk=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((b = rk) AND (a <> d))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
@@ -959,7 +959,7 @@ Join(joinType=[LeftSemiJoin], where=[((b = rk) AND (a <> d))], select=[a, b, c],
     <Resource name="sql">
       <![CDATA[SELECT a FROM l WHERE (SELECT MAX(d) FROM r WHERE e IN (SELECT j FROM t)) IN (SELECT i FROM t WHERE t.k = l.c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[IN($SCALAR_QUERY({
@@ -978,7 +978,7 @@ LogicalProject(i=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- Join(joinType=[LeftSemiJoin], where=[((EXPR$0 = i) AND (k = c))], select=[a, c, EXPR$0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -1010,7 +1010,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE l.b = r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
@@ -1021,7 +1021,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a, b]])
@@ -1036,7 +1036,7 @@ Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], l
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b > 1 AND a IN (SELECT d FROM r WHERE l.b = r.e AND r.d > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 1), IN($0, {
@@ -1047,7 +1047,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a, b]])
@@ -1063,7 +1063,7 @@ Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], l
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r where CAST(l.b AS INTEGER) = r.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
@@ -1074,7 +1074,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
 +- Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b0 = d))], select=[a, b, c, b0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -1091,7 +1091,7 @@ Calc(select=[a, b, c])
     <Resource name="sql">
       <![CDATA[SELECT a FROM l WHERE b IN (SELECT MAX(e) FROM r WHERE d < 3 GROUP BY f)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[IN($1, {
@@ -1104,7 +1104,7 @@ LogicalProject(EXPR$0=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- Join(joinType=[LeftSemiJoin], where=[(b = EXPR$0)], select=[a, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -1124,7 +1124,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a, b) IN(SELECT d, COUNT(*) FROM r GROUP BY d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, $1, {
@@ -1135,7 +1135,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b = EXPR$1))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
 :- Exchange(distribution=[hash[a, b]])
@@ -1152,7 +1152,7 @@ Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b = EXPR$1))], select=[a, b, 
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b > 10 AND NOT (c like 'abc' OR a NOT IN (SELECT d FROM r))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), NOT(LIKE($2, _UTF-16LE'abc')), IN($0, {
@@ -1162,7 +1162,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -1178,7 +1178,7 @@ Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a IN (SELECT d FROM r)) IS TRUE]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IS TRUE(IN($0, {
@@ -1188,7 +1188,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -1206,7 +1206,7 @@ SELECT b FROM l WHERE (CASE WHEN a IN
     (SELECT 1 FROM t) THEN 1 ELSE 2 END) IN (SELECT d FROM r)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[IN(CASE(IN($0, {
@@ -1219,7 +1219,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b])
 +- Join(joinType=[LeftSemiJoin], where=[($f3 = d)], select=[b, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -1251,7 +1251,7 @@ Calc(select=[b])
     <Resource name="sql">
       <![CDATA[SELECT a FROM l WHERE (SELECT MAX(e) FROM r WHERE d > 0) IN (SELECT j FROM t)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[IN($SCALAR_QUERY({
@@ -1266,7 +1266,7 @@ LogicalProject(j=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- Join(joinType=[LeftSemiJoin], where=[(EXPR$0 = j)], select=[a, EXPR$0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -1290,7 +1290,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE a IN (SELECT d FROM r WHERE e > 10) AND b > (SELECT 0.5 * SUM(j) FROM t WHERE t.i < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[AND(IN($0, {
@@ -1307,7 +1307,7 @@ LogicalProject(EXPR$0=[*(0.5:DECIMAL(2, 1), $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b])
 +- Join(joinType=[InnerJoin], where=[(b > $f0)], select=[b, $f0], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
@@ -1335,7 +1335,7 @@ Calc(select=[b])
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS s FROM l GROUP BY b HAVING COUNT(*) > 2 AND MAX(b) IN (SELECT e FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(s=[$1])
 +- LogicalFilter(condition=[AND(>($2, 2), IN($3, {
@@ -1347,7 +1347,7 @@ LogicalProject(e=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[s])
 +- Join(joinType=[LeftSemiJoin], where=[($f3 = e)], select=[s, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -1370,7 +1370,7 @@ SELECT c FROM l WHERE a IN
     (SELECT d FROM r FULL JOIN (SELECT i FROM t WHERE i > 10) t2 ON r.e = t2.i)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[IN($0, {
@@ -1384,7 +1384,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c])
 +- Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -1407,7 +1407,7 @@ Calc(select=[c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE c IN (SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($2, {
@@ -1419,7 +1419,7 @@ LogicalProject(f1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(c = f1)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[c]])
@@ -1438,7 +1438,7 @@ SELECT * FROM l WHERE
     (a + 10, SUBSTRING(c, 1, 5)) IN (SELECT d + 100, SUBSTRING(f, 1, 5) FROM r)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN(+($0, 10), SUBSTRING($2, 1, 5), {
@@ -1448,7 +1448,7 @@ LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
 +- Join(joinType=[LeftSemiJoin], where=[(($f3 = EXPR$0) AND ($f4 = EXPR$1))], select=[a, b, c, $f3, $f4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -1469,7 +1469,7 @@ SELECT * FROM l WHERE (a, b) IN
             MIN(r.e) OVER(PARTITION BY f ORDER BY d) FROM r)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, $1, {
@@ -1479,7 +1479,7 @@ LogicalProject(EXPR$0=[MAX($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)], 
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a, b]])
@@ -1496,7 +1496,7 @@ Join(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b, c],
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
@@ -1506,7 +1506,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -1521,7 +1521,7 @@ Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE e < 100) AND b > 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
@@ -1532,7 +1532,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -1548,7 +1548,7 @@ Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a + 1 IN (SELECT d FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN(+($0, 1), {
@@ -1558,7 +1558,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
 +- Join(joinType=[LeftSemiJoin], where=[($f3 = d)], select=[a, b, c, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -1578,7 +1578,7 @@ SELECT a FROM l WHERE b IN
     (SELECT e FROM r WHERE d > 10 UNION SELECT i FROM t WHERE i < 100)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[IN($1, {
@@ -1593,7 +1593,7 @@ LogicalUnion(all=[false])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- Join(joinType=[LeftSemiJoin], where=[(b = e)], select=[a, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
@@ -1615,7 +1615,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE l.a <> r.d) AND EXISTS (SELECT * FROM t WHERE j < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(EXISTS({
@@ -1628,7 +1628,7 @@ LogicalFilter(condition=[<($1, 100)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -1651,7 +1651,7 @@ Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUn
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE EXISTS (SELECT * FROM t) AND l.a = r.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -1663,7 +1663,7 @@ LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -1686,7 +1686,7 @@ Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND EXISTS (SELECT * FROM t t1 WHERE t1.i > 50) AND b >= 1 AND EXISTS (SELECT * FROM t t2 WHERE t2.j < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalFilter(condition=[AND(=($0, $3), EXISTS({
@@ -1701,7 +1701,7 @@ LogicalFilter(condition=[<($1, 100)])
       +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -1732,7 +1732,7 @@ Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c, d, e, f], leftInputS
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE c = f) AND b IN (SELECT j FROM t WHERE a = i AND k <> 'test')]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
@@ -1747,7 +1747,7 @@ LogicalProject(j=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((b = j) AND (a = i))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b, a]])
@@ -1767,7 +1767,7 @@ Join(joinType=[LeftSemiJoin], where=[((b = j) AND (a = i))], select=[a, b, c], l
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT r.d FROM r WHERE l.b = r.e AND r.f IN (SELECT t.k FROM t WHERE r.e = t.j))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
@@ -1782,7 +1782,7 @@ LogicalProject(k=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a, b]])
@@ -1802,7 +1802,7 @@ Join(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], l
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r) AND b IN (SELECT j FROM t WHERE t.k = l.c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
@@ -1816,7 +1816,7 @@ LogicalProject(j=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[((b = j) AND (k = c))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b, c]])
@@ -1836,7 +1836,7 @@ Join(joinType=[LeftSemiJoin], where=[((b = j) AND (k = c))], select=[a, b, c], l
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r) AND b IN (SELECT j FROM t)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
@@ -1849,7 +1849,7 @@ LogicalProject(j=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(b = j)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
@@ -1869,7 +1869,7 @@ Join(joinType=[LeftSemiJoin], where=[(b = j)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE e IN (SELECT j FROM t))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
@@ -1883,7 +1883,7 @@ LogicalProject(j=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -1904,7 +1904,7 @@ Join(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
@@ -1919,7 +1919,7 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
       +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -1944,7 +1944,7 @@ Join(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c, d, e, f], leftIn
     <Resource name="sql">
       <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE t1.i > 50) AND b >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE t2.j < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
@@ -1959,7 +1959,7 @@ LogicalFilter(condition=[<($1, 100)])
       +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -1990,7 +1990,7 @@ Join(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c, d, e, f], leftInputS
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE e NOT IN (SELECT j FROM t WHERE t.i = r.d))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -2005,7 +2005,7 @@ LogicalProject(j=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2026,7 +2026,7 @@ Join(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], selec
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a < r.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -2036,7 +2036,7 @@ LogicalFilter(condition=[<($cor0.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[(a < d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2051,7 +2051,7 @@ Join(joinType=[LeftAntiJoin], where=[(a < d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a < 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -2061,7 +2061,7 @@ LogicalFilter(condition=[<($cor0.a, 10)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
 +- Join(joinType=[LeftAntiJoin], where=[$f3], select=[a, b, c, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -2078,7 +2078,7 @@ Calc(select=[a, b, c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE a = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -2088,7 +2088,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
@@ -2103,7 +2103,7 @@ Join(joinType=[LeftAntiJoin], where=[(a = d)], select=[a, b, c], leftInputSpec=[
     <Resource name="sql">
       <![CDATA[SELECT a + 10, c FROM l WHERE NOT( b > 10 OR (c like 'abc' OR NOT EXISTS (SELECT d FROM r)))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 +- LogicalFilter(condition=[NOT(OR(>($1, 10), LIKE($2, _UTF-16LE'abc'), NOT(EXISTS({
@@ -2112,7 +2112,7 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(a + 10) AS EXPR$0, c])
 +- Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -2132,7 +2132,7 @@ Calc(select=[(a + 10) AS EXPR$0, c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -2141,7 +2141,7 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2159,7 +2159,7 @@ Join(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUn
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r) AND b > 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
@@ -2168,7 +2168,7 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2187,7 +2187,7 @@ Join(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUn
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a = r.d) AND a NOT IN (SELECT i FROM t WHERE l.b = t.j)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
@@ -2201,7 +2201,7 @@ LogicalProject(i=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR i IS NULL OR (a = i)) AND (b = j))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
@@ -2221,7 +2221,7 @@ Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR i IS NULL OR (a = i)) AND (b
     <Resource name="sql">
       <![CDATA[SELECT a + 10, c FROM l WHERE NOT(NOT(substring(c, 1, 5) NOT IN (SELECT substring(f, 1, 5) FROM r WHERE l.b + 1 = r.e)))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 +- LogicalFilter(condition=[NOT(IN(SUBSTRING($2, 1, 5), {
@@ -2232,7 +2232,7 @@ LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(a + 10) AS EXPR$0, c])
 +- Join(joinType=[LeftAntiJoin], where=[(($f3 IS NULL OR EXPR$0 IS NULL OR ($f3 = EXPR$0)) AND ($f4 = e))], select=[a, c, $f3, $f4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -2249,7 +2249,7 @@ Calc(select=[(a + 10) AS EXPR$0, c])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t) THEN 1 WHEN a NOT IN (SELECT CAST(j AS INTEGER) FROM t) THEN 2 ELSE 3 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
@@ -2266,7 +2266,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b])
 +- Join(joinType=[LeftAntiJoin], where=[((d IS NULL OR ($f3 = d)) AND (c = f))], select=[b, c, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -2312,7 +2312,7 @@ Calc(select=[b])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a, c) NOT IN (SELECT d, f FROM r WHERE l.b = r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, $2, {
@@ -2323,7 +2323,7 @@ LogicalProject(d=[$0], f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (c IS NULL OR f IS NULL OR (c = f)) AND (b = e))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
@@ -2338,7 +2338,7 @@ Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (c
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE l.b > r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -2349,7 +2349,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b > e))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2364,7 +2364,7 @@ Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE l.b > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -2375,7 +2375,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b > 10))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2390,7 +2390,7 @@ Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE l.b = r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -2401,7 +2401,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b = e))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
@@ -2416,7 +2416,7 @@ Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b > 1 AND a NOT IN (SELECT d FROM r WHERE l.b = r.e AND r.d > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 1), NOT(IN($0, {
@@ -2427,7 +2427,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b = e))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
@@ -2443,7 +2443,7 @@ Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT ( NOT ( a NOT IN (SELECT d FROM r)))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -2453,7 +2453,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2468,7 +2468,7 @@ Join(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], selec
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b > 10 AND (c like 'abc' AND a NOT IN (SELECT d FROM r))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, _UTF-16LE'abc'), NOT(IN($0, {
@@ -2478,7 +2478,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2494,7 +2494,7 @@ Join(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], selec
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (b, (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END)) NOT IN (SELECT e, d FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN($1, CASE(NOT(IN($0, {
@@ -2510,7 +2510,7 @@ LogicalProject(e=[$1], d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b])
 +- Join(joinType=[LeftAntiJoin], where=[((b IS NULL OR e IS NULL OR (b = e)) AND (d IS NULL OR ($f3 = d)))], select=[b, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -2555,7 +2555,7 @@ Calc(select=[b])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a, c) NOT IN (SELECT d, f FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, $2, {
@@ -2565,7 +2565,7 @@ LogicalProject(d=[$0], f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (c IS NULL OR f IS NULL OR (c = f)))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2580,7 +2580,7 @@ Join(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (c
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -2590,7 +2590,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2605,7 +2605,7 @@ Join(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], selec
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE e < 100) AND b > 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(IN($0, {
@@ -2616,7 +2616,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
@@ -2632,7 +2632,7 @@ Join(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], selec
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a * b NOT IN (SELECT d FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN(*($0, $1), {
@@ -2642,7 +2642,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
 +- Join(joinType=[LeftAntiJoin], where=[($f3 IS NULL OR d IS NULL OR ($f3 = d))], select=[a, b, c, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
