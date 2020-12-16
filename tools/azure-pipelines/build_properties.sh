@@ -64,7 +64,7 @@ function is_docs_only_pullrequest() {
 }
 
 #
-# Returns 1 if the change contains documentation pull request
+# Returns 1 if the PR contains documentation changes
 #
 function contains_docs_pullrequest() {
   github_num_commits
@@ -74,7 +74,7 @@ function contains_docs_pullrequest() {
   fi
 
 	if [[ $(git diff --name-only HEAD..HEAD~"$GITHUB_NUM_COMMITS" | grep "docs/") != "" ]] ; then
-		echo "INFO: This is a change contains docs. Changed files:"
+		echo "INFO: This PR contains changes to the documentation. Changed files:"
 		git diff --name-only HEAD..HEAD~"$GITHUB_NUM_COMMITS"
 		return 1
 	fi
