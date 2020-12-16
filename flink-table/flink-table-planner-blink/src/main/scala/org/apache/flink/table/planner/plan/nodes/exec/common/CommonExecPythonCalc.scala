@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.common
+package org.apache.flink.table.planner.plan.nodes.exec.common
 
 import org.apache.calcite.rex._
 import org.apache.flink.api.dag.Transformation
@@ -26,8 +26,9 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.python.{PythonFunctionInfo, PythonFunctionKind}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc.ARROW_PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
-import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc.PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
+import org.apache.flink.table.planner.plan.nodes.common.CommonPythonBase
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc.ARROW_PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc.PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
@@ -36,7 +37,7 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-trait CommonPythonCalc extends CommonPythonBase {
+trait CommonExecPythonCalc extends CommonPythonBase {
 
   private def extractPythonScalarFunctionInfos(
       rexCalls: Array[RexCall]): (Array[Int], Array[PythonFunctionInfo]) = {
@@ -128,7 +129,7 @@ trait CommonPythonCalc extends CommonPythonBase {
   }
 }
 
-object CommonPythonCalc {
+object CommonExecPythonCalc {
   val PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
     "org.apache.flink.table.runtime.operators.python.scalar.RowDataPythonScalarFunctionOperator"
 

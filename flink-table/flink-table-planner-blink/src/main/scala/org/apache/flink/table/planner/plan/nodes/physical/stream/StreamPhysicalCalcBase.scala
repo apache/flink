@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
-import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -31,15 +29,14 @@ import org.apache.calcite.rex.RexProgram
 /**
   * Base stream physical RelNode for [[Calc]].
   */
-abstract class StreamExecCalcBase(
+abstract class StreamPhysicalCalcBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     calcProgram: RexProgram,
     outputRowType: RelDataType)
   extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
-  with StreamPhysicalRel
-  with LegacyStreamExecNode[RowData] {
+  with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
 

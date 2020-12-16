@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -113,5 +114,14 @@ public abstract class ExecNodeBase<P extends Planner, T> implements ExecNode<T> 
 	@Override
 	public void accept(ExecNodeVisitor visitor) {
 		visitor.visit(this);
+	}
+
+	/**
+	 * Whether there is singleton exchange node as input.
+	 */
+	protected boolean inputsContainSingleton() {
+		return getInputNodes().stream().anyMatch(
+				i -> i instanceof CommonExecExchange &&
+						i.getInputEdges().get(0).getRequiredShuffle().getType() == ExecEdge.ShuffleType.SINGLETON);
 	}
 }

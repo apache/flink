@@ -34,7 +34,7 @@ import scala.collection.JavaConversions._
 
 object CalcCodeGenerator {
 
-  private[flink] def generateCalcOperator(
+  def generateCalcOperator(
       ctx: CodeGeneratorContext,
       inputTransform: Transformation[RowData],
       outputType: RowType,
