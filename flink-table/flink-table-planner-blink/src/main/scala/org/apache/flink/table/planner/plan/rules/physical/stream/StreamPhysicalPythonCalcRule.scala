@@ -18,30 +18,30 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecCalc
-import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalPythonCalc
+import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 
 import scala.collection.JavaConverters._
 
 /**
-  * Rule that converts [[FlinkLogicalCalc]] to [[StreamExecCalc]].
+  * Rule that converts [[FlinkLogicalCalc]] to [[StreamPhysicalPythonCalc]].
   */
-class StreamExecCalcRule
+class StreamPhysicalPythonCalcRule
   extends ConverterRule(
     classOf[FlinkLogicalCalc],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecCalcRule") {
+    "StreamPhysicalPythonCalcRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
+    val calc: FlinkLogicalCalc = call.rel(0)
     val program = calc.getProgram
-    !program.getExprList.asScala.exists(containsPythonCall(_))
+    program.getExprList.asScala.exists(containsPythonCall(_))
   }
 
   def convert(rel: RelNode): RelNode = {
@@ -49,7 +49,7 @@ class StreamExecCalcRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput = RelOptRule.convert(calc.getInput, FlinkConventions.STREAM_PHYSICAL)
 
-    new StreamExecCalc(
+    new StreamPhysicalPythonCalc(
       rel.getCluster,
       traitSet,
       newInput,
@@ -58,6 +58,6 @@ class StreamExecCalcRule
   }
 }
 
-object StreamExecCalcRule {
-  val INSTANCE: RelOptRule = new StreamExecCalcRule
+object StreamPhysicalPythonCalcRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalPythonCalcRule
 }

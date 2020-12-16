@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.physical.batch
+package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.core.memory.ManagedMemoryUseCase
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -31,38 +29,30 @@ import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 
 /**
-  * Batch physical RelNode for Python ScalarFunctions.
+  * Stream physical RelNode for Python ScalarFunctions.
   */
-class BatchExecPythonCalc(
+class StreamPhysicalPythonCalc(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     calcProgram: RexProgram,
     outputRowType: RelDataType)
-  extends BatchExecCalcBase(
+  extends StreamPhysicalCalcBase(
     cluster,
     traitSet,
     inputRel,
     calcProgram,
-    outputRowType)
-  with CommonExecPythonCalc {
+    outputRowType) {
 
   override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
-    new BatchExecPythonCalc(cluster, traitSet, child, program, outputRowType)
+    new StreamPhysicalPythonCalc(cluster, traitSet, child, program, outputRowType)
   }
 
-  override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[RowData] = {
-    val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
-    val ret = createPythonOneInputTransformation(
-      inputTransform,
-      calcProgram,
-      "BatchExecPythonCalc",
-      getConfig(planner.getExecEnv, planner.getTableConfig))
-
-    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
-      ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
-    }
-    ret
+  override def translateToExecNode(): ExecNode[_] = {
+    new StreamExecPythonCalc(
+      getProgram,
+      ExecEdge.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription)
   }
 }
