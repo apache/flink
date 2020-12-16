@@ -44,6 +44,14 @@ e.g.
 git clone https://github.com/apache/flink.git
 {% endhighlight %}
 
+## Ignoring Refactoring Commits
+
+We keep a list of big refactoring commits in `.git-blame-ignore-revs`. When looking at change annotations using `git blame` it's helpful to ignore these. You can configure git and your IDE to do so using:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 ## IntelliJ IDEA
 
 A brief guide on how to set up IntelliJ IDEA IDE for development of the Flink core.
@@ -81,6 +89,22 @@ to enable support for Scala projects and files:
    Alternatively, `mvn clean package -DskipTests` also creates the files necessary
    for the IDE to work but without installing the libraries.
 8. Build the Project (Build -> Make Project)
+
+### Code Formatting
+
+We use the [Spotless
+plugin](https://github.com/diffplug/spotless/tree/main/plugin-maven) together
+with [google-java-format](https://github.com/google/google-java-format) to
+format our Java code. You can configure your IDE to automatically apply
+formatting on saving with these steps:
+
+1. Install the [google-java-format
+   plugin](https://plugins.jetbrains.com/plugin/8527-google-java-format) and
+   enable it for the project
+2. In the plugin settings, change the code style to "AOSP" (4-space indents)
+3. Install the [Save Actions
+   plugin](https://plugins.jetbrains.com/plugin/7642-save-actions)
+4. Enable the plugin, along with "Optimize imports" and "Reformat file"
 
 ### Checkstyle For Java
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
