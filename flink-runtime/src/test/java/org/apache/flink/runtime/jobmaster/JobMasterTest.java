@@ -88,7 +88,8 @@ import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMet
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -309,7 +310,7 @@ public class JobMasterTest extends TestLogger {
                             jmResourceId,
                             jobGraph,
                             haServices,
-                            SlotPoolFactory.fromConfiguration(configuration),
+                            SlotPoolServiceFactory.fromConfiguration(configuration),
                             jobManagerSharedServices,
                             heartbeatServices,
                             UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
@@ -507,7 +508,7 @@ public class JobMasterTest extends TestLogger {
         }
     }
 
-    private static final class TestingSlotPoolFactory implements SlotPoolFactory {
+    private static final class TestingSlotPoolFactory implements SlotPoolServiceFactory {
 
         private final OneShotLatch hasReceivedSlotOffers;
 
@@ -517,12 +518,12 @@ public class JobMasterTest extends TestLogger {
 
         @Nonnull
         @Override
-        public SlotPool createSlotPool(@Nonnull JobID jobId) {
+        public SlotPoolService createSlotPoolService(@Nonnull JobID jobId) {
             return new TestingSlotPool(jobId, hasReceivedSlotOffers);
         }
     }
 
-    private static final class TestingSlotPool implements SlotPool {
+    private static final class TestingSlotPool implements SlotPool, SlotPoolService {
 
         private final JobID jobId;
 
@@ -604,6 +605,13 @@ public class JobMasterTest extends TestLogger {
             }
 
             return offers;
+        }
+
+        @Override
+        public Optional<ResourceID> failAllocation(
+                @Nullable ResourceID resourceID, AllocationID allocationId, Exception cause) {
+            throw new UnsupportedOperationException(
+                    "TestingSlotPool does not support this operation.");
         }
 
         @Override

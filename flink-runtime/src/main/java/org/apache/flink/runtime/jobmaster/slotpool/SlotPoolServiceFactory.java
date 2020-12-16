@@ -28,13 +28,13 @@ import org.apache.flink.util.clock.SystemClock;
 
 import javax.annotation.Nonnull;
 
-/** Factory interface for {@link SlotPool}. */
-public interface SlotPoolFactory {
+/** Factory interface for {@link SlotPoolService}. */
+public interface SlotPoolServiceFactory {
 
     @Nonnull
-    SlotPool createSlotPool(@Nonnull JobID jobId);
+    SlotPoolService createSlotPoolService(@Nonnull JobID jobId);
 
-    static SlotPoolFactory fromConfiguration(Configuration configuration) {
+    static SlotPoolServiceFactory fromConfiguration(Configuration configuration) {
         final Time rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration);
         final Time slotIdleTimeout =
                 Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT));
@@ -43,10 +43,10 @@ public interface SlotPoolFactory {
 
         if (ClusterOptions.isDeclarativeResourceManagementEnabled(configuration)) {
 
-            return new DeclarativeSlotPoolBridgeFactory(
+            return new DeclarativeSlotPoolBridgeServiceFactory(
                     SystemClock.getInstance(), rpcTimeout, slotIdleTimeout, batchSlotTimeout);
         } else {
-            return new DefaultSlotPoolFactory(
+            return new DefaultSlotPoolServiceFactory(
                     SystemClock.getInstance(), rpcTimeout, slotIdleTimeout, batchSlotTimeout);
         }
     }
