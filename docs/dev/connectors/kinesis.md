@@ -97,7 +97,7 @@ consumerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
 consumerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST")
 
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
+val env = StreamExecutionEnvironment.getExecutionEnvironment
 
 val kinesis = env.addSource(new FlinkKinesisConsumer[String](
     "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
@@ -500,7 +500,7 @@ but subscriptions will be reaquired if any recoverable errors are thrown. Once a
 will receive a stream of [SubscribeToShardEvents](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_SubscribeToShardEvent.html)s.
 Retry and backoff parameters can be configured using the `ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_*` keys.
 
-- *[DescribeStream](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStream.html)*: this is called 
+- *[DescribeStreamSummary](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStreamSummary.html)*: this is called 
 once per stream, during stream consumer registration. By default, the `LAZY` registration strategy will scale the
 number of calls by the job parallelism. `EAGER` will invoke this once per stream and `NONE` will not invoke this API. 
 Retry and backoff parameters can be configured using the 
