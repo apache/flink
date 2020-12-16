@@ -38,7 +38,7 @@ public class FileSystemOptions {
 	public static final ConfigOption<String> PARTITION_DEFAULT_NAME = key("partition.default-name")
 			.stringType()
 			.defaultValue("__DEFAULT_PARTITION__")
-			.withDescription("The default partition name in case the dynamic partition" +
+			.withDescription("The default partition name in case of the dynamic partition" +
 					" column value is null/empty string");
 
 	public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE = key("sink.rolling-policy.file-size")
@@ -50,13 +50,13 @@ public class FileSystemOptions {
 			.durationType()
 			.defaultValue(Duration.ofMinutes(30))
 			.withDescription("The maximum time duration a part file can stay open before rolling" +
-					" (by default 30 min to avoid to many small files). The frequency at which" +
+					" (by default 30 min to avoid too many small files). The frequency at which" +
 					" this is checked is controlled by the 'sink.rolling-policy.check-interval' option.");
 
 	public static final ConfigOption<Duration> SINK_ROLLING_POLICY_CHECK_INTERVAL = key("sink.rolling-policy.check-interval")
 			.durationType()
 			.defaultValue(Duration.ofMinutes(1))
-			.withDescription("The interval for checking time based rolling policies. " +
+			.withDescription("The interval for checking time based on rolling policies. " +
 					"This controls the frequency to check whether a part file should rollover based on 'sink.rolling-policy.rollover-interval'.");
 
 	public static final ConfigOption<Boolean> SINK_SHUFFLE_BY_PARTITION = key("sink.shuffle-by-partition.enable")
@@ -191,7 +191,7 @@ public class FileSystemOptions {
 			key("sink.partition-commit.policy.class")
 					.stringType()
 					.noDefaultValue()
-					.withDescription("The partition commit policy class for implement" +
+					.withDescription("The partition commit policy class for implementing" +
 							" PartitionCommitPolicy interface. Only work in custom commit policy");
 
 	public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
@@ -199,7 +199,7 @@ public class FileSystemOptions {
 					.stringType()
 					.defaultValue("_SUCCESS")
 					.withDescription("The file name for success-file partition commit policy," +
-							" default is '_SUCCESS'.");
+							" the default value is '_SUCCESS'.");
 
 	public static final ConfigOption<Boolean> AUTO_COMPACTION =
 			key("auto-compaction")
