@@ -75,6 +75,7 @@ public final class CollectionUtil {
 		for (T element : elements) {
 			int bucket = index % numBuckets;
 			buckets.computeIfAbsent(bucket, key -> new ArrayList<>(initialCapacity)).add(element);
+			index++;
 		}
 
 		return buckets.values();
