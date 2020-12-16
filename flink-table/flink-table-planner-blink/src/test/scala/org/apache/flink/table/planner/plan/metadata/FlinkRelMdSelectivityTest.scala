@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalExpand
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalDataStreamTableScan, FlinkLogicalExpand, FlinkLogicalOverAggregate}
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCalc, BatchExecRank}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecRank, BatchPhysicalCalc}
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, Lists}
@@ -135,7 +135,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
       outputRowType,
       rexBuilder)
 
-    val calc = new BatchExecCalc(cluster, batchPhysicalTraits, ts, program, outputRowType)
+    val calc = new BatchPhysicalCalc(cluster, batchPhysicalTraits, ts, program, outputRowType)
     // pop scan
     relBuilder.build()
     // push calc

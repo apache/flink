@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecCalc
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCalc
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
@@ -29,17 +29,17 @@ import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import scala.collection.JavaConverters._
 
 /**
-  * Rule that converts [[FlinkLogicalCalc]] to [[BatchExecCalc]].
+  * Rule that converts [[FlinkLogicalCalc]] to [[BatchPhysicalCalc]].
   */
-class BatchExecCalcRule
+class BatchPhysicalCalcRule
   extends ConverterRule(
     classOf[FlinkLogicalCalc],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecCalcRule") {
+    "BatchPhysicalCalcRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
+    val calc: FlinkLogicalCalc = call.rel(0)
     val program = calc.getProgram
     !program.getExprList.asScala.exists(containsPythonCall(_))
   }
@@ -49,7 +49,7 @@ class BatchExecCalcRule
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val newInput = RelOptRule.convert(calc.getInput, FlinkConventions.BATCH_PHYSICAL)
 
-    new BatchExecCalc(
+    new BatchPhysicalCalc(
       rel.getCluster,
       newTrait,
       newInput,
@@ -58,6 +58,6 @@ class BatchExecCalcRule
   }
 }
 
-object BatchExecCalcRule {
-  val INSTANCE: RelOptRule = new BatchExecCalcRule
+object BatchPhysicalCalcRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalCalcRule
 }
