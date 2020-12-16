@@ -27,7 +27,7 @@ from py4j.java_gateway import get_java_class, get_method
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table.sources import TableSource
 
-from pyflink.common.typeinfo import TypeInformation, WrapperTypeInfo
+from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.data_stream import DataStream
 
 from pyflink.common import JobExecutionResult
@@ -1763,11 +1763,7 @@ class StreamTableEnvironment(TableEnvironment):
 
         .. versionadded:: 1.12.0
         """
-        if isinstance(type_info, WrapperTypeInfo):
-            j_data_stream = self._j_tenv.toAppendStream(table._j_table,
-                                                        type_info.get_java_type_info())
-        else:
-            raise TypeError('type_info must be WrapperTypeInfo')
+        j_data_stream = self._j_tenv.toAppendStream(table._j_table, type_info.get_java_type_info())
         return DataStream(j_data_stream=j_data_stream)
 
     def to_retract_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
@@ -1787,11 +1783,7 @@ class StreamTableEnvironment(TableEnvironment):
 
         .. versionadded:: 1.12.0
         """
-        if isinstance(type_info, WrapperTypeInfo):
-            j_data_stream = self._j_tenv.toRetractStream(table._j_table,
-                                                         type_info.get_java_type_info())
-        else:
-            raise TypeError('type_info must be WrapperTypeInfo')
+        j_data_stream = self._j_tenv.toRetractStream(table._j_table, type_info.get_java_type_info())
         return DataStream(j_data_stream=j_data_stream)
 
 

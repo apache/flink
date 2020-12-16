@@ -18,8 +18,7 @@
 from typing import Callable, Union
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
-from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types, WrapperTypeInfo
-from pyflink.common.typeinfo import TypeInformation
+from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types, TypeInformation
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
@@ -294,9 +293,6 @@ class DataStream(object):
         if key_type_info is None:
             key_type_info = Types.PICKLED_BYTE_ARRAY()
             is_key_pickled_byte_array = True
-
-        if not isinstance(key_type_info, WrapperTypeInfo):
-            raise ValueError('key_type_info must be WrapperTypeInfo')
 
         intermediate_map_stream = self.map(
             lambda x: Row(key_selector.get_key(x), x),  # type: ignore

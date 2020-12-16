@@ -26,8 +26,7 @@ from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
-from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation, _from_java_type, \
-    WrapperTypeInfo
+from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream
@@ -678,7 +677,7 @@ class StreamExecutionEnvironment(object):
         :param type_info: type of the returned stream. Optional.
         :return: the data stream constructed.
         """
-        if type_info and isinstance(type_info, WrapperTypeInfo):
+        if type_info:
             j_type_info = type_info.get_java_type_info()
         else:
             j_type_info = None
@@ -717,11 +716,7 @@ class StreamExecutionEnvironment(object):
         :return: the data stream representing the given collection.
         """
         if type_info is not None:
-            if isinstance(type_info, WrapperTypeInfo):
-                wrapper_type = _from_java_type(type_info.get_java_type_info())
-                collection = [wrapper_type.to_internal_type(element)
-                              if isinstance(wrapper_type, WrapperTypeInfo) else None
-                              for element in collection]
+            collection = [type_info.to_internal_type(element) for element in collection]
         return self._from_collection(collection, type_info)
 
     def _from_collection(self, elements: List[Any],
