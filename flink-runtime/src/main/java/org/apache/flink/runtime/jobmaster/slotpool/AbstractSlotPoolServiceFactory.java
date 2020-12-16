@@ -23,8 +23,8 @@ import org.apache.flink.util.clock.Clock;
 
 import javax.annotation.Nonnull;
 
-/** Abstract SlotPoolFactory. */
-public abstract class AbstractSlotPoolFactory implements SlotPoolFactory {
+/** Abstract SlotPoolServiceFactory. */
+public abstract class AbstractSlotPoolServiceFactory implements SlotPoolServiceFactory {
 
     @Nonnull protected final Clock clock;
 
@@ -34,7 +34,7 @@ public abstract class AbstractSlotPoolFactory implements SlotPoolFactory {
 
     @Nonnull protected final Time batchSlotTimeout;
 
-    protected AbstractSlotPoolFactory(
+    protected AbstractSlotPoolServiceFactory(
             @Nonnull Clock clock,
             @Nonnull Time rpcTimeout,
             @Nonnull Time slotIdleTimeout,

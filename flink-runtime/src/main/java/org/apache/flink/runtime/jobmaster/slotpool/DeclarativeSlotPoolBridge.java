@@ -66,7 +66,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** {@link SlotPool} implementation which uses the {@link DeclarativeSlotPool} to allocate slots. */
-public class DeclarativeSlotPoolBridge implements SlotPool {
+public class DeclarativeSlotPoolBridge implements SlotPool, SlotPoolService {
 
     private static final Logger LOG = LoggerFactory.getLogger(DeclarativeSlotPoolBridge.class);
 
