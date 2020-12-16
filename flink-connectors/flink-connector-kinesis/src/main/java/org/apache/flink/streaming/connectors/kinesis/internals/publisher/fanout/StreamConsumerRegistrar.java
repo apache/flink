@@ -27,7 +27,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
 import software.amazon.awssdk.services.kinesis.model.ResourceInUseException;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 
@@ -86,8 +86,8 @@ public class StreamConsumerRegistrar {
 			registrationBackoff(configuration, backoff, attempt++);
 		}
 
-		DescribeStreamResponse describeStreamResponse = kinesisProxyV2Interface.describeStream(stream);
-		String streamArn = describeStreamResponse.streamDescription().streamARN();
+		DescribeStreamSummaryResponse describeStreamSummaryResponse = kinesisProxyV2Interface.describeStreamSummary(stream);
+		String streamArn = describeStreamSummaryResponse.streamDescriptionSummary().streamARN();
 
 		LOG.debug("Found stream ARN - {}", streamArn);
 

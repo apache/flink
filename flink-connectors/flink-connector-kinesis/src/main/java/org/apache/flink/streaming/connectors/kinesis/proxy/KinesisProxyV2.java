@@ -30,8 +30,8 @@ import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerReq
 import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerResponse;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryRequest;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
 import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerRequest;
 import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerResponse;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
@@ -92,14 +92,14 @@ public class KinesisProxyV2 implements KinesisProxyV2Interface {
 	}
 
 	@Override
-	public DescribeStreamResponse describeStream(String stream) throws InterruptedException, ExecutionException {
-		DescribeStreamRequest describeStreamRequest = DescribeStreamRequest
+	public DescribeStreamSummaryResponse describeStreamSummary(String stream) throws InterruptedException, ExecutionException {
+		DescribeStreamSummaryRequest describeStreamRequest = DescribeStreamSummaryRequest
 			.builder()
 			.streamName(stream)
 			.build();
 
 		return invokeWithRetryAndBackoff(
-			() -> kinesisAsyncClient.describeStream(describeStreamRequest).get(),
+			() -> kinesisAsyncClient.describeStreamSummary(describeStreamRequest).get(),
 			fanOutRecordPublisherConfiguration.getDescribeStreamBaseBackoffMillis(),
 			fanOutRecordPublisherConfiguration.getDescribeStreamMaxBackoffMillis(),
 			fanOutRecordPublisherConfiguration.getDescribeStreamExpConstant(),

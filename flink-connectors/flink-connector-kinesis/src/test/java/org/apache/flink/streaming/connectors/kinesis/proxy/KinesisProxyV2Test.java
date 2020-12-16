@@ -29,8 +29,8 @@ import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerReq
 import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerResponse;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryRequest;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerRequest;
 import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerResponse;
@@ -268,36 +268,36 @@ public class KinesisProxyV2Test {
 	}
 
 	@Test
-	public void testDescribeStream() throws Exception {
+	public void testDescribeStreamSummary() throws Exception {
 		KinesisAsyncClient client = mock(KinesisAsyncClient.class);
 		KinesisProxyV2 proxy = new KinesisProxyV2(client, mock(SdkAsyncHttpClient.class), createConfiguration(), mock(FullJitterBackoff.class));
 
-		DescribeStreamResponse expected = DescribeStreamResponse.builder().build();
+		DescribeStreamSummaryResponse expected = DescribeStreamSummaryResponse.builder().build();
 
-		ArgumentCaptor<DescribeStreamRequest> requestCaptor = ArgumentCaptor
-			.forClass(DescribeStreamRequest.class);
-		when(client.describeStream(requestCaptor.capture()))
+		ArgumentCaptor<DescribeStreamSummaryRequest> requestCaptor = ArgumentCaptor
+			.forClass(DescribeStreamSummaryRequest.class);
+		when(client.describeStreamSummary(requestCaptor.capture()))
 			.thenReturn(CompletableFuture.completedFuture(expected));
 
-		DescribeStreamResponse actual = proxy.describeStream("stream");
+		DescribeStreamSummaryResponse actual = proxy.describeStreamSummary("stream");
 
 		assertEquals(expected, actual);
 
-		DescribeStreamRequest request = requestCaptor.getValue();
+		DescribeStreamSummaryRequest request = requestCaptor.getValue();
 		assertEquals("stream", request.streamName());
 	}
 
 	@Test
-	public void testDescribeStreamBackoffJitter() throws Exception {
+	public void testDescribeStreamSummaryBackoffJitter() throws Exception {
 		FullJitterBackoff backoff = mock(FullJitterBackoff.class);
 		KinesisAsyncClient client = mock(KinesisAsyncClient.class);
 		KinesisProxyV2 proxy = new KinesisProxyV2(client, mock(SdkAsyncHttpClient.class), createConfiguration(), backoff);
 
-		when(client.describeStream(any(DescribeStreamRequest.class)))
+		when(client.describeStreamSummary(any(DescribeStreamSummaryRequest.class)))
 			.thenThrow(new RuntimeException(LimitExceededException.builder().build()))
-			.thenReturn(CompletableFuture.completedFuture(DescribeStreamResponse.builder().build()));
+			.thenReturn(CompletableFuture.completedFuture(DescribeStreamSummaryResponse.builder().build()));
 
-		proxy.describeStream("arn");
+		proxy.describeStreamSummary("arn");
 
 		verify(backoff).sleep(anyLong());
 		verify(backoff).calculateFullJitterBackoff(
@@ -308,7 +308,7 @@ public class KinesisProxyV2Test {
 	}
 
 	@Test
-	public void testDescribeStreamFailsAfterMaxRetries() throws Exception {
+	public void testDescribeStreamSummaryFailsAfterMaxRetries() throws Exception {
 		exception.expect(RuntimeException.class);
 		exception.expectMessage("Retries exceeded - all 10 retry attempts failed.");
 
@@ -316,10 +316,10 @@ public class KinesisProxyV2Test {
 		KinesisAsyncClient client = mock(KinesisAsyncClient.class);
 		KinesisProxyV2 proxy = new KinesisProxyV2(client, mock(SdkAsyncHttpClient.class), createConfiguration(), backoff);
 
-		when(client.describeStream(any(DescribeStreamRequest.class)))
+		when(client.describeStreamSummary(any(DescribeStreamSummaryRequest.class)))
 			.thenThrow(new RuntimeException(LimitExceededException.builder().build()));
 
-		proxy.describeStream("arn");
+		proxy.describeStreamSummary("arn");
 	}
 
 	private FanOutRecordPublisherConfiguration createConfiguration() {
