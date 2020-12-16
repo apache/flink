@@ -86,11 +86,15 @@ if [[ ($MODE = "local") || ($MODE = "remote") ]]
 then
     LOG4J_CONFIG=log4j.properties
     LOGBACK_CONFIG=logback.xml
-elif [[ $1 = "yarn" ]]
+elif [[ $MODE = "yarn" ]]
 then
     LOG4J_CONFIG=log4j-session.properties
     LOGBACK_CONFIG=logback-session.xml
     FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
+else
+# Fallback when mode is not provided or illegal
+    LOG4J_CONFIG=log4j.properties
+    LOGBACK_CONFIG=logback.xml
 fi
 
 log_setting=("-Dlog.file=$LOG" "-Dlog4j.configuration=file:$FLINK_CONF_DIR/$LOG4J_CONFIG" "-Dlog4j.configurationFile=file:$FLINK_CONF_DIR/$LOG4J_CONFIG" "-Dlogback.configurationFile=file:$FLINK_CONF_DIR/$LOGBACK_CONFIG")
