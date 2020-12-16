@@ -402,8 +402,8 @@ object FlinkStreamRuleSets {
     StreamExecWatermarkAssignerRule.INSTANCE,
     StreamExecValuesRule.INSTANCE,
     // calc
-    StreamExecCalcRule.INSTANCE,
-    StreamExecPythonCalcRule.INSTANCE,
+    StreamPhysicalCalcRule.INSTANCE,
+    StreamPhysicalPythonCalcRule.INSTANCE,
     // union
     StreamExecUnionRule.INSTANCE,
     // sort

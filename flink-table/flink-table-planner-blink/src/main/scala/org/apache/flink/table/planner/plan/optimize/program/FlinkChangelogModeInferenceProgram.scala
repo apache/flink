@@ -271,7 +271,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val leftTrait = children.head.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
         createNewNode(temporalJoin, children, leftTrait, requiredTrait, requester)
 
-      case _: StreamExecCalc | _: StreamExecPythonCalc | _: StreamExecCorrelate |
+      case _: StreamPhysicalCalcBase | _: StreamExecCorrelate |
            _: StreamExecPythonCorrelate | _: StreamExecLookupJoin | _: StreamPhysicalExchange |
            _: StreamExecExpand | _: StreamExecMiniBatchAssigner |
            _: StreamExecWatermarkAssigner =>
@@ -554,7 +554,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             None
         }
 
-      case calc: StreamExecCalcBase =>
+      case calc: StreamPhysicalCalcBase =>
         if (requiredTrait == UpdateKindTrait.ONLY_UPDATE_AFTER &&
             calc.getProgram.getCondition != null) {
           // we don't expect filter to satisfy ONLY_UPDATE_AFTER update kind,

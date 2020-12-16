@@ -679,7 +679,7 @@ class FlinkRelMdHandlerTestBase {
       builder.build(),
       rexBuilder
     )
-    val calcOfFirstRow = new StreamExecCalc(
+    val calcOfFirstRow = new StreamPhysicalCalc(
       cluster,
       streamPhysicalTraits,
       firstRow,
@@ -698,7 +698,7 @@ class FlinkRelMdHandlerTestBase {
       isRowtime,
       keepLastRow = true
     )
-    val calcOfLastRow = new StreamExecCalc(
+    val calcOfLastRow = new StreamPhysicalCalc(
       cluster,
       streamPhysicalTraits,
       lastRow,
@@ -1852,7 +1852,7 @@ class FlinkRelMdHandlerTestBase {
 
     val streamScan: StreamExecDataStreamScan =
       createDataStreamScan(ImmutableList.of("student"), streamPhysicalTraits)
-    val calc = new StreamExecCalc(
+    val calc = new StreamPhysicalCalc(
       cluster, streamPhysicalTraits, streamScan, rexProgram, rowTypeOfCalc)
     val hash4 = FlinkRelDistribution.hash(Array(4), requireStrict = true)
     val exchange = new StreamPhysicalExchange(cluster, calc.getTraitSet.replace(hash4), calc, hash4)
@@ -1885,7 +1885,7 @@ class FlinkRelMdHandlerTestBase {
       rowTypeOfWindowAggOutput,
       rexBuilder
     )
-    val streamWindowAggOutput = new StreamExecCalc(
+    val streamWindowAggOutput = new StreamPhysicalCalc(
       cluster,
       streamPhysicalTraits,
       windowAgg,
