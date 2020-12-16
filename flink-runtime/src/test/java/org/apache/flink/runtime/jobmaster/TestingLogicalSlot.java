@@ -116,6 +116,9 @@ public class TestingLogicalSlot implements LogicalSlot {
 		if (!released) {
 			released = true;
 
+			tryAssignPayload(TERMINATED_PAYLOAD);
+			payloadReference.get().fail(cause);
+
 			slotOwner.returnLogicalSlot(this);
 
 			if (automaticallyCompleteReleaseFuture) {
