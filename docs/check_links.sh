@@ -34,7 +34,7 @@ wget --spider -r -nd -nv -e robots=off -p -o $DOCS_CHECK_DIR/spider.log "$target
 
 # Abort for anything other than 0 and 4 ("Network failure")
 status=$?
-echo "status = $status"
+
 if [ $status -ne 0 ] && [ $status -ne 4 ]; then
     exit $status
 fi
