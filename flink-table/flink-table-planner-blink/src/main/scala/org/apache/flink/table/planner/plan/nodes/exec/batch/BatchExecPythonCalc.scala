@@ -16,40 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.physical.batch
+package org.apache.flink.table.planner.plan.nodes.exec.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc
+import org.apache.flink.table.types.logical.RowType
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 
-/**
-  * Batch physical RelNode for Python ScalarFunctions.
-  */
-class BatchExecPythonCalc(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    inputRel: RelNode,
-    calcProgram: RexProgram,
-    outputRowType: RelDataType)
-  extends BatchExecCalcBase(
-    cluster,
-    traitSet,
-    inputRel,
-    calcProgram,
-    outputRowType)
-  with CommonExecPythonCalc {
+import java.util
 
-  override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
-    new BatchExecPythonCalc(cluster, traitSet, child, program, outputRowType)
-  }
+/**
+ * Batch ExecNode for Python ScalarFunctions.
+ *
+ * <p>Note: This class can't be ported to Java,
+ * because java class can't extend scala interface with default implementation.
+ * FLINK-20620 will port this class to Java.
+ */
+class BatchExecPythonCalc(
+    calcProgram: RexProgram,
+    inputEdge: ExecEdge,
+    outputType: RowType,
+    description: String)
+  extends BatchExecNode[RowData](
+    util.Collections.singletonList(inputEdge),
+    outputType,
+    description)
+  with CommonExecPythonCalc {
 
   override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[RowData] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
