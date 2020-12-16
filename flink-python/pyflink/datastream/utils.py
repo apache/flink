@@ -19,9 +19,9 @@ import ast
 import datetime
 import pickle
 
-from pyflink.common import typeinfo
 from pyflink.common.typeinfo import RowTypeInfo, TupleTypeInfo, Types, \
-    is_primitive_array_type_info, is_basic_array_type_info
+    BasicArrayTypeInfo, \
+    PrimitiveArrayTypeInfo, MapTypeInfo, ListTypeInfo
 from pyflink.java_gateway import get_gateway
 
 
@@ -65,9 +65,22 @@ def pickled_bytes_to_python_converter(data, field_type):
             return field_type.from_internal_type(int(data.timestamp() * 10 ** 6))
         elif field_type == Types.FLOAT():
             return field_type.from_internal_type(ast.literal_eval(data))
-        elif is_basic_array_type_info(field_type) or is_primitive_array_type_info(field_type):
-            element_type = typeinfo._from_java_type(
-                field_type.get_java_type_info().getComponentInfo())
+        elif isinstance(field_type, BasicArrayTypeInfo) or \
+                isinstance(field_type, PrimitiveArrayTypeInfo):
+            element_type = field_type._element_type
+            elements = []
+            for element_bytes in data:
+                elements.append(pickled_bytes_to_python_converter(element_bytes, element_type))
+            return elements
+        elif isinstance(field_type, MapTypeInfo):
+            key_type = field_type._key_type_info
+            value_type = field_type._value_type_info
+            zip_kv = zip(data[0], data[1])
+            return dict((pickled_bytes_to_python_converter(k, key_type),
+                         pickled_bytes_to_python_converter(v, value_type))
+                        for k, v in zip_kv)
+        elif isinstance(field_type, ListTypeInfo):
+            element_type = field_type.elem_type
             elements = []
             for element_bytes in data:
                 elements.append(pickled_bytes_to_python_converter(element_bytes, element_type))

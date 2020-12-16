@@ -210,11 +210,10 @@ public enum PythonOperatorUtils {
 		FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction =
 			getUserDefinedDataStreamFunctionProto(dataStreamPythonFunctionInfo, runtimeContext,
 				internalParameters);
-		FlinkFnApi.TypeInfo.FieldType builtKeyFieldType = PythonTypeUtils.TypeInfoToProtoConverter
-			.getFieldType(keyTypeInfo);
+		FlinkFnApi.TypeInfo builtKeyTypeInfo = PythonTypeUtils.TypeInfoToProtoConverter
+			.toTypeInfoProto(keyTypeInfo);
 		return userDefinedDataStreamFunction.toBuilder()
-			.setKeyTypeInfo(PythonTypeUtils.TypeInfoToProtoConverter
-				.toTypeInfoProto(builtKeyFieldType)).build();
+			.setKeyTypeInfo(builtKeyTypeInfo).build();
 	}
 
 	public static boolean endOfLastFlatMap(int length, byte[] rawData) {

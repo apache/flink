@@ -16,7 +16,8 @@
 # limitations under the License.
 ################################################################################
 from py4j.java_gateway import java_import, JavaObject
-from pyflink.common.typeinfo import TypeInformation, WrapperTypeInfo
+from pyflink.common import typeinfo
+from pyflink.common.typeinfo import TypeInformation
 
 from pyflink.util.utils import load_java_class
 
@@ -112,7 +113,7 @@ class JsonRowDeserializationSchema(DeserializationSchema):
                 raise TypeError("The json_schema must not be None.")
             j_type_info = get_gateway().jvm \
                 .org.apache.flink.formats.json.JsonRowSchemaConverter.convert(json_schema)
-            self._type_info = WrapperTypeInfo(j_type_info)
+            self._type_info = typeinfo._from_java_type(j_type_info)
             return self
 
         def fail_on_missing_field(self):
@@ -208,12 +209,9 @@ class CsvRowDeserializationSchema(DeserializationSchema):
         def __init__(self, type_info: TypeInformation):
             if type_info is None:
                 raise TypeError("Type information must not be None")
-            if isinstance(type_info, WrapperTypeInfo):
-                self._j_builder = get_gateway().jvm\
-                    .org.apache.flink.formats.csv.CsvRowDeserializationSchema.Builder(
-                    type_info.get_java_type_info())
-            else:
-                raise ValueError('type_info must be WrapperTypeInfo')
+            self._j_builder = get_gateway().jvm\
+                .org.apache.flink.formats.csv.CsvRowDeserializationSchema.Builder(
+                type_info.get_java_type_info())
 
         def set_field_delimiter(self, delimiter: str):
             self._j_builder = self._j_builder.setFieldDelimiter(delimiter)
@@ -266,12 +264,9 @@ class CsvRowSerializationSchema(SerializationSchema):
         def __init__(self, type_info: TypeInformation):
             if type_info is None:
                 raise TypeError("Type information must not be None")
-            if isinstance(type_info, WrapperTypeInfo):
-                self._j_builder = get_gateway().jvm\
-                    .org.apache.flink.formats.csv.CsvRowSerializationSchema.Builder(
-                    type_info.get_java_type_info())
-            else:
-                raise ValueError('type_info must be WrapperTypeInfo')
+            self._j_builder = get_gateway().jvm\
+                .org.apache.flink.formats.csv.CsvRowSerializationSchema.Builder(
+                type_info.get_java_type_info())
 
         def set_field_delimiter(self, c: str):
             self._j_builder = self._j_builder.setFieldDelimiter(c)
