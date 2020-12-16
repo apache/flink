@@ -557,7 +557,7 @@ def _create_udtaf(f, input_types, result_type, accumulator_type, func_type, dete
         f, input_types, result_type, accumulator_type, func_type, deterministic, name, True)
 
 
-def udf(f: Union[Callable, UserDefinedFunction, Type] = None,
+def udf(f: Union[Callable, ScalarFunction, Type] = None,
         input_types: Union[List[DataType], DataType] = None, result_type: DataType = None,
         deterministic: bool = None, name: str = None, func_type: str = "general",
         udf_type: str = None) -> Union[UserDefinedScalarFunctionWrapper, Callable]:
@@ -612,7 +612,7 @@ def udf(f: Union[Callable, UserDefinedFunction, Type] = None,
         return _create_udf(f, input_types, result_type, func_type, deterministic, name)
 
 
-def udtf(f: Union[Callable, UserDefinedFunction, Type] = None,
+def udtf(f: Union[Callable, TableFunction, Type] = None,
          input_types: Union[List[DataType], DataType] = None,
          result_types: Union[List[DataType], DataType] = None, deterministic: bool = None,
          name: str = None) -> Union[UserDefinedTableFunctionWrapper, Callable]:
@@ -652,7 +652,7 @@ def udtf(f: Union[Callable, UserDefinedFunction, Type] = None,
         return _create_udtf(f, input_types, result_types, deterministic, name)
 
 
-def udaf(f: Union[Callable, UserDefinedFunction, Type] = None,
+def udaf(f: Union[Callable, AggregateFunction, Type] = None,
          input_types: Union[List[DataType], DataType] = None, result_type: DataType = None,
          accumulator_type: DataType = None, deterministic: bool = None, name: str = None,
          func_type: str = "general") -> Union[UserDefinedAggregateFunctionWrapper, Callable]:
@@ -694,7 +694,7 @@ def udaf(f: Union[Callable, UserDefinedFunction, Type] = None,
                             deterministic, name)
 
 
-def udtaf(f: Union[Callable, UserDefinedFunction, Type] = None,
+def udtaf(f: Union[Callable, TableAggregateFunction, Type] = None,
           input_types: Union[List[DataType], DataType] = None, result_type: DataType = None,
           accumulator_type: DataType = None, deterministic: bool = None, name: str = None,
           func_type: str = 'general') -> Union[UserDefinedAggregateFunctionWrapper, Callable]:
@@ -752,7 +752,7 @@ def udtaf(f: Union[Callable, UserDefinedFunction, Type] = None,
     .. versionadded:: 1.13.0
     """
     if func_type != 'general':
-        raise ValueError("The func_type must be one of 'general', got %s."
+        raise ValueError("The func_type must be 'general', got %s."
                          % func_type)
     if f is None:
         return functools.partial(_create_udtaf, input_types=input_types, result_type=result_type,
