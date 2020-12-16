@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 
 import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerResponse;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
 import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerResponse;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
@@ -35,7 +35,7 @@ import java.util.concurrent.ExecutionException;
 @Internal
 public interface KinesisProxyV2Interface {
 
-	DescribeStreamResponse describeStream(String stream) throws InterruptedException, ExecutionException;
+	DescribeStreamSummaryResponse describeStreamSummary(String stream) throws InterruptedException, ExecutionException;
 
 	DescribeStreamConsumerResponse describeStreamConsumer(final String streamConsumerArn) throws InterruptedException, ExecutionException;
 
