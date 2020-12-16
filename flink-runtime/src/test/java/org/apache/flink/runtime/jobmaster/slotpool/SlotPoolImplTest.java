@@ -424,6 +424,24 @@ public class SlotPoolImplTest extends TestLogger {
 	}
 
 	@Test
+	public void testShutdownCancelsAllPendingRequests() throws Exception {
+		final ArrayBlockingQueue<AllocationID> canceledAllocations = new ArrayBlockingQueue<>(2);
+		resourceManagerGateway.setCancelSlotConsumer(canceledAllocations::offer);
+
+		try (SlotPoolImpl slotPool = createAndSetUpSlotPool(resourceManagerGateway)) {
+			slotPool.requestNewAllocatedSlot(new SlotRequestId(), ResourceProfile.UNKNOWN, TIMEOUT);
+			slotPool.requestNewAllocatedSlot(new SlotRequestId(), ResourceProfile.UNKNOWN, TIMEOUT);
+
+			assertThat(slotPool.getPendingRequests().values(), hasSize(2));
+
+			slotPool.close();
+
+			assertThat(slotPool.getPendingRequests().values(), hasSize(0));
+			assertThat(canceledAllocations, hasSize(2));
+		}
+	}
+
+	@Test
 	public void testCheckIdleSlot() throws Exception {
 		final ManualClock clock = new ManualClock();
 
