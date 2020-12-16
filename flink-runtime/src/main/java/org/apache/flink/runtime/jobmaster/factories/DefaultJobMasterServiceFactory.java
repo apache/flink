@@ -30,7 +30,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
@@ -41,7 +41,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 
     private final JobMasterConfiguration jobMasterConfiguration;
 
-    private final SlotPoolFactory slotPoolFactory;
+    private final SlotPoolServiceFactory slotPoolFactory;
 
     private final RpcService rpcService;
 
@@ -61,7 +61,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 
     public DefaultJobMasterServiceFactory(
             JobMasterConfiguration jobMasterConfiguration,
-            SlotPoolFactory slotPoolFactory,
+            SlotPoolServiceFactory slotPoolFactory,
             RpcService rpcService,
             HighAvailabilityServices haServices,
             JobManagerSharedServices jobManagerSharedServices,

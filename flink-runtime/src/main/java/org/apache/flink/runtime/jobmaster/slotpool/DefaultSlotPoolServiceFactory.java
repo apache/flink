@@ -25,9 +25,9 @@ import org.apache.flink.util.clock.Clock;
 import javax.annotation.Nonnull;
 
 /** Default slot pool factory. */
-public class DefaultSlotPoolFactory extends AbstractSlotPoolFactory {
+public class DefaultSlotPoolServiceFactory extends AbstractSlotPoolServiceFactory {
 
-    public DefaultSlotPoolFactory(
+    public DefaultSlotPoolServiceFactory(
             @Nonnull Clock clock,
             @Nonnull Time rpcTimeout,
             @Nonnull Time slotIdleTimeout,
@@ -37,7 +37,7 @@ public class DefaultSlotPoolFactory extends AbstractSlotPoolFactory {
 
     @Override
     @Nonnull
-    public SlotPool createSlotPool(@Nonnull JobID jobId) {
+    public SlotPoolService createSlotPoolService(@Nonnull JobID jobId) {
         return new SlotPoolImpl(jobId, clock, rpcTimeout, slotIdleTimeout, batchSlotTimeout);
     }
 }
