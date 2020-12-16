@@ -18,10 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -31,22 +29,19 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexProgram}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
 
-import java.util
-
 import scala.collection.JavaConversions._
 
 /**
   * Base batch physical RelNode for [[Calc]].
   */
-abstract class BatchExecCalcBase(
+abstract class BatchPhysicalCalcBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     calcProgram: RexProgram,
     outputRowType: RelDataType)
   extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData] {
+  with BatchPhysicalRel {
 
   override def deriveRowType(): RelDataType = outputRowType
 
@@ -107,8 +102,4 @@ abstract class BatchExecCalcBase(
     val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
     Some(copy(providedTraits, Seq(newInput)))
   }
-
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
 }

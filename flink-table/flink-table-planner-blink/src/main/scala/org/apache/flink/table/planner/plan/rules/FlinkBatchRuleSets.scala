@@ -398,8 +398,8 @@ object FlinkBatchRuleSets {
     BatchExecIntermediateTableScanRule.INSTANCE,
     BatchExecValuesRule.INSTANCE,
     // calc
-    BatchExecCalcRule.INSTANCE,
-    BatchExecPythonCalcRule.INSTANCE,
+    BatchPhysicalCalcRule.INSTANCE,
+    BatchPhysicalPythonCalcRule.INSTANCE,
     // union
     BatchExecUnionRule.INSTANCE,
     // sort
