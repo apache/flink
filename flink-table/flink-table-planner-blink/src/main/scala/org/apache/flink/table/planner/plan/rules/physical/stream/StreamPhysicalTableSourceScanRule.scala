@@ -22,7 +22,7 @@ import org.apache.flink.table.connector.source.ScanTableSource
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecChangelogNormalize, StreamPhysicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalChangelogNormalize, StreamPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.DynamicSourceUtils.{isSourceChangeEventsDuplicate, isUpsertSource}
@@ -37,7 +37,7 @@ import org.apache.calcite.rel.core.TableScan
   * Rule that converts [[FlinkLogicalTableSourceScan]] to [[StreamPhysicalTableSourceScan]].
  *
  * <p>Depends whether this is a scan source, this rule will also generate
- * [[StreamExecChangelogNormalize]] to materialize the upsert stream.
+ * [[StreamPhysicalChangelogNormalize]] to materialize the upsert stream.
   */
 class StreamPhysicalTableSourceScanRule
   extends ConverterRule(
@@ -85,7 +85,7 @@ class StreamPhysicalTableSourceScanRule
         .replace(FlinkConventions.STREAM_PHYSICAL)
       val newInput: RelNode = RelOptRule.convert(newScan, requiredTraitSet)
 
-      new StreamExecChangelogNormalize(
+      new StreamPhysicalChangelogNormalize(
         scan.getCluster,
         traitSet,
         newInput,

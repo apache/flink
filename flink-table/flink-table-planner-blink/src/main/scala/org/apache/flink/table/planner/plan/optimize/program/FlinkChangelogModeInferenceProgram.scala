@@ -289,12 +289,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(
           union, children, new ModifyKindSetTrait(providedKindSet), requiredTrait, requester)
 
-      case materialize: StreamExecChangelogNormalize =>
+      case normalize: StreamPhysicalChangelogNormalize =>
         // changelog normalize support update&delete input
-        val children = visitChildren(materialize, ModifyKindSetTrait.ALL_CHANGES)
+        val children = visitChildren(normalize, ModifyKindSetTrait.ALL_CHANGES)
         // changelog normalize will output all changes
         val providedTrait = ModifyKindSetTrait.ALL_CHANGES
-        createNewNode(materialize, children, providedTrait, requiredTrait, requester)
+        createNewNode(normalize, children, providedTrait, requiredTrait, requester)
 
       case ts: StreamPhysicalTableSourceScan =>
         // ScanTableSource supports produces updates and deletions
@@ -621,9 +621,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           createNewNode(union, Some(children.flatten), providedTrait)
         }
 
-      case materialize: StreamExecChangelogNormalize =>
+      case normalize: StreamPhysicalChangelogNormalize =>
         // changelog normalize currently only supports input only sending UPDATE_AFTER
-        val children = visitChildren(materialize, UpdateKindTrait.ONLY_UPDATE_AFTER)
+        val children = visitChildren(normalize, UpdateKindTrait.ONLY_UPDATE_AFTER)
         // use requiredTrait as providedTrait,
         // because changelog normalize supports all kinds of UpdateKind
         createNewNode(rel, children, requiredTrait)
