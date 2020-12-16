@@ -92,14 +92,14 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 		vertexIds.forEach(this::completePendingRequest);
 	}
 
-	public void completePendingRequest(final ExecutionVertexID executionVertexId) {
+	public LogicalSlot completePendingRequest(final ExecutionVertexID executionVertexId) {
+		final LogicalSlot slot = logicalSlotBuilder.setSlotOwner(this).createTestingLogicalSlot();
 		final SlotExecutionVertexAssignment slotVertexAssignment = removePendingRequest(executionVertexId);
 		checkState(slotVertexAssignment != null);
 		slotVertexAssignment
 			.getLogicalSlotFuture()
-			.complete(logicalSlotBuilder
-				.setSlotOwner(this)
-				.createTestingLogicalSlot());
+			.complete(slot);
+		return slot;
 	}
 
 	private SlotExecutionVertexAssignment removePendingRequest(final ExecutionVertexID executionVertexId) {
