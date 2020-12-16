@@ -33,6 +33,9 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.RestartAllFailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -709,6 +712,39 @@ public class DefaultSchedulerTest extends TestLogger {
 		assertThat(sourceVertex.getLocationConstraint().getSlotRequestId(), is(nullValue()));
 	}
 
+	@Test
+	public void allocationIsCanceledWhenVertexIsFailedOrCanceled() throws Exception {
+		final JobGraph jobGraph = singleJobVertexJobGraph(2);
+		final JobID jobId = jobGraph.getJobID();
+		testExecutionSlotAllocator.disableAutoCompletePendingRequests();
+
+		final DefaultScheduler scheduler = createScheduler(
+			jobGraph,
+			new PipelinedRegionSchedulingStrategy.Factory(),
+			new RestartAllFailoverStrategy.Factory());
+		startScheduling(scheduler);
+
+		Iterator<ArchivedExecutionVertex> vertexIterator = scheduler.requestJob().getAllExecutionVertices().iterator();
+		ArchivedExecutionVertex v1 = vertexIterator.next();
+
+		assertThat(testExecutionSlotAllocator.getPendingRequests().keySet(), hasSize(2));
+
+		final String exceptionMessage = "expected exception";
+		scheduler.updateTaskExecutionState(
+			new TaskExecutionState(
+				jobId,
+				v1.getCurrentExecutionAttempt().getAttemptId(),
+				ExecutionState.FAILED,
+				new RuntimeException(exceptionMessage)));
+
+		vertexIterator = scheduler.requestJob().getAllExecutionVertices().iterator();
+		v1 = vertexIterator.next();
+		ArchivedExecutionVertex v2 = vertexIterator.next();
+		assertThat(v1.getExecutionState(), is(ExecutionState.FAILED));
+		assertThat(v2.getExecutionState(), is(ExecutionState.CANCELED));
+		assertThat(testExecutionSlotAllocator.getPendingRequests().keySet(), hasSize(0));
+	}
+
 	private static JobVertex createVertexWithAllInputConstraints(String name, int parallelism) {
 		final JobVertex v = new JobVertex(name);
 		v.setParallelism(parallelism);
@@ -778,7 +814,13 @@ public class DefaultSchedulerTest extends TestLogger {
 	private DefaultScheduler createScheduler(
 			final JobGraph jobGraph,
 			final SchedulingStrategyFactory schedulingStrategyFactory) throws Exception {
+		return createScheduler(jobGraph, schedulingStrategyFactory, new RestartPipelinedRegionFailoverStrategy.Factory());
+	}
 
+	private DefaultScheduler createScheduler(
+			final JobGraph jobGraph,
+			final SchedulingStrategyFactory schedulingStrategyFactory,
+			final FailoverStrategy.Factory failoverStrategyFactory) throws Exception {
 		return SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
 			.setLogger(log)
 			.setIoExecutor(executor)
@@ -786,6 +828,7 @@ public class DefaultSchedulerTest extends TestLogger {
 			.setFutureExecutor(scheduledExecutorService)
 			.setDelayExecutor(taskRestartExecutor)
 			.setSchedulingStrategyFactory(schedulingStrategyFactory)
+			.setFailoverStrategyFactory(failoverStrategyFactory)
 			.setRestartBackoffTimeStrategy(testRestartBackoffTimeStrategy)
 			.setExecutionVertexOperations(testExecutionVertexOperations)
 			.setExecutionVertexVersioner(executionVertexVersioner)
