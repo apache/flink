@@ -17,7 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordBatch;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
@@ -33,6 +35,7 @@ import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.mockito.Mockito;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -48,6 +51,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_REGISTRATION_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
+import static org.mockito.Mockito.mock;
 
 /**
  * General test utils.
@@ -132,6 +136,22 @@ public class TestUtils {
 		consumerConfig.setProperty(EFO_REGISTRATION_TYPE, NONE.name());
 		consumerConfig.setProperty(EFO_CONSUMER_ARN_PREFIX + "." + "fakeStream", "stream-consumer-arn");
 		return consumerConfig;
+	}
+
+	public static RuntimeContext getMockedRuntimeContext(final int fakeTotalCountOfSubtasks, final int fakeIndexOfThisSubtask) {
+		RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
+
+		Mockito.when(mockedRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(fakeTotalCountOfSubtasks);
+		Mockito.when(mockedRuntimeContext.getIndexOfThisSubtask()).thenReturn(fakeIndexOfThisSubtask);
+		Mockito.when(mockedRuntimeContext.getTaskName()).thenReturn("Fake Task");
+		Mockito.when(mockedRuntimeContext.getTaskNameWithSubtasks()).thenReturn(
+			"Fake Task (" + fakeIndexOfThisSubtask + "/" + fakeTotalCountOfSubtasks + ")");
+		Mockito.when(mockedRuntimeContext.getUserCodeClassLoader()).thenReturn(
+			Thread.currentThread().getContextClassLoader());
+
+		Mockito.when(mockedRuntimeContext.getMetricGroup()).thenReturn(new UnregisteredMetricsGroup());
+
+		return mockedRuntimeContext;
 	}
 
 	/**
