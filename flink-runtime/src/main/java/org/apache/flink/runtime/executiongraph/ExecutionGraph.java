@@ -1435,6 +1435,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			cancelVerticesAsync().whenComplete((aVoid, throwable) -> {
 				if (transitionState(JobStatus.FAILING, JobStatus.FAILED, cause)) {
 					onTerminalState(JobStatus.FAILED);
+				} else if (state == JobStatus.CANCELLING) {
+					transitionState(JobStatus.CANCELLING, JobStatus.CANCELED);
+					onTerminalState(JobStatus.CANCELED);
+				} else if (!state.isTerminalState()) {
+					throw new IllegalStateException("Cannot complete job failing from an unexpected state: " + state);
 				}
 			}));
 	}
