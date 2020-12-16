@@ -27,6 +27,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -147,5 +148,9 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 
 	public TestingLogicalSlotBuilder getLogicalSlotBuilder() {
 		return logicalSlotBuilder;
+	}
+
+	public Map<ExecutionVertexID, SlotExecutionVertexAssignment> getPendingRequests() {
+		return Collections.unmodifiableMap(pendingRequests);
 	}
 }
