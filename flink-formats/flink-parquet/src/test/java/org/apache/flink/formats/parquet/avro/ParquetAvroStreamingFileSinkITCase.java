@@ -35,7 +35,11 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetReader;
+import org.apache.parquet.column.ParquetProperties;
+import org.apache.parquet.hadoop.CodecFactory;
+import org.apache.parquet.hadoop.ParquetOutputFormat;
 import org.apache.parquet.hadoop.ParquetReader;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
 import org.junit.Rule;
@@ -95,6 +99,36 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
     }
 
     @Test
+    public void testWriteParquetAvroSpecificWithCompression() throws Exception {
+
+        final File folder = TEMPORARY_FOLDER.newFolder();
+
+        final List<Address> data =
+                Arrays.asList(
+                        new Address(1, "a", "b", "c", "12345"),
+                        new Address(2, "p", "q", "r", "12345"),
+                        new Address(3, "x", "y", "z", "12345"));
+
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
+
+        DataStream<Address> stream =
+                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Address.class));
+
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(
+                                Path.fromLocalFile(folder),
+                                ParquetAvroWriters.forSpecificRecord(
+                                        Address.class, CompressionCodecName.GZIP))
+                        .build());
+
+        env.execute();
+
+        validateResults(folder, SpecificData.get(), data, CompressionCodecName.GZIP);
+    }
+
+    @Test
     public void testWriteParquetAvroGeneric() throws Exception {
 
         final File folder = TEMPORARY_FOLDER.newFolder();
@@ -127,6 +161,39 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
     }
 
     @Test
+    public void testWriteParquetAvroGenericWithCompression() throws Exception {
+
+        final File folder = TEMPORARY_FOLDER.newFolder();
+
+        final Schema schema = Address.getClassSchema();
+
+        final Collection<GenericRecord> data = new GenericTestDataCollection();
+
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
+
+        DataStream<GenericRecord> stream =
+                env.addSource(new FiniteTestSource<>(data), new GenericRecordAvroTypeInfo(schema));
+
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(
+                                Path.fromLocalFile(folder),
+                                ParquetAvroWriters.forGenericRecord(
+                                        schema, CompressionCodecName.GZIP))
+                        .build());
+
+        env.execute();
+
+        List<Address> expected =
+                Arrays.asList(
+                        new Address(1, "a", "b", "c", "12345"),
+                        new Address(2, "x", "y", "z", "98765"));
+
+        validateResults(folder, SpecificData.get(), expected, CompressionCodecName.GZIP);
+    }
+
+    @Test
     public void testWriteParquetAvroReflect() throws Exception {
 
         final File folder = TEMPORARY_FOLDER.newFolder();
@@ -152,9 +219,45 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
         validateResults(folder, ReflectData.get(), data);
     }
 
+    @Test
+    public void testWriteParquetAvroReflectWithCompression() throws Exception {
+
+        final File folder = TEMPORARY_FOLDER.newFolder();
+
+        final List<Datum> data =
+                Arrays.asList(new Datum("a", 1), new Datum("b", 2), new Datum("c", 3));
+
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
+
+        DataStream<Datum> stream =
+                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Datum.class));
+
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(
+                                Path.fromLocalFile(folder),
+                                ParquetAvroWriters.forReflectRecord(
+                                        Datum.class, CompressionCodecName.GZIP))
+                        .build());
+
+        env.execute();
+
+        validateResults(folder, ReflectData.get(), data, CompressionCodecName.GZIP);
+    }
+
     // ------------------------------------------------------------------------
 
     private static <T> void validateResults(File folder, GenericData dataModel, List<T> expected)
+            throws Exception {
+        validateResults(folder, dataModel, expected, null);
+    }
+
+    private static <T> void validateResults(
+            File folder,
+            GenericData dataModel,
+            List<T> expected,
+            CompressionCodecName compressionCodecName)
             throws Exception {
         File[] buckets = folder.listFiles();
         assertNotNull(buckets);
@@ -167,23 +270,57 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
         for (File partFile : partFiles) {
             assertTrue(partFile.length() > 0);
 
-            final List<T> fileContent = readParquetFile(partFile, dataModel);
+            final List<T> fileContent;
+            if (compressionCodecName == null) {
+                fileContent = readParquetFile(partFile, dataModel);
+            } else {
+                fileContent = readParquetFile(partFile, dataModel, compressionCodecName);
+            }
+
             assertEquals(expected, fileContent);
         }
     }
 
     private static <T> List<T> readParquetFile(File file, GenericData dataModel)
             throws IOException {
+        return readParquetFile(file, dataModel, null);
+    }
+
+    private static <T> List<T> readParquetFile(
+            File file, GenericData dataModel, CompressionCodecName compressionCodecName)
+            throws IOException {
         InputFile inFile =
                 HadoopInputFile.fromPath(
                         new org.apache.hadoop.fs.Path(file.toURI()), new Configuration());
 
         ArrayList<T> results = new ArrayList<>();
-        try (ParquetReader<T> reader =
-                AvroParquetReader.<T>builder(inFile).withDataModel(dataModel).build()) {
-            T next;
-            while ((next = reader.read()) != null) {
-                results.add(next);
+
+        if (compressionCodecName == null) {
+            try (ParquetReader<T> reader =
+                    AvroParquetReader.<T>builder(inFile).withDataModel(dataModel).build()) {
+                T next;
+                while ((next = reader.read()) != null) {
+                    results.add(next);
+                }
+            }
+        } else {
+            int pageSizeThreshold = ParquetProperties.builder().build().getPageSizeThreshold();
+            Configuration conf = new Configuration();
+            String compressionCodecNameString =
+                    compressionCodecName.getParquetCompressionCodec().name();
+            conf.set(ParquetOutputFormat.COMPRESSION, compressionCodecNameString);
+            CodecFactory codecFactory = new CodecFactory(conf, pageSizeThreshold);
+
+            try (ParquetReader<T> reader =
+                    AvroParquetReader.<T>builder(inFile)
+                            .withDataModel(dataModel)
+                            .withCodecFactory(codecFactory)
+                            .withConf(conf)
+                            .build()) {
+                T next;
+                while ((next = reader.read()) != null) {
+                    results.add(next);
+                }
             }
         }
 
