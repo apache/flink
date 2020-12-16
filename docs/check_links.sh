@@ -40,8 +40,8 @@ if [ $status -ne 0 ] && [ $status -ne 4 ]; then
 fi
 
 # Fail the build if any broken links are found
-broken_links_str=$(grep 'Found no broken links' $DOCS_CHECK_DIR/spider.log | wc -l)
-if [ $broken_links_str -ne 1 ]; then
+no_broken_links_str_count=$(grep 'Found no broken links' $DOCS_CHECK_DIR/spider.log | wc -l)
+if [ $no_broken_links_str_count -ne 1 ]; then
     grep -B 1 "Remote file does not exist -- broken link!!!" $DOCS_CHECK_DIR/spider.log
     echo "---------------------------------------------------------------------------"
     echo "Check the spider.log file for errors!"
