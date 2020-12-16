@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.TimeoutLatch;
 import org.apache.flink.util.InstantiationUtil;
 
+import com.amazonaws.metrics.AwsSdkMetrics;
 import com.amazonaws.services.kinesis.producer.Attempt;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
@@ -45,9 +47,12 @@ import com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -65,6 +70,8 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	public static final String METRIC_BACKPRESSURE_CYCLES = "backpressureCycles";
 
 	public static final String METRIC_OUTSTANDING_RECORDS_COUNT = "outstandingRecordsCount";
+
+	public static final String KINESIS_PRODUCER_RELEASE_HOOK_NAME = "kinesisProducer";
 
 	private static final long serialVersionUID = 6447077318449477846L;
 
@@ -260,6 +267,9 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 			this.customPartitioner.initialize(getRuntimeContext().getIndexOfThisSubtask(), getRuntimeContext().getNumberOfParallelSubtasks());
 		}
 
+		final RuntimeContext ctx = getRuntimeContext();
+		ctx.registerUserCodeClassLoaderReleaseHookIfAbsent(KINESIS_PRODUCER_RELEASE_HOOK_NAME, () -> this.runClassLoaderReleaseHook(ctx.getUserCodeClassLoader()));
+
 		LOG.info("Started Kinesis producer instance for region '{}'", producerConfig.getRegion());
 	}
 
@@ -421,6 +431,33 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 				LOG.warn("Flushing was interrupted.");
 				break;
 			}
+		}
+	}
+
+	/**
+	 * Remove references created by the producer, preventing the classloader to unload.
+	 * References were analyzed as of versions:
+	 * 	aws.kinesis-kpl.version = 0.14.0
+	 * 	aws.sdk.version = 1.11.754
+	 * 	aws.sdkv2.version = 2.13.52
+	 */
+	private void runClassLoaderReleaseHook(ClassLoader classLoader) {
+		AwsSdkMetrics.unregisterMetricAdminMBean();
+
+		// shutdown FileAgeManager thread pool
+		try {
+			Class<?> fileAgeManagerClazz = Class.forName("com.amazonaws.services.kinesis.producer.FileAgeManager", true, classLoader);
+			Field instanceField = fileAgeManagerClazz.getDeclaredField("instance");
+			instanceField.setAccessible(true);
+			Object fileAgeManager = instanceField.get(null);
+
+			Field executorField = fileAgeManagerClazz.getDeclaredField("executorService");
+			executorField.setAccessible(true);
+			ExecutorService executorService = (ExecutorService) executorField.get(fileAgeManager);
+			executorService.shutdown();
+			executorService.awaitTermination(1, TimeUnit.MINUTES);
+		} catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException | InterruptedException e) {
+			LOG.info("Unable to shutdown thread pool of KinesisProducer/FileAgeManager.", e);
 		}
 	}
 }
