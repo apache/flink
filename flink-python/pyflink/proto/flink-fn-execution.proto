@@ -286,26 +286,35 @@ message TypeInfo {
     SQL_TIME = 13;
     SQL_TIMESTAMP = 14;
     BASIC_ARRAY = 15;
-    PICKLED_BYTES = 16;
+    PRIMITIVE_ARRAY = 16;
     TUPLE = 17;
-    PRIMITIVE_ARRAY = 18;
+    LIST = 18;
+    MAP = 19;
+    PICKLED_BYTES = 20;
   }
 
+  message MapTypeInfo {
+    TypeInfo key_type = 1;
+    TypeInfo value_type = 2;
+  }
 
-  message FieldType {
-    TypeName type_name = 1;
-    oneof type_info {
-      FieldType collection_element_type = 2;
-      TypeInfo row_type_info = 3;
-      TypeInfo tuple_type_info = 4;
+  message RowTypeInfo {
+    message Field {
+      string field_name = 1;
+      TypeInfo field_type = 2;
     }
+    repeated Field fields = 1;
   }
 
-  message Field {
-    string name = 1;
-    //description is used in Table schema, no need in DataStream.
-    string description = 2;
-    FieldType type = 3;
+  message TupleTypeInfo {
+    repeated TypeInfo field_types = 1;
   }
-  repeated Field field = 1;
+
+  TypeName type_name = 1;
+  oneof type_info {
+    TypeInfo collection_element_type = 2;
+    RowTypeInfo row_type_info = 3;
+    TupleTypeInfo tuple_type_info = 4;
+    MapTypeInfo map_type_info = 5;
+  }
 }
