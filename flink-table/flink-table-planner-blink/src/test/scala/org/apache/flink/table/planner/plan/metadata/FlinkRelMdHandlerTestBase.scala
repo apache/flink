@@ -714,7 +714,7 @@ class FlinkRelMdHandlerTestBase {
     val hash1 = FlinkRelDistribution.hash(key, requireStrict = true)
     val streamExchange = new StreamPhysicalExchange(
       cluster, studentStreamScan.getTraitSet.replace(hash1), studentStreamScan, hash1)
-    new StreamExecChangelogNormalize(
+    new StreamPhysicalChangelogNormalize(
       cluster,
       streamPhysicalTraits,
       streamExchange,

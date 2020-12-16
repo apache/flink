@@ -219,7 +219,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: StreamExecChangelogNormalize,
+      rel: StreamPhysicalChangelogNormalize,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     val mono = new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(NOT_MONOTONIC))
     rel.uniqueKeys.foreach(e => mono.fieldMonotonicities(e) = CONSTANT)
