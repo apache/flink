@@ -31,7 +31,6 @@ import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -202,13 +201,13 @@ public class JobManagerRunnerImplTest extends TestLogger {
 	 * (granting or revoking leadership) to finish before starting a new leadership operation.
 	 */
 	@Test
-	public void testConcurrentLeadershipOperationsBlockingSuspend() throws Exception {
-		final CompletableFuture<Acknowledge> suspendedFuture = new CompletableFuture<>();
+	public void testConcurrentLeadershipOperationsBlockingClose() throws Exception {
+		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
 		TestingJobMasterServiceFactory jobMasterServiceFactory = new TestingJobMasterServiceFactory(
 			() -> new TestingJobMasterService(
 				"localhost",
-				e -> suspendedFuture));
+				() -> terminationFuture));
 		JobManagerRunner jobManagerRunner = createJobManagerRunner(jobMasterServiceFactory);
 
 		jobManagerRunner.start();
@@ -229,49 +228,9 @@ public class JobManagerRunnerImplTest extends TestLogger {
 			// expected
 		}
 
-		suspendedFuture.complete(Acknowledge.get());
+		terminationFuture.complete(null);
 
 		leaderFuture.get();
-	}
-
-	/**
-	 * Tests that the {@link JobManagerRunnerImpl} always waits for the previous leadership operation
-	 * (granting or revoking leadership) to finish before starting a new leadership operation.
-	 */
-	@Test
-	public void testConcurrentLeadershipOperationsBlockingGainLeadership() throws Exception {
-		final CompletableFuture<Exception> suspendFuture = new CompletableFuture<>();
-		final CompletableFuture<Acknowledge> startFuture = new CompletableFuture<>();
-
-		TestingJobMasterServiceFactory jobMasterServiceFactory = new TestingJobMasterServiceFactory(
-			() -> new TestingJobMasterService(
-				"localhost",
-				e -> {
-					suspendFuture.complete(e);
-					return CompletableFuture.completedFuture(Acknowledge.get());
-				},
-				ignored -> startFuture));
-		JobManagerRunner jobManagerRunner = createJobManagerRunner(jobMasterServiceFactory);
-
-		jobManagerRunner.start();
-
-		leaderElectionService.isLeader(UUID.randomUUID());
-
-		leaderElectionService.notLeader();
-
-		// suspending should wait for the start to happen first
-		assertThat(suspendFuture.isDone(), is(false));
-
-		try {
-			suspendFuture.get(1L, TimeUnit.MILLISECONDS);
-			fail("Suspended leadership even though the JobMaster has not been started.");
-		} catch (TimeoutException expected) {
-			// expected
-		}
-
-		startFuture.complete(Acknowledge.get());
-
-		suspendFuture.get();
 	}
 
 	@Nonnull
