@@ -24,7 +24,7 @@ from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import TimestampAssigner, WatermarkStrategy
 from pyflink.datastream import StreamExecutionEnvironment, TimeCharacteristic
 from pyflink.datastream.connectors import FlinkKafkaProducer, FlinkKafkaConsumer
-from pyflink.datastream.functions import Collector, KeyedProcessFunction
+from pyflink.datastream.functions import KeyedProcessFunction
 
 from functions import MyKeySelector
 
@@ -59,15 +59,15 @@ def python_data_stream_example():
 
 class MyProcessFunction(KeyedProcessFunction):
 
-    def process_element(self, value, ctx: 'KeyedProcessFunction.Context', out: Collector):
+    def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
         result = "Current key: {}, orderId: {}, payAmount: {}, timestamp: {}".format(
             str(ctx.get_current_key()), str(value[1]), str(value[2]), str(ctx.timestamp()))
-        out.collect(result)
+        yield result
         current_watermark = ctx.timer_service().current_watermark()
         ctx.timer_service().register_event_time_timer(current_watermark + 1500)
 
-    def on_timer(self, timestamp, ctx: 'KeyedProcessFunction.OnTimerContext', out: 'Collector'):
-        out.collect("On timer timestamp: " + str(timestamp))
+    def on_timer(self, timestamp, ctx: 'KeyedProcessFunction.OnTimerContext'):
+        yield "On timer timestamp: " + str(timestamp)
 
 
 class KafkaRowTimestampAssigner(TimestampAssigner):
