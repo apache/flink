@@ -425,13 +425,4 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		log.error("Leader Election Service encountered a fatal error.", exception);
 		handleJobManagerRunnerError(exception);
 	}
-
-	//----------------------------------------------------------------------------------------------
-	// Testing
-	//----------------------------------------------------------------------------------------------
-
-	@VisibleForTesting
-	boolean isShutdown() {
-		return shutdown;
-	}
 }
