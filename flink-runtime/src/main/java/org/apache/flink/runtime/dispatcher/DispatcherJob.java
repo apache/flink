@@ -24,7 +24,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -110,26 +112,40 @@ public final class DispatcherJob implements AutoCloseableAsync {
 				jobStatus = DispatcherJobStatus.JOB_MANAGER_RUNNER_INITIALIZED;
 				if (throwable == null) { // initialization succeeded
 					// Forward result future
-					jobManagerRunner.getResultFuture().whenComplete((archivedExecutionGraph, resultThrowable) -> {
-						if (archivedExecutionGraph != null) {
-							jobResultFuture.complete(DispatcherJobResult.forSuccess(archivedExecutionGraph));
+					jobManagerRunner.getResultFuture().whenComplete((jobManagerRunnerResult, resultThrowable) -> {
+						if (jobManagerRunnerResult != null) {
+							handleJobManagerRunnerResult(jobManagerRunnerResult);
 						} else {
 							jobResultFuture.completeExceptionally(ExceptionUtils.stripCompletionException(resultThrowable));
 						}
 					});
 				} else { // failure during initialization
-					final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
-					ArchivedExecutionGraph archivedExecutionGraph = ArchivedExecutionGraph.createFromInitializingJob(
-						jobId,
-						jobName,
-						JobStatus.FAILED,
-						strippedThrowable,
-						initializationTimestamp);
-					jobResultFuture.complete(DispatcherJobResult.forInitializationFailure(archivedExecutionGraph, strippedThrowable));
+					handleInitializationFailure(ExceptionUtils.stripCompletionException(throwable));
 				}
 			}
 			return null;
 		}));
+	}
+
+	private void handleJobManagerRunnerResult(JobManagerRunnerResult jobManagerRunnerResult) {
+		if (jobManagerRunnerResult.isSuccess()) {
+			jobResultFuture.complete(DispatcherJobResult.forSuccess(jobManagerRunnerResult.getArchivedExecutionGraph()));
+		} else if (jobManagerRunnerResult.isJobNotFinished()) {
+			jobResultFuture.completeExceptionally(new JobNotFinishedException(jobId));
+		} else if (jobManagerRunnerResult.isInitializationFailure()) {
+			handleInitializationFailure(jobManagerRunnerResult.getInitializationFailure());
+		}
+	}
+
+	private void handleInitializationFailure(Throwable initializationFailure) {
+		ArchivedExecutionGraph archivedExecutionGraph = ArchivedExecutionGraph.createFromInitializingJob(
+			jobId,
+			jobName,
+			JobStatus.FAILED,
+			initializationFailure,
+			initializationTimestamp);
+		jobResultFuture.complete(DispatcherJobResult.forInitializationFailure(archivedExecutionGraph,
+			initializationFailure));
 	}
 
 	public CompletableFuture<DispatcherJobResult> getResultFuture() {

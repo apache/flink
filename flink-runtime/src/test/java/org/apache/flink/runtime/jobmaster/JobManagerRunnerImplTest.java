@@ -36,9 +36,8 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
@@ -51,13 +50,12 @@ import javax.annotation.Nonnull;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -117,13 +115,14 @@ public class JobManagerRunnerImplTest extends TestLogger {
 		try {
 			jobManagerRunner.start();
 
-			final CompletableFuture<ArchivedExecutionGraph> resultFuture = jobManagerRunner.getResultFuture();
+			final CompletableFuture<JobManagerRunnerResult> resultFuture = jobManagerRunner.getResultFuture();
 
 			assertThat(resultFuture.isDone(), is(false));
 
 			jobManagerRunner.jobReachedGloballyTerminalState(archivedExecutionGraph);
 
-			assertThat(resultFuture.get(), is(archivedExecutionGraph));
+			final JobManagerRunnerResult jobManagerRunnerResult = resultFuture.get();
+			assertThat(jobManagerRunnerResult, is(JobManagerRunnerResult.forSuccess(archivedExecutionGraph)));
 		} finally {
 			jobManagerRunner.close();
 		}
@@ -136,18 +135,15 @@ public class JobManagerRunnerImplTest extends TestLogger {
 		try {
 			jobManagerRunner.start();
 
-			final CompletableFuture<ArchivedExecutionGraph> resultFuture = jobManagerRunner.getResultFuture();
+			final CompletableFuture<JobManagerRunnerResult> resultFuture = jobManagerRunner.getResultFuture();
 
 			assertThat(resultFuture.isDone(), is(false));
 
 			jobManagerRunner.jobFinishedByOther();
 
-			try {
-				resultFuture.get();
-				fail("Should have failed.");
-			} catch (ExecutionException ee) {
-				assertThat(ExceptionUtils.stripExecutionException(ee), instanceOf(JobNotFinishedException.class));
-			}
+			final JobManagerRunnerResult jobManagerRunnerResult = resultFuture.get();
+
+			assertTrue(jobManagerRunnerResult.isJobNotFinished());
 		} finally {
 			jobManagerRunner.close();
 		}
@@ -160,18 +156,15 @@ public class JobManagerRunnerImplTest extends TestLogger {
 		try {
 			jobManagerRunner.start();
 
-			final CompletableFuture<ArchivedExecutionGraph> resultFuture = jobManagerRunner.getResultFuture();
+			final CompletableFuture<JobManagerRunnerResult> resultFuture = jobManagerRunner.getResultFuture();
 
 			assertThat(resultFuture.isDone(), is(false));
 
 			jobManagerRunner.closeAsync();
 
-			try {
-				resultFuture.get();
-				fail("Should have failed.");
-			} catch (ExecutionException ee) {
-				assertThat(ExceptionUtils.stripExecutionException(ee), instanceOf(JobNotFinishedException.class));
-			}
+			final JobManagerRunnerResult jobManagerRunnerResult = resultFuture.join();
+
+			assertTrue(jobManagerRunnerResult.isJobNotFinished());
 		} finally {
 			jobManagerRunner.close();
 		}

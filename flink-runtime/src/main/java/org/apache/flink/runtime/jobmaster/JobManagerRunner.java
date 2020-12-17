@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.util.AutoCloseableAsync;
 
 import java.util.concurrent.CompletableFuture;
@@ -50,7 +49,7 @@ public interface JobManagerRunner extends AutoCloseableAsync {
 	 *
 	 * @return Future which is completed with the job result
 	 */
-	CompletableFuture<ArchivedExecutionGraph> getResultFuture();
+	CompletableFuture<JobManagerRunnerResult> getResultFuture();
 
 	/**
 	 * Get the job id of the executed job.
