@@ -22,9 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -39,30 +37,19 @@ public class PythonStreamGroupTableAggregateOperator extends AbstractPythonStrea
 	@VisibleForTesting
 	protected static final String STREAM_GROUP_TABLE_AGGREGATE_URN = "flink:transform:stream_group_table_aggregate:v1";
 
-	private final PythonAggregateFunctionInfo aggregateFunction;
-
-	private final DataViewUtils.DataViewSpec[] dataViewSpecs;
-
 	public PythonStreamGroupTableAggregateOperator(
 		Configuration config,
 		RowType inputType,
 		RowType outputType,
-		PythonAggregateFunctionInfo aggregateFunction,
-		DataViewUtils.DataViewSpec[] dataViewSpec,
+		PythonAggregateFunctionInfo[] aggregateFunctions,
+		DataViewUtils.DataViewSpec[][] dataViewSpecs,
 		int[] grouping,
 		int indexOfCountStar,
 		boolean generateUpdateBefore,
 		long minRetentionTime,
 		long maxRetentionTime) {
-		super(config, inputType, outputType, grouping, indexOfCountStar, generateUpdateBefore,
-			minRetentionTime, maxRetentionTime);
-		this.aggregateFunction = aggregateFunction;
-		this.dataViewSpecs = dataViewSpec;
-	}
-
-	@Override
-	public PythonEnv getPythonEnv() {
-		return aggregateFunction.getPythonFunction().getPythonEnv();
+		super(config, inputType, outputType, aggregateFunctions, dataViewSpecs, grouping,
+			indexOfCountStar, generateUpdateBefore, minRetentionTime, maxRetentionTime);
 	}
 
 	/**
@@ -72,8 +59,6 @@ public class PythonStreamGroupTableAggregateOperator extends AbstractPythonStrea
 	public FlinkFnApi.UserDefinedAggregateFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
 			super.getUserDefinedFunctionsProto().toBuilder();
-		builder.addUdfs(PythonOperatorUtils.getUserDefinedAggregateFunctionProto(
-			aggregateFunction, dataViewSpecs));
 		return builder.build();
 	}
 

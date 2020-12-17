@@ -85,11 +85,16 @@ trait CommonPythonAggregate extends CommonPythonBase {
             pythonAggregateInfoList.aggInfos(i).argIndexes.map(_.asInstanceOf[AnyRef]),
             aggCalls(i).filterArg,
             aggCalls(i).isDistinct))
+          val typeInference = function match {
+            case aggregateFunction: PythonAggregateFunction =>
+              aggregateFunction.getTypeInference(null)
+            case tableAggregateFunction: PythonTableAggregateFunction =>
+              tableAggregateFunction.getTypeInference(null)
+          }
           dataViewSpecList.add(
             extractDataViewSpecs(
               i,
-              function.asInstanceOf[PythonAggregateFunction].getTypeInference(null)
-              .getAccumulatorTypeStrategy.get().inferType(null).get()))
+              typeInference.getAccumulatorTypeStrategy.get().inferType(null).get()))
         case function: UserDefinedFunction =>
           var filterArg = -1
           var distinct = false

@@ -41,11 +41,15 @@ import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
+import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.UpdatableRowData;
+import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
+import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.functions.CleanupState;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
@@ -84,6 +88,10 @@ public abstract class AbstractPythonStreamAggregateOperator
 	static final byte NORMAL_RECORD = 0;
 
 	private static final byte TRIGGER_TIMER = 1;
+
+	private final PythonAggregateFunctionInfo[] aggregateFunctions;
+
+	private final DataViewUtils.DataViewSpec[][] dataViewSpecs;
 
 	/**
 	 * The input logical type.
@@ -196,6 +204,8 @@ public abstract class AbstractPythonStreamAggregateOperator
 		Configuration config,
 		RowType inputType,
 		RowType outputType,
+		PythonAggregateFunctionInfo[] aggregateFunctions,
+		DataViewUtils.DataViewSpec[][] dataViewSpecs,
 		int[] grouping,
 		int indexOfCountStar,
 		boolean generateUpdateBefore,
@@ -204,6 +214,8 @@ public abstract class AbstractPythonStreamAggregateOperator
 		super(config);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
+		this.aggregateFunctions = aggregateFunctions;
+		this.dataViewSpecs = dataViewSpecs;
 		this.jobOptions = buildJobOptions(config);
 		this.grouping = grouping;
 		this.indexOfCountStar = indexOfCountStar;
@@ -321,6 +333,11 @@ public abstract class AbstractPythonStreamAggregateOperator
 		return keyForTimerService;
 	}
 
+	@Override
+	public PythonEnv getPythonEnv() {
+		return aggregateFunctions[0].getPythonFunction().getPythonEnv();
+	}
+
 	@VisibleForTesting
 	TypeSerializer getKeySerializer() {
 		return PythonTypeUtils.toBlinkTypeSerializer(getKeyType());
@@ -348,6 +365,14 @@ public abstract class AbstractPythonStreamAggregateOperator
 		builder.setStateCacheSize(stateCacheSize);
 		builder.setMapStateReadCacheSize(mapStateReadCacheSize);
 		builder.setMapStateWriteCacheSize(mapStateWriteCacheSize);
+		for (int i = 0; i < aggregateFunctions.length; i++) {
+			DataViewUtils.DataViewSpec[] specs = null;
+			if (i < dataViewSpecs.length) {
+				specs = dataViewSpecs[i];
+			}
+			builder.addUdfs(
+				PythonOperatorUtils.getUserDefinedAggregateFunctionProto(aggregateFunctions[i], specs));
+		}
 		return builder.build();
 	}
 

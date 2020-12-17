@@ -26,7 +26,7 @@ from pyflink.fn_execution import flink_fn_execution_pb2, pickle
 from pyflink.serializers import PickleSerializer
 from pyflink.table import functions
 from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction, \
-    AggregateFunction, PandasAggregateFunctionWrapper
+    ImperativeAggregateFunction, PandasAggregateFunctionWrapper
 
 _func_num = 0
 _constant_num = 0
@@ -147,7 +147,7 @@ def extract_user_defined_aggregate_function(
         user_defined_function_proto,
         distinct_info_dict: Dict[Tuple[List[str]], Tuple[List[int], List[int]]]):
     user_defined_agg = load_aggregate_function(user_defined_function_proto.payload)
-    assert isinstance(user_defined_agg, AggregateFunction)
+    assert isinstance(user_defined_agg, ImperativeAggregateFunction)
     args_str = []
     local_variable_dict = {}
     for arg in user_defined_function_proto.inputs:
