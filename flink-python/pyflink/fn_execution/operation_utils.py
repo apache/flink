@@ -312,8 +312,6 @@ def extract_keyed_process_function(user_defined_function_proto, ctx, on_timer_ct
 
         if output_result:
             for result in output_result:
-                with open('/tmp/debug.txt', 'a') as f:
-                    f.write(result + '\n')
                 yield Row(None, None, None, result)
 
         for result in collector.buf:
