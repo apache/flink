@@ -22,9 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -38,10 +36,6 @@ public class PythonStreamGroupAggregateOperator extends AbstractPythonStreamAggr
 
 	@VisibleForTesting
 	protected static final String STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1";
-
-	private final PythonAggregateFunctionInfo[] aggregateFunctions;
-
-	private final DataViewUtils.DataViewSpec[][] dataViewSpecs;
 
 	/**
 	 * True if the count(*) agg is inserted by the planner.
@@ -60,16 +54,9 @@ public class PythonStreamGroupAggregateOperator extends AbstractPythonStreamAggr
 		boolean generateUpdateBefore,
 		long minRetentionTime,
 		long maxRetentionTime) {
-		super(config, inputType, outputType, grouping, indexOfCountStar, generateUpdateBefore,
-			minRetentionTime, maxRetentionTime);
-		this.aggregateFunctions = aggregateFunctions;
-		this.dataViewSpecs = dataViewSpecs;
+		super(config, inputType, outputType, aggregateFunctions, dataViewSpecs, grouping,
+			indexOfCountStar, generateUpdateBefore, minRetentionTime, maxRetentionTime);
 		this.countStarInserted = countStarInserted;
-	}
-
-	@Override
-	public PythonEnv getPythonEnv() {
-		return aggregateFunctions[0].getPythonFunction().getPythonEnv();
 	}
 
 	/**
@@ -79,14 +66,6 @@ public class PythonStreamGroupAggregateOperator extends AbstractPythonStreamAggr
 	public FlinkFnApi.UserDefinedAggregateFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
 			super.getUserDefinedFunctionsProto().toBuilder();
-		for (int i = 0; i < aggregateFunctions.length; i++) {
-			DataViewUtils.DataViewSpec[] specs = null;
-			if (i < dataViewSpecs.length) {
-				specs = dataViewSpecs[i];
-			}
-			builder.addUdfs(
-				PythonOperatorUtils.getUserDefinedAggregateFunctionProto(aggregateFunctions[i], specs));
-		}
 		builder.setCountStarInserted(countStarInserted);
 		return builder.build();
 	}
