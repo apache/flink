@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
@@ -264,7 +265,7 @@ public class DispatcherJobTest extends TestLogger {
 		private final CompletableFuture<Acknowledge> cancellationFuture;
 
 		private JobStatus internalJobStatus = JobStatus.INITIALIZING;
-		private CompletableFuture<ArchivedExecutionGraph> resultFuture = new CompletableFuture<>();
+		private CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
 
 		public TestContext (
 				CompletableFuture<JobManagerRunner> jobManagerRunnerCompletableFuture,
@@ -316,14 +317,16 @@ public class DispatcherJobTest extends TestLogger {
 		public void finishJob() {
 			internalJobStatus = JobStatus.FINISHED;
 			resultFuture.complete(
-				ArchivedExecutionGraph.createFromInitializingJob(getJobID(), "test", JobStatus.FINISHED, null, 1337));
+				JobManagerRunnerResult.forSuccess(
+					ArchivedExecutionGraph.createFromInitializingJob(getJobID(), "test", JobStatus.FINISHED, null, 1337)));
 		}
 
 		public void finishCancellation() {
 			jobManagerRunnerCompletableFuture.thenAccept(runner -> {
 				internalJobStatus = JobStatus.CANCELED;
 				runner.getResultFuture()
-					.complete(ArchivedExecutionGraph.createFromInitializingJob(getJobID(), "test", JobStatus.CANCELED, null, 1337));
+					.complete(
+						JobManagerRunnerResult.forSuccess(ArchivedExecutionGraph.createFromInitializingJob(getJobID(), "test", JobStatus.CANCELED, null, 1337)));
 				cancellationFuture.complete(Acknowledge.get());
 			});
 		}

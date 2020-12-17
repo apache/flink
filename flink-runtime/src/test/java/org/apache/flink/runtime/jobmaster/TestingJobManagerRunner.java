@@ -38,14 +38,14 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
 	private final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture;
 
-	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
+	private final CompletableFuture<JobManagerRunnerResult> resultFuture;
 
 	private final OneShotLatch closeAsyncCalledLatch = new OneShotLatch();
 
 	private TestingJobManagerRunner(JobID jobId,
 			boolean blockingTermination,
 			CompletableFuture<JobMasterGateway> jobMasterGatewayFuture,
-			CompletableFuture<ArchivedExecutionGraph> resultFuture) {
+			CompletableFuture<JobManagerRunnerResult> resultFuture) {
 		this.jobId = jobId;
 		this.blockingTermination = blockingTermination;
 		this.jobMasterGatewayFuture = jobMasterGatewayFuture;
@@ -64,7 +64,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 	}
 
 	@Override
-	public CompletableFuture<ArchivedExecutionGraph> getResultFuture() {
+	public CompletableFuture<JobManagerRunnerResult> getResultFuture() {
 		return resultFuture;
 	}
 
@@ -88,7 +88,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 	}
 
 	public void completeResultFuture(ArchivedExecutionGraph archivedExecutionGraph) {
-		resultFuture.complete(archivedExecutionGraph);
+		resultFuture.complete(JobManagerRunnerResult.forSuccess(archivedExecutionGraph));
 	}
 
 	public void completeResultFutureExceptionally(Exception e) {
@@ -111,7 +111,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 		private JobID jobId = null;
 		private boolean blockingTermination = false;
 		private CompletableFuture<JobMasterGateway> jobMasterGatewayFuture = new CompletableFuture<>();
-		private CompletableFuture<ArchivedExecutionGraph> resultFuture = new CompletableFuture<>();
+		private CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
 
 		public Builder setJobId(JobID jobId) {
 			this.jobId = jobId;
@@ -129,7 +129,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 			return this;
 		}
 
-		public Builder setResultFuture(CompletableFuture<ArchivedExecutionGraph> resultFuture) {
+		public Builder setResultFuture(CompletableFuture<JobManagerRunnerResult> resultFuture) {
 			Preconditions.checkNotNull(resultFuture);
 			this.resultFuture = resultFuture;
 			return this;

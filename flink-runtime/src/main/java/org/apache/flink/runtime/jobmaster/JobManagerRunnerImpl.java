@@ -81,7 +81,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 	private final FatalErrorHandler fatalErrorHandler;
 
-	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
+	private final CompletableFuture<JobManagerRunnerResult> resultFuture;
 
 	private final CompletableFuture<Void> terminationFuture;
 
@@ -151,7 +151,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	}
 
 	@Override
-	public CompletableFuture<ArchivedExecutionGraph> getResultFuture() {
+	public CompletableFuture<JobManagerRunnerResult> getResultFuture() {
 		return resultFuture;
 	}
 
@@ -195,7 +195,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 						classLoaderLease.release();
 
-						resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
+						resultFuture.complete(JobManagerRunnerResult.forJobNotFinished());
 
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(
@@ -221,7 +221,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
 		unregisterJobFromHighAvailability();
 		// complete the result future with the terminal execution graph
-		resultFuture.complete(executionGraph);
+		resultFuture.complete(JobManagerRunnerResult.forSuccess(executionGraph));
 	}
 
 	/**
@@ -229,7 +229,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	 */
 	@Override
 	public void jobFinishedByOther() {
-		resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
+		resultFuture.complete(JobManagerRunnerResult.forJobNotFinished());
 	}
 
 	@Override
