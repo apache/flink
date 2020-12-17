@@ -27,6 +27,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.PersistedIntermediateResultDescriptor;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.JobException;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
@@ -73,6 +75,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
@@ -86,13 +89,11 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -105,6 +106,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -1767,5 +1769,48 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	ExecutionDeploymentListener getExecutionDeploymentListener() {
 		return executionDeploymentListener;
+	}
+
+	/**
+	 * Returns the mapping from intermediate result id to the ClusterPartitionDescriptor of its partitions
+	 *
+	 * @return The mapping from intermediate result id to the ClusterPartitionDescriptor of its partitions
+	 * 		   null, if the job has not yet finished
+	 */
+	public Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> getPersistedIntermediateResult() {
+		if (!JobStatus.FINISHED.equals(state)) {
+			return null;
+		}
+
+		Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> intermediateResultInfos =
+				new HashMap<>();
+		intermediateResults.forEach(((intermediateDataSetID, intermediateResult) -> {
+			if (!intermediateResult.getResultType().isPersistent()) {
+				return;
+			}
+			intermediateResultInfos.put(intermediateDataSetID,
+					getPersistedIntermediateResultDescriptor(intermediateResult));
+		}));
+
+		return intermediateResultInfos;
+	}
+
+	private PersistedIntermediateResultDescriptor getPersistedIntermediateResultDescriptor(
+			IntermediateResult intermediateResult) {
+
+		Set<ShuffleDescriptor> shuffleDescriptorSet = new HashSet<>();
+		for (IntermediateResultPartition partition : intermediateResult.getPartitions()) {
+			final ShuffleDescriptor shuffleDescriptor = partition
+					.getProducer()
+					.getCurrentExecutionAttempt()
+					.getResultPartitionDeploymentDescriptor(partition.getPartitionId())
+					.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
+					.orElseThrow(IllegalStateException::new);
+			shuffleDescriptorSet.add(shuffleDescriptor);
+
+		}
+
+		return new PersistedIntermediateResultDescriptorImpl(intermediateResult.getId(),
+				shuffleDescriptorSet);
 	}
 }
