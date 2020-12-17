@@ -258,8 +258,9 @@ streaming, in `BATCH` we can assume “perfect watermarks”.
 Given the above, in `BATCH` mode, we only need a `MAX_WATERMARK` at the end of
 the input associated with each key, or at the end of input if the input stream
 is not keyed. Based on this scheme, all registered timers will fire at the *end
-of time* and user-defined `WatermarkAssigners` or `WatermarkStrategies` are
-ignored.
+of time* and user-defined `WatermarkAssigners` or `WatermarkGenerators` are
+ignored. Specifying a `WatermarkStrategy` is still important, though, because
+its `TimestampAssigner` will still be used to assign timestamps to records.
 
 ### Processing Time
 
