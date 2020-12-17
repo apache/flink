@@ -177,7 +177,7 @@ public class ConfigurationUtils {
 	public static String assembleDynamicConfigsStr(final Map<String, String> config) {
 		return config.entrySet()
 				.stream()
-				.map(e -> String.format("-D %s=%s", e.getKey(), e.getValue()))
+				.map(e -> String.format("-D%s=%s", e.getKey(), e.getValue()))
 				.collect(Collectors.joining(" "));
 	}
 
