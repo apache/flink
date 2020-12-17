@@ -80,6 +80,22 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 	}
 
 	@Test
+	public void testSchemaIgnoreParseErrors() {
+		final Map<String, String> properties = toMap(
+			new Json()
+				.schema(SCHEMA)
+				.ignoreParseErrors(true));
+
+		testSchemaSerializationSchema(properties);
+
+		final DeserializationSchema<?> actual2 = TableFactoryService
+			.find(DeserializationSchemaFactory.class, properties)
+			.createDeserializationSchema(properties);
+		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema.Builder(SCHEMA).ignoreParseErrors().build();
+		assertEquals(expected2, actual2);
+	}
+
+	@Test
 	public void testJsonSchema() {
 		final Map<String, String> properties = toMap(
 			new Json()
