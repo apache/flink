@@ -220,7 +220,7 @@ public class CoreOptions {
 
 	/**
 	 * The config parameter defining the directory for Flink PID file.
-	 * see: {@link bin/config.sh#KEY_ENV_PID_DIR} and {@link bin/config.sh#DEFAULT_ENV_PID_DIR}
+	 * see: {@code bin/config.sh#KEY_ENV_PID_DIR} and {@code bin/config.sh#DEFAULT_ENV_PID_DIR}
 	 */
 	public static final ConfigOption<String> FLINK_PID_DIR = ConfigOptions
 		.key("env.pid.dir")
