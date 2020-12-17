@@ -24,11 +24,13 @@ from typing import Union
 from pyflink.java_gateway import get_gateway
 from pyflink.table import ExplainDetail
 from pyflink.table.expression import Expression, _get_java_expression
-from pyflink.table.expressions import col
+from pyflink.table.expressions import col, with_columns, without_columns
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import create_arrow_schema
+from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
+    UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper
 from pyflink.table.utils import tz_convert_from_internal, to_expression_jarray
 from pyflink.table.window import OverWindow, GroupWindow
 
@@ -759,7 +761,7 @@ class Table(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.dropColumns(fields[0]), self._t_env)
 
-    def map(self, func: Union[str, Expression]) -> 'Table':
+    def map(self, func: Union[str, Expression, UserDefinedScalarFunctionWrapper]) -> 'Table':
         """
         Performs a map operation with a user-defined scalar function.
 
@@ -777,10 +779,12 @@ class Table(object):
         """
         if isinstance(func, str):
             return Table(self._j_table.map(func), self._t_env)
-        else:
+        elif isinstance(func, Expression):
             return Table(self._j_table.map(func._j_expr), self._t_env)
+        else:
+            return Table(self._j_table.map(func(with_columns(col("*")))._j_expr), self._t_env)
 
-    def flat_map(self, func: Union[str, Expression]) -> 'Table':
+    def flat_map(self, func: Union[str, Expression, UserDefinedTableFunctionWrapper]) -> 'Table':
         """
         Performs a flatMap operation with a user-defined table function.
 
@@ -800,10 +804,13 @@ class Table(object):
         """
         if isinstance(func, str):
             return Table(self._j_table.flatMap(func), self._t_env)
-        else:
+        elif isinstance(func, Expression):
             return Table(self._j_table.flatMap(func._j_expr), self._t_env)
+        else:
+            return Table(self._j_table.flatMap(func(with_columns(col("*")))._j_expr), self._t_env)
 
-    def aggregate(self, func: Union[str, Expression]) -> 'AggregatedTable':
+    def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'AggregatedTable':
         """
         Performs a global aggregate operation with an aggregate function. You have to close the
         aggregate with a select statement.
@@ -825,10 +832,19 @@ class Table(object):
         """
         if isinstance(func, str):
             return AggregatedTable(self._j_table.aggregate(func), self._t_env)
-        else:
+        elif isinstance(func, Expression):
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+        else:
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
+            return AggregatedTable(self._j_table.aggregate(func._j_expr),
+                                   self._t_env)
 
-    def flat_aggregate(self, func: Union[str, Expression]) -> 'FlatAggregateTable':
+    def flat_aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'FlatAggregateTable':
         """
         Perform a global flat_aggregate without group_by. flat_aggregate takes a
         :class:`~pyflink.table.TableAggregateFunction` which returns multiple rows. Use a selection
@@ -847,7 +863,14 @@ class Table(object):
         """
         if isinstance(func, str):
             return FlatAggregateTable(self._j_table.flatAggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
         else:
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
 
     def insert_into(self, table_path: str):
@@ -1015,7 +1038,8 @@ class GroupedTable(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.select(fields[0]), self._t_env)
 
-    def aggregate(self, func: Union[str, Expression]) -> 'AggregatedTable':
+    def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'AggregatedTable':
         """
         Performs a aggregate operation with an aggregate function. You have to close the
         aggregate with a select statement.
@@ -1037,10 +1061,14 @@ class GroupedTable(object):
         """
         if isinstance(func, str):
             return AggregatedTable(self._j_table.aggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
         else:
+            func = self._without_columns(func)
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
 
-    def flat_aggregate(self, func: Union[str, Expression]) -> 'FlatAggregateTable':
+    def flat_aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'FlatAggregateTable':
         """
         Performs a flat_aggregate operation on a grouped table. flat_aggregate takes a
         :class:`~pyflink.table.TableAggregateFunction` which returns multiple rows. Use a selection
@@ -1059,8 +1087,25 @@ class GroupedTable(object):
         """
         if isinstance(func, str):
             return FlatAggregateTable(self._j_table.flatAggregate(func), self._t_env)
-        else:
+        elif isinstance(func, Expression):
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+        else:
+            func = self._without_columns(func)
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+
+    def _without_columns(self, func: UserDefinedAggregateFunctionWrapper) -> Expression:
+        get_gateway()
+        group_keys_field = self._j_table.getClass().getDeclaredField("groupKeys")
+        group_keys_field.setAccessible(True)
+        j_group_keys = group_keys_field.get(self._j_table)
+        without_keys = without_columns(
+            j_group_keys[0], *([j_group_keys[i] for i in range(1, len(j_group_keys))]))
+        if hasattr(func, "alias_names"):
+            alias_names = getattr(func, "alias_names")
+            func_expression = func(without_keys).alias(*alias_names)
+        else:
+            func_expression = func(without_keys)
+        return func_expression
 
 
 class GroupWindowedTable(object):
@@ -1140,7 +1185,8 @@ class WindowGroupedTable(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.select(fields[0]), self._t_env)
 
-    def aggregate(self, func: Union[str, Expression]) -> 'AggregatedTable':
+    def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'AggregatedTable':
         """
         Performs an aggregate operation on a window grouped table. You have to close the
         aggregate with a select statement.
@@ -1165,8 +1211,29 @@ class WindowGroupedTable(object):
         """
         if isinstance(func, str):
             return AggregatedTable(self._j_table.aggregate(func), self._t_env)
-        else:
+        elif isinstance(func, Expression):
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+        else:
+            func = self._without_columns(func)
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+
+    def _without_columns(self, func: UserDefinedAggregateFunctionWrapper) -> Expression:
+        get_gateway()
+        group_keys_field = self._j_table.getClass().getDeclaredField("groupKeys")
+        group_keys_field.setAccessible(True)
+        group_window_field = self._j_table.getClass().getDeclaredField("window")
+        group_window_field.setAccessible(True)
+        j_group_keys = group_keys_field.get(self._j_table)
+        j_group_window = group_window_field.get(self._j_table)
+        j_time_field = j_group_window.getTimeField()
+        without_keys = without_columns(
+            j_time_field, *([j_group_keys[i] for i in range(len(j_group_keys))]))
+        if hasattr(func, "_alias_names"):
+            alias_names = getattr(func, "_alias_names")
+            func_expression = func(without_keys).alias(*alias_names)
+        else:
+            func_expression = func(without_keys)
+        return func_expression
 
 
 class OverWindowedTable(object):

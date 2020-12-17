@@ -492,7 +492,7 @@ def with_columns(head, *tails) -> Expression:
     return _binary_op("withColumns", head, tails)
 
 
-def without_columns(head, tails) -> Expression:
+def without_columns(head, *tails) -> Expression:
     """
     Creates an expression that selects all columns except for the given range of columns. It can
     be used wherever an array of expression is accepted such as function calls, projections, or

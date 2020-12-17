@@ -76,17 +76,16 @@ class RowBasedOperationTests(object):
                              [DataTypes.FIELD("c", DataTypes.BIGINT()),
                               DataTypes.FIELD("d", DataTypes.BIGINT())]),
                          func_type='pandas')
-        t.map(pandas_udf(t.a, t.b)).execute_insert("Results").wait()
+        t.map(pandas_udf).execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,5", "3,7", "6,6", "9,8", "5,8"])
 
     def test_flat_map(self):
         t = self.t_env.from_elements(
-            [(1, "2,3", 3), (2, "1", 3), (1, "5,6,7", 4)],
+            [(1, "2,3"), (2, "1"), (1, "5,6,7")],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.TINYINT()),
-                 DataTypes.FIELD("b", DataTypes.STRING()),
-                 DataTypes.FIELD("c", DataTypes.INT())]))
+                 DataTypes.FIELD("b", DataTypes.STRING())]))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'],
@@ -98,9 +97,8 @@ class RowBasedOperationTests(object):
             for s in string.split(","):
                 yield x, s
 
-        t.flat_map(split(t.a, t.b)) \
-            .alias("a, b") \
-            .flat_map(split(t.a, t.b)) \
+        t.flat_map(split) \
+            .flat_map(split) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -125,9 +123,11 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
                                [DataTypes.FIELD("a", DataTypes.FLOAT()),
                                 DataTypes.FIELD("b", DataTypes.INT())]),
                            func_type="pandas")
-        t.group_by(t.a) \
-            .aggregate(pandas_udaf(t.b).alias("c", "d")) \
-            .select("a, c, d").execute_insert("Results") \
+        t.select(t.a, t.b) \
+            .group_by(t.a) \
+            .aggregate(pandas_udaf) \
+            .select("*") \
+            .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,5.0,8", "2,2.0,3"])
@@ -149,8 +149,10 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
                                [DataTypes.FIELD("a", DataTypes.FLOAT()),
                                 DataTypes.FIELD("b", DataTypes.INT())]),
                            func_type="pandas")
-        t.aggregate(pandas_udaf(t.b).alias("c", "d")) \
-            .select("c, d").execute_insert("Results") \
+        t.select(t.b) \
+            .aggregate(pandas_udaf.alias("a", "b")) \
+            .select("a, b") \
+            .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3.8,8"])
@@ -189,9 +191,10 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
         tumble_window = Tumble.over(expr.lit(1).hours) \
             .on(expr.col("rowtime")) \
             .alias("w")
-        t.window(tumble_window) \
+        t.select(t.b, t.rowtime) \
+            .window(tumble_window) \
             .group_by("w") \
-            .aggregate(pandas_udaf(t.b).alias("d", "e")) \
+            .aggregate(pandas_udaf.alias("d", "e")) \
             .select("w.rowtime, d, e") \
             .execute_insert("Results") \
             .wait()
@@ -225,20 +228,21 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamT
 
     def test_flat_aggregate(self):
         import pandas as pd
-        self.t_env.register_function("mytop", Top2())
+        mytop = udtaf(Top2())
         t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
                                       (3, 'Hi', 'hi'),
                                       (5, 'Hi2', 'hi'),
                                       (7, 'Hi', 'Hello'),
                                       (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by("c") \
-            .flat_aggregate("mytop(a)") \
-            .select("c, a") \
-            .flat_aggregate("mytop(a)") \
-            .select("a") \
+        result = t.select(t.a, t.c) \
+            .group_by(t.c) \
+            .flat_aggregate(mytop) \
+            .select(t.a) \
+            .flat_aggregate(mytop.alias("b")) \
+            .select("b") \
             .to_pandas()
 
-        assert_frame_equal(result, pd.DataFrame([[7], [5]], columns=['a']))
+        assert_frame_equal(result, pd.DataFrame([[7], [5]], columns=['b']))
 
     def test_flat_aggregate_list_view(self):
         import pandas as pd

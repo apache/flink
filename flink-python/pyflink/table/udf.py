@@ -353,6 +353,10 @@ class UserDefinedFunctionWrapper(object):
         from pyflink.table import expressions as expr
         return expr.call(self, *args)
 
+    def alias(self, *alias_names: str):
+        self._alias_names = alias_names
+        return self
+
     def java_user_defined_function(self):
         if self._judf_placeholder is None:
             gateway = get_gateway()
