@@ -409,32 +409,4 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 	ResourceCounter getFulfilledResourceRequirements() {
 		return fulfilledResourceRequirements;
 	}
-
-	private static final class SlotOfferMatching {
-		private final SlotOffer slotOffer;
-
-		@Nullable
-		private final ResourceProfile matching;
-
-		private SlotOfferMatching(SlotOffer slotOffer, @Nullable ResourceProfile matching) {
-			this.slotOffer = slotOffer;
-			this.matching = matching;
-		}
-
-		private SlotOffer getSlotOffer() {
-			return slotOffer;
-		}
-
-		private Optional<ResourceProfile> getMatching() {
-			return Optional.ofNullable(matching);
-		}
-
-		private static SlotOfferMatching createMatching(SlotOffer slotOffer, ResourceProfile matching) {
-			return new SlotOfferMatching(slotOffer, matching);
-		}
-
-		private static SlotOfferMatching createMismatch(SlotOffer slotOffer) {
-			return new SlotOfferMatching(slotOffer, null);
-		}
-	}
 }
