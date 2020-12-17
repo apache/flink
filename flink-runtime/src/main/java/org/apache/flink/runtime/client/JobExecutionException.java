@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.util.FlinkException;
 
 /**
  * This exception is the base exception for all exceptions that denote any failure during
- * the execution of a job.
+ * the execution of a job, and signal the failure of an application with a given
+ * {@link ApplicationStatus}.
  */
 public class JobExecutionException extends FlinkException {
 
@@ -31,29 +33,53 @@ public class JobExecutionException extends FlinkException {
 
 	private final JobID jobID;
 
+	private final ApplicationStatus status;
+
 	/**
 	 * Constructs a new job execution exception.
 	 *
-	 * @param jobID The job's ID.
-	 * @param msg The cause for the execution exception.
-	 * @param cause The cause of the exception
+	 * @param jobID  The job's ID.
+	 * @param status The application status.
+	 * @param msg    The cause for the execution exception.
+	 * @param cause  The cause of the exception
 	 */
-	public JobExecutionException(JobID jobID, String msg, Throwable cause) {
+	public JobExecutionException(JobID jobID, ApplicationStatus status, String msg, Throwable cause) {
 		super(msg, cause);
 		this.jobID = jobID;
+		this.status = status;
 	}
 
-	public JobExecutionException(JobID jobID, String msg) {
+	/**
+	 * Constructs a new job execution exception.
+	 *
+	 * @param jobID  The job's ID.
+	 * @param status The application status.
+	 * @param msg    The cause for the execution exception.
+	 */
+	public JobExecutionException(JobID jobID, ApplicationStatus status, String msg) {
 		super(msg);
 		this.jobID = jobID;
+		this.status = status;
 	}
 
-	public JobExecutionException(JobID jobID, Throwable cause) {
+	/**
+	 * Constructs a new job execution exception.
+	 *
+	 * @param jobID  The job's ID.
+	 * @param status The application status.
+	 * @param cause  The cause of the exception
+	 */
+	public JobExecutionException(JobID jobID, ApplicationStatus status, Throwable cause) {
 		super(cause);
 		this.jobID = jobID;
+		this.status = status;
 	}
 
 	public JobID getJobID() {
 		return jobID;
+	}
+
+	public ApplicationStatus getStatus() {
+		return status;
 	}
 }

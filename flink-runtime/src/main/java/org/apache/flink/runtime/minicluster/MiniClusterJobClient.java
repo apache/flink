@@ -118,9 +118,7 @@ public final class MiniClusterJobClient implements JobClient, CoordinationReques
 			try {
 				return result.toJobExecutionResult(classLoader);
 			} catch (Exception e) {
-				throw new CompletionException(
-						"Failed to convert JobResult to JobExecutionResult.",
-						e);
+				throw new CompletionException(e);
 			}
 		});
 	}

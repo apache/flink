@@ -688,7 +688,7 @@ public class MiniCluster implements AutoCloseableAsync {
 		try {
 			submissionFuture.get();
 		} catch (ExecutionException e) {
-			throw new JobExecutionException(job.getJobID(), ExceptionUtils.stripExecutionException(e));
+			throw new JobExecutionException(job.getJobID(), ApplicationStatus.UNKNOWN, ExceptionUtils.stripExecutionException(e));
 		}
 	}
 
@@ -715,13 +715,15 @@ public class MiniCluster implements AutoCloseableAsync {
 		try {
 			jobResult = jobResultFuture.get();
 		} catch (ExecutionException e) {
-			throw new JobExecutionException(job.getJobID(), "Could not retrieve JobResult.", ExceptionUtils.stripExecutionException(e));
+			throw new JobExecutionException(job.getJobID(), ApplicationStatus.UNKNOWN,
+					"Could not retrieve JobResult.", ExceptionUtils.stripExecutionException(e));
 		}
 
 		try {
 			return jobResult.toJobExecutionResult(Thread.currentThread().getContextClassLoader());
 		} catch (IOException | ClassNotFoundException e) {
-			throw new JobExecutionException(job.getJobID(), e);
+			throw new JobExecutionException(job.getJobID(), jobResult.getApplicationStatus(),
+					"Could not deserialize the serialized accumulator results.", e);
 		}
 	}
 

@@ -119,40 +119,34 @@ public class JobResult implements Serializable {
 	 *
 	 * @param classLoader to use for deserialization
 	 * @return JobExecutionResult
-	 * @throws JobCancellationException if the job was cancelled
 	 * @throws JobExecutionException if the job execution did not succeed
 	 * @throws IOException if the accumulator could not be deserialized
 	 * @throws ClassNotFoundException if the accumulator could not deserialized
 	 */
 	public JobExecutionResult toJobExecutionResult(ClassLoader classLoader) throws JobExecutionException, IOException, ClassNotFoundException {
-		if (applicationStatus == ApplicationStatus.SUCCEEDED) {
-			return new JobExecutionResult(
-				jobId,
-				netRuntime,
-				AccumulatorHelper.deserializeAccumulators(
-					accumulatorResults,
-					classLoader));
-		} else {
-			final Throwable cause;
-
-			if (serializedThrowable == null) {
-				cause = null;
-			} else {
-				cause = serializedThrowable.deserializeError(classLoader);
-			}
-
-			final JobExecutionException exception;
-
-			if (applicationStatus == ApplicationStatus.FAILED) {
-				exception = new JobExecutionException(jobId, "Job execution failed.", cause);
-			} else if (applicationStatus == ApplicationStatus.CANCELED) {
-				exception = new JobCancellationException(jobId, "Job was cancelled.", cause);
-			} else {
-				exception = new JobExecutionException(jobId, "Job completed with illegal application status: " + applicationStatus + '.', cause);
-			}
-
-			throw exception;
+		if (applicationStatus != ApplicationStatus.SUCCEEDED) {
+			throw getJobExecutionException(serializedThrowable, classLoader);
 		}
+		return new JobExecutionResult(jobId, netRuntime, AccumulatorHelper.deserializeAccumulators(accumulatorResults, classLoader));
+	}
+
+	private JobExecutionException getJobExecutionException(final SerializedThrowable throwable, final ClassLoader classLoader) {
+		final Throwable cause = getCause(throwable, classLoader);
+
+		final JobExecutionException exception;
+		if (applicationStatus == ApplicationStatus.FAILED) {
+			exception = new JobExecutionException(jobId, applicationStatus, "Job execution failed.", cause);
+		} else if (applicationStatus == ApplicationStatus.CANCELED) {
+			exception = new JobCancellationException(jobId, "Job was cancelled.", cause);
+		} else {
+			exception = new JobExecutionException(jobId, applicationStatus,
+					"Job completed with illegal application status: " + applicationStatus + '.', cause);
+		}
+		return exception;
+	}
+
+	private static Throwable getCause(final SerializedThrowable throwable, final ClassLoader classLoader) {
+		return throwable == null ? null : throwable.deserializeError(classLoader);
 	}
 
 	/**
@@ -225,7 +219,7 @@ public class JobResult implements Serializable {
 		final JobResult.Builder builder = new JobResult.Builder();
 		builder.jobId(jobId);
 
-		builder.applicationStatus(ApplicationStatus.fromJobStatus(accessExecutionGraph.getState()));
+		builder.applicationStatus(ApplicationStatus.fromJobStatus(jobStatus));
 
 		final long netRuntime = accessExecutionGraph.getStatusTimestamp(jobStatus) - accessExecutionGraph.getStatusTimestamp(JobStatus.INITIALIZING);
 		// guard against clock changes

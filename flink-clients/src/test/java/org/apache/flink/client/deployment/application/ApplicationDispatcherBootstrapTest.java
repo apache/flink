@@ -234,7 +234,7 @@ public class ApplicationDispatcherBootstrapTest {
 				});
 
 		final CompletableFuture<Void> applicationFuture = runApplication(dispatcherBuilder, 2);
-		final UnsuccessfulExecutionException exception = assertException(applicationFuture, UnsuccessfulExecutionException.class);
+		final JobExecutionException exception = assertException(applicationFuture, JobExecutionException.class);
 		assertEquals(exception.getStatus(), ApplicationStatus.FAILED);
 	}
 
@@ -408,7 +408,7 @@ public class ApplicationDispatcherBootstrapTest {
 
 		final CompletableFuture<Void> applicationFuture =
 				bootstrap.getApplicationCompletionFuture();
-		assertException(applicationFuture, UnsuccessfulExecutionException.class);
+		assertException(applicationFuture, JobExecutionException.class);
 
 		assertEquals(clusterShutdown.get(), ApplicationStatus.CANCELED);
 	}
@@ -513,7 +513,7 @@ public class ApplicationDispatcherBootstrapTest {
 
 		final CompletableFuture<Acknowledge> applicationFuture = bootstrap.getClusterShutdownFuture();
 
-		final UnsuccessfulExecutionException exception = assertException(applicationFuture, UnsuccessfulExecutionException.class);
+		final JobExecutionException exception = assertException(applicationFuture, JobExecutionException.class);
 		assertEquals(exception.getStatus(), ApplicationStatus.UNKNOWN);
 	}
 
@@ -589,7 +589,7 @@ public class ApplicationDispatcherBootstrapTest {
 				.jobId(jobId)
 				.netRuntime(2L)
 				.applicationStatus(ApplicationStatus.UNKNOWN)
-				.serializedThrowable(new SerializedThrowable(new JobExecutionException(jobId, "unknown bla bla bla")))
+				.serializedThrowable(new SerializedThrowable(new JobExecutionException(jobId, ApplicationStatus.UNKNOWN, "unknown bla bla bla")))
 				.build();
 	}
 
@@ -598,7 +598,7 @@ public class ApplicationDispatcherBootstrapTest {
 				.jobId(jobId)
 				.netRuntime(2L)
 				.applicationStatus(ApplicationStatus.FAILED)
-				.serializedThrowable(new SerializedThrowable(new JobExecutionException(jobId, "bla bla bla")))
+				.serializedThrowable(new SerializedThrowable(new JobExecutionException(jobId, ApplicationStatus.FAILED, "bla bla bla")))
 				.build();
 	}
 
