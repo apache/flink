@@ -219,6 +219,16 @@ public class CoreOptions {
 			" (Defaults to the log directory under Flink’s home)");
 
 	/**
+	 * The config parameter defining the directory for Flink PID file.
+	 * see: {@code bin/config.sh#KEY_ENV_PID_DIR} and {@code bin/config.sh#DEFAULT_ENV_PID_DIR}
+	 */
+	public static final ConfigOption<String> FLINK_PID_DIR = ConfigOptions
+		.key("env.pid.dir")
+		.defaultValue("/tmp")
+		.withDescription(
+			"Defines the directory where the flink-<host>-<process>.pid files are saved.");
+
+	/**
 	 * This options is here only for documentation generation, it is only
 	 * evaluated in the shell scripts.
 	 */
