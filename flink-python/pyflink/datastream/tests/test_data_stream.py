@@ -666,15 +666,15 @@ class DataStreamTests(PyFlinkTestCase):
 
         class MyProcessFunction(KeyedProcessFunction):
 
-            def process_element(self, value, ctx, out):
+            def process_element(self, value, ctx):
                 current_timestamp = ctx.timestamp()
                 current_watermark = ctx.timer_service().current_watermark()
                 current_key = ctx.get_current_key()
-                out.collect("current key: {}, current timestamp: {}, current watermark: {}, "
-                            "current_value: {}".format(str(current_key), str(current_timestamp),
-                                                       str(current_watermark), str(value)))
+                yield "current key: {}, current timestamp: {}, current watermark: {}, " \
+                      "current_value: {}".format(str(current_key), str(current_timestamp),
+                                                 str(current_watermark), str(value))
 
-            def on_timer(self, timestamp, ctx, out):
+            def on_timer(self, timestamp, ctx):
                 pass
 
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
@@ -713,11 +713,11 @@ class DataStreamTests(PyFlinkTestCase):
 
         class MyProcessFunction(ProcessFunction):
 
-            def process_element(self, value, ctx, out):
+            def process_element(self, value, ctx):
                 current_timestamp = ctx.timestamp()
                 current_watermark = ctx.timer_service().current_watermark()
-                out.collect("current timestamp: {}, current watermark: {}, current_value: {}"
-                            .format(str(current_timestamp), str(current_watermark), str(value)))
+                yield "current timestamp: {}, current watermark: {}, current_value: {}"\
+                    .format(str(current_timestamp), str(current_watermark), str(value))
 
             def on_timer(self, timestamp, ctx, out):
                 pass

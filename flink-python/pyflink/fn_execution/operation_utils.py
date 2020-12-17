@@ -262,7 +262,7 @@ def extract_data_stream_stateless_function(udf_proto):
     return func, user_defined_func
 
 
-def extract_process_function(user_defined_function_proto, ctx, collector):
+def extract_process_function(user_defined_function_proto, ctx):
     process_function = pickle.loads(user_defined_function_proto.payload)
     process_element = process_function.process_element
 
@@ -270,11 +270,8 @@ def extract_process_function(user_defined_function_proto, ctx, collector):
         # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, NORMAL_DATA]
         ctx.set_timestamp(value[0])
         ctx.timer_service().set_current_watermark(value[1])
-        process_element(value[2], ctx, collector)
-
-        for a in collector.buf:
-            yield a[1]
-        collector.clear()
+        output_result = process_element(value[2], ctx)
+        return output_result
 
     return wrapped_process_function, process_function
 
@@ -300,7 +297,7 @@ def extract_keyed_process_function(user_defined_function_proto, ctx, on_timer_ct
                 on_timer_ctx.set_time_domain(TimeDomain.PROCESSING_TIME)
             else:
                 raise TypeError("TimeCharacteristic[%s] is not supported." % str(value[0]))
-            on_timer(value[1], on_timer_ctx, collector)
+            output_result = on_timer(value[1], on_timer_ctx)
         else:
             # it is normal data
             # VALUE: TIMER_FLAG, CURRENT_TIMESTAMP, CURRENT_WATERMARK, None, NORMAL_DATA
@@ -311,17 +308,19 @@ def extract_keyed_process_function(user_defined_function_proto, ctx, on_timer_ct
             ctx.set_current_key(current_key)
             keyed_state_backend.set_current_key(Row(current_key))
 
-            process_element(value[4][1], ctx, collector)
+            output_result = process_element(value[4][1], ctx)
+
+        if output_result:
+            for result in output_result:
+                yield Row(None, None, None, result)
 
         for result in collector.buf:
             # 0: proc time timer data
             # 1: event time timer data
             # 2: normal data
             # result_row: [TIMER_FLAG, TIMER TYPE, TIMER_KEY, RESULT_DATA]
-            if result[0] == KeyedProcessFunctionOutputFlag.NORMAL_DATA.value:
-                yield Row(None, None, None, result[1])
-            else:
-                yield Row(result[0], result[1], result[2], None)
+            yield Row(result[0], result[1], result[2], None)
+
         collector.clear()
 
     return wrapped_keyed_process_function, process_function

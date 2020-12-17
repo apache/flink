@@ -38,7 +38,6 @@ __all__ = [
     'SourceFunction',
     'SinkFunction',
     'ProcessFunction',
-    'Collector',
     'KeyedProcessFunction']
 
 
@@ -560,20 +559,6 @@ class SinkFunction(JavaFunctionWrapper):
         super(SinkFunction, self).__init__(sink_func)
 
 
-class Collector(abc.ABC):
-    """
-    Collects a record and forwards it.
-    """
-    @abc.abstractmethod
-    def collect(self, value):
-        """
-        Emits a record.
-
-        :param value: The record to collect.
-        """
-        pass
-
-
 class TimerService(abc.ABC):
     """
     Interface for working with time and timers.
@@ -681,7 +666,7 @@ class ProcessFunction(Function):
             pass
 
     @abc.abstractmethod
-    def process_element(self, value, ctx: 'ProcessFunction.Context', out: Collector):
+    def process_element(self, value, ctx: 'ProcessFunction.Context'):
         """
         Process one element from the input stream.
 
@@ -692,7 +677,6 @@ class ProcessFunction(Function):
         :param ctx:  A Context that allows querying the timestamp of the element and getting a
                      TimerService for registering timers and querying the time. The context is only
                      valid during the invocation of this method, do not store it.
-        :param out: The collector for returning result values.
         """
         pass
 
@@ -756,7 +740,7 @@ class KeyedProcessFunction(Function, ABC):
             pass
 
     @abc.abstractmethod
-    def process_element(self, value, ctx: 'KeyedProcessFunction.Context', out: Collector):
+    def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
         """
         Process one element from the input stream.
 
@@ -767,11 +751,10 @@ class KeyedProcessFunction(Function, ABC):
         :param ctx:  A Context that allows querying the timestamp of the element and getting a
                      TimerService for registering timers and querying the time. The context is only
                      valid during the invocation of this method, do not store it.
-        :param out: The collector for returning result values.
         """
         pass
 
-    def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext', out: Collector):
+    def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
         """
         Called when a timer set using TimerService fires.
 
@@ -780,6 +763,5 @@ class KeyedProcessFunction(Function, ABC):
                     querying the TimeDomain of the firing timer and getting a TimerService for
                     registering timers and querying the time. The context is only valid during the
                     invocation of this method, do not store it.
-        :param out: The collector for returning result values.
         """
         pass
