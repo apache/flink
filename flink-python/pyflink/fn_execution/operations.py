@@ -24,7 +24,7 @@ from apache_beam.coders import PickleCoder
 from typing import Tuple, Any
 
 from pyflink.datastream import TimeDomain
-from pyflink.datastream.functions import RuntimeContext, TimerService, Collector, ProcessFunction, \
+from pyflink.datastream.functions import RuntimeContext, TimerService, ProcessFunction, \
     KeyedProcessFunction
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
@@ -373,7 +373,6 @@ class DataStreamStatelessFunctionOperation(Operation):
 class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
 
     def __init__(self, spec):
-        self.collector = ProcessFunctionOperation.InternalCollector()
         self.timer_service = ProcessFunctionOperation.InternalTimerService()
         self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext(
             self.timer_service)
@@ -381,27 +380,8 @@ class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
 
     def generate_func(self, serialized_fn) -> tuple:
         func, proc_func = operation_utils.extract_process_function(
-            serialized_fn, self.function_context, self.collector)
+            serialized_fn, self.function_context)
         return func, [proc_func]
-
-    class InternalCollector(Collector):
-        """
-        Internal implementation of the Collector. It uses a buffer list to store data to be emitted.
-        There will be a header flag for each data type. 0 means it is a proc time timer registering
-        request, while 1 means it is an event time timer and 2 means it is a normal data. When
-        registering a timer, it must take along with the corresponding key for it.
-
-        For a ProcessFunction, it will only collect normal data.
-        """
-
-        def __init__(self):
-            self.buf = []
-
-        def collect(self, a: Any):
-            self.buf.append((2, a))
-
-        def clear(self):
-            self.buf.clear()
 
     class InternalProcessFunctionContext(ProcessFunction.Context):
         """
@@ -462,7 +442,7 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
             self.keyed_state_backend)
         return func, [proc_func]
 
-    class InternalCollector(Collector):
+    class InternalCollector(object):
         """
         Internal implementation of the Collector. It uses a buffer list to store data to be emitted.
         There will be a header flag for each data type. 0 means it is a proc time timer registering
