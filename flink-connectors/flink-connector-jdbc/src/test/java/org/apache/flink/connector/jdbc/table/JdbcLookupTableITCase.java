@@ -120,7 +120,7 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 				.build());
 		if (useCache) {
 			builder.setLookupOptions(JdbcLookupOptions.builder()
-				.setCacheMaxSize(1000).setCacheExpireMs(1000 * 1000).build());
+				.setCacheMaxSize(1000).setCacheExpireMs(1000 * 1000).setMaxRetryTimes(0).build());
 		}
 		tEnv.registerFunction("jdbcLookup",
 			builder.build().getLookupFunction(t.getSchema().getFieldNames()));

@@ -255,6 +255,17 @@ public class JdbcTableSourceSinkFactoryTest {
 			fail("exception expected");
 		} catch (IllegalArgumentException ignored) {
 		}
+
+		// lookup max-retries properties not complete
+		try {
+			Map<String, String> properties = getBasicProperties();
+			properties.put("connector.lookup.max-retries", "-1");
+
+			TableFactoryService.find(StreamTableSourceFactory.class, properties)
+				.createStreamTableSource(properties);
+			fail("exception expected");
+		} catch (Throwable ignored) {
+		}
 	}
 
 	private Map<String, String> getBasicProperties() {
