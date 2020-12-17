@@ -438,6 +438,7 @@ public class DispatcherTest extends TestLogger {
 	@Test
 	public void testErrorDuringInitialization() throws Exception {
 		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
+		jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
 		// create a job graph that fails during initialization
@@ -588,6 +589,7 @@ public class DispatcherTest extends TestLogger {
 	@Test
 	public void testFatalErrorIfRecoveredJobsCannotBeStarted() throws Exception {
 		final FlinkException testException = new FlinkException("Test exception");
+		jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
 		final JobGraph failingJobGraph = createFailingJobGraph(testException);
 

@@ -18,38 +18,37 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.function.FunctionUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The runner for the job manager. It deals with job level leader election and make underlying job manager
@@ -77,15 +76,22 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 	private final Executor executor;
 
-	private final JobMasterService jobMasterService;
-
 	private final FatalErrorHandler fatalErrorHandler;
 
 	private final CompletableFuture<JobManagerRunnerResult> resultFuture;
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	private final JobMasterServiceFactory jobMasterServiceFactory;
+
+	private final ClassLoader userCodeClassLoader;
+
+	private final long initializationTimestamp;
+
 	private CompletableFuture<Void> leadershipOperation;
+
+	@Nullable
+	private JobMasterService jobMasterService;
 
 	/** flag marking the runner as shut down. */
 	private volatile boolean shutdown;
@@ -103,7 +109,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	 */
 	public JobManagerRunnerImpl(
 			final JobGraph jobGraph,
-			final JobMasterServiceFactory jobMasterFactory,
+			final JobMasterServiceFactory jobMasterServiceFactory,
 			final HighAvailabilityServices haServices,
 			final LibraryCacheManager.ClassLoaderLease classLoaderLease,
 			final Executor executor,
@@ -115,16 +121,17 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		this.leadershipOperation = CompletableFuture.completedFuture(null);
 
 		this.jobGraph = checkNotNull(jobGraph);
+		this.jobMasterServiceFactory = checkNotNull(jobMasterServiceFactory);
 		this.classLoaderLease = checkNotNull(classLoaderLease);
 		this.executor = checkNotNull(executor);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
+		this.initializationTimestamp = initializationTimestamp;
 
 		checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
 
 		// libraries and class loader first
-		final ClassLoader userCodeLoader;
 		try {
-			userCodeLoader = classLoaderLease.getOrResolveClassLoader(
+			userCodeClassLoader = classLoaderLease.getOrResolveClassLoader(
 				jobGraph.getUserJarBlobKeys(),
 				jobGraph.getClasspaths()).asClassLoader();
 		} catch (IOException e) {
@@ -136,9 +143,6 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
 		this.leaderGatewayFuture = new CompletableFuture<>();
-
-		// now start the JobManager
-		this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader, initializationTimestamp);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -183,7 +187,13 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 				setNewLeaderGatewayFuture();
 				leaderGatewayFuture.completeExceptionally(new FlinkException("JobMaster has been shut down."));
 
-				final CompletableFuture<Void> jobManagerTerminationFuture = jobMasterService.closeAsync();
+				final CompletableFuture<Void> jobManagerTerminationFuture;
+
+				if (jobMasterService == null) {
+					jobManagerTerminationFuture = FutureUtils.completedVoidFuture();
+				} else {
+					jobManagerTerminationFuture = jobMasterService.closeAsync();
+				}
 
 				jobManagerTerminationFuture.whenComplete(
 					(Void ignored, Throwable throwable) -> {
@@ -274,86 +284,94 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 				return;
 			}
 
-			leadershipOperation = leadershipOperation.thenCompose(
-				(ignored) -> {
+			leadershipOperation = leadershipOperation.thenRun(
+				ThrowingRunnable.unchecked(() -> {
 					synchronized (lock) {
-						return verifyJobSchedulingStatusAndStartJobManager(leaderSessionID);
+						verifyJobSchedulingStatusAndStartJobManager(leaderSessionID);
 					}
-				});
+				}));
 
 			handleException(leadershipOperation, "Could not start the job manager.");
 		}
 	}
 
-	private CompletableFuture<Void> verifyJobSchedulingStatusAndStartJobManager(UUID leaderSessionId) {
-		final CompletableFuture<JobSchedulingStatus> jobSchedulingStatusFuture = getJobSchedulingStatus();
+	@GuardedBy("lock")
+	private void verifyJobSchedulingStatusAndStartJobManager(UUID leaderSessionId) throws FlinkException {
+		if (shutdown) {
+			log.debug("Ignoring starting JobMaster because JobManagerRunner is already shut down.");
+			return;
+		}
 
-		return jobSchedulingStatusFuture.thenCompose(
-			jobSchedulingStatus -> {
-				if (jobSchedulingStatus == JobSchedulingStatus.DONE) {
-					return jobAlreadyDone();
-				} else {
-					return startJobMaster(leaderSessionId);
-				}
-			});
+		final RunningJobsRegistry.JobSchedulingStatus jobSchedulingStatus = getJobSchedulingStatus();
+
+		if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE) {
+			jobAlreadyDone();
+		} else {
+			startJobMaster(leaderSessionId);
+		}
 	}
 
-	private CompletionStage<Void> startJobMaster(UUID leaderSessionId) {
-		log.info("JobManager runner for job {} ({}) was granted leadership with session id {} at {}.",
-			jobGraph.getName(), jobGraph.getJobID(), leaderSessionId, jobMasterService.getAddress());
+	@GuardedBy("lock")
+	private void startJobMaster(UUID leaderSessionId) throws FlinkException {
+		log.info("JobManager runner for job {} ({}) was granted leadership with session id {}.",
+			jobGraph.getName(), jobGraph.getJobID(), leaderSessionId);
 
 		try {
 			runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 		} catch (IOException e) {
-			return FutureUtils.completedExceptionally(
-				new FlinkException(
-					String.format("Failed to set the job %s to running in the running jobs registry.", jobGraph.getJobID()),
-					e));
+			throw new FlinkException(
+				String.format("Failed to set the job %s to running in the running jobs registry.", jobGraph.getJobID()),
+				e);
 		}
 
-		final CompletableFuture<Acknowledge> startFuture;
-		try {
-			startFuture = jobMasterService.start(new JobMasterId(leaderSessionId));
-		} catch (Exception e) {
-			return FutureUtils.completedExceptionally(new FlinkException("Failed to start the JobMaster.", e));
-		}
+		startJobMasterServiceSafely(leaderSessionId);
 
-		final CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture = leaderGatewayFuture;
-		return startFuture.thenAcceptAsync(
-			(Acknowledge ack) -> confirmLeaderSessionIdIfStillLeader(
-				leaderSessionId,
-				jobMasterService.getAddress(),
-				currentLeaderGatewayFuture),
-			executor);
+		if (jobMasterService != null) {
+			confirmLeaderSessionIdIfStillLeader(
+				jobMasterService,
+				leaderSessionId);
+		}
 	}
 
-	@Nonnull
-	private CompletionStage<Void> jobAlreadyDone() {
+	private void startJobMasterServiceSafely(UUID leaderSessionId) {
+		checkState(jobMasterService == null, "JobMasterService must be null before being started.");
+
+		try {
+			jobMasterService = jobMasterServiceFactory.createJobMasterService(
+				jobGraph,
+				new JobMasterId(leaderSessionId),
+				this,
+				userCodeClassLoader,
+				initializationTimestamp);
+		} catch (Exception e) {
+			resultFuture.complete(
+				JobManagerRunnerResult.forInitializationFailure(
+					new JobInitializationException(jobGraph.getJobID(), "Could not start the JobMaster.", e)));
+		}
+	}
+
+	private void jobAlreadyDone() {
 		log.info("Granted leader ship but job {} has been finished. ", jobGraph.getJobID());
 		jobFinishedByOther();
-		return CompletableFuture.completedFuture(null);
 	}
 
-	private CompletableFuture<JobSchedulingStatus> getJobSchedulingStatus() {
+	private RunningJobsRegistry.JobSchedulingStatus getJobSchedulingStatus() throws FlinkException {
 		try {
-			JobSchedulingStatus jobSchedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID());
-			return CompletableFuture.completedFuture(jobSchedulingStatus);
+			return runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID());
 		} catch (IOException e) {
-			return FutureUtils.completedExceptionally(
-				new FlinkException(
-					String.format("Could not retrieve the job scheduling status for job %s.", jobGraph.getJobID()),
-					e));
+			throw new FlinkException(
+				String.format("Could not retrieve the job scheduling status for job %s.", jobGraph.getJobID()),
+				e);
 		}
 	}
 
 	private void confirmLeaderSessionIdIfStillLeader(
-			UUID leaderSessionId,
-			String leaderAddress,
-			CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture) {
+			JobMasterService jobMasterService,
+			UUID leaderSessionId) {
 
 		if (leaderElectionService.hasLeadership(leaderSessionId)) {
-			currentLeaderGatewayFuture.complete(jobMasterService.getGateway());
-			leaderElectionService.confirmLeadership(leaderSessionId, leaderAddress);
+			leaderGatewayFuture.complete(jobMasterService.getGateway());
+			leaderElectionService.confirmLeadership(leaderSessionId, jobMasterService.getAddress());
 		} else {
 			log.debug("Ignoring confirmation of leader session id because {} is no longer the leader.", getDescription());
 		}
@@ -378,15 +396,26 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		}
 	}
 
+	@GuardedBy("lock")
 	private CompletableFuture<Void> revokeJobMasterLeadership() {
-		log.info("JobManager for job {} ({}) at {} was revoked leadership.",
-			jobGraph.getName(), jobGraph.getJobID(), jobMasterService.getAddress());
+		if (shutdown) {
+			log.debug("Ignoring revoking JobMaster leadership because JobManagerRunner is already shut down.");
+			return FutureUtils.completedVoidFuture();
+		}
 
-		setNewLeaderGatewayFuture();
+		if (jobMasterService != null) {
+			log.info("JobManager for job {} ({}) at {} was revoked leadership.",
+				jobGraph.getName(), jobGraph.getJobID(), jobMasterService.getAddress());
 
-		return jobMasterService
-			.suspend(new FlinkException("JobManager is no longer the leader."))
-			.thenApply(FunctionUtils.nullFn());
+			setNewLeaderGatewayFuture();
+
+			final CompletableFuture<Void> jobMasterServiceTerminationFuture = jobMasterService.closeAsync();
+			jobMasterService = null;
+
+			return jobMasterServiceTerminationFuture;
+		} else {
+			return FutureUtils.completedVoidFuture();
+		}
 	}
 
 	private void handleException(CompletableFuture<Void> leadershipOperation, String message) {
@@ -398,6 +427,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			});
 	}
 
+	@GuardedBy("lock")
 	private void setNewLeaderGatewayFuture() {
 		final CompletableFuture<JobMasterGateway> oldLeaderGatewayFuture = leaderGatewayFuture;
 
@@ -413,11 +443,6 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 					}
 				});
 		}
-	}
-
-	@Override
-	public String getDescription() {
-		return jobMasterService.getAddress();
 	}
 
 	@Override
