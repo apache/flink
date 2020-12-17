@@ -30,13 +30,8 @@ from pyflink.table.data_view import ListView, MapView
 from pyflink.table.udf import ImperativeAggregateFunction
 
 
-def join_row(left: Row, right: Row):
-    fields = []
-    for value in left:
-        fields.append(value)
-    for value in right:
-        fields.append(value)
-    return Row(*fields)
+def join_row(left: List, right: List):
+    return Row(*(left + right))
 
 
 def extract_data_view_specs_from_accumulator(current_index, accumulator):
@@ -186,15 +181,15 @@ class DistinctViewDescriptor(object):
 
 class RowKeySelector(object):
     """
-    A simple key selector used to extract the current key from the input Row according to the
+    A simple key selector used to extract the current key from the input List according to the
     group-by field indexes.
     """
 
     def __init__(self, grouping):
         self.grouping = grouping
 
-    def get_key(self, data: Row):
-        return Row(*[data[i] for i in self.grouping])
+    def get_key(self, data):
+        return [data[i] for i in self.grouping]
 
 
 class StateDataViewStore(object):
@@ -235,35 +230,36 @@ class AggsHandleFunctionBase(ABC):
         pass
 
     @abstractmethod
-    def accumulate(self, input_data: Row):
+    def accumulate(self, input_data: List):
         """
         Accumulates the input values to the accumulators.
 
-        :param input_data: Input values bundled in a row.
+        :param input_data: Input values bundled in a List.
         """
         pass
 
     @abstractmethod
-    def retract(self, input_data: Row):
+    def retract(self, input_data: List):
         """
         Retracts the input values from the accumulators.
 
-        :param input_data: Input values bundled in a row.
+        :param input_data: Input values bundled in a List.
         """
 
     @abstractmethod
-    def merge(self, accumulators: Row):
+    def merge(self, accumulators: List):
         """
         Merges the other accumulators into current accumulators.
 
-        :param accumulators: The other row of accumulators.
+        :param accumulators: The other List of accumulators.
         """
         pass
 
     @abstractmethod
-    def set_accumulators(self, accumulators: Row):
+    def set_accumulators(self, accumulators: List):
         """
-        Set the current accumulators (saved in a row) which contains the current aggregated results.
+        Set the current accumulators (saved in a List) which contains the current aggregated
+        results.
 
         In streaming: accumulators are stored in the state, we need to restore aggregate buffers
         from state.
@@ -276,9 +272,9 @@ class AggsHandleFunctionBase(ABC):
         pass
 
     @abstractmethod
-    def get_accumulators(self) -> Row:
+    def get_accumulators(self) -> List:
         """
-        Gets the current accumulators (saved in a row) which contains the current
+        Gets the current accumulators (saved in a list) which contains the current
         aggregated results.
 
         :return: The current accumulators.
@@ -286,11 +282,11 @@ class AggsHandleFunctionBase(ABC):
         pass
 
     @abstractmethod
-    def create_accumulators(self) -> Row:
+    def create_accumulators(self) -> List:
         """
-        Initializes the accumulators and save them to an accumulators row.
+        Initializes the accumulators and save them to an accumulators List.
 
-        :return: A row of accumulators which contains the aggregated results.
+        :return: A List of accumulators which contains the aggregated results.
         """
         pass
 
@@ -316,7 +312,7 @@ class AggsHandleFunction(AggsHandleFunctionBase):
     """
 
     @abstractmethod
-    def get_value(self) -> Row:
+    def get_value(self) -> List:
         """
         Gets the result of the aggregation from the current accumulators.
 
@@ -331,7 +327,7 @@ class TableAggsHandleFunction(AggsHandleFunctionBase):
     """
 
     @abstractmethod
-    def emit_value(self, current_key: Row, is_retract: bool) -> Iterable[Row]:
+    def emit_value(self, current_key: List, is_retract: bool) -> Iterable[Row]:
         """
         Emit the result of the table aggregation.
         """
@@ -352,7 +348,7 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                  distinct_view_descriptors: Dict[int, DistinctViewDescriptor]):
         self._udfs = udfs
         self._input_extractors = input_extractors
-        self._accumulators = None  # type: Row
+        self._accumulators = None  # type: List
         self._udf_data_view_specs = udf_data_view_specs
         self._udf_data_views = []
         self._filter_args = filter_args
@@ -385,7 +381,7 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                 PickleCoder(),
                 PickleCoder())
 
-    def accumulate(self, input_data: Row):
+    def accumulate(self, input_data: List):
         for i in range(len(self._udfs)):
             if i in self._distinct_data_views:
                 if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
@@ -416,7 +412,7 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                         "The args are not in the distinct data view, this should not happen.")
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
-    def retract(self, input_data: Row):
+    def retract(self, input_data: List):
         for i in range(len(self._udfs)):
             if i in self._distinct_data_views:
                 if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
@@ -443,11 +439,11 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                 continue
             self._udfs[i].retract(self._accumulators[i], *args)
 
-    def merge(self, accumulators: Row):
+    def merge(self, accumulators: List):
         for i in range(len(self._udfs)):
             self._udfs[i].merge(self._accumulators[i], [accumulators[i]])
 
-    def set_accumulators(self, accumulators: Row):
+    def set_accumulators(self, accumulators: List):
         if self._udf_data_views:
             for i in range(len(self._udf_data_views)):
                 for index, data_view in self._udf_data_views[i].items():
@@ -458,7 +454,7 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
         return self._accumulators
 
     def create_accumulators(self):
-        return Row(*[udf.create_accumulator() for udf in self._udfs])
+        return [udf.create_accumulator() for udf in self._udfs]
 
     def cleanup(self):
         for i in range(len(self._udf_data_views)):
@@ -493,8 +489,7 @@ class SimpleAggsHandleFunction(SimpleAggsHandleFunctionBase, AggsHandleFunction)
             self._get_value_indexes.remove(index_of_count_star)
 
     def get_value(self):
-        return Row(*[self._udfs[i].get_value(self._accumulators[i])
-                     for i in self._get_value_indexes])
+        return [self._udfs[i].get_value(self._accumulators[i]) for i in self._get_value_indexes]
 
 
 class SimpleTableAggsHandleFunction(SimpleAggsHandleFunctionBase, TableAggsHandleFunction):
@@ -513,11 +508,11 @@ class SimpleTableAggsHandleFunction(SimpleAggsHandleFunctionBase, TableAggsHandl
             udfs, input_extractors, udf_data_view_specs, filter_args, distinct_indexes,
             distinct_view_descriptors)
 
-    def emit_value(self, current_key: Row, is_retract: bool):
+    def emit_value(self, current_key: List, is_retract: bool):
         udf = self._udfs[0]  # type: TableAggregateFunction
         results = udf.emit_value(self._accumulators[0])
         for x in results:
-            result = join_row(current_key, x)
+            result = join_row(current_key, x._values)
             if is_retract:
                 result.set_row_kind(RowKind.DELETE)
             else:
@@ -554,7 +549,7 @@ class RetractionRecordCounter(RecordCounter):
     def __init__(self, index_of_count_star):
         self._index_of_count_star = index_of_count_star
 
-    def record_count_is_zero(self, acc):
+    def record_count_is_zero(self, acc: List):
         # We store the counter in the accumulator and the counter is never be null
         return acc is None or acc[self._index_of_count_star][0] == 0
 
@@ -619,12 +614,13 @@ class GroupAggFunction(GroupAggFunctionBase):
             state_cleaning_enabled, index_of_count_star)
 
     def process_element(self, input_data: Row):
-        key = self.key_selector.get_key(input_data)
+        input_value = input_data._values
+        key = self.key_selector.get_key(input_value)
         self.state_backend.set_current_key(key)
         self.state_backend.clear_cached_iterators()
         accumulator_state = self.state_backend.get_value_state(
             "accumulators", self.state_value_coder)
-        accumulators = accumulator_state.value()
+        accumulators = accumulator_state.value()  # type: List
         if accumulators is None:
             if self.is_retract_msg(input_data):
                 # Don't create a new accumulator for a retraction message. This might happen if the
@@ -638,18 +634,18 @@ class GroupAggFunction(GroupAggFunctionBase):
         # set accumulators to handler first
         self.aggs_handle.set_accumulators(accumulators)
         # get previous aggregate result
-        pre_agg_value = self.aggs_handle.get_value()
+        pre_agg_value = self.aggs_handle.get_value()  # type: List
 
         # update aggregate result and set to the newRow
         if self.is_accumulate_msg(input_data):
             # accumulate input
-            self.aggs_handle.accumulate(input_data)
+            self.aggs_handle.accumulate(input_value)
         else:
             # retract input
-            self.aggs_handle.retract(input_data)
+            self.aggs_handle.retract(input_value)
 
         # get current aggregate result
-        new_agg_value = self.aggs_handle.get_value()
+        new_agg_value = self.aggs_handle.get_value()  # type: List
 
         # get accumulator
         accumulators = self.aggs_handle.get_accumulators()
@@ -712,7 +708,8 @@ class GroupTableAggFunction(GroupAggFunctionBase):
             state_cleaning_enabled, index_of_count_star)
 
     def process_element(self, input_data: Row):
-        key = self.key_selector.get_key(input_data)
+        input_value = input_data._values
+        key = self.key_selector.get_key(input_value)
         self.state_backend.set_current_key(key)
         self.state_backend.clear_cached_iterators()
         accumulator_state = self.state_backend.get_value_state(
@@ -733,10 +730,10 @@ class GroupTableAggFunction(GroupAggFunctionBase):
         # update aggregate result and set to the newRow
         if self.is_accumulate_msg(input_data):
             # accumulate input
-            self.aggs_handle.accumulate(input_data)
+            self.aggs_handle.accumulate(input_value)
         else:
             # retract input
-            self.aggs_handle.retract(input_data)
+            self.aggs_handle.retract(input_value)
 
         # get accumulator
         accumulators = self.aggs_handle.get_accumulators()
