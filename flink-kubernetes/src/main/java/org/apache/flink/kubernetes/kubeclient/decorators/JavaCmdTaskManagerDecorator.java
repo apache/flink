@@ -32,9 +32,8 @@ import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 
-import java.util.Arrays;
+import java.util.List;
 
-import static org.apache.flink.kubernetes.utils.Constants.NATIVE_KUBERNETES_COMMAND;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -52,7 +51,7 @@ public class JavaCmdTaskManagerDecorator extends AbstractKubernetesStepDecorator
 	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
 		final Container mainContainerWithStartCmd = new ContainerBuilder(flinkPod.getMainContainer())
 			.withCommand(kubernetesTaskManagerParameters.getContainerEntrypoint())
-			.withArgs(Arrays.asList(NATIVE_KUBERNETES_COMMAND, getTaskManagerStartCommand()))
+			.withArgs(getTaskManagerStartCommand())
 			.build();
 
 		return new FlinkPod.Builder(flinkPod)
@@ -60,7 +59,7 @@ public class JavaCmdTaskManagerDecorator extends AbstractKubernetesStepDecorator
 			.build();
 	}
 
-	private String getTaskManagerStartCommand() {
+	private List<String> getTaskManagerStartCommand() {
 		final String confDirInPod = kubernetesTaskManagerParameters.getFlinkConfDirInPod();
 
 		final String logDirInPod = kubernetesTaskManagerParameters.getFlinkLogDirInPod();
@@ -68,7 +67,7 @@ public class JavaCmdTaskManagerDecorator extends AbstractKubernetesStepDecorator
 		final String mainClassArgs = "--" + CommandLineOptions.CONFIG_DIR_OPTION.getLongOpt() + " " +
 			confDirInPod + " " + kubernetesTaskManagerParameters.getDynamicProperties();
 
-		return getTaskManagerStartCommand(
+		final String javaCommand = getTaskManagerStartCommand(
 			kubernetesTaskManagerParameters.getFlinkConfiguration(),
 			kubernetesTaskManagerParameters.getContaineredTaskManagerParameters(),
 			confDirInPod,
@@ -77,6 +76,7 @@ public class JavaCmdTaskManagerDecorator extends AbstractKubernetesStepDecorator
 			kubernetesTaskManagerParameters.hasLog4j(),
 			KubernetesTaskExecutorRunner.class.getCanonicalName(),
 			mainClassArgs);
+		return KubernetesUtils.getStartCommandWithBashWrapper(javaCommand);
 	}
 
 	private static String getTaskManagerStartCommand(
