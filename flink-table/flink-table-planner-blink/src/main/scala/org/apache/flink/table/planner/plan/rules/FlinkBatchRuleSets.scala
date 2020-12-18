@@ -392,7 +392,7 @@ object FlinkBatchRuleSets {
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
     FlinkExpandConversionRule.BATCH_INSTANCE,
     // source
-    BatchExecBoundedStreamScanRule.INSTANCE,
+    BatchPhysicalBoundedStreamScanRule.INSTANCE,
     BatchPhysicalTableSourceScanRule.INSTANCE,
     BatchPhysicalLegacyTableSourceScanRule.INSTANCE,
     BatchExecIntermediateTableScanRule.INSTANCE,
