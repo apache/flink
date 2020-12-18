@@ -42,7 +42,7 @@ import static org.apache.flink.kubernetes.utils.Constants.NAME_SEPARATOR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An implementation of the {@link AbstractHaServices} using Apache ZooKeeper.
+ * An implementation of the {@link AbstractHaServices} using Kubernetes.
  *
  * <p>All the HA information relevant for a specific component will be stored in a single ConfigMap.
  * For example, the Dispatcher's ConfigMap would then contain the current leader, the running jobs
