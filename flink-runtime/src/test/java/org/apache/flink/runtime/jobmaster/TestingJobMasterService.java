@@ -22,9 +22,9 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 
 /**
  * Implementation of the {@link JobMasterService} for testing purposes.
@@ -34,22 +34,33 @@ public class TestingJobMasterService implements JobMasterService {
 	@Nonnull
 	private final String address;
 
-	@Nonnull
-	private final Supplier<? extends CompletableFuture<Void>> closeAsyncSupplier;
-
 	private final JobMasterGateway jobMasterGateway;
 
-	public TestingJobMasterService(@Nonnull String address, @Nonnull Supplier<? extends CompletableFuture<Void>> closeAsyncSupplier) {
+	private final CompletableFuture<Void> terminationFuture;
+
+	private final boolean completeTerminationFutureOnCloseAsync;
+
+	public TestingJobMasterService(
+			@Nonnull String address,
+			@Nullable CompletableFuture<Void> terminationFuture) {
 		this.address = address;
-		this.closeAsyncSupplier = closeAsyncSupplier;
 
 		jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
+
+		if (terminationFuture == null) {
+			this.terminationFuture = new CompletableFuture<>();
+			this.completeTerminationFutureOnCloseAsync = true;
+		} else {
+			this.terminationFuture = terminationFuture;
+			this.completeTerminationFutureOnCloseAsync = false;
+		}
+
 	}
 
 	public TestingJobMasterService() {
 		this(
 			"localhost",
-			() -> CompletableFuture.completedFuture(null));
+			null);
 	}
 
 	@Override
@@ -64,7 +75,16 @@ public class TestingJobMasterService implements JobMasterService {
 	}
 
 	@Override
+	public CompletableFuture<Void> getTerminationFuture() {
+		return terminationFuture;
+	}
+
+	@Override
 	public CompletableFuture<Void> closeAsync() {
-		return closeAsyncSupplier.get();
+		if (completeTerminationFutureOnCloseAsync) {
+			terminationFuture.complete(null);
+		}
+
+		return terminationFuture;
 	}
 }

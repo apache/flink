@@ -337,12 +337,25 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		checkState(jobMasterService == null, "JobMasterService must be null before being started.");
 
 		try {
-			jobMasterService = jobMasterServiceFactory.createJobMasterService(
+			final JobMasterService newJobMasterService = jobMasterServiceFactory.createJobMasterService(
 				jobGraph,
 				new JobMasterId(leaderSessionId),
 				this,
 				userCodeClassLoader,
 				initializationTimestamp);
+
+			jobMasterService = newJobMasterService;
+
+			jobMasterService.getTerminationFuture().whenComplete((unused, throwable) -> {
+				if (throwable != null) {
+					synchronized (lock) {
+						// check that we are still running and the JobMasterService is still valid
+						if (!shutdown && newJobMasterService == jobMasterService) {
+							handleJobManagerRunnerError(throwable);
+						}
+					}
+				}
+			});
 		} catch (Exception e) {
 			resultFuture.complete(
 				JobManagerRunnerResult.forInitializationFailure(
