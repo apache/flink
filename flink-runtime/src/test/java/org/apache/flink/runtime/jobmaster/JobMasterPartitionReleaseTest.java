@@ -199,7 +199,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 				.withPartitionTrackerFactory(ignored -> partitionTracker)
 				.createJobMaster();
 
-			jobMaster.start(JobMasterId.generate()).get();
+			jobMaster.start();
 
 			registerTaskExecutorAtJobMaster(
 				rpcService,
