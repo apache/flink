@@ -69,11 +69,10 @@ public class BatchExecMultipleInput extends BatchExecNode<RowData> {
 	private final ExecNode<?> rootNode;
 
 	public BatchExecMultipleInput(
-			List<ExecNode<?>> inputNodes,
 			List<ExecEdge> inputEdges,
 			ExecNode<?> rootNode,
 			String description) {
-		super(inputNodes, inputEdges, rootNode.getOutputType(), description);
+		super(inputEdges, rootNode.getOutputType(), description);
 		this.rootNode = rootNode;
 	}
 

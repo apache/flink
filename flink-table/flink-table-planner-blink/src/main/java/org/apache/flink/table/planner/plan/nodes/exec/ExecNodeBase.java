@@ -38,20 +38,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class ExecNodeBase<P extends Planner, T> implements ExecNode<T> {
 
 	private final String description;
-	private final List<ExecNode<?>> inputNodes;
 	private final List<ExecEdge> inputEdges;
 	private final RowType outputType;
+	// TODO remove this field once edge support `source` and `target`,
+	//  and then we can get/set `inputNodes` through `inputEdges`.
+	private List<ExecNode<?>> inputNodes;
 
 	private transient Transformation<T> transformation;
 
 	protected ExecNodeBase(
-			List<ExecNode<?>> inputNodes,
 			List<ExecEdge> inputEdges,
 			RowType outputType,
 			String description) {
-		checkArgument(checkNotNull(inputNodes).size() == checkNotNull(inputEdges).size());
-		this.inputNodes = new ArrayList<>(inputNodes);
-		this.inputEdges = new ArrayList<>(inputEdges);
+		this.inputEdges = new ArrayList<>(checkNotNull(inputEdges));
 		this.outputType = checkNotNull(outputType);
 		this.description = checkNotNull(description);
 	}
@@ -68,12 +67,20 @@ public abstract class ExecNodeBase<P extends Planner, T> implements ExecNode<T> 
 
 	@Override
 	public List<ExecNode<?>> getInputNodes() {
+		checkNotNull(inputNodes, "inputNodes should not be null, please call setInputNodes first.");
 		return inputNodes;
 	}
 
 	@Override
 	public List<ExecEdge> getInputEdges() {
-		return inputEdges;
+		return checkNotNull(inputEdges, "inputEdges should not be null.");
+	}
+
+	// TODO remove this method once edge support `source` and `target`,
+	//  and then we can get/set `inputNodes` through `inputEdges`.
+	public void setInputNodes(List<ExecNode<?>> inputNodes) {
+		checkArgument(checkNotNull(inputNodes).size() == checkNotNull(inputEdges).size());
+		this.inputNodes = new ArrayList<>(inputNodes);
 	}
 
 	@Override

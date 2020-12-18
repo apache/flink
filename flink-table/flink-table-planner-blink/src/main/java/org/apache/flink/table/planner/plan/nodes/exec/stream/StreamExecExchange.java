@@ -47,11 +47,10 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOW
 public class StreamExecExchange extends StreamExecNode<RowData> implements CommonExecExchange {
 
 	public StreamExecExchange(
-			ExecNode<?> inputNode,
 			ExecEdge inputEdge,
 			RowType outputType,
 			String description) {
-		super(Collections.singletonList(inputNode), Collections.singletonList(inputEdge), outputType, description);
+		super(Collections.singletonList(inputEdge), outputType, description);
 	}
 
 	@SuppressWarnings("unchecked")

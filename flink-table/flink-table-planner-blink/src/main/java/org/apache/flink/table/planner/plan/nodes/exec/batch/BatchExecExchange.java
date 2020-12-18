@@ -53,16 +53,13 @@ import java.util.Optional;
  * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
  */
 public class BatchExecExchange extends BatchExecNode<RowData> implements CommonExecExchange {
-	// the required shuffle mode for reusable ExchangeBatchExec
-	// if it's None, use value from getShuffleMode
+	// the required shuffle mode for reusable BatchExecExchange
+	// if it's None, use value from configuration
 	@Nullable
 	private ShuffleMode requiredShuffleMode;
 
-	public BatchExecExchange(
-			ExecNode<?> inputNode,
-			ExecEdge inputEdge,
-			RowType outputType) {
-		super(Collections.singletonList(inputNode), Collections.singletonList(inputEdge), outputType, "Exchange");
+	public BatchExecExchange(ExecEdge inputEdge, RowType outputType, String description) {
+		super(Collections.singletonList(inputEdge), outputType, description);
 	}
 
 	public void setRequiredShuffleMode(@Nullable ShuffleMode requiredShuffleMode) {

@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Stream exec node for multiple input which contains a sub-graph of {@link ExecNode}s.
@@ -59,14 +58,10 @@ public class StreamExecMultipleInput extends StreamExecNode<RowData> {
 	private final ExecNode<?> rootNode;
 
 	public StreamExecMultipleInput(
-			List<ExecNode<?>> inputNodes,
+			List<ExecEdge> inputEdges,
 			ExecNode<?> rootNode,
 			String description) {
-		super(
-				inputNodes,
-				inputNodes.stream().map(i -> ExecEdge.DEFAULT).collect(Collectors.toList()),
-				rootNode.getOutputType(),
-				description);
+		super(inputEdges, rootNode.getOutputType(), description);
 		this.rootNode = rootNode;
 	}
 

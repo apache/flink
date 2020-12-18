@@ -105,7 +105,7 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 		Table table = util.tableEnv().sqlQuery(sql);
 		RelNode relNode = TableTestUtil.toRelNode(table);
 		FlinkPhysicalRel optimizedRel = (FlinkPhysicalRel) util.getPlanner().optimize(relNode);
-		ExecGraphGenerator generator = new ExecGraphGenerator(TableConfig.getDefault());
+		ExecGraphGenerator generator = new ExecGraphGenerator();
 		List<ExecNode<?>> execNodes = generator.generate(Collections.singletonList(optimizedRel));
 		ExecNode<?> execNode = execNodes.get(0);
 		while (!execNode.getInputNodes().isEmpty()) {
