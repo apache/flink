@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerSharedServicesBuilder;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
@@ -63,6 +64,8 @@ public class JobMasterBuilder {
 
 	private final JobGraph jobGraph;
 	private final RpcService rpcService;
+
+	private JobMasterId jobMasterId = JobMasterId.generate();
 
 	private HighAvailabilityServices highAvailabilityServices;
 
@@ -168,11 +171,17 @@ public class JobMasterBuilder {
 		return this;
 	}
 
+	public JobMasterBuilder withJobMasterId(JobMasterId jobMasterId) {
+		this.jobMasterId = jobMasterId;
+		return this;
+	}
+
 	public JobMaster createJobMaster() throws Exception {
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
 		return new JobMaster(
 			rpcService,
+			jobMasterId,
 			jobMasterConfiguration,
 			jmResourceId,
 			jobGraph,

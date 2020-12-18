@@ -94,6 +94,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 
 		final JobMaster jobMaster = new JobMaster(
 			rpcService,
+			jobMasterId,
 			jobMasterConfiguration,
 			ResourceID.generate(),
 			jobGraph,
@@ -116,7 +117,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 			DefaultExecutionDeploymentReconciler::new,
 			initializationTimestamp);
 
-		jobMaster.start(jobMasterId).join();
+		jobMaster.start();
 
 		return jobMaster;
 	}
