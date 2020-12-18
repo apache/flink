@@ -454,8 +454,8 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         ds.map(lambda x: x).add_sink(test_sink)
         self.env.execute("test_to_retract_stream")
         result = test_sink.get_results(True)
-        expected = ["(True, <Row(1, 'Hello')>)", "(False, <Row(1, 'Hello')>)",
-                    "(True, <Row(2, 'Hello')>)"]
+        expected = ["(True, Row(f0=1, f1='Hello'))", "(False, Row(f0=1, f1='Hello'))",
+                    "(True, Row(f0=2, f1='Hello'))"]
         self.assertEqual(result, expected)
 
     def test_collect_null_value_result(self):
