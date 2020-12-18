@@ -392,8 +392,8 @@ CREATE TABLE fs_table (
   user_id STRING,
   order_amount DOUBLE,
   dt STRING,
-  hour STRING
-) PARTITIONED BY (dt, hour) WITH (
+  `hour` STRING
+) PARTITIONED BY (dt, `hour`) WITH (
   'connector'='filesystem',
   'path'='...',
   'format'='parquet',
@@ -405,7 +405,7 @@ CREATE TABLE fs_table (
 INSERT INTO fs_table SELECT user_id, order_amount, DATE_FORMAT(log_ts, 'yyyy-MM-dd'), DATE_FORMAT(log_ts, 'HH') FROM kafka_table;
 
 -- batch sql, select with partition pruning
-SELECT * FROM fs_table WHERE dt='2020-05-20' and hour='12';
+SELECT * FROM fs_table WHERE dt='2020-05-20' and `hour`='12';
 
 {% endhighlight %}
 
