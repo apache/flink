@@ -296,7 +296,11 @@ There are also more [advanced ways](#advanced-customization) for customizing the
 
 To build a custom image which has Python and PyFlink prepared, you can refer to the following Dockerfile:
 {% highlight Dockerfile %}
+{% if site.is_stable %}
 FROM flink:{{site.version}}
+{% else %}
+FROM flink:latest
+{% endif %}
 
 # install python3 and pip3
 RUN apt-get update -y && \
@@ -304,7 +308,11 @@ apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/li
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # install Python Flink
+{% if site.is_stable %}
 RUN pip3 install apache-flink[=={{site.version}}]
+{% else %}
+RUN pip3 install apache-flink
+{% endif %}
 {% endhighlight %}
 
 Build the image named as **pyflink:latest**:
