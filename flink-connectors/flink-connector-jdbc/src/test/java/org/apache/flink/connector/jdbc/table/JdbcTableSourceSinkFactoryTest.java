@@ -259,7 +259,7 @@ public class JdbcTableSourceSinkFactoryTest {
 		// lookup max-retries properties not complete
 		try {
 			Map<String, String> properties = getBasicProperties();
-			properties.put("connector.lookup.max-retries", "-1");
+			properties.put("connector.lookup.max-retries", "0");
 
 			TableFactoryService.find(StreamTableSourceFactory.class, properties)
 				.createStreamTableSource(properties);
