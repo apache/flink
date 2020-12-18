@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -47,6 +49,7 @@ import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -207,7 +210,7 @@ public class JobManagerRunnerImplTest extends TestLogger {
 		TestingJobMasterServiceFactory jobMasterServiceFactory = new TestingJobMasterServiceFactory(
 			() -> new TestingJobMasterService(
 				"localhost",
-				() -> terminationFuture));
+				terminationFuture));
 		JobManagerRunner jobManagerRunner = createJobManagerRunner(jobMasterServiceFactory);
 
 		jobManagerRunner.start();
@@ -231,6 +234,25 @@ public class JobManagerRunnerImplTest extends TestLogger {
 		terminationFuture.complete(null);
 
 		leaderFuture.get();
+	}
+
+	@Test
+	public void testJobMasterServiceTerminatesUnexpectedlyTriggersFailure() throws Exception {
+		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+
+		TestingJobMasterServiceFactory jobMasterServiceFactory = new TestingJobMasterServiceFactory(
+			() -> new TestingJobMasterService(
+				"localhost",
+				terminationFuture));
+		JobManagerRunner jobManagerRunner = createJobManagerRunner(jobMasterServiceFactory);
+
+		jobManagerRunner.start();
+
+		leaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		terminationFuture.completeExceptionally(new FlinkException("The JobMasterService failed unexpectedly."));
+
+		assertThat(jobManagerRunner.getResultFuture(), FlinkMatchers.futureWillCompleteExceptionally(Duration.ofSeconds(10L)));
 	}
 
 	@Nonnull
