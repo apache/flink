@@ -186,11 +186,16 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 
 	private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
+	// -------- Misc ---------
+
+	private final Map<String, Object> accumulators;
+
+	private final JobMasterPartitionTracker partitionTracker;
+
+	private final ExecutionDeploymentTracker executionDeploymentTracker;
+	private final ExecutionDeploymentReconciler executionDeploymentReconciler;
+
 	// -------- Mutable fields ---------
-
-	private HeartbeatManager<TaskExecutorToJobManagerHeartbeatPayload, AllocatedSlotReport> taskManagerHeartbeatManager;
-
-	private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
 	@Nullable
 	private ResourceManagerAddress resourceManagerAddress;
@@ -201,12 +206,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 	@Nullable
 	private EstablishedResourceManagerConnection establishedResourceManagerConnection;
 
-	private Map<String, Object> accumulators;
+	private HeartbeatManager<TaskExecutorToJobManagerHeartbeatPayload, AllocatedSlotReport> taskManagerHeartbeatManager;
 
-	private final JobMasterPartitionTracker partitionTracker;
-
-	private final ExecutionDeploymentTracker executionDeploymentTracker;
-	private final ExecutionDeploymentReconciler executionDeploymentReconciler;
+	private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
 	// ------------------------------------------------------------------------
 
