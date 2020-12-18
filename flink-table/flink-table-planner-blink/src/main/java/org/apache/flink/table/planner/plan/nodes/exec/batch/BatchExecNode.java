@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.delegation.BatchPlanner;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.List;
 
@@ -32,7 +32,7 @@ import java.util.List;
 public abstract class BatchExecNode<T> extends ExecNodeBase<BatchPlanner, T> {
 	public BatchExecNode(
 			List<ExecEdge> inputEdges,
-			RowType outputType,
+			LogicalType outputType,
 			String description) {
 		super(inputEdges, outputType, description);
 	}
