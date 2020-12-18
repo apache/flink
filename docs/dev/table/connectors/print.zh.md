@@ -139,5 +139,12 @@ LIKE source_table (EXCLUDING ALL)
       <td>Boolean</td>
       <td>如果 format 需要打印为标准错误而不是标准输出，则为 True 。</td>
     </tr>
+    <tr>
+      <td><h5>sink.parallelism</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>为 Print sink operator 定义并行度。默认情况下，并行度由框架决定，和链在一起的上游 operator 一致。</td>
+    </tr>
     </tbody>
 </table>
