@@ -386,11 +386,11 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 		log.info("Stopping the JobMaster for job {}({}).", jobGraph.getName(), jobGraph.getJobID());
 
 		// make sure there is a graceful exit
-		suspendExecution(new FlinkException("Stopping JobMaster for job " + jobGraph.getName() +
-			'(' + jobGraph.getJobID() + ")."));
-
-		// shut down will internally release all registered slots
-		slotPool.close();
+		try {
+			stopJobExecution(new FlinkException(String.format("Stopping JobMaster for job %s(%s).", jobGraph.getName(), jobGraph.getJobID())));
+		} catch (Exception e) {
+			return FutureUtils.completedExceptionally(new JobMasterException("Could not properly stop the JobMaster.", e));
+		}
 
 		return CompletableFuture.completedFuture(null);
 	}
@@ -787,7 +787,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 	//-- job starting and stopping  -----------------------------------------------------------------
 
 	private void startJobExecution() throws Exception {
-
 		validateRunsInMainThread();
 
 		startJobMasterServices();
@@ -798,42 +797,69 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 	}
 
 	private void startJobMasterServices() throws Exception {
+		try {
+			this.taskManagerHeartbeatManager = createTaskManagerHeartbeatManager(heartbeatServices);
+			this.resourceManagerHeartbeatManager = createResourceManagerHeartbeatManager(heartbeatServices);
 
-		this.taskManagerHeartbeatManager = createTaskManagerHeartbeatManager(heartbeatServices);
-		this.resourceManagerHeartbeatManager = createResourceManagerHeartbeatManager(heartbeatServices);
+			// start the slot pool make sure the slot pool now accepts messages for this leader
+			slotPool.start(getFencingToken(), getAddress(), getMainThreadExecutor());
 
-		// start the slot pool make sure the slot pool now accepts messages for this leader
-		slotPool.start(getFencingToken(), getAddress(), getMainThreadExecutor());
-
-		//TODO: Remove once the ZooKeeperLeaderRetrieval returns the stored address upon start
-		// try to reconnect to previously known leader
-		reconnectToResourceManager(new FlinkException("Starting JobMaster component."));
-
-		// job is ready to go, try to establish connection with resource manager
-		//   - activate leader retrieval for the resource manager
-		//   - on notification of the leader, the connection will be established and
-		//     the slot pool will start requesting slots
-		resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
+			// job is ready to go, try to establish connection with resource manager
+			//   - activate leader retrieval for the resource manager
+			//   - on notification of the leader, the connection will be established and
+			//     the slot pool will start requesting slots
+			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
+		} catch (Exception e) {
+			handleStartJobMasterServicesError(e);
+		}
 	}
 
-	/**
-	 * Suspending job, all the running tasks will be cancelled, and communication with other components
-	 * will be disposed.
-	 *
-	 * @param cause The reason of why this job been suspended.
-	 */
-	private void suspendExecution(final Exception cause) {
-		validateRunsInMainThread();
+	private void handleStartJobMasterServicesError(Exception e) throws Exception {
+		try {
+			stopJobMasterServices();
+		} catch (Exception inner) {
+			e.addSuppressed(inner);
+		}
+
+		throw e;
+	}
+
+	private void stopJobMasterServices() throws Exception {
+		Exception resultingException = null;
 
 		try {
 			resourceManagerLeaderRetriever.stop();
-			resourceManagerAddress = null;
-		} catch (Throwable t) {
-			log.warn("Failed to stop resource manager leader retriever when suspending.", t);
+		} catch (Exception e) {
+			resultingException = e;
 		}
 
-		suspendScheduler(cause);
+		// TODO: Distinguish between job termination which should free all slots and a loss of leadership which should keep the slots
+		slotPool.close();
 
+		stopHeartbeatServices();
+
+		ExceptionUtils.tryRethrowException(resultingException);
+	}
+
+	private void stopJobExecution(final Exception cause) throws Exception {
+		validateRunsInMainThread();
+
+		stopScheduling(cause);
+
+		disconnectTaskManagerResourceManagerConnections(cause);
+
+		Exception resultingException = null;
+
+		try {
+			stopJobMasterServices();
+		} catch (Exception e) {
+			resultingException = e;
+		}
+
+		ExceptionUtils.tryRethrowException(resultingException);
+	}
+
+	private void disconnectTaskManagerResourceManagerConnections(Exception cause) {
 		// disconnect from all registered TaskExecutors
 		final Set<ResourceID> taskManagerResourceIds = new HashSet<>(registeredTaskManagers.keySet());
 
@@ -841,13 +867,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 			disconnectTaskManager(taskManagerResourceId, cause);
 		}
 
-		// the slot pool stops receiving messages and clears its pooled slots
-		slotPool.suspend();
-
 		// disconnect from resource manager:
 		closeResourceManagerConnection(cause);
-
-		stopHeartbeatServices();
 	}
 
 	private void stopHeartbeatServices() {
@@ -859,7 +880,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 		schedulerNG.startScheduling();
 	}
 
-	private void suspendScheduler(Exception cause) {
+	private void stopScheduling(Exception cause) {
 		schedulerNG.suspend(cause);
 		jobManagerJobMetricGroup.close();
 		jobStatusListener.stop();
