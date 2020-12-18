@@ -76,7 +76,7 @@ class FlattenRowCoderImpl(StreamCoderImpl):
 
     def encode_nested(self, value: List):
         data_out_stream = self.data_out_stream
-        self._encode_one_list_to_stream(value, data_out_stream, True)
+        self._encode_one_row_to_stream(value, data_out_stream, True)
         result = data_out_stream.get()
         data_out_stream._clear()
         return result
@@ -86,17 +86,12 @@ class FlattenRowCoderImpl(StreamCoderImpl):
             in_stream.read_var_int64()
             yield self._decode_one_row_from_stream(in_stream, nested)[1]
 
-    def _encode_one_row_to_stream(self, value: Row, out_stream, nested):
+    def _encode_one_row_to_stream(self, value, out_stream, nested):
         field_coders = self._field_coders
-        self._write_mask(value, out_stream, value.get_row_kind().value)
-        for i in range(self._field_count):
-            item = value[i]
-            if item is not None:
-                field_coders[i].encode_to_stream(item, out_stream, nested)
-
-    def _encode_one_list_to_stream(self, value: List, out_stream, nested):
-        field_coders = self._field_coders
-        self._write_mask(value, out_stream, 0)
+        if isinstance(value, Row):
+            self._write_mask(value, out_stream, value.get_row_kind().value)
+        else:
+            self._write_mask(value, out_stream)
         for i in range(self._field_count):
             item = value[i]
             if item is not None:
