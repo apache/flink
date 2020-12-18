@@ -19,10 +19,12 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 import java.util.List;
 
@@ -43,7 +45,10 @@ public interface ExecNode<T> {
 	/**
 	 * Returns the output {@link LogicalType} of this node,
 	 * this type should be consistent with the type parameter {@link T}.
-	 * Such as, T is RowData, the output type should be RowType.
+	 *
+	 * <p>Such as, if T is {@link RowData}, the output type should be {@link RowType}.
+	 * please refer to the JavaDoc of {@link RowData} for more info about
+	 * mapping of logical types to internal data structures.
 	 */
 	LogicalType getOutputType();
 
