@@ -207,6 +207,7 @@ cdef class MapCoderImpl(FieldCoder):
 
 cdef class RowCoderImpl(FieldCoder):
     cdef readonly list field_coders
+    cdef readonly list field_names
 
 cdef class TupleCoderImpl(FieldCoder):
     cdef readonly list field_coders
