@@ -248,7 +248,7 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public void setTypeSerializersIn(TypeSerializer<?>... serializers) {
+    public void setupNetworkInputs(TypeSerializer<?>... serializers) {
         InputConfig[] inputs = new InputConfig[serializers.length];
         for (int i = 0; i < serializers.length; i++) {
             inputs[i] = new NetworkInputConfig(serializers[i], i);
