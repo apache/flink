@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
@@ -34,7 +35,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDataStrea
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.core.Union;
@@ -394,7 +394,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 	static boolean isChainableSource(ExecNode<?> node, DAGProcessContext context) {
 		if (node instanceof BatchExecBoundedStreamScan) {
 			BatchExecBoundedStreamScan scan = (BatchExecBoundedStreamScan) node;
-			return scan.boundedStreamTable().dataStream().getTransformation() instanceof SourceTransformation;
+			return scan.getDataStream().getTransformation() instanceof SourceTransformation;
 		} else if (node instanceof StreamExecDataStreamScan) {
 			StreamExecDataStreamScan scan = (StreamExecDataStreamScan) node;
 			return scan.getDataStream().getTransformation() instanceof SourceTransformation;

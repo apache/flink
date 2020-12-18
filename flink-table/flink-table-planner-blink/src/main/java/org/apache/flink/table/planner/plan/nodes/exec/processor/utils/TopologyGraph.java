@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -186,11 +186,11 @@ class TopologyGraph {
 	private TopologyNode getOrCreateTopologyNode(ExecNode<?> execNode) {
 		// NOTE: We treat different `BatchExecBoundedStreamScan`s with same `DataStream` object as the same
 		if (execNode instanceof BatchExecBoundedStreamScan) {
-			DataStream<?> currentStream = ((BatchExecBoundedStreamScan) execNode).boundedStreamTable().dataStream();
+			DataStream<?> currentStream = ((BatchExecBoundedStreamScan) execNode).getDataStream();
 			for (Map.Entry<ExecNode<?>, TopologyNode> entry : nodes.entrySet()) {
 				ExecNode<?> key = entry.getKey();
 				if (key instanceof BatchExecBoundedStreamScan) {
-					DataStream<?> existingStream = ((BatchExecBoundedStreamScan) key).boundedStreamTable().dataStream();
+					DataStream<?> existingStream = ((BatchExecBoundedStreamScan) key).getDataStream();
 					if (existingStream.equals(currentStream)) {
 						return entry.getValue();
 					}
