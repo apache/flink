@@ -22,17 +22,17 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecWatermarkAssigner
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWatermarkAssigner
 
 /**
-  * Rule that converts [[FlinkLogicalWatermarkAssigner]] to [[StreamExecWatermarkAssigner]].
+  * Rule that converts [[FlinkLogicalWatermarkAssigner]] to [[StreamPhysicalWatermarkAssigner]].
   */
-class StreamExecWatermarkAssignerRule
+class StreamPhysicalWatermarkAssignerRule
   extends ConverterRule(
     classOf[FlinkLogicalWatermarkAssigner],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecWatermarkAssignerRule") {
+    "StreamPhysicalWatermarkAssignerRule") {
 
   override def convert(rel: RelNode): RelNode = {
     val watermarkAssigner = rel.asInstanceOf[FlinkLogicalWatermarkAssigner]
@@ -40,7 +40,7 @@ class StreamExecWatermarkAssignerRule
       watermarkAssigner.getInput, FlinkConventions.STREAM_PHYSICAL)
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
-    new StreamExecWatermarkAssigner(
+    new StreamPhysicalWatermarkAssigner(
       watermarkAssigner.getCluster,
       traitSet,
       convertInput,
@@ -50,6 +50,6 @@ class StreamExecWatermarkAssignerRule
   }
 }
 
-object StreamExecWatermarkAssignerRule {
-  val INSTANCE = new StreamExecWatermarkAssignerRule
+object StreamPhysicalWatermarkAssignerRule {
+  val INSTANCE = new StreamPhysicalWatermarkAssignerRule
 }
