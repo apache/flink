@@ -714,7 +714,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 	public static void main(final String[] args) {
 		final String configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
 
-		final Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
+		final Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration(configurationDirectory);
 
 		int retCode;
 
