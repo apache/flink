@@ -88,8 +88,6 @@ public class Constants {
 
 	public static final String RESTART_POLICY_OF_NEVER = "Never";
 
-	public static final String NATIVE_KUBERNETES_COMMAND = "native-k8s";
-
 	// Constants for Kubernetes high availability
 	public static final String LEADER_ADDRESS_KEY = "address";
 	public static final String LEADER_SESSION_ID_KEY = "sessionId";

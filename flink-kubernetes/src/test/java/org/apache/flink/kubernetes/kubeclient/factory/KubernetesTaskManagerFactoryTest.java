@@ -92,7 +92,8 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 
 		assertEquals(1, resultMainContainer.getPorts().size());
 		assertEquals(1, resultMainContainer.getCommand().size());
-		assertEquals(2, resultMainContainer.getArgs().size());
+		// The args list is [bash, -c, 'java -classpath $FLINK_CLASSPATH ...'].
+		assertEquals(3, resultMainContainer.getArgs().size());
 		assertEquals(4, resultMainContainer.getVolumeMounts().size());
 	}
 }
