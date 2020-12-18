@@ -171,20 +171,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 				evictorContext.key = key;
 				evictorContext.window = actualWindow;
 
-				TriggerResult triggerResult = triggerContext.onElement(element);
-
-				if (triggerResult.isFire()) {
-					Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
-					if (contents == null) {
-						// if we have no state, there is nothing to do
-						continue;
-					}
-					emitWindowContents(actualWindow, contents, evictingWindowState);
-				}
-
-				if (triggerResult.isPurge()) {
-					evictingWindowState.clear();
-				}
+				triggerWindowContents(actualWindow, evictingWindowState, triggerContext.onElement(element));
 				registerCleanupTimer(actualWindow);
 			}
 
@@ -207,20 +194,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 				evictorContext.key = key;
 				evictorContext.window = window;
 
-				TriggerResult triggerResult = triggerContext.onElement(element);
-
-				if (triggerResult.isFire()) {
-					Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
-					if (contents == null) {
-						// if we have no state, there is nothing to do
-						continue;
-					}
-					emitWindowContents(window, contents, evictingWindowState);
-				}
-
-				if (triggerResult.isPurge()) {
-					evictingWindowState.clear();
-				}
+				triggerWindowContents(window, evictingWindowState, triggerContext.onElement(element));
 				registerCleanupTimer(window);
 			}
 		}
@@ -263,18 +237,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 			evictingWindowState.setCurrentNamespace(triggerContext.window);
 		}
 
-		TriggerResult triggerResult = triggerContext.onEventTime(timer.getTimestamp());
-
-		if (triggerResult.isFire()) {
-			Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
-			if (contents != null) {
-				emitWindowContents(triggerContext.window, contents, evictingWindowState);
-			}
-		}
-
-		if (triggerResult.isPurge()) {
-			evictingWindowState.clear();
-		}
+		triggerWindowContents(triggerContext.window, evictingWindowState, triggerContext.onEventTime(timer.getTimestamp()));
 
 		if (windowAssigner.isEventTime() && isCleanupTime(triggerContext.window, timer.getTimestamp())) {
 			clearAllState(triggerContext.window, evictingWindowState, mergingWindows);
@@ -310,18 +273,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 			evictingWindowState.setCurrentNamespace(triggerContext.window);
 		}
 
-		TriggerResult triggerResult = triggerContext.onProcessingTime(timer.getTimestamp());
-
-		if (triggerResult.isFire()) {
-			Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
-			if (contents != null) {
-				emitWindowContents(triggerContext.window, contents, evictingWindowState);
-			}
-		}
-
-		if (triggerResult.isPurge()) {
-			evictingWindowState.clear();
-		}
+		triggerWindowContents(triggerContext.window, evictingWindowState, triggerContext.onProcessingTime(timer.getTimestamp()));
 
 		if (!windowAssigner.isEventTime() && isCleanupTime(triggerContext.window, timer.getTimestamp())) {
 			clearAllState(triggerContext.window, evictingWindowState, mergingWindows);
@@ -333,37 +285,54 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		}
 	}
 
-	private void emitWindowContents(W window, Iterable<StreamRecord<IN>> contents, ListState<StreamRecord<IN>> windowState) throws Exception {
-		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
+	private void triggerWindowContents(W window,
+			ListState<StreamRecord<IN>> windowState,
+			TriggerResult triggerResult) throws Exception {
+		if (TriggerResult.PURGE == triggerResult) {
+			windowState.clear();
+			return;
+		}
 
-		// Work around type system restrictions...
-		FluentIterable<TimestampedValue<IN>> recordsWithTimestamp = FluentIterable
-			.from(contents)
-			.transform(new Function<StreamRecord<IN>, TimestampedValue<IN>>() {
-				@Override
-				public TimestampedValue<IN> apply(StreamRecord<IN> input) {
-					return TimestampedValue.from(input);
+		if (triggerResult.isFire()) {
+			Iterable<StreamRecord<IN>> contents = windowState.get();
+			if (contents == null) {
+				// if we have no state, there is nothing to do
+				return;
+			}
+
+			timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
+
+			// Work around type system restrictions...
+			FluentIterable<TimestampedValue<IN>> recordsWithTimestamp = FluentIterable
+				.from(contents)
+				.transform(new Function<StreamRecord<IN>, TimestampedValue<IN>>() {
+					@Override
+					public TimestampedValue<IN> apply(StreamRecord<IN> input) {
+						return TimestampedValue.from(input);
+					}
+				});
+			evictorContext.evictBefore(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));
+
+			FluentIterable<IN> projectedContents = recordsWithTimestamp
+				.transform(new Function<TimestampedValue<IN>, IN>() {
+					@Override
+					public IN apply(TimestampedValue<IN> input) {
+						return input.getValue();
+					}
+				});
+
+			processContext.window = triggerContext.window;
+			userFunction.process(triggerContext.key, triggerContext.window, processContext, projectedContents, timestampedCollector);
+			evictorContext.evictAfter(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));
+
+			//work around to fix FLINK-4369, remove the evicted elements from the windowState.
+			//this is inefficient, but there is no other way to remove elements from ListState, which is an AppendingState.
+			windowState.clear();
+			if (!triggerResult.isPurge()) {
+				for (TimestampedValue<IN> record : recordsWithTimestamp) {
+					windowState.add(record.getStreamRecord());
 				}
-			});
-		evictorContext.evictBefore(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));
-
-		FluentIterable<IN> projectedContents = recordsWithTimestamp
-			.transform(new Function<TimestampedValue<IN>, IN>() {
-				@Override
-				public IN apply(TimestampedValue<IN> input) {
-					return input.getValue();
-				}
-			});
-
-		processContext.window = triggerContext.window;
-		userFunction.process(triggerContext.key, triggerContext.window, processContext, projectedContents, timestampedCollector);
-		evictorContext.evictAfter(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));
-
-		//work around to fix FLINK-4369, remove the evicted elements from the windowState.
-		//this is inefficient, but there is no other way to remove elements from ListState, which is an AppendingState.
-		windowState.clear();
-		for (TimestampedValue<IN> record : recordsWithTimestamp) {
-			windowState.add(record.getStreamRecord());
+			}
 		}
 	}
 
