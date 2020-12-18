@@ -67,6 +67,7 @@ public abstract class ExecNodeBase<P extends Planner, T> implements ExecNode<T> 
 
 	@Override
 	public List<ExecNode<?>> getInputNodes() {
+		checkNotNull(inputNodes, "inputNodes should not be null, please call setInputNodes first.");
 		return inputNodes;
 	}
 
