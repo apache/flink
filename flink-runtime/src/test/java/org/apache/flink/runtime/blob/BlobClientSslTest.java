@@ -92,6 +92,11 @@ public class BlobClientSslTest extends BlobClientTest {
 		}
 	}
 
+	@Override
+	protected boolean isSSLEnabled() {
+		return true;
+	}
+
 	protected Configuration getBlobClientConfig() {
 		return sslClientConfig;
 	}
