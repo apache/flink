@@ -95,9 +95,21 @@ public class BlockingGrpcPubSubSubscriber implements PubSubSubscriber {
 									.addAllAckIds(splittedAckIds.f0)
 									.build();
 
-			stub.withDeadlineAfter(60, SECONDS).acknowledge(acknowledgeRequest);
-
+			acknowledgeWithRetries(acknowledgeRequest, retries);
 			splittedAckIds = splitAckIds(splittedAckIds.f1);
+		}
+	}
+
+	private void acknowledgeWithRetries(AcknowledgeRequest acknowledgeRequest, int retriesRemaining) {
+		try {
+			stub.withDeadlineAfter(timeout.toMillis(), TimeUnit.MILLISECONDS).acknowledge(acknowledgeRequest);
+		} catch (StatusRuntimeException e) {
+			if (retriesRemaining > 0) {
+				acknowledgeWithRetries(acknowledgeRequest, retriesRemaining - 1);
+				return;
+			}
+
+			throw e;
 		}
 	}
 
