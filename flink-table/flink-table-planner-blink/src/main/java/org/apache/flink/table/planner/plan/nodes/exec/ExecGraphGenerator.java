@@ -18,20 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.common.CommonIntermediateTableScan;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge.RequiredShuffle;
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalExchange;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 
-import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.RelNode;
 
 import java.util.ArrayList;
@@ -52,11 +42,9 @@ import java.util.Map;
  */
 public class ExecGraphGenerator {
 
-	private final TableConfig tableConfig;
 	private final Map<FlinkPhysicalRel, ExecNode<?>> visitedRels;
 
-	public ExecGraphGenerator(TableConfig tableConfig) {
-		this.tableConfig = tableConfig;
+	public ExecGraphGenerator() {
 		this.visitedRels = new IdentityHashMap<>();
 	}
 
@@ -83,72 +71,16 @@ public class ExecGraphGenerator {
 			inputNodes.add(generate((FlinkPhysicalRel) input));
 		}
 
+		execNode = rel.translateToExecNode();
 		if (rel instanceof LegacyExecNodeBase) {
-			LegacyExecNodeBase<?, ?> baseNode = (LegacyExecNodeBase<?, ?>) rel;
-			baseNode.setInputNodes(inputNodes);
-			execNode = baseNode;
-		} else if (rel instanceof BatchPhysicalExchange) {
-			execNode = translateBatchExchange((BatchPhysicalExchange) rel, inputNodes.get(0));
-		} else if (rel instanceof StreamPhysicalExchange) {
-			execNode = translateStreamExchange((StreamPhysicalExchange) rel, inputNodes.get(0));
+			((LegacyExecNodeBase<?, ?>) execNode).setInputNodes(inputNodes);
 		} else {
-			throw new TableException(rel.getClass().getSimpleName() + " can't be converted to ExecNode." +
-					"This is a bug and should not happen. Please file an issue.");
+			// connects the input/output nodes
+			((ExecNodeBase<?, ?>) execNode).setInputNodes(inputNodes);
 		}
 
 		visitedRels.put(rel, execNode);
 		return execNode;
 	}
 
-	private BatchExecExchange translateBatchExchange(BatchPhysicalExchange exchange, ExecNode<?> inputNode) {
-		final RequiredShuffle requiredShuffle = getRequiredShuffle(exchange.getDistribution());
-		final ExecEdge inputEdge;
-		if (tableConfig.getConfiguration().getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
-				.equalsIgnoreCase(GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString())) {
-			inputEdge = ExecEdge.builder()
-					.requiredShuffle(requiredShuffle)
-					.damBehavior(ExecEdge.DamBehavior.BLOCKING)
-					.build();
-		} else {
-			inputEdge = ExecEdge.builder()
-					.requiredShuffle(requiredShuffle)
-					.damBehavior(ExecEdge.DamBehavior.PIPELINED)
-					.build();
-		}
-
-		return new BatchExecExchange(
-				inputNode,
-				inputEdge,
-				FlinkTypeFactory.toLogicalRowType(exchange.getRowType()));
-	}
-
-	private StreamExecExchange translateStreamExchange(StreamPhysicalExchange exchange, ExecNode<?> inputNode) {
-		final RequiredShuffle requiredShuffle = getRequiredShuffle(exchange.getDistribution());
-		return new StreamExecExchange(
-				inputNode,
-				ExecEdge.builder().requiredShuffle(requiredShuffle).build(),
-				FlinkTypeFactory.toLogicalRowType(exchange.getRowType()),
-				exchange.getRelDetailedDescription());
-	}
-
-	private RequiredShuffle getRequiredShuffle(RelDistribution relDistribution) {
-		switch (relDistribution.getType()) {
-			case ANY:
-				return RequiredShuffle.any();
-			case BROADCAST_DISTRIBUTED:
-				return RequiredShuffle.broadcast();
-			case SINGLETON:
-				return RequiredShuffle.singleton();
-			case HASH_DISTRIBUTED:
-				int[] keys = relDistribution.getKeys().stream().mapToInt(v -> v).toArray();
-				if (keys.length == 0) {
-					return RequiredShuffle.singleton();
-				} else {
-					// Hash Shuffle requires not empty keys
-					return RequiredShuffle.hash(keys);
-				}
-			default:
-				throw new UnsupportedOperationException("Unsupported distribution type: " + relDistribution.getType());
-		}
-	}
 }

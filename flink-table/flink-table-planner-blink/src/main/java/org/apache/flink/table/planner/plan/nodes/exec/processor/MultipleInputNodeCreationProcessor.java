@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * A {@link DAGProcessor} which organize {@link ExecNode}s into multiple input nodes.
@@ -478,10 +479,12 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 		}
 
 		String description = ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, new ArrayList<>());
-		return new StreamExecMultipleInput(
-				inputNodes,
+		StreamExecMultipleInput multipleInput = new StreamExecMultipleInput(
+				inputNodes.stream().map(i -> ExecEdge.DEFAULT).collect(Collectors.toList()),
 				rootNode,
 				description);
+		multipleInput.setInputNodes(inputNodes);
+		return multipleInput;
 	}
 
 	private BatchExecMultipleInput createBatchMultipleInputNode(
@@ -514,11 +517,12 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 		}
 
 		String description = ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, inputEdges);
-		return new BatchExecMultipleInput(
-				inputNodes,
+		BatchExecMultipleInput multipleInput = new BatchExecMultipleInput(
 				inputEdges,
 				rootNode,
 				description);
+		multipleInput.setInputNodes(inputNodes);
+		return multipleInput;
 	}
 
 	// --------------------------------------------------------------------------------

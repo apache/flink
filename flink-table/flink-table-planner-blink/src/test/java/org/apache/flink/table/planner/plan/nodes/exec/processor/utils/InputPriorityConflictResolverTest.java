@@ -103,10 +103,11 @@ public class InputPriorityConflictResolverTest {
 		}
 
 		BatchExecExchange exchange = new BatchExecExchange(
-			nodes[0],
 			ExecEdge.builder().requiredShuffle(ExecEdge.RequiredShuffle.any()).build(),
-			nodes[0].getOutputType());
+			nodes[0].getOutputType(),
+			"Exchange");
 		exchange.setRequiredShuffleMode(ShuffleMode.BATCH);
+		exchange.setInputNodes(Collections.singletonList(nodes[0]));
 
 		nodes[1].addInput(exchange, ExecEdge.builder().priority(0).build());
 		nodes[1].addInput(exchange, ExecEdge.builder().priority(1).build());
