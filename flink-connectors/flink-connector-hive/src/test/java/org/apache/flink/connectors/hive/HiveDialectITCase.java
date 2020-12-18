@@ -248,26 +248,27 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create table dest (x int)");
         tableEnv.executeSql("insert into dest select x from src").await();
         List<Row> results = queryResult(tableEnv.sqlQuery("select * from dest"));
-        assertEquals("[1, 2, 3]", results.toString());
+        assertEquals("[+I[1], +I[2], +I[3]]", results.toString());
         tableEnv.executeSql("insert overwrite dest values (3),(4),(5)").await();
         results = queryResult(tableEnv.sqlQuery("select * from dest"));
-        assertEquals("[3, 4, 5]", results.toString());
+        assertEquals("[+I[3], +I[4], +I[5]]", results.toString());
 
         // partitioned dest table
         tableEnv.executeSql("create table dest2 (x int) partitioned by (p1 int,p2 string)");
         tableEnv.executeSql("insert into dest2 partition (p1=0,p2='static') select x from src")
                 .await();
         results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
-        assertEquals("[1,0,static, 2,0,static, 3,0,static]", results.toString());
+        assertEquals("[+I[1, 0, static], +I[2, 0, static], +I[3, 0, static]]", results.toString());
         tableEnv.executeSql("insert into dest2 partition (p1=1,p2) select x,y from src").await();
         results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
         assertEquals(
-                "[1,0,static, 1,1,a, 2,0,static, 2,1,b, 3,0,static, 3,1,c]", results.toString());
+                "[+I[1, 0, static], +I[1, 1, a], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]",
+                results.toString());
         tableEnv.executeSql("insert overwrite dest2 partition (p1,p2) select 1,x,y from src")
                 .await();
         results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
         assertEquals(
-                "[1,0,static, 1,1,a, 1,2,b, 1,3,c, 2,0,static, 2,1,b, 3,0,static, 3,1,c]",
+                "[+I[1, 0, static], +I[1, 1, a], +I[1, 2, b], +I[1, 3, c], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]",
                 results.toString());
     }
 
@@ -510,7 +511,8 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create table src(x int)");
         tableEnv.executeSql("insert into src values (1),(-1)").await();
         assertEquals(
-                "[1, 1]", queryResult(tableEnv.sqlQuery("select my_abs(x) from src")).toString());
+                "[+I[1], +I[1]]",
+                queryResult(tableEnv.sqlQuery("select my_abs(x) from src")).toString());
         // drop the function
         tableEnv.executeSql("drop function my_abs");
         assertFalse(hiveCatalog.functionExists(new ObjectPath("default", "my_abs")));
@@ -526,13 +528,13 @@ public class HiveDialectITCase {
         List<Row> databases =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show databases").collect());
         assertEquals(1, databases.size());
-        assertEquals(DEFAULT_BUILTIN_DATABASE, databases.get(0).toString());
+        assertEquals("+I[" + DEFAULT_BUILTIN_DATABASE + "]", databases.get(0).toString());
         String catalogName =
                 tableEnv.executeSql("show current catalog").collect().next().toString();
-        assertEquals(DEFAULT_BUILTIN_CATALOG, catalogName);
+        assertEquals("+I[" + DEFAULT_BUILTIN_CATALOG + "]", catalogName);
         String databaseName =
                 tableEnv.executeSql("show current database").collect().next().toString();
-        assertEquals(DEFAULT_BUILTIN_DATABASE, databaseName);
+        assertEquals("+I[" + DEFAULT_BUILTIN_DATABASE + "]", databaseName);
     }
 
     @Test

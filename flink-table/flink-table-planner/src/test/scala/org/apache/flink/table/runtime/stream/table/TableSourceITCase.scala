@@ -37,15 +37,17 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
-
 import org.junit.Assert._
-import org.junit.{Before, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
 import scala.collection.JavaConverters._
 
 class TableSourceITCase extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Before
   def setup(): Unit = {

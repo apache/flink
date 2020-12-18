@@ -75,9 +75,9 @@ public class JdbcLookupFunctionTest extends JdbcLookupTestBase {
                         .stream().map(Row::toString).sorted().collect(Collectors.toList());
 
         List<String> expected = new ArrayList<>();
-        expected.add("1,1,11-c1-v1,11-c2-v1");
-        expected.add("1,1,11-c1-v2,11-c2-v2");
-        expected.add("2,3,null,23-c2");
+        expected.add("+I[1, 1, 11-c1-v1, 11-c2-v1]");
+        expected.add("+I[1, 1, 11-c1-v2, 11-c2-v2]");
+        expected.add("+I[2, 3, null, 23-c2]");
         Collections.sort(expected);
 
         assertEquals(expected, result);

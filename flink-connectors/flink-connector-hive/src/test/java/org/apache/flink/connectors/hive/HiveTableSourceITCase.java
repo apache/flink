@@ -129,10 +129,10 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
 
         Assert.assertEquals(4, rows.size());
-        Assert.assertEquals("1,1,a,1000,1.11", rows.get(0).toString());
-        Assert.assertEquals("2,2,b,2000,2.22", rows.get(1).toString());
-        Assert.assertEquals("3,3,c,3000,3.33", rows.get(2).toString());
-        Assert.assertEquals("4,4,d,4000,4.44", rows.get(3).toString());
+        Assert.assertEquals("+I[1, 1, a, 1000, 1.11]", rows.get(0).toString());
+        Assert.assertEquals("+I[2, 2, b, 2000, 2.22]", rows.get(1).toString());
+        Assert.assertEquals("+I[3, 3, c, 3000, 3.33]", rows.get(2).toString());
+        Assert.assertEquals("+I[4, 4, d, 4000, 4.44]", rows.get(3).toString());
     }
 
     @Test
@@ -184,7 +184,10 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         assertEquals(4, rows.size());
         Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
         assertArrayEquals(
-                new String[] {"2014,3,0", "2014,4,0", "2015,2,1", "2015,5,1"}, rowStrings);
+                new String[] {
+                    "+I[2014, 3, 0]", "+I[2014, 4, 0]", "+I[2015, 2, 1]", "+I[2015, 5, 1]"
+                },
+                rowStrings);
     }
 
     @Test
@@ -216,7 +219,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
         assertEquals(2, rows.size());
         Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
-        assertArrayEquals(new String[] {"2014,3,0", "2014,4,0"}, rowStrings);
+        assertArrayEquals(new String[] {"+I[2014, 3, 0]", "+I[2014, 4, 0]"}, rowStrings);
     }
 
     @Test
@@ -257,7 +260,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                     optimizedPlan.contains(
                             "table=[[test-catalog, db1, part, partitions=[{p1=2, p2=b}, {p1=3, p2=c}, {p1=4, p2=c:2}]"));
             List<Row> results = CollectionUtil.iteratorToList(query.execute().collect());
-            assertEquals("[2, 3, 4]", results.toString());
+            assertEquals("[+I[2], +I[3], +I[4]]", results.toString());
 
             query = tableEnv.sqlQuery("select x from db1.part where p1>2 and p2<='a' order by x");
             explain = query.explain().split("==.*==\n");
@@ -279,7 +282,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                     optimizedPlan.contains(
                             "table=[[test-catalog, db1, part, partitions=[{p1=1, p2=a}, {p1=3, p2=c}], project=[x]]]"));
             results = CollectionUtil.iteratorToList(query.execute().collect());
-            assertEquals("[1, 3]", results.toString());
+            assertEquals("[+I[1], +I[3]]", results.toString());
 
             query =
                     tableEnv.sqlQuery(
@@ -292,7 +295,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                     optimizedPlan.contains(
                             "table=[[test-catalog, db1, part, partitions=[{p1=1, p2=a}, {p1=2, p2=b}], project=[x]]]"));
             results = CollectionUtil.iteratorToList(query.execute().collect());
-            assertEquals("[1, 2]", results.toString());
+            assertEquals("[+I[1], +I[2]]", results.toString());
 
             query = tableEnv.sqlQuery("select x from db1.part where p2 = 'c:2' order by x");
             explain = query.explain().split("==.*==\n");
@@ -303,7 +306,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                     optimizedPlan.contains(
                             "table=[[test-catalog, db1, part, partitions=[{p1=4, p2=c:2}], project=[x]]]"));
             results = CollectionUtil.iteratorToList(query.execute().collect());
-            assertEquals("[4]", results.toString());
+            assertEquals("[+I[4]]", results.toString());
 
             query = tableEnv.sqlQuery("select x from db1.part where '' = p2");
             explain = query.explain().split("==.*==\n");
@@ -357,14 +360,14 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                     optimizedPlan.contains(
                             "table=[[test-catalog, db1, part, partitions=[{p1=2018-08-10, p2=2018-08-08 08:08:10.1}]"));
             List<Row> results = CollectionUtil.iteratorToList(query.execute().collect());
-            assertEquals("[3]", results.toString());
+            assertEquals("[+I[3]]", results.toString());
 
             // filter by timestamp partition
             query =
                     tableEnv.sqlQuery(
                             "select x from db1.part where timestamp '2018-08-08 08:08:09' = p2");
             results = CollectionUtil.iteratorToList(query.execute().collect());
-            assertEquals("[2]", results.toString());
+            assertEquals("[+I[2]]", results.toString());
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -394,7 +397,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
             List<Row> rows = CollectionUtil.iteratorToList(table.execute().collect());
             assertEquals(2, rows.size());
             Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
-            assertArrayEquals(new String[] {"2013,2", "2014,1"}, rowStrings);
+            assertArrayEquals(new String[] {"+I[2013, 2]", "+I[2014, 1]"}, rowStrings);
         } finally {
             batchTableEnv.executeSql("drop table src");
         }
@@ -420,7 +423,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
             List<Row> rows = CollectionUtil.iteratorToList(table.execute().collect());
             assertEquals(1, rows.size());
             Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
-            assertArrayEquals(new String[] {"a"}, rowStrings);
+            assertArrayEquals(new String[] {"+I[a]"}, rowStrings);
         } finally {
             batchTableEnv.executeSql("drop table src");
         }
@@ -806,7 +809,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         List<Row> results =
                 CollectionUtil.iteratorToList(
                         tableEnv.sqlQuery("select * from db1.src order by x").execute().collect());
-        assertEquals("[1,a, 2,b]", results.toString());
+        assertEquals("[+I[1, a], +I[2, b]]", results.toString());
     }
 
     @Test

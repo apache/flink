@@ -28,11 +28,12 @@ import org.apache.flink.table.planner.runtime.utils.TestData.{smallTupleData3, t
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestUtil}
 import org.apache.flink.table.sinks._
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Rule, Test}
 
 import java.io.File
 import java.util.TimeZone
@@ -40,6 +41,9 @@ import java.util.TimeZone
 import scala.collection.JavaConverters._
 
 class LegacyTableSinkITCase extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testStreamTableSink(): Unit = {

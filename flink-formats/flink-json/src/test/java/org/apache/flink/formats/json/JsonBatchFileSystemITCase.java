@@ -20,10 +20,12 @@ package org.apache.flink.formats.json;
 
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
+import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.File;
@@ -36,6 +38,8 @@ import java.util.List;
 
 /** ITCase to test json format for {@link JsonFormatFactory}. */
 public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
+
+    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     @Override
     public String[] formatProperties() {

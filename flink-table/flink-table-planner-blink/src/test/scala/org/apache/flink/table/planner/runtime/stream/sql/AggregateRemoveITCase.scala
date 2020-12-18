@@ -26,10 +26,11 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.Agg
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamTableEnvUtil, StreamingWithAggTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.{Rule, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -42,6 +43,9 @@ class AggregateRemoveITCase(
     minibatch: MiniBatchMode,
     backend: StateBackendMode)
   extends StreamingWithAggTestBase(aggMode, minibatch, backend) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testSimple(): Unit = {

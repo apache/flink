@@ -488,15 +488,15 @@ public class HiveRunnerITCase {
             List<Row> results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select count(v) from db1.v1").execute().collect());
-            assertEquals("[2]", results.toString());
+            assertEquals("[+I[2]]", results.toString());
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select * from db1.v2").execute().collect());
-            assertEquals("[1,3, 3,2]", results.toString());
+            assertEquals("[+I[1, 3], +I[3, 2]]", results.toString());
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select * from db1.v3").execute().collect());
-            assertEquals("[1,key1,3, 2,key2,1, 3,key3,2]", results.toString());
+            assertEquals("[+I[1, key1, 3], +I[2, key2, 1], +I[3, key3, 2]]", results.toString());
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -547,14 +547,14 @@ public class HiveRunnerITCase {
 
             tableEnv.executeSql("alter table db1.src change x x int");
             assertEquals(
-                    "[1,100, 2,200]",
+                    "[+I[1, 100], +I[2, 200]]",
                     CollectionUtil.iteratorToList(
                                     tableEnv.sqlQuery("select * from db1.src").execute().collect())
                             .toString());
 
             tableEnv.executeSql("alter table db1.src change y y string");
             assertEquals(
-                    "[1,100, 2,200]",
+                    "[+I[1, 100], +I[2, 200]]",
                     CollectionUtil.iteratorToList(
                                     tableEnv.sqlQuery("select * from db1.src").execute().collect())
                             .toString());
@@ -711,7 +711,8 @@ public class HiveRunnerITCase {
         assertEquals(expected.size(), results.size());
         Set<String> expectedSet = new HashSet<>();
         for (int i = 0; i < results.size(); i++) {
-            expectedSet.add(expected.get(i).toString().replaceAll(",", "\t"));
+            final String rowString = expected.get(i).toString();
+            expectedSet.add(rowString.substring(3, rowString.length() - 1).replaceAll(", ", "\t"));
         }
         assertEquals(expectedSet, new HashSet<>(results));
     }

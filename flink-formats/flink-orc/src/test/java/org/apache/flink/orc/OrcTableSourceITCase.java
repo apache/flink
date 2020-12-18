@@ -75,7 +75,7 @@ public class OrcTableSourceITCase extends MultipleProgramsTestBase {
 
         assertEquals(1, result.size());
         assertEquals(
-                "1920800,1,1920800,F,M,D,W,2 yr Degree,Unknown,500,10000,Good,Unknown,0,6,0,6,0,6",
+                "+I[1920800, 1, 1920800, F, M, D, W, 2 yr Degree, Unknown, 500, 10000, Good, Unknown, 0, 6, 0, 6, 0, 6]",
                 result.get(0).toString());
     }
 
@@ -107,7 +107,9 @@ public class OrcTableSourceITCase extends MultipleProgramsTestBase {
         List<Row> result = dataSet.collect();
 
         assertEquals(1, result.size());
-        assertEquals("1500,6000,2 yr Degree,Unknown,4976,10024,D,W,50", result.get(0).toString());
+        assertEquals(
+                "+I[1500, 6000, 2 yr Degree, Unknown, 4976, 10024, D, W, 50]",
+                result.get(0).toString());
     }
 
     private String getPath(String fileName) {

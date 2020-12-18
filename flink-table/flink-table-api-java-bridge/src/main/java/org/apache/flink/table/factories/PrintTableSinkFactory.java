@@ -49,7 +49,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  * PRINT_IDENTIFIER} provided, parallelism == 1 taskId> output <- no {@code PRINT_IDENTIFIER}
  * provided, parallelism > 1 output <- no {@code PRINT_IDENTIFIER} provided, parallelism == 1
  *
- * <p>output string format is "$RowKind(f0,f1,f2...)", example is: "+I(1,1)".
+ * <p>output string format is "$RowKind[f0, f1, f2, ...]", example is: "+I[1, 1]".
  */
 @PublicEvolving
 public class PrintTableSinkFactory implements DynamicTableSinkFactory {
@@ -165,9 +165,9 @@ public class PrintTableSinkFactory implements DynamicTableSinkFactory {
 
         @Override
         public void invoke(RowData value, Context context) {
-            String rowKind = value.getRowKind().shortString();
             Object data = converter.toExternal(value);
-            writer.write(rowKind + "(" + data + ")");
+            assert data != null;
+            writer.write(data.toString());
         }
     }
 }
