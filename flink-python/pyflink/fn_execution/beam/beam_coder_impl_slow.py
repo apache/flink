@@ -154,7 +154,7 @@ class RowCoderImpl(FlattenRowCoderImpl):
     def decode_from_stream(self, in_stream, nested):
         row_kind_value, fields = self._decode_one_row_from_stream(in_stream, nested)
         row = Row(*fields)
-        row._fields = self.field_names
+        row.set_field_names(self.field_names)
         row.set_row_kind(RowKind(row_kind_value))
         return row
 

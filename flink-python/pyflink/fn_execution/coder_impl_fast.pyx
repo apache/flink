@@ -446,7 +446,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
                             row_field_coders[i].type_name(),
                             row_field_coders[i])
                         for i in range(row_field_count)])
-            row._fields = row_field_names
+            row.set_field_names(row_field_names)
             row_kind_value = 0
             for i in range(ROW_KIND_BIT_SIZE):
                 row_kind_value += mask[i] * 2 ** i
