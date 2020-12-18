@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.connector.source.ScanTableSource
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
@@ -29,6 +30,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.{WithLower, WithUpper}
 import org.apache.flink.table.planner.{JByte, JDouble, JFloat, JList, JLong, JShort}
+import org.apache.flink.types.RowKind
+
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.core._
@@ -40,8 +43,6 @@ import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.validate.SqlMonotonicity._
 import org.apache.calcite.sql.{SqlKind, SqlOperatorBinding}
 import org.apache.calcite.util.Util
-import org.apache.flink.table.connector.source.ScanTableSource
-import org.apache.flink.types.RowKind
 
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
@@ -59,7 +60,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
 
   def getRelModifiedMonotonicity(rel: TableScan, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     val monotonicity: RelModifiedMonotonicity = rel match {
-      case _: FlinkLogicalDataStreamTableScan | _: StreamExecDataStreamScan =>
+      case _: FlinkLogicalDataStreamTableScan | _: StreamPhysicalDataStreamScan =>
         val table = rel.getTable.unwrap(classOf[FlinkPreparingTableBase])
         table.getStatistic.getRelModifiedMonotonicity
       case _: FlinkLogicalTableSourceScan | _: StreamPhysicalTableSourceScan =>

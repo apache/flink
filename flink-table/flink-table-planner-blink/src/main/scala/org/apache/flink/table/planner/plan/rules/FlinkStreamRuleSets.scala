@@ -395,7 +395,7 @@ object FlinkStreamRuleSets {
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
     FlinkExpandConversionRule.STREAM_INSTANCE,
     // source
-    StreamExecDataStreamScanRule.INSTANCE,
+    StreamPhysicalDataStreamScanRule.INSTANCE,
     StreamPhysicalTableSourceScanRule.INSTANCE,
     StreamPhysicalLegacyTableSourceScanRule.INSTANCE,
     StreamExecIntermediateTableScanRule.INSTANCE,
