@@ -169,7 +169,7 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
 			.withOnCompletionActions(onCompletionActions)
 			.createJobMaster();
 
-		jobMaster.start(JobMasterId.generate()).get();
+		jobMaster.start();
 
 		return jobMaster;
 	}

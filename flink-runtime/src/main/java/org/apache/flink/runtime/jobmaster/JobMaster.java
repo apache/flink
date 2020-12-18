@@ -75,9 +75,8 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureSta
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
+import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
@@ -129,7 +128,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * given task</li>
  * </ul>
  */
-public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMasterGateway, JobMasterService {
+public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> implements JobMasterGateway, JobMasterService {
 
 	/** Default names for Flink's distributed components. */
 	public static final String JOB_MANAGER_NAME = "jobmanager";
@@ -216,6 +215,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	public JobMaster(
 			RpcService rpcService,
+			JobMasterId jobMasterId,
 			JobMasterConfiguration jobMasterConfiguration,
 			ResourceID resourceId,
 			JobGraph jobGraph,
@@ -234,7 +234,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory,
 			long initializationTimestamp) throws Exception {
 
-		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME), null);
+		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME), jobMasterId);
 
 		final ExecutionDeploymentReconciliationHandler executionStateReconciliationHandler = new ExecutionDeploymentReconciliationHandler() {
 
@@ -345,37 +345,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	// Lifecycle management
 	//----------------------------------------------------------------------------------------------
 
-	/**
-	 * Start the rpc service and begin to run the job.
-	 *
-	 * @param newJobMasterId The necessary fencing token to run the job
-	 * @return Future acknowledge if the job could be started. Otherwise the future contains an exception
-	 */
-	public CompletableFuture<Acknowledge> start(final JobMasterId newJobMasterId) throws Exception {
-		// make sure we receive RPC and async calls
-		start();
-
-		return callAsyncWithoutFencing(() -> startJobExecution(newJobMasterId), RpcUtils.INF_TIMEOUT);
-	}
-
-	/**
-	 * Suspending job, all the running tasks will be cancelled, and communication with other components
-	 * will be disposed.
-	 *
-	 * <p>Mostly job is suspended because of the leadership has been revoked, one can be restart this job by
-	 * calling the {@link #start(JobMasterId)} method once we take the leadership back again.
-	 *
-	 * <p>This method is executed asynchronously
-	 *
-	 * @param cause The reason of why this job been suspended.
-	 * @return Future acknowledge indicating that the job has been suspended. Otherwise the future contains an exception
-	 */
-	public CompletableFuture<Acknowledge> suspend(final Exception cause) {
-		CompletableFuture<Acknowledge> suspendFuture = callAsyncWithoutFencing(
-				() -> suspendExecution(cause),
-				RpcUtils.INF_TIMEOUT);
-
-		return suspendFuture.whenComplete((acknowledge, throwable) -> stop());
+	@Override
+	protected void onStart() throws JobMasterException {
+		try {
+			startJobExecution();
+		} catch (Exception e) {
+			final JobMasterException jobMasterException = new JobMasterException("Could not start the JobMaster.", e);
+			handleJobMasterError(jobMasterException);
+			throw jobMasterException;
+		}
 	}
 
 	/**
@@ -786,27 +764,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	//-- job starting and stopping  -----------------------------------------------------------------
 
-	private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception {
+	private void startJobExecution() throws Exception {
 
 		validateRunsInMainThread();
 
-		checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
-
-		if (Objects.equals(getFencingToken(), newJobMasterId)) {
-			log.info("Already started the job execution with JobMasterId {}.", newJobMasterId);
-
-			return Acknowledge.get();
-		}
-
-		setNewFencingToken(newJobMasterId);
-
 		startJobMasterServices();
 
-		log.info("Starting execution of job {} ({}) under job master id {}.", jobGraph.getName(), jobGraph.getJobID(), newJobMasterId);
+		log.info("Starting execution of job {} ({}) under job master id {}.", jobGraph.getName(), jobGraph.getJobID(), getFencingToken());
 
 		resetAndStartScheduler();
-
-		return Acknowledge.get();
 	}
 
 	private void startJobMasterServices() throws Exception {
@@ -826,38 +792,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
 	}
 
-	private void setNewFencingToken(JobMasterId newJobMasterId) {
-		if (getFencingToken() != null) {
-			log.info("Restarting old job with JobMasterId {}. The new JobMasterId is {}.", getFencingToken(), newJobMasterId);
-
-			// first we have to suspend the current execution
-			suspendExecution(new FlinkException("Old job with JobMasterId " + getFencingToken() +
-				" is restarted with a new JobMasterId " + newJobMasterId + '.'));
-		}
-
-		// set new leader id
-		setFencingToken(newJobMasterId);
-	}
-
 	/**
 	 * Suspending job, all the running tasks will be cancelled, and communication with other components
 	 * will be disposed.
 	 *
-	 * <p>Mostly job is suspended because of the leadership has been revoked, one can be restart this job by
-	 * calling the {@link #start(JobMasterId)} method once we take the leadership back again.
-	 *
 	 * @param cause The reason of why this job been suspended.
 	 */
-	private Acknowledge suspendExecution(final Exception cause) {
+	private void suspendExecution(final Exception cause) {
 		validateRunsInMainThread();
-
-		if (getFencingToken() == null) {
-			log.debug("Job has already been suspended or shutdown.");
-			return Acknowledge.get();
-		}
-
-		// not leader anymore --> set the JobMasterId to null
-		setFencingToken(null);
 
 		try {
 			resourceManagerLeaderRetriever.stop();
@@ -882,8 +824,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		closeResourceManagerConnection(cause);
 
 		stopHeartbeatServices();
-
-		return Acknowledge.get();
 	}
 
 	private void stopHeartbeatServices() {
