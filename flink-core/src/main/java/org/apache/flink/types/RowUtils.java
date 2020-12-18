@@ -74,6 +74,14 @@ public final class RowUtils {
     // Internal utilities
     // --------------------------------------------------------------------------------------------
 
+    /**
+     * Internal flag to enable the legacy {@link Row#toString()} implementation for tests. In
+     * general, tests should not depend on the string representation of rows but should fully
+     * compare instances (especially data types of fields). This flag will be dropped once all tests
+     * have been updated.
+     */
+    public static boolean USE_LEGACY_TO_STRING = false;
+
     /** Internal utility for creating a row in static named-position field mode. */
     @Internal
     public static Row createRowWithNamedPositions(
@@ -149,10 +157,12 @@ public final class RowUtils {
             @Nullable Map<String, Object> fieldByName) {
         final StringBuilder sb = new StringBuilder();
         if (fieldByPosition != null) {
-            // TODO enable this for FLINK-18090
-            // sb.append(kind.shortString());
-            // deepToStringArray(sb, fieldByPosition);
-            deepToStringArrayLegacy(sb, fieldByPosition);
+            if (USE_LEGACY_TO_STRING) {
+                deepToStringArrayLegacy(sb, fieldByPosition);
+            } else {
+                sb.append(kind.shortString());
+                deepToStringArray(sb, fieldByPosition);
+            }
         } else {
             assert fieldByName != null;
             sb.append(kind.shortString());

@@ -124,9 +124,7 @@ public class RowTest {
         assertThat(row.getField(2), equalTo(null));
 
         // test toString
-        // TODO enable this for FLINK-18090
-        // assertThat(row.toString(), equalTo("-D[42, true, null]"));
-        assertThat(row.toString(), equalTo("42,true,null"));
+        assertThat(row.toString(), equalTo("-D[42, true, null]"));
 
         // test override
         row.setField(0, 13);
@@ -155,9 +153,7 @@ public class RowTest {
         row.clear();
         assertThat(row.getArity(), equalTo(3));
         assertThat(row.getFieldNames(false), equalTo(null));
-        // TODO enable this for FLINK-18090
-        // assertThat(row.toString(), equalTo("-D[null, null, null]"));
-        assertThat(row.toString(), equalTo("null,null,null"));
+        assertThat(row.toString(), equalTo("-D[null, null, null]"));
 
         // test invalid setter
         try {
@@ -198,9 +194,7 @@ public class RowTest {
         assertThat(row.getField("c"), equalTo(null));
 
         // test toString
-        // TODO enable this for FLINK-18090
-        // assertThat(row.toString(), equalTo("-D[42, true, null]"));
-        assertThat(row.toString(), equalTo("42,true,null"));
+        assertThat(row.toString(), equalTo("-D[42, true, null]"));
 
         // test override
         row.setField("a", 13);
@@ -229,9 +223,7 @@ public class RowTest {
         row.clear();
         assertThat(row.getArity(), equalTo(3));
         assertThat(row.getFieldNames(true), contains("a", "b", "c"));
-        // TODO enable this for FLINK-18090
-        // assertThat(row.toString(), equalTo("-D[null, null, null]"));
-        assertThat(row.toString(), equalTo("null,null,null"));
+        assertThat(row.toString(), equalTo("-D[null, null, null]"));
 
         // test invalid setter
         try {
