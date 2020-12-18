@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacyTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.sources.StreamTableSource
 
@@ -30,14 +30,15 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 
 /**
-  * Rule that converts [[FlinkLogicalLegacyTableSourceScan]] to [[BatchExecLegacyTableSourceScan]].
-  */
-class BatchExecLegacyTableSourceScanRule
+ * Rule that converts [[FlinkLogicalLegacyTableSourceScan]] to
+ * [[BatchPhysicalLegacyTableSourceScan]].
+ */
+class BatchPhysicalLegacyTableSourceScanRule
   extends ConverterRule(
     classOf[FlinkLogicalLegacyTableSourceScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecLegacyTableSourceScanRule") {
+    "BatchPhysicalLegacyTableSourceScan") {
 
   /** Rule must only match if TableScan targets a bounded [[StreamTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -56,7 +57,7 @@ class BatchExecLegacyTableSourceScanRule
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[FlinkLogicalLegacyTableSourceScan]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    new BatchExecLegacyTableSourceScan(
+    new BatchPhysicalLegacyTableSourceScan(
       rel.getCluster,
       newTrait,
       scan.getTable.asInstanceOf[LegacyTableSourceTable[_]]
@@ -64,6 +65,6 @@ class BatchExecLegacyTableSourceScanRule
   }
 }
 
-object BatchExecLegacyTableSourceScanRule {
-  val INSTANCE: RelOptRule = new BatchExecLegacyTableSourceScanRule
+object BatchPhysicalLegacyTableSourceScanRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalLegacyTableSourceScanRule
 }
