@@ -31,10 +31,9 @@ import java.util.List;
  */
 public abstract class BatchExecNode<T> extends ExecNodeBase<BatchPlanner, T> {
 	public BatchExecNode(
-			List<ExecNode<?>> inputNodes,
 			List<ExecEdge> inputEdges,
 			RowType outputType,
 			String description) {
-		super(inputNodes, inputEdges, outputType, description);
+		super(inputEdges, outputType, description);
 	}
 }

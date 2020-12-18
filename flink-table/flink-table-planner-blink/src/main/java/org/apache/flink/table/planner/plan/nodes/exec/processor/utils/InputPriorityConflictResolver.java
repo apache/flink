@@ -79,10 +79,11 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 				// special case: if exchange is exactly the reuse node,
 				// we should split it into two nodes
 				BatchExecExchange newExchange = new BatchExecExchange(
-					exchange.getInputNodes().get(0),
 					execEdge,
-					exchange.getOutputType());
+					exchange.getOutputType(),
+					"Exchange");
 				newExchange.setRequiredShuffleMode(shuffleMode);
+				newExchange.setInputNodes(exchange.getInputNodes());
 				node.replaceInputNode(lowerInput, newExchange);
 			} else {
 				exchange.setRequiredShuffleMode(shuffleMode);
@@ -118,9 +119,10 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 				.damBehavior(getDamBehavior())
 				.build();
 		BatchExecExchange exchange = new BatchExecExchange(
-				inputNode,
 				execEdge,
-				inputNode.getOutputType());
+				inputNode.getOutputType(),
+				"Exchange");
+		exchange.setInputNodes(Collections.singletonList(inputNode));
 		exchange.setRequiredShuffleMode(shuffleMode);
 		return exchange;
 	}
