@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalDataStreamTableScan
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDataStreamScan
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan
 import org.apache.flink.table.planner.plan.schema.DataStreamTable
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -28,14 +28,14 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
 /**
-  * Rule that converts [[FlinkLogicalDataStreamTableScan]] to [[StreamExecDataStreamScan]].
+  * Rule that converts [[FlinkLogicalDataStreamTableScan]] to [[StreamPhysicalDataStreamScan]].
   */
-class StreamExecDataStreamScanRule
+class StreamPhysicalDataStreamScanRule
   extends ConverterRule(
     classOf[FlinkLogicalDataStreamTableScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecDataStreamScanRule") {
+    "StreamPhysicalDataStreamScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalDataStreamTableScan = call.rel(0)
@@ -47,7 +47,7 @@ class StreamExecDataStreamScanRule
     val scan: FlinkLogicalDataStreamTableScan = rel.asInstanceOf[FlinkLogicalDataStreamTableScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
-    new StreamExecDataStreamScan(
+    new StreamPhysicalDataStreamScan(
       rel.getCluster,
       traitSet,
       scan.getTable,
@@ -56,6 +56,6 @@ class StreamExecDataStreamScanRule
   }
 }
 
-object StreamExecDataStreamScanRule {
-  val INSTANCE: RelOptRule = new StreamExecDataStreamScanRule
+object StreamPhysicalDataStreamScanRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalDataStreamScanRule
 }
