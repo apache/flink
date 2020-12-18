@@ -25,19 +25,18 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 
 import io.fabric8.kubernetes.api.model.Container;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
-import static org.apache.flink.kubernetes.utils.Constants.NATIVE_KUBERNETES_COMMAND;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.generateDynamicConfigsStr;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.generateJvmParametersStr;
@@ -109,7 +108,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 
 		final String expectedCommand = getJobManagerExpectedCommand("", "");
-		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
+		final List<String> expectedArgs = KubernetesUtils.getStartCommandWithBashWrapper(expectedCommand);
 
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
@@ -124,7 +123,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 
 		final String expectedCommand = getJobManagerExpectedCommand("", log4j);
-		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
+		final List<String> expectedArgs = KubernetesUtils.getStartCommandWithBashWrapper(expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -138,7 +137,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 
 		final String expectedCommand = getJobManagerExpectedCommand("", logback);
-		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
+		final List<String> expectedArgs = KubernetesUtils.getStartCommandWithBashWrapper(expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -154,7 +153,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 		final String expectedCommand =
 				getJobManagerExpectedCommand("", logback + " " + log4j);
-		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
+		final List<String> expectedArgs = KubernetesUtils.getStartCommandWithBashWrapper(expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -171,7 +170,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 		final String expectedCommand =
 				getJobManagerExpectedCommand(jvmOpts, logback + " " + log4j);
-		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
+		final List<String> expectedArgs = KubernetesUtils.getStartCommandWithBashWrapper(expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -186,7 +185,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 		final String expectedCommand = getJobManagerExpectedCommand(jvmOpts, logback + " " + log4j);
-		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
+		final List<String> expectedArgs = KubernetesUtils.getStartCommandWithBashWrapper(expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -214,7 +213,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 				" " + jmLogfile + " " + logback + " " + log4j +
 				" " + ENTRY_POINT_CLASS + " " + jmDynamicProperties;
 
-		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
+		final List<String> expectedArgs = KubernetesUtils.getStartCommandWithBashWrapper(expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -242,7 +241,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 				" " + jvmOpts + " " + jmJvmOpts +
 				" " + ENTRY_POINT_CLASS + " " + jmDynamicProperties;
 
-		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
+		final List<String> expectedArgs = KubernetesUtils.getStartCommandWithBashWrapper(expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 

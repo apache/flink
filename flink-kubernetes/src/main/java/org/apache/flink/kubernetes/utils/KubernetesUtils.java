@@ -54,6 +54,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -352,6 +353,10 @@ public class KubernetesUtils {
 
 		final String commandTemplate = flinkConfig.getString(KubernetesConfigOptions.CONTAINER_START_COMMAND_TEMPLATE);
 		return BootstrapTools.getStartCommand(commandTemplate, startCommandValues);
+	}
+
+	public static List<String> getStartCommandWithBashWrapper(String javaCommand) {
+		return Arrays.asList("bash", "-c", javaCommand);
 	}
 
 	public static List<File> checkJarFileForApplicationMode(Configuration configuration) {
