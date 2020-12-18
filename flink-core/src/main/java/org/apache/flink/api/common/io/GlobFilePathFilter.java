@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 
@@ -135,4 +136,8 @@ public class GlobFilePathFilter extends FilePathFilter {
 		return false;
 	}
 
+	@Override
+	public boolean accept(FileStatus fileStatus) {
+		return !filterPath(fileStatus.getPath());
+	}
 }

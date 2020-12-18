@@ -24,6 +24,7 @@ import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFact
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.XZInputStreamFactory;
+import org.apache.flink.api.common.io.filters.FileFilter;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -236,7 +237,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	/**
 	 * Files filter for determining what files/directories should be included.
 	 */
-	private FilePathFilter filesFilter = new GlobFilePathFilter();
+	private FileFilter filesFilter = new GlobFilePathFilter();
 
 	// --------------------------------------------------------------------------------------------
 	//  Constructors
@@ -434,8 +435,22 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		return splitLength;
 	}
 
+	/**
+	 * @deprecated Use {@link #setFilesFilter(FileFilter)}.
+	 */
+	@Deprecated
 	public void setFilesFilter(FilePathFilter filesFilter) {
 		this.filesFilter = Preconditions.checkNotNull(filesFilter, "Files filter should not be null");
+	}
+
+	/**
+	 * Set file filter to keep only accepted files.
+	 *
+	 * @param filesFilter The file filter.
+	 */
+	public void setFilesFilter(FileFilter filesFilter) {
+		this.filesFilter = Preconditions.checkNotNull(filesFilter, "File filter should not be " +
+			"null");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -530,9 +545,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		if (file.isDir()) {
 			totalLength += addFilesInDir(file.getPath(), files, false);
 		} else {
-			files.add(file);
-			testForUnsplittable(file);
-			totalLength += file.getLen();
+			if (acceptFile(file)) {
+				files.add(file);
+				testForUnsplittable(file);
+				totalLength += file.getLen();
+			}
 		}
 
 		// check the modification time stamp
@@ -547,7 +564,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		}
 
 		// sanity check
-		if (totalLength <= 0) {
+		if (totalLength < 0) {
 			totalLength = BaseStatistics.SIZE_UNKNOWN;
 		}
 		return new FileBaseStatistics(latestModTime, totalLength, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
@@ -757,9 +774,10 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 */
 	public boolean acceptFile(FileStatus fileStatus) {
 		final String name = fileStatus.getPath().getName();
+
 		return !name.startsWith("_")
 			&& !name.startsWith(".")
-			&& !filesFilter.filterPath(fileStatus.getPath());
+			&& filesFilter.accept(fileStatus);
 	}
 
 	/**
