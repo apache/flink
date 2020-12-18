@@ -74,7 +74,7 @@ public class CsvFilesystemBatchITCase {
 
             check(
                     "select * from nonPartitionedTable",
-                    Arrays.asList(Row.of("x5,5,1,1"), Row.of("x5,5,1,1")));
+                    Arrays.asList(Row.of("x5", 5, 1, 1), Row.of("x5", 5, 1, 1)));
         }
 
         @Test
@@ -87,7 +87,7 @@ public class CsvFilesystemBatchITCase {
 
             check(
                     "select * from nonPartitionedTable",
-                    Arrays.asList(Row.of("x5,5,1,1"), Row.of("x5,5,2,2")));
+                    Arrays.asList(Row.of("x5", 5, 1, 1), Row.of("x5", 5, 2, 2)));
         }
     }
 }

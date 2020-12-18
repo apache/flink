@@ -169,7 +169,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
                         .collect(Collectors.toList());
         List<String> expected =
                 Collections.singletonList(
-                        "127,255,32767,65535,2147483647,4294967295,9223372036854775807,18446744073709551615");
+                        "+I[127, 255, 32767, 65535, 2147483647, 4294967295, 9223372036854775807, 18446744073709551615]");
         assertEquals(expected, result);
     }
 

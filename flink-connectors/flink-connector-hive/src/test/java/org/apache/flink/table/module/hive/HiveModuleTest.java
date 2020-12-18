@@ -27,10 +27,12 @@ import org.apache.flink.table.functions.hive.HiveSimpleUDFTest.HiveUDFCallContex
 import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.List;
@@ -48,10 +50,13 @@ import static org.junit.Assume.assumeTrue;
 
 /** Test for {@link HiveModule}. */
 public class HiveModuleTest {
+
     @BeforeClass
     public static void init() {
         assumeTrue(HIVE_120_OR_LATER);
     }
+
+    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     @Test
     public void testNumberOfBuiltinFunctions() {

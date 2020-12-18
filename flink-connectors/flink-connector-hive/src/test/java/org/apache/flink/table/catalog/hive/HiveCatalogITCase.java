@@ -423,7 +423,7 @@ public class HiveCatalogITCase {
             tEnv.executeSql("insert into print_table select * from csv_table").await();
 
             // assert query result
-            assertEquals("+I(1,1)\n+I(2,2)\n+I(3,3)\n", arrayOutputStream.toString());
+            assertEquals("+I[1, 1]\n+I[2, 2]\n+I[3, 3]\n", arrayOutputStream.toString());
         } finally {
             if (System.out != originalSystemOut) {
                 System.out.close();

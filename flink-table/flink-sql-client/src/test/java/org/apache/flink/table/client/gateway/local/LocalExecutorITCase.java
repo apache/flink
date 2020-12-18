@@ -527,12 +527,12 @@ public class LocalExecutorITCase extends TestLogger {
                     retrieveChangelogResult(executor, sessionId, desc.getResultId());
 
             final List<String> expectedResults = new ArrayList<>();
-            expectedResults.add("(true,47,Hello World,ABC)");
-            expectedResults.add("(true,27,Hello World,ABC)");
-            expectedResults.add("(true,37,Hello World,ABC)");
-            expectedResults.add("(true,37,Hello World,ABC)");
-            expectedResults.add("(true,47,Hello World,ABC)");
-            expectedResults.add("(true,57,Hello World!!!!,ABC)");
+            expectedResults.add("(true,+I[47, Hello World, ABC])");
+            expectedResults.add("(true,+I[27, Hello World, ABC])");
+            expectedResults.add("(true,+I[37, Hello World, ABC])");
+            expectedResults.add("(true,+I[37, Hello World, ABC])");
+            expectedResults.add("(true,+I[47, Hello World, ABC])");
+            expectedResults.add("(true,+I[57, Hello World!!!!, ABC])");
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
@@ -559,12 +559,12 @@ public class LocalExecutorITCase extends TestLogger {
         assertEquals("test-session", sessionId);
 
         final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("(true,47,Hello World)");
-        expectedResults.add("(true,27,Hello World)");
-        expectedResults.add("(true,37,Hello World)");
-        expectedResults.add("(true,37,Hello World)");
-        expectedResults.add("(true,47,Hello World)");
-        expectedResults.add("(true,57,Hello World!!!!)");
+        expectedResults.add("(true,+I[47, Hello World])");
+        expectedResults.add("(true,+I[27, Hello World])");
+        expectedResults.add("(true,+I[37, Hello World])");
+        expectedResults.add("(true,+I[37, Hello World])");
+        expectedResults.add("(true,+I[47, Hello World])");
+        expectedResults.add("(true,+I[57, Hello World!!!!])");
 
         try {
             for (int i = 0; i < 3; i++) {
@@ -604,12 +604,12 @@ public class LocalExecutorITCase extends TestLogger {
                 "SELECT scalarUDF(IntegerField1), StringField1, 'ABC' FROM TableNumber1";
 
         final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("47,Hello World,ABC");
-        expectedResults.add("27,Hello World,ABC");
-        expectedResults.add("37,Hello World,ABC");
-        expectedResults.add("37,Hello World,ABC");
-        expectedResults.add("47,Hello World,ABC");
-        expectedResults.add("57,Hello World!!!!,ABC");
+        expectedResults.add("+I[47, Hello World, ABC]");
+        expectedResults.add("+I[27, Hello World, ABC]");
+        expectedResults.add("+I[37, Hello World, ABC]");
+        expectedResults.add("+I[37, Hello World, ABC]");
+        expectedResults.add("+I[47, Hello World, ABC]");
+        expectedResults.add("+I[57, Hello World!!!!, ABC]");
 
         executeStreamQueryTable(replaceVars, query, expectedResults);
     }
@@ -630,12 +630,12 @@ public class LocalExecutorITCase extends TestLogger {
         final String query = "SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1";
 
         final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("47,Hello World");
-        expectedResults.add("27,Hello World");
-        expectedResults.add("37,Hello World");
-        expectedResults.add("37,Hello World");
-        expectedResults.add("47,Hello World");
-        expectedResults.add("57,Hello World!!!!");
+        expectedResults.add("+I[47, Hello World]");
+        expectedResults.add("+I[27, Hello World]");
+        expectedResults.add("+I[37, Hello World]");
+        expectedResults.add("+I[37, Hello World]");
+        expectedResults.add("+I[47, Hello World]");
+        expectedResults.add("+I[57, Hello World!!!!]");
 
         final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
         final SessionContext session = new SessionContext("test-session", new Environment());
@@ -668,7 +668,7 @@ public class LocalExecutorITCase extends TestLogger {
                 "SELECT COUNT(*), StringField1 FROM TableNumber1 GROUP BY StringField1";
 
         final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("1,Hello World!!!!");
+        expectedResults.add("+I[1, Hello World!!!!]");
 
         executeStreamQueryTable(replaceVars, query, expectedResults);
     }
@@ -700,12 +700,12 @@ public class LocalExecutorITCase extends TestLogger {
                     retrieveTableResult(executor, sessionId, desc.getResultId());
 
             final List<String> expectedResults = new ArrayList<>();
-            expectedResults.add("47,ABC");
-            expectedResults.add("27,ABC");
-            expectedResults.add("37,ABC");
-            expectedResults.add("37,ABC");
-            expectedResults.add("47,ABC");
-            expectedResults.add("57,ABC");
+            expectedResults.add("+I[47, ABC]");
+            expectedResults.add("+I[27, ABC]");
+            expectedResults.add("+I[37, ABC]");
+            expectedResults.add("+I[37, ABC]");
+            expectedResults.add("+I[47, ABC]");
+            expectedResults.add("+I[57, ABC]");
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
@@ -732,12 +732,12 @@ public class LocalExecutorITCase extends TestLogger {
         assertEquals("test-session", sessionId);
 
         final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("47");
-        expectedResults.add("27");
-        expectedResults.add("37");
-        expectedResults.add("37");
-        expectedResults.add("47");
-        expectedResults.add("57");
+        expectedResults.add("+I[47]");
+        expectedResults.add("+I[27]");
+        expectedResults.add("+I[37]");
+        expectedResults.add("+I[37]");
+        expectedResults.add("+I[47]");
+        expectedResults.add("+I[57]");
 
         try {
             for (int i = 0; i < 3; i++) {

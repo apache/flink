@@ -24,11 +24,13 @@ import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -65,6 +67,8 @@ public class FileSystemOutputFormatTest {
         }
         return contents;
     }
+
+    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     @Before
     public void before() throws IOException {

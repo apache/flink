@@ -22,15 +22,15 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
-.{TestSinkContextTableSink, changelogRow}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.{TestSinkContextTableSink, changelogRow}
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
-import org.apache.flink.table.planner.runtime.utils.TestData
-.{nullData4, smallTupleData3,
-tupleData3, tupleData5,data1}
+import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullData4, smallTupleData3, tupleData3, tupleData5}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.util.ExceptionUtils
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.Test
+import org.junit.{Rule, Test}
+
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.time.{LocalDateTime, ZoneOffset}
@@ -40,6 +40,9 @@ import scala.collection.JavaConversions._
 import scala.util.{Failure, Success, Try}
 
 class TableSinkITCase extends StreamingTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testAppendSinkOnAppendTable(): Unit = {
