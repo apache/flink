@@ -252,7 +252,7 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
         cdef BaseCoder value_coder, key_coder
         cdef TypeName value_type, key_type
         cdef CoderType value_coder_type, key_coder_type
-        cdef list row_field_coders
+        cdef list row_field_coders, row_field_names
 
         if field_type == DECIMAL:
             # decimal
@@ -313,6 +313,7 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
         elif field_type == ROW:
             # Row
             row_field_coders = (<RowCoderImpl> field_coder).field_coders
+            row_field_names = (<RowCoderImpl> field_coder).field_names
             row_field_count = len(row_field_coders)
             null_mask = <bint*> libc.stdlib.malloc(row_field_count * sizeof(bint))
             leading_complete_bytes_num = row_field_count // 8
@@ -324,6 +325,7 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
                             row_field_coders[i].type_name(),
                             row_field_coders[i])
                         for i in range(row_field_count)])
+            row.set_field_names(row_field_names)
             libc.stdlib.free(null_mask)
             return row
 
@@ -793,8 +795,9 @@ cdef class MapCoderImpl(BaseCoder):
         return MAP
 
 cdef class RowCoderImpl(BaseCoder):
-    def __cinit__(self, field_coders):
+    def __cinit__(self, field_coders, field_names):
         self.field_coders = field_coders
+        self.field_names = field_names
 
     cpdef CoderType coder_type(self):
         return COMPLEX

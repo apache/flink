@@ -215,3 +215,4 @@ cdef class MapCoderImpl(BaseCoder):
 
 cdef class RowCoderImpl(BaseCoder):
     cdef readonly list field_coders
+    cdef readonly list field_names
