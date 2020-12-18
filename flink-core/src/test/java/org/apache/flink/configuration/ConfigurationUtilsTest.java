@@ -22,17 +22,29 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static org.hamcrest.Matchers.arrayWithSize;
+import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link ConfigurationUtils}. */
 public class ConfigurationUtilsTest extends TestLogger {
+
+    private static final String[] TESTING_PATHS = {
+        "C:\\\\", "current\\\\leaf", "/root/dir/./../spaced dir/dotted.d/leaf",
+    };
 
     @Test
     public void testPropertiesToConfiguration() {
@@ -91,5 +103,81 @@ public class ConfigurationUtilsTest extends TestLogger {
                 ConfigurationUtils.getPrefixedKeyValuePairs(prefix, configuration);
 
         assertThat(resultKeyValuePairs, is(equalTo(expectedKeyValuePairs)));
+    }
+
+    @Test
+    public void testSplitPathsForEmptyPath() {
+        String[] paths = ConfigurationUtils.splitPaths("");
+        assertThat(paths, emptyArray());
+    }
+
+    @Test
+    public void testSplitPathsForSupportedSeparators() {
+        for (String separator : ConfigurationUtils.PATH_SEPARATORS) {
+            List<String> expectedPaths =
+                    Arrays.stream(TESTING_PATHS)
+                            .filter(p -> !p.contains(separator))
+                            .filter(p -> !p.contains(File.pathSeparator))
+                            .collect(Collectors.toList());
+            String separatedPaths = String.join(separator, expectedPaths);
+            String[] actualPaths = ConfigurationUtils.splitPaths(separatedPaths);
+            String message =
+                    String.format(
+                            "Separator %s pattern separators %s",
+                            separator, Arrays.toString(ConfigurationUtils.PATH_SEPARATORS));
+            assertEquals(message, expectedPaths, Arrays.asList(actualPaths));
+        }
+    }
+
+    @Test
+    public void testSplitPathsForNotSupportedSeparators() {
+        String[] notSupportedSeparators =
+                Stream.of("|", ":", ";")
+                        .filter(s -> !s.equals(File.pathSeparator))
+                        .toArray(String[]::new);
+        for (String separator : notSupportedSeparators) {
+            List<String> expectedPaths =
+                    Arrays.stream(TESTING_PATHS)
+                            .filter(p -> !p.contains(separator))
+                            .filter(p -> !p.contains(File.pathSeparator))
+                            .collect(Collectors.toList());
+            String separatedPaths = String.join(separator, expectedPaths);
+            String[] actualPaths = ConfigurationUtils.splitPaths(separatedPaths);
+            String message =
+                    String.format(
+                            "Pattern separators %s separatedPaths %s actualPaths: %s",
+                            Arrays.toString(ConfigurationUtils.PATH_SEPARATORS),
+                            separatedPaths,
+                            Arrays.toString(actualPaths));
+            assertThat(message, actualPaths, arrayWithSize(1));
+            assertEquals(message, separatedPaths, actualPaths[0]);
+        }
+    }
+
+    @Test
+    public void testSplitPathsForCustomSeparators() {
+        String[] customSeparators =
+                Stream.of(
+                                Stream.of("|", "$"),
+                                Stream.of(ConfigurationUtils.PATH_SEPARATORS),
+                                // This way we can test both unix and windows path separator without
+                                // ci test matrix.
+                                Stream.of(":", ";"))
+                        .flatMap(Function.identity())
+                        .distinct()
+                        .toArray(String[]::new);
+        for (String separator : customSeparators) {
+            List<String> expectedPaths =
+                    Arrays.stream(TESTING_PATHS)
+                            .filter(p -> Arrays.stream(customSeparators).noneMatch(p::contains))
+                            .collect(Collectors.toList());
+            String separatedPaths = String.join(separator, expectedPaths);
+            String[] actualPaths = ConfigurationUtils.splitPaths(separatedPaths, customSeparators);
+            String message =
+                    String.format(
+                            "Separator %s pattern separators %s",
+                            separator, Arrays.toString(customSeparators));
+            assertEquals(message, expectedPaths, Arrays.asList(actualPaths));
+        }
     }
 }

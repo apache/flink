@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -340,7 +341,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
         } else {
             final String rocksdbLocalPaths = config.get(RocksDBOptions.LOCAL_DIRECTORIES);
             if (rocksdbLocalPaths != null) {
-                String[] directories = rocksdbLocalPaths.split(",|" + File.pathSeparator);
+                String[] directories = ConfigurationUtils.splitPaths(rocksdbLocalPaths);
 
                 try {
                     setDbStoragePaths(directories);

@@ -208,8 +208,8 @@ public final class ConfigConstants {
     public static final String TASK_MANAGER_DATA_SSL_ENABLED = "taskmanager.data.ssl.enabled";
 
     /**
-     * The config parameter defining the directories for temporary files, separated by ",", "|", or
-     * the system's {@link java.io.File#pathSeparator}.
+     * The config parameter defining the directories for temporary files, separated by ",", or the
+     * system's {@link java.io.File#pathSeparator}.
      *
      * @deprecated Use {@link CoreOptions#TMP_DIRS} instead
      */

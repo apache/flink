@@ -320,8 +320,8 @@ public class CoreOptions {
     // ------------------------------------------------------------------------
 
     /**
-     * The config parameter defining the directories for temporary files, separated by ",", "|", or
-     * the system's {@link java.io.File#pathSeparator}.
+     * The config parameter defining the directories for temporary files, separated by ",", or the
+     * system's {@link java.io.File#pathSeparator}.
      */
     @Documentation.OverrideDefault(
             "'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty(\"java.io.tmpdir\") in standalone.")
@@ -331,7 +331,7 @@ public class CoreOptions {
                     .defaultValue(System.getProperty("java.io.tmpdir"))
                     .withDeprecatedKeys("taskmanager.tmp.dirs")
                     .withDescription(
-                            "Directories for temporary files, separated by\",\", \"|\", or the system's java.io.File.pathSeparator.");
+                            "Directories for temporary files, separated by\",\", or the system's java.io.File.pathSeparator.");
 
     // ------------------------------------------------------------------------
     //  program
