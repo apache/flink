@@ -377,7 +377,7 @@ Flink provides several commonly used watermark strategies.
 
 {% highlight sql %}
 CREATE TABLE Orders (
-    user BIGINT,
+    `user` BIGINT,
     product STRING,
     order_time TIMESTAMP(3),
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
@@ -426,7 +426,7 @@ You can use the clause to reuse (and potentially overwrite) certain connector pr
 Consider the example statement below:
 {% highlight sql %}
 CREATE TABLE Orders (
-    user BIGINT,
+    `user` BIGINT,
     product STRING,
     order_time TIMESTAMP(3)
 ) WITH ( 
@@ -447,7 +447,7 @@ LIKE Orders;
 The resulting table `Orders_with_watermark` will be equivalent to a table created with a following statement:
 {% highlight sql %}
 CREATE TABLE Orders_with_watermark (
-    user BIGINT,
+    `user` BIGINT,
     product STRING,
     order_time TIMESTAMP(3),
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
@@ -480,13 +480,13 @@ Example:
 {% highlight sql %}
 -- A source table stored in a filesystem
 CREATE TABLE Orders_in_file (
-    user BIGINT,
+    `user` BIGINT,
     product STRING,
     order_time_string STRING,
     order_time AS to_timestamp(order_time)
     
 )
-PARTITIONED BY user 
+PARTITIONED BY `user` 
 WITH ( 
     'connector' = 'filesystem'
     'path' = '...'
