@@ -115,7 +115,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * JobMaster implementation. The job master is responsible for the execution of a single
@@ -149,8 +148,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 
 	private final HeartbeatServices heartbeatServices;
 
-	private final JobManagerJobMetricGroupFactory jobMetricGroupFactory;
-
 	private final ScheduledExecutorService scheduledExecutorService;
 
 	private final OnCompletionActions jobCompletionActions;
@@ -181,19 +178,19 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 
 	private final ShuffleMaster<?> shuffleMaster;
 
+	// --------- Scheduler --------
+
+	private final SchedulerNG schedulerNG;
+
+	private final JobManagerJobStatusListener jobStatusListener;
+
+	private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
+
 	// -------- Mutable fields ---------
 
 	private HeartbeatManager<TaskExecutorToJobManagerHeartbeatPayload, AllocatedSlotReport> taskManagerHeartbeatManager;
 
 	private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
-
-	private SchedulerNG schedulerNG;
-
-	@Nullable
-	private JobManagerJobStatusListener jobStatusListener;
-
-	@Nullable
-	private JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
 	@Nullable
 	private ResourceManagerAddress resourceManagerAddress;
@@ -278,7 +275,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 		this.userCodeLoader = checkNotNull(userCodeLoader);
 		this.schedulerNGFactory = checkNotNull(schedulerNGFactory);
 		this.heartbeatServices = checkNotNull(heartbeatServices);
-		this.jobMetricGroupFactory = checkNotNull(jobMetricGroupFactory);
 		this.initializationTimestamp = initializationTimestamp;
 		this.retrieveTaskManagerHostName = jobMasterConfiguration.getConfiguration()
 				.getBoolean(JobManagerOptions.RETRIEVE_TASK_MANAGER_HOSTNAME);
@@ -308,8 +304,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 		this.shuffleMaster = checkNotNull(shuffleMaster);
 
 		this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
-		this.schedulerNG = createScheduler(executionDeploymentTracker, jobManagerJobMetricGroup);
-		this.jobStatusListener = null;
+		this.jobStatusListener = new JobManagerJobStatusListener();
+		this.schedulerNG = createScheduler(executionDeploymentTracker, jobManagerJobMetricGroup, jobStatusListener);
 
 		this.resourceManagerConnection = null;
 		this.establishedResourceManagerConnection = null;
@@ -319,9 +315,11 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 		this.resourceManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
 	}
 
-	private SchedulerNG createScheduler(ExecutionDeploymentTracker executionDeploymentTracker,
-										final JobManagerJobMetricGroup jobManagerJobMetricGroup) throws Exception {
-		return schedulerNGFactory.createInstance(
+	private SchedulerNG createScheduler(
+			ExecutionDeploymentTracker executionDeploymentTracker,
+			JobManagerJobMetricGroup jobManagerJobMetricGroup,
+			JobStatusListener jobStatusListener) throws Exception {
+		final SchedulerNG scheduler = schedulerNGFactory.createInstance(
 			log,
 			jobGraph,
 			backPressureStatsTracker,
@@ -339,6 +337,11 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 			partitionTracker,
 			executionDeploymentTracker,
 			initializationTimestamp);
+
+		scheduler.initialize(getMainThreadExecutor());
+		scheduler.registerJobStatusListener(jobStatusListener);
+
+		return scheduler;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -772,7 +775,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 
 		log.info("Starting execution of job {} ({}) under job master id {}.", jobGraph.getName(), jobGraph.getJobID(), getFencingToken());
 
-		resetAndStartScheduler();
+		startScheduling();
 	}
 
 	private void startJobMasterServices() throws Exception {
@@ -808,7 +811,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 			log.warn("Failed to stop resource manager leader retriever when suspending.", t);
 		}
 
-		suspendAndClearSchedulerFields(cause);
+		suspendScheduler(cause);
 
 		// disconnect from all registered TaskExecutors
 		final Set<ResourceID> taskManagerResourceIds = new HashSet<>(registeredTaskManagers.keySet());
@@ -845,71 +848,14 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 			log);
 	}
 
-	private void assignScheduler(
-			SchedulerNG newScheduler,
-			JobManagerJobMetricGroup newJobManagerJobMetricGroup) {
-		validateRunsInMainThread();
-		checkState(schedulerNG.requestJobStatus().isTerminalState());
-		checkState(jobManagerJobMetricGroup == null);
-
-		schedulerNG = newScheduler;
-		jobManagerJobMetricGroup = newJobManagerJobMetricGroup;
-	}
-
-	private void resetAndStartScheduler() throws Exception {
-		validateRunsInMainThread();
-
-		final CompletableFuture<Void> schedulerAssignedFuture;
-
-		if (schedulerNG.requestJobStatus() == JobStatus.CREATED) {
-			schedulerAssignedFuture = CompletableFuture.completedFuture(null);
-			schedulerNG.initialize(getMainThreadExecutor());
-		} else {
-			suspendAndClearSchedulerFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
-			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
-			final SchedulerNG newScheduler = createScheduler(executionDeploymentTracker, newJobManagerJobMetricGroup);
-
-			schedulerAssignedFuture = schedulerNG.getTerminationFuture().handle(
-				(ignored, throwable) -> {
-					newScheduler.initialize(getMainThreadExecutor());
-					assignScheduler(newScheduler, newJobManagerJobMetricGroup);
-					return null;
-				}
-			);
-		}
-
-		FutureUtils.assertNoException(schedulerAssignedFuture.thenRun(this::startScheduling));
-	}
-
 	private void startScheduling() {
-		checkState(jobStatusListener == null);
-		// register self as job status change listener
-		jobStatusListener = new JobManagerJobStatusListener();
-		schedulerNG.registerJobStatusListener(jobStatusListener);
-
 		schedulerNG.startScheduling();
-	}
-
-	private void suspendAndClearSchedulerFields(Exception cause) {
-		suspendScheduler(cause);
-		clearSchedulerFields();
 	}
 
 	private void suspendScheduler(Exception cause) {
 		schedulerNG.suspend(cause);
-
-		if (jobManagerJobMetricGroup != null) {
-			jobManagerJobMetricGroup.close();
-		}
-
-		if (jobStatusListener != null) {
-			jobStatusListener.stop();
-		}
-	}
-
-	private void clearSchedulerFields() {
-		jobManagerJobMetricGroup = null;
-		jobStatusListener = null;
+		jobManagerJobMetricGroup.close();
+		jobStatusListener.stop();
 	}
 
 	//----------------------------------------------------------------------------------------------
