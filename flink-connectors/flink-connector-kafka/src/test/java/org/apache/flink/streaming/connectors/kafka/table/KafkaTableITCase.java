@@ -688,12 +688,12 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 
         final List<String> expected =
                 Arrays.asList(
-                        "o_001,2020-10-01T00:01,p_001,1970-01-01T00:00,11.1100,Alice,scooter,1,11.1100",
-                        "o_002,2020-10-01T00:02,p_002,1970-01-01T00:00,23.1100,Bob,basketball,1,23.1100",
-                        "o_003,2020-10-01T12:00,p_001,2020-10-01T12:00,12.9900,Tom,scooter,2,25.9800",
-                        "o_004,2020-10-01T12:00,p_002,2020-10-01T12:00,19.9900,King,basketball,2,39.9800",
-                        "o_005,2020-10-01T18:00,p_001,2020-10-01T18:00,11.9900,Leonard,scooter,10,119.9000",
-                        "o_006,2020-10-01T18:00,null,null,null,Leonard,null,10,null");
+                        "+I[o_001, 2020-10-01T00:01, p_001, 1970-01-01T00:00, 11.1100, Alice, scooter, 1, 11.1100]",
+                        "+I[o_002, 2020-10-01T00:02, p_002, 1970-01-01T00:00, 23.1100, Bob, basketball, 1, 23.1100]",
+                        "+I[o_003, 2020-10-01T12:00, p_001, 2020-10-01T12:00, 12.9900, Tom, scooter, 2, 25.9800]",
+                        "+I[o_004, 2020-10-01T12:00, p_002, 2020-10-01T12:00, 19.9900, King, basketball, 2, 39.9800]",
+                        "+I[o_005, 2020-10-01T18:00, p_001, 2020-10-01T18:00, 11.9900, Leonard, scooter, 10, 119.9000]",
+                        "+I[o_006, 2020-10-01T18:00, null, null, null, Leonard, null, 10, null]");
 
         assertEquals(expected, result);
 
@@ -800,20 +800,20 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         TableResult tableResult = tEnv.executeSql("INSERT INTO MySink SELECT * FROM kafka");
         final List<String> expected =
                 Arrays.asList(
-                        "0,partition-0-name-0,2020-03-08T13:12:11.123",
-                        "0,partition-0-name-1,2020-03-08T14:12:12.223",
-                        "0,partition-0-name-2,2020-03-08T15:12:13.323",
-                        "1,partition-1-name-0,2020-03-09T13:13:11.123",
-                        "1,partition-1-name-1,2020-03-09T15:13:11.133",
-                        "1,partition-1-name-2,2020-03-09T16:13:11.143",
-                        "2,partition-2-name-0,2020-03-10T13:12:14.123",
-                        "2,partition-2-name-1,2020-03-10T14:12:14.123",
-                        "2,partition-2-name-2,2020-03-10T14:13:14.123",
-                        "2,partition-2-name-3,2020-03-10T14:14:14.123",
-                        "2,partition-2-name-4,2020-03-10T14:15:14.123",
-                        "2,partition-2-name-5,2020-03-10T14:16:14.123",
-                        "3,partition-3-name-0,2020-03-11T17:12:11.123",
-                        "3,partition-3-name-1,2020-03-11T18:12:11.123");
+                        "+I[0, partition-0-name-0, 2020-03-08T13:12:11.123]",
+                        "+I[0, partition-0-name-1, 2020-03-08T14:12:12.223]",
+                        "+I[0, partition-0-name-2, 2020-03-08T15:12:13.323]",
+                        "+I[1, partition-1-name-0, 2020-03-09T13:13:11.123]",
+                        "+I[1, partition-1-name-1, 2020-03-09T15:13:11.133]",
+                        "+I[1, partition-1-name-2, 2020-03-09T16:13:11.143]",
+                        "+I[2, partition-2-name-0, 2020-03-10T13:12:14.123]",
+                        "+I[2, partition-2-name-1, 2020-03-10T14:12:14.123]",
+                        "+I[2, partition-2-name-2, 2020-03-10T14:13:14.123]",
+                        "+I[2, partition-2-name-3, 2020-03-10T14:14:14.123]",
+                        "+I[2, partition-2-name-4, 2020-03-10T14:15:14.123]",
+                        "+I[2, partition-2-name-5, 2020-03-10T14:16:14.123]",
+                        "+I[3, partition-3-name-0, 2020-03-11T17:12:11.123]",
+                        "+I[3, partition-3-name-1, 2020-03-11T18:12:11.123]");
         KafkaTableTestUtils.waitingExpectedResults("MySink", expected, Duration.ofSeconds(5));
 
         // ------------- cleanup -------------------

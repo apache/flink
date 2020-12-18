@@ -30,9 +30,11 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.runtime.utils.JavaStreamTestData;
 import org.apache.flink.table.runtime.utils.StreamITCase;
+import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -42,6 +44,8 @@ import static org.apache.flink.table.api.Expressions.$;
 
 /** Integration tests for streaming SQL. */
 public class JavaSqlITCase extends AbstractTestBase {
+
+    @ClassRule public static LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     @Test
     public void testRowRegisterRowWithNames() throws Exception {

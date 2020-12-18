@@ -54,7 +54,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertIsInstance(execution_config, ExecutionConfig)
 
     def test_get_set_parallelism(self):
-
         self.env.set_parallelism(10)
 
         parallelism = self.env.get_parallelism()
@@ -62,7 +61,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(parallelism, 10)
 
     def test_get_set_buffer_timeout(self):
-
         self.env.set_buffer_timeout(12000)
 
         timeout = self.env.get_buffer_timeout()
@@ -70,7 +68,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(timeout, 12000)
 
     def test_get_set_default_local_parallelism(self):
-
         self.env.set_default_local_parallelism(8)
 
         parallelism = self.env.get_default_local_parallelism()
@@ -78,7 +75,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(parallelism, 8)
 
     def test_set_get_restart_strategy(self):
-
         self.env.set_restart_strategy(RestartStrategies.no_restart())
 
         restart_strategy = self.env.get_restart_strategy()
@@ -86,7 +82,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(restart_strategy, RestartStrategies.no_restart())
 
     def test_add_default_kryo_serializer(self):
-
         self.env.add_default_kryo_serializer(
             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
             "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
@@ -99,7 +94,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                           '.StateBackendTestBase$CustomKryoTestSerializer'})
 
     def test_register_type_with_kryo_serializer(self):
-
         self.env.register_type_with_kryo_serializer(
             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
             "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
@@ -112,7 +106,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                           '.StateBackendTestBase$CustomKryoTestSerializer'})
 
     def test_register_type(self):
-
         self.env.register_type("org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
 
         type_list = self.env.get_config().get_registered_pojo_types()
@@ -121,7 +114,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                          ['org.apache.flink.runtime.state.StateBackendTestBase$TestPojo'])
 
     def test_get_set_max_parallelism(self):
-
         self.env.set_max_parallelism(12)
 
         parallelism = self.env.get_max_parallelism()
@@ -129,7 +121,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(parallelism, 12)
 
     def test_operation_chaining(self):
-
         self.assertTrue(self.env.is_chaining_enabled())
 
         self.env.disable_operator_chaining()
@@ -137,13 +128,11 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertFalse(self.env.is_chaining_enabled())
 
     def test_get_checkpoint_config(self):
-
         checkpoint_config = self.env.get_checkpoint_config()
 
         self.assertIsInstance(checkpoint_config, CheckpointConfig)
 
     def test_get_set_checkpoint_interval(self):
-
         self.env.enable_checkpointing(30000)
 
         interval = self.env.get_checkpoint_interval()
@@ -161,13 +150,11 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(mode, CheckpointingMode.AT_LEAST_ONCE)
 
     def test_get_state_backend(self):
-
         state_backend = self.env.get_state_backend()
 
         self.assertIsNone(state_backend)
 
     def test_set_state_backend(self):
-
         input_backend = MemoryStateBackend()
 
         self.env.set_state_backend(input_backend)
@@ -178,7 +165,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                          input_backend._j_memory_state_backend)
 
     def test_get_set_stream_time_characteristic(self):
-
         default_time_characteristic = self.env.get_stream_time_characteristic()
 
         self.assertEqual(default_time_characteristic, TimeCharacteristic.EventTime)
@@ -281,12 +267,12 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         results = self.test_sink.get_results(False)
         # if user specifies data types of input data, the collected result should be in row format.
         expected = [
-            '1,null,1,true,32767,-2147483648,1.23,1.98932,[102, 108, 105, 110, 107],pyflink,'
-            '2014-09-13,12:00:00,2018-03-11 03:00:00.123,[1, 2, 3],1000000000000000000.05,'
-            '1000000000000000000.05999999999999999899999999999',
-            '2,null,2,true,-21658,557549056,9.87,2.98936,[102, 108, 105, 110, 107],pyflink,'
-            '2015-10-14,11:02:02,2020-04-15 08:02:06.235,[2, 4, 6],2000000000000000000.74,'
-            '2000000000000000000.06111111111111111111111111111']
+            '+I[1, null, 1, true, 32767, -2147483648, 1.23, 1.98932, [102, 108, 105, 110, 107], '
+            'pyflink, 2014-09-13, 12:00:00, 2018-03-11 03:00:00.123, [1, 2, 3], '
+            '1000000000000000000.05, 1000000000000000000.05999999999999999899999999999]',
+            '+I[2, null, 2, true, -21658, 557549056, 9.87, 2.98936, [102, 108, 105, 110, 107], '
+            'pyflink, 2015-10-14, 11:02:02, 2020-04-15 08:02:06.235, [2, 4, 6], '
+            '2000000000000000000.74, 2000000000000000000.06111111111111111111111111111]']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
@@ -297,7 +283,13 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         ds.add_sink(self.test_sink)
         self.env.execute("test add custom source")
         results = self.test_sink.get_results(False)
-        expected = ['3,Mike', '1,Marry', '4,Ted', '5,Jack', '0,Bob', '2,Henry']
+        expected = [
+            '+I[3, Mike]',
+            '+I[1, Marry]',
+            '+I[4, Ted]',
+            '+I[5, Jack]',
+            '+I[0, Bob]',
+            '+I[2, Henry]']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
@@ -509,7 +501,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.env.get_execution_plan()
 
     def test_generate_stream_graph_with_dependencies(self):
-
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_stream_dependency_manage_lib.py")
@@ -581,10 +572,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_batch_execution_mode(self):
         # set the runtime execution mode to BATCH
-        JRuntimeExecutionMode = get_gateway().jvm\
+        JRuntimeExecutionMode = get_gateway().jvm \
             .org.apache.flink.api.common.RuntimeExecutionMode.BATCH
         self.env._j_stream_execution_environment.setRuntimeMode(JRuntimeExecutionMode)
-        self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x)\
+        self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x) \
             .add_sink(self.test_sink)
 
         # Running jobs in Batch mode is not supported yet, it should throw an exception.

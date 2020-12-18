@@ -24,7 +24,9 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{getResults, registerData}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
@@ -38,6 +40,9 @@ import scala.collection.JavaConversions._
 @RunWith(classOf[Parameterized])
 class TemporalJoinITCase(state: StateBackendMode)
   extends StreamingWithStateTestBase(state) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   // test data for Processing-Time temporal table join
   val procTimeOrderData = List(

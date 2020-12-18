@@ -25,9 +25,11 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -55,6 +57,8 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
     private static final String JSON_FORMAT = "json";
     private static final String CSV_FORMAT = "csv";
     private static final String AVRO_FORMAT = "avro";
+
+    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     @Parameterized.Parameter public String format;
 

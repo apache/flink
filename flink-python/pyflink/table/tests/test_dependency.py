@@ -55,7 +55,7 @@ class DependencyTests(object):
         t.select(expr.call("add_two", t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3,1", "4,2", "5,3"])
+        self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
 
 
 class FlinkStreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
@@ -84,7 +84,7 @@ class FlinkBatchDependencyTests(PyFlinkBatchTableTestCase):
         t = t.select(expr.call('add_two', t.a), t.a)
 
         result = self.collect(t)
-        self.assertEqual(result, ["3,1", "4,2", "5,3"])
+        self.assertEqual(result, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
 
 
 class BlinkBatchDependencyTests(DependencyTests, PyFlinkBlinkBatchTableTestCase):
@@ -116,7 +116,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
         t.select(expr.call('check_requirements', t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,1", "2,2", "3,3"])
+        self.assert_equals(actual, ["+I[1, 1]", "+I[2, 2]", "+I[3, 3]"])
 
     def test_set_requirements_with_cached_directory(self):
         tmp_dir = self.tempdir
@@ -162,7 +162,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
         t.select(expr.call('add_one', t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["2,1", "3,2", "4,3"])
+        self.assert_equals(actual, ["+I[2, 1]", "+I[3, 2]", "+I[4, 3]"])
 
     def test_add_python_archive(self):
         tmp_dir = self.tempdir
@@ -188,7 +188,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
         t.select(expr.call('add_from_file', t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3,1", "4,2", "5,3"])
+        self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
 
     @unittest.skipIf(on_windows(), "Symbolic link is not supported on Windows, skipping.")
     def test_set_environment(self):
@@ -233,7 +233,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             .execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,1", "2,2", "3,3"])
+        self.assert_equals(actual, ["+I[1, 1]", "+I[2, 2]", "+I[3, 3]"])
 
 
 if __name__ == "__main__":

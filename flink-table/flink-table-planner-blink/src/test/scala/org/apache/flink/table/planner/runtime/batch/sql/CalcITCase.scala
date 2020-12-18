@@ -655,9 +655,9 @@ class CalcITCase extends BatchTestBase {
     checkResult(
       "SELECT ROW(CAST(2.0002 AS DECIMAL(5, 4)), a, c) FROM SmallTable3",
       Seq(
-        row(d, 1, "Hi"),
-        row(d, 2, "Hello"),
-        row(d, 3, "Hello world")
+        row(row(d, 1, "Hi")),
+        row(row(d, 2, "Hello")),
+        row(row(d, 3, "Hello world"))
       )
     )
   }

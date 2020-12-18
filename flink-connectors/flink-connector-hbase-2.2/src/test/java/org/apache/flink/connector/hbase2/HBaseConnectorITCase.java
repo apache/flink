@@ -143,14 +143,14 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
         List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
         String expected =
-                "10,Hello-1,100,1.01,false,Welt-1\n"
-                        + "20,Hello-2,200,2.02,true,Welt-2\n"
-                        + "30,Hello-3,300,3.03,false,Welt-3\n"
-                        + "40,null,400,4.04,true,Welt-4\n"
-                        + "50,Hello-5,500,5.05,false,Welt-5\n"
-                        + "60,Hello-6,600,6.06,true,Welt-6\n"
-                        + "70,Hello-7,700,7.07,false,Welt-7\n"
-                        + "80,null,800,8.08,true,Welt-8\n";
+                "+I[10, Hello-1, 100, 1.01, false, Welt-1]\n"
+                        + "+I[20, Hello-2, 200, 2.02, true, Welt-2]\n"
+                        + "+I[30, Hello-3, 300, 3.03, false, Welt-3]\n"
+                        + "+I[40, null, 400, 4.04, true, Welt-4]\n"
+                        + "+I[50, Hello-5, 500, 5.05, false, Welt-5]\n"
+                        + "+I[60, Hello-6, 600, 6.06, true, Welt-6]\n"
+                        + "+I[70, Hello-7, 700, 7.07, false, Welt-7]\n"
+                        + "+I[80, null, 800, 8.08, true, Welt-8]\n";
 
         TestBaseUtils.compareResultAsText(results, expected);
     }
@@ -199,14 +199,14 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
         List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
         String expected =
-                "10,1.01,false,Welt-1\n"
-                        + "20,2.02,true,Welt-2\n"
-                        + "30,3.03,false,Welt-3\n"
-                        + "40,4.04,true,Welt-4\n"
-                        + "50,5.05,false,Welt-5\n"
-                        + "60,6.06,true,Welt-6\n"
-                        + "70,7.07,false,Welt-7\n"
-                        + "80,8.08,true,Welt-8\n";
+                "+I[10, 1.01, false, Welt-1]\n"
+                        + "+I[20, 2.02, true, Welt-2]\n"
+                        + "+I[30, 3.03, false, Welt-3]\n"
+                        + "+I[40, 4.04, true, Welt-4]\n"
+                        + "+I[50, 5.05, false, Welt-5]\n"
+                        + "+I[60, 6.06, true, Welt-6]\n"
+                        + "+I[70, 7.07, false, Welt-7]\n"
+                        + "+I[80, 8.08, true, Welt-8]\n";
 
         TestBaseUtils.compareResultAsText(results, expected);
     }
@@ -248,14 +248,14 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
         List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
         String expected =
-                "1,Hello-1,100,1.01,false,Welt-1,10\n"
-                        + "2,Hello-2,200,2.02,true,Welt-2,20\n"
-                        + "3,Hello-3,300,3.03,false,Welt-3,30\n"
-                        + "4,null,400,4.04,true,Welt-4,40\n"
-                        + "5,Hello-5,500,5.05,false,Welt-5,50\n"
-                        + "6,Hello-6,600,6.06,true,Welt-6,60\n"
-                        + "7,Hello-7,700,7.07,false,Welt-7,70\n"
-                        + "8,null,800,8.08,true,Welt-8,80\n";
+                "+I[1, +I[Hello-1, 100], +I[1.01, false, Welt-1], +I[10]]\n"
+                        + "+I[2, +I[Hello-2, 200], +I[2.02, true, Welt-2], +I[20]]\n"
+                        + "+I[3, +I[Hello-3, 300], +I[3.03, false, Welt-3], +I[30]]\n"
+                        + "+I[4, +I[null, 400], +I[4.04, true, Welt-4], +I[40]]\n"
+                        + "+I[5, +I[Hello-5, 500], +I[5.05, false, Welt-5], +I[50]]\n"
+                        + "+I[6, +I[Hello-6, 600], +I[6.06, true, Welt-6], +I[60]]\n"
+                        + "+I[7, +I[Hello-7, 700], +I[7.07, false, Welt-7], +I[70]]\n"
+                        + "+I[8, +I[null, 800], +I[8.08, true, Welt-8], +I[80]]\n";
 
         TestBaseUtils.compareResultAsText(results, expected);
     }
@@ -290,14 +290,14 @@ public class HBaseConnectorITCase extends HBaseTestBase {
         Table table = tEnv.sqlQuery("SELECT * FROM hTable AS h");
         List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
         String expected =
-                "1,Hello-1,100,1.01,false,Welt-1,10\n"
-                        + "2,Hello-2,200,2.02,true,Welt-2,20\n"
-                        + "3,Hello-3,300,3.03,false,Welt-3,30\n"
-                        + "4,null,400,4.04,true,Welt-4,40\n"
-                        + "5,Hello-5,500,5.05,false,Welt-5,50\n"
-                        + "6,Hello-6,600,6.06,true,Welt-6,60\n"
-                        + "7,Hello-7,700,7.07,false,Welt-7,70\n"
-                        + "8,null,800,8.08,true,Welt-8,80\n";
+                "+I[1, +I[Hello-1, 100], +I[1.01, false, Welt-1], +I[10]]\n"
+                        + "+I[2, +I[Hello-2, 200], +I[2.02, true, Welt-2], +I[20]]\n"
+                        + "+I[3, +I[Hello-3, 300], +I[3.03, false, Welt-3], +I[30]]\n"
+                        + "+I[4, +I[null, 400], +I[4.04, true, Welt-4], +I[40]]\n"
+                        + "+I[5, +I[Hello-5, 500], +I[5.05, false, Welt-5], +I[50]]\n"
+                        + "+I[6, +I[Hello-6, 600], +I[6.06, true, Welt-6], +I[60]]\n"
+                        + "+I[7, +I[Hello-7, 700], +I[7.07, false, Welt-7], +I[70]]\n"
+                        + "+I[8, +I[null, 800], +I[8.08, true, Welt-8], +I[80]]\n";
 
         TestBaseUtils.compareResultAsText(results, expected);
     }
@@ -341,14 +341,14 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
         List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
         String expected =
-                "Hello-1,100\n"
-                        + "Hello-2,200\n"
-                        + "Hello-3,300\n"
-                        + "null,400\n"
-                        + "Hello-5,500\n"
-                        + "Hello-6,600\n"
-                        + "Hello-7,700\n"
-                        + "null,800\n";
+                "+I[Hello-1, 100]\n"
+                        + "+I[Hello-2, 200]\n"
+                        + "+I[Hello-3, 300]\n"
+                        + "+I[null, 400]\n"
+                        + "+I[Hello-5, 500]\n"
+                        + "+I[Hello-6, 600]\n"
+                        + "+I[Hello-7, 700]\n"
+                        + "+I[null, 800]\n";
 
         TestBaseUtils.compareResultAsText(results, expected);
     }
@@ -414,14 +414,14 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                                 + " AS h");
         List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
         String expected =
-                "1,10,Hello-1,100,1.01,false,Welt-1\n"
-                        + "2,20,Hello-2,200,2.02,true,Welt-2\n"
-                        + "3,30,Hello-3,300,3.03,false,Welt-3\n"
-                        + "4,40,null,400,4.04,true,Welt-4\n"
-                        + "5,50,Hello-5,500,5.05,false,Welt-5\n"
-                        + "6,60,Hello-6,600,6.06,true,Welt-6\n"
-                        + "7,70,Hello-7,700,7.07,false,Welt-7\n"
-                        + "8,80,null,800,8.08,true,Welt-8\n";
+                "+I[1, 10, Hello-1, 100, 1.01, false, Welt-1]\n"
+                        + "+I[2, 20, Hello-2, 200, 2.02, true, Welt-2]\n"
+                        + "+I[3, 30, Hello-3, 300, 3.03, false, Welt-3]\n"
+                        + "+I[4, 40, null, 400, 4.04, true, Welt-4]\n"
+                        + "+I[5, 50, Hello-5, 500, 5.05, false, Welt-5]\n"
+                        + "+I[6, 60, Hello-6, 600, 6.06, true, Welt-6]\n"
+                        + "+I[7, 70, Hello-7, 700, 7.07, false, Welt-7]\n"
+                        + "+I[8, 80, null, 800, 8.08, true, Welt-8]\n";
 
         TestBaseUtils.compareResultAsText(results, expected);
     }
@@ -488,21 +488,21 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
         List<String> expected = new ArrayList<>();
         expected.add(
-                "1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18T19:00,2019-08-18,19:00,12345678.0001");
+                "+I[1, 10, Hello-1, 100, 1.01, false, Welt-1, 2019-08-18T19:00, 2019-08-18, 19:00, 12345678.0001]");
         expected.add(
-                "2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18T19:01,2019-08-18,19:01,12345678.0002");
+                "+I[2, 20, Hello-2, 200, 2.02, true, Welt-2, 2019-08-18T19:01, 2019-08-18, 19:01, 12345678.0002]");
         expected.add(
-                "3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02,12345678.0003");
+                "+I[3, 30, Hello-3, 300, 3.03, false, Welt-3, 2019-08-18T19:02, 2019-08-18, 19:02, 12345678.0003]");
         expected.add(
-                "4,40,null,400,4.04,true,Welt-4,2019-08-18T19:03,2019-08-18,19:03,12345678.0004");
+                "+I[4, 40, null, 400, 4.04, true, Welt-4, 2019-08-18T19:03, 2019-08-18, 19:03, 12345678.0004]");
         expected.add(
-                "5,50,Hello-5,500,5.05,false,Welt-5,2019-08-19T19:10,2019-08-19,19:10,12345678.0005");
+                "+I[5, 50, Hello-5, 500, 5.05, false, Welt-5, 2019-08-19T19:10, 2019-08-19, 19:10, 12345678.0005]");
         expected.add(
-                "6,60,Hello-6,600,6.06,true,Welt-6,2019-08-19T19:20,2019-08-19,19:20,12345678.0006");
+                "+I[6, 60, Hello-6, 600, 6.06, true, Welt-6, 2019-08-19T19:20, 2019-08-19, 19:20, 12345678.0006]");
         expected.add(
-                "7,70,Hello-7,700,7.07,false,Welt-7,2019-08-19T19:30,2019-08-19,19:30,12345678.0007");
+                "+I[7, 70, Hello-7, 700, 7.07, false, Welt-7, 2019-08-19T19:30, 2019-08-19, 19:30, 12345678.0007]");
         expected.add(
-                "8,80,null,800,8.08,true,Welt-8,2019-08-19T19:40,2019-08-19,19:40,12345678.0008");
+                "+I[8, 80, null, 800, 8.08, true, Welt-8, 2019-08-19T19:40, 2019-08-19, 19:40, 12345678.0008]");
         assertEquals(expected, result);
     }
 
@@ -570,13 +570,13 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
         List<String> expected = new ArrayList<>();
         expected.add(
-                "1,1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18T19:00,2019-08-18,19:00,12345678.0001");
+                "+I[1, 1, 10, Hello-1, 100, 1.01, false, Welt-1, 2019-08-18T19:00, 2019-08-18, 19:00, 12345678.0001]");
         expected.add(
-                "2,2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18T19:01,2019-08-18,19:01,12345678.0002");
+                "+I[2, 2, 20, Hello-2, 200, 2.02, true, Welt-2, 2019-08-18T19:01, 2019-08-18, 19:01, 12345678.0002]");
         expected.add(
-                "3,2,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02,12345678.0003");
+                "+I[3, 2, 30, Hello-3, 300, 3.03, false, Welt-3, 2019-08-18T19:02, 2019-08-18, 19:02, 12345678.0003]");
         expected.add(
-                "3,3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02,12345678.0003");
+                "+I[3, 3, 30, Hello-3, 300, 3.03, false, Welt-3, 2019-08-18T19:02, 2019-08-18, 19:02, 12345678.0003]");
 
         assertEquals(expected, result);
     }

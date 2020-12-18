@@ -26,10 +26,11 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Rule, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -39,6 +40,9 @@ import scala.collection.JavaConversions._
 @RunWith(classOf[Parameterized])
 class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   extends StreamingWithMiniBatchTestBase(miniBatch, mode) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   lazy val rowtimeTestData = new mutable.MutableList[(Int, Long, String)]
   rowtimeTestData.+=((1, 1L, "Hi"))

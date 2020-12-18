@@ -128,10 +128,10 @@ class PandasConversionITTests(PandasConversionTestBase):
         table.execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["1,1,1,1,true,1.1,1.2,hello,[97, 97, 97],"
-                            "1000000000000000000.010000000000000000,2014-09-13,01:00:01,"
-                            "1970-01-01 00:00:00.123,[hello, 中文],1,hello,"
-                            "1970-01-01 00:00:00.123,[1, 2]"])
+                           ["+I[1, 1, 1, 1, true, 1.1, 1.2, hello, [97, 97, 97], "
+                            "1000000000000000000.010000000000000000, 2014-09-13, 01:00:01, "
+                            "1970-01-01 00:00:00.123, [hello, 中文], +I[1, hello, "
+                            "1970-01-01 00:00:00.123, [1, 2]]]"])
 
     def test_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)

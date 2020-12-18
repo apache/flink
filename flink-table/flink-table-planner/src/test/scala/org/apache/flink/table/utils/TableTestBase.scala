@@ -53,6 +53,9 @@ import scala.util.control.Breaks._
   */
 class TableTestBase {
 
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+
   // used for accurate exception information checking.
   val expectedException = ExpectedException.none()
 

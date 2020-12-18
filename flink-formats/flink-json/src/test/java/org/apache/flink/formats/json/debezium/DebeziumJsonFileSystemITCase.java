@@ -42,26 +42,26 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
 
     private static final List<String> EXPECTED =
             Arrays.asList(
-                    "+I(101,SCOOTER,Small 2-wheel scooter,3.14)",
-                    "+I(102,CAR BATTERY,12V car battery,8.1)",
-                    "+I(103,12-PACK DRILL BITS,12-pack of drill bits with sizes ranging from #40 to #3,0.8)",
-                    "+I(104,HAMMER,12oz carpenter's hammer,0.75)",
-                    "+I(105,HAMMER,14oz carpenter's hammer,0.875)",
-                    "+I(106,HAMMER,16oz carpenter's hammer,1.0)",
-                    "+I(107,ROCKS,box of assorted rocks,5.3)",
-                    "+I(108,JACKET,water resistent black wind breaker,0.1)",
-                    "+I(109,SPARE TIRE,24 inch spare tire,22.2)",
-                    "-D(106,HAMMER,16oz carpenter's hammer,1.0)", // -U
-                    "+I(106,HAMMER,18oz carpenter hammer,1.0)", // +U
-                    "-D(107,ROCKS,box of assorted rocks,5.3)", // -U
-                    "+I(107,ROCKS,box of assorted rocks,5.1)", // +U
-                    "+I(110,JACKET,water resistent white wind breaker,0.2)",
-                    "+I(111,SCOOTER,Big 2-wheel scooter ,5.18)",
-                    "-D(110,JACKET,water resistent white wind breaker,0.2)", // -U
-                    "+I(110,JACKET,new water resistent white wind breaker,0.5)", // +U
-                    "-D(111,SCOOTER,Big 2-wheel scooter ,5.18)", // -U
-                    "+I(111,SCOOTER,Big 2-wheel scooter ,5.17)", // +U
-                    "-D(111,SCOOTER,Big 2-wheel scooter ,5.17)");
+                    "+I[101, SCOOTER, Small 2-wheel scooter, 3.14]",
+                    "+I[102, CAR BATTERY, 12V car battery, 8.1]",
+                    "+I[103, 12-PACK DRILL BITS, 12-pack of drill bits with sizes ranging from #40 to #3, 0.8]",
+                    "+I[104, HAMMER, 12oz carpenter's hammer, 0.75]",
+                    "+I[105, HAMMER, 14oz carpenter's hammer, 0.875]",
+                    "+I[106, HAMMER, 16oz carpenter's hammer, 1.0]",
+                    "+I[107, ROCKS, box of assorted rocks, 5.3]",
+                    "+I[108, JACKET, water resistent black wind breaker, 0.1]",
+                    "+I[109, SPARE TIRE, 24 inch spare tire, 22.2]",
+                    "-D[106, HAMMER, 16oz carpenter's hammer, 1.0]", // -U
+                    "+I[106, HAMMER, 18oz carpenter hammer, 1.0]", // +U
+                    "-D[107, ROCKS, box of assorted rocks, 5.3]", // -U
+                    "+I[107, ROCKS, box of assorted rocks, 5.1]", // +U
+                    "+I[110, JACKET, water resistent white wind breaker, 0.2]",
+                    "+I[111, SCOOTER, Big 2-wheel scooter , 5.18]",
+                    "-D[110, JACKET, water resistent white wind breaker, 0.2]", // -U
+                    "+I[110, JACKET, new water resistent white wind breaker, 0.5]", // +U
+                    "-D[111, SCOOTER, Big 2-wheel scooter , 5.18]", // -U
+                    "+I[111, SCOOTER, Big 2-wheel scooter , 5.17]", // +U
+                    "-D[111, SCOOTER, Big 2-wheel scooter , 5.17]");
 
     private File source;
     private File sink;
@@ -113,7 +113,7 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
 
         List<String> results =
                 CollectionUtil.iteratorToList(iter).stream()
-                        .map(row -> row.getKind().shortString() + "(" + row.toString() + ")")
+                        .map(Row::toString)
                         .collect(Collectors.toList());
         iter.close();
 
@@ -137,7 +137,7 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
         List<String> results =
                 list.stream()
                         .map(row -> Row.project(row, new int[] {0, 1, 2, 3}))
-                        .map(row -> row.getKind().shortString() + "(" + row.toString() + ")")
+                        .map(Row::toString)
                         .collect(Collectors.toList());
 
         Assert.assertEquals(EXPECTED, results);

@@ -91,8 +91,8 @@ public class PrintConnectorITCase extends StreamingTestBase {
         Row row = Row.of(1, 1.1);
         tEnv().fromValues(type, Collections.singleton(row)).executeInsert("print_t").await();
 
-        String expectedLine1 = "test_print:1> +I(" + /* 0 */ "1," + /* 1 */ "1.1" + ")";
-        String expectedLine2 = "test_print:2> +I(" + /* 0 */ "1," + /* 1 */ "1.1" + ")";
+        String expectedLine1 = "test_print:1> +I[" + /* 0 */ "1, " + /* 1 */ "1.1" + "]";
+        String expectedLine2 = "test_print:2> +I[" + /* 0 */ "1, " + /* 1 */ "1.1" + "]";
         Assert.assertTrue(
                 arrayOutputStream.toString().equals(expectedLine1 + "\n")
                         || arrayOutputStream.toString().equals(expectedLine2 + "\n"));
@@ -140,32 +140,32 @@ public class PrintConnectorITCase extends StreamingTestBase {
         tEnv().fromValues(type, Arrays.asList(row, row)).executeInsert("print_t").await();
 
         String expectedLine =
-                "test_print> +I("
+                "test_print> +I["
                         +
-                        /* 0 */ "1,"
+                        /* 0 */ "1, "
                         +
-                        /* 1 */ "1.1,"
+                        /* 1 */ "1.1, "
                         +
-                        /* 2 */ "1.11,"
+                        /* 2 */ "1.11, "
                         +
-                        /* 3 */ "false,"
+                        /* 3 */ "false, "
                         +
-                        /* 4 */ "f4,"
+                        /* 4 */ "f4, "
                         +
-                        /* 5 */ "2020-11-05,"
+                        /* 5 */ "2020-11-05, "
                         +
-                        /* 6 */ "12:22:35,"
+                        /* 6 */ "12:22:35, "
                         +
-                        /* 7 */ "2020-11-05T12:22:35,"
+                        /* 7 */ "2020-11-05T12:22:35, "
                         +
-                        /* 8 */ "[1, 2, 3],"
+                        /* 8 */ "[1, 2, 3], "
                         +
-                        /* 9 */ "[11, 22, 33],"
+                        /* 9 */ "[11, 22, 33], "
                         +
-                        /* 10 */ "{1=1, 2=2},"
+                        /* 10 */ "{1=1, 2=2}, "
                         +
-                        /* 11 */ "1,1"
-                        + ")";
+                        /* 11 */ "+I[1, 1]"
+                        + "]";
         Assert.assertEquals(
                 expectedLine + "\n" + expectedLine + "\n",
                 standardError ? arrayErrorStream.toString() : arrayOutputStream.toString());

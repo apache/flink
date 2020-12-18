@@ -27,12 +27,13 @@ import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.{Before, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.sql.{Date, Time, Timestamp}
 import java.time.LocalDateTime
@@ -42,6 +43,9 @@ import scala.collection.JavaConverters._
 import scala.collection.{Seq, mutable}
 
 class CalcITCase extends BatchTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Before
   override def before(): Unit = {

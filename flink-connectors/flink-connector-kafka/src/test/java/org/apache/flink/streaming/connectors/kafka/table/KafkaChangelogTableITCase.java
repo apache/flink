@@ -189,13 +189,13 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
          */
         List<String> expected =
                 Arrays.asList(
-                        "changelog_topic,products,scooter,3.140",
-                        "changelog_topic,products,car battery,8.100",
-                        "changelog_topic,products,12-pack drill bits,0.800",
-                        "changelog_topic,products,hammer,2.625",
-                        "changelog_topic,products,rocks,5.100",
-                        "changelog_topic,products,jacket,0.600",
-                        "changelog_topic,products,spare tire,22.200");
+                        "+I[changelog_topic, products, scooter, 3.140]",
+                        "+I[changelog_topic, products, car battery, 8.100]",
+                        "+I[changelog_topic, products, 12-pack drill bits, 0.800]",
+                        "+I[changelog_topic, products, hammer, 2.625]",
+                        "+I[changelog_topic, products, rocks, 5.100]",
+                        "+I[changelog_topic, products, jacket, 0.600]",
+                        "+I[changelog_topic, products, spare tire, 22.200]");
 
         waitingExpectedResults("sink", expected, Duration.ofSeconds(10));
 
@@ -336,11 +336,11 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 
         List<String> expected =
                 Arrays.asList(
-                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T12:38:35.477,spare tire",
-                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T12:39:06.301,hammer",
-                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T12:39:09.489,rocks",
-                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T12:39:18.230,jacket",
-                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T12:42:33.939,scooter");
+                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:38:35.477, spare tire]",
+                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:39:06.301, hammer]",
+                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:39:09.489, rocks]",
+                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:39:18.230, jacket]",
+                        "+I[changelog_canal, inventory, products2, {name=12, weight=7, description=12, id=4}, [id], 2020-05-13T12:42:33.939, scooter]");
 
         waitingExpectedResults("sink", expected, Duration.ofSeconds(10));
 

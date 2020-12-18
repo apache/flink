@@ -58,7 +58,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                         tEnv.sqlQuery(String.format("select id from %s", TABLE1))
                                 .execute()
                                 .collect());
-        assertEquals("[1]", results.toString());
+        assertEquals("[+I[1]]", results.toString());
     }
 
     @Test
@@ -68,7 +68,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                         tEnv.sqlQuery(String.format("select * from %s", TABLE1))
                                 .execute()
                                 .collect());
-        assertEquals("[1]", results.toString());
+        assertEquals("[+I[1]]", results.toString());
     }
 
     @Test
@@ -81,7 +81,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                                 PostgresTablePath.fromFlinkTableName(TABLE1)))
                                 .execute()
                                 .collect());
-        assertEquals("[1]", results.toString());
+        assertEquals("[+I[1]]", results.toString());
     }
 
     @Test
@@ -96,7 +96,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                                 PostgresTablePath.fromFlinkTableName(TABLE1)))
                                 .execute()
                                 .collect());
-        assertEquals("[1]", results.toString());
+        assertEquals("[+I[1]]", results.toString());
     }
 
     @Test
@@ -108,7 +108,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                         tEnv.sqlQuery(String.format("select * from %s", TABLE4))
                                 .execute()
                                 .collect());
-        assertEquals("[1]", results.toString());
+        assertEquals("[+I[1]]", results.toString());
     }
 
     @Test
@@ -130,7 +130,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                 .execute()
                                 .collect());
         assertEquals(
-                "[1,[65],3,4,5.5,6.6,7.70000,8.8,true,a,B,C  ,d,2016-06-22T19:10:25,2015-01-01,00:51:03,500.000000000000000000]",
+                "[+I[1, [65], 3, 4, 5.5, 6.6, 7.70000, 8.8, true, a, B, C  , d, 2016-06-22T19:10:25, 2015-01-01, 00:51:03, 500.000000000000000000]]",
                 results.toString());
     }
 
@@ -143,7 +143,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                 .collect());
 
         assertEquals(
-                "[1,[50],3,4,5.5,6.6,7.70000,8.8,true,a,b,c  ,d,2016-06-22T19:10:25,2015-01-01,00:51:03,500.000000000000000000]",
+                "[+I[1, [50], 3, 4, 5.5, 6.6, 7.70000, 8.8, true, a, b, c  , d, 2016-06-22T19:10:25, 2015-01-01, 00:51:03, 500.000000000000000000]]",
                 results.toString());
     }
 
@@ -156,24 +156,24 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                 .collect());
 
         assertEquals(
-                "["
-                        + "[1, 2, 3],"
-                        + "[[92, 120, 51, 50], [92, 120, 51, 51], [92, 120, 51, 52]],"
-                        + "[3, 4, 5],"
-                        + "[4, 5, 6],"
-                        + "[5.5, 6.6, 7.7],"
-                        + "[6.6, 7.7, 8.8],"
-                        + "[7.70000, 8.80000, 9.90000],"
-                        + "[8.800000000000000000, 9.900000000000000000, 10.100000000000000000],"
-                        + "[9.90, 10.10, 11.11],"
-                        + "[true, false, true],"
-                        + "[a, b, c],"
-                        + "[b, c, d],"
-                        + "[b  , c  , d  ],"
-                        + "[b, c, d],"
-                        + "[2016-06-22T19:10:25, 2019-06-22T19:10:25],"
-                        + "[2015-01-01, 2020-01-01],"
-                        + "[00:51:03, 00:59:03]]",
+                "[+I["
+                        + "[1, 2, 3], "
+                        + "[[92, 120, 51, 50], [92, 120, 51, 51], [92, 120, 51, 52]], "
+                        + "[3, 4, 5], "
+                        + "[4, 5, 6], "
+                        + "[5.5, 6.6, 7.7], "
+                        + "[6.6, 7.7, 8.8], "
+                        + "[7.70000, 8.80000, 9.90000], "
+                        + "[8.800000000000000000, 9.900000000000000000, 10.100000000000000000], "
+                        + "[9.90, 10.10, 11.11], "
+                        + "[true, false, true], "
+                        + "[a, b, c], "
+                        + "[b, c, d], "
+                        + "[b  , c  , d  ], "
+                        + "[b, c, d], "
+                        + "[2016-06-22T19:10:25, 2019-06-22T19:10:25], "
+                        + "[2015-01-01, 2020-01-01], "
+                        + "[00:51:03, 00:59:03]]]",
                 results.toString());
     }
 
@@ -186,13 +186,13 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                 .collect());
 
         assertEquals(
-                "["
-                        + "32767,"
-                        + "2147483647,"
-                        + "32767,"
-                        + "2147483647,"
-                        + "9223372036854775807,"
-                        + "9223372036854775807]",
+                "[+I["
+                        + "32767, "
+                        + "2147483647, "
+                        + "32767, "
+                        + "2147483647, "
+                        + "9223372036854775807, "
+                        + "9223372036854775807]]",
                 results.toString());
     }
 }

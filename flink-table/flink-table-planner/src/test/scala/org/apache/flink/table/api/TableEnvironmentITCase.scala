@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId}
-import org.apache.flink.table.utils.{TestTableSourceWithTime, TestingOverwritableTableSink}
+import org.apache.flink.table.utils.{LegacyRowResource, TestTableSourceWithTime, TestingOverwritableTableSink}
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{CollectionUtil, FileUtils}
 
@@ -50,6 +50,9 @@ import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class TableEnvironmentITCase(tableEnvName: String) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   // used for accurate exception information checking.
   val expectedException: ExpectedException = ExpectedException.none()

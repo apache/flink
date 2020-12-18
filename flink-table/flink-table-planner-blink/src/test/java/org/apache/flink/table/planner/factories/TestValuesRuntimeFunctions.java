@@ -49,6 +49,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.RowUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -422,10 +423,19 @@ final class TestValuesRuntimeFunctions {
         @Override
         public void invoke(RowData value, Context context) throws Exception {
             RowKind kind = value.getRowKind();
+
             Row row = (Row) converter.toExternal(value);
             assert row != null;
+
+            if (RowUtils.USE_LEGACY_TO_STRING) {
+                localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+            } else {
+                localRawResult.add(row.toString());
+            }
+
+            row.setKind(RowKind.INSERT);
             Row key = Row.project(row, keyIndices);
-            localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+
             if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
                 localUpsertResult.put(key.toString(), row.toString());
             } else {
