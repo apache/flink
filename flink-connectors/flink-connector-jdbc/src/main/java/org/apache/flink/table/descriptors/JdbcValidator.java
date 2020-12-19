@@ -115,7 +115,7 @@ public class JdbcValidator extends ConnectorDescriptorValidator {
 	private void validateLookupProperties(DescriptorProperties properties) {
 		properties.validateLong(CONNECTOR_LOOKUP_CACHE_MAX_ROWS, true);
 		properties.validateDuration(CONNECTOR_LOOKUP_CACHE_TTL, true, 1);
-		properties.validateInt(CONNECTOR_LOOKUP_MAX_RETRIES, true);
+		properties.validateInt(CONNECTOR_LOOKUP_MAX_RETRIES, true, 0);
 
 		checkAllOrNone(properties, new String[]{
 			CONNECTOR_LOOKUP_CACHE_MAX_ROWS,

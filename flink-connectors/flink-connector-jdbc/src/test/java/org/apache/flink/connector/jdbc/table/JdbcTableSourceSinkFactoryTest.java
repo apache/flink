@@ -23,6 +23,7 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
@@ -254,6 +255,17 @@ public class JdbcTableSourceSinkFactoryTest {
 				.createStreamTableSource(properties);
 			fail("exception expected");
 		} catch (IllegalArgumentException ignored) {
+		}
+
+		// lookup max-retries property less than zero
+		try {
+			Map<String, String> properties = getBasicProperties();
+			properties.put("connector.lookup.max-retries", "-1");
+
+			TableFactoryService.find(StreamTableSourceFactory.class, properties)
+				.createStreamTableSource(properties);
+			fail("exception expected");
+		} catch (ValidationException ignored) {
 		}
 	}
 
