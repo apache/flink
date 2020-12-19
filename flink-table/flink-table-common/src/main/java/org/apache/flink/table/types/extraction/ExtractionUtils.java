@@ -96,7 +96,7 @@ public final class ExtractionUtils {
 		final int paramCount = executable.getParameterCount();
 		final int classCount = classes.length;
 		// check for enough classes for each parameter
-		if (classCount < paramCount || (executable.isVarArgs() && classCount < paramCount - 1)) {
+		if ((!executable.isVarArgs() && classCount < paramCount) || (executable.isVarArgs() && classCount < paramCount - 1)) {
 			return false;
 		}
 		int currentClass = 0;
@@ -110,8 +110,8 @@ public final class ExtractionUtils {
 					while (currentClass < classCount && ExtractionUtils.isAssignable(classes[currentClass], paramComponent, true)) {
 						currentClass++;
 					}
-				} else if (parameterMatches(classes[currentClass], param)
-						|| parameterMatches(classes[currentClass], paramComponent)) {
+				} else if (currentClass < classCount && (parameterMatches(classes[currentClass], param)
+						|| parameterMatches(classes[currentClass], paramComponent))) {
 					currentClass++;
 				}
 			}
