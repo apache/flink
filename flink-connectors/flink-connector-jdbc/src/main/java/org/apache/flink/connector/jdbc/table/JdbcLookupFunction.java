@@ -147,7 +147,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 			}
 		}
 
-		for (int retry = 1; retry <= maxRetryTimes; retry++) {
+		for (int retry = 0; retry <= maxRetryTimes; retry++) {
 			try {
 				statement.clearParameters();
 				for (int i = 0; i < keys.length; i++) {
