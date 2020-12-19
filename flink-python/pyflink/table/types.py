@@ -28,6 +28,7 @@ from functools import reduce
 from threading import RLock
 
 from py4j.java_gateway import get_java_class
+from typing import List
 
 from pyflink.util.utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
@@ -1964,6 +1965,9 @@ class Row(tuple):
             return dict(zip(self._fields, (conv(o) for o in self)))
         else:
             return dict(zip(self._fields, self))
+
+    def set_field_names(self, field_names: List):
+        self._fields = field_names
 
     def __contains__(self, item):
         if hasattr(self, "_fields"):

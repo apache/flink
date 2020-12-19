@@ -117,8 +117,9 @@ class FlattenRowCoderImpl(StreamCoderImpl):
 
 class RowCoderImpl(FlattenRowCoderImpl):
 
-    def __init__(self, field_coders):
+    def __init__(self, field_coders, field_names):
         super(RowCoderImpl, self).__init__(field_coders)
+        self.field_names = field_names
 
     def encode_to_stream(self, value, out_stream, nested):
         field_coders = self._field_coders
@@ -129,7 +130,9 @@ class RowCoderImpl(FlattenRowCoderImpl):
                 field_coders[i].encode_to_stream(item, out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
-        return Row(*self._decode_one_row_from_stream(in_stream, nested))
+        row = Row(*self._decode_one_row_from_stream(in_stream, nested))
+        row.set_field_names(self.field_names)
+        return row
 
     def __repr__(self):
         return 'RowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)

@@ -126,17 +126,24 @@ class RowCoder(FlattenRowCoder):
     Coder for Row.
     """
 
-    def __init__(self, field_coders):
+    def __init__(self, field_coders, field_names):
         super(RowCoder, self).__init__(field_coders)
+        self.field_names = field_names
 
     def _create_impl(self):
-        return coder_impl.RowCoderImpl([c.get_impl() for c in self._field_coders])
+        return coder_impl.RowCoderImpl([c.get_impl() for c in self._field_coders], self.field_names)
 
     def get_impl(self):
         return self._create_impl()
 
     def to_type_hint(self):
         return Row
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and self.field_names == other.field_names
+                and [self._field_coders[i] == other._field_coders[i] for i in
+                     range(len(self._field_coders))])
 
     def __repr__(self):
         return 'RowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
@@ -540,7 +547,8 @@ def from_proto(field_type):
     if coder is not None:
         return coder
     if field_type_name == type_name.ROW:
-        return RowCoder([from_proto(f.type) for f in field_type.row_schema.fields])
+        return RowCoder([from_proto(f.type) for f in field_type.row_schema.fields],
+                        [f.name for f in field_type.row_schema.fields])
     if field_type_name == type_name.TIMESTAMP:
         return TimestampCoder(field_type.timestamp_info.precision)
     if field_type_name == type_name.LOCAL_ZONED_TIMESTAMP:
