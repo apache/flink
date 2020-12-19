@@ -58,14 +58,21 @@ class StreamExecTemporalJoinRule
 
   override protected def transform(
       join: FlinkLogicalJoin,
-      convertedLeft: RelNode,
-      convertedRight: RelNode,
+      leftInput: FlinkRelNode,
+      leftConversion: RelNode => RelNode,
+      rightInput: FlinkRelNode,
+      rightConversion: RelNode => RelNode,
       providedTraitSet: RelTraitSet): FlinkRelNode = {
+    val newRight = rightInput match {
+      case snapshot: FlinkLogicalSnapshot =>
+        snapshot.getInput
+      case rel: FlinkLogicalRel => rel
+    }
     new StreamExecTemporalJoin(
       join.getCluster,
       providedTraitSet,
-      convertedLeft,
-      convertedRight,
+      leftConversion(leftInput),
+      rightConversion(newRight),
       join.getCondition,
       join.getJoinType)
   }

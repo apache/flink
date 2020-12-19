@@ -83,14 +83,16 @@ class StreamExecJoinRule
 
   override protected def transform(
       join: FlinkLogicalJoin,
-      convertedLeft: RelNode,
-      convertedRight: RelNode,
+      leftInput: FlinkRelNode,
+      leftConversion: RelNode => RelNode,
+      rightInput: FlinkRelNode,
+      rightConversion: RelNode => RelNode,
       providedTraitSet: RelTraitSet): FlinkRelNode = {
     new StreamExecJoin(
       join.getCluster,
       providedTraitSet,
-      convertedLeft,
-      convertedRight,
+      leftConversion(leftInput),
+      rightConversion(rightInput),
       join.getCondition,
       join.getJoinType)
   }

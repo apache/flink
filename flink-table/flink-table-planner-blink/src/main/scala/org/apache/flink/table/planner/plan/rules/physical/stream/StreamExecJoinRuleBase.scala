@@ -70,28 +70,30 @@ abstract class StreamExecJoinRuleBase(description: String)
           .replace(distribution)
     }
 
-    val newRight = right match {
-      case snapshot: FlinkLogicalSnapshot =>
-        snapshot.getInput
-      case rel: FlinkLogicalRel => rel
+    def convertInput(input: RelNode, columns: util.Collection[_ <: Number]): RelNode = {
+      val requiredTraitSet = toHashTraitByColumns(columns, input.getTraitSet)
+      RelOptRule.convert(input, requiredTraitSet)
     }
 
     val joinInfo = join.analyzeCondition
-    val (leftRequiredTrait, rightRequiredTrait) = (
-        toHashTraitByColumns(joinInfo.leftKeys, left.getTraitSet),
-        toHashTraitByColumns(joinInfo.rightKeys, newRight.getTraitSet))
-
-    val convertedLeft: RelNode = RelOptRule.convert(left, leftRequiredTrait)
-    val convertedRight: RelNode = RelOptRule.convert(newRight, rightRequiredTrait)
     val providedTraitSet: RelTraitSet = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
-    val newJoin = transform(join, convertedLeft, convertedRight, providedTraitSet)
+    val leftConversion: RelNode => RelNode = leftInput => {
+      convertInput(leftInput, joinInfo.leftKeys)
+    }
+    val rightConversion: RelNode => RelNode = rightInput => {
+      convertInput(rightInput, joinInfo.rightKeys)
+    }
+
+    val newJoin = transform(join, left, leftConversion, right, rightConversion, providedTraitSet)
     call.transformTo(newJoin)
   }
 
   protected def transform(
       join: FlinkLogicalJoin,
-      convertedLeft: RelNode,
-      convertedRight: RelNode,
+      leftInput: FlinkRelNode,
+      leftConversion: RelNode => RelNode,
+      rightInput: FlinkRelNode,
+      rightConversion: RelNode => RelNode,
       providedTraitSet: RelTraitSet): FlinkRelNode
 }
