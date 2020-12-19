@@ -223,4 +223,18 @@ public class HiveModuleTest {
                         tableEnv.sqlQuery("select mod(-1,2),pmod(-1,2)").execute().collect());
         assertEquals("[-1,1]", results.toString());
     }
+
+    @Test
+    public void testCallUDFWithNoParam() {
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+
+        tableEnv.unloadModule("core");
+        tableEnv.loadModule("hive", new HiveModule());
+        tableEnv.loadModule("core", CoreModule.INSTANCE);
+
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.sqlQuery("select `array`(),`map`()").execute().collect());
+        assertEquals("[[],{}]", results.toString());
+    }
 }
