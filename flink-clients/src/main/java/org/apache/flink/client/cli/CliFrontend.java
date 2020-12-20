@@ -1002,7 +1002,7 @@ public class CliFrontend {
 				default:
 					System.out.printf("\"%s\" is not a valid action.\n", action);
 					System.out.println();
-					System.out.println("Valid actions are \"run\", \"list\", \"info\", \"savepoint\", \"stop\", or \"cancel\".");
+					System.out.println("Valid actions are \"run\", \"run-application\", \"list\", \"info\", \"savepoint\", \"stop\", or \"cancel\".");
 					System.out.println();
 					System.out.println("Specify the version option (-v or --version) to print Flink version.");
 					System.out.println();
