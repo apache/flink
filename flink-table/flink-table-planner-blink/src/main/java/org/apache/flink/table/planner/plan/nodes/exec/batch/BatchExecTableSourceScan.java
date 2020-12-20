@@ -26,7 +26,6 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.BatchPlanner;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -62,8 +61,6 @@ public class BatchExecTableSourceScan extends BatchExecNode<RowData> implements 
 		// to read multiple partitions which are multiple paths.
 		// We can use InputFormatSourceFunction directly to support InputFormat.
 		InputFormatSourceFunction<RowData> func = new InputFormatSourceFunction<>(inputFormat, outputTypeInfo);
-		Transformation<RowData> transformation = env.addSource(func, name, outputTypeInfo).getTransformation();
-		ExecNodeUtil.setManagedMemoryWeight(transformation, 0L);
-		return transformation;
+		return env.addSource(func, name, outputTypeInfo).getTransformation();
 	}
 }
