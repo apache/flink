@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +39,7 @@ public abstract class ExecNodeBase<P extends Planner, T> implements ExecNode<T> 
 
 	private final String description;
 	private final List<ExecEdge> inputEdges;
-	private final RowType outputType;
+	private final LogicalType outputType;
 	// TODO remove this field once edge support `source` and `target`,
 	//  and then we can get/set `inputNodes` through `inputEdges`.
 	private List<ExecNode<?>> inputNodes;
@@ -48,7 +48,7 @@ public abstract class ExecNodeBase<P extends Planner, T> implements ExecNode<T> 
 
 	protected ExecNodeBase(
 			List<ExecEdge> inputEdges,
-			RowType outputType,
+			LogicalType outputType,
 			String description) {
 		this.inputEdges = new ArrayList<>(checkNotNull(inputEdges));
 		this.outputType = checkNotNull(outputType);
@@ -61,7 +61,7 @@ public abstract class ExecNodeBase<P extends Planner, T> implements ExecNode<T> 
 	}
 
 	@Override
-	public RowType getOutputType() {
+	public LogicalType getOutputType() {
 		return outputType;
 	}
 

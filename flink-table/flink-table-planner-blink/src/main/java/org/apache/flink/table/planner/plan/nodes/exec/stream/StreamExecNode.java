@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.delegation.StreamPlanner;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.List;
 
@@ -32,7 +32,7 @@ import java.util.List;
 public abstract class StreamExecNode<T> extends ExecNodeBase<StreamPlanner, T> {
 	public StreamExecNode(
 			List<ExecEdge> inputEdges,
-			RowType outputType,
+			LogicalType outputType,
 			String description) {
 		super(inputEdges, outputType, description);
 	}

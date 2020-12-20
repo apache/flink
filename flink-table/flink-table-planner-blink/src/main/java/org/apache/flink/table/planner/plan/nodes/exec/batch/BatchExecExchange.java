@@ -77,7 +77,7 @@ public class BatchExecExchange extends BatchExecNode<RowData> implements CommonE
 		}
 		sb.append("distribution=[").append(type);
 		if (requiredShuffle.getType() == ExecEdge.ShuffleType.HASH) {
-			RowType inputRowType = getInputNodes().get(0).getOutputType();
+			RowType inputRowType = (RowType) getInputNodes().get(0).getOutputType();
 			String[] fieldNames = Arrays.stream(requiredShuffle.getKeys())
 					.mapToObj(i -> inputRowType.getFieldNames().get(i))
 					.toArray(String[]::new);
@@ -115,8 +115,9 @@ public class BatchExecExchange extends BatchExecNode<RowData> implements CommonE
 				break;
 			case HASH:
 				int[] keys = inputEdge.getRequiredShuffle().getKeys();
+				RowType inputType = (RowType) inputNode.getOutputType();
 				String[] fieldNames = Arrays.stream(keys)
-						.mapToObj(i -> inputNode.getOutputType().getFieldNames().get(i))
+						.mapToObj(i -> inputType.getFieldNames().get(i))
 						.toArray(String[]::new);
 				partitioner = new BinaryHashPartitioner(
 						HashCodeGenerator.generateRowHash(
