@@ -29,7 +29,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
@@ -219,23 +218,17 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 	}
 
 	private void doAtomicRename(Path src, Path dst) throws IOException {
-		// optimizer for Filesystem (For example: Hadoop Filesystem)
-		// just rename
-		if (fileSystem.getKind() == FileSystemKind.FILE_SYSTEM) {
-			fileSystem.rename(src, dst);
-		} else {
-			// optimizer for Object Store (For example: S3 Filesystem).
-			// just copy bytes
-			RecoverableWriter writer = fileSystem.createRecoverableWriter();
-			RecoverableFsDataOutputStream out = writer.open(dst);
-			try (FSDataInputStream in = fileSystem.open(src)) {
-				IOUtils.copyBytes(in, out, false);
-			} catch (Throwable t) {
-				out.close();
-				throw t;
-			}
-			out.closeForCommit().commit();
+		// optimizer for Object Store (For example: S3 Filesystem).
+		// just copy bytes
+		RecoverableWriter writer = fileSystem.createRecoverableWriter();
+		RecoverableFsDataOutputStream out = writer.open(dst);
+		try (FSDataInputStream in = fileSystem.open(src)) {
+			IOUtils.copyBytes(in, out, false);
+		} catch (Throwable t) {
+			out.close();
+			throw t;
 		}
+		out.closeForCommit().commit();
 	}
 
 	private void doMultiFilesCompact(String partition, List<Path> files, Path dst) throws IOException {
