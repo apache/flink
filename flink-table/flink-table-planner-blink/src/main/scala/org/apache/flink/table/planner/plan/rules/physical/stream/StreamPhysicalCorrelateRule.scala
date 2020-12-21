@@ -17,31 +17,36 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecCorrelate
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecCorrelateRule.{getMergedCalc, getTableScan}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelate
+import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalCorrelateRule.{getMergedCalc, getTableScan}
+import org.apache.flink.table.planner.plan.utils.PythonUtil
+
+import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.{RexNode, RexProgram, RexProgramBuilder}
-import org.apache.flink.table.planner.plan.utils.PythonUtil
 
-class StreamExecCorrelateRule
+/**
+ * Rule that converts [[FlinkLogicalCorrelate]] to [[StreamPhysicalCorrelate]].
+ */
+class StreamPhysicalCorrelateRule
   extends ConverterRule(
     classOf[FlinkLogicalCorrelate],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecCorrelateRule") {
+    "StreamPhysicalCorrelateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val correlate: FlinkLogicalCorrelate = call.rel(0)
     val right = correlate.getRight.asInstanceOf[RelSubset].getOriginal
 
     // find only calc and table function
+    @scala.annotation.tailrec
     def findTableFunction(calc: FlinkLogicalCalc): Boolean = {
       val child = calc.getInput.asInstanceOf[RelSubset].getOriginal
       child match {
@@ -67,7 +72,10 @@ class StreamExecCorrelateRule
       correlate.getInput(0), FlinkConventions.STREAM_PHYSICAL)
     val right: RelNode = correlate.getInput(1)
 
-    def convertToCorrelate(relNode: RelNode, condition: Option[RexNode]): StreamExecCorrelate = {
+    @scala.annotation.tailrec
+    def convertToCorrelate(
+        relNode: RelNode,
+        condition: Option[RexNode]): StreamPhysicalCorrelate = {
       relNode match {
         case rel: RelSubset =>
           convertToCorrelate(rel.getRelList.get(0), condition)
@@ -80,7 +88,7 @@ class StreamExecCorrelateRule
             Some(newCalc.getProgram.expandLocalRef(newCalc.getProgram.getCondition)))
 
         case scan: FlinkLogicalTableFunctionScan =>
-          new StreamExecCorrelate(
+          new StreamPhysicalCorrelate(
             rel.getCluster,
             traitSet,
             convInput,
@@ -96,8 +104,8 @@ class StreamExecCorrelateRule
 
 }
 
-object StreamExecCorrelateRule {
-  val INSTANCE: RelOptRule = new StreamExecCorrelateRule
+object StreamPhysicalCorrelateRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalCorrelateRule
 
   def getMergedCalc(calc: FlinkLogicalCalc): FlinkLogicalCalc = {
     val child = calc.getInput match {
@@ -122,6 +130,7 @@ object StreamExecCorrelateRule {
     }
   }
 
+  @scala.annotation.tailrec
   def getTableScan(calc: FlinkLogicalCalc): FlinkLogicalTableFunctionScan = {
     val child = calc.getInput match {
       case relSubset: RelSubset => relSubset.getOriginal

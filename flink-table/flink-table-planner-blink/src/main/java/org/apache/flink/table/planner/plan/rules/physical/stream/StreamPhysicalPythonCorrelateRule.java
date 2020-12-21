@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecPythonCorrelate;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalPythonCorrelate;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -38,15 +38,15 @@ import scala.Some;
 
 /**
  * The physical rule is responsible for convert {@link FlinkLogicalCorrelate} to
- * {@link StreamExecPythonCorrelate}.
+ * {@link StreamPhysicalPythonCorrelate}.
  */
-public class StreamExecPythonCorrelateRule extends ConverterRule {
+public class StreamPhysicalPythonCorrelateRule extends ConverterRule {
 
-	public static final RelOptRule INSTANCE = new StreamExecPythonCorrelateRule();
+	public static final RelOptRule INSTANCE = new StreamPhysicalPythonCorrelateRule();
 
-	private StreamExecPythonCorrelateRule() {
+	private StreamPhysicalPythonCorrelateRule() {
 		super(FlinkLogicalCorrelate.class, FlinkConventions.LOGICAL(), FlinkConventions.STREAM_PHYSICAL(),
-			"StreamExecPythonCorrelateRule");
+			"StreamPhysicalPythonCorrelateRule");
 	}
 
 	// find only calc and table function
@@ -85,7 +85,7 @@ public class StreamExecPythonCorrelateRule extends ConverterRule {
 	}
 
 	/**
-	 * The factory is responsible for creating {@link StreamExecPythonCorrelate}.
+	 * The factory is responsible for creating {@link StreamPhysicalPythonCorrelate}.
 	 */
 	private static class StreamExecPythonCorrelateFactory {
 		private final FlinkLogicalCorrelate correlate;
@@ -101,11 +101,11 @@ public class StreamExecPythonCorrelateRule extends ConverterRule {
 			this.right = correlate.getInput(1);
 		}
 
-		StreamExecPythonCorrelate convertToCorrelate() {
+		StreamPhysicalPythonCorrelate convertToCorrelate() {
 			return convertToCorrelate(right, Option.empty());
 		}
 
-		private StreamExecPythonCorrelate convertToCorrelate(
+		private StreamPhysicalPythonCorrelate convertToCorrelate(
 			RelNode relNode,
 			Option<RexNode> condition) {
 			if (relNode instanceof RelSubset) {
@@ -113,14 +113,14 @@ public class StreamExecPythonCorrelateRule extends ConverterRule {
 				return convertToCorrelate(rel.getRelList().get(0), condition);
 			} else if (relNode instanceof FlinkLogicalCalc) {
 				FlinkLogicalCalc calc = (FlinkLogicalCalc) relNode;
-				RelNode tableScan = StreamExecCorrelateRule.getTableScan(calc);
-				FlinkLogicalCalc newCalc = StreamExecCorrelateRule.getMergedCalc(calc);
+				RelNode tableScan = StreamPhysicalCorrelateRule.getTableScan(calc);
+				FlinkLogicalCalc newCalc = StreamPhysicalCorrelateRule.getMergedCalc(calc);
 				return convertToCorrelate(
 					tableScan,
 					Some.apply(newCalc.getProgram().expandLocalRef(newCalc.getProgram().getCondition())));
 			} else {
 				FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) relNode;
-				return new StreamExecPythonCorrelate(
+				return new StreamPhysicalPythonCorrelate(
 					correlate.getCluster(),
 					traitSet,
 					convInput,
