@@ -612,4 +612,12 @@ def from_type_info_proto(field_type):
         if field_type_name == type_info_name.TUPLE:
             return TupleCoder([from_type_info_proto(f.type)
                                for f in field_type.tuple_type_info.field])
+
+        if field_type_name == type_info_name.MAP:
+            return MapCoder(from_type_info_proto(field_type.map_type_info.key_type),
+                            from_type_info_proto(field_type.map_type_info.value_type))
+
+        if field_type_name == type_info_name.LIST:
+            return BasicArrayCoder(from_type_info_proto(field_type.collection_element_type))
+
         raise ValueError("field_type %s is not supported." % field_type)

@@ -32,7 +32,9 @@ import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
@@ -43,6 +45,8 @@ import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySeriali
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.ListTypeInfo;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
@@ -91,6 +95,14 @@ public class PythonTypeUtils {
 
 			if (typeInformation instanceof BasicArrayTypeInfo) {
 				return buildBasicArrayTypeProto((BasicArrayTypeInfo) typeInformation);
+			}
+
+			if (typeInformation instanceof MapTypeInfo) {
+				return buildMapTypeProto((MapTypeInfo) typeInformation);
+			}
+
+			if (typeInformation instanceof ListTypeInfo) {
+				return buildListTypeProto((ListTypeInfo) typeInformation);
 			}
 
 			throw new UnsupportedOperationException(
@@ -300,6 +312,28 @@ public class PythonTypeUtils {
 			builder.setTupleTypeInfo(tupleTypeInfoBuilder.build());
 			return builder.build();
 		}
+
+		private static FlinkFnApi.TypeInfo.FieldType buildMapTypeProto(MapTypeInfo mapTypeInfo) {
+			FlinkFnApi.TypeInfo.FieldType.Builder builder =
+				FlinkFnApi.TypeInfo.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.TypeInfo.TypeName.MAP);
+			FlinkFnApi.TypeInfo.MapTypeInfo.Builder mapTypeInfoBuilder = FlinkFnApi.TypeInfo.MapTypeInfo.newBuilder();
+
+			mapTypeInfoBuilder
+				.setKeyType(TypeInfoToProtoConverter.getFieldType(mapTypeInfo.getKeyTypeInfo()))
+				.setValueType(TypeInfoToProtoConverter.getFieldType(mapTypeInfo.getValueTypeInfo()));
+
+			builder.setMapTypeInfo(mapTypeInfoBuilder.build());
+			return builder.build();
+		}
+
+		private static FlinkFnApi.TypeInfo.FieldType buildListTypeProto(ListTypeInfo listTypeInfo) {
+			FlinkFnApi.TypeInfo.FieldType.Builder builder =
+				FlinkFnApi.TypeInfo.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.TypeInfo.TypeName.LIST);
+			builder.setCollectionElementType(TypeInfoToProtoConverter.getFieldType(listTypeInfo.getElementTypeInfo()));
+			return builder.build();
+		}
 	}
 
 	/**
@@ -376,11 +410,18 @@ public class PythonTypeUtils {
 					return new GenericArraySerializer(elementClass, elementTypeSerializer);
 				}
 
+				if (typeInformation instanceof MapTypeInfo) {
+					return new MapSerializer(typeInfoSerializerConverter(((MapTypeInfo) typeInformation).getKeyTypeInfo()),
+						typeInfoSerializerConverter(((MapTypeInfo) typeInformation).getValueTypeInfo()));
+				}
+
+				if (typeInformation instanceof ListTypeInfo) {
+					return new ListSerializer(typeInfoSerializerConverter(((ListTypeInfo) typeInformation).getElementTypeInfo()));
+				}
 			}
 
 			throw new UnsupportedOperationException(
 				String.format("Could not find type serializer for current type [%s].", typeInformation.toString()));
 		}
 	}
-
 }

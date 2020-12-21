@@ -26,7 +26,7 @@ from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
-from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation
+from pyflink.common.typeinfo import TypeInformation, Types
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream
@@ -732,7 +732,7 @@ class StreamExecutionEnvironment(object):
             # list.
             if type_info is None:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPickledBytes(temp_file.name)
-                out_put_type_info = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO()
+                out_put_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
             else:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name)
                 out_put_type_info = type_info

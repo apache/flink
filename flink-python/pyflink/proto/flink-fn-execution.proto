@@ -283,8 +283,14 @@ message TypeInfo {
     PICKLED_BYTES = 16;
     TUPLE = 17;
     PRIMITIVE_ARRAY = 18;
+    MAP = 19;
+    LIST = 20;
   }
 
+  message MapTypeInfo {
+    FieldType key_type = 1;
+    FieldType value_type = 2;
+  }
 
   message FieldType {
     TypeName type_name = 1;
@@ -292,6 +298,7 @@ message TypeInfo {
       FieldType collection_element_type = 2;
       TypeInfo row_type_info = 3;
       TypeInfo tuple_type_info = 4;
+      MapTypeInfo map_type_info = 5;
     }
   }
 

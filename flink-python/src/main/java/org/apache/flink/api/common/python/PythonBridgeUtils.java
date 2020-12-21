@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.ListTypeInfo;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -65,7 +67,6 @@ import java.util.stream.Collectors;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.FLOAT_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.DATE;
 import static org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIME;
-import static org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIMESTAMP;
 
 /**
  * Utility class that contains helper methods to create a TableSource from
@@ -309,6 +310,26 @@ public final class PythonBridgeUtils {
 				TypeInformation<?> elementType = dataType instanceof BasicArrayTypeInfo ?
 					((BasicArrayTypeInfo<?, ?>) dataType).getComponentInfo() :
 					((PrimitiveArrayTypeInfo<?>) dataType).getComponentType();
+				for (Object object : objects) {
+					serializedElements.add(getPickledBytesFromJavaObject(object, elementType));
+				}
+				return pickler.dumps(serializedElements);
+			} else if (dataType instanceof MapTypeInfo) {
+				List<List<Object>> serializedMapKV = new ArrayList<>(2);
+				Map<Object, Object> mapObj = (Map) obj;
+				List<Object> keyBytesList = new ArrayList<>(mapObj.size());
+				List<Object> valueBytesList = new ArrayList<>(mapObj.size());
+				for (Map.Entry entry : mapObj.entrySet()) {
+					keyBytesList.add(getPickledBytesFromJavaObject(entry.getKey(), ((MapTypeInfo) dataType).getKeyTypeInfo()));
+					valueBytesList.add(getPickledBytesFromJavaObject(entry.getValue(), ((MapTypeInfo) dataType).getValueTypeInfo()));
+				}
+				serializedMapKV.add(keyBytesList);
+				serializedMapKV.add(valueBytesList);
+				return pickler.dumps(serializedMapKV);
+			} else if (dataType instanceof ListTypeInfo) {
+				List objects = (List) obj;
+				List<Object> serializedElements = new ArrayList<>(objects.size());
+				TypeInformation elementType = ((ListTypeInfo) dataType).getElementTypeInfo();
 				for (Object object : objects) {
 					serializedElements.add(getPickledBytesFromJavaObject(object, elementType));
 				}
