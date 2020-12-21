@@ -628,7 +628,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       ignoreNulls: Boolean): JBoolean = null
 
   def areColumnsUnique(
-      rel: StreamExecCorrelate,
+      rel: StreamPhysicalCorrelate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = null

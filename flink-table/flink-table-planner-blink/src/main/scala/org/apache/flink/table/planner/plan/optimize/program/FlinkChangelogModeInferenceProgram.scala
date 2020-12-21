@@ -271,8 +271,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val leftTrait = children.head.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
         createNewNode(temporalJoin, children, leftTrait, requiredTrait, requester)
 
-      case _: StreamPhysicalCalcBase | _: StreamExecCorrelate |
-           _: StreamExecPythonCorrelate | _: StreamExecLookupJoin | _: StreamPhysicalExchange |
+      case _: StreamPhysicalCalcBase | _: StreamPhysicalCorrelateBase |
+           _: StreamExecLookupJoin | _: StreamPhysicalExchange |
            _: StreamExecExpand | _: StreamExecMiniBatchAssigner |
            _: StreamPhysicalWatermarkAssigner =>
         // transparent forward requiredTrait to children
@@ -571,7 +571,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           }
         }
 
-      case _: StreamExecCorrelate | _: StreamExecPythonCorrelate | _: StreamExecLookupJoin |
+      case _: StreamPhysicalCorrelateBase | _: StreamExecLookupJoin |
            _: StreamPhysicalExchange | _: StreamExecExpand | _: StreamExecMiniBatchAssigner |
            _: StreamPhysicalWatermarkAssigner =>
         // transparent forward requiredTrait to children

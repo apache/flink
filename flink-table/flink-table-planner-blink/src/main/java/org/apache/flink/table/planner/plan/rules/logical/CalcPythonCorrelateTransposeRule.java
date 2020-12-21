@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRel;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecCorrelateRule;
+import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalCorrelateRule;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -58,8 +58,8 @@ public class CalcPythonCorrelateTransposeRule extends RelOptRule {
 		FlinkLogicalCorrelate correlate = call.rel(0);
 		FlinkLogicalCalc right = call.rel(2);
 		JoinRelType joinType = correlate.getJoinType();
-		FlinkLogicalCalc mergedCalc = StreamExecCorrelateRule.getMergedCalc(right);
-		FlinkLogicalTableFunctionScan scan = StreamExecCorrelateRule.getTableScan(mergedCalc);
+		FlinkLogicalCalc mergedCalc = StreamPhysicalCorrelateRule.getMergedCalc(right);
+		FlinkLogicalTableFunctionScan scan = StreamPhysicalCorrelateRule.getTableScan(mergedCalc);
 		return joinType == JoinRelType.INNER &&
 			PythonUtil.isPythonCall(scan.getCall(), null) &&
 			mergedCalc.getProgram().getCondition() != null;
@@ -70,8 +70,8 @@ public class CalcPythonCorrelateTransposeRule extends RelOptRule {
 		FlinkLogicalCorrelate correlate = call.rel(0);
 		FlinkLogicalCalc right = call.rel(2);
 		RexBuilder rexBuilder = call.builder().getRexBuilder();
-		FlinkLogicalCalc mergedCalc = StreamExecCorrelateRule.getMergedCalc(right);
-		FlinkLogicalTableFunctionScan tableScan = StreamExecCorrelateRule.getTableScan(mergedCalc);
+		FlinkLogicalCalc mergedCalc = StreamPhysicalCorrelateRule.getMergedCalc(right);
+		FlinkLogicalTableFunctionScan tableScan = StreamPhysicalCorrelateRule.getTableScan(mergedCalc);
 		RexProgram mergedCalcProgram = mergedCalc.getProgram();
 
 		InputRefRewriter inputRefRewriter = new InputRefRewriter(

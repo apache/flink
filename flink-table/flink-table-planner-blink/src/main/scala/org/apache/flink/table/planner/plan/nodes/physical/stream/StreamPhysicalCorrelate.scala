@@ -17,23 +17,22 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
-import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCorrelate
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
+import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.{RexNode, RexProgram}
+import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
 
 /**
-  * Flink RelNode which matches along with join a Java/Scala user defined table function.
-  */
-class StreamExecCorrelate(
+ * Flink RelNode which matches along with join a Java/Scala user defined table function.
+ */
+class StreamPhysicalCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -42,7 +41,7 @@ class StreamExecCorrelate(
     condition: Option[RexNode],
     outputRowType: RelDataType,
     joinType: JoinRelType)
-  extends StreamExecCorrelateBase(
+  extends StreamPhysicalCorrelateBase(
     cluster,
     traitSet,
     inputRel,
@@ -57,7 +56,7 @@ class StreamExecCorrelate(
       newChild: RelNode,
       projectProgram: Option[RexProgram],
       outputType: RelDataType): RelNode = {
-    new StreamExecCorrelate(
+    new StreamPhysicalCorrelate(
       cluster,
       traitSet,
       newChild,
@@ -68,32 +67,14 @@ class StreamExecCorrelate(
       joinType)
   }
 
-  override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[RowData] = {
-    val tableConfig = planner.getTableConfig
-    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
-    val operatorCtx = CodeGeneratorContext(tableConfig)
-      .setOperatorBaseClass(classOf[AbstractProcessStreamOperator[_]])
-    val transform = CorrelateCodeGenerator.generateCorrelateTransformation(
-      tableConfig,
-      operatorCtx,
-      inputTransformation,
-      inputRel.getRowType,
-      projectProgram,
-      scan,
-      condition,
-      outputRowType,
-      joinType,
-      inputTransformation.getParallelism,
-      retainHeader = true,
-      getExpressionString,
-      "StreamExecCorrelate",
+  override def translateToExecNode(): ExecNode[_] = {
+    new StreamExecCorrelate(
+      JoinTypeUtil.getFlinkJoinType(joinType),
+      projectProgram.orNull,
+      scan.getCall.asInstanceOf[RexCall],
+      condition.orNull,
+      ExecEdge.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
-    if (inputsContainSingleton()) {
-      transform.setParallelism(1)
-      transform.setMaxParallelism(1)
-    }
-    transform
   }
 }

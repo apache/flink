@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecCorrelate, StreamExecValues}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCorrelate, StreamExecValues}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
@@ -31,7 +31,7 @@ import org.apache.calcite.rex.{RexLiteral, RexUtil}
 /**
   * Converts [[FlinkLogicalTableFunctionScan]] with constant RexCall to
   * {{{
-  *                    [[StreamExecCorrelate]]
+  *                    [[StreamPhysicalCorrelate]]
   *                          /       \
   * empty [[StreamExecValues]]  [[FlinkLogicalTableFunctionScan]]
   * }}}
@@ -39,15 +39,15 @@ import org.apache.calcite.rex.{RexLiteral, RexUtil}
   * Add the rule to support select from a UDF directly, such as the following SQL:
   * SELECT * FROM LATERAL TABLE(func()) as T(c)
   *
-  * Note: [[StreamExecCorrelateRule]] is responsible for converting a reasonable physical plan for
-  * the normal correlate query, such as the following SQL:
+  * Note: [[StreamPhysicalCorrelateRule]] is responsible for converting a reasonable physical plan
+ * for the normal correlate query, such as the following SQL:
   * example1: SELECT * FROM T, LATERAL TABLE(func()) as T(c)
   * example2: SELECT a, c FROM T, LATERAL TABLE(func(a)) as T(c)
   */
-class StreamExecConstantTableFunctionScanRule
+class StreamPhysicalConstantTableFunctionScanRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalTableFunctionScan], any),
-    "StreamExecConstantTableFunctionScanRule") {
+    "StreamPhysicalConstantTableFunctionScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalTableFunctionScan = call.rel(0)
@@ -66,7 +66,7 @@ class StreamExecConstantTableFunctionScanRule
       ImmutableList.of(ImmutableList.of[RexLiteral]()),
       cluster.getTypeFactory.createStructType(ImmutableList.of(), ImmutableList.of()))
 
-    val correlate = new StreamExecCorrelate(
+    val correlate = new StreamPhysicalCorrelate(
       cluster,
       traitSet,
       values,
@@ -80,6 +80,6 @@ class StreamExecConstantTableFunctionScanRule
 
 }
 
-object StreamExecConstantTableFunctionScanRule {
-  val INSTANCE = new StreamExecConstantTableFunctionScanRule
+object StreamPhysicalConstantTableFunctionScanRule {
+  val INSTANCE = new StreamPhysicalConstantTableFunctionScanRule
 }
