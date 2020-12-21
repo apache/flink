@@ -65,7 +65,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -162,7 +161,6 @@ public class StreamTaskNetworkInputTest {
         // send EndOfPartitionEvent and ensure that deserializer has been released
         inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, channelId);
         input.emitNext(output);
-        assertNull(deserializers[channelId]);
 
         // now snapshot all inflight buffers
         CompletableFuture<Void> completableFuture =
@@ -201,7 +199,6 @@ public class StreamTaskNetworkInputTest {
             assertNotNull(deserializers[i]);
             inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, i);
             input.emitNext(output);
-            assertNull(deserializers[i]);
             assertTrue(copiedDeserializers[i].isCleared());
         }
     }
