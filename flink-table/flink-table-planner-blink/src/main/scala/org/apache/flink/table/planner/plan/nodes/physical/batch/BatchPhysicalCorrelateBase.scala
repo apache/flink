@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
@@ -32,14 +30,12 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexProgram}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
 
-import java.util
-
 import scala.collection.JavaConversions._
 
 /**
   * Base Batch physical RelNode for [[Correlate]] (user defined table function).
   */
-abstract class BatchExecCorrelateBase(
+abstract class BatchPhysicalCorrelateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -49,8 +45,7 @@ abstract class BatchExecCorrelateBase(
     outputRowType: RelDataType,
     joinType: JoinRelType)
   extends SingleRel(cluster, traitSet, inputRel)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData] {
+  with BatchPhysicalRel {
 
   require(joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT)
 
@@ -153,8 +148,4 @@ abstract class BatchExecCorrelateBase(
     val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
     Some(copy(providedTraits, Seq(newInput)))
   }
-
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
 }

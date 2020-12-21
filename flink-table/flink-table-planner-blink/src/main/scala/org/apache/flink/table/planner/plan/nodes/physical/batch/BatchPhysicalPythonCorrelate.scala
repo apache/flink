@@ -17,13 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
-import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCorrelate
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCorrelate
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -32,9 +30,9 @@ import org.apache.calcite.rel.core.{Correlate, JoinRelType}
 import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
 
 /**
-  * Batch physical RelNode for [[Correlate]] (Java/Scala user defined table function).
+  * Batch physical RelNode for [[Correlate]] (Python user defined table function).
   */
-class BatchExecCorrelate(
+class BatchPhysicalPythonCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -43,7 +41,7 @@ class BatchExecCorrelate(
     projectProgram: Option[RexProgram],
     outputRowType: RelDataType,
     joinType: JoinRelType)
-  extends BatchExecCorrelateBase(
+  extends BatchPhysicalCorrelateBase(
     cluster,
     traitSet,
     inputRel,
@@ -51,14 +49,15 @@ class BatchExecCorrelate(
     condition,
     projectProgram,
     outputRowType,
-    joinType) {
+    joinType)
+  with CommonPythonCorrelate {
 
   def copy(
       traitSet: RelTraitSet,
       child: RelNode,
       projectProgram: Option[RexProgram],
       outputType: RelDataType): RelNode = {
-    new BatchExecCorrelate(
+    new BatchPhysicalPythonCorrelate(
       cluster,
       traitSet,
       child,
@@ -69,26 +68,14 @@ class BatchExecCorrelate(
       joinType)
   }
 
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val config = planner.getTableConfig
-    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
-    val operatorCtx = CodeGeneratorContext(config)
-    CorrelateCodeGenerator.generateCorrelateTransformation(
-      config,
-      operatorCtx,
-      inputTransformation,
-      FlinkTypeFactory.toLogicalRowType(input.getRowType),
-      projectProgram,
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecPythonCorrelate(
+      joinType,
       scan.getCall.asInstanceOf[RexCall],
       condition,
-      FlinkTypeFactory.toLogicalRowType(outputRowType),
-      JoinTypeUtil.getFlinkJoinType(joinType),
-      inputTransformation.getParallelism,
-      retainHeader = false,
-      "BatchExecCorrelate",
-      getRelDetailedDescription)
+      ExecEdge.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
-
 }

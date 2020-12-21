@@ -15,70 +15,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.nodes.physical.batch
+package org.apache.flink.table.planner.plan.nodes.exec.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.core.memory.ManagedMemoryUseCase
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCorrelate
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNodeBase}
+import org.apache.flink.table.types.logical.RowType
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Correlate, JoinRelType}
-import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rex.{RexCall, RexNode}
+
+import java.util.Collections
 
 /**
-  * Batch physical RelNode for [[Correlate]] (Python user defined table function).
-  */
+ * Batch exec node which matches along with join a python user defined table function.
+ *
+ * <p>Note: This class can't be ported to Java,
+ * because java class can't extend scala interface with default implementation.
+ * FLINK-20693 will port this class to Java.
+ *
+ * <p>TODO change JoinRelType to FlinkJoinType
+ */
 class BatchExecPythonCorrelate(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    inputRel: RelNode,
-    scan: FlinkLogicalTableFunctionScan,
+    joinType: JoinRelType,
+    invocation: RexCall,
     condition: Option[RexNode],
-    projectProgram: Option[RexProgram],
-    outputRowType: RelDataType,
-    joinType: JoinRelType)
-  extends BatchExecCorrelateBase(
-    cluster,
-    traitSet,
-    inputRel,
-    scan,
-    condition,
-    projectProgram,
-    outputRowType,
-    joinType)
+    inputEdge: ExecEdge,
+    outputType: RowType,
+    description: String)
+  extends ExecNodeBase[RowData](Collections.singletonList(inputEdge), outputType, description)
+  with BatchExecNode[RowData]
   with CommonPythonCorrelate {
 
-  def copy(
-      traitSet: RelTraitSet,
-      child: RelNode,
-      projectProgram: Option[RexProgram],
-      outputType: RelDataType): RelNode = {
-    new BatchExecPythonCorrelate(
-      cluster,
-      traitSet,
-      child,
-      scan,
-      condition,
-      projectProgram,
-      outputType,
-      joinType)
+  if (joinType == JoinRelType.LEFT && condition.isDefined) {
+    throw new TableException("Currently Python correlate does not support conditions in left join.")
   }
 
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
+  override protected def translateToPlanInternal(planner: PlannerBase): Transformation[RowData] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
     val ret = createPythonOneInputTransformation(
       inputTransformation,
-      scan.getCall.asInstanceOf[RexCall],
+      invocation,
       "BatchExecPythonCorrelate",
-      FlinkTypeFactory.toLogicalRowType(outputRowType),
+      getOutputType.asInstanceOf[RowType],
       getConfig(planner.getExecEnv, planner.getTableConfig),
       joinType)
     if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {

@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecPythonCorrelate;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalPythonCorrelate;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -38,15 +38,15 @@ import scala.Some;
 
 /**
  * The physical rule is responsible for convert {@link FlinkLogicalCorrelate} to
- * {@link BatchExecPythonCorrelate}.
+ * {@link BatchPhysicalPythonCorrelate}.
  */
-public class BatchExecPythonCorrelateRule extends ConverterRule {
+public class BatchPhysicalPythonCorrelateRule extends ConverterRule {
 
-	public static final RelOptRule INSTANCE = new BatchExecPythonCorrelateRule();
+	public static final RelOptRule INSTANCE = new BatchPhysicalPythonCorrelateRule();
 
-	private BatchExecPythonCorrelateRule() {
+	private BatchPhysicalPythonCorrelateRule() {
 		super(FlinkLogicalCorrelate.class, FlinkConventions.LOGICAL(), FlinkConventions.BATCH_PHYSICAL(),
-			"BatchExecPythonCorrelateRule");
+			"BatchPhysicalPythonCorrelateRule");
 	}
 
 	@Override
@@ -79,7 +79,7 @@ public class BatchExecPythonCorrelateRule extends ConverterRule {
 	}
 
 	/**
-	 * The factory is responsible for creating {@link BatchExecPythonCorrelate}.
+	 * The factory is responsible for creating {@link BatchPhysicalPythonCorrelate}.
 	 */
 	private static class BatchExecPythonCorrelateFactory {
 		private final FlinkLogicalCorrelate correlate;
@@ -95,11 +95,11 @@ public class BatchExecPythonCorrelateRule extends ConverterRule {
 			this.right = correlate.getInput(1);
 		}
 
-		BatchExecPythonCorrelate convertToCorrelate() {
+		BatchPhysicalPythonCorrelate convertToCorrelate() {
 			return convertToCorrelate(right, Option.empty());
 		}
 
-		private BatchExecPythonCorrelate convertToCorrelate(
+		private BatchPhysicalPythonCorrelate convertToCorrelate(
 			RelNode relNode,
 			Option<RexNode> condition) {
 			if (relNode instanceof RelSubset) {
@@ -112,7 +112,7 @@ public class BatchExecPythonCorrelateRule extends ConverterRule {
 					Some.apply(calc.getProgram().expandLocalRef(calc.getProgram().getCondition())));
 			} else {
 				FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) relNode;
-				return new BatchExecPythonCorrelate(
+				return new BatchPhysicalPythonCorrelate(
 					correlate.getCluster(),
 					traitSet,
 					convInput,
