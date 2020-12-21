@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
@@ -30,8 +29,6 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -41,7 +38,6 @@ import org.junit.Test;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -267,15 +263,10 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
             throws Exception {
 
         final JobGraph jobGraph = new JobGraph(new JobID(), "test job", vertices);
-        final SlotProvider slotProvider =
-                new TestingSlotProvider(
-                        ignored ->
-                                CompletableFuture.completedFuture(
-                                        new TestingLogicalSlotBuilder()
-                                                .createTestingLogicalSlot()));
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                jobGraph, slotProvider, Time.seconds(10))
+                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())
                         .setPartitionTracker(partitionTracker)
                         .build();
 
