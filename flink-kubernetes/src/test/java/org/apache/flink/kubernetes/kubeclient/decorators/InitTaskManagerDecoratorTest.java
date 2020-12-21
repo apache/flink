@@ -53,6 +53,7 @@ import static org.junit.Assert.assertThat;
  */
 public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
 
+	private static final String SERVICE_ACCOUNT_NAME = "service-test";
 	private static final List<String> IMAGE_PULL_SECRETS = Arrays.asList("s1", "s2", "s3");
 	private static final Map<String, String> ANNOTATIONS = new HashMap<String, String>() {
 		{
@@ -77,6 +78,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 	protected void setupFlinkConfig() {
 		super.setupFlinkConfig();
 
+		this.flinkConfig.set(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS, IMAGE_PULL_SECRETS);
 		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS, ANNOTATIONS);
 		this.flinkConfig.setString(KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
@@ -185,6 +187,11 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 	public void testPodAnnotations() {
 		final Map<String, String> resultAnnotations = kubernetesTaskManagerParameters.getAnnotations();
 		assertThat(resultAnnotations, is(equalTo(ANNOTATIONS)));
+	}
+
+	@Test
+	public void testPodServiceAccountName() {
+		assertThat(this.resultPod.getSpec().getServiceAccountName(), is(SERVICE_ACCOUNT_NAME));
 	}
 
 	@Test
