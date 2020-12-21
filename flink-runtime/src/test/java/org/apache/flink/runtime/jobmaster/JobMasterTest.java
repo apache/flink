@@ -917,68 +917,6 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the JobMaster retries the scheduling of a job
-	 * in case of a missing slot offering from a registered TaskExecutor.
-	 */
-	@Test
-	public void testSlotRequestTimeoutWhenNoSlotOffering() throws Exception {
-		final JobGraph restartingJobGraph = createSingleVertexJobWithRestartStrategy();
-
-		final long slotRequestTimeout = 10L;
-		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
-
-		final JobMaster jobMaster = createJobMaster(
-			configuration,
-			restartingJobGraph,
-			haServices,
-			new TestingJobManagerSharedServicesBuilder().build(),
-			heartbeatServices);
-
-		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
-
-		try {
-			final long start = System.nanoTime();
-			jobMaster.start(JobMasterId.generate()).get();
-
-			final CompletableFuture<TaskDeploymentDescriptor> submittedTaskFuture = new CompletableFuture<>();
-			final LocalUnresolvedTaskManagerLocation taskManagerUnresolvedLocation = new LocalUnresolvedTaskManagerLocation();
-			final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-				.setSubmitTaskConsumer((tdd, ignored) -> {
-					submittedTaskFuture.complete(tdd);
-					return CompletableFuture.completedFuture(Acknowledge.get());
-				})
-				.createTestingTaskExecutorGateway();
-
-			rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
-
-			jobMasterGateway.registerTaskManager(taskExecutorGateway.getAddress(), taskManagerUnresolvedLocation, testingTimeout).get();
-
-			// wait for the job to restart, due to the slot request timing out
-			CommonTestUtils.waitUntilCondition(
-					() -> jobMasterGateway.requestJob(testingTimeout).join().getStatusTimestamp(JobStatus.RESTARTING) > 0,
-					Deadline.fromNow(Duration.ofSeconds(5)),
-					50L);
-			final long end = System.nanoTime();
-
-			// we rely on the slot request timeout to fail a stuck scheduling operation
-			assertThat((end - start) / 1_000_000L, Matchers.greaterThanOrEqualTo(slotRequestTimeout));
-
-			assertThat(submittedTaskFuture.isDone(), is(false));
-
-			final SlotOffer slotOffer = new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY);
-
-			final CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(taskManagerUnresolvedLocation.getResourceID(), Collections.singleton(slotOffer), testingTimeout);
-
-			assertThat(acceptedSlotsFuture.get(), hasSize(1));
-
-			// wait for the deployed task
-			submittedTaskFuture.get();
-		} finally {
-			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
-		}
-	}
-
-	/**
 	 * Tests that we can close an unestablished ResourceManager connection.
 	 */
 	@Test
