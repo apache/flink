@@ -574,7 +574,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 			.primaryKey(NAME)
 			.build();
 
-		Map<String, String> options1 = getModifiedOptions(
+		Map<String, String> sinkOptions = getModifiedOptions(
 			getBasicSinkOptions(),
 			options ->
 				options.put(
@@ -584,7 +584,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 						TestFormatFactory.CHANGELOG_MODE.key()),
 					"I;UA;UB;D"));
 		// pk can be defined on cdc table, should pass
-		createTableSink(pkSchema, options1);
+		createTableSink(pkSchema, sinkOptions);
 
 		try {
 			createTableSink(pkSchema, getBasicSinkOptions());
@@ -595,6 +595,18 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				" guarantee the semantic of primary key.";
 			assertEquals(error, t.getCause().getMessage());
 		}
+
+		Map<String, String> sourceOptions = getModifiedOptions(
+				getBasicSourceOptions(),
+				options ->
+						options.put(
+								String.format(
+										"%s.%s",
+										TestFormatFactory.IDENTIFIER,
+										TestFormatFactory.CHANGELOG_MODE.key()),
+								"I;UA;UB;D"));
+		// pk can be defined on cdc table, should pass
+		createTableSource(pkSchema, sourceOptions);
 
 		try {
 			createTableSource(pkSchema, getBasicSourceOptions());
