@@ -35,13 +35,14 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
-import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
-import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -104,9 +105,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
         try (SlotPool slotPool = createSlotPoolImpl()) {
             TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                    createJobGraph(),
-                                    createSchedulerWithSlots(slotPool, taskManagerLocation))
+                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph())
+                            .setExecutionSlotAllocatorFactory(
+                                    createExecutionSlotAllocatorFactory(
+                                            slotPool, taskManagerLocation))
                             .setRestartBackoffTimeStrategy(
                                     new TestRestartBackoffTimeStrategy(true, Long.MAX_VALUE))
                             .setDelayExecutor(taskRestartExecutor)
@@ -138,8 +140,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testCancelWhileFailing() throws Exception {
         try (SlotPool slotPool = createSlotPoolImpl()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                    createJobGraph(), createSchedulerWithSlots(slotPool))
+                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph())
+                            .setExecutionSlotAllocatorFactory(
+                                    createExecutionSlotAllocatorFactory(slotPool))
                             .setRestartBackoffTimeStrategy(
                                     new TestRestartBackoffTimeStrategy(false, Long.MAX_VALUE))
                             .build();
@@ -170,8 +173,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testFailWhileCanceling() throws Exception {
         try (SlotPool slotPool = createSlotPoolImpl()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                    createJobGraph(), createSchedulerWithSlots(slotPool))
+                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph())
+                            .setExecutionSlotAllocatorFactory(
+                                    createExecutionSlotAllocatorFactory(slotPool))
                             .setRestartBackoffTimeStrategy(
                                     new TestRestartBackoffTimeStrategy(false, Long.MAX_VALUE))
                             .build();
@@ -215,9 +219,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
         try (SlotPool slotPool = createSlotPoolImpl()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                    jobGraph,
-                                    createSchedulerWithSlots(
+                    SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                            .setExecutionSlotAllocatorFactory(
+                                    createExecutionSlotAllocatorFactory(
                                             slotPool, new LocalTaskManagerLocation(), 2))
                             .setRestartBackoffTimeStrategy(
                                     new TestRestartBackoffTimeStrategy(true, Long.MAX_VALUE))
@@ -272,9 +276,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testFailExecutionAfterCancel() throws Exception {
         try (SlotPool slotPool = createSlotPoolImpl()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                    createJobGraphToCancel(),
-                                    createSchedulerWithSlots(
+                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraphToCancel())
+                            .setExecutionSlotAllocatorFactory(
+                                    createExecutionSlotAllocatorFactory(
                                             slotPool, new LocalTaskManagerLocation(), 2))
                             .setRestartBackoffTimeStrategy(
                                     new TestRestartBackoffTimeStrategy(false, Long.MAX_VALUE))
@@ -312,24 +316,24 @@ public class ExecutionGraphRestartTest extends TestLogger {
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.RUNNING));
     }
 
-    private static Scheduler createSchedulerWithSlots(SlotPool slotPool) throws Exception {
-        return createSchedulerWithSlots(slotPool, new LocalTaskManagerLocation());
+    private static ExecutionSlotAllocatorFactory createExecutionSlotAllocatorFactory(
+            SlotPool slotPool) throws Exception {
+        return createExecutionSlotAllocatorFactory(slotPool, new LocalTaskManagerLocation());
     }
 
-    private static Scheduler createSchedulerWithSlots(
+    private static ExecutionSlotAllocatorFactory createExecutionSlotAllocatorFactory(
             SlotPool slotPool, TaskManagerLocation taskManagerLocation) throws Exception {
-        return createSchedulerWithSlots(slotPool, taskManagerLocation, NUM_TASKS);
+        return createExecutionSlotAllocatorFactory(slotPool, taskManagerLocation, NUM_TASKS);
     }
 
-    private static Scheduler createSchedulerWithSlots(
+    private static ExecutionSlotAllocatorFactory createExecutionSlotAllocatorFactory(
             SlotPool slotPool, TaskManagerLocation taskManagerLocation, int numSlots)
             throws Exception {
         final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
         setupSlotPool(slotPool);
-        Scheduler scheduler =
-                new SchedulerImpl(
+        PhysicalSlotProvider physicalSlotProvider =
+                new PhysicalSlotProviderImpl(
                         LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
-        scheduler.start(mainThreadExecutor);
         slotPool.registerTaskManager(taskManagerLocation.getResourceID());
 
         final List<SlotOffer> slotOffers = new ArrayList<>(NUM_TASKS);
@@ -341,7 +345,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
         slotPool.offerSlots(taskManagerLocation, taskManagerGateway, slotOffers);
 
-        return scheduler;
+        return SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                physicalSlotProvider);
     }
 
     private static void setupSlotPool(SlotPool slotPool) throws Exception {

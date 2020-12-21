@@ -33,12 +33,11 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
-import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
@@ -52,8 +51,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nonnull;
 
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -120,7 +117,9 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                     Collections.singletonList(ResourceProfile.ANY),
                     new RpcTaskManagerGateway(testingTaskExecutorGateway, JobMasterId.generate()));
 
-            final SlotProvider slotProvider = createSlotProvider(slotPool, mainThreadExecutor);
+            final PhysicalSlotProvider slotProvider =
+                    new PhysicalSlotProviderImpl(
+                            LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
             final SchedulerNG scheduler = createScheduler(jobGraph, slotProvider, batchSlotTimeout);
 
             final GloballyTerminalJobStatusListener jobStatusListener =
@@ -173,17 +172,6 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                 .join();
     }
 
-    @Nonnull
-    private SlotProvider createSlotProvider(
-            SlotPool slotPool, ComponentMainThreadExecutor mainThreadExecutor) {
-        final SchedulerImpl scheduler =
-                new SchedulerImpl(
-                        LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
-        scheduler.start(mainThreadExecutor);
-
-        return scheduler;
-    }
-
     private void startScheduling(
             SchedulerNG scheduler, ComponentMainThreadExecutor mainThreadExecutor) {
         scheduler.initialize(mainThreadExecutor);
@@ -224,8 +212,12 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
     }
 
     private SchedulerNG createScheduler(
-            JobGraph jobGraph, SlotProvider slotProvider, Time slotRequestTimeout)
+            JobGraph jobGraph, PhysicalSlotProvider physicalSlotProvider, Time slotRequestTimeout)
             throws Exception {
-        return SchedulerTestingUtils.createScheduler(jobGraph, slotProvider, slotRequestTimeout);
+        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                .setExecutionSlotAllocatorFactory(
+                        SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                physicalSlotProvider, slotRequestTimeout))
+                .build();
     }
 }

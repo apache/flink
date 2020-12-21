@@ -23,13 +23,12 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
@@ -311,10 +310,14 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         vertex.setInvokableClass(NoOpInvokable.class);
         vertex.setParallelism(parallelism);
 
-        final SlotProvider slotProvider = new SimpleSlotProvider(parallelism, gateway);
-
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.createScheduler(new JobGraph(vertex), slotProvider);
+                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph(vertex))
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        TestingPhysicalSlotProvider
+                                                .createWithLimitedAmountOfPhysicalSlots(
+                                                        parallelism, gateway)))
+                        .build();
         scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         return scheduler;
     }

@@ -20,31 +20,22 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -54,19 +45,13 @@ import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
-import java.net.InetAddress;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.POINTWISE;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -80,10 +65,6 @@ public class ExecutionTest extends TestLogger {
     private final TestingComponentMainThreadExecutor testMainThreadUtil =
             EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
-    private TestingLogicalSlot createTestingLogicalSlot(SlotOwner slotOwner) {
-        return new TestingLogicalSlotBuilder().setSlotOwner(slotOwner).createTestingLogicalSlot();
-    }
-
     /**
      * Checks that the {@link Execution} termination future is only completed after the assigned
      * slot has been released.
@@ -96,13 +77,13 @@ public class ExecutionTest extends TestLogger {
         final JobVertex jobVertex = createNoOpJobVertex();
         final JobVertexID jobVertexId = jobVertex.getID();
 
-        final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
-        final ProgrammedSlotProvider slotProvider =
-                createProgrammedSlotProvider(1, Collections.singleton(jobVertexId), slotOwner);
-
+        final TestingPhysicalSlotProvider physicalSlotProvider =
+                TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                new JobGraph(jobVertex), slotProvider)
+                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph(jobVertex))
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        physicalSlotProvider))
                         .build();
 
         scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
@@ -115,7 +96,8 @@ public class ExecutionTest extends TestLogger {
 
         Execution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
 
-        CompletableFuture<LogicalSlot> returnedSlotFuture = slotOwner.getReturnedSlotFuture();
+        CompletableFuture<? extends PhysicalSlot> returnedSlotFuture =
+                physicalSlotProvider.getFirstResponseOrFail();
         CompletableFuture<?> terminationFuture = executionVertex.cancel();
 
         currentExecutionAttempt.completeCancelling();
@@ -140,13 +122,12 @@ public class ExecutionTest extends TestLogger {
         final JobVertex jobVertex = createNoOpJobVertex();
         final JobVertexID jobVertexId = jobVertex.getID();
 
-        final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
-        final ProgrammedSlotProvider slotProvider =
-                createProgrammedSlotProvider(1, Collections.singleton(jobVertexId), slotOwner);
-
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                new JobGraph(jobVertex), slotProvider)
+                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph(jobVertex))
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        TestingPhysicalSlotProvider
+                                                .createWithLimitedAmountOfPhysicalSlots(1)))
                         .build();
 
         scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
@@ -177,28 +158,19 @@ public class ExecutionTest extends TestLogger {
 
         final SimpleAckingTaskManagerGateway taskManagerGateway =
                 new SimpleAckingTaskManagerGateway();
-        final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
-        final CompletableFuture<SlotRequestId> slotRequestIdFuture = new CompletableFuture<>();
-        final CompletableFuture<SlotRequestId> returnedSlotFuture = new CompletableFuture<>();
-
-        final TestingSlotProvider slotProvider =
-                new TestingSlotProvider(
-                        (SlotRequestId slotRequestId) -> {
-                            slotRequestIdFuture.complete(slotRequestId);
-                            return new CompletableFuture<>();
-                        });
-
-        slotProvider.setSlotCanceller(returnedSlotFuture::complete);
-        slotOwner
-                .getReturnedSlotFuture()
-                .thenAccept(
-                        (LogicalSlot logicalSlot) ->
-                                returnedSlotFuture.complete(logicalSlot.getSlotRequestId()));
-
+        TestingPhysicalSlotProvider physicalSlotProvider =
+                TestingPhysicalSlotProvider.create(
+                        (resourceProfile) ->
+                                CompletableFuture.completedFuture(
+                                        TestingPhysicalSlot.builder()
+                                                .withTaskManagerGateway(taskManagerGateway)
+                                                .build()));
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                new JobGraph(jobVertex), slotProvider)
+                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph(jobVertex))
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        physicalSlotProvider))
                         .build();
 
         scheduler.initialize(testMainThreadUtil.getMainThreadExecutor());
@@ -216,20 +188,14 @@ public class ExecutionTest extends TestLogger {
                     }
                 });
 
-        slotRequestIdFuture.thenAcceptAsync(
-                (SlotRequestId slotRequestId) -> {
-                    final SingleLogicalSlot singleLogicalSlot =
-                            createSingleLogicalSlot(slotOwner, taskManagerGateway, slotRequestId);
-                    slotProvider.complete(slotRequestId, singleLogicalSlot);
-                },
-                testMainThreadUtil.getMainThreadExecutor());
-
         testMainThreadUtil.execute(scheduler::startScheduling);
 
         // cancel the execution in case we could schedule the execution
         testMainThreadUtil.execute(execution::cancel);
 
-        assertThat(returnedSlotFuture.get(), is(equalTo(slotRequestIdFuture.get())));
+        assertThat(
+                physicalSlotProvider.getRequests().keySet(),
+                is(physicalSlotProvider.getCancellations().keySet()));
     }
 
     /** Tests that a slot release will atomically release the assigned {@link Execution}. */
@@ -237,23 +203,13 @@ public class ExecutionTest extends TestLogger {
     public void testSlotReleaseAtomicallyReleasesExecution() throws Exception {
         final JobVertex jobVertex = createNoOpJobVertex();
 
-        final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
-        final SingleLogicalSlot slot =
-                createSingleLogicalSlot(
-                        slotOwner, new SimpleAckingTaskManagerGateway(), new SlotRequestId());
-        final CompletableFuture<LogicalSlot> slotFuture = CompletableFuture.completedFuture(slot);
-
-        final CountDownLatch slotRequestLatch = new CountDownLatch(1);
-        final TestingSlotProvider slotProvider =
-                new TestingSlotProvider(
-                        slotRequestId -> {
-                            slotRequestLatch.countDown();
-                            return slotFuture;
-                        });
-
+        final TestingPhysicalSlotProvider physicalSlotProvider =
+                TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                new JobGraph(jobVertex), slotProvider)
+                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph(jobVertex))
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        physicalSlotProvider))
                         .build();
 
         final Execution execution =
@@ -266,13 +222,16 @@ public class ExecutionTest extends TestLogger {
         testMainThreadUtil.execute(scheduler::startScheduling);
 
         // wait until the slot has been requested
-        slotRequestLatch.await();
+        physicalSlotProvider.awaitAllSlotRequests();
 
+        TestingPhysicalSlot physicalSlot = physicalSlotProvider.getFirstResponseOrFail().get();
         testMainThreadUtil.execute(
                 () -> {
-                    assertThat(execution.getAssignedResource(), is(sameInstance(slot)));
+                    assertThat(
+                            execution.getAssignedAllocationID(),
+                            is(physicalSlot.getAllocationId()));
 
-                    slot.release(new FlinkException("Test exception"));
+                    physicalSlot.releasePayload(new FlinkException("Test exception"));
 
                     assertThat(execution.getReleaseFuture().isDone(), is(true));
                 });
@@ -332,51 +291,5 @@ public class ExecutionTest extends TestLogger {
         jobVertex.setInvokableClass(NoOpInvokable.class);
 
         return jobVertex;
-    }
-
-    @Nonnull
-    private ProgrammedSlotProvider createProgrammedSlotProvider(
-            int parallelism, Collection<JobVertexID> jobVertexIds, SlotOwner slotOwner) {
-        final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
-
-        for (JobVertexID jobVertexId : jobVertexIds) {
-            for (int i = 0; i < parallelism; i++) {
-                final LogicalSlot slot = createTestingLogicalSlot(slotOwner);
-
-                slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
-            }
-        }
-
-        return slotProvider;
-    }
-
-    static SingleLogicalSlot createSingleLogicalSlot(
-            SlotOwner slotOwner,
-            TaskManagerGateway taskManagerGateway,
-            SlotRequestId slotRequestId) {
-
-        TaskManagerLocation location =
-                new TaskManagerLocation(
-                        ResourceID.generate(), InetAddress.getLoopbackAddress(), 12345);
-
-        SimpleSlotContext slotContext =
-                new SimpleSlotContext(new AllocationID(), location, 0, taskManagerGateway);
-
-        return new SingleLogicalSlot(slotRequestId, slotContext, null, Locality.LOCAL, slotOwner);
-    }
-
-    /** Slot owner which records the first returned slot. */
-    private static final class SingleSlotTestingSlotOwner implements SlotOwner {
-
-        final CompletableFuture<LogicalSlot> returnedSlot = new CompletableFuture<>();
-
-        public CompletableFuture<LogicalSlot> getReturnedSlotFuture() {
-            return returnedSlot;
-        }
-
-        @Override
-        public void returnLogicalSlot(LogicalSlot logicalSlot) {
-            returnedSlot.complete(logicalSlot);
-        }
     }
 }

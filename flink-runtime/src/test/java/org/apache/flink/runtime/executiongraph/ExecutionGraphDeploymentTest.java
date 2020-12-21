@@ -53,15 +53,17 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -76,7 +78,6 @@ import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -463,8 +464,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
         JobVertex v1 = new JobVertex("source");
         JobVertex v2 = new JobVertex("sink");
 
-        int dop1 = 1;
-        int dop2 = 1;
+        int dop1 = 2;
+        int dop2 = 2;
 
         v1.setParallelism(dop1);
         v2.setParallelism(dop2);
@@ -477,22 +478,15 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
         final JobGraph graph = new JobGraph(jobId, "Test Job", v1, v2);
 
-        final ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
-        for (int i = 0; i < dop1; i++) {
-            slotFutures.addLast(
-                    CompletableFuture.completedFuture(
-                            new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
-        }
-
-        final SlotProvider slotProvider =
-                new TestingSlotProvider(ignore -> slotFutures.removeFirst());
-
         DirectScheduledExecutorService directExecutor = new DirectScheduledExecutorService();
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                graph, slotProvider)
+                SchedulerTestingUtils.newSchedulerBuilder(graph)
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        TestingPhysicalSlotProvider
+                                                .createWithLimitedAmountOfPhysicalSlots(1)))
                         .setFutureExecutor(directExecutor)
                         .setBlobWriter(blobWriter)
                         .build();
@@ -561,22 +555,13 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
         v1.setInvokableClass(BatchTask.class);
         v2.setInvokableClass(BatchTask.class);
 
-        final ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
-        for (int i = 0; i < dop1 + dop2; i++) {
-            slotFutures.addLast(
-                    CompletableFuture.completedFuture(
-                            new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
-        }
-
-        final SlotProvider slotProvider =
-                new TestingSlotProvider(ignore -> slotFutures.removeFirst());
-
         DirectScheduledExecutorService executorService = new DirectScheduledExecutorService();
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                new JobGraph(v1, v2), slotProvider)
+                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph(v1, v2))
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())
                         .setFutureExecutor(executorService)
                         .setBlobWriter(blobWriter)
                         .build();
@@ -649,24 +634,22 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                     return CompletableFuture.completedFuture(Acknowledge.get());
                 });
 
+        final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
         final TestingTaskExecutorGateway taskExecutorGateway =
                 testingTaskExecutorGatewayBuilder.createTestingTaskExecutorGateway();
         final RpcTaskManagerGateway taskManagerGateway =
                 new RpcTaskManagerGateway(taskExecutorGateway, JobMasterId.generate());
 
-        final Collection<CompletableFuture<LogicalSlot>> slotFutures = new ArrayList<>(numberTasks);
-        for (int i = 0; i < numberTasks; i++) {
-            slotFutures.add(new CompletableFuture<>());
-        }
-
-        final SlotProvider slotProvider = new IteratorTestingSlotProvider(slotFutures.iterator());
-
         final JobGraph jobGraph = new JobGraph(jobId, "Test Job", sourceVertex, sinkVertex);
         jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
+        final TestingPhysicalSlotProvider physicalSlotProvider =
+                TestingPhysicalSlotProvider.createWithoutImmediatePhysicalSlotCreation();
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                jobGraph, slotProvider)
+                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        physicalSlotProvider))
                         .setFutureExecutor(new DirectScheduledExecutorService())
                         .build();
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
@@ -676,14 +659,16 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
         scheduler.startScheduling();
 
         // change the order in which the futures are completed
-        final List<CompletableFuture<LogicalSlot>> shuffledFutures = new ArrayList<>(slotFutures);
+        final List<CompletableFuture<TestingPhysicalSlot>> shuffledFutures =
+                new ArrayList<>(physicalSlotProvider.getResponses().values());
         Collections.shuffle(shuffledFutures);
 
-        for (CompletableFuture<LogicalSlot> slotFuture : shuffledFutures) {
+        for (CompletableFuture<TestingPhysicalSlot> slotFuture : shuffledFutures) {
             slotFuture.complete(
-                    new TestingLogicalSlotBuilder()
-                            .setTaskManagerGateway(taskManagerGateway)
-                            .createTestingLogicalSlot());
+                    TestingPhysicalSlot.builder()
+                            .withTaskManagerLocation(taskManagerLocation)
+                            .withTaskManagerGateway(taskManagerGateway)
+                            .build());
         }
 
         final List<ExecutionAttemptID> submittedTasks = new ArrayList<>(numberTasks);
@@ -732,13 +717,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                 }
             }
         }
-    }
-
-    private LogicalSlot createSlot(TaskManagerLocation taskManagerLocation, int index) {
-        return new TestingLogicalSlotBuilder()
-                .setTaskManagerLocation(taskManagerLocation)
-                .setSlotNumber(index)
-                .createTestingLogicalSlot();
     }
 
     private ExecutionGraph createExecutionGraph(Configuration configuration) throws Exception {
