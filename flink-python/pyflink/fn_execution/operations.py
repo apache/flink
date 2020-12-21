@@ -27,11 +27,19 @@ from pyflink.datastream import TimeDomain
 from pyflink.datastream.functions import RuntimeContext, TimerService, ProcessFunction, \
     KeyedProcessFunction
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
+from pyflink.fn_execution.aggregate import extract_data_view_specs
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
-from pyflink.fn_execution.aggregate import RowKeySelector, SimpleAggsHandleFunction, \
-    GroupAggFunction, extract_data_view_specs, DistinctViewDescriptor, \
-    SimpleTableAggsHandleFunction, GroupTableAggFunction
+
+try:
+    from pyflink.fn_execution.aggregate_fast import RowKeySelector, SimpleAggsHandleFunction, \
+        GroupAggFunction, DistinctViewDescriptor, SimpleTableAggsHandleFunction, \
+        GroupTableAggFunction
+except ImportError:
+    from pyflink.fn_execution.aggregate_slow import RowKeySelector, SimpleAggsHandleFunction, \
+        GroupAggFunction, DistinctViewDescriptor, SimpleTableAggsHandleFunction,\
+        GroupTableAggFunction
+
 from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext, Row
 
