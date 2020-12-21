@@ -63,12 +63,25 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
 
     def __init__(self, flatten_row_coder):
         super(AggregateFunctionRowCoderImpl, self).__init__(flatten_row_coder._field_coders)
+        self._is_row_data = True
+        self._is_first_row = True
 
     cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
-        if iter_value:
-            for value in iter_value:
-                self._encode_one_row_with_row_kind(
-                    value, output_stream, value.get_row_kind().value)
+        self._encode_list_value(iter_value, output_stream)
+
+    cdef void _encode_list_value(self, list results, LengthPrefixOutputStream output_stream):
+        cdef list result
+        if self._is_first_row and results:
+            self._is_row_data = isinstance(results[0], Row)
+            self._is_first_row = False
+        if self._is_row_data:
+            for value in results:
+                self._encode_one_row_with_row_kind(value, output_stream, value.get_row_kind().value)
+        else:
+            for result in results:
+                for item in result:
+                    self._encode_one_row_with_row_kind(
+                        item, output_stream, item.get_row_kind().value)
 
 
 cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
