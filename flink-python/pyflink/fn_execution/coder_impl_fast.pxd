@@ -93,7 +93,9 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef bytes _decode_bytes(self)
 
 cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
-    pass
+    cdef bint _is_row_data
+    cdef bint _is_first_row
+    cdef void _encode_list_value(self, list list_value, LengthPrefixOutputStream output_stream)
 
 cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
     cdef char* _end_message
