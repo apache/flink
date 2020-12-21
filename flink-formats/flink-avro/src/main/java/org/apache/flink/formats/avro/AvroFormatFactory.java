@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -39,6 +40,8 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.Collections;
 import java.util.Set;
 
+import static org.apache.flink.table.factories.FactoryUtil.IGNORE_PARSE_ERRORS;
+
 /**
  * Table format factory for providing configured instances of Avro to RowData {@link SerializationSchema}
  * and {@link DeserializationSchema}.
@@ -54,6 +57,7 @@ public class AvroFormatFactory implements
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
+		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
 
 		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override
@@ -63,7 +67,11 @@ public class AvroFormatFactory implements
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
 						context.createTypeInformation(producedDataType);
-				return new AvroRowDataDeserializationSchema(rowType, rowDataTypeInfo);
+				return new AvroRowDataDeserializationSchema(
+					AvroDeserializationSchema.forGeneric(AvroSchemaConverter.convertToSchema(rowType)),
+					AvroToRowDataConverters.createRowConverter(rowType),
+					rowDataTypeInfo,
+					ignoreParseErrors);
 			}
 
 			@Override
@@ -107,6 +115,6 @@ public class AvroFormatFactory implements
 
 	@Override
 	public Set<ConfigOption<?>> optionalOptions() {
-		return Collections.emptySet();
+		return Collections.singleton(IGNORE_PARSE_ERRORS);
 	}
 }

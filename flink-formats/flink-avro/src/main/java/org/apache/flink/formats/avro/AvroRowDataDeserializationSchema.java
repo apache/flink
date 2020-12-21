@@ -59,18 +59,21 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 	 */
 	private final AvroToRowDataConverters.AvroToRowDataConverter runtimeConverter;
 
+	private final Boolean ignoreParseError;
+
 	/**
 	 * Creates a Avro deserialization schema for the given logical type.
 	 *
-	 * @param rowType  The logical type used to deserialize the data.
-	 * @param typeInfo The TypeInformation to be used by {@link AvroRowDataDeserializationSchema#getProducedType()}.
+	 * @param rowType          The logical type used to deserialize the data.
+	 * @param typeInfo         The Type Information to be used by {@link AvroRowDataDeserializationSchema#getProducedType()}.
 	 */
 	public AvroRowDataDeserializationSchema(RowType rowType, TypeInformation<RowData> typeInfo) {
 		this(
 				AvroDeserializationSchema
 						.forGeneric(AvroSchemaConverter.convertToSchema(rowType)),
 				AvroToRowDataConverters.createRowConverter(rowType),
-				typeInfo);
+				typeInfo,
+				false);
 	}
 
 	/**
@@ -85,9 +88,27 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 			DeserializationSchema<GenericRecord> nestedSchema,
 			AvroToRowDataConverters.AvroToRowDataConverter runtimeConverter,
 			TypeInformation<RowData> typeInfo) {
+		this(nestedSchema, runtimeConverter, typeInfo, false);
+	}
+
+	/**
+	 * Creates a Avro deserialization schema for the given logical type.
+	 *
+	 * @param nestedSchema     Deserialization schema to deserialize as {@link GenericRecord}
+	 * @param runtimeConverter Converter that transforms a {@link GenericRecord} into {@link RowData}
+	 * @param typeInfo         The TypeInformation to be used by
+	 *                         {@link AvroRowDataDeserializationSchema#getProducedType()}
+	 * @param ignoreParseError Indicate whether to skip rows with parsing error
+	 */
+	public AvroRowDataDeserializationSchema(
+			DeserializationSchema<GenericRecord> nestedSchema,
+			AvroToRowDataConverters.AvroToRowDataConverter runtimeConverter,
+			TypeInformation<RowData> typeInfo,
+			boolean ignoreParseError) {
 		this.nestedSchema = nestedSchema;
 		this.typeInfo = typeInfo;
 		this.runtimeConverter = runtimeConverter;
+		this.ignoreParseError = ignoreParseError;
 	}
 
 	@Override
@@ -101,7 +122,11 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 			GenericRecord deserialize = nestedSchema.deserialize(message);
 			return (RowData) runtimeConverter.convert(deserialize);
 		} catch (Exception e) {
-			throw new IOException("Failed to deserialize Avro record.", e);
+			if (ignoreParseError) {
+				return null;
+			} else {
+				throw new IOException("Failed to deserialize Avro record.", e);
+			}
 		}
 	}
 
@@ -125,11 +150,12 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		}
 		AvroRowDataDeserializationSchema that = (AvroRowDataDeserializationSchema) o;
 		return nestedSchema.equals(that.nestedSchema) &&
-				typeInfo.equals(that.typeInfo);
+				typeInfo.equals(that.typeInfo) &&
+				Objects.equals(ignoreParseError, that.ignoreParseError);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(nestedSchema, typeInfo);
+		return Objects.hash(nestedSchema, typeInfo, ignoreParseError);
 	}
 }

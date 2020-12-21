@@ -85,11 +85,18 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 	 **/
 	private final TypeInformation<RowData> producedTypeInfo;
 
+	/**
+	 * Ignore the record with the parsing errors.
+	 */
+	private final boolean ignoreParseErrors;
+
 	public DebeziumAvroDeserializationSchema(
 			RowType rowType,
 			TypeInformation<RowData> producedTypeInfo,
-			String schemaRegistryUrl) {
+			String schemaRegistryUrl,
+			boolean ignoreParseErrors) {
 		this.producedTypeInfo = producedTypeInfo;
+		this.ignoreParseErrors = ignoreParseErrors;
 		RowType debeziumAvroRowType = createDebeziumAvroRowType(
 			fromLogicalToDataType(rowType));
 
@@ -98,15 +105,18 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 				AvroSchemaConverter.convertToSchema(debeziumAvroRowType),
 				schemaRegistryUrl),
 			AvroToRowDataConverters.createRowConverter(debeziumAvroRowType),
-			producedTypeInfo);
+			producedTypeInfo,
+			ignoreParseErrors);
 	}
 
 	@VisibleForTesting
 	DebeziumAvroDeserializationSchema(
 			TypeInformation<RowData> producedTypeInfo,
-			AvroRowDataDeserializationSchema avroDeserializer) {
+			AvroRowDataDeserializationSchema avroDeserializer,
+			boolean ignoreParseErrors) {
 		this.producedTypeInfo = producedTypeInfo;
 		this.avroDeserializer = avroDeserializer;
+		this.ignoreParseErrors = ignoreParseErrors;
 	}
 
 	@Override
@@ -180,12 +190,13 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 		}
 		DebeziumAvroDeserializationSchema that = (DebeziumAvroDeserializationSchema) o;
 		return Objects.equals(avroDeserializer, that.avroDeserializer) &&
-			Objects.equals(producedTypeInfo, that.producedTypeInfo);
+			Objects.equals(producedTypeInfo, that.producedTypeInfo) &&
+			Objects.equals(ignoreParseErrors, that.ignoreParseErrors);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(avroDeserializer, producedTypeInfo);
+		return Objects.hash(avroDeserializer, producedTypeInfo, ignoreParseErrors);
 	}
 
 	public static RowType createDebeziumAvroRowType(DataType databaseSchema) {

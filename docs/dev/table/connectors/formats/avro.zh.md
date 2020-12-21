@@ -34,8 +34,8 @@ under the License.
 依赖
 ------------
 
-{% assign connector = site.data.sql-connectors['avro'] %} 
-{% include sql-connector-download-table.html 
+{% assign connector = site.data.sql-connectors['avro'] %}
+{% include sql-connector-download-table.html
     connector=connector
 %}
 
@@ -91,6 +91,13 @@ Format 参数
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>仅用于 <a href="{% link dev/table/connectors/filesystem.zh.md %}">filesystem</a>，avro 压缩编解码器。默认不压缩。目前支持：deflate、snappy、bzip2、xz。</td>
+    </tr>
+    <tr>
+      <td><h5>avro.ignore-parse-errors</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>当解析异常时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。如果忽略字段的解析异常，则会将该字段值设置为<code>null</code>。</td>
     </tr>
     </tbody>
 </table>

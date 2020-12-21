@@ -29,19 +29,19 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The Avro Schema Registry (``avro-confluent``) format allows you to read records that were serialized by the ``io.confluent.kafka.serializers.KafkaAvroSerializer`` and to write records that can in turn be read by the ``io.confluent.kafka.serializers.KafkaAvroDeserializer``. 
+The Avro Schema Registry (``avro-confluent``) format allows you to read records that were serialized by the ``io.confluent.kafka.serializers.KafkaAvroSerializer`` and to write records that can in turn be read by the ``io.confluent.kafka.serializers.KafkaAvroDeserializer``.
 
-When reading (deserializing) a record with this format the Avro writer schema is fetched from the configured Confluent Schema Registry based on the schema version id encoded in the record while the reader schema is inferred from table schema. 
+When reading (deserializing) a record with this format the Avro writer schema is fetched from the configured Confluent Schema Registry based on the schema version id encoded in the record while the reader schema is inferred from table schema.
 
 When writing (serializing) a record with this format the Avro schema is inferred from the table schema and used to retrieve a schema id to be encoded with the data. The lookup is performed with in the configured Confluent Schema Registry under the [subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics) given in `avro-confluent.schema-registry.subject`.
 
-The Avro Schema Registry format can only be used in conjunction with [Apache Kafka SQL connector]({% link dev/table/connectors/kafka.md %}). 
+The Avro Schema Registry format can only be used in conjunction with [Apache Kafka SQL connector]({% link dev/table/connectors/kafka.md %}).
 
 Dependencies
 ------------
 
-{% assign connector = site.data.sql-connectors['avro-confluent'] %} 
-{% include sql-connector-download-table.html 
+{% assign connector = site.data.sql-connectors['avro-confluent'] %}
+{% include sql-connector-download-table.html
     connector=connector
 %}
 
@@ -106,6 +106,14 @@ Format Options
       <td>String</td>
       <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization</td>
     </tr>
+    <tr>
+      <td><h5>avro-confluent.ignore-parse-errors</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Skip fields and rows with parse errors instead of failing.
+      Fields are set to null in case of errors.</td>
+    </tr>
     </tbody>
 </table>
 
@@ -113,7 +121,7 @@ Data Type Mapping
 ----------------
 
 Currently, Apache Flink always uses the table schema to derive the Avro reader schema during deserialization and Avro writer schema during serialization. Explicitly defining an Avro schema is not supported yet.
-See the [Apache Avro Format]({% link dev/table/connectors/formats/avro.md%}#data-type-mapping) for the mapping between Avro and Flink DataTypes. 
+See the [Apache Avro Format]({% link dev/table/connectors/formats/avro.md%}#data-type-mapping) for the mapping between Avro and Flink DataTypes.
 
 In addition to the types listed there, Flink supports reading/writing nullable types. Flink maps nullable types to Avro `union(something, null)`, where `something` is the Avro type converted from Flink type.
 
