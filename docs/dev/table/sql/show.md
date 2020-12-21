@@ -59,7 +59,7 @@ The following examples show how to run a SHOW statement in `TableEnvironment`.
 
 <div data-lang="SQL CLI" markdown="1">
 
-SHOW statements can be executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html).
+SHOW statements can be executed in [SQL CLI]({% link dev/table/sqlClient.md %}).
 
 The following examples show how to run a SHOW statement in SQL CLI.
 

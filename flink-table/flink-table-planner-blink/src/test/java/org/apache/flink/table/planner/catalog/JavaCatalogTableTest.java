@@ -79,7 +79,7 @@ public class JavaCatalogTableTest extends TableTestBase {
 		tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
 		tableEnvironment.executeSql("CREATE VIEW testTable2 AS SELECT * FROM testCatalog.`default`.testTable");
 
-		testUtil.verifyPlan(
+		testUtil.verifyExecPlan(
 			"SELECT COUNT(*) FROM testTable2 GROUP BY TUMBLE(rowtime, INTERVAL '10' MINUTE)");
 	}
 
@@ -98,7 +98,7 @@ public class JavaCatalogTableTest extends TableTestBase {
 			.window(Tumble.over(lit(10).minute()).on($("rowtime")).as("w"))
 			.groupBy($("w"))
 			.select(lit(1).count());
-		testUtil.verifyPlan(table);
+		testUtil.verifyExecPlan(table);
 	}
 
 	@Test
@@ -116,7 +116,7 @@ public class JavaCatalogTableTest extends TableTestBase {
 			false);
 		tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
 
-		testUtil.verifyPlan("SELECT COUNT(*) FROM testCatalog.`default`.testTable " +
+		testUtil.verifyExecPlan("SELECT COUNT(*) FROM testCatalog.`default`.testTable " +
 			"GROUP BY TUMBLE(proctime, INTERVAL '10' MINUTE)");
 	}
 
@@ -139,7 +139,7 @@ public class JavaCatalogTableTest extends TableTestBase {
 			.window(Tumble.over(lit(10).minute()).on($("proctime")).as("w"))
 			.groupBy($("w"))
 			.select(lit(1).count());
-		testUtil.verifyPlan(table);
+		testUtil.verifyExecPlan(table);
 	}
 
 	private static class CustomCatalogTable implements CatalogTable {

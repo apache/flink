@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecExpand, BatchExecGroupAggregateBase, BatchExecHashAggregate, BatchExecSortAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExpand, BatchExecGroupAggregateBase, BatchExecHashAggregate, BatchExecSortAggregate, BatchPhysicalExchange}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleOperand}
@@ -102,7 +102,7 @@ abstract class EnforceLocalAggRuleBase(
 
   protected def createExchange(
       completeAgg: BatchExecGroupAggregateBase,
-      input: RelNode): BatchExecExchange = {
+      input: RelNode): BatchPhysicalExchange = {
     val cluster = completeAgg.getCluster
     val grouping = completeAgg.getGrouping
 
@@ -114,7 +114,7 @@ abstract class EnforceLocalAggRuleBase(
       .replace(FlinkConventions.BATCH_PHYSICAL)
       .replace(newDistribution)
 
-    new BatchExecExchange(cluster, newTraitSet, input, newDistribution)
+    new BatchPhysicalExchange(cluster, newTraitSet, input, newDistribution)
   }
 
   protected def createGlobalAgg(

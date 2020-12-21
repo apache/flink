@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -97,17 +98,19 @@ public class StreamingKafkaITCase extends TestLogger {
 			kafka.createTopic(1, 1, outputTopic);
 
 			// run the Flink job (detached mode)
-			clusterController.submitJob(new JobSubmission.JobSubmissionBuilder(kafkaExampleJar)
-				.setDetached(true)
-				.addArgument("--input-topic", inputTopic)
-				.addArgument("--output-topic", outputTopic)
-				.addArgument("--prefix", "PREFIX")
-				.addArgument("--bootstrap.servers", kafka.getBootstrapServerAddresses().stream().map(address -> address.getHostString() + ':' + address.getPort()).collect(Collectors.joining(",")))
-				.addArgument("--group.id", "myconsumer")
-				.addArgument("--auto.offset.reset", "earliest")
-				.addArgument("--transaction.timeout.ms", "900000")
-				.addArgument("--flink.partition-discovery.interval-millis", "1000")
-				.build());
+			clusterController.submitJob(
+				new JobSubmission.JobSubmissionBuilder(kafkaExampleJar)
+					.setDetached(true)
+					.addArgument("--input-topic", inputTopic)
+					.addArgument("--output-topic", outputTopic)
+					.addArgument("--prefix", "PREFIX")
+					.addArgument("--bootstrap.servers", kafka.getBootstrapServerAddresses().stream().map(address -> address.getHostString() + ':' + address.getPort()).collect(Collectors.joining(",")))
+					.addArgument("--group.id", "myconsumer")
+					.addArgument("--auto.offset.reset", "earliest")
+					.addArgument("--transaction.timeout.ms", "900000")
+					.addArgument("--flink.partition-discovery.interval-millis", "1000")
+					.build(),
+				Duration.ofMinutes(2L));
 
 			LOG.info("Sending messages to Kafka topic [{}] ...", inputTopic);
 			// send some data to Kafka

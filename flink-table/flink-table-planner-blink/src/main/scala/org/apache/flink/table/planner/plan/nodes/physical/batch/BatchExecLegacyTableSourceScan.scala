@@ -29,7 +29,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
@@ -57,8 +57,8 @@ class BatchExecLegacyTableSourceScan(
     traitSet: RelTraitSet,
     tableSourceTable: LegacyTableSourceTable[_])
   extends PhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
-          with BatchPhysicalRel
-          with BatchExecNode[RowData]{
+  with BatchPhysicalRel
+  with LegacyBatchExecNode[RowData]{
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
@@ -77,15 +77,7 @@ class BatchExecLegacyTableSourceScan(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = List()
-
   override def getInputEdges: util.List[ExecEdge] = List()
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -159,8 +151,7 @@ class BatchExecLegacyTableSourceScan(
     // to read multiple partitions which are multiple paths.
     // We can use InputFormatSourceFunction directly to support InputFormat.
     val func = new InputFormatSourceFunction[IN](format, t)
-    ExecNode.setManagedMemoryWeight(env.addSource(func, tableSource.explainSource(), t)
-        .getTransformation)
+    env.addSource(func, tableSource.explainSource(), t).getTransformation
   }
 
   private def computeIndexMapping()

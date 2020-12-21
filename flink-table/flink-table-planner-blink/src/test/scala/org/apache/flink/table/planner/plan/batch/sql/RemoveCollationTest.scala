@@ -76,7 +76,7 @@ class RemoveCollationTest extends TableTestBase {
         | FROM x
         | GROUP BY a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -88,7 +88,7 @@ class RemoveCollationTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT sum(b) FROM r group by a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -100,7 +100,7 @@ class RemoveCollationTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT sum(b) FROM r group by d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -111,7 +111,8 @@ class RemoveCollationTest extends TableTestBase {
         |WITH r AS (SELECT a, b, COUNT(c) AS cnt FROM x GROUP BY a, b)
         |SELECT * FROM r ORDER BY a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    // exec node does not support range sort yet, so we verify rel plan here
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -124,7 +125,7 @@ class RemoveCollationTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x ORDER BY a, b)
         |SELECT a, b, COUNT(c) AS cnt FROM r GROUP BY a, b
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -139,7 +140,7 @@ class RemoveCollationTest extends TableTestBase {
         | WHERE rk <= 10
         |) GROUP BY a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -154,7 +155,7 @@ class RemoveCollationTest extends TableTestBase {
         | WHERE rk <= 10
         |) GROUP BY a, b
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -168,7 +169,7 @@ class RemoveCollationTest extends TableTestBase {
         | )
         |) WHERE rk <= 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -183,7 +184,7 @@ class RemoveCollationTest extends TableTestBase {
         | )
         |) WHERE rk <= 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -198,7 +199,7 @@ class RemoveCollationTest extends TableTestBase {
         | WHERE rk <= 10
         |)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -214,7 +215,7 @@ class RemoveCollationTest extends TableTestBase {
         |   left outer join t2 on a = d1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -230,7 +231,7 @@ class RemoveCollationTest extends TableTestBase {
         |   left outer join t2 on a = d1 and b = e1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -246,7 +247,7 @@ class RemoveCollationTest extends TableTestBase {
         |   left outer join t2 on a1 = d1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -262,7 +263,7 @@ class RemoveCollationTest extends TableTestBase {
         |   left outer join t2 on a1 = d1 and b1 = e1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -338,7 +339,7 @@ class RemoveCollationTest extends TableTestBase {
         |   left outer join tb5 on tb1.key = tb5.id
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -352,7 +353,7 @@ class RemoveCollationTest extends TableTestBase {
         |     v as (SELECT f1, f, cnt FROM r, LATERAL TABLE(split(f)) AS T(f1))
         |SELECT * FROM x, v WHERE c = f
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -366,7 +367,7 @@ class RemoveCollationTest extends TableTestBase {
         |     v as (SELECT f, f1 FROM r, LATERAL TABLE(split(f)) AS T(f1))
         |SELECT * FROM x, v WHERE c = f AND f LIKE '%llo%'
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -381,7 +382,7 @@ class RemoveCollationTest extends TableTestBase {
         |     v as (SELECT f1 FROM r, LATERAL TABLE(split(f)) AS T(f1))
         |SELECT * FROM x, v WHERE c = f1
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
 }

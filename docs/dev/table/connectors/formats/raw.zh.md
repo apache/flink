@@ -2,7 +2,7 @@
 title: "Raw Format"
 nav-title: Raw
 nav-parent_id: sql-formats
-nav-pos: 7
+nav-pos: 9
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -37,7 +37,7 @@ Raw format 允许读写原始（基于字节）值作为单个列。
 ------------
 
 {% assign connector = site.data.sql-connectors['raw'] %}
-{% include sql-connector-download-table.html 
+{% include sql-connector-download-table.html
     connector=connector
 %}
 

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 
 import org.apache.calcite.plan.RelTraitSet
 import org.apache.calcite.rel.RelNode
@@ -39,4 +40,17 @@ trait FlinkPhysicalRel extends FlinkRelNode {
     */
   def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = None
 
+  /**
+   * Translate this physical RelNode into an [[ExecNode]].
+   *
+   * NOTE: This method only needs to create the corresponding ExecNode,
+   * the connection to its input/output nodes will be done by ExecGraphGenerator.
+   * Because some physical rels need not be translated to a real ExecNode,
+   * such as Exchange will be translated to edge in the future.
+   *
+   * TODO remove the implementation once all sub-classes do not extend from ExecNode
+   */
+  def translateToExecNode(): ExecNode[_] = {
+    this.asInstanceOf[ExecNode[_]]
+  }
 }

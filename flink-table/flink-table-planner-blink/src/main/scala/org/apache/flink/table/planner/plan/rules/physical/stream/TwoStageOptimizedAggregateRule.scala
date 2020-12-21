@@ -35,7 +35,7 @@ import org.apache.calcite.rel.RelNode
 import java.util
 
 /**
-  * Rule that matches [[StreamExecGroupAggregate]] on [[StreamExecExchange]]
+  * Rule that matches [[StreamExecGroupAggregate]] on [[StreamPhysicalExchange]]
   * with the following condition:
   * 1. mini-batch is enabled in given TableConfig,
   * 2. two-phase aggregation is enabled in given TableConfig,
@@ -45,14 +45,14 @@ import java.util
   * and converts them to
   * {{{
   *   StreamExecGlobalGroupAggregate
-  *   +- StreamExecExchange
+  *   +- StreamPhysicalExchange
   *      +- StreamExecLocalGroupAggregate
   *         +- input of exchange
   * }}}
   */
 class TwoStageOptimizedAggregateRule extends RelOptRule(
   operand(classOf[StreamExecGroupAggregate],
-    operand(classOf[StreamExecExchange],
+    operand(classOf[StreamPhysicalExchange],
       operand(classOf[RelNode], any))),
   "TwoStageOptimizedAggregateRule") {
 

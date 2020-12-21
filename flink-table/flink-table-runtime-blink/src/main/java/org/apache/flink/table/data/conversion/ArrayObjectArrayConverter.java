@@ -78,7 +78,7 @@ public class ArrayObjectArrayConverter<E> implements DataStructureConverter<Arra
 		this.writerNullSetter = writerNullSetter;
 		this.writerValueSetter = writerValueSetter;
 		this.genericToJavaArrayConverter = genericToJavaArrayConverter;
-		this.hasInternalElements = elementConverter instanceof IdentityConverter;
+		this.hasInternalElements = elementConverter.isIdentityConversion();
 		this.elementGetter = elementGetter;
 		this.elementConverter = elementConverter;
 	}

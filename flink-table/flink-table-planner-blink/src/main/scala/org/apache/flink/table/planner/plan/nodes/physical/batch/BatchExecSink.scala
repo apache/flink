@@ -26,7 +26,8 @@ import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalSink
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -48,16 +49,13 @@ class BatchExecSink(
     tableSink: DynamicTableSink)
   extends CommonPhysicalSink(cluster, traitSet, inputRel, tableIdentifier, catalogTable, tableSink)
   with BatchPhysicalRel
-  with BatchExecNode[Any] {
+  with LegacyBatchExecNode[Any] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecSink(cluster, traitSet, inputs.get(0), tableIdentifier, catalogTable, tableSink)
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
 
   // the input records will not trigger any output of a sink because it has no output,
   // so it's dam behavior is BLOCKING
@@ -66,16 +64,11 @@ class BatchExecSink(
       .damBehavior(ExecEdge.DamBehavior.BLOCKING)
       .build())
 
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[Any] = {
     val inputTransformation = getInputNodes.get(0) match {
-      // Sink's input must be BatchExecNode[RowData] now.
+      // Sink's input must be LegacyBatchExecNode[RowData] or BatchExecNode[RowData] now.
+      case legacyNode: LegacyBatchExecNode[RowData] => legacyNode.translateToPlan(planner)
       case node: BatchExecNode[RowData] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +

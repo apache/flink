@@ -24,7 +24,8 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExpandCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Expand
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
@@ -49,7 +50,7 @@ class BatchExecExpand(
     expandIdIndex: Int)
   extends Expand(cluster, traitSet, input, outputRowType, projects, expandIdIndex)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecExpand(
@@ -69,17 +70,7 @@ class BatchExecExpand(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
-  }
-
   override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -98,11 +89,12 @@ class BatchExecExpand(
       projects,
       opName = "BatchExpand")
 
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       inputTransform,
       getRelDetailedDescription,
       operator,
       InternalTypeInfo.of(outputType),
-      inputTransform.getParallelism)
+      inputTransform.getParallelism,
+      0)
   }
 }

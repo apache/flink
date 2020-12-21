@@ -20,13 +20,13 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT pandasFunc3(pandasFunc2(a + pandasFunc1(a, c), b), c) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pandasFunc3(pandasFunc2(+($0, pandasFunc1($0, $2)), $1), $2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[pandasFunc3(pandasFunc2(f0, b), c) AS EXPR$0])
 +- FlinkLogicalCalc(select=[b, c, +(a, f0) AS f0])
@@ -39,13 +39,13 @@ FlinkLogicalCalc(select=[pandasFunc3(pandasFunc2(f0, b), c) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT pyFunc3(pyFunc2(a + pyFunc1(a, c), b), c) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pyFunc3(pyFunc2(+($0, pyFunc1($0, $2)), $1), $2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[pyFunc3(pyFunc2(f0, b), c) AS EXPR$0])
 +- FlinkLogicalCalc(select=[b, c, +(a, f0) AS f0])
@@ -58,13 +58,13 @@ FlinkLogicalCalc(select=[pyFunc3(pyFunc2(f0, b), c) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT a, pyFunc1(b, pyFunc1(c, d._1)) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[pyFunc1($1, pyFunc1($2, $3._1))])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, pyFunc1(b, pyFunc1(c, f0)) AS EXPR$1])
 +- FlinkLogicalCalc(select=[a, b, c, d._1 AS f0])
@@ -76,13 +76,13 @@ FlinkLogicalCalc(select=[a, pyFunc1(b, pyFunc1(c, f0)) AS EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT pyFunc1(f1, f2), f0 + 1 FROM MyTable2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pyFunc1($1, $2)], EXPR$1=[+($0, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(f0, f1, f2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[f00 AS EXPR$0, +(f0, 1) AS EXPR$1])
 +- FlinkLogicalCalc(select=[f0, pyFunc1(f1, f2) AS f00])
@@ -94,13 +94,13 @@ FlinkLogicalCalc(select=[f00 AS EXPR$0, +(f0, 1) AS EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT a, b, pyFunc1(a, c), 1 FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], EXPR$2=[pyFunc1($0, $2)], EXPR$3=[1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, f0 AS EXPR$2, 1 AS EXPR$3])
 +- FlinkLogicalCalc(select=[a, b, pyFunc1(a, c) AS f0])
@@ -112,13 +112,13 @@ FlinkLogicalCalc(select=[a, b, f0 AS EXPR$2, 1 AS EXPR$3])
     <Resource name="sql">
       <![CDATA[SELECT pandasFunc1(a, b) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pandasFunc1($0, $1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[pandasFunc1(a, b) AS EXPR$0])
 +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
@@ -129,14 +129,14 @@ FlinkLogicalCalc(select=[pandasFunc1(a, b) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT a, b FROM MyTable WHERE pandasFunc4(a, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[pandasFunc4($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b], where=[f0])
 +- FlinkLogicalCalc(select=[a, b, pandasFunc4(a, c) AS f0])
@@ -148,13 +148,13 @@ FlinkLogicalCalc(select=[a, b], where=[f0])
     <Resource name="sql">
       <![CDATA[SELECT pyFunc1(a, b) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pyFunc1($0, $1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[pyFunc1(a, b) AS EXPR$0])
 +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
@@ -165,14 +165,14 @@ FlinkLogicalCalc(select=[pyFunc1(a, b) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT a, b FROM MyTable WHERE pyFunc4(a, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[pyFunc4($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b], where=[f0])
 +- FlinkLogicalCalc(select=[a, b, pyFunc4(a, c) AS f0])
@@ -184,13 +184,13 @@ FlinkLogicalCalc(select=[a, b], where=[f0])
     <Resource name="sql">
       <![CDATA[SELECT pyFunc1(a, b) + 1 FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[+(pyFunc1($0, $1), 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
 +- FlinkLogicalCalc(select=[pyFunc1(a, b) AS f0])
@@ -202,13 +202,13 @@ FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT pandasFunc1(a, b) + 1 FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[+(pandasFunc1($0, $1), 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
 +- FlinkLogicalCalc(select=[pandasFunc1(a, b) AS f0])
@@ -220,14 +220,14 @@ FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT pandasFunc1(a, b) FROM MyTable WHERE pandasFunc4(a, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pandasFunc1($0, $1)])
 +- LogicalFilter(condition=[pandasFunc4($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[pandasFunc1(a, b) AS EXPR$0])
 +- FlinkLogicalCalc(select=[a, b], where=[f0])
@@ -240,13 +240,13 @@ FlinkLogicalCalc(select=[pandasFunc1(a, b) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT pandasFunc1(a, b), pyFunc1(a, c) + 1, a + 1 FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pandasFunc1($0, $1)], EXPR$1=[+(pyFunc1($0, $2), 1)], EXPR$2=[+($0, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[f0 AS EXPR$0, +(f1, 1) AS EXPR$1, +(a, 1) AS EXPR$2])
 +- FlinkLogicalCalc(select=[a, f0, pyFunc1(a, c) AS f1])
@@ -259,13 +259,13 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(f1, 1) AS EXPR$1, +(a, 1) AS EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT pandasFunc1(a, b), c + 1 FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pandasFunc1($0, $1)], EXPR$1=[+($2, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
 +- FlinkLogicalCalc(select=[c, pandasFunc1(a, b) AS f0])
@@ -277,14 +277,14 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT pandasFunc1(a, b), c + 1 FROM MyTable WHERE pandasFunc2(a, c) > 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pandasFunc1($0, $1)], EXPR$1=[+($2, 1)])
 +- LogicalFilter(condition=[>(pandasFunc2($0, $2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
 +- FlinkLogicalCalc(select=[c, pandasFunc1(a, b) AS f0])
@@ -298,13 +298,13 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT a, pandasFunc1(b, d._1) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[pandasFunc1($1, $3._1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, pandasFunc1(b, f0) AS EXPR$1])
 +- FlinkLogicalCalc(select=[a, b, d._1 AS f0])
@@ -316,13 +316,13 @@ FlinkLogicalCalc(select=[a, pandasFunc1(b, f0) AS EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT a, pyFunc1(b, d._1) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[pyFunc1($1, $3._1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, pyFunc1(b, f0) AS EXPR$1])
 +- FlinkLogicalCalc(select=[a, b, d._1 AS f0])
@@ -334,13 +334,13 @@ FlinkLogicalCalc(select=[a, pyFunc1(b, f0) AS EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT pyFunc1(a, pandasFunc1(a, b)) + 1 FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[+(pyFunc1($0, pandasFunc1($0, $1)), 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
 +- FlinkLogicalCalc(select=[pyFunc1(a, f0) AS f0])
@@ -353,14 +353,14 @@ FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT pyFunc1(a, b) FROM MyTable WHERE pyFunc4(a, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pyFunc1($0, $1)])
 +- LogicalFilter(condition=[pyFunc4($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[pyFunc1(a, b) AS EXPR$0])
 +- FlinkLogicalCalc(select=[a, b], where=[f0])
@@ -373,13 +373,13 @@ FlinkLogicalCalc(select=[pyFunc1(a, b) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT pyFunc1(a, b), c + 1 FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pyFunc1($0, $1)], EXPR$1=[+($2, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
 +- FlinkLogicalCalc(select=[c, pyFunc1(a, b) AS f0])
@@ -391,14 +391,14 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT pyFunc1(a, b), c + 1 FROM MyTable WHERE pyFunc2(a, c) > 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[pyFunc1($0, $1)], EXPR$1=[+($2, 1)])
 +- LogicalFilter(condition=[>(pyFunc2($0, $2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
 +- FlinkLogicalCalc(select=[c, pyFunc1(a, b) AS f0])
@@ -408,21 +408,22 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testReorderPythonCalc">
+  <TestCase name="testPythonFunctionWithCompositeInputsAndOutputs">
     <Resource name="sql">
-      <![CDATA[SELECT a, pyFunc1(a, c), b FROM MyTable]]>
+      <![CDATA[SELECT e.* FROM (SELECT pyFunc5(d._1) as e FROM MyTable) AS T]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[pyFunc1($0, $2)], b=[$1])
+LogicalProject(f0=[pyFunc5($3._1).f0], f1=[pyFunc5($3._1).f1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, f0 AS EXPR$1, b])
-+- FlinkLogicalCalc(select=[a, b, pyFunc1(a, c) AS f0])
-   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
++- FlinkLogicalCalc(select=[pyFunc5(f0) AS f0])
+   +- FlinkLogicalCalc(select=[d._1 AS f0])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -430,17 +431,71 @@ FlinkLogicalCalc(select=[a, f0 AS EXPR$1, b])
     <Resource name="sql">
       <![CDATA[SELECT a, pyFunc1(b, d._1) FROM MyTable WHERE a + 1 > 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[pyFunc1($1, $3._1)])
 +- LogicalFilter(condition=[>(+($0, 1), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, pyFunc1(b, f0) AS EXPR$1])
 +- FlinkLogicalCalc(select=[a, b, d._1 AS f0], where=[>(+(a, 1), 0)])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPythonFunctionWithCompositeOutputs">
+    <Resource name="sql">
+      <![CDATA[SELECT e.* FROM (SELECT pyFunc5(a) as e FROM MyTable) AS T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[pyFunc5($0).f0], f1=[pyFunc5($0).f1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
++- FlinkLogicalCalc(select=[pyFunc5(a) AS f0])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPythonFunctionWithMultipleCompositeOutputs">
+    <Resource name="sql">
+      <![CDATA[SELECT e.*, f.* FROM (SELECT pyFunc5(a) as e, pyFunc5(b) as f FROM MyTable) AS T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[pyFunc5($0).f0], f1=[pyFunc5($0).f1], f00=[pyFunc5($1).f0], f10=[pyFunc5($1).f1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1, f1.f0 AS f00, f1.f1 AS f10])
++- FlinkLogicalCalc(select=[pyFunc5(a) AS f0, pyFunc5(b) AS f1])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReorderPythonCalc">
+    <Resource name="sql">
+      <![CDATA[SELECT a, pyFunc1(a, c), b FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[pyFunc1($0, $2)], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, f0 AS EXPR$1, b])
++- FlinkLogicalCalc(select=[a, b, pyFunc1(a, c) AS f0])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>

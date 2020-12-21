@@ -88,8 +88,8 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{{ site.baseurl }}/dev/table/connectors/hive/">Apache Hive</a></td>
-      <td><a href="{{ site.baseurl }}/dev/table/connectors/hive/#supported-hive-versions">Supported Versions</a></td>
+      <td><a href="{% link dev/table/connectors/hive/index.md %}">Apache Hive</a></td>
+      <td><a href="{% link dev/table/connectors/hive/index.md %}#supported-hive-versions">Supported Versions</a></td>
       <td>Unbounded Scan, Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
@@ -138,6 +138,65 @@ are taken into account when searching for exactly one matching factory for each 
 
 If no factory can be found or multiple factories match for the given properties, an exception will be
 thrown with additional information about considered factories and supported properties.
+
+
+Transform table connector/format resources
+--------
+
+Flink uses Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) to load the table connector/format factories by their identifiers. Since the SPI resource file named `org.apache.flink.table.factories.Factory` for every table connector/format is under the same directory `META-INF/services`, these resource files will override each other when build the uber-jar of the project which uses more than one table connector/format, which will cause Flink to fail to load table connector/format factories.
+
+In this situation, the recommended way is transforming these resource files under the directory `META-INF/services` by [ServicesResourceTransformer](https://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html) of maven shade plugin. Given the pom.xml file content of example that contains connector `flink-sql-connector-hive-3.1.2` and format `flink-parquet` in a project.
+
+{% highlight xml %}
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.example</groupId>
+    <artifactId>myProject</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <dependencies>
+        <!--  other project dependencies  ...-->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-sql-connector-hive-3.1.2_${scala.binary.version}</artifactId>
+            <version>${flink-version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-parquet_${scala.binary.version}</artifactId>
+            <version>${flink-version}</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>shade</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers combine.children="append">
+                                <!-- The service transformer is needed to merge META-INF/services files -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <!-- ... -->
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+{% endhighlight %}
+
+After configured the `ServicesResourceTransformer`, the table connector/format resource files under the directory `META-INF/services` would be merged rather than overwritten each other when build the uber-jar of above project.
 
 {% top %}
 

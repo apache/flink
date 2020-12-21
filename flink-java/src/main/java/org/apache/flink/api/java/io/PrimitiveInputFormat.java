@@ -56,8 +56,8 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 	}
 
 	@Override
-	public void open(FileInputSplit split) throws IOException {
-		super.open(split);
+	protected void initializeSplit(FileInputSplit split, Long offset) throws IOException {
+		super.initializeSplit(split, offset);
 		Class<? extends FieldParser<OT>> parserType = FieldParser.getParserForType(primitiveClass);
 		if (parserType == null) {
 			throw new IllegalArgumentException("The type '" + primitiveClass.getName() + "' is not supported for the primitive input format.");

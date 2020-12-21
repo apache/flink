@@ -60,7 +60,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
       .select($"o_amount" * $"rate").as("rate")
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -69,7 +69,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .joinLateral(call("Rates", $"o_rowtime"), $"currency" === $"o_currency")
       .select($"o_amount" * $"rate").as("rate")
 
-    util.verifyPlan(resultJava)
+    util.verifyExecPlan(resultJava)
   }
 
   @Test
@@ -78,7 +78,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .joinLateral(proctimeRates('o_proctime), 'currency === 'o_currency)
       .select($"o_amount" * $"rate").as("rate")
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   /**
@@ -107,7 +107,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .select('o_amount * 'rate, 'secondary_key).as("rate", "secondary_key")
       .join(thirdTable, 't3_secondary_key === 'secondary_key)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -125,7 +125,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .select($"o_amount" * $"rate")
       .as("rate")
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -139,7 +139,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
         'o_currency === 'currency)
       .select($"o_amount" * $"rate")
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test

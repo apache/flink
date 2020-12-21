@@ -64,6 +64,7 @@ is_stable: false
 show_outdated_warning: false
 
 previous_docs:
+  '1.12': http://ci.apache.org/projects/flink/flink-docs-release-1.12
   '1.11': http://ci.apache.org/projects/flink/flink-docs-release-1.11
   '1.10': http://ci.apache.org/projects/flink/flink-docs-release-1.10
   '1.9': http://ci.apache.org/projects/flink/flink-docs-release-1.9
@@ -87,6 +88,7 @@ previous_docs:
 exclude:
   - "build_docs.sh"
   - "check_links.sh"
+  - "spider.log"
 
 # Used in some documents to initialize arrays. Don't delete.
 array: []

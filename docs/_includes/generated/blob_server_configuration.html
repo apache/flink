@@ -24,7 +24,7 @@
             <td><h5>blob.fetch.backlog</h5></td>
             <td style="word-wrap: break-word;">1000</td>
             <td>Integer</td>
-            <td>The config parameter defining the backlog of BLOB fetches on the JobManager.</td>
+            <td>The config parameter defining the desired backlog of BLOB fetches on the JobManager.Note that the operating system usually enforces an upper limit on the backlog size based on the <span markdown="span">`SOMAXCONN`</span> setting.</td>
         </tr>
         <tr>
             <td><h5>blob.fetch.num-concurrent</h5></td>

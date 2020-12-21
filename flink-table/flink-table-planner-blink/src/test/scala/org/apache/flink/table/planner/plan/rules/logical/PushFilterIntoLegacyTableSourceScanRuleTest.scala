@@ -72,64 +72,64 @@ class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
   @Test
   def testCanPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2")
   }
 
   @Test
   def testCanPushDownWithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2")
   }
 
   @Test
   def testCannotPushDown(): Unit = {
     // TestFilterableTableSource only accept predicates with `amount`
-    util.verifyPlan("SELECT * FROM MyTable WHERE price > 10")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE price > 10")
   }
 
   @Test
   def testCannotPushDownWithVirtualColumn(): Unit = {
     // TestFilterableTableSource only accept predicates with `amount`
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE price > 10")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE price > 10")
   }
 
   @Test
   def testPartialPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 AND price > 10")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2 AND price > 10")
   }
 
   @Test
   def testPartialPushDownWithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2 AND price > 10")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2 AND price > 10")
   }
 
   @Test
   def testFullyPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 AND amount < 10")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2 AND amount < 10")
   }
 
   @Test
   def testFullyPushDownWithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2 AND amount < 10")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2 AND amount < 10")
   }
 
   @Test
   def testPartialPushDown2(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 OR price > 10")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2 OR price > 10")
   }
 
   @Test
   def testPartialPushDown2WithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2 OR price > 10")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2 OR price > 10")
   }
 
   @Test
   def testCannotPushDown3(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 OR amount < 10")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2 OR amount < 10")
   }
 
   @Test
   def testCannotPushDown3WithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2 OR amount < 10")
+    util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2 OR amount < 10")
   }
 
   @Test
@@ -139,13 +139,13 @@ class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
         |SELECT * FROM MyTable WHERE
         |    amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testWithUdf(): Unit = {
     util.addFunction("myUdf", Func1)
-    util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 AND myUdf(amount) < 32")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2 AND myUdf(amount) < 32")
   }
 
   @Test
@@ -165,6 +165,6 @@ class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
       data,
       List("a", "b"))
 
-    util.verifyPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'")
+    util.verifyRelPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'")
   }
 }

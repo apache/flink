@@ -28,7 +28,8 @@ import org.apache.flink.table.planner.codegen.agg.batch.{AggWithoutKeysCodeGener
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyBatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -41,10 +42,6 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.Util
-
-import java.util
-
-import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for hash-based aggregate operator.
@@ -76,7 +73,7 @@ abstract class BatchExecHashAggregateBase(
     aggCallToAggFunction,
     isMerge,
     isFinal)
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val numOfGroupKey = grouping.length
@@ -107,15 +104,6 @@ abstract class BatchExecHashAggregateBase(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
@@ -140,7 +128,7 @@ abstract class BatchExecHashAggregateBase(
       ).genWithKeys()
     }
     val operator = new CodeGenOperatorFactory[RowData](generatedOperator)
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,

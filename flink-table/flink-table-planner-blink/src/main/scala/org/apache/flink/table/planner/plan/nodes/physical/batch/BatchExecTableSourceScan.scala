@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
@@ -47,7 +47,7 @@ class BatchExecTableSourceScan(
     tableSourceTable: TableSourceTable)
   extends CommonPhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   with BatchPhysicalRel
-  with BatchExecNode[RowData]{
+  with LegacyBatchExecNode[RowData]{
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecTableSourceScan(cluster, traitSet, tableSourceTable)
@@ -66,15 +66,7 @@ class BatchExecTableSourceScan(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = List()
-
   override def getInputEdges: util.List[ExecEdge] = List()
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def createInputFormatTransformation(
       env: StreamExecutionEnvironment,
@@ -86,7 +78,7 @@ class BatchExecTableSourceScan(
     // to read multiple partitions which are multiple paths.
     // We can use InputFormatSourceFunction directly to support InputFormat.
     val func = new InputFormatSourceFunction[RowData](inputFormat, outTypeInfo)
-    ExecNode.setManagedMemoryWeight(env.addSource(func, name, outTypeInfo).getTransformation)
+    env.addSource(func, name, outTypeInfo).getTransformation
   }
 
   override protected def translateToPlanInternal(

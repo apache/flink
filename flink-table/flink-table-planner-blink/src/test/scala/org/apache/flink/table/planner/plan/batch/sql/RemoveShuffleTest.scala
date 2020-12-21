@@ -63,7 +63,7 @@ class RemoveShuffleTest extends TableTestBase {
         | FROM x
         | GROUP BY c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -80,7 +80,7 @@ class RemoveShuffleTest extends TableTestBase {
         | FROM x
         | GROUP BY a, c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -100,7 +100,7 @@ class RemoveShuffleTest extends TableTestBase {
         | FROM x
         | GROUP BY a, c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -115,7 +115,7 @@ class RemoveShuffleTest extends TableTestBase {
         | WITH r AS (SELECT a, c, count(b) as cnt FROM x GROUP BY a, c)
         | SELECT count(cnt) FROM r group by c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -130,7 +130,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT sum(b) FROM r group by a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -145,7 +145,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT sum(b) FROM r group by a, d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -160,7 +160,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT sum(b) FROM r group by d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -175,7 +175,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT sum(b) FROM r group by a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -190,7 +190,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT sum(b) FROM r group by a, d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -205,7 +205,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT sum(b) FROM r group by d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -219,7 +219,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -233,7 +233,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x left join (SELECT * FROM y WHERE e = 2) r on a = d)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -247,7 +247,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x right join (SELECT * FROM y WHERE e = 2) r on a = d)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -259,7 +259,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x full join (SELECT * FROM y WHERE e = 2) r on a = d)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -274,7 +274,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -286,7 +286,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -301,7 +301,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x left join (SELECT * FROM y WHERE e = 2) r on a = d)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -316,7 +316,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x right join (SELECT * FROM y WHERE e = 2) r on a = d)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -331,7 +331,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x full join (SELECT * FROM y WHERE e = 2) r on a = d)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -347,7 +347,7 @@ class RemoveShuffleTest extends TableTestBase {
         |r2 AS (SELECT a, c, sum(b) FROM x group by a, c)
         |SELECT * FROM r1, r2 WHERE r1.a = r2.a and r1.c = r2.c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -359,7 +359,7 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -376,13 +376,13 @@ class RemoveShuffleTest extends TableTestBase {
         |WITH r AS (SELECT d, count(f) as cnt FROM y GROUP BY d)
         |SELECT * FROM x, r WHERE x.a = r.d AND x.b = r.cnt
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testRemoveSingleExchange_Agg(): Unit = {
     val sqlQuery = "SELECT avg(b) FROM x GROUP BY c  HAVING sum(b) > (SELECT sum(b) * 0.1 FROM x)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -397,7 +397,7 @@ class RemoveShuffleTest extends TableTestBase {
         |SELECT count(d) as cnt, f FROM y WHERE e < 100 group by f)
         |SELECT r1.c, r1.cnt, r2.c, r2.cnt FROM r r1, r r2 WHERE r1.c = r2.c and r1.cnt < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -412,7 +412,7 @@ class RemoveShuffleTest extends TableTestBase {
         | )
         |) WHERE rk <= 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -429,7 +429,7 @@ class RemoveShuffleTest extends TableTestBase {
         | WHERE rk <= 10
         |) GROUP BY a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -446,7 +446,7 @@ class RemoveShuffleTest extends TableTestBase {
         | )
         |) WHERE rk <= 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -463,7 +463,7 @@ class RemoveShuffleTest extends TableTestBase {
         | )
         |) WHERE rk <= 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -478,7 +478,7 @@ class RemoveShuffleTest extends TableTestBase {
         | )
         |) WHERE rk <= 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -493,7 +493,7 @@ class RemoveShuffleTest extends TableTestBase {
         | )
         |) WHERE rk <= 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -510,7 +510,7 @@ class RemoveShuffleTest extends TableTestBase {
         |     v as (SELECT f1, f, cnt FROM r, LATERAL TABLE(split(f)) AS T(f1))
         |SELECT * FROM x, v WHERE c = f
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -527,7 +527,7 @@ class RemoveShuffleTest extends TableTestBase {
         |     v as (SELECT f, f1 FROM r, LATERAL TABLE(split(f)) AS T(f1))
         |SELECT * FROM x, v WHERE c = f AND f LIKE '%llo%'
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -545,6 +545,6 @@ class RemoveShuffleTest extends TableTestBase {
         |     v as (SELECT f1 FROM r, LATERAL TABLE(split(f)) AS T(f1))
         |SELECT * FROM x, v WHERE c = f1
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

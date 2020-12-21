@@ -49,7 +49,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
       .select($"o_amount" * $"rate").as("rate")
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -65,7 +65,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
         'o_currency === 'currency)
       .select($"o_amount" * $"rate")
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
 }

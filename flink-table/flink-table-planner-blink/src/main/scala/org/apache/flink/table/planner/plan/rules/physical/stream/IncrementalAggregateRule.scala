@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.PartialFinalType
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecExchange, StreamExecGlobalGroupAggregate, StreamExecIncrementalGroupAggregate, StreamExecLocalGroupAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecGlobalGroupAggregate, StreamExecIncrementalGroupAggregate, StreamExecLocalGroupAggregate, StreamPhysicalExchange}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, DistinctInfo}
 import org.apache.flink.util.Preconditions
 
@@ -33,7 +33,7 @@ import java.lang.{Boolean => JBoolean}
 import java.util.Collections
 
 /**
-  * Rule that matches final [[StreamExecGlobalGroupAggregate]] on [[StreamExecExchange]]
+  * Rule that matches final [[StreamExecGlobalGroupAggregate]] on [[StreamPhysicalExchange]]
   * on final [[StreamExecLocalGroupAggregate]] on partial [[StreamExecGlobalGroupAggregate]],
   * and combines the final [[StreamExecLocalGroupAggregate]] and
   * the partial [[StreamExecGlobalGroupAggregate]] into a [[StreamExecIncrementalGroupAggregate]].
@@ -41,7 +41,7 @@ import java.util.Collections
 class IncrementalAggregateRule
   extends RelOptRule(
     operand(classOf[StreamExecGlobalGroupAggregate], // final global agg
-      operand(classOf[StreamExecExchange], // key by
+      operand(classOf[StreamPhysicalExchange], // key by
         operand(classOf[StreamExecLocalGroupAggregate], // final local agg
           operand(classOf[StreamExecGlobalGroupAggregate], any())))), // partial global agg
     "IncrementalAggregateRule") {
@@ -65,7 +65,7 @@ class IncrementalAggregateRule
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val finalGlobalAgg: StreamExecGlobalGroupAggregate = call.rel(0)
-    val exchange: StreamExecExchange = call.rel(1)
+    val exchange: StreamPhysicalExchange = call.rel(1)
     val finalLocalAgg: StreamExecLocalGroupAggregate = call.rel(2)
     val partialGlobalAgg: StreamExecGlobalGroupAggregate = call.rel(3)
     val aggInputRowType = partialGlobalAgg.inputRowType

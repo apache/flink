@@ -33,6 +33,8 @@ import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
+import javax.annotation.Nullable;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -84,6 +86,7 @@ public class PrintTableSinkFactory implements DynamicTableSinkFactory {
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(PRINT_IDENTIFIER);
 		options.add(STANDARD_ERROR);
+		options.add(FactoryUtil.SINK_PARALLELISM);
 		return options;
 	}
 
@@ -95,7 +98,8 @@ public class PrintTableSinkFactory implements DynamicTableSinkFactory {
 		return new PrintSink(
 				context.getCatalogTable().getSchema().toPhysicalRowDataType(),
 				options.get(PRINT_IDENTIFIER),
-				options.get(STANDARD_ERROR));
+				options.get(STANDARD_ERROR),
+				options.getOptional(FactoryUtil.SINK_PARALLELISM).orElse(null));
 	}
 
 	private static class PrintSink implements DynamicTableSink {
@@ -103,11 +107,13 @@ public class PrintTableSinkFactory implements DynamicTableSinkFactory {
 		private final DataType type;
 		private final String printIdentifier;
 		private final boolean stdErr;
+		private final @Nullable Integer parallelism;
 
-		private PrintSink(DataType type, String printIdentifier, boolean stdErr) {
+		private PrintSink(DataType type, String printIdentifier, boolean stdErr, Integer parallelism) {
 			this.type = type;
 			this.printIdentifier = printIdentifier;
 			this.stdErr = stdErr;
+			this.parallelism = parallelism;
 		}
 
 		@Override
@@ -118,12 +124,12 @@ public class PrintTableSinkFactory implements DynamicTableSinkFactory {
 		@Override
 		public SinkRuntimeProvider getSinkRuntimeProvider(DynamicTableSink.Context context) {
 			DataStructureConverter converter = context.createDataStructureConverter(type);
-			return SinkFunctionProvider.of(new RowDataPrintFunction(converter, printIdentifier, stdErr));
+			return SinkFunctionProvider.of(new RowDataPrintFunction(converter, printIdentifier, stdErr), parallelism);
 		}
 
 		@Override
 		public DynamicTableSink copy() {
-			return new PrintSink(type, printIdentifier, stdErr);
+			return new PrintSink(type, printIdentifier, stdErr, parallelism);
 		}
 
 		@Override

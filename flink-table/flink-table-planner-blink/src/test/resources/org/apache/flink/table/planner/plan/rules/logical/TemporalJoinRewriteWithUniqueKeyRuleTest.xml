@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM T1 JOIN DeduplicatedView FOR SYSTEM_TIME AS OF T1.rowtime AS T ON T1.id = T.id]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], mount=[$1], proctime=[$2], rowtime=[$3], id0=[$4], rate=[$5], rowtime0=[$6])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
@@ -36,7 +36,7 @@ LogicalProject(id=[$0], mount=[$1], proctime=[$2], rowtime=[$3], id0=[$4], rate=
                      +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [CollectionTableSource(id, rate, rowtime)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[id, mount, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id0, rate, CAST(rowtime0) AS rowtime0])
 +- FlinkLogicalJoin(condition=[AND(=($0, $4), __TEMPORAL_JOIN_CONDITION($3, $6, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY($4), __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])
@@ -54,7 +54,7 @@ FlinkLogicalCalc(select=[id, mount, PROCTIME_MATERIALIZE(proctime) AS proctime, 
     <Resource name="sql">
       <![CDATA[SELECT * FROM T1 JOIN T2 FOR SYSTEM_TIME AS OF T1.rowtime AS T ON T1.id = T.id]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], mount=[$1], proctime=[$2], rowtime=[$3], id0=[$4], rate=[$5], rowtime0=[$6])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
@@ -67,7 +67,7 @@ LogicalProject(id=[$0], mount=[$1], proctime=[$2], rowtime=[$3], id0=[$4], rate=
             +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [CollectionTableSource(id, rate, rowtime)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[id, mount, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id0, rate, CAST(rowtime0) AS rowtime0])
 +- FlinkLogicalJoin(condition=[AND(=($0, $4), __TEMPORAL_JOIN_CONDITION($3, $6, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY($4), __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])

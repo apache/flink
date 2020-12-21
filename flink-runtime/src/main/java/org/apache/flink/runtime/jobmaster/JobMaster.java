@@ -82,6 +82,7 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
@@ -584,15 +585,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			final Exception cause) {
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
-			internalFailAllocation(allocationId, cause);
+			internalFailAllocation(taskManagerId, allocationId, cause);
 		} else {
 			log.warn("Cannot fail slot " + allocationId + " because the TaskManager " +
 			taskManagerId + " is unknown.");
 		}
 	}
 
-	private void internalFailAllocation(AllocationID allocationId, Exception cause) {
-		final Optional<ResourceID> resourceIdOptional = slotPool.failAllocation(allocationId, cause);
+	private void internalFailAllocation(@Nullable ResourceID resourceId, AllocationID allocationId, Exception cause) {
+		final Optional<ResourceID> resourceIdOptional = slotPool.failAllocation(resourceId, allocationId, cause);
 		resourceIdOptional.ifPresent(taskManagerId -> {
 			if (!partitionTracker.isTrackingPartitionsFor(taskManagerId)) {
 				releaseEmptyTaskManager(taskManagerId);
@@ -738,7 +739,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
-		internalFailAllocation(allocationID, cause);
+		internalFailAllocation(null, allocationID, cause);
+	}
+
+	@Override
+	public void notifyNotEnoughResourcesAvailable(Collection<ResourceRequirement> acquiredResources) {
+		slotPool.notifyNotEnoughResourcesAvailable(acquiredResources);
 	}
 
 	@Override
@@ -917,7 +923,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		if (schedulerNG.requestJobStatus() == JobStatus.CREATED) {
 			schedulerAssignedFuture = CompletableFuture.completedFuture(null);
-			schedulerNG.setMainThreadExecutor(getMainThreadExecutor());
+			schedulerNG.initialize(getMainThreadExecutor());
 		} else {
 			suspendAndClearSchedulerFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
 			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
@@ -925,7 +931,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 			schedulerAssignedFuture = schedulerNG.getTerminationFuture().handle(
 				(ignored, throwable) -> {
-					newScheduler.setMainThreadExecutor(getMainThreadExecutor());
+					newScheduler.initialize(getMainThreadExecutor());
 					assignScheduler(newScheduler, newJobManagerJobMetricGroup);
 					return null;
 				}

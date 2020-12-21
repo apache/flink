@@ -31,7 +31,7 @@ limitations under the License.
  GROUP BY b
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
 +- LogicalProject(b=[$1], a=[$0])
@@ -44,13 +44,13 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
             +- LogicalTableScan(table=[[default_catalog, default_database, wmTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(count$0) AS EXPR$1])
 +- Exchange(distribution=[hash[b]])
    +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(a) AS count$0])
       +- Calc(select=[b, a])
-         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=10000, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 5000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 10000:INTERVAL SECOND)))], select=[a, b, rowtime, a0, rowtime0])
+         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=10000, leftTimeIndex=2, rightTimeIndex=1], where=[((a = a0) AND (rowtime >= (rowtime0 - 5000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 10000:INTERVAL SECOND)))], select=[a, b, rowtime, a0, rowtime0])
             :- Exchange(distribution=[hash[a]])
             :  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
             :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
@@ -72,7 +72,7 @@ FROM T1
 GROUP BY long, TUMBLE(rowtime, INTERVAL '10' SECOND)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(long=[$0], cnt=[$2], rt=[TUMBLE_END($1)])
 +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
@@ -80,7 +80,7 @@ LogicalProject(long=[$0], cnt=[$2], rt=[TUMBLE_END($1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[long, cnt, w$end AS rt])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 10000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, COUNT(str) AS cnt, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
@@ -94,14 +94,14 @@ Calc(select=[long, cnt, w$end AS rt])
     <Resource name="sql">
       <![CDATA[SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable1 GROUP BY b]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
 +- LogicalProject(b=[$1], a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
 +- Exchange(distribution=[hash[b]])
@@ -115,14 +115,14 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
     <Resource name="sql">
       <![CDATA[SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyDataStream1 GROUP BY b]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
 +- LogicalProject(b=[$1], a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyDataStream1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
 +- Exchange(distribution=[hash[b]])
@@ -151,7 +151,7 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
  GROUP BY b,TUMBLE(rt, INTERVAL '5' SECOND)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$1=[$2], EXPR$2=[TUMBLE_START($1)], EXPR$3=[TUMBLE_END($1)])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT($2)])
@@ -165,13 +165,13 @@ LogicalProject(b=[$0], EXPR$1=[$2], EXPR$2=[TUMBLE_START($1)], EXPR$3=[TUMBLE_EN
                +- LogicalTableScan(table=[[default_catalog, default_database, wmTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, EXPR$1, w$start AS EXPR$2, w$end AS EXPR$3])
 +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(a) AS EXPR$1, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, rowtime, a])
-         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=10000, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 5000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 10000:INTERVAL SECOND)))], select=[a, b, rowtime, a0, rowtime0])
+         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=10000, leftTimeIndex=2, rightTimeIndex=1], where=[((a = a0) AND (rowtime >= (rowtime0 - 5000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 10000:INTERVAL SECOND)))], select=[a, b, rowtime, a0, rowtime0])
             :- Exchange(distribution=[hash[a]])
             :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
             :     +- TableSourceScan(table=[[default_catalog, default_database, wmTable1, project=[a, b, rowtime]]], fields=[a, b, rowtime])
@@ -210,7 +210,7 @@ Calc(select=[b, EXPR$1, w$start AS EXPR$2, w$end AS EXPR$3])
  )
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$1=[COUNT($1) OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST ROWS 5 PRECEDING)])
 +- LogicalJoin(condition=[AND(=($1, $4), >=($2, -($5, 5000:INTERVAL SECOND)), <=($2, +($5, 10000:INTERVAL SECOND)))], joinType=[inner])
@@ -228,13 +228,13 @@ LogicalProject(b=[$0], EXPR$1=[COUNT($1) OVER (PARTITION BY $0 ORDER BY $2 NULLS
                   +- LogicalTableScan(table=[[default_catalog, default_database, wmTable2]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[b], orderBy=[rt ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[b, a, rt, COUNT(a) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, a, rt])
-         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=10000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(rt, -(rt0, 5000:INTERVAL SECOND)), <=(rt, +(rt0, 10000:INTERVAL SECOND)))], select=[b, a, rt, b0, a0, rt0])
+         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=10000, leftTimeIndex=2, rightTimeIndex=2], where=[((a = a0) AND (rt >= (rt0 - 5000:INTERVAL SECOND)) AND (rt <= (rt0 + 10000:INTERVAL SECOND)))], select=[b, a, rt, b0, a0, rt0])
             :- Exchange(distribution=[hash[a]])
             :  +- Calc(select=[b, a, w$rowtime AS rt])
             :     +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(a) AS a, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
@@ -270,7 +270,7 @@ Calc(select=[b, w0$o0 AS $1])
   ON t1.a = t2.a
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalJoin(condition=[=($2, $4)], joinType=[inner])
@@ -287,10 +287,10 @@ LogicalProject(a=[$0], b=[$1])
                      +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
-+- Join(joinType=[InnerJoin], where=[=(a0, a1)], select=[a, b, a0, b0, a1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[(a0 = a1)], select=[a, b, a0, b0, a1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[a0]])
    :  +- Calc(select=[a, b, CAST(a) AS a0])
    :     +- GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(count$0) AS b])
@@ -348,8 +348,51 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink3`], fie
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$1])
                      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-== Optimized Logical Plan ==
-IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=1, rightTimeIndex=1], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, rowtime, text, id2, rowtime0, cnt, name, goods], reuse_id=[1])
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, $f0, 4000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+   +- Exchange(distribution=[hash[id1]])
+      +- Calc(select=[w$rowtime AS $f0, id1, text, _UTF-16LE'*' AS $f3])
+         +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 6000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[id1, LISTAGG(text, $f3) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+            +- Exchange(distribution=[hash[id1]])
+               +- Calc(select=[rowtime, id1, text, _UTF-16LE'#' AS $f3])
+                  +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=1, rightTimeIndex=1], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, rowtime, text, id2, rowtime0, cnt, name, goods])
+                     :- Exchange(distribution=[hash[id1]])
+                     :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                     :     +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[id1, rowtime, text])
+                     +- Exchange(distribution=[hash[id2]])
+                        +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                           +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[id2, rowtime, cnt, name, goods])
+
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 9000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+   +- Exchange(distribution=[hash[id1]])
+      +- Calc(select=[rowtime, id1, text, _UTF-16LE'-' AS $f3])
+         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=1, rightTimeIndex=1], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, rowtime, text, id2, rowtime0, cnt, name, goods])
+            :- Exchange(distribution=[hash[id1]])
+            :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[id1, rowtime, text])
+            +- Exchange(distribution=[hash[id2]])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[id2, rowtime, cnt, name, goods])
+
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a, b])
++- GlobalGroupAggregate(groupBy=[id1], select=[id1, COUNT(count$0) AS EXPR$1])
+   +- Exchange(distribution=[hash[id1]])
+      +- LocalGroupAggregate(groupBy=[id1], select=[id1, COUNT(text) AS count$0])
+         +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 6000)], select=[id1, LISTAGG(text, $f3) AS text])
+            +- Exchange(distribution=[hash[id1]])
+               +- Calc(select=[rowtime, id1, text, _UTF-16LE'#' AS $f3])
+                  +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=1, rightTimeIndex=1], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, rowtime, text, id2, rowtime0, cnt, name, goods])
+                     :- Exchange(distribution=[hash[id1]])
+                     :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                     :     +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[id1, rowtime, text])
+                     +- Exchange(distribution=[hash[id2]])
+                        +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                           +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[id2, rowtime, cnt, name, goods])
+
+== Optimized Execution Plan ==
+IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=1, rightTimeIndex=1], where=[((id1 = id2) AND (CAST(rowtime) > (CAST(rowtime0) - 300000:INTERVAL MINUTE)) AND (CAST(rowtime) < (CAST(rowtime0) + 180000:INTERVAL MINUTE)))], select=[id1, rowtime, text, id2, rowtime0, cnt, name, goods])(reuse_id=[1])
 :- Exchange(distribution=[hash[id1]])
 :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
 :     +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[id1, rowtime, text])
@@ -357,7 +400,7 @@ IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
       +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[id2, rowtime, cnt, name, goods])
 
-Exchange(distribution=[hash[id1]], reuse_id=[2])
+Exchange(distribution=[hash[id1]])(reuse_id=[2])
 +- Calc(select=[rowtime, id1, text, _UTF-16LE'#' AS $f3])
    +- Reused(reference_id=[1])
 
@@ -380,90 +423,6 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a,
       +- LocalGroupAggregate(groupBy=[id1], select=[id1, COUNT(text) AS count$0])
          +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 6000)], select=[id1, LISTAGG(text, $f3) AS text])
             +- Reused(reference_id=[2])
-
-== Physical Execution Plan ==
- : Data Source
-	content : Source: TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[id1, rowtime, text])
-
-	 : Operator
-		content : WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-		ship_strategy : FORWARD
-
- : Data Source
-	content : Source: TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[id2, rowtime, cnt, name, goods])
-
-	 : Operator
-		content : WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=1, rightTimeIndex=1], where=[((id1 = id2) AND (CAST(rowtime) > (CAST(rowtime0) - 300000:INTERVAL MINUTE)) AND (CAST(rowtime) < (CAST(rowtime0) + 180000:INTERVAL MINUTE)))], select=[id1, rowtime, text, id2, rowtime0, cnt, name, goods])
-			ship_strategy : HASH
-
-			 : Operator
-				content : Calc(select=[rowtime, id1, text, _UTF-16LE'#' AS $f3])
-				ship_strategy : FORWARD
-
-				 : Operator
-					content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 6000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[id1, LISTAGG(text, $f3) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
-					ship_strategy : HASH
-
-					 : Operator
-						content : Calc(select=[w$rowtime AS $f0, id1, text, _UTF-16LE'*' AS $f3])
-						ship_strategy : FORWARD
-
-						 : Operator
-							content : GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, $f0, 4000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-							ship_strategy : HASH
-
-							 : Operator
-								content : SinkConversionToRow
-								ship_strategy : FORWARD
-
-								 : Operator
-									content : Calc(select=[rowtime, id1, text, _UTF-16LE'-' AS $f3])
-									ship_strategy : FORWARD
-
-									 : Operator
-										content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 9000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-										ship_strategy : HASH
-
-										 : Operator
-											content : SinkConversionToRow
-											ship_strategy : FORWARD
-
-											 : Operator
-												content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 6000)], select=[id1, LISTAGG(text, $f3) AS text])
-												ship_strategy : HASH
-
-												 : Operator
-													content : LocalGroupAggregate(groupBy=[id1], select=[id1, COUNT(text) AS count$0])
-													ship_strategy : FORWARD
-
-													 : Operator
-														content : GlobalGroupAggregate(groupBy=[id1], select=[id1, COUNT(count$0) AS EXPR$1])
-														ship_strategy : HASH
-
-														 : Operator
-															content : SinkConversionToTuple2
-															ship_strategy : FORWARD
-
-															 : Operator
-																content : Map
-																ship_strategy : FORWARD
-
-																 : Data Sink
-																	content : Sink: TestingAppendTableSink
-																	ship_strategy : FORWARD
-
-																	 : Data Sink
-																		content : Sink: TestingAppendTableSink
-																		ship_strategy : FORWARD
-
-																		 : Data Sink
-																			content : Sink: TestingRetractTableSink
-																			ship_strategy : FORWARD
-
 ]]>
     </Resource>
   </TestCase>
@@ -480,14 +439,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a,
  GROUP BY cnt
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
 +- LogicalProject(cnt=[COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 5 PRECEDING)], int=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
 +- Exchange(distribution=[hash[cnt]])
@@ -512,7 +471,7 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
  GROUP BY cnt
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
 +- LogicalProject(cnt=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 5 PRECEDING)], c=[$2])
@@ -521,7 +480,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
          +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
 +- Exchange(distribution=[hash[cnt]])
@@ -539,7 +498,7 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM wmTable1 GROUP BY b]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
 +- LogicalProject(b=[$1], a=[$0], c=[$2])
@@ -548,7 +507,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXP
          +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
 +- Exchange(distribution=[hash[b]])
@@ -574,7 +533,7 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
  GROUP BY r_a
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
 +- LogicalProject(r_a=[$5], o_a=[$0])
@@ -585,22 +544,22 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
          +- LogicalTableFunctionScan(invocation=[Rates($cor0.rowtime)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIME ATTRIBUTE(PROCTIME) proctime, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GlobalGroupAggregate(groupBy=[r_a], select=[r_a, COUNT(count$0) AS EXPR$1])
 +- Exchange(distribution=[hash[r_a]])
    +- LocalGroupAggregate(groupBy=[r_a], select=[r_a, COUNT(o_a) AS count$0])
       +- Calc(select=[a0 AS r_a, a AS o_a])
-         +- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(b0)), =(b, b0))], select=[a, b, rowtime, a0, b0, rowtime0])
+         +- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(b0)) AND (b = b0))], select=[a, b, rowtime, a0, b0, rowtime0])
             :- Exchange(distribution=[hash[b]])
             :  +- Calc(select=[a, b, rowtime])
             :     +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
-            :        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+            :        +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
             :           +- DataStreamScan(table=[[default_catalog, default_database, MyDataStream1]], fields=[a, b, c, proctime, rowtime])
             +- Exchange(distribution=[hash[b]])
                +- Calc(select=[a, b, rowtime])
                   +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
-                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
                         +- DataStreamScan(table=[[default_catalog, default_database, MyDataStream2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -620,7 +579,7 @@ GlobalGroupAggregate(groupBy=[r_a], select=[r_a, COUNT(count$0) AS EXPR$1])
  GROUP BY b, TUMBLE(rt, INTERVAL '5' SECOND)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
@@ -632,7 +591,7 @@ LogicalProject(b=[$0], EXPR$1=[$2])
                   +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, $f1, 5000)], select=[b, SUM(cnt) AS EXPR$1])
 +- Exchange(distribution=[hash[b]])
@@ -659,7 +618,7 @@ GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, $f1, 5000)], 
  GROUP BY b
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
 +- LogicalProject(b=[$0], cnt=[$2])
@@ -670,7 +629,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
                +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GlobalGroupAggregate(groupBy=[b], select=[b, SUM_RETRACT((sum$0, count$1)) AS EXPR$1])
 +- Exchange(distribution=[hash[b]])

@@ -26,7 +26,7 @@ under the License.
 
 在 Flink SQL 和 Table API 中，可以通过系统内置的 `HiveModule` 来使用 Hive 内置函数，
 
-详细信息，请参考 [HiveModule]({{ site.baseurl }}/zh/dev/table/modules.html#hivemodule)。
+详细信息，请参考 [HiveModule]({% link dev/table/modules.zh.md %}#hivemodule)。
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">

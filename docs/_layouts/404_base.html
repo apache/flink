@@ -19,12 +19,13 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+{% capture index_link %}{% if page.language == "en" %}index.md{% else if page.language == "zh" %}index.zh.md{% endif %}{% endcapture %}
 
 <noscript>
-  <meta http-equiv="refresh" content="5; url=https:{{ site.baseurl }}">
+  <meta http-equiv="refresh" content="5; url={% link {{ index_link }} %}">
 </noscript>
 <script type="text/javascript">
-  var documentationRootUrl = "https:{{ site.baseurl }}";
+  var documentationRootUrl = "{% link {{ index_link }} %}";
   var timeout = "5000";
   window.onload = function() {
     setTimeout(doRedirect, timeout);

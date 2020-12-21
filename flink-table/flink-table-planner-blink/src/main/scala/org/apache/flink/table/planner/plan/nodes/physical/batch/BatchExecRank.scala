@@ -28,7 +28,8 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType}
@@ -74,7 +75,7 @@ class BatchExecRank(
     rankNumberType,
     outputRankNumber)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   require(rankType == RankType.RANK, "Only RANK is supported now")
   val (rankStart, rankEnd) = rankRange match {
@@ -99,7 +100,7 @@ class BatchExecRank(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = inputRel.getRowType
-    pw.item("input", getInput)
+    pw.input("input", getInput)
       .item("rankType", rankType)
       .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
       .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
@@ -236,16 +237,7 @@ class BatchExecRank(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
-
   override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -285,11 +277,12 @@ class BatchExecRank(
       rankEnd,
       outputRankNumber)
 
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),
       InternalTypeInfo.of(outputType),
-      input.getParallelism)
+      input.getParallelism,
+      0)
   }
 }

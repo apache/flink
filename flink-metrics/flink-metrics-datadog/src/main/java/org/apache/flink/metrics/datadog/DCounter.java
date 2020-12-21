@@ -32,15 +32,12 @@ public class DCounter extends DMetric {
 	private long currentReportCount = 0;
 
 	public DCounter(Counter c, String metricName, String host, List<String> tags, Clock clock) {
-		super(MetricType.count, metricName, host, tags, clock);
+		super(new MetricMetaData(MetricType.count, metricName, host, tags, clock));
 		counter = c;
 	}
 
 	/**
-	 * Visibility of this method must not be changed
-	 * since we deliberately not map it to json object in a Datadog-defined format.
-	 *
-	 * <p>Note: DataDog counters count the number of events during the reporting interval.
+	 * Returns the count of events since the last report.
 	 *
 	 * @return the number of events since the last retrieval
 	 */

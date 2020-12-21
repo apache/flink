@@ -759,6 +759,97 @@ class Table(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.dropColumns(fields[0]), self._t_env)
 
+    def map(self, func: Union[str, Expression]) -> 'Table':
+        """
+        Performs a map operation with a user-defined scalar function.
+
+        Example:
+        ::
+
+            >>> add = udf(lambda x: Row(x + 1, x * x), result_type=DataTypes.Row(
+            ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
+            >>> tab.map(add(tab.a)).alias("a, b")
+
+        :param func: user-defined scalar function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return Table(self._j_table.map(func), self._t_env)
+        else:
+            return Table(self._j_table.map(func._j_expr), self._t_env)
+
+    def flat_map(self, func: Union[str, Expression]) -> 'Table':
+        """
+        Performs a flatMap operation with a user-defined table function.
+
+        Example:
+        ::
+
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split(x, string):
+            ...     for s in string.split(","):
+            ...         yield x, s
+            >>> tab.flat_map(split(tab.a, table.b))
+
+        :param func: user-defined table function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return Table(self._j_table.flatMap(func), self._t_env)
+        else:
+            return Table(self._j_table.flatMap(func._j_expr), self._t_env)
+
+    def aggregate(self, func: Union[str, Expression]) -> 'AggregatedTable':
+        """
+        Performs a global aggregate operation with an aggregate function. You have to close the
+        aggregate with a select statement.
+
+        Example:
+        ::
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.aggregate(agg(tab.a).alias("a", "b")).select("a, b")
+
+        :param func: user-defined aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return AggregatedTable(self._j_table.aggregate(func), self._t_env)
+        else:
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+
+    def flat_aggregate(self, func: Union[str, Expression]) -> 'FlatAggregateTable':
+        """
+        Perform a global flat_aggregate without group_by. flat_aggregate takes a
+        :class:`~pyflink.table.TableAggregateFunction` which returns multiple rows. Use a selection
+        after the flat_aggregate.
+
+        Example:
+        ::
+
+            >>> table_agg = udtaf(MyTableAggregateFunction())
+            >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select("a, b")
+
+        :param func: user-defined table aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return FlatAggregateTable(self._j_table.flatAggregate(func), self._t_env)
+        else:
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+
     def insert_into(self, table_path: str):
         """
         Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
@@ -924,6 +1015,53 @@ class GroupedTable(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.select(fields[0]), self._t_env)
 
+    def aggregate(self, func: Union[str, Expression]) -> 'AggregatedTable':
+        """
+        Performs a aggregate operation with an aggregate function. You have to close the
+        aggregate with a select statement.
+
+        Example:
+        ::
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.group_by(tab.a).aggregate(agg(tab.b).alias("c", "d")).select("a, c, d")
+
+        :param func: user-defined aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return AggregatedTable(self._j_table.aggregate(func), self._t_env)
+        else:
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+
+    def flat_aggregate(self, func: Union[str, Expression]) -> 'FlatAggregateTable':
+        """
+        Performs a flat_aggregate operation on a grouped table. flat_aggregate takes a
+        :class:`~pyflink.table.TableAggregateFunction` which returns multiple rows. Use a selection
+        after flatAggregate.
+
+        Example:
+        ::
+
+            >>> table_agg = udtaf(MyTableAggregateFunction())
+            >>> tab.group_by(tab.c).flat_aggregate(table_agg(tab.a).alias("a")).select("c, a")
+
+        :param func: user-defined table aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return FlatAggregateTable(self._j_table.flatAggregate(func), self._t_env)
+        else:
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+
 
 class GroupWindowedTable(object):
     """
@@ -1002,6 +1140,34 @@ class WindowGroupedTable(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.select(fields[0]), self._t_env)
 
+    def aggregate(self, func: Union[str, Expression]) -> 'AggregatedTable':
+        """
+        Performs an aggregate operation on a window grouped table. You have to close the
+        aggregate with a select statement.
+
+        Example:
+        ::
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> window_grouped_table.group_by("w") \
+            ...     .aggregate(agg(window_grouped_table.b) \
+            ...     .alias("c", "d")) \
+            ...     .select("c, d")
+
+        :param func: user-defined aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return AggregatedTable(self._j_table.aggregate(func), self._t_env)
+        else:
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+
 
 class OverWindowedTable(object):
     """
@@ -1029,6 +1195,73 @@ class OverWindowedTable(object):
             ...                            col('b').count.over(col('ow')),
             ...                            col('e').sum.over(col('ow')))
             >>> over_windowed_table.select("c, b.count over ow, e.sum over ow")
+
+        :param fields: Expression string.
+        :return: The result table.
+        """
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.select(fields[0]), self._t_env)
+
+
+class AggregatedTable(object):
+    """
+    A table that has been performed on the aggregate function.
+    """
+
+    def __init__(self, java_table, t_env):
+        self._j_table = java_table
+        self._t_env = t_env
+
+    def select(self, *fields: Union[str, Expression]) -> 'Table':
+        """
+        Performs a selection operation after an aggregate operation. The field expressions
+        cannot contain table functions and aggregations.
+
+        Example:
+        ""
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.aggregate(agg(tab.a).alias("a", "b")).select("a, b")
+
+        :param fields: Expression string.
+        :return: The result table.
+        """
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.select(fields[0]), self._t_env)
+
+
+class FlatAggregateTable(object):
+    """
+    A table that performs flatAggregate on a :class:`~pyflink.table.Table`, a
+    :class:`~pyflink.table.GroupedTable` or a :class:`~pyflink.table.WindowGroupedTable`
+    """
+
+    def __init__(self, java_table, t_env):
+        self._j_table = java_table
+        self._t_env = t_env
+
+    def select(self, *fields: Union[str, Expression]) -> 'Table':
+        """
+        Performs a selection operation on a FlatAggregateTable. Similar to a SQL SELECT statement.
+        The field expressions can contain complex expressions.
+
+        Example:
+        ::
+
+            >>> table_agg = udtaf(MyTableAggregateFunction())
+            >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select("a, b")
 
         :param fields: Expression string.
         :return: The result table.

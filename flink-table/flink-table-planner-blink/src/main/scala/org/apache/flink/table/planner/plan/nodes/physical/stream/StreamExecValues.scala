@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.ValuesCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
@@ -30,8 +30,6 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
-
-import java.util
 
 /**
   * Stream physical RelNode for [[Values]].
@@ -43,7 +41,7 @@ class StreamExecValues(
     outputRowType: RelDataType)
   extends Values(cluster, outputRowType, tuples, traitSet)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -54,16 +52,6 @@ class StreamExecValues(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    new util.ArrayList[ExecNode[StreamPlanner, _]]()
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {

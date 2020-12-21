@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
@@ -229,11 +230,13 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendWhileRestarting() throws Exception {
+		final ManuallyTriggeredScheduledExecutor taskRestartExecutor = new ManuallyTriggeredScheduledExecutor();
 		final SchedulerBase scheduler = SchedulerTestingUtils.newSchedulerBuilder(new JobGraph())
 			.setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, Long.MAX_VALUE))
+			.setDelayExecutor(taskRestartExecutor)
 			.build();
 
-		scheduler.setMainThreadExecutor(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		scheduler.startScheduling();
 
 		final ExecutionGraph eg = scheduler.getExecutionGraph();
@@ -254,6 +257,9 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
 
 		assertEquals(exception, eg.getFailureCause());
+
+		taskRestartExecutor.triggerScheduledTasks();
+		assertEquals(JobStatus.SUSPENDED, eg.getState());
 	}
 
 	// ------------------------------------------------------------------------
@@ -306,7 +312,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		final SlotProvider slotProvider = new SimpleSlotProvider(parallelism, gateway);
 
 		final SchedulerBase scheduler = SchedulerTestingUtils.createScheduler(new JobGraph(vertex), slotProvider);
-		scheduler.setMainThreadExecutor(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		return scheduler;
 	}
 }

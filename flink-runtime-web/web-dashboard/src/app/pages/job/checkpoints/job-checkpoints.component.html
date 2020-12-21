@@ -49,7 +49,7 @@
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong>End to End Duration: </strong> {{ checkPointStats['latest']['completed']['end_to_end_duration'] | humanizeDuration}}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Checkpointed Data Size: </strong> {{ checkPointStats['latest']['completed']['checkpointed_data_size'] | humanizeBytes }}</span>
+              <span><strong>Checkpointed Data Size: </strong> {{ checkPointStats['latest']['completed']['state_size'] | humanizeBytes }}</span>
             </td>
             <td *ngIf="!checkPointStats['latest']['completed']">None</td>
           </tr>
@@ -251,6 +251,10 @@
               <span *ngIf="!checkPointConfig['externalization']['delete_on_cancellation']">(retain on cancellation)</span>
             </td>
             <td *ngIf="!checkPointConfig['externalization']['enabled']">Disabled</td>
+          </tr>
+          <tr>
+            <td>Tolerable Failed Checkpoints</td>
+            <td>{{ checkPointConfig['tolerable_failed_checkpoints'] }}</td>
           </tr>
         </ng-container>
       </tbody>

@@ -43,7 +43,7 @@ Flink 自身既没有复用 "RabbitMQ AMQP Java Client" 的代码，也没有将
 </dependency>
 {% endhighlight %}
 
-注意连接器现在没有包含在二进制发行版中。集群执行的相关信息请参考 [这里]({{site.baseurl}}/zh/dev/project-configuration.html).
+注意连接器现在没有包含在二进制发行版中。集群执行的相关信息请参考 [这里]({% link dev/project-configuration.zh.md %}).
 
 ### 安装 RabbitMQ
 安装 RabbitMQ 请参考 [RabbitMQ 下载页面](http://www.rabbitmq.com/download.html)。安装完成之后，服务会自动拉起，应用程序就可以尝试连接到 RabbitMQ 了。

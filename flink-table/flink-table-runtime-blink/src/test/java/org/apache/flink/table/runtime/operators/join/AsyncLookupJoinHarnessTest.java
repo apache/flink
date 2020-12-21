@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -28,11 +27,14 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.runtime.collector.TableFunctionCollector;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedFunctionWrapper;
@@ -41,9 +43,10 @@ import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinRunne
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinWithCalcRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinWithCalcRunner;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
@@ -63,6 +66,10 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 /**
  * Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}.
@@ -83,10 +90,19 @@ public class AsyncLookupJoinHarnessTest {
 		DataTypes.STRING().getLogicalType()
 	});
 
-	private InternalTypeInfo<RowData> rightRowTypeInfo = InternalTypeInfo.ofFields(
-		DataTypes.INT().getLogicalType(),
-		DataTypes.STRING().getLogicalType());
-	private TypeInformation<?> fetcherReturnType = rightRowTypeInfo;
+	private final DataType rightRowDataType =
+		DataTypes.ROW(
+			DataTypes.FIELD("f0", DataTypes.INT()),
+			DataTypes.FIELD("f1", DataTypes.STRING())
+		)
+		.bridgedTo(RowData.class);
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	private final DataStructureConverter<RowData, Object> fetcherConverter =
+			(DataStructureConverter) DataStructureConverters.getConverter(rightRowDataType);
+
+	private final RowDataSerializer rightRowSerializer =
+			(RowDataSerializer) InternalSerializers.<RowData>create(rightRowDataType.getLogicalType());
 
 	@Test
 	public void testTemporalInnerAsyncJoin() throws Exception {
@@ -216,7 +232,7 @@ public class AsyncLookupJoinHarnessTest {
 
 	// ---------------------------------------------------------------------------------
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	private OneInputStreamOperatorTestHarness<RowData, RowData> createHarness(
 			JoinType joinType,
 			FilterOnTable filterOnTable) throws Exception {
@@ -225,18 +241,18 @@ public class AsyncLookupJoinHarnessTest {
 		if (filterOnTable == FilterOnTable.WITHOUT_FILTER) {
 			joinRunner = new AsyncLookupJoinRunner(
 				new GeneratedFunctionWrapper(new TestingFetcherFunction()),
+				fetcherConverter,
 				new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
-				fetcherReturnType,
-				rightRowTypeInfo,
+				rightRowSerializer,
 				isLeftJoin,
 				ASYNC_BUFFER_CAPACITY);
 		} else {
 			joinRunner = new AsyncLookupJoinWithCalcRunner(
 				new GeneratedFunctionWrapper(new TestingFetcherFunction()),
+				fetcherConverter,
 				new GeneratedFunctionWrapper<>(new CalculateOnTemporalTable()),
 				new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
-				fetcherReturnType,
-				rightRowTypeInfo,
+				rightRowSerializer,
 				isLeftJoin,
 				ASYNC_BUFFER_CAPACITY);
 		}
@@ -248,6 +264,37 @@ public class AsyncLookupJoinHarnessTest {
 				ASYNC_BUFFER_CAPACITY,
 				AsyncDataStream.OutputMode.ORDERED),
 			inSerializer);
+	}
+
+	@Test
+	public void testCloseAsyncLookupJoinRunner() throws Exception {
+		final AsyncLookupJoinRunner joinRunner = new AsyncLookupJoinRunner(
+				new GeneratedFunctionWrapper(new TestingFetcherFunction()),
+				fetcherConverter,
+				new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+				rightRowSerializer,
+				true,
+				100);
+		assertNull(joinRunner.getAllResultFutures());
+		closeAsyncLookupJoinRunner(joinRunner);
+
+		joinRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+		joinRunner.open(new Configuration());
+		assertNotNull(joinRunner.getAllResultFutures());
+		closeAsyncLookupJoinRunner(joinRunner);
+
+		joinRunner.open(new Configuration());
+		joinRunner.asyncInvoke(row(1, "a"), new TestingFetcherResultFuture());
+		assertNotNull(joinRunner.getAllResultFutures());
+		closeAsyncLookupJoinRunner(joinRunner);
+	}
+
+	private void closeAsyncLookupJoinRunner(AsyncLookupJoinRunner joinRunner) throws Exception {
+		try {
+			joinRunner.close();
+		} catch (NullPointerException e) {
+			fail("Unexpected close to fail with null pointer exception.");
+		}
 	}
 
 	/**

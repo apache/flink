@@ -21,7 +21,6 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -33,6 +32,7 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -50,7 +50,7 @@ import static org.apache.flink.test.util.TestUtils.tryExecute;
  * - Test partial records are cleaned up correctly.
  * - Test only downstream are tasks restart.
  */
-
+@Ignore("Approximate local recovery has currently no scheduler support")
 public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
 	private static final int BUFFER_SIZE = 4096;
 
@@ -308,7 +308,6 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
 
 	private static Configuration createConfig() {
 		Configuration config = new Configuration();
-		config.setString(JobManagerOptions.SCHEDULING_STRATEGY, "legacy");
 		config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse(Integer.toString(BUFFER_SIZE)));
 
 		return config;

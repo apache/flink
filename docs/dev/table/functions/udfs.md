@@ -407,15 +407,15 @@ public static class OverloadedFunction extends TableFunction<Row> {
 // decouples the type inference from evaluation methods,
 // the type inference is entirely determined by the function hints
 @FunctionHint(
-  input = [@DataTypeHint("INT"), @DataTypeHint("INT")],
+  input = {@DataTypeHint("INT"), @DataTypeHint("INT")},
   output = @DataTypeHint("INT")
 )
 @FunctionHint(
-  input = [@DataTypeHint("BIGINT"), @DataTypeHint("BIGINT")],
+  input = {@DataTypeHint("BIGINT"), @DataTypeHint("BIGINT")},
   output = @DataTypeHint("BIGINT")
 )
 @FunctionHint(
-  input = [],
+  input = {},
   output = @DataTypeHint("BOOLEAN")
 )
 public static class OverloadedFunction extends TableFunction<Object> {
@@ -924,7 +924,7 @@ function is called to compute and return the final result.
 The following example illustrates the aggregation process:
 
 <center>
-<img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udagg-mechanism.png" width="80%">
+<img alt="UDAGG mechanism" src="{% link /fig/udagg-mechanism.png %}" width="80%">
 </center>
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
@@ -1275,7 +1275,7 @@ method of the function is called to compute and return the final result.
 The following example illustrates the aggregation process:
 
 <center>
-<img alt="UDTAGG mechanism" src="{{ site.baseurl }}/fig/udtagg-mechanism.png" width="80%">
+<img alt="UDTAGG mechanism" src="{% link /fig/udtagg-mechanism.png %}" width="80%">
 </center>
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,

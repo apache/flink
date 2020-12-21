@@ -41,7 +41,7 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
         |SELECT b, c, avg(a) AS a, GROUP_ID() AS g FROM MyTable
         |GROUP BY GROUPING SETS (b, c)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -59,7 +59,7 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY CUBE (b, c)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -77,7 +77,7 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
         |FROM MyTable
         |     GROUP BY ROLLUP (b, c)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -92,7 +92,7 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY GROUPING SETS (b)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -102,7 +102,7 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
       """
         |SELECT count(b) as b, count(c) as c FROM MyTable GROUP BY GROUPING SETS (b, c)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -113,7 +113,7 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
         |SELECT count(a) as a, count(b) as b, count(c) as c FROM MyTable
         |GROUP BY GROUPING SETS ((a, b), (a, c))
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -126,7 +126,7 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
     // When "[CALCITE-1824] GROUP_ID returns wrong result" is fixed,
     // "Calc(select=[a, 0 AS g, c])" will be changed to
     // "Calc(select=[a, CASE(=($e, 0), 0, =($e, 1), 0, 1) AS g, c])".
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -139,6 +139,6 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
     val fields = fieldNames.mkString(",")
     val sqlQuery = s"SELECT $fields FROM MyTable64 GROUP BY GROUPING SETS ($fields)"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

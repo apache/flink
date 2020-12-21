@@ -17,7 +17,7 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testComplexJoin">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalJoin(condition=[=($3, $1)], joinType=[inner])
 :- LogicalProject(rate=[AS(*($2, $8), _UTF-16LE'rate')], secondary_key=[AS($9, _UTF-16LE'secondary_key')])
@@ -29,17 +29,17 @@ LogicalJoin(condition=[=($3, $1)], joinType=[inner])
 +- LogicalTableScan(table=[[default_catalog, default_database, ThirdTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(t3_secondary_key, secondary_key)], select=[rate, secondary_key, t3_comment, t3_secondary_key], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(t3_secondary_key = secondary_key)], select=[rate, secondary_key, t3_comment, t3_secondary_key], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[secondary_key]])
-:  +- Calc(select=[*(o_amount, rate) AS rate, secondary_key])
-:     +- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)), OR(=(currency, o_currency), =(secondary_key, o_secondary_key)))], select=[o_rowtime, o_amount, o_currency, o_secondary_key, rowtime, currency, rate, secondary_key])
+:  +- Calc(select=[(o_amount * rate) AS rate, secondary_key])
+:     +- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND ((currency = o_currency) OR (secondary_key = o_secondary_key)))], select=[o_rowtime, o_amount, o_currency, o_secondary_key, rowtime, currency, rate, secondary_key])
 :        :- Exchange(distribution=[single])
 :        :  +- Calc(select=[rowtime AS o_rowtime, o_amount, o_currency, o_secondary_key])
 :        :     +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[rowtime, o_comment, o_amount, o_currency, o_secondary_key])
 :        +- Exchange(distribution=[single])
-:           +- Calc(select=[rowtime, currency, rate, secondary_key], where=[>(rate, 110:BIGINT)])
+:           +- Calc(select=[rowtime, currency, rate, secondary_key], where=[(rate > 110:BIGINT)])
 :              +- DataStreamScan(table=[[default_catalog, default_database, RatesHistory]], fields=[rowtime, comment, currency, rate, secondary_key])
 +- Exchange(distribution=[hash[t3_secondary_key]])
    +- DataStreamScan(table=[[default_catalog, default_database, ThirdTable]], fields=[t3_comment, t3_secondary_key])
@@ -47,7 +47,7 @@ Join(joinType=[InnerJoin], where=[=(t3_secondary_key, secondary_key)], select=[r
     </Resource>
   </TestCase>
   <TestCase name="testSimpleJoin">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
 +- LogicalFilter(condition=[=($3, $1)])
@@ -56,10 +56,10 @@ LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
       +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$9f8cd64a3b5a060e7794a65524cd070a($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[*(o_amount, rate) AS rate])
-+- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)), =(currency, o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
+Calc(select=[(o_amount * rate) AS rate])
++- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
    :- Exchange(distribution=[hash[o_currency]])
    :  +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_amount, o_currency, o_rowtime])
    +- Exchange(distribution=[hash[currency]])
@@ -68,7 +68,7 @@ Calc(select=[*(o_amount, rate) AS rate])
     </Resource>
   </TestCase>
   <TestCase name="testSimpleJoin2">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
 +- LogicalFilter(condition=[=($3, $1)])
@@ -77,10 +77,10 @@ LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
       +- LogicalTableFunctionScan(invocation=[Rates($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[*(o_amount, rate) AS rate])
-+- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)), =(currency, o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
+Calc(select=[(o_amount * rate) AS rate])
++- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
    :- Exchange(distribution=[hash[o_currency]])
    :  +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_amount, o_currency, o_rowtime])
    +- Exchange(distribution=[hash[currency]])
@@ -89,7 +89,7 @@ Calc(select=[*(o_amount, rate) AS rate])
     </Resource>
   </TestCase>
   <TestCase name="testSimpleProctimeJoin">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
 +- LogicalFilter(condition=[=($3, $1)])
@@ -98,10 +98,10 @@ LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
       +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$5e34ee5bc251237bdaefabb25bfc63dc($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(PROCTIME) proctime)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[*(o_amount, rate) AS rate])
-+- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(o_proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)), =(currency, o_currency))], select=[o_amount, o_currency, o_proctime, currency, rate, proctime])
+Calc(select=[(o_amount * rate) AS rate])
++- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_proctime, currency, rate, proctime])
    :- Exchange(distribution=[hash[o_currency]])
    :  +- DataStreamScan(table=[[default_catalog, default_database, ProctimeOrders]], fields=[o_amount, o_currency, o_proctime])
    +- Exchange(distribution=[hash[currency]])
@@ -110,7 +110,7 @@ Calc(select=[*(o_amount, rate) AS rate])
     </Resource>
   </TestCase>
   <TestCase name="testTemporalTableFunctionOnTopOfQuery">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
 +- LogicalFilter(condition=[=($3, $1)])
@@ -119,14 +119,14 @@ LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
       +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$functions$TemporalTableFunctionImpl$9f8cd64a3b5a060e7794a65524cd070a($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[*(o_amount, rate) AS rate])
-+- TemporalJoin(joinType=[InnerJoin], where=[AND(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)), =(currency, o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
+Calc(select=[(o_amount * rate) AS rate])
++- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
    :- Exchange(distribution=[hash[o_currency]])
    :  +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_amount, o_currency, o_rowtime])
    +- Exchange(distribution=[hash[currency]])
-      +- Calc(select=[currency, *(rate, 2) AS rate, rowtime], where=[>(rate, 100)])
+      +- Calc(select=[currency, (rate * 2) AS rate, rowtime], where=[(rate > 100)])
          +- DataStreamScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>

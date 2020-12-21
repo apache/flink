@@ -31,7 +31,7 @@ public class DMeter extends DMetric {
 	private final Meter meter;
 
 	public DMeter(Meter m, String metricName, String host, List<String> tags, Clock clock) {
-		super(MetricType.gauge, metricName, host, tags, clock);
+		super(new MetricMetaData(MetricType.gauge, metricName, host, tags, clock));
 		meter = m;
 	}
 

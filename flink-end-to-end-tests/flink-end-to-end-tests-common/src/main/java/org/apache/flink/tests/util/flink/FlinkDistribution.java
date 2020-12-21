@@ -45,6 +45,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -151,7 +152,7 @@ final class FlinkDistribution {
 		AutoClosableProcess.runBlocking(bin.resolve("stop-cluster.sh").toAbsolutePath().toString());
 	}
 
-	public JobID submitJob(final JobSubmission jobSubmission) throws IOException {
+	public JobID submitJob(final JobSubmission jobSubmission, Duration timeout) throws IOException {
 		final List<String> commands = new ArrayList<>(4);
 		commands.add(bin.resolve("flink").toString());
 		commands.add("run");
@@ -190,14 +191,14 @@ final class FlinkDistribution {
 			}
 
 			try {
-				return JobID.fromHexString(rawJobIdFuture.get(1, TimeUnit.MINUTES));
+				return JobID.fromHexString(rawJobIdFuture.get(timeout.getSeconds(), TimeUnit.SECONDS));
 			} catch (Exception e) {
 				throw new IOException("Could not determine Job ID.", e);
 			}
 		}
 	}
 
-	public void submitSQLJob(SQLJobSubmission job) throws IOException {
+	public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws IOException {
 		final List<String> commands = new ArrayList<>();
 		commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
 		commands.add("embedded");
@@ -218,7 +219,7 @@ final class FlinkDistribution {
 			.create(commands.toArray(new String[0]))
 			.setStdInputs(job.getSqlLines().toArray(new String[0]))
 			.setStdoutProcessor(LOG::info) // logging the SQL statements and error message
-			.runBlocking();
+			.runBlocking(timeout);
 	}
 
 	public void performJarOperation(JarOperation operation) throws IOException {

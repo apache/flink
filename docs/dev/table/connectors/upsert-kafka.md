@@ -61,10 +61,10 @@ The example below shows how to create and use an Upsert Kafka table:
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE pageviews_per_region (
-  region STRING,
+  user_region STRING,
   pv BIGINT,
   uv BIGINT,
-  PRIMARY KEY (region) NOT ENFORCED
+  PRIMARY KEY (user_region) NOT ENFORCED
 ) WITH (
   'connector' = 'upsert-kafka',
   'topic' = 'pageviews_per_region',
@@ -89,11 +89,11 @@ CREATE TABLE pageviews (
 -- calculate the pv, uv and insert into the upsert-kafka sink
 INSERT INTO pageviews_per_region
 SELECT
-  region,
+  user_region,
   COUNT(*),
   COUNT(DISTINCT user_id)
 FROM pageviews
-GROUP BY region;
+GROUP BY user_region;
 
 {% endhighlight %}
 </div>
@@ -140,6 +140,15 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Comma separated list of Kafka brokers.</td>
+    </tr>
+    <tr>
+      <td><h5>properties.*</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>
+         This can set and pass arbitrary Kafka configurations. Suffix names must match the configuration key defined in <a href="https://kafka.apache.org/documentation/#configuration">Kafka Configuration documentation</a>. Flink will remove the "properties." key prefix and pass the transformed key and values to the underlying KafkaClient. For example, you can disable automatic topic creation via <code>'properties.allow.auto.create.topics' = 'false'</code>. But there are some configurations that do not support to set, because Flink will override them, e.g. <code>'key.deserializer'</code> and <code>'value.deserializer'</code>.
+      </td>
     </tr>
     <tr>
       <td><h5>key.format</h5></td>

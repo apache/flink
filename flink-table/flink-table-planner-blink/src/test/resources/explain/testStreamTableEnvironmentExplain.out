@@ -3,31 +3,10 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[
 +- LogicalProject(first=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first, id, score, last)]]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Custom File source
-
-	 : Operator
-		content : CsvTableSource(read fields: first)
-		ship_strategy : REBALANCE
-
-		 : Operator
-			content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: first)]], fields=[first])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SinkConversionToRow
-				ship_strategy : FORWARD
-
-				 : Operator
-					content : Map
-					ship_strategy : FORWARD
-
-					 : Data Sink
-						content : Sink: CsvTableSink(first)
-						ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])

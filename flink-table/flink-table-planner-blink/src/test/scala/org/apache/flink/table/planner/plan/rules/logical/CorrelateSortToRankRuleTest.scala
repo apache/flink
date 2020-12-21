@@ -72,7 +72,7 @@ class CorrelateSortToRankRuleTest extends TableTestBase {
          |    DESC LIMIT 3
          |  )
       """.stripMargin
-    util.verifyPlan(query)
+    util.verifyRelPlan(query)
   }
 
   @Test
@@ -91,7 +91,7 @@ class CorrelateSortToRankRuleTest extends TableTestBase {
          |    DESC LIMIT 3
          |  )
       """.stripMargin
-    util.verifyPlan(query)
+    util.verifyRelPlan(query)
   }
 
   @Test
@@ -109,7 +109,7 @@ class CorrelateSortToRankRuleTest extends TableTestBase {
          |    DESC LIMIT 3
          |  )
       """.stripMargin
-    util.verifyPlan(query)
+    util.verifyRelPlan(query)
   }
 
   @Test // TODO: this is a valid case to support
@@ -127,7 +127,7 @@ class CorrelateSortToRankRuleTest extends TableTestBase {
          |    DESC LIMIT 3
          |  )
       """.stripMargin
-    util.verifyPlan(query)
+    util.verifyRelPlan(query)
   }
 
   @Test
@@ -145,7 +145,7 @@ class CorrelateSortToRankRuleTest extends TableTestBase {
          |    DESC LIMIT 3
          |  )
       """.stripMargin
-    util.verifyPlan(query)
+    util.verifyRelPlan(query)
   }
 
   @Test
@@ -164,7 +164,7 @@ class CorrelateSortToRankRuleTest extends TableTestBase {
          |    FETCH NEXT 3 ROWS ONLY
          |  )
       """.stripMargin
-    util.verifyPlan(query)
+    util.verifyRelPlan(query)
   }
 
   @Test
@@ -182,7 +182,7 @@ class CorrelateSortToRankRuleTest extends TableTestBase {
          |    DESC LIMIT 3
          |  )
       """.stripMargin
-    util.verifyPlan(query)
+    util.verifyRelPlan(query)
   }
 
   @Test
@@ -200,6 +200,6 @@ class CorrelateSortToRankRuleTest extends TableTestBase {
          |    DESC LIMIT 3
          |  )
       """.stripMargin
-    util.verifyPlan(query)
+    util.verifyRelPlan(query)
   }
 }

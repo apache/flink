@@ -61,6 +61,8 @@ Important classes of Flink Table API:
       Base interface for user-defined table function.
     - :class:`pyflink.table.AggregateFunction`
       Base interface for user-defined aggregate function.
+    - :class:`pyflink.table.TableAggregateFunction`
+      Base interface for user-defined table aggregate function.
     - :class:`pyflink.table.StatementSet`
       Base interface accepts DML statements or Tables.
 """
@@ -84,7 +86,8 @@ from pyflink.table.table_environment import (TableEnvironment, StreamTableEnviro
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes, UserDefinedType, Row, RowKind
-from pyflink.table.udf import FunctionContext, ScalarFunction, TableFunction, AggregateFunction
+from pyflink.table.udf import FunctionContext, ScalarFunction, TableFunction, AggregateFunction, \
+    TableAggregateFunction
 
 __all__ = [
     'AggregateFunction',
@@ -118,6 +121,7 @@ __all__ = [
     'TableSchema',
     'TableSink',
     'TableSource',
+    'TableAggregateFunction',
     'UserDefinedType',
     'WindowGroupedTable',
     'WriteMode'

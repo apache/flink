@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.MemorySize
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -29,7 +30,8 @@ import org.apache.flink.table.planner.codegen.agg.batch.{HashWindowCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyBatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -42,11 +44,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.configuration.MemorySize
-
-import java.util
-
-import scala.collection.JavaConversions._
 
 abstract class BatchExecHashWindowAggregateBase(
     cluster: RelOptCluster,
@@ -80,7 +77,7 @@ abstract class BatchExecHashWindowAggregateBase(
     enableAssignPane,
     isMerge,
     isFinal)
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val numOfGroupKey = grouping.length
@@ -105,15 +102,6 @@ abstract class BatchExecHashWindowAggregateBase(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -142,7 +130,7 @@ abstract class BatchExecHashWindowAggregateBase(
 
     val managedMemory = MemorySize.parse(config.getConfiguration.getString(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)).getBytes
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,

@@ -53,21 +53,22 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
 
   @Test
   def testSimpleCondition(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true")
   }
 
   @Test
   def testSimplifyConditionInSubQuery1(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE EXISTS " +
       "(SELECT * FROM y WHERE (d = 1 AND e = 2) OR (NOT (d <> 1) AND e = 3)) AND true"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testSimplifyConditionInSubQuery2(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT (a <> 1) AND b = 3) " +
       "AND true AND EXISTS (SELECT * FROM y WHERE d > 10)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -75,7 +76,7 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
     val sqlQuery = "SELECT * FROM x WHERE EXISTS " +
       "(SELECT * FROM y WHERE d IN " +
       "(SELECT i FROM z WHERE (i = 1 AND j = 2) OR (NOT (i <> 1) AND j = 3) AND true) AND e > 10)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -84,7 +85,7 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
       "(a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS " +
       "(SELECT * FROM y WHERE x.a = y.d AND 2=2 AND " +
       "(SELECT count(*) FROM z WHERE i = 5 AND j = 6) > 0)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -93,7 +94,7 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
       "(a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS " +
       "(SELECT * FROM y WHERE x.a = y.d AND " +
       "(SELECT count(*) FROM z WHERE (i = 5 AND j = 6) OR (NOT (i <> 5) AND j = 7) AND true) > 0)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -102,7 +103,7 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
       "(a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS " +
       "(SELECT * FROM y WHERE x.a = y.d AND 2=2 AND " +
       "(SELECT count(*) FROM z WHERE (i = 5 AND j = 6) OR (NOT (i <> 5) AND j = 7) AND true) > 0)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

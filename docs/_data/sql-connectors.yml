@@ -78,6 +78,12 @@ canal:
     category: format
     built-in: true
 
+maxwell:
+    name: Maxwell
+    maven: flink-json
+    category: format
+    built-in: true
+
 csv:
     name: CSV
     maven: flink-csv

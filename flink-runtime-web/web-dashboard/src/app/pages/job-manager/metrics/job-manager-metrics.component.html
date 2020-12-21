@@ -31,7 +31,7 @@
           <img src="assets/images/process_mem_model.svg">
         </td>
         <td class="table-header">JVM Heap</td>
-        <td>{{ config['jobmanager.memory.heap.size'] || '-' }}</td>
+        <td>{{ config['jobmanager.memory.heap.size'] | parseInt | humanizeBytes }}</td>
         <td>
           <nz-progress nzSize="small" nzStrokeLinecap="square"
                        [nzPercent]="+(metrics['Status.JVM.Memory.Heap.Used'] / metrics['Status.JVM.Memory.Heap.Max']  * 100 | number:'1.0-2')"
@@ -44,13 +44,13 @@
       </tr>
       <tr>
         <td class="table-header">Off-Heap Memory</td>
-        <td>{{ config['jobmanager.memory.off-heap.size'] || '-' }}</td>
+        <td>{{ config['jobmanager.memory.off-heap.size'] | parseInt | humanizeBytes }}</td>
         <td><i nz-icon nz-tooltip nzTitle="Metrics related to this configuration parameter cannot be monitored. Flink does not have full control over these memory pools"
                nzType="info-circle"></i></td>
       </tr>
       <tr>
         <td class="table-header">JVM Metaspace</td>
-        <td>{{ config['jobmanager.memory.jvm-metaspace.size'] || '-' }}</td>
+        <td>{{ config['jobmanager.memory.jvm-metaspace.size'] | parseInt | humanizeBytes }}</td>
         <td>
           <nz-progress nzSize="small" nzStrokeLinecap="square"
                        [nzPercent]="+(metrics['Status.JVM.Memory.Metaspace.Used'] / metrics['Status.JVM.Memory.Metaspace.Max']  * 100 | number:'1.0-2')"
@@ -63,7 +63,7 @@
         <td class="table-header">JVM Overhead</td>
         <td>
           <ng-container *ngIf="config['jobmanager.memory.jvm-overhead.min'] === config['jobmanager.memory.jvm-overhead.max']; else minMaxTemplate">
-            {{ config['jobmanager.memory.jvm-overhead.min'] || '-' }}
+            {{ config['jobmanager.memory.jvm-overhead.min'] | parseInt | humanizeBytes }}
           </ng-container>
           <ng-template #minMaxTemplate>
             Min: {{ config['jobmanager.memory.jvm-overhead.min'] || '-'}}

@@ -43,7 +43,7 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 			@Nullable String commonBindAddress,
 			int numberDispatcherResourceManagerComponents,
 			boolean localCommunication) {
-		super(configuration, numTaskManagers, rpcServiceSharing, commonBindAddress);
+		super(configuration, numTaskManagers, rpcServiceSharing, commonBindAddress, MiniCluster.HaServices.CONFIGURED);
 		this.numberDispatcherResourceManagerComponents = numberDispatcherResourceManagerComponents;
 		this.localCommunication = localCommunication;
 	}

@@ -41,7 +41,7 @@ public class RelDescriptionWriterImpl implements RelWriter {
 	/**
 	 * all the supported prefixes of RelNode class name (i.e. all the implementation of {@link FlinkRelNode}).
 	 */
-	private static final String[] REL_TYPE_NAME_PREFIXES = {"StreamExec", "BatchExec", "FlinkLogical"};
+	private static final String[] REL_TYPE_NAME_PREFIXES = {"StreamExec", "BatchExec", "BatchPhysical", "StreamPhysical", "FlinkLogical"};
 
 	private final PrintWriter pw;
 	private final List<Pair<String, Object>> values = new ArrayList<>();

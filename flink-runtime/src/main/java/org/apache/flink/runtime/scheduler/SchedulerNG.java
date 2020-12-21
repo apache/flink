@@ -67,11 +67,11 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>Implementations can expect that methods will not be invoked concurrently. In fact,
  * all invocations will originate from a thread in the {@link ComponentMainThreadExecutor}, which
- * will be passed via {@link #setMainThreadExecutor(ComponentMainThreadExecutor)}.
+ * will be passed via {@link #initialize(ComponentMainThreadExecutor)}.
  */
 public interface SchedulerNG {
 
-	void setMainThreadExecutor(ComponentMainThreadExecutor mainThreadExecutor);
+	void initialize(ComponentMainThreadExecutor mainThreadExecutor);
 
 	void registerJobStatusListener(JobStatusListener jobStatusListener);
 

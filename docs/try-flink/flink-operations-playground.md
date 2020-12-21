@@ -370,7 +370,7 @@ Suspending job "<job-id>" with a savepoint.
 Savepoint completed. Path: file:<savepoint-path>
 {% endhighlight %}
 
-The Savepoint has been stored to the `state.savepoint.dir` configured in the *flink-conf.yaml*, 
+The Savepoint has been stored to the `state.savepoints.dir` configured in the *flink-conf.yaml*,
 which is mounted under */tmp/flink-savepoints-directory/* on your local machine. You will need the 
 path to this Savepoint in the next step. 
 

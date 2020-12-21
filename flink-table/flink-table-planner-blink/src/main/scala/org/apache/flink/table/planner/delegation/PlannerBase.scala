@@ -36,7 +36,7 @@ import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecGraphGenerator, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
@@ -300,7 +300,13 @@ abstract class PlannerBase(
     */
   @VisibleForTesting
   private[flink] def translateToExecNodePlan(
-      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_, _]] = {
+      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_]] = {
+    val nonPhysicalRel = optimizedRelNodes.filterNot(_.isInstanceOf[FlinkPhysicalRel])
+    if (nonPhysicalRel.nonEmpty) {
+      throw new TableException("The expected optimized plan is FlinkPhysicalRel plan, " +
+        s"actual plan is ${nonPhysicalRel.head.getClass.getSimpleName} plan.")
+    }
+
     require(optimizedRelNodes.forall(_.isInstanceOf[FlinkPhysicalRel]))
     // Rewrite same rel object to different rel objects
     // in order to get the correct dag (dag reuse is based on object not digest)
@@ -309,7 +315,8 @@ abstract class PlannerBase(
     // reuse subplan
     val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
     // convert FlinkPhysicalRel DAG to ExecNode DAG
-    reusedPlan.map(_.asInstanceOf[ExecNode[_, _]])
+    val generator = new ExecGraphGenerator()
+    generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
   }
 
   /**
@@ -318,7 +325,7 @@ abstract class PlannerBase(
     * @param execNodes The node DAG to translate.
     * @return The [[Transformation]] DAG that corresponds to the node DAG.
     */
-  protected def translateToPlan(execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]]
+  protected def translateToPlan(execNodes: util.List[ExecNode[_]]): util.List[Transformation[_]]
 
   /**
    * Creates a [[SelectTableSinkBase]] for a select query.

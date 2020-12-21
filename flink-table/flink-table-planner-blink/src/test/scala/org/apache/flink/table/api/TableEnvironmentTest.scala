@@ -104,6 +104,49 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testStreamTableEnvironmentExecutionExplain(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExecutionExplain.out")
+    val actual = tEnv.explainSql("insert into MySink select first from MyTable",
+      ExplainDetail.JSON_EXECUTION_PLAN)
+
+    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
+      TableTestUtil.replaceStreamNodeId(actual))
+  }
+
+  @Test
+  def testStatementSetExecutionExplain(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testStatementSetExecutionExplain.out")
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("insert into MySink select last from MyTable")
+    val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
+
+    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
+      TableTestUtil.replaceStreamNodeId(actual))
+  }
+
+  @Test
   def testExecuteSqlWithCreateAlterDropTable(): Unit = {
     val createTableStmt =
       """

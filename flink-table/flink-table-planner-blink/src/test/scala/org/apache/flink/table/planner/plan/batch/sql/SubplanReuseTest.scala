@@ -56,7 +56,7 @@ class SubplanReuseTest extends TableTestBase {
         |)
         |SELECT r1.a, r1.b, r2.e FROM r r1, r r2 WHERE r1.b > 10 AND r2.e < 20 AND r1.a = r2.a
       """.stripMargin
-    util.verifyPlanNotExpected(sqlQuery, "Reused")
+    util.verifyRelPlanNotExpected(sqlQuery, "Reused")
   }
 
   @Test
@@ -70,7 +70,7 @@ class SubplanReuseTest extends TableTestBase {
         |     t2 AS (SELECT CAST(a as DOUBLE) AS a, SUM(b) AS b FROM x GROUP BY CAST(a as DOUBLE))
         |SELECT t1.*, t2.* FROM t1, t2 WHERE t1.b = t2.b
       """.stripMargin
-    util.verifyPlanNotExpected(sqlQuery, "Reused")
+    util.verifyRelPlanNotExpected(sqlQuery, "Reused")
   }
 
   @Test
@@ -82,7 +82,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH t AS (SELECT x.a AS a, x.b AS b, y.d AS d, y.e AS e FROM x, y WHERE x.a = y.d)
         |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -94,7 +94,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH t AS (SELECT * FROM x, y WHERE x.a = y.d)
         |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -109,7 +109,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT a, b FROM x LIMIT 10)
         |SELECT r1.a, r1.b, r2.a FROM r r1, r r2 WHERE r1.a = r2.b
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -121,7 +121,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |(SELECT a FROM t WHERE b > 10)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -135,7 +135,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |(SELECT r.a, LOWER(c) AS c, y.e FROM r, y WHERE r.a = y.d)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -148,7 +148,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |(SELECT a, random_udf() FROM x WHERE a > 10)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -161,7 +161,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |(SELECT a FROM x WHERE b > random_udf(a))
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -175,7 +175,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |SELECT * FROM r, y WHERE a = d AND f <> ''
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -187,7 +187,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -199,7 +199,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -217,7 +217,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT c, MyFirst(a) a, MyLast(b) b FROM x GROUP BY c)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -228,7 +228,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c ORDER BY a, b DESC)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.a > 1 AND r2.b < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -240,7 +240,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT a, b FROM x LIMIT 10)
         |SELECT r1.a, r1.b, r2.a FROM r r1, r r2 WHERE r1.a = r2.b
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -250,7 +250,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c ORDER BY a, b DESC LIMIT 10)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.a > 1 AND r2.b < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -260,7 +260,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT a, c FROM x WHERE b > 10 UNION ALL SELECT d, f FROM y WHERE e < 100)
         |SELECT r1.a, r1.c, r2.c FROM r r1, r r2 WHERE r1.a = r2.a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -271,7 +271,7 @@ class SubplanReuseTest extends TableTestBase {
         |           WHERE b > 1 and e < 2)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.b
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -285,7 +285,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -297,7 +297,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -309,7 +309,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.d
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -321,7 +321,7 @@ class SubplanReuseTest extends TableTestBase {
         |           WHERE b > 1 and e < 2)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.b
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -331,7 +331,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT a, b, RANK() OVER (ORDER BY c DESC) FROM x)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -346,7 +346,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT a, b, MyFirst(c) OVER (PARTITION BY c ORDER BY c DESC) FROM x)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -361,7 +361,7 @@ class SubplanReuseTest extends TableTestBase {
       """.stripMargin
     // TODO the sub-plan of Correlate should be reused,
     // however the digests of Correlates are different
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -373,7 +373,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT a, b, c, s FROM x, LATERAL TABLE(TableFun(c)) AS T(s))
         |SELECT * FROM r r1, r r2 WHERE r1.c = r2.s
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -386,7 +386,7 @@ class SubplanReuseTest extends TableTestBase {
         |INTERSECT
         |(SELECT a AS random FROM x ORDER BY rand() LIMIT 1)
       """.stripMargin)
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -422,7 +422,7 @@ class SubplanReuseTest extends TableTestBase {
         |)
         |SELECT * from v2 WHERE c <> '' AND sum_b - avg_b > 3
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -434,7 +434,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT a FROM x LIMIT 10)
         |SELECT r1.a FROM r r1, r r2 WHERE r1.a = r2.a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -446,7 +446,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT a FROM x LIMIT 10)
         |SELECT r1.a FROM r r1, r r2 WHERE r1.a = r2.a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -494,6 +494,6 @@ class SubplanReuseTest extends TableTestBase {
         |  WHERE newX.a = newY.d)
         |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

@@ -36,6 +36,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RawType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
@@ -53,6 +54,13 @@ public final class InternalSerializers {
 	@SuppressWarnings("unchecked")
 	public static <T> TypeSerializer<T> create(LogicalType type) {
 		return (TypeSerializer<T>) createInternal(type);
+	}
+
+	/**
+	 * Creates a {@link TypeSerializer} for internal data structures of the given {@link RowType}.
+	 */
+	public static <T> RowDataSerializer create(RowType type) {
+		return (RowDataSerializer) createInternal(type);
 	}
 
 	private static TypeSerializer<?> createInternal(LogicalType type) {

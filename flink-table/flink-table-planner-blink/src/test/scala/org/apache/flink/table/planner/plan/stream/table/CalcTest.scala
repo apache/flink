@@ -43,7 +43,7 @@ class CalcTest extends TableTestBase {
         .groupBy('w)
         .select('c.upperCase().count, 'a.sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -57,7 +57,7 @@ class CalcTest extends TableTestBase {
         .groupBy('w, 'b)
         .select('c.upperCase().count, 'a.sum, 'b)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -69,7 +69,7 @@ class CalcTest extends TableTestBase {
       .filter('b < 2)
       .filter(('a % 2) === 1)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -79,7 +79,7 @@ class CalcTest extends TableTestBase {
     val resultTable = sourceTable.select('a, 'b, 'c)
       .where((1 to 30).map($"b" === _).reduce((ex1, ex2) => ex1 || ex2) && ($"c" === "xx"))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -89,7 +89,7 @@ class CalcTest extends TableTestBase {
     val resultTable = sourceTable.select('a, 'b, 'c)
       .where((1 to 30).map($"b" !== _).reduce((ex1, ex2) => ex1 && ex2) || ($"c" !== "xx"))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -103,7 +103,7 @@ class CalcTest extends TableTestBase {
       .addOrReplaceColumns("concat(c, '_kid_last') as kid")
       .addColumns("'literal_value'")
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -112,7 +112,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.renameColumns('a as 'a2, 'b as 'b2).select('a2, 'b2)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -121,7 +121,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.dropColumns('a, 'b)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -131,7 +131,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.map(Func23('a, 'b, 'c))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -141,7 +141,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.map(Func1('a))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -153,7 +153,7 @@ class CalcTest extends TableTestBase {
       .map(Func23('a, 'b, 'c))
       .map(Func24('_c0, '_c1, '_c2, '_c3))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 }
 

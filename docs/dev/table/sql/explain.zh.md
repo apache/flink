@@ -50,7 +50,7 @@ EXPLAIN 语句可以通过 `TableEnvironment` 的 `execute_sql()` 执行。 若 
 
 <div data-lang="SQL CLI" markdown="1">
 
-可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 EXPLAIN 语句。
+可以在 [SQL CLI]({% link dev/table/sqlClient.zh.md %}) 中执行 EXPLAIN 语句。
 
 以下的例子展示了如何在 SQL CLI 中执行一条 EXPLAIN 语句。
 
@@ -64,22 +64,22 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 // register a table named "Orders"
-tEnv.executeSql("CREATE TABLE MyTable1 (count bigint, work VARCHAR(256) WITH (...)");
-tEnv.executeSql("CREATE TABLE MyTable2 (count bigint, work VARCHAR(256) WITH (...)");
+tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)");
+tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)");
 
 // explain SELECT statement through TableEnvironment.explainSql()
 String explanation = tEnv.explainSql(
-  "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' " +
+  "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' " +
   "UNION ALL " + 
-  "SELECT count, word FROM MyTable2");
+  "SELECT `count`, word FROM MyTable2");
 System.out.println(explanation);
 
 // explain SELECT statement through TableEnvironment.executeSql()
 TableResult tableResult = tEnv.executeSql(
   "EXPLAIN PLAN FOR " + 
-  "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' " +
+  "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' " +
   "UNION ALL " + 
-  "SELECT count, word FROM MyTable2");
+  "SELECT `count`, word FROM MyTable2");
 tableResult.print();
 
 {% endhighlight %}
@@ -91,22 +91,22 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tEnv = StreamTableEnvironment.create(env)
 
 // register a table named "Orders"
-tEnv.executeSql("CREATE TABLE MyTable1 (count bigint, work VARCHAR(256) WITH (...)")
-tEnv.executeSql("CREATE TABLE MyTable2 (count bigint, work VARCHAR(256) WITH (...)")
+tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)")
+tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)")
 
 // explain SELECT statement through TableEnvironment.explainSql()
 val explanation = tEnv.explainSql(
-  "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' " +
+  "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' " +
   "UNION ALL " + 
-  "SELECT count, word FROM MyTable2")
+  "SELECT `count`, word FROM MyTable2")
 println(explanation)
 
 // explain SELECT statement through TableEnvironment.executeSql()
 val tableResult = tEnv.executeSql(
   "EXPLAIN PLAN FOR " + 
-  "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' " +
+  "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' " +
   "UNION ALL " + 
-  "SELECT count, word FROM MyTable2")
+  "SELECT `count`, word FROM MyTable2")
 tableResult.print()
 
 {% endhighlight %}
@@ -117,22 +117,22 @@ tableResult.print()
 settings = EnvironmentSettings.new_instance()...
 table_env = StreamTableEnvironment.create(env, settings)
 
-t_env.execute_sql("CREATE TABLE MyTable1 (count bigint, work VARCHAR(256) WITH (...)")
-t_env.execute_sql("CREATE TABLE MyTable2 (count bigint, work VARCHAR(256) WITH (...)")
+t_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)")
+t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)")
 
 # explain SELECT statement through TableEnvironment.explain_sql()
 explanation1 = t_env.explain_sql(
-    "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' "
+    "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
     "UNION ALL "
-    "SELECT count, word FROM MyTable2")
+    "SELECT `count`, word FROM MyTable2")
 print(explanation1)
 
 # explain SELECT statement through TableEnvironment.execute_sql()
 table_result = t_env.execute_sql(
     "EXPLAIN PLAN FOR "
-    "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' "
+    "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
     "UNION ALL "
-    "SELECT count, word FROM MyTable2")
+    "SELECT `count`, word FROM MyTable2")
 table_result.print()
 
 {% endhighlight %}
@@ -140,29 +140,51 @@ table_result.print()
 
 <div data-lang="SQL CLI" markdown="1">
 {% highlight sql %}
-Flink SQL> CREATE TABLE MyTable1 (count bigint, work VARCHAR(256);
+Flink SQL> CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256);
 [INFO] Table has been created.
 
-Flink SQL> CREATE TABLE MyTable2 (count bigint, work VARCHAR(256);
+Flink SQL> CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256);
 [INFO] Table has been created.
 
-Flink SQL> EXPLAIN PLAN FOR SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' 
+Flink SQL> EXPLAIN PLAN FOR SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' 
 > UNION ALL 
-> SELECT count, word FROM MyTable2;
+> SELECT `count`, word FROM MyTable2;
 
 {% endhighlight %}
 </div>
 </div>
 
 执行 `EXPLAIN` 语句后的结果为：
-<div>
+<div class="codetabs" markdown="1">
+<div data-lang="Blink Planner" markdown="1">
+{% highlight text %}
+== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+  LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
+
+== Optimized Physical Plan ==
+Union(all=[true], union all=[count, word])
+  Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+    TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
+  TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
+
+== Optimized Execution Plan ==
+Union(all=[true], union all=[count, word])
+  Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+    TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
+  TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
+{% endhighlight %}
+</div>
+
+<div data-lang="Legacy Planner" markdown="1">
 {% highlight text %}
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
   LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
     FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
   FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
-  
 
 == Optimized Logical Plan ==
 DataStreamUnion(all=[true], union all=[count, word])
@@ -190,6 +212,7 @@ Stage 2 : Data Source
 				ship_strategy : REBALANCE
 {% endhighlight %}
 </div>
+</div>
 
 {% top %}
 
@@ -199,7 +222,7 @@ Stage 2 : Data Source
 EXPLAIN PLAN FOR <query_statement_or_insert_statement>
 {% endhighlight %}
 
-请参阅 [Queries]({{ site.baseurl }}/zh/dev/table/sql/queries.html#supported-syntax) 页面获得 query 的语法。
-请参阅 [INSERT]({{ site.baseurl }}/zh/dev/table/sql/insert.html) 页面获得 INSERT 的语法。
+请参阅 [Queries]({% link dev/table/sql/queries.zh.md %}#supported-syntax) 页面获得 query 的语法。
+请参阅 [INSERT]({% link dev/table/sql/insert.zh.md %}) 页面获得 INSERT 的语法。
 
 {% top %}

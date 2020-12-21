@@ -25,7 +25,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector
 import org.apache.flink.table.runtime.operators.sort.{ProcTimeSortOperator, RowTimeSortOperator}
@@ -36,8 +36,6 @@ import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rex.RexNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -54,7 +52,7 @@ class StreamExecTemporalSort(
     sortCollation: RelCollation)
   extends Sort(cluster, traitSet, inputRel, sortCollation)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -73,22 +71,6 @@ class StreamExecTemporalSort(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  /**
-    * Returns an array of this node's inputs. If there are no inputs,
-    * returns an empty list, not null.
-    *
-    * @return Array of this node's inputs
-    */
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {

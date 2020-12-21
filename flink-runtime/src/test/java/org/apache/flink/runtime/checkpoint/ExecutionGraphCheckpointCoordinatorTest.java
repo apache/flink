@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -25,12 +26,13 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
 
@@ -61,7 +63,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
 		CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
 
-		ExecutionGraph graph = createExecutionGraphAndEnableCheckpointing(counter, store);
+		final SchedulerBase scheduler = createSchedulerAndEnableCheckpointing(counter, store);
+		final ExecutionGraph graph = scheduler.getExecutionGraph();
 		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
 
 		assertThat(checkpointCoordinator, Matchers.notNullValue());
@@ -86,7 +89,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
 		CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
 
-		ExecutionGraph graph = createExecutionGraphAndEnableCheckpointing(counter, store);
+		final SchedulerBase scheduler = createSchedulerAndEnableCheckpointing(counter, store);
+		final ExecutionGraph graph = scheduler.getExecutionGraph();
 		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
 
 		assertThat(checkpointCoordinator, Matchers.notNullValue());
@@ -111,17 +115,22 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
 		CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
 
-		ExecutionGraph graph = createExecutionGraphAndEnableCheckpointing(counter, store);
+		final SchedulerBase scheduler = createSchedulerAndEnableCheckpointing(counter, store);
+		final ExecutionGraph graph = scheduler.getExecutionGraph();
 		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
 
 		assertThat(checkpointCoordinator, Matchers.notNullValue());
 		assertThat(checkpointCoordinator.isShutdown(), is(false));
 
-		graph.scheduleForExecution();
+		scheduler.startScheduling();
 
 		for (ExecutionVertex executionVertex : graph.getAllExecutionVertices()) {
 			final Execution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
-			graph.updateState(new TaskExecutionState(graph.getJobID(), currentExecutionAttempt.getAttemptId(), ExecutionState.FINISHED));
+			scheduler.updateTaskExecutionState(
+				new TaskExecutionState(
+					graph.getJobID(),
+					currentExecutionAttempt.getAttemptId(),
+					ExecutionState.FINISHED));
 		}
 
 		assertThat(graph.getTerminationFuture().get(), is(JobStatus.FINISHED));
@@ -131,24 +140,16 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		assertThat(storeShutdownFuture.get(), is(JobStatus.FINISHED));
 	}
 
-	private ExecutionGraph createExecutionGraphAndEnableCheckpointing(
+	private SchedulerBase createSchedulerAndEnableCheckpointing(
 			CheckpointIDCounter counter,
 			CompletedCheckpointStore store) throws Exception {
 		final Time timeout = Time.days(1L);
 
-		JobVertex jobVertex = new JobVertex("MockVertex");
+		final JobVertex jobVertex = new JobVertex("MockVertex");
 		jobVertex.setInvokableClass(AbstractInvokable.class);
 
-		final ExecutionGraph executionGraph = TestingExecutionGraphBuilder
-			.newBuilder()
-			.setJobGraph(new JobGraph(jobVertex))
-			.setRpcTimeout(timeout)
-			.setAllocationTimeout(timeout)
-			.build();
-
-		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
-		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
+		final JobGraph jobGraph = new JobGraph(jobVertex);
+		final CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			100,
 			100,
 			100,
@@ -158,19 +159,46 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 			false,
 			false,
 			0);
+		final JobCheckpointingSettings checkpointingSettings = new JobCheckpointingSettings(
+			Collections.emptyList(),
+			Collections.emptyList(),
+			Collections.emptyList(),
+			chkConfig,
+			null);
+		jobGraph.setSnapshotSettings(checkpointingSettings);
 
-		executionGraph.enableCheckpointing(
-				chkConfig,
-				Collections.emptyList(),
-				Collections.emptyList(),
-				Collections.emptyList(),
-				Collections.emptyList(),
-				counter,
-				store,
-				new MemoryStateBackend(),
-				CheckpointStatsTrackerTest.createTestTracker());
+		final SchedulerBase scheduler = SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+			.setCheckpointRecoveryFactory(new TestingCheckpointRecoveryFactory(store, counter))
+			.setRpcTimeout(timeout)
+			.build();
 
-		return executionGraph;
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+		return scheduler;
+	}
+
+	private static class TestingCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
+
+		private final CompletedCheckpointStore store;
+		private final CheckpointIDCounter counter;
+
+		private TestingCheckpointRecoveryFactory(CompletedCheckpointStore store, CheckpointIDCounter counter) {
+			this.store = store;
+			this.counter = counter;
+		}
+
+		@Override
+		public CompletedCheckpointStore createCheckpointStore(
+				JobID jobId,
+				int maxNumberOfCheckpointsToRetain,
+				ClassLoader userClassLoader) {
+			return store;
+		}
+
+		@Override
+		public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) {
+			return counter;
+		}
 	}
 
 	private static final class TestingCheckpointIDCounter implements CheckpointIDCounter {
@@ -215,7 +243,6 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
 		@Override
 		public void recover() {
-			throw new UnsupportedOperationException("Not implemented.");
 		}
 
 		@Override
@@ -225,7 +252,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
 		@Override
 		public CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) {
-			throw new UnsupportedOperationException("Not implemented.");
+			return null;
 		}
 
 		@Override
@@ -235,7 +262,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
 		@Override
 		public List<CompletedCheckpoint> getAllCheckpoints() {
-			throw new UnsupportedOperationException("Not implemented.");
+			return Collections.emptyList();
 		}
 
 		@Override

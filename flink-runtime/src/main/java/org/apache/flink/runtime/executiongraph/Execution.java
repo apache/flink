@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.io.InputSplit;
@@ -32,27 +31,20 @@ import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -70,11 +62,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -87,7 +77,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -102,7 +91,6 @@ import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
-import static org.apache.flink.runtime.scheduler.ExecutionVertexSchedulingRequirementsMapper.getPhysicalSlotResourceProfile;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -408,189 +396,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	//  Actions
 	// --------------------------------------------------------------------------------------------
 
-	public CompletableFuture<Void> scheduleForExecution() {
-		final ExecutionGraph executionGraph = getVertex().getExecutionGraph();
-		final SlotProviderStrategy resourceProvider = executionGraph.getSlotProviderStrategy();
-		return scheduleForExecution(
-			resourceProvider,
-			LocationPreferenceConstraint.ANY,
-			Collections.emptySet());
-	}
-
-	/**
-	 * NOTE: This method only throws exceptions if it is in an illegal state to be scheduled, or if the tasks needs
-	 *       to be scheduled immediately and no resource is available. If the task is accepted by the schedule, any
-	 *       error sets the vertex state to failed and triggers the recovery logic.
-	 *
-	 * @param slotProviderStrategy The slot provider strategy to use to allocate slot for this execution attempt.
-	 * @param locationPreferenceConstraint constraint for the location preferences
-	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
-	 *                                                 Can be empty if the allocation ids are not required for scheduling.
-	 * @return Future which is completed once the Execution has been deployed
-	 */
-	public CompletableFuture<Void> scheduleForExecution(
-			SlotProviderStrategy slotProviderStrategy,
-			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
-
-		assertRunningInJobMasterMainThread();
-		try {
-			final CompletableFuture<Execution> allocationFuture = allocateResourcesForExecution(
-				slotProviderStrategy,
-				locationPreferenceConstraint,
-				allPreviousExecutionGraphAllocationIds);
-
-			final CompletableFuture<Void> deploymentFuture = allocationFuture.thenRun(ThrowingRunnable.unchecked(this::deploy));
-
-			deploymentFuture.whenComplete(
-				(Void ignored, Throwable failure) -> {
-					if (failure != null) {
-						final Throwable stripCompletionException = ExceptionUtils.stripCompletionException(failure);
-						final Throwable schedulingFailureCause;
-
-						if (stripCompletionException instanceof TimeoutException) {
-							schedulingFailureCause = new NoResourceAvailableException(
-								"Could not allocate enough slots to run the job. " +
-									"Please make sure that the cluster has enough resources.");
-						} else {
-							schedulingFailureCause = stripCompletionException;
-						}
-						markFailed(schedulingFailureCause);
-					}
-				});
-
-			return deploymentFuture;
-		} catch (IllegalExecutionStateException e) {
-			return FutureUtils.completedExceptionally(e);
-		}
-	}
-
-	/**
-	 * Allocates resources for the execution.
-	 *
-	 * <p>Allocates following resources:
-	 * <ol>
-	 *  <li>slot obtained from the slot provider</li>
-	 *  <li>registers produced partitions with the {@link org.apache.flink.runtime.shuffle.ShuffleMaster}</li>
-	 * </ol>
-	 *
-	 * @param slotProviderStrategy to obtain a new slot from
-	 * @param locationPreferenceConstraint constraint for the location preferences
-	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
-	 *                                                 Can be empty if the allocation ids are not required for scheduling.
-	 * @return Future which is completed with this execution once the slot has been assigned
-	 * 			or with an exception if an error occurred.
-	 */
-	CompletableFuture<Execution> allocateResourcesForExecution(
-			SlotProviderStrategy slotProviderStrategy,
-			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
-		return allocateAndAssignSlotForExecution(
-			slotProviderStrategy,
-			locationPreferenceConstraint,
-			allPreviousExecutionGraphAllocationIds)
-			.thenCompose(slot -> registerProducedPartitions(slot.getTaskManagerLocation()));
-	}
-
-	/**
-	 * Allocates and assigns a slot obtained from the slot provider to the execution.
-	 *
-	 * @param slotProviderStrategy to obtain a new slot from
-	 * @param locationPreferenceConstraint constraint for the location preferences
-	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
-	 *                                                 Can be empty if the allocation ids are not required for scheduling.
-	 * @return Future which is completed with the allocated slot once it has been assigned
-	 * 			or with an exception if an error occurred.
-	 */
-	private CompletableFuture<LogicalSlot> allocateAndAssignSlotForExecution(
-			SlotProviderStrategy slotProviderStrategy,
-			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
-
-		checkNotNull(slotProviderStrategy);
-
-		assertRunningInJobMasterMainThread();
-
-		final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();
-		final CoLocationConstraint locationConstraint = vertex.getLocationConstraint();
-
-		// this method only works if the execution is in the state 'CREATED'
-		if (transitionState(CREATED, SCHEDULED)) {
-
-			final SlotSharingGroupId slotSharingGroupId = sharingGroup.getSlotSharingGroupId();
-
-			ScheduledUnit toSchedule = locationConstraint == null ?
-					new ScheduledUnit(this, slotSharingGroupId) :
-					new ScheduledUnit(this, slotSharingGroupId, locationConstraint);
-
-			// try to extract previous allocation ids, if applicable, so that we can reschedule to the same slot
-			ExecutionVertex executionVertex = getVertex();
-			AllocationID lastAllocation = executionVertex.getLatestPriorAllocation();
-
-			Collection<AllocationID> previousAllocationIDs =
-				lastAllocation != null ? Collections.singletonList(lastAllocation) : Collections.emptyList();
-
-			// calculate the preferred locations
-			final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture =
-				calculatePreferredLocations(locationPreferenceConstraint);
-
-			final SlotRequestId slotRequestId = new SlotRequestId();
-
-			final CompletableFuture<LogicalSlot> logicalSlotFuture =
-				preferredLocationsFuture.thenCompose(
-					(Collection<TaskManagerLocation> preferredLocations) -> {
-						LOG.info("Allocating slot with SlotRequestID {} for the execution attempt {}.", slotRequestId, attemptId);
-						return slotProviderStrategy.allocateSlot(
-							slotRequestId,
-							toSchedule,
-							SlotProfile.priorAllocation(
-								vertex.getResourceProfile(),
-								getPhysicalSlotResourceProfile(vertex),
-								preferredLocations,
-								previousAllocationIDs,
-								allPreviousExecutionGraphAllocationIds));
-					});
-
-			// register call back to cancel slot request in case that the execution gets canceled
-			releaseFuture.whenComplete(
-				(Object ignored, Throwable throwable) -> {
-					if (logicalSlotFuture.cancel(false)) {
-						slotProviderStrategy.cancelSlotRequest(
-							slotRequestId,
-							slotSharingGroupId,
-							new FlinkException("Execution " + this + " was released."));
-					}
-				});
-
-			// This forces calls to the slot pool back into the main thread, for normal and exceptional completion
-			return logicalSlotFuture.handle(
-				(LogicalSlot logicalSlot, Throwable failure) -> {
-
-					if (failure != null) {
-						throw new CompletionException(failure);
-					}
-
-					if (tryAssignResource(logicalSlot)) {
-						return logicalSlot;
-					} else {
-						// release the slot
-						logicalSlot.releaseSlot(new FlinkException("Could not assign logical slot to execution " + this + '.'));
-						throw new CompletionException(
-							new FlinkException(
-								"Could not assign slot " + logicalSlot + " to execution " + this + " because it has already been assigned "));
-					}
-				});
-		} else {
-			// call race, already deployed, or already done
-			throw new IllegalExecutionStateException(this, CREATED, state);
-		}
-	}
-
-	public CompletableFuture<Execution> registerProducedPartitions(TaskManagerLocation location) {
-		Preconditions.checkState(isLegacyScheduling());
-		return registerProducedPartitions(location, vertex.getExecutionGraph().getScheduleMode().allowLazyDeployment());
-	}
-
 	public CompletableFuture<Execution> registerProducedPartitions(
 			TaskManagerLocation location,
 			boolean sendScheduleOrUpdateConsumersMessage) {
@@ -776,10 +581,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 		catch (Throwable t) {
 			markFailed(t);
-
-			if (isLegacyScheduling()) {
-				ExceptionUtils.rethrow(t);
-			}
 		}
 	}
 
@@ -870,21 +671,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return releaseFuture;
 	}
 
-	private void scheduleConsumer(ExecutionVertex consumerVertex) {
-		assert isLegacyScheduling();
-
-		try {
-			final ExecutionGraph executionGraph = consumerVertex.getExecutionGraph();
-			consumerVertex.scheduleForExecution(
-				executionGraph.getSlotProviderStrategy(),
-				LocationPreferenceConstraint.ANY, // there must be at least one known location
-				Collections.emptySet());
-		} catch (Throwable t) {
-			consumerVertex.fail(new IllegalStateException("Could not schedule consumer " +
-				"vertex " + consumerVertex, t));
-		}
-	}
-
 	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
 		assertRunningInJobMasterMainThread();
 
@@ -910,27 +696,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final ExecutionState consumerState = consumer.getState();
 
 			// ----------------------------------------------------------------
-			// Consumer is created => needs to be scheduled
-			// ----------------------------------------------------------------
-			if (consumerState == CREATED) {
-				// Schedule the consumer vertex if its inputs constraint is satisfied, otherwise skip the scheduling.
-				// A shortcut of input constraint check is added for InputDependencyConstraint.ANY since
-				// at least one of the consumer vertex's inputs is consumable here. This is to avoid the
-				// O(N) complexity introduced by input constraint check for InputDependencyConstraint.ANY,
-				// as we do not want the default scheduling performance to be affected.
-				if (isLegacyScheduling() && consumerDeduplicator.add(consumerVertex) &&
-						(consumerVertex.getInputDependencyConstraint() == InputDependencyConstraint.ANY ||
-						consumerVertex.checkInputDependencyConstraints())) {
-
-					scheduleConsumer(consumerVertex);
-				}
-			}
-			// ----------------------------------------------------------------
 			// Consumer is running => send update message now
 			// Consumer is deploying => cache the partition info which would be
 			// sent after switching to running
 			// ----------------------------------------------------------------
-			else if (consumerState == DEPLOYING || consumerState == RUNNING) {
+			if (consumerState == DEPLOYING || consumerState == RUNNING) {
 				final PartitionInfo partitionInfo = createPartitionInfo(edge);
 
 				if (consumerState == DEPLOYING) {
@@ -1249,10 +1019,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	//  Internal Actions
 	// --------------------------------------------------------------------------------------------
 
-	private boolean isLegacyScheduling() {
-		return getVertex().isLegacyScheduling();
-	}
-
 	private void processFail(Throwable t, boolean cancelTask) {
 		processFail(t, cancelTask, null, null, true, false);
 	}
@@ -1309,7 +1075,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			return;
 		}
 
-		if (!fromSchedulerNg && !isLegacyScheduling()) {
+		if (!fromSchedulerNg) {
 			vertex.getExecutionGraph().notifySchedulerNgAboutInternalTaskFailure(
 				attemptId,
 				t,
@@ -1625,7 +1391,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// make sure that the state transition completes normally.
 			// potential errors (in listeners may not affect the main logic)
 			try {
-				vertex.notifyStateTransition(this, targetState, error);
+				vertex.notifyStateTransition(this, targetState);
 			}
 			catch (Throwable t) {
 				LOG.error("Error while notifying execution graph of execution state transition.", t);

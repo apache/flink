@@ -25,7 +25,9 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.data.binary.LazyBinaryFormat;
 import org.apache.flink.table.dataview.NullSerializer;
+import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
@@ -43,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasNested;
@@ -99,10 +102,21 @@ public final class DataViewUtils {
 	}
 
 	/**
-	 * Adapts the data type of an accumulator regarding data views.
+	 * Modifies the data type of an accumulator regarding data views.
+	 *
+	 * <p>For performance reasons, each data view is wrapped into a RAW type which gives it {@link LazyBinaryFormat}
+	 * semantics and avoids multiple deserialization steps during access. Furthermore, a data view will
+	 * not be serialized if a state backend is used (the serializer of the RAW type will be a {@link NullSerializer}
+	 * in this case).
 	 */
-	public static DataType replaceDataViewsWithNull(DataType accumulatorDataType) {
-		return DataTypeUtils.transform(accumulatorDataType, DataViewsTransformation.INSTANCE);
+	public static DataType adjustDataViews(DataType accumulatorDataType, boolean hasStateBackedDataViews) {
+		final Function<DataType, TypeSerializer<?>> serializer;
+		if (hasStateBackedDataViews) {
+			serializer = dataType -> NullSerializer.INSTANCE;
+		} else {
+			serializer = ExternalSerializer::of;
+		}
+		return DataTypeUtils.transform(accumulatorDataType, new DataViewsTransformation(serializer));
 	}
 
 	/**
@@ -143,13 +157,19 @@ public final class DataViewUtils {
 
 	private static class DataViewsTransformation implements TypeTransformation {
 
-		static final DataViewsTransformation INSTANCE = new DataViewsTransformation();
+		private final Function<DataType, TypeSerializer<?>> serializer;
+
+		private DataViewsTransformation(Function<DataType, TypeSerializer<?>> serializer) {
+			this.serializer = serializer;
+		}
 
 		@Override
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		public DataType transform(DataType dataType) {
 			if (isDataView(dataType.getLogicalType(), DataView.class)) {
-				return DataTypes.RAW(dataType.getConversionClass(), (TypeSerializer)  NullSerializer.INSTANCE);
+				return DataTypes.RAW(
+					dataType.getConversionClass(),
+					(TypeSerializer) serializer.apply(dataType));
 			}
 			return dataType;
 		}
@@ -281,16 +301,8 @@ public final class DataViewUtils {
 	 */
 	public static class DistinctViewSpec extends MapViewSpec {
 
-		// stores the entire view data type for off-heap operations
-		private final DataType distinctViewDataType;
-
 		public DistinctViewSpec(String stateId, DataType distinctViewDataType) {
 			super(stateId, -1, distinctViewDataType.getChildren().get(0), true); // handles null keys
-			this.distinctViewDataType = distinctViewDataType;
-		}
-
-		public DataType getDistinctViewDataType() {
-			return distinctViewDataType;
 		}
 	}
 

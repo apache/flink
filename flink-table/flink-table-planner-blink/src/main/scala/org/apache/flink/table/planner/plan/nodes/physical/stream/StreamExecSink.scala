@@ -26,7 +26,8 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalSink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -49,7 +50,7 @@ class StreamExecSink(
     tableSink: DynamicTableSink)
   extends CommonPhysicalSink(cluster, traitSet, inputRel, tableIdentifier, catalogTable, tableSink)
   with StreamPhysicalRel
-  with StreamExecNode[Any] {
+  with LegacyStreamExecNode[Any] {
 
   override def requireWatermark: Boolean = false
 
@@ -59,24 +60,14 @@ class StreamExecSink(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[Any] = {
 
     // get RowData plan
     val inputTransformation = getInputNodes.get(0) match {
-      // Sink's input must be StreamExecNode[RowData] now.
-      case node: StreamExecNode[RowData] =>
-        node.translateToPlan(planner)
+      // Sink's input must be LegacyStreamExecNode[RowData] or StreamExecNode[RowData] now.
+      case legacyNode: LegacyStreamExecNode[RowData] => legacyNode.translateToPlan(planner)
+      case node: StreamExecNode[RowData] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")

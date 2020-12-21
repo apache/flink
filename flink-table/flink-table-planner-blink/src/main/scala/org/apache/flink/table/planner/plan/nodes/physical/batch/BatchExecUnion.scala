@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.transformations.UnionTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelDistribution.Type.{ANY, BROADCAST_DISTRIBUTED, HASH_DISTRIBUTED, RANDOM_DISTRIBUTED, RANGE_DISTRIBUTED, ROUND_ROBIN_DISTRIBUTED, SINGLETON}
@@ -46,7 +46,7 @@ class BatchExecUnion(
     outputRowType: RelDataType)
   extends Union(cluster, traitSet, inputRels, all)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   require(all, "Only support union all now")
 
@@ -98,23 +98,14 @@ class BatchExecUnion(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
-
   override def getInputEdges: util.List[ExecEdge] =
     inputRels.map(_ => ExecEdge.DEFAULT)
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
     val transformations = getInputNodes.map {
       input => input.translateToPlan(planner).asInstanceOf[Transformation[RowData]]
     }
-    ExecNode.setManagedMemoryWeight(new UnionTransformation(transformations))
+    new UnionTransformation(transformations)
   }
 }

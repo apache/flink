@@ -90,7 +90,8 @@ public class DefaultLogicalTopology implements LogicalTopology<DefaultLogicalVer
 	}
 
 	public Set<DefaultLogicalPipelinedRegion> getLogicalPipelinedRegions() {
-		final Set<Set<DefaultLogicalVertex>> regionsRaw = PipelinedRegionComputeUtil.computePipelinedRegions(this);
+		final Set<Set<DefaultLogicalVertex>> regionsRaw = PipelinedRegionComputeUtil
+			.computePipelinedRegions(verticesSorted);
 
 		final Set<DefaultLogicalPipelinedRegion> regions = new HashSet<>();
 		for (Set<DefaultLogicalVertex> regionVertices : regionsRaw) {

@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -124,6 +125,10 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	 */
 	Optional<ResourceID> failAllocation(AllocationID allocationID, Exception cause);
 
+	default Optional<ResourceID> failAllocation(@Nullable ResourceID resourceId, AllocationID allocationID, Exception cause) {
+		return failAllocation(allocationID, cause);
+	}
+
 	// ------------------------------------------------------------------------
 	//  allocating and disposing slots
 	// ------------------------------------------------------------------------
@@ -146,16 +151,18 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	Collection<SlotInfo> getAllocatedSlotsInformation();
 
 	/**
-	 * Allocates the available slot with the given allocation id under the given request id. This method returns
-	 * {@code null} if no slot with the given allocation id is available.
+	 * Allocates the available slot with the given allocation id under the given request id for the given requirement profile.
+	 * The slot must be able to fulfill the requirement profile, otherwise an {@link IllegalStateException} will be thrown.
 	 *
 	 * @param slotRequestId identifying the requested slot
 	 * @param allocationID the allocation id of the requested available slot
-	 * @return the previously available slot with the given allocation id or {@code null} if no such slot existed.
+	 * @param requirementProfile resource profile of the requirement for which to allocate the slot
+	 * @return the previously available slot with the given allocation id, if a slot with this allocation id exists
 	 */
 	Optional<PhysicalSlot> allocateAvailableSlot(
 		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull AllocationID allocationID);
+		@Nonnull AllocationID allocationID,
+		@Nonnull ResourceProfile requirementProfile);
 
 	/**
 	 * Request the allocation of a new slot from the resource manager. This method will not return a slot from the
@@ -186,6 +193,13 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile);
+
+	/**
+	 * Notifies that not enough resources are available to fulfill the resource requirements.
+	 *
+	 * @param acquiredResources the resources that have been acquired
+	 */
+	default void notifyNotEnoughResourcesAvailable(Collection<ResourceRequirement> acquiredResources) {}
 
 	/**
 	 * Disables batch slot request timeout check. Invoked when someone else wants to

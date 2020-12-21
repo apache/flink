@@ -27,6 +27,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -91,14 +92,14 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 		vertexIds.forEach(this::completePendingRequest);
 	}
 
-	public void completePendingRequest(final ExecutionVertexID executionVertexId) {
+	public LogicalSlot completePendingRequest(final ExecutionVertexID executionVertexId) {
+		final LogicalSlot slot = logicalSlotBuilder.setSlotOwner(this).createTestingLogicalSlot();
 		final SlotExecutionVertexAssignment slotVertexAssignment = removePendingRequest(executionVertexId);
 		checkState(slotVertexAssignment != null);
 		slotVertexAssignment
 			.getLogicalSlotFuture()
-			.complete(logicalSlotBuilder
-				.setSlotOwner(this)
-				.createTestingLogicalSlot());
+			.complete(slot);
+		return slot;
 	}
 
 	private SlotExecutionVertexAssignment removePendingRequest(final ExecutionVertexID executionVertexId) {
@@ -147,5 +148,9 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
 
 	public TestingLogicalSlotBuilder getLogicalSlotBuilder() {
 		return logicalSlotBuilder;
+	}
+
+	public Map<ExecutionVertexID, SlotExecutionVertexAssignment> getPendingRequests() {
+		return Collections.unmodifiableMap(pendingRequests);
 	}
 }

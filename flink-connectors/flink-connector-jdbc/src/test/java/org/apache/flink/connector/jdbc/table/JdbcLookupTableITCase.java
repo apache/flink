@@ -118,10 +118,11 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 				new String[]{"id1", "comment1", "comment2", "id2"},
 				new DataType[]{DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()})
 				.build());
+		JdbcLookupOptions.Builder lookupOptionsBuilder = JdbcLookupOptions.builder().setMaxRetryTimes(0);
 		if (useCache) {
-			builder.setLookupOptions(JdbcLookupOptions.builder()
-				.setCacheMaxSize(1000).setCacheExpireMs(1000 * 1000).build());
+			lookupOptionsBuilder.setCacheMaxSize(1000).setCacheExpireMs(1000 * 1000);
 		}
+		builder.setLookupOptions(lookupOptionsBuilder.build());
 		tEnv.registerFunction("jdbcLookup",
 			builder.build().getLookupFunction(t.getSchema().getFieldNames()));
 

@@ -45,7 +45,7 @@ class TableSinkTest extends TableTestBase {
     thrown.expectMessage(
       "Query schema: [a: INT, EXPR$1: CHAR(0) NOT NULL, EXPR$2: CHAR(0) NOT NULL]\n" +
       "Sink schema:  [name: STRING, email: STRING, message_offset: BIGINT]")
-    util.verifyPlanInsert("INSERT INTO my_sink SELECT a, '', '' FROM MyTable")
+    util.verifyExecPlanInsert("INSERT INTO my_sink SELECT a, '', '' FROM MyTable")
   }
 
   @Test
@@ -67,7 +67,7 @@ class TableSinkTest extends TableTestBase {
     thrown.expectMessage("Table sink 'default_catalog.default_database.appendSink' doesn't " +
       "support consuming update changes which is produced by node " +
       "GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -102,7 +102,7 @@ class TableSinkTest extends TableTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("OverAggregate doesn't support consuming update changes " +
       "which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -119,7 +119,7 @@ class TableSinkTest extends TableTestBase {
          |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO appendSink SELECT a + b, c FROM MyTable")
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -137,7 +137,7 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(
       "INSERT INTO retractSink SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a")
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -161,7 +161,7 @@ class TableSinkTest extends TableTestBase {
       """.stripMargin
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(dml)
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -180,7 +180,7 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(
       "INSERT INTO upsertSink SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a")
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -206,7 +206,7 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(sql)
     // a filter after aggregation, the Aggregation and Calc should produce UPDATE_BEFORE
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -245,7 +245,7 @@ class TableSinkTest extends TableTestBase {
       "INSERT INTO upsertSink " +
         "SELECT cnt, COUNT(b) AS frequency FROM TempTable WHERE b < 4 GROUP BY cnt")
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -298,7 +298,7 @@ class TableSinkTest extends TableTestBase {
     stmtSet.addInsertSql(
       "INSERT INTO upsertSink SELECT a, MIN(b) AS total_min FROM TempTable1 GROUP BY a")
 
-    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -334,7 +334,7 @@ class TableSinkTest extends TableTestBase {
       "Query schema: [a: INT, m_3: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]\n" +
       "Sink schema:  [a: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]")
 
-    util.verifyPlan(stmtSet)
+    util.verifyRelPlan(stmtSet)
   }
 
   @Test
@@ -365,7 +365,7 @@ class TableSinkTest extends TableTestBase {
       "'default_catalog.default_database.MetadataTable'. The column cannot be declared as " +
       "'TIMESTAMP(3)' because the type must be castable to metadata type 'BOOLEAN'.")
 
-    util.verifyPlan(stmtSet)
+    util.verifyRelPlan(stmtSet)
   }
 
   @Test
@@ -396,6 +396,6 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(sql)
 
-    util.verifyPlan(stmtSet)
+    util.verifyRelPlan(stmtSet)
   }
 }

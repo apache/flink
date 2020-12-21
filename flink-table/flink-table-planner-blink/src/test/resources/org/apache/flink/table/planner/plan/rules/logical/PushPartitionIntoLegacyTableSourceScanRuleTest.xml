@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -39,14 +39,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -58,14 +58,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -77,7 +77,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -85,7 +85,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -98,7 +98,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -106,7 +106,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -119,7 +119,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -127,7 +127,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -140,14 +140,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
@@ -158,14 +158,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
@@ -176,14 +176,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}]]])
@@ -194,7 +194,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
@@ -202,7 +202,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -214,7 +214,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
@@ -222,7 +222,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -234,14 +234,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -253,7 +253,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
@@ -261,7 +261,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -273,14 +273,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($3, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
@@ -291,14 +291,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($3, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
@@ -309,14 +309,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($3, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}, {part1=B, part2=3}]]])
@@ -327,7 +327,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[>($3, 1)])
@@ -335,7 +335,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -347,7 +347,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[>($3, 1)])
@@ -355,7 +355,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -367,7 +367,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[>($3, 1)])
@@ -375,7 +375,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -387,14 +387,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A' AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}]]])
@@ -405,14 +405,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A' AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}]]])
@@ -423,14 +423,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A' AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=2}]]])
@@ -441,7 +441,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A' AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1))])
@@ -449,7 +449,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -461,7 +461,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A' AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1))])
@@ -469,7 +469,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -481,7 +481,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A' AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1))])
@@ -489,7 +489,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -501,14 +501,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A' OR part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(=($2, _UTF-16LE'A'), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}]]])
@@ -519,14 +519,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A' OR part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(=($2, _UTF-16LE'A'), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}]]])
@@ -537,14 +537,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A' OR part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(=($2, _UTF-16LE'A'), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [partitions={part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}]]])
@@ -555,7 +555,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A' OR part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[OR(=($2, _UTF-16LE'A'), >($3, 1))])
@@ -563,7 +563,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -575,7 +575,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A' OR part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[OR(=($2, _UTF-16LE'A'), >($3, 1))])
@@ -583,7 +583,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -595,7 +595,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE part1 = 'A' OR part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[OR(=($2, _UTF-16LE'A'), >($3, 1))])
@@ -603,7 +603,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -615,14 +615,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -634,14 +634,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -653,7 +653,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
@@ -661,7 +661,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -674,7 +674,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
@@ -682,7 +682,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -695,7 +695,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
@@ -703,7 +703,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -716,14 +716,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(>($0, 2), =($2, _UTF-16LE'A'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -735,14 +735,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(>($0, 2), =($2, _UTF-16LE'A'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -754,14 +754,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(>($0, 2), =($2, _UTF-16LE'A'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -773,7 +773,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -781,7 +781,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -794,7 +794,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -802,7 +802,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -815,7 +815,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -823,7 +823,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -836,14 +836,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 OR part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -855,14 +855,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 OR part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -874,14 +874,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 OR part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -893,7 +893,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 OR part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -901,7 +901,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -914,7 +914,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 OR part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -922,7 +922,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -935,7 +935,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
@@ -943,7 +943,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -956,7 +956,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 OR part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[OR(>($0, 2), =($2, _UTF-16LE'A'))])
@@ -964,7 +964,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -977,14 +977,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -996,14 +996,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -1015,14 +1015,14 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -1034,7 +1034,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
@@ -1042,7 +1042,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
@@ -1055,7 +1055,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
@@ -1063,7 +1063,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])

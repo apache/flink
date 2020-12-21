@@ -18,27 +18,27 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.functions.python.{PythonAggregateFunctionInfo, PythonFunctionInfo}
+import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
-import scala.collection.JavaConversions._
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.{RelNode, RelWriter}
+
 import java.util
 
 /**
@@ -54,7 +54,7 @@ class StreamExecPythonGroupAggregate(
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall])
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
-  with StreamExecNode[RowData]
+  with LegacyStreamExecNode[RowData]
   with CommonPythonAggregate {
 
   val aggInfoList: AggregateInfoList = AggregateUtil.deriveAggregateInfoList(
@@ -89,16 +89,6 @@ class StreamExecPythonGroupAggregate(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {

@@ -23,9 +23,9 @@ import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rel.RelNode
 
 /**
   * Streaming group window aggregate physical node which will be translate to window operator.

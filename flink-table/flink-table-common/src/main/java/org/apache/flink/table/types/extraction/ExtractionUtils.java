@@ -321,6 +321,25 @@ public final class ExtractionUtils {
 		return Modifier.isPublic(m);
 	}
 
+	/**
+	 * A minimal version to extract a generic parameter from a given class.
+	 *
+	 * <p>This method should only be used for very specific use cases, in most cases
+	 * {@link DataTypeExtractor#extractFromGeneric(DataTypeFactory, Class, int, Type)} should be
+	 * more appropriate.
+	 */
+	public static Optional<Class<?>> extractSimpleGeneric(Class<?> baseClass, Class<?> clazz, int pos) {
+		try {
+			if (clazz.getSuperclass() != baseClass) {
+				return Optional.empty();
+			}
+			final Type t = ((ParameterizedType) clazz.getGenericSuperclass()).getActualTypeArguments()[pos];
+			return Optional.ofNullable(toClass(t));
+		} catch (Exception unused) {
+			return Optional.empty();
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Methods intended for this package
 	// --------------------------------------------------------------------------------------------

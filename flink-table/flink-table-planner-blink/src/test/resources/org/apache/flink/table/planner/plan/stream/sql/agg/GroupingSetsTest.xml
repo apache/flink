@@ -23,7 +23,7 @@ SELECT MOD(deptno, 20) AS d, COUNT(*) AS c, gender AS g
 FROM emp GROUP BY CUBE(MOD(deptno, 20), gender)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(d=[$0], c=[$2], g=[$1])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()])
@@ -31,7 +31,7 @@ LogicalProject(d=[$0], c=[$2], g=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[d, c, g])
 +- GroupAggregate(groupBy=[d, g, $e], select=[d, g, $e, COUNT(*) AS c])
@@ -46,7 +46,7 @@ Calc(select=[d, c, g])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) AS c FROM emp GROUP BY CUBE(1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$1])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
@@ -54,7 +54,7 @@ LogicalProject(c=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c])
 +- GroupAggregate(groupBy=[$f0, $e], select=[$f0, $e, COUNT(*) AS c])
@@ -72,7 +72,7 @@ SELECT deptno + 1 AS d1, deptno + 1 - 1 AS d0, COUNT(*) AS c
 FROM emp GROUP BY ROLLUP (deptno + 1)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(d1=[$0], d0=[-($0, 1)], c=[$1])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
@@ -80,13 +80,13 @@ LogicalProject(d1=[$0], d0=[-($0, 1)], c=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[d1, -(d1, 1) AS d0, c])
+Calc(select=[d1, (d1 - 1) AS d0, c])
 +- GroupAggregate(groupBy=[d1, $e], select=[d1, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[d1, $e]])
       +- Expand(projects=[d1, $e])
-         +- Calc(select=[+(deptno, 1) AS d1])
+         +- Calc(select=[(deptno + 1) AS d1])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
@@ -98,7 +98,7 @@ select MOD(deptno, 20) AS d, COUNT(*) AS c, gender AS g
 FROM emp GROUP BY ROLLUP(MOD(deptno, 20), gender)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(d=[$0], c=[$2], g=[$1])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], c=[COUNT()])
@@ -106,7 +106,7 @@ LogicalProject(d=[$0], c=[$2], g=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[d, c, g])
 +- GroupAggregate(groupBy=[d, g, $e], select=[d, g, $e, COUNT(*) AS c])
@@ -121,7 +121,7 @@ Calc(select=[d, c, g])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$1])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
@@ -129,7 +129,7 @@ LogicalProject(c=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c])
 +- GroupAggregate(groupBy=[$f0, $e], select=[$f0, $e, COUNT(*) AS c])
@@ -144,14 +144,14 @@ Calc(select=[c])
     <Resource name="sql">
       <![CDATA[SELECT deptno, COUNT(*) AS c FROM emps GROUP BY GROUPING SETS ((), (deptno))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
 +- LogicalProject(deptno=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[deptno, c])
 +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
@@ -177,7 +177,7 @@ FROM MyTable
     GROUP BY CUBE (b, c)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
@@ -185,9 +185,9 @@ LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5],
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
@@ -199,7 +199,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:
     <Resource name="sql">
       <![CDATA[SELECT DISTINCT COUNT(*) FROM emp GROUP BY CUBE(deptno, gender)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}])
 +- LogicalProject(EXPR$0=[$2])
@@ -208,7 +208,7 @@ LogicalAggregate(group=[{0}])
          +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[EXPR$0], select=[EXPR$0])
 +- Exchange(distribution=[hash[EXPR$0]])
@@ -231,7 +231,7 @@ FROM emp AS e JOIN dept AS d USING (deptno)
     HAVING COUNT(*) > 2 OR gender = 'M' AND e.deptno = 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(deptno=[$0], gender=[$2], min_name=[$3])
 +- LogicalFilter(condition=[OR(>($4, 2), AND(=($2, _UTF-16LE'M'), =($0, 10)))])
@@ -242,14 +242,14 @@ LogicalProject(deptno=[$0], gender=[$2], min_name=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, dept, source: [TestTableSource(deptno, dname)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-16LE'M':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), =(deptno, 10)))])
+Calc(select=[deptno, gender, min_name], where=[(($f5 > 2) OR ((gender = _UTF-16LE'M':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AND (deptno = 10)))])
 +- GroupAggregate(groupBy=[deptno, deptno0, gender, $e], select=[deptno, deptno0, gender, $e, MIN(ename) AS min_name, COUNT(*) AS $f5])
    +- Exchange(distribution=[hash[deptno, deptno0, gender, $e]])
       +- Expand(projects=[deptno, deptno0, gender, ename, $e])
          +- Calc(select=[deptno, deptno0, gender, ename])
-            +- Join(joinType=[InnerJoin], where=[=(deptno, deptno0)], select=[ename, deptno, gender, deptno0, dname], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            +- Join(joinType=[InnerJoin], where=[(deptno = deptno0)], select=[ename, deptno, gender, deptno0, dname], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
                :- Exchange(distribution=[hash[deptno]])
                :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
                +- Exchange(distribution=[hash[deptno]])
@@ -272,7 +272,7 @@ FROM MyTable
     GROUP BY CUBE (b, c)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
@@ -280,9 +280,9 @@ LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5],
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
@@ -300,7 +300,7 @@ FROM emp WHERE deptno = 10
     GROUP BY ROLLUP(gender, deptno)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(deptno=[$1], gender=[$0], EXPR$2=[$2], c=[$3])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$2=[GROUPING_ID($1, $0, $1)], c=[COUNT()])
@@ -309,13 +309,13 @@ LogicalProject(deptno=[$1], gender=[$0], EXPR$2=[$2], c=[$3])
          +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[deptno, gender, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 5:BIGINT, 7:BIGINT) AS EXPR$2, c])
+Calc(select=[deptno, gender, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 5:BIGINT, 7:BIGINT) AS EXPR$2, c])
 +- GroupAggregate(groupBy=[gender, deptno, $e], select=[gender, deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[gender, deptno, $e]])
       +- Expand(projects=[gender, deptno, $e])
-         +- Calc(select=[gender, CAST(10) AS deptno], where=[=(deptno, 10)])
+         +- Calc(select=[gender, CAST(10) AS deptno], where=[(deptno = 10)])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
@@ -324,7 +324,7 @@ Calc(select=[deptno, gender, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 5:
     <Resource name="sql">
       <![CDATA[SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY CUBE(deptno, gender)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 1)], c=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()])
@@ -332,9 +332,9 @@ LogicalProject(EXPR$0=[+($0, 1)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[+(deptno, 1) AS EXPR$0, c])
+Calc(select=[(deptno + 1) AS EXPR$0, c])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[deptno, gender, $e])
@@ -358,7 +358,7 @@ from scott_emp
     ORDER BY deptno, job, empno
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first])
 +- LogicalProject(deptno=[$0], job=[$1], empno=[$2], ename=[$3], sumsal=[$4], gr_text=[CASE(=($5, 0), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 1), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 3), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 7), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
@@ -367,11 +367,11 @@ LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[AS
          +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Sort(orderBy=[deptno ASC, job ASC, empno ASC])
 +- Exchange(distribution=[single])
-   +- Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS gr_text])
+   +- Calc(select=[deptno, job, empno, ename, sumsal, CASE((CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 3:BIGINT), 1:BIGINT, ($e = 7:BIGINT), 3:BIGINT, 7:BIGINT) = 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", (CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 3:BIGINT), 1:BIGINT, ($e = 7:BIGINT), 3:BIGINT, 7:BIGINT) = 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", (CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 3:BIGINT), 1:BIGINT, ($e = 7:BIGINT), 3:BIGINT, 7:BIGINT) = 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", (CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 3:BIGINT), 1:BIGINT, ($e = 7:BIGINT), 3:BIGINT, 7:BIGINT) = 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS gr_text])
       +- GroupAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, SUM(sal) AS sumsal])
          +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
             +- Expand(projects=[deptno, job, empno, ename, sal, $e])
@@ -393,7 +393,7 @@ FROM emp
     HAVING GROUPING(deptno) <= GROUPING_ID(deptno, gender, deptno)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], gd=[$3], gid=[$4], gdgd=[$5], gidgd=[$6])
 +- LogicalFilter(condition=[<=($3, $6)])
@@ -402,12 +402,12 @@ LogicalProject(c=[$2], gd=[$3], gid=[$4], gdgd=[$5], gidgd=[$6])
          +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gd, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gid, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT) AS gdgd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT) AS gidgd])
+Calc(select=[c, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gd, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gid, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 2:BIGINT, 7:BIGINT) AS gdgd, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 2:BIGINT, 7:BIGINT) AS gidgd])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
-      +- Calc(select=[deptno, gender, $e], where=[<=(CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT), CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 7:BIGINT))])
+      +- Calc(select=[deptno, gender, $e], where=[(CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) <= CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 2:BIGINT, 7:BIGINT))])
          +- Expand(projects=[deptno, gender, $e])
             +- Calc(select=[deptno, gender])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
@@ -427,7 +427,7 @@ SELECT COUNT(*) as c,
 FROM emp GROUP BY ROLLUP(deptno, gender)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], g=[$3], gid=[0:BIGINT], gd=[$4], gg=[$5], ggd=[$6], gdg=[$7])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], c=[COUNT()], g=[GROUPING($0)], gd=[GROUPING_ID($0)], gg=[GROUPING_ID($1)], ggd=[GROUPING_ID($1, $0)], gdg=[GROUPING_ID($0, $1)])
@@ -435,9 +435,9 @@ LogicalProject(c=[$2], g=[$3], gid=[0:BIGINT], gd=[$4], gg=[$5], ggd=[$6], gdg=[
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS g, 0:BIGINT AS gid, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gd, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, 3:BIGINT) AS ggd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gdg])
+Calc(select=[c, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS g, 0:BIGINT AS gid, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gd, CASE(($e = 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gg, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 2:BIGINT, 3:BIGINT) AS ggd, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gdg])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[deptno, gender, $e])
@@ -460,7 +460,7 @@ FROM emp
     GROUP BY CUBE(deptno, gender)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(deptno=[$0], gender=[$1], gd=[$2], gg=[$3], dg=[$4], gd0=[$5], gid=[0:BIGINT], c=[$6])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], gd=[GROUPING($0)], gg=[GROUPING($1)], dg=[GROUPING_ID($0, $1)], gd=[GROUPING_ID($1, $0)], c=[COUNT()])
@@ -468,9 +468,9 @@ LogicalProject(deptno=[$0], gender=[$1], gd=[$2], gg=[$3], dg=[$4], gd0=[$5], gi
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[deptno, gender, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gd, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS dg, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 2:BIGINT, =($e, 2:BIGINT), 1:BIGINT, 3:BIGINT) AS gd0, 0:BIGINT AS gid, c])
+Calc(select=[deptno, gender, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gd, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gg, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 2:BIGINT, 3:BIGINT) AS dg, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 2:BIGINT, ($e = 2:BIGINT), 1:BIGINT, 3:BIGINT) AS gd0, 0:BIGINT AS gid, c])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[deptno, gender, $e])
@@ -491,16 +491,16 @@ FROM scott_emp GROUP BY CUBE(deptno, job)
 
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()], d=[GROUPING($0)], j=[GROUPING($1)], x=[GROUPING($0, $1)])
 +- LogicalProject(deptno=[$7], job=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[deptno, job, c, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS d, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS j, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS x])
+Calc(select=[deptno, job, c, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS d, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 0:BIGINT, 1:BIGINT) AS j, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 2:BIGINT, 3:BIGINT) AS x])
 +- GroupAggregate(groupBy=[deptno, job, $e], select=[deptno, job, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, job, $e]])
       +- Expand(projects=[deptno, job, $e])
@@ -513,7 +513,7 @@ Calc(select=[deptno, job, c, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT),
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) AS c, GROUPING(deptno) AS g FROM emp GROUP BY deptno]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$1], g=[$2])
 +- LogicalAggregate(group=[{0}], c=[COUNT()], g=[GROUPING($0)])
@@ -521,7 +521,7 @@ LogicalProject(c=[$1], g=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, 0:BIGINT AS g])
 +- GroupAggregate(groupBy=[deptno], select=[deptno, COUNT(*) AS c])
@@ -537,7 +537,7 @@ Calc(select=[c, 0:BIGINT AS g])
 SELECT COUNT(*) AS c, deptno, GROUPING(deptno) AS g FROM emp GROUP BY ROLLUP(deptno)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$1], deptno=[$0], g=[$2])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()], g=[GROUPING($0)])
@@ -545,9 +545,9 @@ LogicalProject(c=[$1], deptno=[$0], g=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, deptno, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS g])
+Calc(select=[c, deptno, CASE(($e = 0:BIGINT), 0:BIGINT, 1:BIGINT) AS g])
 +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- Expand(projects=[deptno, $e])
@@ -563,7 +563,7 @@ SELECT b, c, AVG(a) AS a, GROUP_ID() AS g FROM MyTable
 GROUP BY GROUPING SETS (b, c)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], a=[AVG($2)])
@@ -571,7 +571,7 @@ LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, c, a, 0:BIGINT AS g])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
@@ -585,14 +585,14 @@ Calc(select=[b, c, a, 0:BIGINT AS g])
     <Resource name="sql">
       <![CDATA[SELECT b, c, AVG(a) AS a FROM MyTable GROUP BY GROUPING SETS (b, c, ())]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}, {}]], a=[AVG($2)])
 +- LogicalProject(b=[$1], c=[$2], a=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, c, a])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
@@ -618,7 +618,7 @@ FROM MyTable
      GROUP BY GROUPING SETS (b, c, ())
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7], cnt=[$8])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)], cnt=[COUNT()])
@@ -626,9 +626,9 @@ LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5],
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, c, a, 0:BIGINT AS g, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid, cnt])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(($e = 1:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(($e = 1:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(($e = 1:BIGINT), 1:BIGINT, ($e = 2:BIGINT), 2:BIGINT, 3:BIGINT) AS gid, cnt])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a, COUNT(*) AS cnt])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
@@ -642,20 +642,20 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(=($e, 1:BIGINT), 0:BIGINT, 1:BIGINT) A
 SELECT deptno + 1, COUNT(*) AS c FROM emps GROUP BY GROUPING SETS ((), (deptno + 1))
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
 +- LogicalProject(EXPR$0=[+($2, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, c])
 +- GroupAggregate(groupBy=[EXPR$0, $e], select=[EXPR$0, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[EXPR$0, $e]])
       +- Expand(projects=[EXPR$0, $e])
-         +- Calc(select=[+(deptno, 1) AS EXPR$0])
+         +- Calc(select=[(deptno + 1) AS EXPR$0])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]], fields=[empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat])
 ]]>
     </Resource>
@@ -666,7 +666,7 @@ Calc(select=[EXPR$0, c])
 SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) ORDER BY GROUPING(deptno), c
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$0], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
@@ -676,12 +676,12 @@ LogicalProject(c=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c])
 +- Sort(orderBy=[EXPR$1 ASC, c ASC])
    +- Exchange(distribution=[single])
-      +- Calc(select=[c, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS EXPR$1])
+      +- Calc(select=[c, CASE(($e = 0:BIGINT), 0:BIGINT, 1:BIGINT) AS EXPR$1])
          +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
             +- Exchange(distribution=[hash[deptno, $e]])
                +- Expand(projects=[deptno, $e])
@@ -701,7 +701,7 @@ SELECT deptno,
 FROM emps GROUP BY GROUPING SETS (deptno)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(deptno=[$0], a=[$1], g=[0:BIGINT], gb=[$2], gib=[$3])
 +- LogicalAggregate(group=[{0}], a=[AVG($1)], gb=[GROUPING($0)], gib=[GROUPING_ID($0)])
@@ -709,7 +709,7 @@ LogicalProject(deptno=[$0], a=[$1], g=[0:BIGINT], gb=[$2], gib=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, emps, source: [TestTableSource(empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[deptno, a, 0:BIGINT AS g, 0:BIGINT AS gb, 0:BIGINT AS gib])
 +- GroupAggregate(groupBy=[deptno], select=[deptno, AVG(age) AS a])
@@ -734,7 +734,7 @@ FROM MyTable
      GROUP BY ROLLUP (b, c)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
@@ -742,9 +742,9 @@ LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5],
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(($e = 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(($e = 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
@@ -767,7 +767,7 @@ FROM MyTable
     GROUP BY ROLLUP (b, c)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
@@ -775,9 +775,9 @@ LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5],
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
+Calc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gb, CASE(($e = 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gc, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:BIGINT), 0:BIGINT, 1:BIGINT) AS gib, CASE(($e = 0:BIGINT), 0:BIGINT, 1:BIGINT) AS gic, CASE(($e = 0:BIGINT), 0:BIGINT, ($e = 1:BIGINT), 1:BIGINT, 3:BIGINT) AS gid])
 +- GroupAggregate(groupBy=[b, c, $e], select=[b, c, $e, AVG(a) AS a])
    +- Exchange(distribution=[hash[b, c, $e]])
       +- Expand(projects=[a, b, c, $e])
@@ -789,7 +789,7 @@ Calc(select=[b, c, a, 0:BIGINT AS g, CASE(SEARCH($e, Sarg[0L:BIGINT, 1L:BIGINT]:
     <Resource name="sql">
       <![CDATA[SELECT deptno, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno), ROLLUP(gender)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(deptno=[$0], c=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()])
@@ -797,7 +797,7 @@ LogicalProject(deptno=[$0], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[deptno, c])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
@@ -815,7 +815,7 @@ SELECT deptno / 2 + 1 AS half1, COUNT(*) AS c FROM emp
 GROUP BY ROLLUP(deptno / 2, gender), ROLLUP(substring(ename FROM 1 FOR 1))
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(half1=[+($0, 1)], c=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}, {0, 2}, {0}, {2}, {}]], c=[COUNT()])
@@ -823,13 +823,13 @@ LogicalProject(half1=[+($0, 1)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[+($f0, 1) AS half1, c])
+Calc(select=[($f0 + 1) AS half1, c])
 +- GroupAggregate(groupBy=[$f0, gender, $f2, $e], select=[$f0, gender, $f2, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[$f0, gender, $f2, $e]])
       +- Expand(projects=[$f0, gender, $f2, $e])
-         +- Calc(select=[/(deptno, 2) AS $f0, gender, SUBSTRING(ename, 1, 1) AS $f2])
+         +- Calc(select=[(deptno / 2) AS $f0, gender, SUBSTRING(ename, 1, 1) AS $f2])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
@@ -840,7 +840,7 @@ Calc(select=[+($f0, 1) AS half1, c])
 SELECT gender, deptno + 1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno, gender)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(gender=[$1], EXPR$1=[+($0, 1)], c=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], c=[COUNT()])
@@ -848,9 +848,9 @@ LogicalProject(gender=[$1], EXPR$1=[+($0, 1)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[gender, +(deptno, 1) AS EXPR$1, c])
+Calc(select=[gender, (deptno + 1) AS EXPR$1, c])
 +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, gender, $e]])
       +- Expand(projects=[deptno, gender, $e])
@@ -863,14 +863,14 @@ Calc(select=[gender, +(deptno, 1) AS EXPR$1, c])
     <Resource name="sql">
       <![CDATA[SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
 +- LogicalProject(gender=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[gender, c])
 +- GroupAggregate(groupBy=[gender, $e], select=[gender, $e, COUNT(*) AS c])
@@ -885,7 +885,7 @@ Calc(select=[gender, c])
     <Resource name="sql">
       <![CDATA[SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender) ORDER BY c DESC]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$1], dir0=[DESC-nulls-last])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
@@ -893,7 +893,7 @@ LogicalSort(sort0=[$1], dir0=[DESC-nulls-last])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Sort(orderBy=[c DESC])
 +- Exchange(distribution=[single])
@@ -912,7 +912,7 @@ Sort(orderBy=[c DESC])
 SELECT deptno + 1 AS d1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) HAVING COUNT(*) > 3
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(d1=[+($0, 1)], c=[$1])
 +- LogicalFilter(condition=[>($1, 3)])
@@ -921,9 +921,9 @@ LogicalProject(d1=[+($0, 1)], c=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[+(deptno, 1) AS d1, c], where=[>(c, 3)])
+Calc(select=[(deptno + 1) AS d1, c], where=[(c > 3)])
 +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- Expand(projects=[deptno, $e])
@@ -936,7 +936,7 @@ Calc(select=[+(deptno, 1) AS d1, c], where=[>(c, 3)])
     <Resource name="sql">
       <![CDATA[SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 1)], c=[$1])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
@@ -944,9 +944,9 @@ LogicalProject(EXPR$0=[+($0, 1)], c=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[+(deptno, 1) AS EXPR$0, c])
+Calc(select=[(deptno + 1) AS EXPR$0, c])
 +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
    +- Exchange(distribution=[hash[deptno, $e]])
       +- Expand(projects=[deptno, $e])

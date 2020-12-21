@@ -157,8 +157,9 @@ class CodersTest(PyFlinkTestCase):
         from pyflink.common import Row, RowKind
         field_coder = BigIntCoder()
         field_count = 10
-        coder = RowCoder([field_coder for _ in range(field_count)])
-        v = Row(*[None if i % 2 == 0 else i for i in range(field_count)])
+        field_names = ['f{}'.format(i) for i in range(field_count)]
+        coder = RowCoder([field_coder for _ in range(field_count)], field_names)
+        v = Row(**{field_names[i]: None if i % 2 == 0 else i for i in range(field_count)})
         v.set_row_kind(RowKind.INSERT)
         self.check_coder(coder, v)
         v.set_row_kind(RowKind.UPDATE_BEFORE)

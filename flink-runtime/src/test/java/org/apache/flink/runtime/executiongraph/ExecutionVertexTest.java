@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
@@ -25,6 +26,8 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -52,15 +55,15 @@ public class ExecutionVertexTest extends TestLogger {
 		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
 		partitionTracker.setStopTrackingAndReleasePartitionsConsumer(releasePartitionsFuture::complete);
 
-		final ExecutionGraph executionGraph = TestingExecutionGraphBuilder
-			.newBuilder()
-			.setJobGraph(new JobGraph(producerJobVertex, consumerJobVertex))
+		final JobGraph jobGraph = new JobGraph(producerJobVertex, consumerJobVertex);
+		final SchedulerBase scheduler = SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
 			.setPartitionTracker(partitionTracker)
 			.build();
 
-		executionGraph.scheduleForExecution();
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.startScheduling();
 
-		final ExecutionJobVertex producerExecutionJobVertex = executionGraph.getJobVertex(producerJobVertex.getID());
+		final ExecutionJobVertex producerExecutionJobVertex = scheduler.getExecutionJobVertex(producerJobVertex.getID());
 
 		Execution execution = producerExecutionJobVertex
 			.getTaskVertices()[0]

@@ -193,7 +193,8 @@ public class SlotPoolImplTest extends TestLogger {
 
 			Optional<PhysicalSlot> physicalSlot = slotPool.allocateAvailableSlot(
 				new SlotRequestId(),
-				allocationId);
+				allocationId,
+				ResourceProfile.ANY);
 
 			assertTrue(physicalSlot.isPresent());
 			assertEquals(0, slotPool.getAvailableSlots().size());
@@ -424,6 +425,24 @@ public class SlotPoolImplTest extends TestLogger {
 	}
 
 	@Test
+	public void testShutdownCancelsAllPendingRequests() throws Exception {
+		final ArrayBlockingQueue<AllocationID> canceledAllocations = new ArrayBlockingQueue<>(2);
+		resourceManagerGateway.setCancelSlotConsumer(canceledAllocations::offer);
+
+		try (SlotPoolImpl slotPool = createAndSetUpSlotPool(resourceManagerGateway)) {
+			slotPool.requestNewAllocatedSlot(new SlotRequestId(), ResourceProfile.UNKNOWN, TIMEOUT);
+			slotPool.requestNewAllocatedSlot(new SlotRequestId(), ResourceProfile.UNKNOWN, TIMEOUT);
+
+			assertThat(slotPool.getPendingRequests().values(), hasSize(2));
+
+			slotPool.close();
+
+			assertThat(slotPool.getPendingRequests().values(), hasSize(0));
+			assertThat(canceledAllocations, hasSize(2));
+		}
+	}
+
+	@Test
 	public void testCheckIdleSlot() throws Exception {
 		final ManualClock clock = new ManualClock();
 
@@ -617,9 +636,9 @@ public class SlotPoolImplTest extends TestLogger {
 			final List<AllocationID> firstTaskManagersSlots = registerAndOfferSlots(firstTaskManagerLocation, slotPool, 4);
 			final List<AllocationID> secondTaskManagersSlots = registerAndOfferSlots(secondTaskManagerLocation, slotPool, 4);
 
-			slotPool.allocateAvailableSlot(new SlotRequestId(), firstTaskManagersSlots.get(0));
-			slotPool.allocateAvailableSlot(new SlotRequestId(), firstTaskManagersSlots.get(1));
-			slotPool.allocateAvailableSlot(new SlotRequestId(), secondTaskManagersSlots.get(3));
+			slotPool.allocateAvailableSlot(new SlotRequestId(), firstTaskManagersSlots.get(0), ResourceProfile.ANY);
+			slotPool.allocateAvailableSlot(new SlotRequestId(), firstTaskManagersSlots.get(1), ResourceProfile.ANY);
+			slotPool.allocateAvailableSlot(new SlotRequestId(), secondTaskManagersSlots.get(3), ResourceProfile.ANY);
 
 			final Collection<SlotInfoWithUtilization> availableSlotsInformation = slotPool.getAvailableSlotsInformation();
 

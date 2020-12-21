@@ -48,7 +48,7 @@ public class JdbcTablePlanTest extends TableTestBase {
 				"  'table-name'='test_table'" +
 				")"
 		);
-		util.verifyPlan("SELECT decimal_col, timestamp9_col, id FROM jdbc");
+		util.verifyExecPlan("SELECT decimal_col, timestamp9_col, id FROM jdbc");
 	}
 
 }

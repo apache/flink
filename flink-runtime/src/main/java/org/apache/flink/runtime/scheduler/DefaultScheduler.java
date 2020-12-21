@@ -37,7 +37,6 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHa
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
-import org.apache.flink.runtime.executiongraph.restart.ThrowingRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -142,7 +141,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			userCodeLoader,
 			checkpointRecoveryFactory,
 			rpcTimeout,
-			new ThrowingRestartStrategy.ThrowingRestartStrategyFactory(),
 			blobWriter,
 			jobManagerJobMetricGroup,
 			Time.seconds(0), // this is not used any more in the new scheduler
@@ -150,7 +148,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			partitionTracker,
 			executionVertexVersioner,
 			executionDeploymentTracker,
-			false,
 			initializationTimestamp);
 
 		this.log = log;
@@ -182,8 +179,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setMainThreadExecutor(ComponentMainThreadExecutor mainThreadExecutor) {
-		super.setMainThreadExecutor(mainThreadExecutor);
+	public void initialize(ComponentMainThreadExecutor mainThreadExecutor) {
+		super.initialize(mainThreadExecutor);
 		startUpAction.accept(mainThreadExecutor);
 	}
 
@@ -195,7 +192,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	@Override
 	protected void startSchedulingInternal() {
 		log.info("Starting scheduling with scheduling strategy [{}]", schedulingStrategy.getClass().getName());
-		prepareExecutionGraphForNgScheduling();
+		transitionToRunning();
 		schedulingStrategy.startScheduling();
 	}
 

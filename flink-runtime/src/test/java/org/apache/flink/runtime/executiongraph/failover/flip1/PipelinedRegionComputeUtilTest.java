@@ -500,7 +500,8 @@ public class PipelinedRegionComputeUtilTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static Map<ExecutionVertexID, Set<SchedulingExecutionVertex>> computePipelinedRegionByVertex(final TestingSchedulingTopology topology) {
-		final Set<Set<SchedulingExecutionVertex>> regions = PipelinedRegionComputeUtil.computePipelinedRegions(topology);
+		final Set<Set<SchedulingExecutionVertex>> regions = PipelinedRegionComputeUtil
+			.computePipelinedRegions(topology.getVertices());
 		return computePipelinedRegionByVertex(regions);
 	}
 

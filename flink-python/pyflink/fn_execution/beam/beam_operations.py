@@ -110,6 +110,16 @@ def create_data_stream_keyed_process_function(factory, transform_id, transform_p
         operations.KeyedProcessFunctionOperation)
 
 
+@bundle_processor.BeamTransformFactory.register_urn(
+    operations.STREAM_GROUP_TABLE_AGGREGATE_URN,
+    flink_fn_execution_pb2.UserDefinedAggregateFunctions)
+def create_table_aggregate_function(factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter,
+        beam_operations.StatefulFunctionOperation,
+        operations.StreamGroupTableAggregateOperation)
+
+
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,
                                             beam_operation_cls, internal_operation_cls):
     output_tags = list(transform_proto.outputs.keys())

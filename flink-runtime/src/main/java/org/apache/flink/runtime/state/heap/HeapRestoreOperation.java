@@ -46,6 +46,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
 import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -65,6 +67,8 @@ import static org.apache.flink.runtime.state.StateUtil.unexpectedStateHandleExce
  * @param <K> The data type that the serializer serializes.
  */
 public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
+	private static final Logger LOG = LoggerFactory.getLogger(HeapRestoreOperation.class);
+
 	private final Collection<KeyedStateHandle> restoreStateHandles;
 	private final StateSerializerProvider<K> keySerializerProvider;
 	private final ClassLoader userCodeClassLoader;
@@ -122,6 +126,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 				throw unexpectedStateHandleException(KeyGroupsStateHandle.class, keyedStateHandle.getClass());
 			}
 
+			LOG.info("Starting to restore from state handle: {}.", keyedStateHandle);
 			KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) keyedStateHandle;
 			FSDataInputStream fsDataInputStream = keyGroupsStateHandle.openInputStream();
 			cancelStreamRegistry.registerCloseable(fsDataInputStream);
@@ -164,6 +169,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 					kvStatesById, restoredMetaInfos.size(),
 					serializationProxy.getReadVersion(),
 					serializationProxy.isUsingKeyGroupCompression());
+				LOG.info("Finished restoring from state handle: {}.", keyedStateHandle);
 			} finally {
 				if (cancelStreamRegistry.unregisterCloseable(fsDataInputStream)) {
 					IOUtils.closeQuietly(fsDataInputStream);

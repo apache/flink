@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
@@ -51,7 +50,7 @@ abstract class BatchExecCorrelateBase(
     joinType: JoinRelType)
   extends SingleRel(cluster, traitSet, inputRel)
   with BatchPhysicalRel
-  with BatchExecNode[RowData] {
+  with LegacyBatchExecNode[RowData] {
 
   require(joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT)
 
@@ -157,14 +156,5 @@ abstract class BatchExecCorrelateBase(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
-
   override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 }

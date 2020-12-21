@@ -20,7 +20,7 @@ package org.apache.flink.runtime.executiongraph.metrics;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.JobStatusProvider;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -43,25 +43,25 @@ public class DownTimeGauge implements Gauge<Long> {
 
 	// ------------------------------------------------------------------------
 
-	private final ExecutionGraph eg;
+	private final JobStatusProvider jobStatusProvider;
 
-	public DownTimeGauge(ExecutionGraph executionGraph) {
-		this.eg = checkNotNull(executionGraph);
+	public DownTimeGauge(JobStatusProvider jobStatusProvider) {
+		this.jobStatusProvider = checkNotNull(jobStatusProvider);
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public Long getValue() {
-		final JobStatus status = eg.getState();
+		final JobStatus status = jobStatusProvider.getState();
 
 		// not running any more -> finished or not on leader
 		if (status.isTerminalState()) {
 			return NO_LONGER_RUNNING;
 		}
 
-		final long runningTimestamp = eg.getStatusTimestamp(JobStatus.RUNNING);
-		final long failingTimestamp = eg.getStatusTimestamp(JobStatus.FAILING);
+		final long runningTimestamp = jobStatusProvider.getStatusTimestamp(JobStatus.RUNNING);
+		final long failingTimestamp = jobStatusProvider.getStatusTimestamp(JobStatus.FAILING);
 
 		if (failingTimestamp <= runningTimestamp) {
 			return NOT_FAILING;

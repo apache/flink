@@ -25,18 +25,20 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies.FixedDelayR
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.NoRestartStrategyConfiguration;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
-import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategyFactory;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 
+import java.time.Duration;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A utility class to load {@link RestartBackoffTimeStrategy.Factory} from the configuration.
- * It respects the configs for the legacy {@link RestartStrategy}.
  */
 public final class RestartBackoffTimeStrategyFactoryLoader {
+
+	static final int DEFAULT_RESTART_ATTEMPTS = Integer.MAX_VALUE;
+
+	static final long DEFAULT_RESTART_DELAY = Duration.ofSeconds(1L).toMillis();
 
 	private RestartBackoffTimeStrategyFactoryLoader() {
 	}
@@ -130,8 +132,8 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
 		if (isCheckpointingEnabled) {
 			// fixed delay restart strategy with default params
 			return new FixedDelayRestartBackoffTimeStrategy.FixedDelayRestartBackoffTimeStrategyFactory(
-				NoOrFixedIfCheckpointingEnabledRestartStrategyFactory.DEFAULT_RESTART_ATTEMPTS,
-				NoOrFixedIfCheckpointingEnabledRestartStrategyFactory.DEFAULT_RESTART_DELAY);
+				DEFAULT_RESTART_ATTEMPTS,
+				DEFAULT_RESTART_DELAY);
 		} else {
 			return NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory.INSTANCE;
 		}

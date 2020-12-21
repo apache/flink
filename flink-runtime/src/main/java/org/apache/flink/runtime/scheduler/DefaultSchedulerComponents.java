@@ -23,9 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
@@ -33,12 +31,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkCheckerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
-import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
-import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
-import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
-import org.apache.flink.runtime.scheduler.strategy.LazyFromSourcesSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.util.clock.SystemClock;
@@ -48,13 +42,9 @@ import java.util.function.Consumer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Components to create a {@link DefaultScheduler} which depends on the
- * configured {@link JobManagerOptions#SCHEDULING_STRATEGY}.
+ * Components to create a {@link DefaultScheduler}. Currently only supports {@link PipelinedRegionSchedulingStrategy}.
  */
 public class DefaultSchedulerComponents {
-
-	private static final String PIPELINED_REGION_SCHEDULING = "region";
-	private static final String LEGACY_SCHEDULING = "legacy";
 
 	private final SchedulingStrategyFactory schedulingStrategyFactory;
 	private final Consumer<ComponentMainThreadExecutor> startUpAction;
@@ -89,59 +79,14 @@ public class DefaultSchedulerComponents {
 			final SlotPool slotPool,
 			final Time slotRequestTimeout) {
 
-		final String schedulingStrategy = jobMasterConfiguration.getString(JobManagerOptions.SCHEDULING_STRATEGY);
-		switch (schedulingStrategy) {
-			case PIPELINED_REGION_SCHEDULING:
-				checkArgument(
-					!isApproximateLocalRecoveryEnabled,
-					"Approximate local recovery can not be used together with PipelinedRegionScheduler for now! " +
-						"Please set %s to legacy.", JobManagerOptions.SCHEDULING_STRATEGY.key());
-				return createPipelinedRegionSchedulerComponents(
-					scheduleMode,
-					jobMasterConfiguration,
-					slotPool,
-					slotRequestTimeout);
-			case LEGACY_SCHEDULING:
-				checkArgument(!isApproximateLocalRecoveryEnabled || !scheduleMode.allowLazyDeployment(),
-					"Approximate local recovery can only be used together with EAGER schedule mode!");
-				return createLegacySchedulerComponents(
-					scheduleMode,
-					jobMasterConfiguration,
-					slotPool,
-					slotRequestTimeout);
-			default:
-				throw new IllegalStateException("Unsupported scheduling strategy " + schedulingStrategy);
-		}
-	}
-
-	private static DefaultSchedulerComponents createLegacySchedulerComponents(
-			final ScheduleMode scheduleMode,
-			final Configuration jobMasterConfiguration,
-			final SlotPool slotPool,
-			final Time slotRequestTimeout) {
-
-		final SlotSelectionStrategy slotSelectionStrategy = selectSlotSelectionStrategy(jobMasterConfiguration);
-		final Scheduler scheduler = new SchedulerImpl(slotSelectionStrategy, slotPool);
-		final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
+		checkArgument(
+			!isApproximateLocalRecoveryEnabled,
+			"Approximate local recovery can not be used together with PipelinedRegionScheduler for now! ");
+		return createPipelinedRegionSchedulerComponents(
 			scheduleMode,
-			scheduler,
+			jobMasterConfiguration,
+			slotPool,
 			slotRequestTimeout);
-		return new DefaultSchedulerComponents(
-			createLegacySchedulingStrategyFactory(scheduleMode),
-			scheduler::start,
-			new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy));
-	}
-
-	private static SchedulingStrategyFactory createLegacySchedulingStrategyFactory(final ScheduleMode scheduleMode) {
-		switch (scheduleMode) {
-			case EAGER:
-				return new EagerSchedulingStrategy.Factory();
-			case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
-			case LAZY_FROM_SOURCES:
-				return new LazyFromSourcesSchedulingStrategy.Factory();
-			default:
-				throw new IllegalStateException("Unsupported schedule mode " + scheduleMode);
-		}
 	}
 
 	private static DefaultSchedulerComponents createPipelinedRegionSchedulerComponents(

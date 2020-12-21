@@ -17,7 +17,7 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testMultiWindow">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2], f1=[$1])
 +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($2)]], window=[SlidingGroupWindow('w2, proctime, 20, 10)], properties=[EXPR$0])
@@ -26,12 +26,12 @@ LogicalProject(EXPR$0=[$2], f1=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, f1])
 +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w2, proctime, 20, 10)], properties=[EXPR$0], select=[EmptyTableAggFunc(f0) AS (f0, f1), start('w2) AS EXPR$0])
    +- Exchange(distribution=[single])
-      +- Calc(select=[EXPR$0 AS proctime, c, f0, +(f1, 1) AS f1])
+      +- Calc(select=[EXPR$0 AS proctime, c, f0, (f1 + 1) AS f1])
          +- GroupWindowTableAggregate(groupBy=[c], window=[TumblingGroupWindow('w1, e, 50)], properties=[EXPR$0], select=[c, EmptyTableAggFunc(a, b) AS (f0, f1), proctime('w1) AS EXPR$0])
             +- Exchange(distribution=[hash[c]])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
@@ -39,16 +39,16 @@ Calc(select=[EXPR$0, f1])
     </Resource>
   </TestCase>
   <TestCase name="testTimeMaterializer">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$1], _c1=[AS(+($2, 1), _UTF-16LE'_c1')], EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalWindowTableAggregate(group=[{4}], tableAggregate=[[EmptyTableAggFunc($0, $1)]], window=[TumblingGroupWindow('w, d, 5)], properties=[EXPR$0, EXPR$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[f0, +(f1, 1) AS _c1, EXPR$0, EXPR$1])
+Calc(select=[f0, (f1 + 1) AS _c1, EXPR$0, EXPR$1])
 +- GroupWindowTableAggregate(groupBy=[e], window=[TumblingGroupWindow('w, d, 5)], properties=[EXPR$0, EXPR$1], select=[e, EmptyTableAggFunc(a, b) AS (f0, f1), start('w) AS EXPR$0, end('w) AS EXPR$1])
    +- Exchange(distribution=[hash[e]])
       +- Calc(select=[a, b, c, d, PROCTIME_MATERIALIZE(e) AS e])
@@ -57,16 +57,16 @@ Calc(select=[f0, +(f1, 1) AS _c1, EXPR$0, EXPR$1])
     </Resource>
   </TestCase>
   <TestCase name="testSingleWindow">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$1], _c1=[AS(+($2, 1), _UTF-16LE'_c1')], EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalWindowTableAggregate(group=[{2}], tableAggregate=[[EmptyTableAggFunc($0, $1)]], window=[TumblingGroupWindow('w, d, 5)], properties=[EXPR$0, EXPR$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[f0, +(f1, 1) AS _c1, EXPR$0, EXPR$1])
+Calc(select=[f0, (f1 + 1) AS _c1, EXPR$0, EXPR$1])
 +- GroupWindowTableAggregate(groupBy=[c], window=[TumblingGroupWindow('w, d, 5)], properties=[EXPR$0, EXPR$1], select=[c, EmptyTableAggFunc(a, b) AS (f0, f1), start('w) AS EXPR$0, end('w) AS EXPR$1])
    +- Exchange(distribution=[hash[c]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])

@@ -41,7 +41,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
 	private int currentSplitIndex = 0;
 	private boolean started;
-	private boolean closed;
+	private int timesClosed;
 	private boolean waitingForMoreSplits;
 
 	@GuardedBy("this")
@@ -53,7 +53,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
 	public MockSourceReader(boolean waitingForMoreSplits, boolean markIdleOnNoSplits) {
 		this.started = false;
-		this.closed = false;
+		this.timesClosed = 0;
 		this.availableFuture = CompletableFuture.completedFuture(null);
 		this.waitingForMoreSplits = waitingForMoreSplits;
 		this.markIdleOnNoSplits = markIdleOnNoSplits;
@@ -115,7 +115,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
 	@Override
 	public void close() throws Exception {
-		this.closed = true;
+		timesClosed++;
 	}
 
 	@Override
@@ -158,7 +158,11 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	}
 
 	public boolean isClosed() {
-		return closed;
+		return timesClosed > 0;
+	}
+
+	public int getTimesClosed() {
+		return timesClosed;
 	}
 
 	public List<MockSourceSplit> getAssignedSplits() {

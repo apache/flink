@@ -17,14 +17,14 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testAggregate">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2])
 +- LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
 +- Exchange(distribution=[single])
@@ -34,7 +34,7 @@ HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
     </Resource>
   </TestCase>
   <TestCase name="testAggregateWithFilter">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2])
 +- LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
@@ -43,18 +43,18 @@ LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
 +- Exchange(distribution=[single])
    +- LocalHashAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
-      +- Calc(select=[CAST(1) AS a, b, c], where=[=(a, 1)])
+      +- Calc(select=[CAST(1) AS a, b, c], where=[(a = 1)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testAggregateWithFilterOnNestedFields">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2], EXPR$3=[$3])
 +- LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
@@ -64,18 +64,18 @@ LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2], EXPR$3=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2, Final_SUM(sum$4) AS EXPR$3])
 +- Exchange(distribution=[single])
    +- LocalHashAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3, Partial_SUM($f3) AS sum$4])
-      +- Calc(select=[CAST(1) AS a, b, c, c._1 AS $f3], where=[=(a, 1)])
+      +- Calc(select=[CAST(1) AS a, b, c, c._1 AS $f3], where=[(a = 1)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testGroupAggregateWithFilter">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[=($0, 1)])
 +- LogicalProject(a=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3])
@@ -83,13 +83,13 @@ LogicalFilter(condition=[=($0, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CAST(1) AS a, EXPR$0, EXPR$1, EXPR$2])
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashAggregate(groupBy=[a], select=[a, Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
-         +- Calc(select=[a, b, c], where=[=(a, 1)])
+         +- Calc(select=[a, b, c], where=[(a = 1)])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

@@ -59,7 +59,7 @@ println(env.getExecutionPlan())
 
 完成后，详细的执行计划图会在网页中呈现。
 
-<img alt="A flink job execution graph." src="{{ site.baseurl }}/fig/plan_visualizer.png" width="80%">
+<img alt="A flink job execution graph." src="{% link /fig/plan_visualizer.png %}" width="80%">
 
 __Web 界面__
 

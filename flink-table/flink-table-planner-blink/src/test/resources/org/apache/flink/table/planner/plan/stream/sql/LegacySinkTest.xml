@@ -17,14 +17,14 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testAppendSink">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[d, c])
 +- LogicalProject(EXPR$0=[+($0, $1)], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[d, c], changelogMode=[NONE])
 +- Calc(select=[+(a, b) AS EXPR$0, c], changelogMode=[I])
@@ -33,7 +33,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[d, 
     </Resource>
   </TestCase>
   <TestCase name="testUpsertAndUpsertSink">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[b, cnt])
 +- LogicalAggregate(group=[{0}], frequency=[COUNT($1)])
@@ -51,27 +51,28 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fie
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt], changelogMode=[I,UB,UA], reuse_id=[1])
-+- Exchange(distribution=[hash[b]], changelogMode=[I])
-   +- Calc(select=[b, a], changelogMode=[I])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
-
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[b, cnt], changelogMode=[NONE])
 +- GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(b) AS frequency], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[cnt]], changelogMode=[I,UB,UA])
       +- Calc(select=[b, cnt], where=[<(b, 4)], changelogMode=[I,UB,UA])
-         +- Reused(reference_id=[1])
+         +- GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt], changelogMode=[I,UB,UA])
+            +- Exchange(distribution=[hash[b]], changelogMode=[I])
+               +- Calc(select=[b, a], changelogMode=[I])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[b, cnt], changelogMode=[NONE])
 +- Calc(select=[b, cnt], where=[SEARCH(b, Sarg[[4..6)])], changelogMode=[I,UB,UA])
-   +- Reused(reference_id=[1])
+   +- GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[b]], changelogMode=[I])
+         +- Calc(select=[b, a], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testAppendUpsertAndRetractSink">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b])
 +- LogicalUnion(all=[true])
@@ -107,36 +108,45 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Union(all=[true], union=[a, b], changelogMode=[I], reuse_id=[1])
-:- Calc(select=[a, b], changelogMode=[I])
-:  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
-+- Calc(select=[d, e], changelogMode=[I])
-   +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f], changelogMode=[I])
-
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b], changelogMode=[NONE])
-+- Reused(reference_id=[1])
-
-Exchange(distribution=[single], changelogMode=[I], reuse_id=[2])
-+- Calc(select=[a], changelogMode=[I])
-   +- Union(all=[true], union=[a, b], changelogMode=[I])
-      :- Reused(reference_id=[1])
-      +- Calc(select=[i, j], changelogMode=[I])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable3]], fields=[i, j, k], changelogMode=[I])
++- Union(all=[true], union=[a, b], changelogMode=[I])
+   :- Calc(select=[a, b], changelogMode=[I])
+   :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+   +- Calc(select=[d, e], changelogMode=[I])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[total_sum], changelogMode=[NONE])
 +- GroupAggregate(select=[SUM(a) AS total_sum], changelogMode=[I,UB,UA])
-   +- Reused(reference_id=[2])
+   +- Exchange(distribution=[single], changelogMode=[I])
+      +- Calc(select=[a], changelogMode=[I])
+         +- Union(all=[true], union=[a, b], changelogMode=[I])
+            :- Union(all=[true], union=[a, b], changelogMode=[I])
+            :  :- Calc(select=[a, b], changelogMode=[I])
+            :  :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+            :  +- Calc(select=[d, e], changelogMode=[I])
+            :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f], changelogMode=[I])
+            +- Calc(select=[i, j], changelogMode=[I])
+               +- DataStreamScan(table=[[default_catalog, default_database, MyTable3]], fields=[i, j, k], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[total_min], changelogMode=[NONE])
 +- GroupAggregate(select=[MIN(a) AS total_min], changelogMode=[I,UA])
-   +- Reused(reference_id=[2])
+   +- Exchange(distribution=[single], changelogMode=[I])
+      +- Calc(select=[a], changelogMode=[I])
+         +- Union(all=[true], union=[a, b], changelogMode=[I])
+            :- Union(all=[true], union=[a, b], changelogMode=[I])
+            :  :- Calc(select=[a, b], changelogMode=[I])
+            :  :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+            :  +- Calc(select=[d, e], changelogMode=[I])
+            :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f], changelogMode=[I])
+            +- Calc(select=[i, j], changelogMode=[I])
+               +- DataStreamScan(table=[[default_catalog, default_database, MyTable3]], fields=[i, j, k], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testRetractAndUpsertSink">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b, cnt])
 +- LogicalProject(b=[$0], cnt=[$1])
@@ -153,25 +163,26 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt], changelogMode=[I,UB,UA], reuse_id=[1])
-+- Exchange(distribution=[hash[b]], changelogMode=[I])
-   +- Calc(select=[b, a], changelogMode=[I])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
-
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b, cnt], changelogMode=[NONE])
 +- Calc(select=[b, cnt], where=[<(b, 4)], changelogMode=[I,UB,UA])
-   +- Reused(reference_id=[1])
+   +- GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[b]], changelogMode=[I])
+         +- Calc(select=[b, a], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt], changelogMode=[NONE])
 +- Calc(select=[b, cnt], where=[SEARCH(b, Sarg[[4..6)])], changelogMode=[I,UB,UA])
-   +- Reused(reference_id=[1])
+   +- GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[b]], changelogMode=[I])
+         +- Calc(select=[b, a], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testRetractSink1">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[a, cnt])
 +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -179,7 +190,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fie
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[a, cnt], changelogMode=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], changelogMode=[I,UB,UA])
@@ -190,7 +201,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[a,
     </Resource>
   </TestCase>
   <TestCase name="testRetractSink2">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[cnt, a])
 +- LogicalAggregate(group=[{0}], a=[COUNT($1)])
@@ -200,7 +211,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fie
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[cnt, a], changelogMode=[NONE])
 +- GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(a) AS a], changelogMode=[I,UB,UA,D])
@@ -213,7 +224,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[cn
     </Resource>
   </TestCase>
   <TestCase name="testUpsertSink1">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, cnt])
 +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -221,7 +232,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, cnt], changelogMode=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], changelogMode=[I,UA])
@@ -232,7 +243,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, 
     </Resource>
   </TestCase>
   <TestCase name="testUpsertSink2">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a1, b, c1])
 +- LogicalProject(a1=[$2], b=[$3], c1=[$1])
@@ -256,28 +267,28 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
                               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a1, b, c1], changelogMode=[NONE])
 +- Calc(select=[a1, b, c1], changelogMode=[I])
    +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a3, c1, a1, b, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
       :- Exchange(distribution=[hash[a3]], changelogMode=[I])
       :  +- Calc(select=[a AS a3, c AS c1], where=[AND(>=(a, 0), <(b, 5))], changelogMode=[I])
-      :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I], reuse_id=[1])
+      :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
       +- Exchange(distribution=[hash[a1]], changelogMode=[I])
          +- Calc(select=[a1, b, c AS c2], changelogMode=[I])
             +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b, a2, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
                :- Exchange(distribution=[hash[a1]], changelogMode=[I])
                :  +- Calc(select=[a AS a1, b], where=[<=(a, 10)], changelogMode=[I])
-               :     +- Reused(reference_id=[1])
+               :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
                +- Exchange(distribution=[hash[a2]], changelogMode=[I])
                   +- Calc(select=[a AS a2, c], where=[AND(>=(a, 0), >=(b, 5))], changelogMode=[I])
-                     +- Reused(reference_id=[1])
+                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testUpsertSinkWithFilter">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
@@ -287,7 +298,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, cnt], changelogMode=[NONE])
 +- Calc(select=[a, cnt], where=[<(cnt, 10)], changelogMode=[I,UB,UA])

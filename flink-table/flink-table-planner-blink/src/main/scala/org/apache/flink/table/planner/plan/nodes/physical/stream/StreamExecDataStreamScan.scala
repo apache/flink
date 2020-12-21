@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.ELEMENT
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.functions.sql.StreamRecordTimestampSqlFunction
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.schema.DataStreamTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
@@ -41,8 +41,6 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -59,7 +57,7 @@ class StreamExecDataStreamScan(
     outputRowType: RelDataType)
   extends TableScan(cluster, traitSet, table)
   with StreamPhysicalRel
-  with StreamExecNode[RowData]{
+  with LegacyStreamExecNode[RowData]{
 
   val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
@@ -83,14 +81,6 @@ class StreamExecDataStreamScan(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = List()
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {

@@ -346,14 +346,14 @@ INSERT (INTO|OVERWRITE) [TABLE] table_name [PARTITION partition_spec] SELECT ...
 
 ## DQL
 
-目前，对于DQL语句 Hive 方言和 Flink SQL 支持的语法相同。有关更多详细信息，请参考[Flink SQL 查询]({{ site.baseurl }}/zh/dev/table/sql/queries.html)。并且建议切换到 `default` 方言来执行 DQL 语句。
+目前，对于DQL语句 Hive 方言和 Flink SQL 支持的语法相同。有关更多详细信息，请参考[Flink SQL 查询]({% link dev/table/sql/queries.zh.md %})。并且建议切换到 `default` 方言来执行 DQL 语句。
 
 ## 注意
 
 以下是使用 Hive 方言的一些注意事项。
 
-- Hive 方言只能用于操作 Hive 表，不能用于一般表。Hive 方言应与[HiveCatalog]({{ site.baseurl }}/zh/dev/table/connectors/hive/hive_catalog.html)一起使用。
-- 虽然所有 Hive 版本支持相同的语法，但是一些特定的功能是否可用仍取决于你使用的[Hive 版本]({{ site.baseurl }}/zh/dev/table/connectors/hive/#支持的hive版本)。例如，更新数据库位置
+- Hive 方言只能用于操作 Hive 表，不能用于一般表。Hive 方言应与[HiveCatalog]({% link dev/table/connectors/hive/hive_catalog.zh.md %})一起使用。
+- 虽然所有 Hive 版本支持相同的语法，但是一些特定的功能是否可用仍取决于你使用的[Hive 版本]({% link dev/table/connectors/hive/index.zh.md %}#支持的hive版本)。例如，更新数据库位置
  只在 Hive-2.4.0 或更高版本支持。
 - Hive 和 Calcite 有不同的保留关键字集合。例如，`default` 是 Calcite 的保留关键字，却不是 Hive 的保留关键字。即使使用 Hive 方言, 也必须使用反引号 ( ` ) 引用此类关键字才能将其用作标识符。
 - 由于扩展的查询语句的不兼容性，在 Flink 中创建的视图是不能在 Hive 中查询的。

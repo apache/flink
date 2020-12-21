@@ -50,6 +50,7 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 		properties.add(JsonValidator.FORMAT_JSON_SCHEMA);
 		properties.add(JsonValidator.FORMAT_SCHEMA);
 		properties.add(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD);
+		properties.add(JsonValidator.FORMAT_IGNORE_PARSE_ERRORS);
 		return properties;
 	}
 
