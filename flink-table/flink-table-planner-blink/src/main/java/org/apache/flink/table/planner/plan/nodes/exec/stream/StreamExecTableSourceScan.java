@@ -46,7 +46,7 @@ public class StreamExecTableSourceScan extends StreamExecNode<RowData> implement
 
 	@Override
 	protected Transformation<RowData> translateToPlanInternal(StreamPlanner planner) {
-		return createSourceTransformation(planner.getExecEnv(), tableSource, getOutputType(), getDesc());
+		return createSourceTransformation(planner.getExecEnv(), tableSource, (RowType) getOutputType(), getDesc());
 	}
 
 	@Override

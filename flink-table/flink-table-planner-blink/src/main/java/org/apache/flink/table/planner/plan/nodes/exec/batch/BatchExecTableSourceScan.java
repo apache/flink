@@ -47,7 +47,7 @@ public class BatchExecTableSourceScan extends BatchExecNode<RowData> implements 
 
 	@Override
 	protected Transformation<RowData> translateToPlanInternal(BatchPlanner planner) {
-		return createSourceTransformation(planner.getExecEnv(), tableSource, getOutputType(), getDesc());
+		return createSourceTransformation(planner.getExecEnv(), tableSource, (RowType) getOutputType(), getDesc());
 	}
 
 	@Override
