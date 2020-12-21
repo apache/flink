@@ -106,6 +106,12 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 		return containeredTaskManagerParameters.getTaskExecutorProcessSpec().getCpuCores().getValue().doubleValue();
 	}
 
+	public String getServiceAccount() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT)
+			.orElse(flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT));
+
+	}
+
 	public Map<String, Long> getTaskManagerExternalResources() {
 		return taskManagerExternalResources;
 	}

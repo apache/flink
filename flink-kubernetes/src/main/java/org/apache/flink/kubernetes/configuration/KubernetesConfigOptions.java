@@ -38,6 +38,8 @@ import static org.apache.flink.configuration.description.TextElement.code;
 @PublicEvolving
 public class KubernetesConfigOptions {
 
+	private static final String KUBERNETES_SERVICE_ACCOUNT_KEY = "kubernetes.service-account";
+
 	public static final ConfigOption<String> CONTEXT =
 		key("kubernetes.context")
 		.stringType()
@@ -56,9 +58,27 @@ public class KubernetesConfigOptions {
 	public static final ConfigOption<String> JOB_MANAGER_SERVICE_ACCOUNT =
 		key("kubernetes.jobmanager.service-account")
 		.stringType()
-		.defaultValue("default")
+		.noDefaultValue()
 		.withDescription("Service account that is used by jobmanager within kubernetes cluster. " +
-			"The job manager uses this service account when requesting taskmanager pods from the API server.");
+			"The job manager uses this service account when requesting taskmanager pods from the API server. " +
+			"If not explicitly configured, config option '" + KUBERNETES_SERVICE_ACCOUNT_KEY + "' will be used.");
+
+	public static final ConfigOption<String> TASK_MANAGER_SERVICE_ACCOUNT =
+		key("kubernetes.taskmanager.service-account")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Service account that is used by taskmanager within kubernetes cluster. " +
+			"The task manager uses this service account when watching config maps on the API server to retrieve " +
+			"leader address of jobmanager and resourcemanager. If not explicitly configured, config option '" +
+			KUBERNETES_SERVICE_ACCOUNT_KEY + "' will be used.");
+
+	public static final ConfigOption<String> KUBERNETES_SERVICE_ACCOUNT =
+		key(KUBERNETES_SERVICE_ACCOUNT_KEY)
+			.stringType()
+			.defaultValue("default")
+			.withDescription("Service account that is used by jobmanager and taskmanager within kubernetes cluster. " +
+				"Notice that this can be overwritten by config options '" + JOB_MANAGER_SERVICE_ACCOUNT.key() +
+				"' and '" + TASK_MANAGER_SERVICE_ACCOUNT.key() + "' for jobmanager and taskmanager respectively.");
 
 	public static final ConfigOption<Double> JOB_MANAGER_CPU =
 		key("kubernetes.jobmanager.cpu")

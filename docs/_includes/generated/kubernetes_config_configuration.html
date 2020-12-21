@@ -112,9 +112,9 @@
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.service-account</h5></td>
-            <td style="word-wrap: break-word;">"default"</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server.</td>
+            <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.tolerations</h5></td>
@@ -147,6 +147,12 @@
             <td>The user-specified secrets that will be mounted into Flink container. The value should be in the form of <span markdown="span">`foo:/opt/secrets-foo,bar:/opt/secrets-bar`</span>.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.service-account</h5></td>
+            <td style="word-wrap: break-word;">"default"</td>
+            <td>String</td>
+            <td>Service account that is used by jobmanager and taskmanager within kubernetes cluster. Notice that this can be overwritten by config options 'kubernetes.jobmanager.service-account' and 'kubernetes.taskmanager.service-account' for jobmanager and taskmanager respectively.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.taskmanager.annotations</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
@@ -169,6 +175,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
             <td>The node selector to be set for TaskManager pods. Specified as key:value pairs separated by commas. For example, environment:production,disk:ssd.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.service-account</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Service account that is used by taskmanager within kubernetes cluster. The task manager uses this service account when watching config maps on the API server to retrieve leader address of jobmanager and resourcemanager. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.tolerations</h5></td>
