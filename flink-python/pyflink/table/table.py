@@ -771,7 +771,7 @@ class Table(object):
             >>> add = udf(lambda x: Row(x + 1, x * x), result_type=DataTypes.Row(
             ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
             >>> tab.map(add(tab.a)).alias("a, b")
-            >>> # input all columns
+            >>> # take all the columns as inputs
             >>> tab.map(add)
 
         :param func: user-defined scalar function.
@@ -784,6 +784,7 @@ class Table(object):
         elif isinstance(func, Expression):
             return Table(self._j_table.map(func._j_expr), self._t_env)
         else:
+            func.set_used_in_row_based_operation()
             return Table(self._j_table.map(func(with_columns(col("*")))._j_expr), self._t_env)
 
     def flat_map(self, func: Union[str, Expression, UserDefinedTableFunctionWrapper]) -> 'Table':
@@ -798,7 +799,7 @@ class Table(object):
             ...     for s in string.split(","):
             ...         yield x, s
             >>> tab.flat_map(split(tab.a, table.b))
-            >>> # input all columns
+            >>> # take all the columns as inputs
             >>> tab.flat_map(split)
 
         :param func: user-defined table function.
@@ -811,6 +812,7 @@ class Table(object):
         elif isinstance(func, Expression):
             return Table(self._j_table.flatMap(func._j_expr), self._t_env)
         else:
+            func.set_used_in_row_based_operation()
             return Table(self._j_table.flatMap(func(with_columns(col("*")))._j_expr), self._t_env)
 
     def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
@@ -828,7 +830,7 @@ class Table(object):
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
             >>> tab.aggregate(agg(tab.a).alias("a", "b")).select("a, b")
-            >>> # input all columns
+            >>> # take all the columns as inputs
             >>> tab.aggregate(agg.alias("a, b")).select("a, b")
 
         :param func: user-defined aggregate function.
@@ -841,6 +843,7 @@ class Table(object):
         elif isinstance(func, Expression):
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
         else:
+            func.set_used_in_row_based_operation()
             if hasattr(func, "_alias_names"):
                 alias_names = getattr(func, "_alias_names")
                 func = func(with_columns(col("*"))).alias(*alias_names)
@@ -860,7 +863,7 @@ class Table(object):
 
             >>> table_agg = udtaf(MyTableAggregateFunction())
             >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select("a, b")
-            >>> # input all columns
+            >>> # take all the columns as inputs
             >>> tab.flat_aggregate(table_agg.alias("a", "b")).select("a, b")
 
         :param func: user-defined table aggregate function.
@@ -873,6 +876,7 @@ class Table(object):
         elif isinstance(func, Expression):
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
         else:
+            func.set_used_in_row_based_operation()
             if hasattr(func, "_alias_names"):
                 alias_names = getattr(func, "_alias_names")
                 func = func(with_columns(col("*"))).alias(*alias_names)
@@ -1060,7 +1064,7 @@ class GroupedTable(object):
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
             >>> tab.group_by(tab.a).aggregate(agg(tab.b).alias("c", "d")).select("a, c, d")
-            >>> # input columns without keys
+            >>> # take all the columns as inputs
             >>> tab.group_by(tab.a).aggregate(agg.alias("c, d")).select("a, c, d")
 
         :param func: user-defined aggregate function.
@@ -1073,7 +1077,12 @@ class GroupedTable(object):
         elif isinstance(func, Expression):
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
         else:
-            func = self._to_expr(func)
+            func.set_used_in_row_based_operation()
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
 
     def flat_aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
@@ -1088,7 +1097,7 @@ class GroupedTable(object):
 
             >>> table_agg = udtaf(MyTableAggregateFunction())
             >>> tab.group_by(tab.c).flat_aggregate(table_agg(tab.a).alias("a")).select("c, a")
-            >>> # input columns without keys
+            >>> # take all the columns as inputs
             >>> tab.group_by(tab.a).flat_aggregate(table_agg.alias("b, c")).select("a, b, c")
 
         :param func: user-defined table aggregate function.
@@ -1101,21 +1110,13 @@ class GroupedTable(object):
         elif isinstance(func, Expression):
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
         else:
-            func = self._to_expr(func)
+            func.set_used_in_row_based_operation()
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
-
-    def _to_expr(self, func: UserDefinedAggregateFunctionWrapper) -> Expression:
-        group_keys_field = self._j_table.getClass().getDeclaredField("groupKeys")
-        group_keys_field.setAccessible(True)
-        j_group_keys = group_keys_field.get(self._j_table)
-        fields_without_keys = without_columns(
-            j_group_keys[0], *([j_group_keys[i] for i in range(1, len(j_group_keys))]))
-        if hasattr(func, "alias_names"):
-            alias_names = getattr(func, "alias_names")
-            func_expression = func(fields_without_keys).alias(*alias_names)
-        else:
-            func_expression = func(fields_without_keys)
-        return func_expression
 
 
 class GroupWindowedTable(object):
@@ -1213,7 +1214,7 @@ class WindowGroupedTable(object):
             ...     .aggregate(agg(window_grouped_table.b) \
             ...     .alias("c", "d")) \
             ...     .select("c, d")
-            >>> # input columns without keys
+            >>> # take all the columns as inputs
             >>> window_grouped_table.group_by("w, a").aggregate(agg)
 
         :param func: user-defined aggregate function.
@@ -1226,24 +1227,21 @@ class WindowGroupedTable(object):
         elif isinstance(func, Expression):
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
         else:
+            func.set_used_in_row_based_operation()
             func = self._to_expr(func)
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
 
     def _to_expr(self, func: UserDefinedAggregateFunctionWrapper) -> Expression:
-        group_keys_field = self._j_table.getClass().getDeclaredField("groupKeys")
-        group_keys_field.setAccessible(True)
         group_window_field = self._j_table.getClass().getDeclaredField("window")
         group_window_field.setAccessible(True)
-        j_group_keys = group_keys_field.get(self._j_table)
         j_group_window = group_window_field.get(self._j_table)
         j_time_field = j_group_window.getTimeField()
-        fields_without_keys = without_columns(
-            j_time_field, *([j_group_keys[i] for i in range(len(j_group_keys))]))
+        fields_without_window = without_columns(j_time_field)
         if hasattr(func, "_alias_names"):
             alias_names = getattr(func, "_alias_names")
-            func_expression = func(fields_without_keys).alias(*alias_names)
+            func_expression = func(fields_without_window).alias(*alias_names)
         else:
-            func_expression = func(fields_without_keys)
+            func_expression = func(fields_without_window)
         return func_expression
 
 

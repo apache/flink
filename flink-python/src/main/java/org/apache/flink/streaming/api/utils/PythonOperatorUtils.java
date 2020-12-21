@@ -119,6 +119,7 @@ public enum PythonOperatorUtils {
 			}
 			builder.addInputs(inputProto);
 		}
+		builder.setUsedInRowBasedOperation(pythonFunctionInfo.getPythonFunction().isUsedInRowBasedOperation());
 		return builder.build();
 	}
 

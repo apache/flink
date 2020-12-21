@@ -43,6 +43,15 @@ def wrap_pandas_result(it):
     return arrays
 
 
+def wrap_inputs_to_row(*args):
+    from pyflink.common.types import Row
+    import pandas as pd
+    if type(args[0]) == pd.Series:
+        return pd.concat(args, axis=1)
+    else:
+        return Row(*args)
+
+
 def extract_over_window_user_defined_function(user_defined_function_proto):
     window_index = user_defined_function_proto.window_index
     return (*extract_user_defined_function(user_defined_function_proto, True), window_index)
@@ -103,7 +112,12 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
     func_args, input_variable_dict, input_funcs = _extract_input(user_defined_function_proto.inputs)
     variable_dict.update(input_variable_dict)
     user_defined_funcs.extend(input_funcs)
-    return "%s(%s)" % (func_name, func_args), variable_dict, user_defined_funcs
+    if user_defined_function_proto.used_in_row_based_operation:
+        variable_dict['wrap_inputs_to_row'] = wrap_inputs_to_row
+        func_str = "%s(wrap_inputs_to_row(%s))" % (func_name, func_args)
+    else:
+        func_str = "%s(%s)" % (func_name, func_args)
+    return func_str, variable_dict, user_defined_funcs
 
 
 def _parse_constant_value(constant_value) -> Tuple[str, Any]:

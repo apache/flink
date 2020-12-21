@@ -46,6 +46,7 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 	private final PythonFunctionKind pythonFunctionKind;
 	private final boolean deterministic;
 	private final PythonEnv pythonEnv;
+	private final boolean usedInRowBasedOperation;
 
 	public PythonScalarFunction(
 		String name,
@@ -54,7 +55,8 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 		TypeInformation resultType,
 		PythonFunctionKind pythonFunctionKind,
 		boolean deterministic,
-		PythonEnv pythonEnv) {
+		PythonEnv pythonEnv,
+		boolean usedInRowBasedOperation) {
 		this.name = name;
 		this.serializedScalarFunction = serializedScalarFunction;
 		this.inputTypes = inputTypes;
@@ -62,6 +64,7 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 		this.pythonFunctionKind = pythonFunctionKind;
 		this.deterministic = deterministic;
 		this.pythonEnv = pythonEnv;
+		this.usedInRowBasedOperation = usedInRowBasedOperation;
 	}
 
 	public Object eval(Object... args) {
@@ -82,6 +85,11 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 	@Override
 	public PythonFunctionKind getPythonFunctionKind() {
 		return pythonFunctionKind;
+	}
+
+	@Override
+	public boolean isUsedInRowBasedOperation() {
+		return usedInRowBasedOperation;
 	}
 
 	@Override

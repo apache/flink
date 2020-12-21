@@ -348,6 +348,7 @@ class UserDefinedFunctionWrapper(object):
             func.is_deterministic() if isinstance(func, UserDefinedFunction) else True)
         self._func_type = func_type
         self._judf_placeholder = None
+        self._used_in_row_based_operation = False
 
     def __call__(self, *args) -> Expression:
         from pyflink.table import expressions as expr
@@ -355,6 +356,10 @@ class UserDefinedFunctionWrapper(object):
 
     def alias(self, *alias_names: str):
         self._alias_names = alias_names
+        return self
+
+    def set_used_in_row_based_operation(self):
+        self._used_in_row_based_operation = True
         return self
 
     def java_user_defined_function(self):
@@ -421,7 +426,8 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
             j_result_type,
             j_function_kind,
             self._deterministic,
-            _get_python_env())
+            _get_python_env(),
+            self._used_in_row_based_operation)
         return j_scalar_function
 
     def _create_delegate_function(self) -> UserDefinedFunction:
@@ -464,7 +470,8 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
             j_result_type,
             j_function_kind,
             self._deterministic,
-            _get_python_env())
+            _get_python_env(),
+            self._used_in_row_based_operation)
         return j_table_function
 
     def _create_delegate_function(self) -> UserDefinedFunction:
@@ -527,7 +534,8 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
             j_accumulator_type,
             j_function_kind,
             self._deterministic,
-            _get_python_env())
+            _get_python_env(),
+            self._used_in_row_based_operation)
         return j_aggregate_function
 
     def _create_delegate_function(self) -> UserDefinedFunction:

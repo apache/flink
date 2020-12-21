@@ -57,18 +57,17 @@ class RowBasedOperationTests(object):
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.TINYINT()),
                  DataTypes.FIELD("b",
-                                 DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
-                                                DataTypes.FIELD("b", DataTypes.INT())]))]))
+                                 DataTypes.ROW([DataTypes.FIELD("c", DataTypes.INT()),
+                                                DataTypes.FIELD("d", DataTypes.INT())]))]))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'],
             [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
-        def func(x, y):
+        def func(x):
             import pandas as pd
-            a = (x * 2).rename('b')
-            res = pd.concat([a, x], axis=1) + y
+            res = pd.concat([x.a, x.c + x.d], axis=1)
             return res
 
         pandas_udf = udf(func,
@@ -78,7 +77,7 @@ class RowBasedOperationTests(object):
                          func_type='pandas')
         t.map(pandas_udf).execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3,5", "3,7", "6,6", "9,8", "5,8"])
+        self.assert_equals(actual, ["2,4", "1,5", "1,14", "1,9", "2,7"])
 
     def test_flat_map(self):
         t = self.t_env.from_elements(
@@ -93,9 +92,9 @@ class RowBasedOperationTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
-        def split(x, string):
-            for s in string.split(","):
-                yield x, s
+        def split(x):
+            for s in x[1].split(","):
+                yield x[0], s
 
         t.flat_map(split) \
             .flat_map(split) \
@@ -118,7 +117,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
             ['a', 'b', 'c'],
             [DataTypes.TINYINT(), DataTypes.FLOAT(), DataTypes.INT()])
         self.t_env.register_table_sink("Results", table_sink)
-        pandas_udaf = udaf(lambda a: (a.mean(), a.max()),
+        pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
                            result_type=DataTypes.ROW(
                                [DataTypes.FIELD("a", DataTypes.FLOAT()),
                                 DataTypes.FIELD("b", DataTypes.INT())]),
@@ -144,7 +143,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
             ['a', 'b'],
             [DataTypes.FLOAT(), DataTypes.INT()])
         self.t_env.register_table_sink("Results", table_sink)
-        pandas_udaf = udaf(lambda a: Row(a.mean(), a.max()),
+        pandas_udaf = udaf(lambda pd: Row(pd.b.mean(), pd.b.max()),
                            result_type=DataTypes.ROW(
                                [DataTypes.FIELD("a", DataTypes.FLOAT()),
                                 DataTypes.FIELD("b", DataTypes.INT())]),
@@ -183,7 +182,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
                 DataTypes.INT()
             ])
         self.t_env.register_table_sink("Results", table_sink)
-        pandas_udaf = udaf(lambda a: (a.mean(), a.max()),
+        pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
                            result_type=DataTypes.ROW(
                                [DataTypes.FIELD("a", DataTypes.FLOAT()),
                                 DataTypes.FIELD("b", DataTypes.INT())]),

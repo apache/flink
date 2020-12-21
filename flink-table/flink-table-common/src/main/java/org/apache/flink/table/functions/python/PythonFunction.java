@@ -45,4 +45,11 @@ public interface PythonFunction extends Serializable {
 	default PythonFunctionKind getPythonFunctionKind() {
 		return PythonFunctionKind.GENERAL;
 	}
+
+	/**
+	 * Returns whether the python function is used in row-based operation.
+	 */
+	default boolean isUsedInRowBasedOperation() {
+		return false;
+	}
 }
