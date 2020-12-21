@@ -21,13 +21,12 @@ package org.apache.flink.formats.json.maxwell;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
+import org.apache.flink.table.factories.FactoryUtil;
 
 /**
  * Option utils for maxwell-json format.
  */
 public class MaxwellJsonOptions {
-
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
 
 	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
 

@@ -44,13 +44,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.formats.json.canal.CanalJsonOptions.DATABASE_INCLUDE;
-import static org.apache.flink.formats.json.canal.CanalJsonOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.canal.CanalJsonOptions.JSON_MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.canal.CanalJsonOptions.JSON_MAP_NULL_KEY_MODE;
 import static org.apache.flink.formats.json.canal.CanalJsonOptions.TABLE_INCLUDE;
 import static org.apache.flink.formats.json.canal.CanalJsonOptions.TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.canal.CanalJsonOptions.validateDecodingFormatOptions;
 import static org.apache.flink.formats.json.canal.CanalJsonOptions.validateEncodingFormatOptions;
+import static org.apache.flink.table.factories.FactoryUtil.IGNORE_PARSE_ERRORS;
 
 /**
  * Format factory for providing configured instances of Canal JSON to RowData {@link DeserializationSchema}.

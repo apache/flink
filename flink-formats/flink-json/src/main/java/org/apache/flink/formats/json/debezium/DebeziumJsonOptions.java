@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import static org.apache.flink.formats.json.debezium.DebeziumJsonFormatFactory.IDENTIFIER;
 
@@ -39,8 +40,6 @@ public class DebeziumJsonOptions {
 			"a Kafka configuration 'value.converter.schemas.enable' to include schema in the message. " +
 			"This option indicates the Debezium JSON data include the schema in the message or not. " +
 			"Default is false.");
-
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
 
 	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
 

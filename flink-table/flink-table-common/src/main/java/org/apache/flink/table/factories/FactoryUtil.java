@@ -87,6 +87,13 @@ public final class FactoryUtil {
 					+ "By default, if this option is not defined, the planner will derive the parallelism "
 					+ "for each statement individually by also considering the global configuration.");
 
+	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = ConfigOptions
+			.key("ignore-parse-errors")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription("Optional flag to skip fields and rows with parse errors instead of failing;\n"
+					+ "fields are set to null in case of errors, false by default.");
+
 	/**
 	 * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
 	 * for both key and value).
