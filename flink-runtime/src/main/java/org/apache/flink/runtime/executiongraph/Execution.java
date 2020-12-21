@@ -70,7 +70,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -671,47 +670,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return releaseFuture;
 	}
 
-	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
-		assertRunningInJobMasterMainThread();
-
-		final HashSet<ExecutionVertex> consumerDeduplicator = new HashSet<>();
-		scheduleOrUpdateConsumers(allConsumers, consumerDeduplicator);
-	}
-
-	private void scheduleOrUpdateConsumers(
-			final List<List<ExecutionEdge>> allConsumers,
-			final HashSet<ExecutionVertex> consumerDeduplicator) {
-
-		if (allConsumers.size() == 0) {
-			return;
-		}
-		if (allConsumers.size() > 1) {
-			fail(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
-			return;
-		}
-
-		for (ExecutionEdge edge : allConsumers.get(0)) {
-			final ExecutionVertex consumerVertex = edge.getTarget();
-			final Execution consumer = consumerVertex.getCurrentExecutionAttempt();
-			final ExecutionState consumerState = consumer.getState();
-
-			// ----------------------------------------------------------------
-			// Consumer is running => send update message now
-			// Consumer is deploying => cache the partition info which would be
-			// sent after switching to running
-			// ----------------------------------------------------------------
-			if (consumerState == DEPLOYING || consumerState == RUNNING) {
-				final PartitionInfo partitionInfo = createPartitionInfo(edge);
-
-				if (consumerState == DEPLOYING) {
-					consumerVertex.cachePartitionInfo(partitionInfo);
-				} else {
-					consumer.sendUpdatePartitionInfoRpcCall(Collections.singleton(partitionInfo));
-				}
-			}
-		}
-	}
-
 	private static PartitionInfo createPartitionInfo(ExecutionEdge executionEdge) {
 		IntermediateDataSetID intermediateDataSetID = executionEdge.getSource().getIntermediateResult().getId();
 		ShuffleDescriptor shuffleDescriptor = getConsumedPartitionShuffleDescriptor(executionEdge, false);
@@ -888,7 +846,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				if (transitionState(current, FINISHED)) {
 					try {
-						finishPartitionsAndScheduleOrUpdateConsumers();
+						getVertex().finishAllBlockingPartitions();
 						updateAccumulatorsAndMetrics(userAccumulators, metrics);
 						releaseAssignedResource(null);
 						vertex.getExecutionGraph().deregisterExecution(this);
@@ -915,24 +873,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				// this should not happen, we need to fail this
 				markFailed(new Exception("Vertex received FINISHED message while being in state " + state));
 				return;
-			}
-		}
-	}
-
-	private void finishPartitionsAndScheduleOrUpdateConsumers() {
-		final List<IntermediateResultPartition> newlyFinishedResults = getVertex().finishAllBlockingPartitions();
-		if (newlyFinishedResults.isEmpty()) {
-			return;
-		}
-
-		final HashSet<ExecutionVertex> consumerDeduplicator = new HashSet<>();
-
-		for (IntermediateResultPartition finishedPartition : newlyFinishedResults) {
-			final IntermediateResultPartition[] allPartitionsOfNewlyFinishedResults =
-					finishedPartition.getIntermediateResult().getPartitions();
-
-			for (IntermediateResultPartition partition : allPartitionsOfNewlyFinishedResults) {
-				scheduleOrUpdateConsumers(partition.getConsumers(), consumerDeduplicator);
 			}
 		}
 	}
