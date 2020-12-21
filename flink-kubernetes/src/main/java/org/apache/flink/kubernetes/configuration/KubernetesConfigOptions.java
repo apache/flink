@@ -53,12 +53,26 @@ public class KubernetesConfigOptions {
 		.withDescription("The type of the rest service (ClusterIP or NodePort or LoadBalancer). " +
 			"When set to ClusterIP, the rest service will not be created.");
 
+	public static final ConfigOption<String> KUBERNETES_SERVICE_ACCOUNT =
+		key("kubernetes.service-account")
+		.stringType()
+		.defaultValue("default")
+		.withDescription("Service account that is used by jobmanager and taskmanger within kubernetes cluster. " +
+			"if specific JOB_MANAGER_SERVICE_ACCOUNT and/or TASK_MANAGER_SERVICE_ACCOUNT are not defined.");
+
 	public static final ConfigOption<String> JOB_MANAGER_SERVICE_ACCOUNT =
 		key("kubernetes.jobmanager.service-account")
 		.stringType()
-		.defaultValue("default")
+		.noDefaultValue()
 		.withDescription("Service account that is used by jobmanager within kubernetes cluster. " +
 			"The job manager uses this service account when requesting taskmanager pods from the API server.");
+
+	public static final ConfigOption<String> TASK_MANAGER_SERVICE_ACCOUNT =
+		key("kubernetes.taskmanager.service-account")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Service account that is used by taskmanager within kubernetes cluster. " +
+		"The task manager uses this service account when watching config maps on the API server to retrieve leader address of jobmanager and resourcemanager.");
 
 	public static final ConfigOption<Double> JOB_MANAGER_CPU =
 		key("kubernetes.jobmanager.cpu")
