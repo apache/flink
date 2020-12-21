@@ -212,7 +212,7 @@ Connector Options
       <td><h5>lookup.max-retries</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">3</td>
-      <td>Integer</td>
+      <td>Duration</td>
       <td>The max retry times if lookup database failed.</td>
     </tr>
     <tr>
