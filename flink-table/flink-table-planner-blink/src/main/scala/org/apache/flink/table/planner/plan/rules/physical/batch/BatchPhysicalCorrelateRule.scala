@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecCorrelate
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCorrelate
 import org.apache.flink.table.planner.plan.utils.PythonUtil
 
 import org.apache.calcite.plan.volcano.RelSubset
@@ -29,11 +29,11 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.RexNode
 
-class BatchExecCorrelateRule extends ConverterRule(
+class BatchPhysicalCorrelateRule extends ConverterRule(
   classOf[FlinkLogicalCorrelate],
   FlinkConventions.LOGICAL,
   FlinkConventions.BATCH_PHYSICAL,
-  "BatchExecCorrelateRule") {
+  "BatchPhysicalCorrelateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join = call.rel(0).asInstanceOf[FlinkLogicalCorrelate]
@@ -60,7 +60,7 @@ class BatchExecCorrelateRule extends ConverterRule(
     val convInput: RelNode = RelOptRule.convert(join.getInput(0), FlinkConventions.BATCH_PHYSICAL)
     val right: RelNode = join.getInput(1)
 
-    def convertToCorrelate(relNode: RelNode, condition: Option[RexNode]): BatchExecCorrelate = {
+    def convertToCorrelate(relNode: RelNode, condition: Option[RexNode]): BatchPhysicalCorrelate = {
       relNode match {
         case rel: RelSubset =>
           convertToCorrelate(rel.getRelList.get(0), condition)
@@ -71,7 +71,7 @@ class BatchExecCorrelateRule extends ConverterRule(
             Some(calc.getProgram.expandLocalRef(calc.getProgram.getCondition)))
 
         case scan: FlinkLogicalTableFunctionScan =>
-          new BatchExecCorrelate(
+          new BatchPhysicalCorrelate(
             rel.getCluster,
             traitSet,
             convInput,
@@ -86,6 +86,6 @@ class BatchExecCorrelateRule extends ConverterRule(
   }
 }
 
-object BatchExecCorrelateRule {
-  val INSTANCE: RelOptRule = new BatchExecCorrelateRule
+object BatchPhysicalCorrelateRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalCorrelateRule
 }
