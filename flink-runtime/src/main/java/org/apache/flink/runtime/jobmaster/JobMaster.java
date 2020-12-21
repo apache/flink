@@ -274,7 +274,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.userCodeLoader = checkNotNull(userCodeLoader);
 		this.schedulerNGFactory = checkNotNull(schedulerNGFactory);
-		this.heartbeatServices = checkNotNull(heartbeatServices);
 		this.initializationTimestamp = initializationTimestamp;
 		this.retrieveTaskManagerHostName = jobMasterConfiguration.getConfiguration()
 				.getBoolean(JobManagerOptions.RETRIEVE_TASK_MANAGER_HOSTNAME);
@@ -307,12 +306,14 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 		this.jobStatusListener = new JobManagerJobStatusListener();
 		this.schedulerNG = createScheduler(executionDeploymentTracker, jobManagerJobMetricGroup, jobStatusListener);
 
+		this.heartbeatServices = checkNotNull(heartbeatServices);
+		this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
+		this.resourceManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
+
 		this.resourceManagerConnection = null;
 		this.establishedResourceManagerConnection = null;
 
 		this.accumulators = new HashMap<>();
-		this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
-		this.resourceManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
 	}
 
 	private SchedulerNG createScheduler(
@@ -342,6 +343,22 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 		scheduler.registerJobStatusListener(jobStatusListener);
 
 		return scheduler;
+	}
+
+	private HeartbeatManager<Void, Void> createResourceManagerHeartbeatManager(HeartbeatServices heartbeatServices) {
+		return heartbeatServices.createHeartbeatManager(
+			resourceId,
+			new ResourceManagerHeartbeatListener(),
+			getMainThreadExecutor(),
+			log);
+	}
+
+	private HeartbeatManager<TaskExecutorToJobManagerHeartbeatPayload, AllocatedSlotReport> createTaskManagerHeartbeatManager(HeartbeatServices heartbeatServices) {
+		return heartbeatServices.createHeartbeatManagerSender(
+			resourceId,
+			new TaskManagerHeartbeatListener(),
+			getMainThreadExecutor(),
+			log);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -779,7 +796,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 	}
 
 	private void startJobMasterServices() throws Exception {
-		startHeartbeatServices();
+
+		this.taskManagerHeartbeatManager = createTaskManagerHeartbeatManager(heartbeatServices);
+		this.resourceManagerHeartbeatManager = createResourceManagerHeartbeatManager(heartbeatServices);
 
 		// start the slot pool make sure the slot pool now accepts messages for this leader
 		slotPool.start(getFencingToken(), getAddress(), getMainThreadExecutor());
@@ -832,20 +851,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 	private void stopHeartbeatServices() {
 		taskManagerHeartbeatManager.stop();
 		resourceManagerHeartbeatManager.stop();
-	}
-
-	private void startHeartbeatServices() {
-		taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
-			resourceId,
-			new TaskManagerHeartbeatListener(),
-			getMainThreadExecutor(),
-			log);
-
-		resourceManagerHeartbeatManager = heartbeatServices.createHeartbeatManager(
-			resourceId,
-			new ResourceManagerHeartbeatListener(),
-			getMainThreadExecutor(),
-			log);
 	}
 
 	private void startScheduling() {
