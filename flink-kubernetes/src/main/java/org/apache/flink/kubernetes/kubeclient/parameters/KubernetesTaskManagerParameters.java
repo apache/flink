@@ -110,6 +110,10 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 		return taskManagerExternalResources;
 	}
 
+	public String getServiceAccount() {
+		return flinkConfig.getString(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT);
+	}
+
 	public int getRPCPort() {
 		final int taskManagerRpcPort = KubernetesUtils.parsePort(flinkConfig, TaskManagerOptions.RPC_PORT);
 		checkArgument(taskManagerRpcPort > 0, "%s should not be 0.", TaskManagerOptions.RPC_PORT.key());
