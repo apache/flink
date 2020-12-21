@@ -225,8 +225,8 @@ public class JobMasterBuilder {
 			return jobReachedGloballyTerminalStateFuture;
 		}
 
-		public CompletableFuture<ArchivedExecutionGraph> getJobMasterFailedFuture() {
-			return jobReachedGloballyTerminalStateFuture;
+		public CompletableFuture<Throwable> getJobMasterFailedFuture() {
+			return jobMasterFailedFuture;
 		}
 	}
 }
