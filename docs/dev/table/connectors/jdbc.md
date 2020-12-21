@@ -204,7 +204,7 @@ Connector Options
       <td><h5>lookup.cache.ttl</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
-      <td>Integer</td>
+      <td>Duration</td>
       <td>The max time to live for each rows in lookup cache, over this time, the oldest rows will be expired.
       Lookup cache is disabled by default. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
     </tr>
@@ -212,7 +212,7 @@ Connector Options
       <td><h5>lookup.max-retries</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">3</td>
-      <td>Duration</td>
+      <td>Integer</td>
       <td>The max retry times if lookup database failed.</td>
     </tr>
     <tr>
