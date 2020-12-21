@@ -21,7 +21,6 @@ package org.apache.flink.formats.json.maxwell;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
-import org.apache.flink.table.factories.FactoryUtil;
 
 /**
  * Option utils for maxwell-json format.

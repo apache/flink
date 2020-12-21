@@ -23,7 +23,6 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.factories.FactoryUtil;
 
 import static org.apache.flink.formats.json.debezium.DebeziumJsonFormatFactory.IDENTIFIER;
 
