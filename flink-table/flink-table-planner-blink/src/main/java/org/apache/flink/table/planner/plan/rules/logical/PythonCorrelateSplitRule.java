@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecCorrelateRule;
+import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalCorrelateRule;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -88,7 +88,7 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 		if (right instanceof FlinkLogicalTableFunctionScan) {
 			tableFunctionScan = (FlinkLogicalTableFunctionScan) right;
 		} else if (right instanceof FlinkLogicalCalc) {
-			tableFunctionScan = StreamExecCorrelateRule.getTableScan((FlinkLogicalCalc) right);
+			tableFunctionScan = StreamPhysicalCorrelateRule.getTableScan((FlinkLogicalCalc) right);
 		} else {
 			return false;
 		}
@@ -237,8 +237,8 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 					scan.getCall()));
 		} else {
 			FlinkLogicalCalc calc = (FlinkLogicalCalc) right;
-			FlinkLogicalTableFunctionScan scan = StreamExecCorrelateRule.getTableScan(calc);
-			FlinkLogicalCalc mergedCalc = StreamExecCorrelateRule.getMergedCalc(calc);
+			FlinkLogicalTableFunctionScan scan = StreamPhysicalCorrelateRule.getTableScan(calc);
+			FlinkLogicalCalc mergedCalc = StreamPhysicalCorrelateRule.getMergedCalc(calc);
 			FlinkLogicalTableFunctionScan newScan = createNewScan(scan,
 				createScalarFunctionSplitter(
 					null,

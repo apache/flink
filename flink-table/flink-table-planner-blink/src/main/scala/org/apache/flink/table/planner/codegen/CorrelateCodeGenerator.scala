@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.data.{GenericRowData, RowData}
@@ -30,45 +29,37 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.util.StreamRecordCollector
 import org.apache.flink.table.types.logical.RowType
 
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
 
 import scala.collection.JavaConversions._
 
 object CorrelateCodeGenerator {
 
-  private[flink] def generateCorrelateTransformation(
+  def generateCorrelateTransformation(
       config: TableConfig,
       operatorCtx: CodeGeneratorContext,
       inputTransformation: Transformation[RowData],
-      inputRelType: RelDataType,
+      inputType: RowType,
       projectProgram: Option[RexProgram],
-      scan: FlinkLogicalTableFunctionScan,
+      invocation: RexCall,
       condition: Option[RexNode],
-      outRelType: RelDataType,
-      joinType: JoinRelType,
+      outputType: RowType,
+      joinType: FlinkJoinType,
       parallelism: Int,
       retainHeader: Boolean,
-      expression: (RexNode, List[String], Option[List[RexNode]]) => String,
       opName: String,
       transformationName: String)
     : Transformation[RowData] = {
 
-    val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
-    val rexCall = funcRel.getCall.asInstanceOf[RexCall]
-    val inputType = FlinkTypeFactory.toLogicalRowType(inputRelType)
-    val returnType = FlinkTypeFactory.toLogicalRowType(outRelType)
-
     // according to the SQL standard, every scalar function should also be a table function
     // but we don't allow that for now
-    rexCall.getOperator match {
+    invocation.getOperator match {
       case func: BridgingSqlFunction if func.getDefinition.getKind == FunctionKind.TABLE => // ok
       case _: TableSqlFunction => // ok
       case f@_ =>
@@ -82,7 +73,7 @@ object CorrelateCodeGenerator {
       val selects = program.getProjectList.map(_.getIndex)
       val inputFieldCnt = program.getInputRowType.getFieldCount
       val swallowInputOnly = selects.head > inputFieldCnt &&
-        (inputFieldCnt - outRelType.getFieldCount == inputRelType.getFieldCount)
+        (inputFieldCnt - outputType.getFieldCount == inputType.getFieldCount)
       // partial output or output right only
       swallowInputOnly
     } else {
@@ -93,7 +84,7 @@ object CorrelateCodeGenerator {
     // adjust indicies of InputRefs to adhere to schema expected by generator
     val changeInputRefIndexShuttle = new RexShuttle {
       override def visitInputRef(inputRef: RexInputRef): RexNode = {
-        new RexInputRef(inputRelType.getFieldCount + inputRef.getIndex, inputRef.getType)
+        new RexInputRef(inputType.getFieldCount + inputRef.getIndex, inputRef.getType)
       }
     }
 
@@ -104,18 +95,17 @@ object CorrelateCodeGenerator {
       projectProgram,
       swallowInputOnly,
       condition.map(_.accept(changeInputRefIndexShuttle)),
-      returnType,
+      outputType,
       joinType,
-      rexCall,
+      invocation,
       opName,
-      classOf[ProcessFunction[RowData, RowData]],
       retainHeader)
 
     ExecNodeUtil.createOneInputTransformation(
       inputTransformation,
       transformationName,
       substituteStreamOperator,
-      InternalTypeInfo.of(returnType),
+      InternalTypeInfo.of(outputType),
       parallelism,
       0)
   }
@@ -131,10 +121,9 @@ object CorrelateCodeGenerator {
       swallowInputOnly: Boolean = false,
       condition: Option[RexNode],
       returnType: RowType,
-      joinType: JoinRelType,
+      joinType: FlinkJoinType,
       rexCall: RexCall,
       ruleDescription: String,
-      functionClass: Class[T],
       retainHeader: Boolean = true)
     : CodeGenOperatorFactory[RowData] = {
 
@@ -177,7 +166,7 @@ object CorrelateCodeGenerator {
          |""".stripMargin
 
     // 3. left join
-    if (joinType == JoinRelType.LEFT) {
+    if (joinType == FlinkJoinType.LEFT) {
       if (swallowInputOnly) {
         // and the returned row table function is empty, collect a null
         val nullRowTerm = CodeGenUtils.newName("nullRow")
@@ -250,7 +239,7 @@ object CorrelateCodeGenerator {
              |""".stripMargin
 
         }
-    } else if (joinType != JoinRelType.INNER) {
+    } else if (joinType != FlinkJoinType.INNER) {
       throw new TableException(s"Unsupported JoinRelType: $joinType for correlate join.")
     }
 
