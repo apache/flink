@@ -22,7 +22,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -210,11 +209,6 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
 		@Override
 		public List<SingleInputGate> createInputGates(ShuffleIOOwnerContext ownerContext, PartitionProducerStateProvider partitionProducerStateProvider, List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 			return backingShuffleEnvironment.createInputGates(ownerContext, partitionProducerStateProvider, inputGateDeploymentDescriptors);
-		}
-
-		@Override
-		public boolean updatePartitionInfo(ExecutionAttemptID consumerID, PartitionInfo partitionInfo) throws IOException, InterruptedException {
-			return backingShuffleEnvironment.updatePartitionInfo(consumerID, partitionInfo);
 		}
 
 		@Override

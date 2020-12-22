@@ -23,7 +23,6 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -41,7 +40,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.Buffe
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -176,8 +174,6 @@ public class SingleInputGate extends IndexedInputGate {
 	private boolean requestedPartitionsFlag;
 
 	private final List<TaskEvent> pendingEvents = new ArrayList<>();
-
-	private int numberOfUninitializedChannels;
 
 	/** A timer to retrigger local partition requests. Only initialized if actually needed. */
 	private Timer retriggerLocalRequestTimer;
@@ -424,59 +420,6 @@ public class SingleInputGate extends IndexedInputGate {
 		}
 		synchronized (requestLock) {
 			System.arraycopy(channels, 0, this.channels, 0, numberOfInputChannels);
-			for (InputChannel inputChannel : channels) {
-				IntermediateResultPartitionID partitionId = inputChannel.getPartitionId().getPartitionId();
-				if (inputChannels.put(partitionId, inputChannel) == null
-					&& inputChannel instanceof UnknownInputChannel) {
-
-					numberOfUninitializedChannels++;
-				}
-			}
-		}
-	}
-
-	public void updateInputChannel(
-			ResourceID localLocation,
-			NettyShuffleDescriptor shuffleDescriptor) throws IOException, InterruptedException {
-		synchronized (requestLock) {
-			if (closeFuture.isDone()) {
-				// There was a race with a task failure/cancel
-				return;
-			}
-
-			IntermediateResultPartitionID partitionId = shuffleDescriptor.getResultPartitionID().getPartitionId();
-
-			InputChannel current = inputChannels.get(partitionId);
-
-			if (current instanceof UnknownInputChannel) {
-				UnknownInputChannel unknownChannel = (UnknownInputChannel) current;
-				boolean isLocal = shuffleDescriptor.isLocalTo(localLocation);
-				InputChannel newChannel;
-				if (isLocal) {
-					newChannel = unknownChannel.toLocalInputChannel();
-				} else {
-					RemoteInputChannel remoteInputChannel =
-						unknownChannel.toRemoteInputChannel(shuffleDescriptor.getConnectionId());
-					remoteInputChannel.setup();
-					newChannel = remoteInputChannel;
-				}
-				LOG.debug("{}: Updated unknown input channel to {}.", owningTaskName, newChannel);
-
-				inputChannels.put(partitionId, newChannel);
-				channels[current.getChannelIndex()] = newChannel;
-
-				if (requestedPartitionsFlag) {
-					newChannel.requestSubpartition(consumedSubpartitionIndex);
-				}
-
-				for (TaskEvent event : pendingEvents) {
-					newChannel.sendTaskEvent(event);
-				}
-
-				if (--numberOfUninitializedChannels == 0) {
-					pendingEvents.clear();
-				}
-			}
 		}
 	}
 
@@ -751,20 +694,12 @@ public class SingleInputGate extends IndexedInputGate {
 			for (InputChannel inputChannel : inputChannels.values()) {
 				inputChannel.sendTaskEvent(event);
 			}
-
-			if (numberOfUninitializedChannels > 0) {
-				pendingEvents.add(event);
-			}
 		}
 	}
 
 	@Override
 	public void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
 		checkState(!isFinished(), "InputGate already finished.");
-		// BEWARE: consumption resumption only happens for streaming jobs in which all slots
-		// are allocated together so there should be no UnknownInputChannel. As a result, it
-		// is safe to not synchronize the requestLock here. We will refactor the code to not
-		// rely on this assumption in the future.
 		channels[channelInfo.getInputChannelIdx()].resumeConsumption();
 	}
 

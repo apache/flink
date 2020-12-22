@@ -43,7 +43,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
@@ -741,45 +740,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// ----------------------------------------------------------------------
 	// Partition lifecycle RPCs
 	// ----------------------------------------------------------------------
-
-	@Override
-	public CompletableFuture<Acknowledge> updatePartitions(
-			final ExecutionAttemptID executionAttemptID,
-			Iterable<PartitionInfo> partitionInfos,
-			Time timeout) {
-		final Task task = taskSlotTable.getTask(executionAttemptID);
-
-		if (task != null) {
-			for (final PartitionInfo partitionInfo: partitionInfos) {
-				// Run asynchronously because it might be blocking
-				FutureUtils.assertNoException(
-					CompletableFuture.runAsync(
-						() -> {
-							try {
-								if (!shuffleEnvironment.updatePartitionInfo(executionAttemptID, partitionInfo)) {
-									log.debug(
-										"Discard update for input gate partition {} of result {} in task {}. " +
-											"The partition is no longer available.",
-										partitionInfo.getShuffleDescriptor().getResultPartitionID(),
-										partitionInfo.getIntermediateDataSetID(),
-										executionAttemptID);
-								}
-							} catch (IOException | InterruptedException e) {
-								log.error(
-									"Could not update input data location for task {}. Trying to fail task.",
-									task.getTaskInfo().getTaskName(),
-									e);
-								task.failExternally(e);
-							}
-						},
-						getRpcService().getExecutor()));
-			}
-			return CompletableFuture.completedFuture(Acknowledge.get());
-		} else {
-			log.debug("Discard update for input partitions of task {}. Task is no longer running.", executionAttemptID);
-			return CompletableFuture.completedFuture(Acknowledge.get());
-		}
-	}
 
 	@Override
 	public void releaseOrPromotePartitions(JobID jobId, Set<ResultPartitionID> partitionToRelease, Set<ResultPartitionID> partitionsToPromote) {

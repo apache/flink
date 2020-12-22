@@ -24,7 +24,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -82,19 +81,6 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
 	 */
 	CompletableFuture<Acknowledge> cancelTask(
 		ExecutionAttemptID executionAttemptID,
-		Time timeout);
-
-	/**
-	 * Update the task where the given partitions can be found.
-	 *
-	 * @param executionAttemptID identifying the task
-	 * @param partitionInfos telling where the partition can be retrieved from
-	 * @param timeout of the submit operation
-	 * @return Future acknowledge if the partitions have been successfully updated
-	 */
-	CompletableFuture<Acknowledge> updatePartitions(
-		ExecutionAttemptID executionAttemptID,
-		Iterable<PartitionInfo> partitionInfos,
 		Time timeout);
 
 	/**

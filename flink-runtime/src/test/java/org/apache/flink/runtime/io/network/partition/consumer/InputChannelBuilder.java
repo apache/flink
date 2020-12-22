@@ -117,22 +117,6 @@ public class InputChannelBuilder {
 		return this;
 	}
 
-	UnknownInputChannel buildUnknownChannel(SingleInputGate inputGate) {
-		UnknownInputChannel channel = new UnknownInputChannel(
-			inputGate,
-			channelIndex,
-			partitionId,
-			partitionManager,
-			taskEventPublisher,
-			connectionManager,
-			initialBackoff,
-			maxBackoff,
-			networkBuffersPerChannel,
-			metrics);
-		channel.setChannelStateWriter(stateWriter);
-		return channel;
-	}
-
 	public LocalInputChannel buildLocalChannel(SingleInputGate inputGate) {
 		return new LocalInputChannel(
 			inputGate,

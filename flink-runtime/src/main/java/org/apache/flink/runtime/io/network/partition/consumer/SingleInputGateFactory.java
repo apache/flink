@@ -178,20 +178,6 @@ public class SingleInputGateFactory {
 		return applyWithShuffleTypeCheck(
 			NettyShuffleDescriptor.class,
 			shuffleDescriptor,
-			unknownShuffleDescriptor -> {
-				channelStatistics.numUnknownChannels++;
-				return new UnknownInputChannel(
-					inputGate,
-					index,
-					unknownShuffleDescriptor.getResultPartitionID(),
-					partitionManager,
-					taskEventPublisher,
-					connectionManager,
-					partitionRequestInitialBackoff,
-					partitionRequestMaxBackoff,
-					networkBuffersPerChannel,
-					metrics);
-			},
 			nettyShuffleDescriptor ->
 				createKnownInputChannel(
 					inputGate,

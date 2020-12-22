@@ -35,7 +35,6 @@ public class ShuffleUtils {
 	 *
 	 * @param shuffleDescriptorClass concrete class of {@code shuffleDescriptor}
 	 * @param shuffleDescriptor concrete shuffle descriptor to check
-	 * @param functionOfUnknownDescriptor supplier to call in case {@code shuffleDescriptor} is unknown
 	 * @param functionOfKnownDescriptor function to call in case {@code shuffleDescriptor} is known
 	 * @param <T> return type of called functions
 	 * @param <SD> concrete type of {@code shuffleDescriptor} to check
@@ -45,11 +44,8 @@ public class ShuffleUtils {
 	public static <T, SD extends ShuffleDescriptor> T applyWithShuffleTypeCheck(
 			Class<SD> shuffleDescriptorClass,
 			ShuffleDescriptor shuffleDescriptor,
-			Function<UnknownShuffleDescriptor, T> functionOfUnknownDescriptor,
 			Function<SD, T> functionOfKnownDescriptor) {
-		if (shuffleDescriptor.isUnknown()) {
-			return functionOfUnknownDescriptor.apply((UnknownShuffleDescriptor) shuffleDescriptor);
-		} else if (shuffleDescriptorClass.equals(shuffleDescriptor.getClass())) {
+		if (shuffleDescriptorClass.equals(shuffleDescriptor.getClass())) {
 			return functionOfKnownDescriptor.apply((SD) shuffleDescriptor);
 		} else {
 			throw new IllegalArgumentException(String.format(

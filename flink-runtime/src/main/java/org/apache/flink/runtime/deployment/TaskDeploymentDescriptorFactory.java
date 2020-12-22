@@ -38,7 +38,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.SerializedValue;
 
@@ -59,7 +58,6 @@ public class TaskDeploymentDescriptorFactory {
 	private final MaybeOffloaded<JobInformation> serializedJobInformation;
 	private final MaybeOffloaded<TaskInformation> taskInfo;
 	private final JobID jobID;
-	private final boolean allowUnknownPartitions;
 	private final int subtaskIndex;
 	private final ExecutionEdge[][] inputEdges;
 
@@ -69,7 +67,6 @@ public class TaskDeploymentDescriptorFactory {
 			MaybeOffloaded<JobInformation> serializedJobInformation,
 			MaybeOffloaded<TaskInformation> taskInfo,
 			JobID jobID,
-			boolean allowUnknownPartitions,
 			int subtaskIndex,
 			ExecutionEdge[][] inputEdges) {
 		this.executionId = executionId;
@@ -77,7 +74,6 @@ public class TaskDeploymentDescriptorFactory {
 		this.serializedJobInformation = serializedJobInformation;
 		this.taskInfo = taskInfo;
 		this.jobID = jobID;
-		this.allowUnknownPartitions = allowUnknownPartitions;
 		this.subtaskIndex = subtaskIndex;
 		this.inputEdges = inputEdges;
 	}
@@ -130,8 +126,7 @@ public class TaskDeploymentDescriptorFactory {
 		ShuffleDescriptor[] shuffleDescriptors = new ShuffleDescriptor[edges.length];
 		// Each edge is connected to a different result partition
 		for (int i = 0; i < edges.length; i++) {
-			shuffleDescriptors[i] =
-				getConsumedPartitionShuffleDescriptor(edges[i], allowUnknownPartitions);
+			shuffleDescriptors[i] = getConsumedPartitionShuffleDescriptor(edges[i]);
 		}
 		return shuffleDescriptors;
 	}
@@ -146,7 +141,6 @@ public class TaskDeploymentDescriptorFactory {
 			getSerializedJobInformation(executionGraph),
 			getSerializedTaskInformation(executionVertex.getJobVertex().getTaskInformationOrBlobKey()),
 			executionGraph.getJobID(),
-			executionGraph.getScheduleMode().allowLazyDeployment(),
 			executionVertex.getParallelSubtaskIndex(),
 			executionVertex.getAllInputEdges());
 	}
@@ -169,9 +163,7 @@ public class TaskDeploymentDescriptorFactory {
 			new TaskDeploymentDescriptor.Offloaded<>(taskInfo.right());
 	}
 
-	public static ShuffleDescriptor getConsumedPartitionShuffleDescriptor(
-			ExecutionEdge edge,
-			boolean allowUnknownPartitions) {
+	public static ShuffleDescriptor getConsumedPartitionShuffleDescriptor(ExecutionEdge edge) {
 		IntermediateResultPartition consumedPartition = edge.getSource();
 		Execution producer = consumedPartition.getProducer().getCurrentExecutionAttempt();
 
@@ -188,7 +180,6 @@ public class TaskDeploymentDescriptorFactory {
 			consumedPartition.getResultType(),
 			consumedPartition.isConsumable(),
 			producerState,
-			allowUnknownPartitions,
 			consumedPartitionDescriptor.orElse(null));
 	}
 
@@ -198,7 +189,6 @@ public class TaskDeploymentDescriptorFactory {
 			ResultPartitionType resultPartitionType,
 			boolean isConsumable,
 			ExecutionState producerState,
-			boolean allowUnknownPartitions,
 			@Nullable ResultPartitionDeploymentDescriptor consumedPartitionDescriptor) {
 		// The producing task needs to be RUNNING or already FINISHED
 		if ((resultPartitionType.isPipelined() || isConsumable) &&
@@ -206,12 +196,7 @@ public class TaskDeploymentDescriptorFactory {
 			isProducerAvailable(producerState)) {
 			// partition is already registered
 			return consumedPartitionDescriptor.getShuffleDescriptor();
-		}
-		else if (allowUnknownPartitions) {
-			// The producing task might not have registered the partition yet
-			return new UnknownShuffleDescriptor(consumedPartitionId);
-		}
-		else {
+		} else {
 			// throw respective exceptions
 			throw handleConsumedPartitionShuffleDescriptorErrors(
 				consumedPartitionId,

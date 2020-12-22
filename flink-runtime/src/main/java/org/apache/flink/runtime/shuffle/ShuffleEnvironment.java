@@ -22,7 +22,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
@@ -82,11 +81,6 @@ import java.util.List;
  *
  * <p>The interface implements a factory for the input gates: {@link ShuffleEnvironment#createInputGates}.
  * The created gates are grouped per owner. The owner is responsible for the gates' lifecycle from the moment of creation.
- *
- * <p>When the input gates are created, it can happen that not all consumed partitions are known at that moment
- * e.g. because their producers have not been started yet. Therefore, the {@link ShuffleEnvironment} provides
- * a method {@link ShuffleEnvironment#updatePartitionInfo} to update them externally, when the producer becomes known.
- * The update mechanism has to be threadsafe because the updated gate can be read concurrently from a different thread.
  *
  * @param <P> type of provided result partition writers
  * @param <G> type of provided input gates
@@ -162,17 +156,4 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
 		ShuffleIOOwnerContext ownerContext,
 		PartitionProducerStateProvider partitionProducerStateProvider,
 		List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors);
-
-	/**
-	 * Update a gate with the newly available partition information, previously unknown.
-	 *
-	 * @param consumerID execution id to distinguish gates with the same id from the different consumer executions
-	 * @param partitionInfo information needed to consume the updated partition, e.g. network location
-	 * @return {@code true} if the partition has been updated or {@code false} if the partition is not available anymore.
-	 * @throws IOException IO problem by the update
-	 * @throws InterruptedException potentially blocking operation was interrupted
-	 */
-	boolean updatePartitionInfo(
-		ExecutionAttemptID consumerID,
-		PartitionInfo partitionInfo) throws IOException, InterruptedException;
 }

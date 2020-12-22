@@ -24,7 +24,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -39,9 +38,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGateID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
@@ -64,7 +60,6 @@ import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFact
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.createShuffleIOOwnerMetricGroup;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerInputMetrics;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerOutputMetrics;
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -260,24 +255,6 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			metricGroup,
 			producedPartitions,
 			inputGates);
-	}
-
-	@Override
-	public boolean updatePartitionInfo(
-			ExecutionAttemptID consumerID,
-			PartitionInfo partitionInfo) throws IOException, InterruptedException {
-		IntermediateDataSetID intermediateResultPartitionID = partitionInfo.getIntermediateDataSetID();
-		InputGateID id = new InputGateID(intermediateResultPartitionID, consumerID);
-		SingleInputGate inputGate = inputGatesById.get(id);
-		if (inputGate == null) {
-			return false;
-		}
-		ShuffleDescriptor shuffleDescriptor = partitionInfo.getShuffleDescriptor();
-		checkArgument(shuffleDescriptor instanceof NettyShuffleDescriptor,
-			"Tried to update unknown channel with unknown ShuffleDescriptor %s.",
-			shuffleDescriptor.getClass().getName());
-		inputGate.updateInputChannel(taskExecutorResourceId, (NettyShuffleDescriptor) shuffleDescriptor);
-		return true;
 	}
 
 	/*

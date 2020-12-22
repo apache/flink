@@ -38,7 +38,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -56,7 +55,6 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
@@ -71,7 +69,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.URL;
@@ -82,15 +79,12 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.newBuilder;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for submission logic of the {@link TaskExecutor}.
@@ -410,52 +404,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 			taskFailedFuture.get();
 			assertThat(taskSlotTable.getTask(eid).getFailureCause(), instanceOf(PartitionNotFoundException.class));
-		}
-	}
-
-	/**
-	 * Tests that the TaskManager fails the task if the partition update fails.
-	 */
-	@Test
-	public void testUpdateTaskInputPartitionsFailure() throws Exception {
-		final ExecutionAttemptID eid = new ExecutionAttemptID();
-
-		final TaskDeploymentDescriptor tdd = createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
-
-		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
-		final ShuffleEnvironment<?, ?> shuffleEnvironment = mock(ShuffleEnvironment.class, Mockito.RETURNS_MOCKS);
-
-		try (TaskSubmissionTestEnvironment env =
-			new TaskSubmissionTestEnvironment.Builder(jobId)
-				.setShuffleEnvironment(shuffleEnvironment)
-				.setSlotSize(1)
-				.addTaskManagerActionListener(eid, ExecutionState.RUNNING, taskRunningFuture)
-				.addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
-				.build()) {
-			TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-			TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
-
-			taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
-			tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-			taskRunningFuture.get();
-
-			final ResourceID producerLocation = env.getTaskExecutor().getResourceID();
-			NettyShuffleDescriptor shuffleDescriptor =
-				createRemoteWithIdAndLocation(new IntermediateResultPartitionID(), producerLocation);
-			final PartitionInfo partitionUpdate = new PartitionInfo(new IntermediateDataSetID(), shuffleDescriptor);
-			doThrow(new IOException()).when(shuffleEnvironment).updatePartitionInfo(eid, partitionUpdate);
-
-			final CompletableFuture<Acknowledge> updateFuture = tmGateway.updatePartitions(
-				eid,
-				Collections.singletonList(partitionUpdate),
-				timeout);
-
-			updateFuture.get();
-			taskFailedFuture.get();
-			Task task = taskSlotTable.getTask(tdd.getExecutionAttemptId());
-			assertThat(task.getExecutionState(), is(ExecutionState.FAILED));
-			assertThat(task.getFailureCause(), instanceOf(IOException.class));
 		}
 	}
 

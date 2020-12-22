@@ -29,7 +29,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -93,19 +92,6 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	CompletableFuture<Acknowledge> submitTask(
 		TaskDeploymentDescriptor tdd,
 		JobMasterId jobMasterId,
-		@RpcTimeout Time timeout);
-
-	/**
-	 * Update the task where the given partitions can be found.
-	 *
-	 * @param executionAttemptID identifying the task
-	 * @param partitionInfos telling where the partition can be retrieved from
-	 * @param timeout for the update partitions operation
-	 * @return Future acknowledge if the partitions have been successfully updated
-	 */
-	CompletableFuture<Acknowledge> updatePartitions(
-		ExecutionAttemptID executionAttemptID,
-		Iterable<PartitionInfo> partitionInfos,
 		@RpcTimeout Time timeout);
 
 	/**

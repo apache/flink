@@ -25,7 +25,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -108,11 +107,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	@Override
 	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
 		cancelConsumer.accept(executionAttemptID);
-		return CompletableFuture.completedFuture(Acknowledge.get());
-	}
-
-	@Override
-	public CompletableFuture<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos, Time timeout) {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 

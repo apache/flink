@@ -39,7 +39,6 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
@@ -81,7 +80,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.getConsumedPartitionShuffleDescriptor;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELING;
 import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
@@ -140,8 +138,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private final int attemptNumber;
 
 	private final Time rpcTimeout;
-
-	private final Collection<PartitionInfo> partitionInfos;
 
 	/** A future that completes once the Execution reaches a terminal ExecutionState. */
 	private final CompletableFuture<ExecutionState> terminalStateFuture;
@@ -214,7 +210,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		this.stateTimestamps = new long[ExecutionState.values().length];
 		markTimestamp(CREATED, startTimestamp);
 
-		this.partitionInfos = new ArrayList<>(16);
 		this.producedPartitions = Collections.emptyMap();
 		this.terminalStateFuture = new CompletableFuture<>();
 		this.releaseFuture = new CompletableFuture<>();
@@ -670,12 +665,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return releaseFuture;
 	}
 
-	private static PartitionInfo createPartitionInfo(ExecutionEdge executionEdge) {
-		IntermediateDataSetID intermediateDataSetID = executionEdge.getSource().getIntermediateResult().getId();
-		ShuffleDescriptor shuffleDescriptor = getConsumedPartitionShuffleDescriptor(executionEdge, false);
-		return new PartitionInfo(intermediateDataSetID, shuffleDescriptor);
-	}
-
 	/**
 	 * This method fails the vertex due to an external condition. The task will move to state FAILED.
 	 * If the task was in state RUNNING or DEPLOYING before, it will send a cancel call to the TaskManager.
@@ -943,18 +932,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		handlePartitionCleanup(releasePartitions, releasePartitions);
 	}
 
-	void cachePartitionInfo(PartitionInfo partitionInfo) {
-		partitionInfos.add(partitionInfo);
-	}
-
-	private void sendPartitionInfos() {
-		if (!partitionInfos.isEmpty()) {
-			sendUpdatePartitionInfoRpcCall(new ArrayList<>(partitionInfos));
-
-			partitionInfos.clear();
-		}
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//  Internal Actions
 	// --------------------------------------------------------------------------------------------
@@ -1063,7 +1040,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	boolean switchToRunning() {
 
 		if (transitionState(DEPLOYING, RUNNING)) {
-			sendPartitionInfos();
 			return true;
 		}
 		else {
@@ -1185,33 +1161,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				// TODO For some tests this could be a problem when querying too early if all resources were released
 				taskManagerGateway.releasePartitions(getVertex().getJobId(), partitionIds);
 			}
-		}
-	}
-
-	/**
-	 * Update the partition infos on the assigned resource.
-	 *
-	 * @param partitionInfos for the remote task
-	 */
-	private void sendUpdatePartitionInfoRpcCall(
-			final Iterable<PartitionInfo> partitionInfos) {
-
-		final LogicalSlot slot = assignedResource;
-
-		if (slot != null) {
-			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
-			final TaskManagerLocation taskManagerLocation = slot.getTaskManagerLocation();
-
-			CompletableFuture<Acknowledge> updatePartitionsResultFuture = taskManagerGateway.updatePartitions(attemptId, partitionInfos, rpcTimeout);
-
-			updatePartitionsResultFuture.whenCompleteAsync(
-				(ack, failure) -> {
-					// fail if there was a failure
-					if (failure != null) {
-						fail(new IllegalStateException("Update to task [" + getVertexWithAttempt() +
-							"] on TaskManager " + taskManagerLocation + " failed", failure));
-					}
-				}, getVertex().getExecutionGraph().getJobMasterMainThreadExecutor());
 		}
 	}
 

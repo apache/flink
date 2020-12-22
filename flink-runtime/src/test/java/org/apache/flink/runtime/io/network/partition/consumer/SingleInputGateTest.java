@@ -42,20 +42,16 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
-import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 
 import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
 
@@ -105,7 +101,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			// before setup
 			assertNull(inputGate.getBufferPool());
 			for (InputChannel inputChannel : inputGate.getInputChannels().values()) {
-				assertTrue(inputChannel instanceof RecoveredInputChannel || inputChannel instanceof UnknownInputChannel);
+				assertTrue(inputChannel instanceof RecoveredInputChannel);
 				if (inputChannel instanceof RecoveredInputChannel) {
 					assertEquals(0, ((RecoveredInputChannel) inputChannel).bufferManager.getNumberOfAvailableBuffers());
 				}
@@ -163,8 +159,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 			final InputChannel localChannel = gate.getChannel(1);
 			assertThat(localChannel, instanceOf(LocalInputChannel.class));
 			assertNotNull(((LocalInputChannel) localChannel).getSubpartitionView());
-
-			assertThat(gate.getChannel(2), instanceOf(UnknownInputChannel.class));
 		}
 	}
 
@@ -289,88 +283,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 		verifyBufferOrEvent(inputGate, false, 0, false);
 	}
 
-	@Test
-	public void testBackwardsEventWithUninitializedChannel() throws Exception {
-		// Setup environment
-		TestingTaskEventPublisher taskEventPublisher = new TestingTaskEventPublisher();
-
-		TestingResultPartitionManager partitionManager = new TestingResultPartitionManager(new NoOpResultSubpartitionView());
-
-		// Setup reader with one local and one unknown input channel
-
-		NettyShuffleEnvironment environment = createNettyShuffleEnvironment();
-		final SingleInputGate inputGate = createInputGate(environment, 2, ResultPartitionType.PIPELINED);
-		final InputChannel[] inputChannels = new InputChannel[2];
-		try (Closer closer = Closer.create()) {
-			closer.register(environment::close);
-			closer.register(inputGate::close);
-
-			// Local
-			ResultPartitionID localPartitionId = new ResultPartitionID();
-
-			inputChannels[0] = InputChannelBuilder.newBuilder()
-				.setPartitionId(localPartitionId)
-				.setPartitionManager(partitionManager)
-				.setTaskEventPublisher(taskEventPublisher)
-				.buildLocalChannel(inputGate);
-
-			// Unknown
-			ResultPartitionID unknownPartitionId = new ResultPartitionID();
-
-			inputChannels[1] = InputChannelBuilder.newBuilder()
-				.setChannelIndex(1)
-				.setPartitionId(unknownPartitionId)
-				.setPartitionManager(partitionManager)
-				.setTaskEventPublisher(taskEventPublisher)
-				.buildUnknownChannel(inputGate);
-
-			setupInputGate(inputGate, inputChannels);
-
-			// Only the local channel can request
-			assertEquals(1, partitionManager.counter);
-
-			// Send event backwards and initialize unknown channel afterwards
-			final TaskEvent event = new TestTaskEvent();
-			inputGate.sendTaskEvent(event);
-
-			// Only the local channel can send out the event
-			assertEquals(1, taskEventPublisher.counter);
-
-			// After the update, the pending event should be send to local channel
-
-			ResourceID location = ResourceID.generate();
-			inputGate.updateInputChannel(location, createRemoteWithIdAndLocation(unknownPartitionId.getPartitionId(), location));
-
-			assertEquals(2, partitionManager.counter);
-			assertEquals(2, taskEventPublisher.counter);
-		}
-	}
-
-	/**
-	 * Tests that an update channel does not trigger a partition request before the UDF has
-	 * requested any partitions. Otherwise, this can lead to races when registering a listener at
-	 * the gate (e.g. in UnionInputGate), which can result in missed buffer notifications at the
-	 * listener.
-	 */
-	@Test
-	public void testUpdateChannelBeforeRequest() throws Exception {
-		SingleInputGate inputGate = createInputGate(1);
-
-		TestingResultPartitionManager partitionManager = new TestingResultPartitionManager(new NoOpResultSubpartitionView());
-
-		InputChannel unknown = InputChannelBuilder.newBuilder()
-			.setPartitionManager(partitionManager)
-			.buildUnknownChannel(inputGate);
-		inputGate.setInputChannels(unknown);
-
-		// Update to a local channel and verify that no request is triggered
-		ResultPartitionID resultPartitionID = unknown.getPartitionId();
-		ResourceID location = ResourceID.generate();
-		inputGate.updateInputChannel(location, createRemoteWithIdAndLocation(resultPartitionID.getPartitionId(), location));
-
-		assertEquals(0, partitionManager.counter);
-	}
-
 	/**
 	 * Tests that the release of the input gate is noticed while polling the
 	 * channels for available data.
@@ -382,7 +294,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		// Setup the input gate with a single channel that does nothing
 		final SingleInputGate inputGate = createInputGate(1);
 
-		InputChannel inputChannel = InputChannelBuilder.newBuilder().buildUnknownChannel(inputGate);
+		InputChannel inputChannel = InputChannelBuilder.newBuilder().buildLocalChannel(inputGate);
 		inputGate.setInputChannels(inputChannel);
 
 		// Start the consumer in a separate Thread
@@ -444,9 +356,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			// Local
 			createRemoteWithIdAndLocation(partitionIds[0], localLocation),
 			// Remote
-			createRemoteWithIdAndLocation(partitionIds[1], ResourceID.generate()),
-			// Unknown
-			new UnknownShuffleDescriptor(new ResultPartitionID(partitionIds[2], new ExecutionAttemptID()))};
+			createRemoteWithIdAndLocation(partitionIds[1], ResourceID.generate())};
 
 		InputGateDeploymentDescriptor gateDesc = new InputGateDeploymentDescriptor(
 			new IntermediateDataSetID(),
@@ -491,7 +401,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 
 			Map<IntermediateResultPartitionID, InputChannel> channelMap = gate.getInputChannels();
 
-			assertEquals(3, channelMap.size());
+			assertEquals(2, channelMap.size());
 			channelMap.values().forEach(channel -> {
 				try {
 					channel.checkError();
@@ -505,11 +415,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			InputChannel remoteChannel = channelMap.get(partitionIds[1]);
 			assertEquals(RemoteInputChannel.class, remoteChannel.getClass());
 
-			InputChannel unknownChannel = channelMap.get(partitionIds[2]);
-			assertEquals(UnknownInputChannel.class, unknownChannel.getClass());
-
-			InputChannel[] channels =
-				new InputChannel[] {localChannel, remoteChannel, unknownChannel};
+			InputChannel[] channels = new InputChannel[] {localChannel, remoteChannel};
 			for (InputChannel ch : channels) {
 				assertEquals(0, ch.getCurrentBackoff());
 
@@ -560,116 +466,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 				bufferPool.getNumberOfAvailableMemorySegments());
 			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
 			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
-		}
-	}
-
-	/**
-	 * Tests that input gate requests and assigns network buffers when unknown input channel
-	 * updates to remote input channel.
-	 */
-	@Test
-	public void testRequestBuffersWithUnknownInputChannel() throws Exception {
-		final NettyShuffleEnvironment network = createNettyShuffleEnvironment();
-		final SingleInputGate inputGate = createInputGate(network, 1, ResultPartitionType.PIPELINED_BOUNDED);
-		int buffersPerChannel = 2;
-		int extraNetworkBuffersPerGate = 8;
-
-		try (Closer closer = Closer.create()) {
-			closer.register(network::close);
-			closer.register(inputGate::close);
-
-			final ResultPartitionID resultPartitionId = new ResultPartitionID();
-			InputChannel inputChannel = buildUnknownInputChannel(network, inputGate, resultPartitionId, 0);
-
-			inputGate.setInputChannels(inputChannel);
-			inputGate.setup();
-			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
-
-			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - 1,
-				bufferPool.getNumberOfAvailableMemorySegments());
-			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
-
-			// Trigger updates to remote input channel from unknown input channel
-			inputGate.updateInputChannel(
-				ResourceID.generate(),
-				createRemoteWithIdAndLocation(resultPartitionId.getPartitionId(), ResourceID.generate()));
-
-			RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
-				.get(resultPartitionId.getPartitionId());
-			// only the exclusive buffers should be assigned/available now
-			assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
-
-			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel - 1,
-				bufferPool.getNumberOfAvailableMemorySegments());
-			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
-		}
-	}
-
-	/**
-	 * Tests that input gate can successfully convert unknown input channels into local and remote
-	 * channels.
-	 */
-	@Test
-	public void testUpdateUnknownInputChannel() throws Exception {
-		final NettyShuffleEnvironment network = createNettyShuffleEnvironment();
-
-		final ResultPartition localResultPartition = new ResultPartitionBuilder()
-			.setResultPartitionManager(network.getResultPartitionManager())
-			.setupBufferPoolFactoryFromNettyShuffleEnvironment(network)
-			.build();
-
-		final ResultPartition remoteResultPartition = new ResultPartitionBuilder()
-			.setResultPartitionManager(network.getResultPartitionManager())
-			.setupBufferPoolFactoryFromNettyShuffleEnvironment(network)
-			.build();
-
-		localResultPartition.setup();
-		remoteResultPartition.setup();
-
-		final SingleInputGate inputGate = createInputGate(network, 2, ResultPartitionType.PIPELINED);
-		final InputChannel[] inputChannels = new InputChannel[2];
-
-		try (Closer closer = Closer.create()) {
-			closer.register(network::close);
-			closer.register(inputGate::close);
-
-			final ResultPartitionID localResultPartitionId = localResultPartition.getPartitionId();
-			inputChannels[0] = buildUnknownInputChannel(network, inputGate, localResultPartitionId, 0);
-
-			final ResultPartitionID remoteResultPartitionId = remoteResultPartition.getPartitionId();
-			inputChannels[1] = buildUnknownInputChannel(network, inputGate, remoteResultPartitionId, 1);
-
-			inputGate.setInputChannels(inputChannels);
-			inputGate.setup();
-
-			assertThat(inputGate.getInputChannels().get(remoteResultPartitionId.getPartitionId()),
-				is(instanceOf((UnknownInputChannel.class))));
-			assertThat(inputGate.getInputChannels().get(localResultPartitionId.getPartitionId()),
-				is(instanceOf((UnknownInputChannel.class))));
-
-			ResourceID localLocation = ResourceID.generate();
-
-			// Trigger updates to remote input channel from unknown input channel
-			inputGate.updateInputChannel(
-				localLocation,
-				createRemoteWithIdAndLocation(remoteResultPartitionId.getPartitionId(), ResourceID.generate()));
-
-			assertThat(inputGate.getInputChannels().get(remoteResultPartitionId.getPartitionId()),
-				is(instanceOf((RemoteInputChannel.class))));
-			assertThat(inputGate.getInputChannels().get(localResultPartitionId.getPartitionId()),
-				is(instanceOf((UnknownInputChannel.class))));
-
-			// Trigger updates to local input channel from unknown input channel
-			inputGate.updateInputChannel(
-				localLocation,
-				createRemoteWithIdAndLocation(localResultPartitionId.getPartitionId(), localLocation));
-
-			assertThat(inputGate.getInputChannels().get(remoteResultPartitionId.getPartitionId()),
-				is(instanceOf((RemoteInputChannel.class))));
-			assertThat(inputGate.getInputChannels().get(localResultPartitionId.getPartitionId()),
-				is(instanceOf((LocalInputChannel.class))));
 		}
 	}
 
@@ -816,19 +612,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 		return inputGatesById;
 	}
 
-	private InputChannel buildUnknownInputChannel(
-			NettyShuffleEnvironment network,
-			SingleInputGate inputGate,
-			ResultPartitionID partitionId,
-			int channelIndex) {
-		return InputChannelBuilder.newBuilder()
-			.setChannelIndex(channelIndex)
-			.setPartitionId(partitionId)
-			.setupFromNettyShuffleEnvironment(network)
-			.setConnectionManager(new TestingConnectionManager())
-			.buildUnknownChannel(inputGate);
-	}
-
 	private NettyShuffleEnvironment createNettyShuffleEnvironment() {
 		return new NettyShuffleEnvironmentBuilder().build();
 	}
@@ -850,11 +633,10 @@ public class SingleInputGateTest extends InputGateTestBase {
 	}
 
 	private SingleInputGate createInputGate(NettyShuffleEnvironment environment) {
-		SingleInputGate inputGate = createInputGate(environment, 3, ResultPartitionType.PIPELINED);
+		SingleInputGate inputGate = createInputGate(environment, 2, ResultPartitionType.PIPELINED);
 		InputChannel remoteChannel = new InputChannelBuilder().setChannelIndex(0).buildRemoteRecoveredChannel(inputGate);
 		InputChannel localChannel = new InputChannelBuilder().setChannelIndex(1).buildLocalRecoveredChannel(inputGate);
-		InputChannel unknownChannel = new InputChannelBuilder().setChannelIndex(2).buildUnknownChannel(inputGate);
-		inputGate.setInputChannels(remoteChannel, localChannel, unknownChannel);
+		inputGate.setInputChannels(remoteChannel, localChannel);
 		return inputGate;
 	}
 

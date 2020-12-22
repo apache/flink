@@ -718,10 +718,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		partition.markDataProduced();
 	}
 
-	void cachePartitionInfo(PartitionInfo partitionInfo){
-		getCurrentExecutionAttempt().cachePartitionInfo(partitionInfo);
-	}
-
 	/**
 	 * Returns all blocking result partitions whose receivers can be scheduled/updated.
 	 */

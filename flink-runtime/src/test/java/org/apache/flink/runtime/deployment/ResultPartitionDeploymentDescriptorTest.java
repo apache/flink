@@ -30,7 +30,6 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -71,18 +70,6 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 	private static final ConnectionID connectionID = new ConnectionID(address, connectionIndex);
 
 	/**
-	 * Tests simple de/serialization with {@link UnknownShuffleDescriptor}.
-	 */
-	@Test
-	public void testSerializationOfUnknownShuffleDescriptor() throws IOException {
-		ShuffleDescriptor shuffleDescriptor = new UnknownShuffleDescriptor(resultPartitionID);
-		ShuffleDescriptor shuffleDescriptorCopy = CommonTestUtils.createCopySerializable(shuffleDescriptor);
-		assertThat(shuffleDescriptorCopy, instanceOf(UnknownShuffleDescriptor.class));
-		assertThat(shuffleDescriptorCopy.getResultPartitionID(), is(resultPartitionID));
-		assertThat(shuffleDescriptorCopy.isUnknown(), is(true));
-	}
-
-	/**
 	 * Tests simple de/serialization with {@link NettyShuffleDescriptor}.
 	 */
 	@Test
@@ -98,7 +85,6 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		assertThat(copy.getShuffleDescriptor(), instanceOf(NettyShuffleDescriptor.class));
 		NettyShuffleDescriptor shuffleDescriptorCopy = (NettyShuffleDescriptor) copy.getShuffleDescriptor();
 		assertThat(shuffleDescriptorCopy.getResultPartitionID(), is(resultPartitionID));
-		assertThat(shuffleDescriptorCopy.isUnknown(), is(false));
 		assertThat(shuffleDescriptorCopy.isLocalTo(producerLocation), is(true));
 		assertThat(shuffleDescriptorCopy.getConnectionId(), is(connectionID));
 	}
