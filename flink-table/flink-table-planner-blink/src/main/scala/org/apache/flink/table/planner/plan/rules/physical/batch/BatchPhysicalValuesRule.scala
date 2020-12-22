@@ -20,26 +20,26 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalValues
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecValues
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalValues
 
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
 /**
-  * Rule that converts [[FlinkLogicalValues]] to [[BatchExecValues]].
+  * Rule that converts [[FlinkLogicalValues]] to [[BatchPhysicalValues]].
   */
-class BatchExecValuesRule extends ConverterRule(
+class BatchPhysicalValuesRule extends ConverterRule(
   classOf[FlinkLogicalValues],
   FlinkConventions.LOGICAL,
   FlinkConventions.BATCH_PHYSICAL,
-  "BatchExecValuesRule") {
+  "BatchPhysicalValuesRule") {
 
   def convert(rel: RelNode): RelNode = {
     val values: FlinkLogicalValues = rel.asInstanceOf[FlinkLogicalValues]
     val providedTraitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
 
-    new BatchExecValues(
+    new BatchPhysicalValues(
       rel.getCluster,
       providedTraitSet,
       values.getTuples,
@@ -47,6 +47,6 @@ class BatchExecValuesRule extends ConverterRule(
   }
 }
 
-object BatchExecValuesRule {
-  val INSTANCE: RelOptRule = new BatchExecValuesRule
+object BatchPhysicalValuesRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalValuesRule
 }

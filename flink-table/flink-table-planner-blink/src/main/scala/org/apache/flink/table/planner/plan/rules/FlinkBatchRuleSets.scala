@@ -396,7 +396,7 @@ object FlinkBatchRuleSets {
     BatchPhysicalTableSourceScanRule.INSTANCE,
     BatchPhysicalLegacyTableSourceScanRule.INSTANCE,
     BatchExecIntermediateTableScanRule.INSTANCE,
-    BatchExecValuesRule.INSTANCE,
+    BatchPhysicalValuesRule.INSTANCE,
     // calc
     BatchPhysicalCalcRule.INSTANCE,
     BatchPhysicalPythonCalcRule.INSTANCE,

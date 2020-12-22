@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCorrelate, BatchExecValues}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCorrelate, BatchPhysicalValues}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
@@ -31,9 +31,9 @@ import org.apache.calcite.rex.{RexLiteral, RexUtil}
 /**
   * Converts [[FlinkLogicalTableFunctionScan]] with constant RexCall to
   * {{{
-  *                    [[BatchPhysicalCorrelate]]
-  *                          /       \
-  * empty [[BatchExecValues]]  [[FlinkLogicalTableFunctionScan]]
+  *                         [[BatchPhysicalCorrelate]]
+  *                            /             \
+  * empty [[BatchPhysicalValuesRule]]  [[FlinkLogicalTableFunctionScan]]
   * }}}
   *
   * Add the rule to support select from a UDF directly, such as the following SQL:
@@ -60,7 +60,7 @@ class BatchPhysicalConstantTableFunctionScanRule
     // create correlate left
     val cluster = scan.getCluster
     val traitSet = call.getPlanner.emptyTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    val values = new BatchExecValues(
+    val values = new BatchPhysicalValues(
       cluster,
       traitSet,
       ImmutableList.of(ImmutableList.of[RexLiteral]()),
