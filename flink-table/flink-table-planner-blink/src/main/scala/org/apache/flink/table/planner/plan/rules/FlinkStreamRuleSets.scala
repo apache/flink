@@ -415,7 +415,7 @@ object FlinkStreamRuleSets {
     StreamExecRankRule.INSTANCE,
     StreamExecDeduplicateRule.RANK_INSTANCE,
     // expand
-    StreamExecExpandRule.INSTANCE,
+    StreamPhysicalExpandRule.INSTANCE,
     // group agg
     StreamExecGroupAggregateRule.INSTANCE,
     StreamExecGroupTableAggregateRule.INSTANCE,

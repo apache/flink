@@ -273,7 +273,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       case _: StreamPhysicalCalcBase | _: StreamPhysicalCorrelateBase |
            _: StreamExecLookupJoin | _: StreamPhysicalExchange |
-           _: StreamExecExpand | _: StreamExecMiniBatchAssigner |
+           _: StreamPhysicalExpand | _: StreamExecMiniBatchAssigner |
            _: StreamPhysicalWatermarkAssigner =>
         // transparent forward requiredTrait to children
         val children = visitChildren(rel, requiredTrait, requester)
@@ -572,7 +572,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
 
       case _: StreamPhysicalCorrelateBase | _: StreamExecLookupJoin |
-           _: StreamPhysicalExchange | _: StreamExecExpand | _: StreamExecMiniBatchAssigner |
+           _: StreamPhysicalExchange | _: StreamPhysicalExpand | _: StreamExecMiniBatchAssigner |
            _: StreamPhysicalWatermarkAssigner =>
         // transparent forward requiredTrait to children
         visitChildren(rel, requiredTrait) match {

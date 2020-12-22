@@ -20,27 +20,27 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExpand
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecExpand
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExpand
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
 /**
-  * Rule that converts [[FlinkLogicalExpand]] to [[StreamExecExpand]].
+  * Rule that converts [[FlinkLogicalExpand]] to [[StreamPhysicalExpand]].
   */
-class StreamExecExpandRule
+class StreamPhysicalExpandRule
   extends ConverterRule(
     classOf[FlinkLogicalExpand],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecExpandRule") {
+    "StreamPhysicalExpandRule") {
 
   def convert(rel: RelNode): RelNode = {
     val expand = rel.asInstanceOf[FlinkLogicalExpand]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput = RelOptRule.convert(expand.getInput, FlinkConventions.STREAM_PHYSICAL)
-    new StreamExecExpand(
+    new StreamPhysicalExpand(
       rel.getCluster,
       newTrait,
       newInput,
@@ -50,6 +50,6 @@ class StreamExecExpandRule
   }
 }
 
-object StreamExecExpandRule {
-  val INSTANCE: RelOptRule = new StreamExecExpandRule
+object StreamPhysicalExpandRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalExpandRule
 }
