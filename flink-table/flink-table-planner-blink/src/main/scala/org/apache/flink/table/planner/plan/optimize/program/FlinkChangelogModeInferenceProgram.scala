@@ -281,7 +281,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // forward children mode
         createNewNode(rel, children, childrenTrait, requiredTrait, requester)
 
-      case union: StreamExecUnion =>
+      case union: StreamPhysicalUnion =>
         // transparent forward requiredTrait to children
         val children = visitChildren(rel, requiredTrait, requester)
         // union provides all possible kinds of children have
@@ -582,7 +582,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             createNewNode(rel, Some(children), childTrait)
         }
 
-      case union: StreamExecUnion =>
+      case union: StreamPhysicalUnion =>
         val children = union.getInputs.map {
           case child: StreamPhysicalRel =>
             val childModifyKindSet = getModifyKindSet(child)

@@ -18,11 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.transformations.UnionTransformation
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecUnion
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -34,17 +32,16 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for [[Union]].
-  */
-class StreamExecUnion(
+ * Stream physical RelNode for [[Union]].
+ */
+class StreamPhysicalUnion(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRels: util.List[RelNode],
     all: Boolean,
     outputRowType: RelDataType)
   extends Union(cluster, traitSet, inputRels, all)
-  with StreamPhysicalRel
-  with LegacyStreamExecNode[RowData] {
+  with StreamPhysicalRel {
 
   require(all, "Only support union all")
 
@@ -53,20 +50,18 @@ class StreamExecUnion(
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode], all: Boolean): SetOp = {
-    new StreamExecUnion(cluster, traitSet, inputs, all, outputRowType)
+    new StreamPhysicalUnion(cluster, traitSet, inputs, all, outputRowType)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw).item("union", outputRowType.getFieldNames.mkString(", "))
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[RowData] = {
-    val transformations = getInputNodes.map {
-      input => input.translateToPlan(planner).asInstanceOf[Transformation[RowData]]
-    }
-    new UnionTransformation(transformations)
+  override def translateToExecNode(): ExecNode[_] = {
+    new StreamExecUnion(
+      getInputs.map(_ => ExecEdge.DEFAULT),
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }
