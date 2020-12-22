@@ -225,7 +225,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 				.field("region", DataTypes.STRING())
 				.field("view_count", DataTypes.BIGINT())
 				.build();
-		createActualSource(illegalSchema, getFullSinkOptions());
+		createActualSource(illegalSchema, getFullSourceOptions());
 	}
 
 	@Test
@@ -273,7 +273,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 
 		createActualSource(SOURCE_SCHEMA,
 				getModifiedOptions(
-						getFullSinkOptions(),
+						getFullSourceOptions(),
 						options -> options.put(
 								String.format("value.%s.%s", TestFormatFactory.IDENTIFIER, TestFormatFactory.CHANGELOG_MODE.key()),
 								"I;UA;UB;D")));
