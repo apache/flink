@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 
@@ -31,11 +32,13 @@ public class DefaultDeclarativeSlotPoolFactory implements DeclarativeSlotPoolFac
 
 	@Override
 	public DeclarativeSlotPool create(
+			JobID jobId,
 			Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
 			Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots,
 			Time idleSlotTimeout,
 			Time rpcTimeout) {
 		return new DefaultDeclarativeSlotPool(
+			jobId,
 			new DefaultAllocatedSlotPool(),
 			notifyNewResourceRequirements,
 			notifyNewSlots,
