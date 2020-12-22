@@ -111,6 +111,9 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
 	@Override
 	public void increaseResourceRequirementsBy(ResourceCounter increment) {
+		if (increment.isEmpty()) {
+			return;
+		}
 		totalResourceRequirements = totalResourceRequirements.add(increment);
 
 		declareResourceRequirements();
@@ -118,6 +121,9 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
 	@Override
 	public void decreaseResourceRequirementsBy(ResourceCounter decrement) {
+		if (decrement.isEmpty()) {
+			return;
+		}
 		totalResourceRequirements = totalResourceRequirements.subtract(decrement);
 
 		declareResourceRequirements();
