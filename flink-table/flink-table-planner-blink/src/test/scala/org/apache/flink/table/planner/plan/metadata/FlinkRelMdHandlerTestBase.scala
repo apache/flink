@@ -722,7 +722,7 @@ class FlinkRelMdHandlerTestBase {
   }
 
   protected lazy val streamDropUpdateBefore = {
-    new StreamExecDropUpdateBefore(
+    new StreamPhysicalDropUpdateBefore(
       cluster,
       streamPhysicalTraits,
       studentStreamScan

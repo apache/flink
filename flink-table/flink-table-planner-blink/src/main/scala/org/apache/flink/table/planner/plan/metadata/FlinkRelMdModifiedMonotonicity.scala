@@ -227,7 +227,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: StreamExecDropUpdateBefore,
+      rel: StreamPhysicalDropUpdateBefore,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
   }
