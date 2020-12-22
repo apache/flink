@@ -47,9 +47,9 @@ public interface PythonFunction extends Serializable {
 	}
 
 	/**
-	 * Returns whether the python function is used in row-based operation.
+	 * Returns Whether the Python function takes row as input instead of each columns of a row.
 	 */
-	default boolean isUsedInRowBasedOperation() {
+	default boolean takesRowAsInput() {
 		return false;
 	}
 }

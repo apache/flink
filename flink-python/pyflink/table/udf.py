@@ -348,7 +348,7 @@ class UserDefinedFunctionWrapper(object):
             func.is_deterministic() if isinstance(func, UserDefinedFunction) else True)
         self._func_type = func_type
         self._judf_placeholder = None
-        self._used_in_row_based_operation = False
+        self._takes_row_as_input = False
 
     def __call__(self, *args) -> Expression:
         from pyflink.table import expressions as expr
@@ -359,7 +359,7 @@ class UserDefinedFunctionWrapper(object):
         return self
 
     def _set_takes_row_as_input(self):
-        self._used_in_row_based_operation = True
+        self._takes_row_as_input = True
         return self
 
     def _java_user_defined_function(self):
@@ -426,7 +426,7 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
             j_result_type,
             j_function_kind,
             self._deterministic,
-            self._used_in_row_based_operation,
+            self._takes_row_as_input,
             _get_python_env())
         return j_scalar_function
 
@@ -470,7 +470,7 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
             j_result_type,
             j_function_kind,
             self._deterministic,
-            self._used_in_row_based_operation,
+            self._takes_row_as_input,
             _get_python_env())
         return j_table_function
 
@@ -534,7 +534,7 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
             j_accumulator_type,
             j_function_kind,
             self._deterministic,
-            self._used_in_row_based_operation,
+            self._takes_row_as_input,
             _get_python_env())
         return j_aggregate_function
 

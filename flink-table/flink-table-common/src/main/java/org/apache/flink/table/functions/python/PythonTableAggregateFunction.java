@@ -43,7 +43,7 @@ public class PythonTableAggregateFunction extends TableAggregateFunction impleme
 	private final PythonFunctionKind pythonFunctionKind;
 	private final boolean deterministic;
 	private final PythonEnv pythonEnv;
-	private final boolean usedInRowBasedOperation;
+	private final boolean takesRowAsInput;
 
 	public PythonTableAggregateFunction(
 		String name,
@@ -53,7 +53,7 @@ public class PythonTableAggregateFunction extends TableAggregateFunction impleme
 		DataType accumulatorType,
 		PythonFunctionKind pythonFunctionKind,
 		boolean deterministic,
-		boolean usedInRowBasedOperation,
+		boolean takesRowAsInput,
 		PythonEnv pythonEnv) {
 		this.name = name;
 		this.serializedTableAggregateFunction = serializedTableAggregateFunction;
@@ -63,7 +63,7 @@ public class PythonTableAggregateFunction extends TableAggregateFunction impleme
 		this.pythonFunctionKind = pythonFunctionKind;
 		this.deterministic = deterministic;
 		this.pythonEnv = pythonEnv;
-		this.usedInRowBasedOperation = usedInRowBasedOperation;
+		this.takesRowAsInput = takesRowAsInput;
 	}
 
 	public void accumulate(Object accumulator, Object... args) {
@@ -97,8 +97,8 @@ public class PythonTableAggregateFunction extends TableAggregateFunction impleme
 	}
 
 	@Override
-	public boolean isUsedInRowBasedOperation() {
-		return usedInRowBasedOperation;
+	public boolean takesRowAsInput() {
+		return takesRowAsInput;
 	}
 
 	@Override

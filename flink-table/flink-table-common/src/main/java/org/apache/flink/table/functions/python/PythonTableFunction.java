@@ -48,7 +48,7 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 	private final PythonFunctionKind pythonFunctionKind;
 	private final boolean deterministic;
 	private final PythonEnv pythonEnv;
-	private final boolean usedInRowBasedOperation;
+	private final boolean takesRowAsInput;
 
 	public PythonTableFunction(
 		String name,
@@ -57,7 +57,7 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 		RowTypeInfo resultType,
 		PythonFunctionKind pythonFunctionKind,
 		boolean deterministic,
-		boolean usedInRowBasedOperation,
+		boolean takesRowAsInput,
 		PythonEnv pythonEnv) {
 		this.name = name;
 		this.serializedScalarFunction = serializedScalarFunction;
@@ -66,7 +66,7 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 		this.pythonFunctionKind = pythonFunctionKind;
 		this.deterministic = deterministic;
 		this.pythonEnv = pythonEnv;
-		this.usedInRowBasedOperation = usedInRowBasedOperation;
+		this.takesRowAsInput = takesRowAsInput;
 	}
 
 	public void eval(Object... args) {
@@ -90,8 +90,8 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 	}
 
 	@Override
-	public boolean isUsedInRowBasedOperation() {
-		return usedInRowBasedOperation;
+	public boolean takesRowAsInput() {
+		return takesRowAsInput;
 	}
 
 	@Override
