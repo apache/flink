@@ -161,7 +161,7 @@ class DataStreamMapCoder(BaseCoder):
 
     @staticmethod
     def from_type_info_proto(type_info_proto):
-        return DataStreamMapCoder(from_type_info_proto(type_info_proto.field[0].type))
+        return DataStreamMapCoder(from_type_info_proto(type_info_proto))
 
     def __repr__(self):
         return 'DataStreamMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
@@ -193,7 +193,7 @@ class DataStreamFlatMapCoder(BaseCoder):
 
     @staticmethod
     def from_type_info_proto(type_info_proto):
-        return DataStreamFlatMapCoder(from_type_info_proto(type_info_proto.field[0].type))
+        return DataStreamFlatMapCoder(from_type_info_proto(type_info_proto))
 
     def __repr__(self):
         return 'DataStreamFlatMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
@@ -225,7 +225,7 @@ class DataStreamCoFlatMapCoder(BaseCoder):
 
     @staticmethod
     def from_type_info_proto(type_info_proto):
-        return DataStreamCoFlatMapCoder(from_type_info_proto(type_info_proto.field[0].type))
+        return DataStreamCoFlatMapCoder(from_type_info_proto(type_info_proto))
 
     def __repr__(self):
         return 'DataStreamCoFlatMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
@@ -594,30 +594,31 @@ _type_info_name_mappings = {
 }
 
 
-def from_type_info_proto(field_type):
-    field_type_name = field_type.type_name
+def from_type_info_proto(type_info):
+    field_type_name = type_info.type_name
     try:
         return _type_info_name_mappings[field_type_name]
     except KeyError:
         if field_type_name == type_info_name.ROW:
-            return RowCoder([from_type_info_proto(f.type) for f in field_type.row_type_info.field],
-                            [f.name for f in field_type.row_type_info.field])
+            return RowCoder([from_type_info_proto(f.field_type)
+                             for f in type_info.row_type_info.fields],
+                            [f.field_name for f in type_info.row_type_info.fields])
 
         if field_type_name == type_info_name.PRIMITIVE_ARRAY:
-            return PrimitiveArrayCoder(from_type_info_proto(field_type.collection_element_type))
+            return PrimitiveArrayCoder(from_type_info_proto(type_info.collection_element_type))
 
         if field_type_name == type_info_name.BASIC_ARRAY:
-            return BasicArrayCoder(from_type_info_proto(field_type.collection_element_type))
+            return BasicArrayCoder(from_type_info_proto(type_info.collection_element_type))
 
         if field_type_name == type_info_name.TUPLE:
-            return TupleCoder([from_type_info_proto(f.type)
-                               for f in field_type.tuple_type_info.field])
+            return TupleCoder([from_type_info_proto(f.field_type)
+                               for f in type_info.tuple_type_info.fields])
 
         if field_type_name == type_info_name.MAP:
-            return MapCoder(from_type_info_proto(field_type.map_type_info.key_type),
-                            from_type_info_proto(field_type.map_type_info.value_type))
+            return MapCoder(from_type_info_proto(type_info.map_type_info.key_type),
+                            from_type_info_proto(type_info.map_type_info.value_type))
 
         if field_type_name == type_info_name.LIST:
-            return BasicArrayCoder(from_type_info_proto(field_type.collection_element_type))
+            return BasicArrayCoder(from_type_info_proto(type_info.collection_element_type))
 
-        raise ValueError("field_type %s is not supported." % field_type)
+        raise ValueError("field_type %s is not supported." % type_info)

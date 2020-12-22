@@ -74,31 +74,31 @@ public class PythonTypeUtilsTest {
 
 		for (Map.Entry<TypeInformation, FlinkFnApi.TypeInfo.TypeName> entry : typeInformationTypeNameMap.entrySet()) {
 			assertEquals(entry.getValue(),
-				PythonTypeUtils.TypeInfoToProtoConverter.getFieldType(entry.getKey()).getTypeName());
+				PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(entry.getKey()).getTypeName());
 		}
 
 		TypeInformation primitiveIntegerArrayTypeInfo = PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO;
-		FlinkFnApi.TypeInfo.FieldType convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter
-			.getFieldType(primitiveIntegerArrayTypeInfo);
+		FlinkFnApi.TypeInfo convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter
+			.toTypeInfoProto(primitiveIntegerArrayTypeInfo);
 		assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.PRIMITIVE_ARRAY);
 		assertEquals(convertedFieldType.getCollectionElementType().getTypeName(), FlinkFnApi.TypeInfo.TypeName.INT);
 
 		TypeInformation basicIntegerArrayTypeInfo = BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO;
-		FlinkFnApi.TypeInfo.FieldType convertedBasicFieldType = PythonTypeUtils.TypeInfoToProtoConverter
-			.getFieldType(basicIntegerArrayTypeInfo);
+		FlinkFnApi.TypeInfo convertedBasicFieldType = PythonTypeUtils.TypeInfoToProtoConverter
+			.toTypeInfoProto(basicIntegerArrayTypeInfo);
 		assertEquals(convertedBasicFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.BASIC_ARRAY);
 		assertEquals(convertedBasicFieldType.getCollectionElementType().getTypeName(), FlinkFnApi.TypeInfo.TypeName.INT);
 
 		TypeInformation rowTypeInfo = Types.ROW(Types.INT);
-		convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter.getFieldType(rowTypeInfo);
+		convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(rowTypeInfo);
 		assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.ROW);
-		assertEquals(convertedFieldType.getRowTypeInfo().getField(0).getType().getTypeName(),
+		assertEquals(convertedFieldType.getRowTypeInfo().getFields(0).getFieldType().getTypeName(),
 			FlinkFnApi.TypeInfo.TypeName.INT);
 
 		TypeInformation tupleTypeInfo = Types.TUPLE(Types.INT);
-		convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter.getFieldType(tupleTypeInfo);
+		convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(tupleTypeInfo);
 		assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.TUPLE);
-		assertEquals(convertedFieldType.getTupleTypeInfo().getField(0).getType().getTypeName(),
+		assertEquals(convertedFieldType.getTupleTypeInfo().getFields(0).getFieldType().getTypeName(),
 			FlinkFnApi.TypeInfo.TypeName.INT);
 	}
 

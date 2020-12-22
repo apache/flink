@@ -98,29 +98,32 @@ class BasicTypeInfo(TypeInformation):
         super(BasicTypeInfo, self).__init__()
 
     def get_java_type_info(self) -> JavaObject:
-        JBasicTypeInfo = get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo
-        if self._basic_type == BasicType.STRING:
-            self._j_typeinfo = JBasicTypeInfo.STRING_TYPE_INFO
-        elif self._basic_type == BasicType.BYTE:
-            self._j_typeinfo = JBasicTypeInfo.BYTE_TYPE_INFO
-        elif self._basic_type == BasicType.BOOLEAN:
-            self._j_typeinfo = JBasicTypeInfo.BOOLEAN_TYPE_INFO
-        elif self._basic_type == BasicType.SHORT:
-            self._j_typeinfo = JBasicTypeInfo.SHORT_TYPE_INFO
-        elif self._basic_type == BasicType.INT:
-            self._j_typeinfo = JBasicTypeInfo.INT_TYPE_INFO
-        elif self._basic_type == BasicType.LONG:
-            self._j_typeinfo = JBasicTypeInfo.LONG_TYPE_INFO
-        elif self._basic_type == BasicType.FLOAT:
-            self._j_typeinfo = JBasicTypeInfo.FLOAT_TYPE_INFO
-        elif self._basic_type == BasicType.DOUBLE:
-            self._j_typeinfo = JBasicTypeInfo.DOUBLE_TYPE_INFO
-        elif self._basic_type == BasicType.CHAR:
-            self._j_typeinfo = JBasicTypeInfo.CHAR_TYPE_INFO
-        elif self._basic_type == BasicType.BIG_INT:
-            self._j_typeinfo = JBasicTypeInfo.BIG_INT_TYPE_INFO
-        elif self._basic_type == BasicType.BIG_DEC:
-            self._j_typeinfo = JBasicTypeInfo.BIG_DEC_TYPE_INFO
+        if not self._j_typeinfo:
+            JBasicTypeInfo = get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo
+            if self._basic_type == BasicType.STRING:
+                self._j_typeinfo = JBasicTypeInfo.STRING_TYPE_INFO
+            elif self._basic_type == BasicType.BYTE:
+                self._j_typeinfo = JBasicTypeInfo.BYTE_TYPE_INFO
+            elif self._basic_type == BasicType.BOOLEAN:
+                self._j_typeinfo = JBasicTypeInfo.BOOLEAN_TYPE_INFO
+            elif self._basic_type == BasicType.SHORT:
+                self._j_typeinfo = JBasicTypeInfo.SHORT_TYPE_INFO
+            elif self._basic_type == BasicType.INT:
+                self._j_typeinfo = JBasicTypeInfo.INT_TYPE_INFO
+            elif self._basic_type == BasicType.LONG:
+                self._j_typeinfo = JBasicTypeInfo.LONG_TYPE_INFO
+            elif self._basic_type == BasicType.FLOAT:
+                self._j_typeinfo = JBasicTypeInfo.FLOAT_TYPE_INFO
+            elif self._basic_type == BasicType.DOUBLE:
+                self._j_typeinfo = JBasicTypeInfo.DOUBLE_TYPE_INFO
+            elif self._basic_type == BasicType.CHAR:
+                self._j_typeinfo = JBasicTypeInfo.CHAR_TYPE_INFO
+            elif self._basic_type == BasicType.BIG_INT:
+                self._j_typeinfo = JBasicTypeInfo.BIG_INT_TYPE_INFO
+            elif self._basic_type == BasicType.BIG_DEC:
+                self._j_typeinfo = JBasicTypeInfo.BIG_DEC_TYPE_INFO
+            else:
+                raise TypeError("Invalid BasicType %s." % self._basic_type)
         return self._j_typeinfo
 
     def __eq__(self, o) -> bool:
@@ -234,7 +237,7 @@ class PrimitiveArrayTypeInfo(TypeInformation):
         return False
 
     def __repr__(self) -> str:
-        return "PrimitiveArrayTypeInformation<%s>" % self._element_type
+        return "PrimitiveArrayTypeInfo<%s>" % self._element_type
 
 
 class BasicArrayTypeInfo(TypeInformation):
@@ -280,7 +283,7 @@ class BasicArrayTypeInfo(TypeInformation):
         return False
 
     def __repr__(self):
-        return "BasicArrayTypeInformation<%s>" % self._element_type
+        return "BasicArrayTypeInfo<%s>" % self._element_type
 
 
 class PickledBytesTypeInfo(TypeInformation):
@@ -299,7 +302,7 @@ class PickledBytesTypeInfo(TypeInformation):
         return isinstance(o, PickledBytesTypeInfo)
 
     def __repr__(self):
-        return "PickledByteArrayTypeInformation"
+        return "PickledByteArrayTypeInfo"
 
 
 class RowTypeInfo(TypeInformation):
@@ -481,7 +484,7 @@ class DateTypeInfo(TypeInformation):
         return isinstance(o, DateTypeInfo)
 
     def __repr__(self):
-        return "DateTypeInformation"
+        return "DateTypeInfo"
 
 
 class TimeTypeInfo(TypeInformation):
@@ -524,7 +527,7 @@ class TimeTypeInfo(TypeInformation):
         return isinstance(o, TimeTypeInfo)
 
     def __repr__(self) -> str:
-        return "TimeTypeInformation"
+        return "TimeTypeInfo"
 
 
 class TimestampTypeInfo(TypeInformation):
@@ -555,7 +558,7 @@ class TimestampTypeInfo(TypeInformation):
         return isinstance(o, TimestampTypeInfo)
 
     def __repr__(self):
-        return "TimestampTypeInformation"
+        return "TimestampTypeInfo"
 
 
 class ListTypeInfo(TypeInformation):
@@ -613,23 +616,65 @@ class Types(object):
     built-in serializers and comparators.
     """
 
-    STRING = BasicTypeInfo.STRING_TYPE_INFO
-    BYTE = BasicTypeInfo.BYTE_TYPE_INFO
-    BOOLEAN = BasicTypeInfo.BOOLEAN_TYPE_INFO
-    SHORT = BasicTypeInfo.SHORT_TYPE_INFO
-    INT = BasicTypeInfo.INT_TYPE_INFO
-    LONG = BasicTypeInfo.LONG_TYPE_INFO
-    FLOAT = BasicTypeInfo.FLOAT_TYPE_INFO
-    DOUBLE = BasicTypeInfo.DOUBLE_TYPE_INFO
-    CHAR = BasicTypeInfo.CHAR_TYPE_INFO
-    BIG_INT = BasicTypeInfo.BIG_INT_TYPE_INFO
-    BIG_DEC = BasicTypeInfo.BIG_DEC_TYPE_INFO
+    @staticmethod
+    def STRING() -> TypeInformation:
+        return BasicTypeInfo.STRING_TYPE_INFO()
 
-    SQL_DATE = SqlTimeTypeInfo.DATE
-    SQL_TIME = SqlTimeTypeInfo.TIME
-    SQL_TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP
+    @staticmethod
+    def BYTE() -> TypeInformation:
+        return BasicTypeInfo.BYTE_TYPE_INFO()
 
-    PICKLED_BYTE_ARRAY = PickledBytesTypeInfo
+    @staticmethod
+    def BOOLEAN() -> TypeInformation:
+        return BasicTypeInfo.BOOLEAN_TYPE_INFO()
+
+    @staticmethod
+    def SHORT() -> TypeInformation:
+        return BasicTypeInfo.SHORT_TYPE_INFO()
+
+    @staticmethod
+    def INT() -> TypeInformation:
+        return BasicTypeInfo.INT_TYPE_INFO()
+
+    @staticmethod
+    def LONG() -> TypeInformation:
+        return BasicTypeInfo.LONG_TYPE_INFO()
+
+    @staticmethod
+    def FLOAT() -> TypeInformation:
+        return BasicTypeInfo.FLOAT_TYPE_INFO()
+
+    @staticmethod
+    def DOUBLE() -> TypeInformation:
+        return BasicTypeInfo.DOUBLE_TYPE_INFO()
+
+    @staticmethod
+    def CHAR() -> TypeInformation:
+        return BasicTypeInfo.CHAR_TYPE_INFO()
+
+    @staticmethod
+    def BIG_INT() -> TypeInformation:
+        return BasicTypeInfo.BIG_INT_TYPE_INFO()
+
+    @staticmethod
+    def BIG_DEC() -> TypeInformation:
+        return BasicTypeInfo.BIG_DEC_TYPE_INFO()
+
+    @staticmethod
+    def SQL_DATE() -> TypeInformation:
+        return SqlTimeTypeInfo.DATE()
+
+    @staticmethod
+    def SQL_TIME() -> TypeInformation:
+        return SqlTimeTypeInfo.TIME()
+
+    @staticmethod
+    def SQL_TIMESTAMP() -> TypeInformation:
+        return SqlTimeTypeInfo.TIMESTAMP()
+
+    @staticmethod
+    def PICKLED_BYTE_ARRAY() -> TypeInformation:
+        return PickledBytesTypeInfo()
 
     @staticmethod
     def ROW(types: List[TypeInformation]):
@@ -702,7 +747,6 @@ class Types(object):
         A TypeInformation for the list type.
 
         :param element_type_info: The type of the elements in the list
-        :return:
         """
         return ListTypeInfo(element_type_info)
 
