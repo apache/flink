@@ -95,6 +95,9 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
     /** The table state. */
     private volatile State state;
 
+    /** Current index for dynamic slot, should always not less than numberSlots */
+    private int dynamicSlotIndex;
+
     private final ResourceBudgetManager budgetManager;
 
     /** The closing future is completed when all slot are freed and state is closed. */
@@ -120,6 +123,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                 0 < numberSlots, "The number of task slots must be greater than 0.");
 
         this.numberSlots = numberSlots;
+        this.dynamicSlotIndex = numberSlots;
         this.defaultSlotResourceProfile = Preconditions.checkNotNull(defaultSlotResourceProfile);
         this.memoryPageSize = memoryPageSize;
 
@@ -247,11 +251,10 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         }
 
         for (TaskSlot<T> taskSlot : allocatedSlots.values()) {
-            if (taskSlot.getIndex() < 0) {
-                SlotID slotID = SlotID.generateDynamicSlotID(resourceId);
+            if (isDynamicIndex(taskSlot.getIndex())) {
                 SlotStatus slotStatus =
                         new SlotStatus(
-                                slotID,
+                                new SlotID(resourceId, taskSlot.getIndex()),
                                 taskSlot.getResourceProfile(),
                                 taskSlot.getJobId(),
                                 taskSlot.getAllocationId());
@@ -277,14 +280,18 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 
     @Override
     public boolean allocateSlot(
-            int index,
+            int requestedIndex,
             JobID jobId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
             Time slotTimeout) {
         checkRunning();
 
-        Preconditions.checkArgument(index < numberSlots);
+        Preconditions.checkArgument(requestedIndex < numberSlots);
+
+        // The negative requestIndex indicate that the SlotManger allocate a dynamic slot, we
+        // transfer the index to an increasing number not less than the numberSlots.
+        int index = requestedIndex < 0 ? nextDynamicSlotIndex() : requestedIndex;
 
         TaskSlot<T> taskSlot = allocatedSlots.get(allocationId);
         if (taskSlot != null) {
@@ -297,7 +304,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
             return false;
         }
 
-        resourceProfile = index >= 0 ? defaultSlotResourceProfile : resourceProfile;
+        resourceProfile = isDynamicIndex(index) ? resourceProfile : defaultSlotResourceProfile;
 
         if (!budgetManager.reserve(resourceProfile)) {
             LOG.info(
@@ -317,9 +324,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                         jobId,
                         allocationId,
                         memoryVerificationExecutor);
-        if (index >= 0) {
-            taskSlots.put(index, taskSlot);
-        }
+        taskSlots.put(index, taskSlot);
 
         // update the allocation id to task slot map
         allocatedSlots.put(allocationId, taskSlot);
@@ -351,11 +356,15 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                 index);
         return taskSlot.getJobId().equals(jobId)
                 && taskSlot.getResourceProfile().equals(resourceProfile)
-                && (index < 0 || taskSlot.getIndex() == index);
+                && (isDynamicIndex(index) || taskSlot.getIndex() == index);
     }
 
     private boolean isIndexAlreadyTaken(int index) {
         return taskSlots.get(index) != null;
+    }
+
+    private boolean isDynamicIndex(int index) {
+        return index >= numberSlots;
     }
 
     @Override
@@ -469,8 +478,6 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         TaskSlot<T> taskSlot = taskSlots.get(index);
         if (taskSlot != null) {
             return taskSlot.isAllocated(jobId, allocationId);
-        } else if (index < 0) {
-            return allocatedSlots.containsKey(allocationId);
         } else {
             return false;
         }
@@ -623,6 +630,10 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         Preconditions.checkNotNull(allocationId);
 
         return allocatedSlots.get(allocationId);
+    }
+
+    private int nextDynamicSlotIndex() {
+        return dynamicSlotIndex++;
     }
 
     private void checkRunning() {
