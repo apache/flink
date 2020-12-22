@@ -236,6 +236,13 @@ Connector Options
       <td>Integer</td>
       <td>The max retry times if writing records to database failed.</td>
     </tr>
+    <tr>
+      <td><h5>sink.parallelism</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>Defines the parallelism of the JDBC sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
+    </tr>          
     </tbody>
 </table>
 
