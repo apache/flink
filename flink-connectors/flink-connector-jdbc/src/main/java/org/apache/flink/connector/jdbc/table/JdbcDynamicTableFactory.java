@@ -191,7 +191,8 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		final JdbcOptions.Builder builder = JdbcOptions.builder()
 			.setDBUrl(url)
 			.setTableName(readableConfig.get(TABLE_NAME))
-			.setDialect(JdbcDialects.get(url).get());
+			.setDialect(JdbcDialects.get(url).get())
+			.setParallelism(readableConfig.getOptional(FactoryUtil.SINK_PARALLELISM).orElse(null));
 
 		readableConfig.getOptional(DRIVER).ifPresent(builder::setDriverName);
 		readableConfig.getOptional(USERNAME).ifPresent(builder::setUsername);
@@ -272,6 +273,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		optionalOptions.add(SINK_BUFFER_FLUSH_MAX_ROWS);
 		optionalOptions.add(SINK_BUFFER_FLUSH_INTERVAL);
 		optionalOptions.add(SINK_MAX_RETRIES);
+		optionalOptions.add(FactoryUtil.SINK_PARALLELISM);
 		return optionalOptions;
 	}
 

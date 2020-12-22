@@ -84,7 +84,7 @@ public class JdbcDynamicTableSink implements DynamicTableSink {
 		builder.setJdbcExecutionOptions(executionOptions);
 		builder.setRowDataTypeInfo(rowDataTypeInformation);
 		builder.setFieldDataTypes(tableSchema.getFieldDataTypes());
-		return OutputFormatProvider.of(builder.build());
+		return OutputFormatProvider.of(builder.build(), jdbcOptions.getParallelism());
 	}
 
 	@Override

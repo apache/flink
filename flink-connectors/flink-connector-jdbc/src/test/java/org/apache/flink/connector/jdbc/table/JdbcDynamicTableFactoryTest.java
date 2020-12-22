@@ -207,6 +207,39 @@ public class JdbcDynamicTableFactoryTest {
 	}
 
 	@Test
+	public void testJDBCSinkWithParallelism() {
+		Map<String, String> properties = getAllOptions();
+		properties.put("sink.parallelism", "2");
+
+		DynamicTableSink actual = createTableSink(properties);
+
+		JdbcOptions options = JdbcOptions.builder()
+			.setDBUrl("jdbc:derby:memory:mydb")
+			.setTableName("mytable")
+			.setParallelism(2)
+			.build();
+		JdbcExecutionOptions executionOptions = JdbcExecutionOptions.builder()
+			.withBatchSize(100)
+			.withBatchIntervalMs(1000)
+			.withMaxRetries(3)
+			.build();
+		JdbcDmlOptions dmlOptions = JdbcDmlOptions.builder()
+			.withTableName(options.getTableName())
+			.withDialect(options.getDialect())
+			.withFieldNames(schema.getFieldNames())
+			.withKeyFields("bbb", "aaa")
+			.build();
+
+		JdbcDynamicTableSink expected = new JdbcDynamicTableSink(
+			options,
+			executionOptions,
+			dmlOptions,
+			schema);
+
+		assertEquals(expected, actual);
+	}
+
+	@Test
 	public void testJdbcValidation() {
 		// only password, no username
 		try {
