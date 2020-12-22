@@ -77,7 +77,8 @@ public class RegistryAvroFormatFactoryTest {
 								AvroSchemaConverter.convertToSchema(ROW_TYPE),
 								REGISTRY_URL),
 						AvroToRowDataConverters.createRowConverter(ROW_TYPE),
-						InternalTypeInfo.of(ROW_TYPE));
+						InternalTypeInfo.of(ROW_TYPE),
+						true);
 
 		final DynamicTableSource actualSource = createTableSource(getDefaultOptions());
 		assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
@@ -154,6 +155,7 @@ public class RegistryAvroFormatFactoryTest {
 		options.put("format", RegistryAvroFormatFactory.IDENTIFIER);
 		options.put("avro-confluent.schema-registry.subject", SUBJECT);
 		options.put("avro-confluent.schema-registry.url", REGISTRY_URL);
+		options.put("avro-confluent.ignore-parse-errors", Boolean.toString(true));
 		return options;
 	}
 

@@ -166,7 +166,9 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 			}
 		} catch (Throwable t) {
 			// a big try catch to protect the processing.
-			throw new IOException("Can't deserialize Debezium Avro message.", t);
+			if (!ignoreParseErrors) {
+				throw new IOException("Can't deserialize Debezium Avro message.", t);
+			}
 		}
 	}
 
