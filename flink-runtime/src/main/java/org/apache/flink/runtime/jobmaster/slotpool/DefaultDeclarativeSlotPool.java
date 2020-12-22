@@ -272,15 +272,10 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
 		freedSlot.ifPresent(allocatedSlot -> {
 			releasePayload(Collections.singleton(allocatedSlot), cause);
-			tryToFulfillResourceRequirement(allocatedSlot);
 			notifyNewSlots.accept(Collections.singletonList(allocatedSlot));
 		});
 
 		return previouslyFulfilledRequirement.orElseGet(ResourceCounter::empty);
-	}
-
-	private void tryToFulfillResourceRequirement(AllocatedSlot allocatedSlot) {
-		matchOfferWithOutstandingRequirements(allocatedSlotToSlotOffer(allocatedSlot), allocatedSlot.getTaskManagerLocation(), allocatedSlot.getTaskManagerGateway());
 	}
 
 	private void updateSlotToRequirementProfileMapping(AllocationID allocationId, ResourceProfile matchedResourceProfile) {
@@ -296,11 +291,6 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 		// be able to fulfill the total requirements
 		decreaseResourceRequirementsBy(ResourceCounter.withResource(newResourceProfile, 1));
 		increaseResourceRequirementsBy(ResourceCounter.withResource(oldResourceProfile, 1));
-	}
-
-	@Nonnull
-	private SlotOffer allocatedSlotToSlotOffer(AllocatedSlot allocatedSlot) {
-		return new SlotOffer(allocatedSlot.getAllocationId(), allocatedSlot.getPhysicalSlotNumber(), allocatedSlot.getResourceProfile());
 	}
 
 	@Override
