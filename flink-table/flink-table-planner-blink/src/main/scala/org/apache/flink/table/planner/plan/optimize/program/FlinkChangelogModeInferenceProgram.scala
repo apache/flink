@@ -302,7 +302,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(ts, List(), providedTrait, requiredTrait, requester)
 
       case _: StreamPhysicalDataStreamScan | _: StreamPhysicalLegacyTableSourceScan |
-           _: StreamExecValues =>
+           _: StreamPhysicalValues =>
         // DataStream, TableSource and Values only support producing insert-only messages
         createNewNode(
           rel, List(), ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
@@ -642,7 +642,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
 
       case _: StreamPhysicalDataStreamScan | _: StreamPhysicalLegacyTableSourceScan |
-           _: StreamExecValues =>
+           _: StreamPhysicalValues =>
         createNewNode(rel, Some(List()), UpdateKindTrait.NONE)
 
       case scan: StreamExecIntermediateTableScan =>
