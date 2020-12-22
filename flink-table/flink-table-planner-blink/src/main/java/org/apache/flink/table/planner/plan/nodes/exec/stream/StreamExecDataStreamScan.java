@@ -24,8 +24,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator;
-import org.apache.flink.table.planner.delegation.StreamPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.functions.sql.StreamRecordTimestampSqlFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator;
@@ -48,9 +50,9 @@ import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.
 import static org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER;
 
 /**
- * Stream exec node to connect a given {@link DataStream} and consume data from it.
+ * Stream {@link ExecNode} to connect a given {@link DataStream} and consume data from it.
  */
-public class StreamExecDataStreamScan extends StreamExecNode<RowData> {
+public class StreamExecDataStreamScan extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
 	private final DataStream<?> dataStream;
 	private final DataType sourceType;
 	private final int[] fieldIndexes;
@@ -75,7 +77,7 @@ public class StreamExecDataStreamScan extends StreamExecNode<RowData> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected Transformation<RowData> translateToPlanInternal(StreamPlanner planner) {
+	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
 		final Transformation<?> sourceTransform = dataStream.getTransformation();
 		final Optional<RexNode> rowtimeExpr = getRowtimeExpression(planner.getRelBuilder());
 

@@ -18,42 +18,25 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.delegation.BatchPlanner;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexProgram;
 
-import java.util.Collections;
-
 /**
- * Batch exec node for Calc.
+ * Batch {@link ExecNode} for Calc.
  */
-public class BatchExecCalc extends BatchExecNode<RowData> implements CommonExecCalc {
-	private final RexProgram calcProgram;
+public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowData> {
 
 	public BatchExecCalc(
 			RexProgram calcProgram,
 			ExecEdge inputEdge,
 			RowType outputType,
 			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-		this.calcProgram = calcProgram;
-	}
-
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(BatchPlanner planner) {
-		return translateToTransformation(
-				planner,
-				planner.getTableConfig(),
-				calcProgram,
-				TableStreamOperator.class,
-				"BatchExecCalc",
-				false,
-				inputsContainSingleton());
+		super(calcProgram, TableStreamOperator.class, false, inputEdge, outputType, description);
 	}
 }

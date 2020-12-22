@@ -22,9 +22,10 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.delegation.BatchPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.multipleinput.BatchMultipleInputStreamOperatorFactory;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapperGenerator;
@@ -38,7 +39,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Batch exec node for multiple input which contains a sub-graph of {@link ExecNode}s.
+ * Batch {@link ExecNode} for multiple input which contains a sub-graph of {@link ExecNode}s.
  * The root node of the sub-graph is {@link #rootNode}, and the leaf nodes of the sub-graph are
  * the output nodes of the {@link #getInputNodes()}.
  *
@@ -64,7 +65,7 @@ import java.util.stream.Collectors;
  * `Agg1` and `Agg2` are the leaf nodes of the sub-graph,
  * `Exchange1` and `Exchange2` are the input nodes of the multiple input node.
  */
-public class BatchExecMultipleInput extends BatchExecNode<RowData> {
+public class BatchExecMultipleInput extends ExecNodeBase<RowData> implements BatchExecNode<RowData> {
 
 	private final ExecNode<?> rootNode;
 
@@ -77,7 +78,7 @@ public class BatchExecMultipleInput extends BatchExecNode<RowData> {
 	}
 
 	@Override
-	protected Transformation<RowData> translateToPlanInternal(BatchPlanner planner) {
+	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
 		final List<Transformation<?>> inputTransforms = new ArrayList<>();
 		for (ExecNode<?> input : getInputNodes()) {
 			inputTransforms.add(input.translateToPlan(planner));

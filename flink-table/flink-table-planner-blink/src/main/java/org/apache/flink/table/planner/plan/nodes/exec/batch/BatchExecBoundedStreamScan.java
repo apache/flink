@@ -22,7 +22,9 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
-import org.apache.flink.table.planner.delegation.BatchPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.types.DataType;
@@ -33,9 +35,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Batch exec node to connect a given bounded {@link DataStream} and consume data from it.
+ * Batch {@link ExecNode} to connect a given bounded {@link DataStream} and consume data from it.
  */
-public class BatchExecBoundedStreamScan extends BatchExecNode<RowData> {
+public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData> implements BatchExecNode<RowData> {
 	private final DataStream<?> dataStream;
 	private final DataType sourceType;
 	private final int[] fieldIndexes;
@@ -57,7 +59,7 @@ public class BatchExecBoundedStreamScan extends BatchExecNode<RowData> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected Transformation<RowData> translateToPlanInternal(BatchPlanner planner) {
+	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
 		final Transformation<?> sourceTransform = dataStream.getTransformation();
 		if (needInternalConversion()) {
 			return ScanUtil.convertToInternalRow(

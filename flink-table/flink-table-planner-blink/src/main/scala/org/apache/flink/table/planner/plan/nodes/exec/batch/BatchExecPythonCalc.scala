@@ -21,9 +21,9 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNodeBase}
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.rex.RexProgram
@@ -42,13 +42,14 @@ class BatchExecPythonCalc(
     inputEdge: ExecEdge,
     outputType: RowType,
     description: String)
-  extends BatchExecNode[RowData](
+  extends ExecNodeBase[RowData](
     util.Collections.singletonList(inputEdge),
     outputType,
     description)
+  with BatchExecNode[RowData]
   with CommonExecPythonCalc {
 
-  override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[RowData] = {
+  override protected def translateToPlanInternal(planner: PlannerBase): Transformation[RowData] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
     val ret = createPythonOneInputTransformation(

@@ -30,33 +30,44 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
-/**
- * Base exec node to read data from an external source defined by a {@link ScanTableSource}.
- */
-public interface CommonExecTableSourceScan {
+import java.util.Collections;
 
-	default Transformation<RowData> createSourceTransformation(
-			StreamExecutionEnvironment env,
-			ScanTableSource tableSource,
-			RowType outputType,
-			String name) {
-		InternalTypeInfo<RowData> outputTypeInfo = InternalTypeInfo.of(outputType);
+/**
+ * Base {@link ExecNode} to read data from an external source defined by a {@link ScanTableSource}.
+ */
+public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
+	private final ScanTableSource tableSource;
+
+	protected CommonExecTableSourceScan(ScanTableSource tableSource, LogicalType outputType, String description) {
+		super(Collections.emptyList(), outputType, description);
+		this.tableSource = tableSource;
+	}
+
+	@Override
+	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+		final StreamExecutionEnvironment env = planner.getExecEnv();
+		final String operatorName = getDesc();
+		InternalTypeInfo<RowData> outputTypeInfo = InternalTypeInfo.of((RowType) getOutputType());
 		ScanTableSource.ScanRuntimeProvider provider =
 				tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
 		if (provider instanceof SourceFunctionProvider) {
 			SourceFunction<RowData> sourceFunction = ((SourceFunctionProvider) provider).createSourceFunction();
-			return env.addSource(sourceFunction, name, outputTypeInfo).getTransformation();
+			return env.addSource(sourceFunction, operatorName, outputTypeInfo).getTransformation();
 		} else if (provider instanceof InputFormatProvider) {
 			InputFormat<RowData, ?> inputFormat = ((InputFormatProvider) provider).createInputFormat();
-			return createInputFormatTransformation(env, inputFormat, outputTypeInfo, name);
+			return createInputFormatTransformation(env, inputFormat, outputTypeInfo, operatorName);
 		} else if (provider instanceof SourceProvider) {
 			Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
 			// TODO: Push down watermark strategy to source scan
-			return env.fromSource(source, WatermarkStrategy.noWatermarks(), name).getTransformation();
+			return env.fromSource(source, WatermarkStrategy.noWatermarks(), operatorName).getTransformation();
 		} else if (provider instanceof DataStreamScanProvider) {
 			return ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();
 		} else {
@@ -68,7 +79,7 @@ public interface CommonExecTableSourceScan {
 	 * Creates a {@link Transformation} based on the given {@link InputFormat}.
 	 * The implementation is different for streaming mode and batch mode.
 	 */
-	Transformation<RowData> createInputFormatTransformation(
+	protected abstract Transformation<RowData> createInputFormatTransformation(
 			StreamExecutionEnvironment env,
 			InputFormat<RowData, ?> inputFormat,
 			InternalTypeInfo<RowData> outputTypeInfo,

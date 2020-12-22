@@ -24,9 +24,10 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.WatermarkGeneratorCodeGenerator;
-import org.apache.flink.table.planner.delegation.StreamPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOperatorFactory;
@@ -39,9 +40,9 @@ import java.util.Collections;
 import java.util.Optional;
 
 /**
- * Stream exec node which generates watermark based on the input elements.
+ * Stream {@link ExecNode} which generates watermark based on the input elements.
  */
-public class StreamExecWatermarkAssigner extends StreamExecNode<RowData> {
+public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
 	private final RexNode watermarkExpr;
 	private final int rowtimeFieldIndex;
 
@@ -58,7 +59,7 @@ public class StreamExecWatermarkAssigner extends StreamExecNode<RowData> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected Transformation<RowData> translateToPlanInternal(StreamPlanner planner) {
+	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
 		final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
 		final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
 

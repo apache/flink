@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -33,10 +34,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Base class for {@link ExecNode}.
  *
- * @param <P> The {@link Planner} that could translate the node into {@link Transformation}.
  * @param <T> The type of the elements that result from this node.
  */
-public abstract class ExecNodeBase<P extends Planner, T> implements ExecNode<T> {
+public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
 	private final String description;
 	private final List<ExecEdge> inputEdges;
@@ -96,20 +96,17 @@ public abstract class ExecNodeBase<P extends Planner, T> implements ExecNode<T> 
 		inputEdges.set(ordinalInParent, newInputEdge);
 	}
 
-	@SuppressWarnings("unchecked")
 	public Transformation<T> translateToPlan(Planner planner) {
 		if (transformation == null) {
-			transformation = translateToPlanInternal((P) planner);
+			transformation = translateToPlanInternal((PlannerBase) planner);
 		}
 		return transformation;
 	}
 
 	/**
 	 * Internal method, translates this node into a Flink operator.
-	 *
-	 * @param planner The {@link Planner} that could translate the node into {@link Transformation}.
 	 */
-	protected abstract Transformation<T> translateToPlanInternal(P planner);
+	protected abstract Transformation<T> translateToPlanInternal(PlannerBase planner);
 
 	@Override
 	public void accept(ExecNodeVisitor visitor) {

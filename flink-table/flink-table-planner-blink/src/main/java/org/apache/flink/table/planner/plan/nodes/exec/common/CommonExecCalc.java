@@ -20,12 +20,13 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.codegen.CalcCodeGenerator;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -34,25 +35,36 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 
+import java.util.Collections;
 import java.util.Optional;
 
 /**
  * Base class for exec Calc.
  */
-public interface CommonExecCalc extends ExecNode<RowData> {
+public abstract class CommonExecCalc extends ExecNodeBase<RowData> {
+	private final RexProgram calcProgram;
+	private final Class<?> operatorBaseClass;
+	private final boolean retainHeader;
 
-	@SuppressWarnings("unchecked")
-	default Transformation<RowData> translateToTransformation(
-			Planner planner,
-			TableConfig tableConfig,
+	public CommonExecCalc(
 			RexProgram calcProgram,
 			Class<?> operatorBaseClass,
-			String operatorName,
 			boolean retainHeader,
-			boolean inputsContainSingleton) {
+			ExecEdge inputEdge,
+			RowType outputType,
+			String description) {
+		super(Collections.singletonList(inputEdge), outputType, description);
+		this.calcProgram = calcProgram;
+		this.operatorBaseClass = operatorBaseClass;
+		this.retainHeader = retainHeader;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
 		final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
 		final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-		final CodeGeneratorContext ctx = new CodeGeneratorContext(tableConfig)
+		final CodeGeneratorContext ctx = new CodeGeneratorContext(planner.getTableConfig())
 				.setOperatorBaseClass(operatorBaseClass);
 
 		final Optional<RexNode> condition;
@@ -69,7 +81,7 @@ public interface CommonExecCalc extends ExecNode<RowData> {
 				calcProgram,
 				JavaScalaConversionUtil.toScala(condition),
 				retainHeader,
-				operatorName);
+				getClass().getSimpleName());
 		final Transformation<RowData> transformation = new OneInputTransformation<>(
 				inputTransform,
 				getDesc(),
@@ -77,7 +89,7 @@ public interface CommonExecCalc extends ExecNode<RowData> {
 				InternalTypeInfo.of(getOutputType()),
 				inputTransform.getParallelism());
 
-		if (inputsContainSingleton) {
+		if (inputsContainSingleton()) {
 			transformation.setParallelism(1);
 			transformation.setMaxParallelism(1);
 		}
