@@ -49,7 +49,7 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
 	/**
 	 * Optionally decorate the ResultPartitionWriter to call
 	 * {@link ResultPartitionConsumableNotifier#notifyPartitionConsumable(JobID, ResultPartitionID, TaskActions)}
-	 * on the first record, iff {@link ResultPartitionDeploymentDescriptor#sendScheduleOrUpdateConsumersMessage()}
+	 * on the first record, iff {@link ResultPartitionDeploymentDescriptor#notifyPartitionDataAvailable()}
 	 * is true.
 	 */
 	public static ResultPartitionWriter[] decorate(
@@ -62,7 +62,7 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
 		ResultPartitionWriter[] consumableNotifyingPartitionWriters = new ResultPartitionWriter[partitionWriters.length];
 		int counter = 0;
 		for (ResultPartitionDeploymentDescriptor desc : descs) {
-			if (desc.sendScheduleOrUpdateConsumersMessage() && desc.getPartitionType().isPipelined()) {
+			if (desc.notifyPartitionDataAvailable() && desc.getPartitionType().isPipelined()) {
 				consumableNotifyingPartitionWriters[counter] = new ConsumableNotifyingResultPartitionWriter(
 					taskActions,
 					jobId,
