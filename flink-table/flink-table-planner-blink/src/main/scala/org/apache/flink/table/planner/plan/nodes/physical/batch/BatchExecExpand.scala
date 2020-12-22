@@ -85,7 +85,6 @@ class BatchExecExpand(
       ctx,
       inputType,
       outputType,
-      config,
       projects,
       opName = "BatchExpand")
 
