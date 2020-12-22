@@ -45,4 +45,11 @@ public interface PythonFunction extends Serializable {
 	default PythonFunctionKind getPythonFunctionKind() {
 		return PythonFunctionKind.GENERAL;
 	}
+
+	/**
+	 * Returns Whether the Python function takes row as input instead of each columns of a row.
+	 */
+	default boolean takesRowAsInput() {
+		return false;
+	}
 }

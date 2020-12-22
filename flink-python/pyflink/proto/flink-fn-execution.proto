@@ -47,6 +47,9 @@ message UserDefinedFunction {
 
   // The index of the over window used in pandas batch over window aggregation
   int32 window_index = 3;
+
+  // Whether the UDF takes row as input instead of each columns of a row
+  bool takes_row_as_input = 4;
 }
 
 // A list of user-defined functions to be executed in a batch.
@@ -139,6 +142,9 @@ message UserDefinedAggregateFunction {
   int32 filter_arg = 4;
 
   bool distinct = 5;
+
+  // Whether the UDF takes row as input instead of each columns of a row
+  bool takes_row_as_input = 6;
 }
 
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.

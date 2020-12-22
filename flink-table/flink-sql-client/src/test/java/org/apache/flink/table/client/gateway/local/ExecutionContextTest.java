@@ -243,7 +243,7 @@ public class ExecutionContextTest {
 	public void testPythonFunction() throws Exception {
 		PythonFunctionFactory pythonFunctionFactory = PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.get();
 		PythonFunctionFactory testFunctionFactory = (moduleName, objectName) ->
-			new PythonScalarFunction(null, null, null, null, null, false, null);
+			new PythonScalarFunction(null, null, null, null, null, false, false, null);
 		try {
 			PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.set(testFunctionFactory);
 			ExecutionContext context = createPythonFunctionExecutionContext();

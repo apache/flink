@@ -43,6 +43,7 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 	private final PythonFunctionKind pythonFunctionKind;
 	private final boolean deterministic;
 	private final PythonEnv pythonEnv;
+	private final boolean takesRowAsInput;
 
 	public PythonAggregateFunction(
 		String name,
@@ -52,6 +53,7 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 		DataType accumulatorType,
 		PythonFunctionKind pythonFunctionKind,
 		boolean deterministic,
+		boolean takesRowAsInput,
 		PythonEnv pythonEnv) {
 		this.name = name;
 		this.serializedAggregateFunction = serializedAggregateFunction;
@@ -61,6 +63,7 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 		this.pythonFunctionKind = pythonFunctionKind;
 		this.deterministic = deterministic;
 		this.pythonEnv = pythonEnv;
+		this.takesRowAsInput = takesRowAsInput;
 	}
 
 	public void accumulate(Object accumulator, Object... args) {
@@ -91,6 +94,11 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 	@Override
 	public PythonFunctionKind getPythonFunctionKind() {
 		return pythonFunctionKind;
+	}
+
+	@Override
+	public boolean takesRowAsInput() {
+		return takesRowAsInput;
 	}
 
 	@Override
