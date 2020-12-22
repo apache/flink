@@ -40,6 +40,10 @@ public class CompactFileWriter<T> extends AbstractStreamingWriter<T, CompactMess
 	}
 
 	@Override
+	protected void partitionCreated(String partition) {
+	}
+
+	@Override
 	protected void partitionInactive(String partition) {
 	}
 

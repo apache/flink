@@ -20,12 +20,15 @@ package org.apache.flink.table.filesystem.stream;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.NavigableMap;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Writer for emitting {@link PartitionCommitInfo} to downstream.
@@ -34,7 +37,9 @@ public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, Partiti
 
 	private static final long serialVersionUID = 2L;
 
-	private transient Set<String> inactivePartitions;
+	private transient Set<String> currentNewPartitions;
+	private transient TreeMap<Long, Set<String>> newPartitions;
+	private transient Set<String> committablePartitions;
 
 	public StreamingFileWriter(
 			long bucketCheckInterval,
@@ -45,13 +50,20 @@ public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, Partiti
 
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
-		inactivePartitions = new HashSet<>();
+		currentNewPartitions = new HashSet<>();
+		newPartitions = new TreeMap<>();
+		committablePartitions = new HashSet<>();
 		super.initializeState(context);
 	}
 
 	@Override
+	protected void partitionCreated(String partition) {
+		currentNewPartitions.add(partition);
+	}
+
+	@Override
 	protected void partitionInactive(String partition) {
-		inactivePartitions.add(partition);
+		committablePartitions.add(partition);
 	}
 
 	@Override
@@ -59,13 +71,26 @@ public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, Partiti
 	}
 
 	@Override
+	public void snapshotState(StateSnapshotContext context) throws Exception {
+		super.snapshotState(context);
+		newPartitions.put(context.getCheckpointId(), new HashSet<>(currentNewPartitions));
+		currentNewPartitions.clear();
+	}
+
+	@Override
 	protected void commitUpToCheckpoint(long checkpointId) throws Exception {
 		super.commitUpToCheckpoint(checkpointId);
+
+		NavigableMap<Long, Set<String>> headPartitions = this.newPartitions.headMap(checkpointId, true);
+		Set<String> partitions = new HashSet<>(committablePartitions);
+		committablePartitions.clear();
+		headPartitions.values().forEach(partitions::addAll);
+		headPartitions.clear();
+
 		output.collect(new StreamRecord<>(new PartitionCommitInfo(
 				checkpointId,
 				getRuntimeContext().getIndexOfThisSubtask(),
 				getRuntimeContext().getNumberOfParallelSubtasks(),
-				new ArrayList<>(inactivePartitions))));
-		inactivePartitions.clear();
+				new ArrayList<>(partitions))));
 	}
 }

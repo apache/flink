@@ -125,6 +125,31 @@ public class StreamingFileWriterTest {
 		}
 	}
 
+	@Test
+	public void testCommitImmediately() throws Exception {
+		try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
+			harness.setup();
+			harness.initializeEmptyState();
+			harness.open();
+
+			harness.processElement(row("1"), 0);
+			harness.processElement(row("2"), 0);
+			harness.processElement(row("2"), 0);
+
+			harness.snapshot(1, 1);
+
+			// repeat partition 1
+			harness.processElement(row("1"), 0);
+
+			harness.processElement(row("3"), 0);
+			harness.processElement(row("4"), 0);
+
+			harness.notifyOfCompletedCheckpoint(1);
+			List<String> partitions = collect(harness);
+			Assert.assertEquals(Arrays.asList("1", "2"), partitions);
+		}
+	}
+
 	private static RowData row(String s) {
 		return GenericRowData.of(StringData.fromString(s));
 	}

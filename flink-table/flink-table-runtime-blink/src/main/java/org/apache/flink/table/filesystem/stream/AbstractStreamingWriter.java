@@ -67,6 +67,11 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
 	}
 
 	/**
+	 * Notifies a partition created.
+	 */
+	protected abstract void partitionCreated(String partition);
+
+	/**
 	 * Notifies a partition become inactive. A partition becomes inactive after all
 	 * the records received so far have been committed.
 	 */
@@ -97,6 +102,7 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
 
 			@Override
 			public void bucketCreated(Bucket<IN, String> bucket) {
+				AbstractStreamingWriter.this.partitionCreated(bucket.getBucketId());
 			}
 
 			@Override
