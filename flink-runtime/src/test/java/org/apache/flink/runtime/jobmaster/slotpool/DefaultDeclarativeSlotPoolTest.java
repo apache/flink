@@ -334,7 +334,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testFreedSlotWillBeUsedToFulfillOutstandingResourceRequirements() throws InterruptedException {
+	public void testFreedSlotWillBeUsedToFulfillOutstandingResourceRequirementsOfSameProfile() throws InterruptedException {
 		final NewSlotsService notifyNewSlots = new NewSlotsService();
 		final DefaultDeclarativeSlotPool slotPool = createDefaultDeclarativeSlotPool(notifyNewSlots);
 
@@ -359,6 +359,31 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
 
 		assertThat(acceptedSlots, is(empty()));
 		assertTrue(slotPool.calculateUnfulfilledResources().isEmpty());
+	}
+
+	@Test
+	public void testFreedSlotWillRemainAssignedToMatchedResourceProfile() {
+		final DefaultDeclarativeSlotPool slotPool = new DefaultDeclarativeSlotPoolBuilder().build();
+
+		final ResourceProfile largeResourceProfile = ResourceProfile.newBuilder().setManagedMemoryMB(1024).build();
+		final ResourceProfile smallResourceProfile = ResourceProfile.newBuilder().setManagedMemoryMB(512).build();
+
+		slotPool.increaseResourceRequirementsBy(ResourceCounter.withResource(largeResourceProfile, 1));
+		offerSlots(slotPool, createSlotOffersForResourceRequirements(ResourceCounter.withResource(ResourceProfile.ANY, 1)));
+
+		final SlotInfoWithUtilization slot = slotPool.getFreeSlotsInformation().iterator().next();
+
+		slotPool.reserveFreeSlot(slot.getAllocationId(), largeResourceProfile);
+		assertThat(slotPool.getFulfilledResourceRequirements().getResourceCount(largeResourceProfile), is(1));
+
+		slotPool.increaseResourceRequirementsBy(ResourceCounter.withResource(smallResourceProfile, 1));
+		slotPool.decreaseResourceRequirementsBy(ResourceCounter.withResource(largeResourceProfile, 1));
+
+		// free the slot; this should not cause the slot to be automatically re-matched to the small resource profile
+		// this is currently the responsibility of the user, by reserving the slot for a different profile
+		slotPool.freeReservedSlot(slot.getAllocationId(), null, 1);
+		assertThat(slotPool.getFulfilledResourceRequirements().getResourceCount(largeResourceProfile), is(1));
+		assertThat(slotPool.getFulfilledResourceRequirements().getResourceCount(smallResourceProfile), is(0));
 	}
 
 	@Test
