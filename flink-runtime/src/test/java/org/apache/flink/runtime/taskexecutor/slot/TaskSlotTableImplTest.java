@@ -158,7 +158,7 @@ public class TaskSlotTableImplTest extends TestLogger {
             assertThat(
                     taskSlotTable.allocateSlot(-1, jobId2, allocationId, SLOT_TIMEOUT), is(false));
 
-            assertThat(taskSlotTable.isAllocated(-1, jobId1, allocationId), is(true));
+            assertThat(taskSlotTable.isAllocated(1, jobId1, allocationId), is(true));
 
             Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots =
                     taskSlotTable.getAllocatedSlots(jobId1);
@@ -201,7 +201,7 @@ public class TaskSlotTableImplTest extends TestLogger {
             allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
             TaskSlot<TaskSlotPayload> taskSlot2 = allocatedSlots.next();
 
-            assertThat(taskSlotTable.isAllocated(-1, jobId, allocationId), is(true));
+            assertThat(taskSlotTable.isAllocated(1, jobId, allocationId), is(true));
             assertEquals(taskSlot1, taskSlot2);
             assertThat(allocatedSlots.hasNext(), is(false));
         }
@@ -239,9 +239,9 @@ public class TaskSlotTableImplTest extends TestLogger {
 
             Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots =
                     taskSlotTable.getAllocatedSlots(jobId);
-            assertThat(allocatedSlots.next().getIndex(), is(-1));
+            assertThat(allocatedSlots.next().getIndex(), is(2));
             assertThat(allocatedSlots.hasNext(), is(false));
-            assertThat(taskSlotTable.isAllocated(-1, jobId, allocationId), is(true));
+            assertThat(taskSlotTable.isAllocated(2, jobId, allocationId), is(true));
         }
     }
 
@@ -262,7 +262,7 @@ public class TaskSlotTableImplTest extends TestLogger {
             Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots =
                     taskSlotTable.getAllocatedSlots(jobId);
             TaskSlot<TaskSlotPayload> allocatedSlot = allocatedSlots.next();
-            assertThat(allocatedSlot.getIndex(), is(-1));
+            assertThat(allocatedSlot.getIndex(), is(2));
             assertThat(allocatedSlot.getResourceProfile(), is(resourceProfile));
             assertThat(allocatedSlots.hasNext(), is(false));
         }
@@ -305,7 +305,7 @@ public class TaskSlotTableImplTest extends TestLogger {
                     taskSlotTable.allocateSlot(-1, jobId, allocationId3, SLOT_TIMEOUT),
                     is(true)); // index 4
 
-            assertThat(taskSlotTable.freeSlot(allocationId2), is(-1));
+            assertThat(taskSlotTable.freeSlot(allocationId2), is(3));
 
             ResourceID resourceId = ResourceID.generate();
             SlotReport slotReport = taskSlotTable.createSlotReport(resourceId);
@@ -336,7 +336,7 @@ public class TaskSlotTableImplTest extends TestLogger {
                                             null)),
                             is(
                                     new SlotStatus(
-                                            SlotID.generateDynamicSlotID(resourceId),
+                                            new SlotID(resourceId, 4),
                                             TaskSlotUtils.DEFAULT_RESOURCE_PROFILE,
                                             jobId,
                                             allocationId3))));
