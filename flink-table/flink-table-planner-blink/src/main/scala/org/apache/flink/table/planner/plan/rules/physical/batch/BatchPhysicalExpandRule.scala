@@ -20,27 +20,27 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExpand
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecExpand
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalExpand
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
 /**
-  * Rule that converts [[FlinkLogicalExpand]] to [[BatchExecExpand]].
+  * Rule that converts [[FlinkLogicalExpand]] to [[BatchPhysicalExpand]].
   */
-class BatchExecExpandRule
+class BatchPhysicalExpandRule
   extends ConverterRule(
     classOf[FlinkLogicalExpand],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecExpandRule") {
+    "BatchPhysicalExpandRule") {
 
   def convert(rel: RelNode): RelNode = {
     val expand = rel.asInstanceOf[FlinkLogicalExpand]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val newInput = RelOptRule.convert(expand.getInput, FlinkConventions.BATCH_PHYSICAL)
-    new BatchExecExpand(
+    new BatchPhysicalExpand(
       rel.getCluster,
       newTrait,
       newInput,
@@ -50,6 +50,6 @@ class BatchExecExpandRule
   }
 }
 
-object BatchExecExpandRule {
-  val INSTANCE: RelOptRule = new BatchExecExpandRule
+object BatchPhysicalExpandRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalExpandRule
 }

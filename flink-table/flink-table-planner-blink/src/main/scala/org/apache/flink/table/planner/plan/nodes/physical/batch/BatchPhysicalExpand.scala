@@ -18,16 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExpandCodeGenerator}
-import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Expand
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExpand
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -36,12 +31,10 @@ import org.apache.calcite.rex.RexNode
 
 import java.util
 
-import scala.collection.JavaConversions._
-
 /**
   * Batch physical RelNode for [[Expand]].
   */
-class BatchExecExpand(
+class BatchPhysicalExpand(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
@@ -49,11 +42,10 @@ class BatchExecExpand(
     projects: util.List[util.List[RexNode]],
     expandIdIndex: Int)
   extends Expand(cluster, traitSet, input, outputRowType, projects, expandIdIndex)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData] {
+  with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecExpand(
+    new BatchPhysicalExpand(
       cluster,
       traitSet,
       inputs.get(0),
@@ -68,32 +60,12 @@ class BatchExecExpand(
       .item("projects", RelExplainUtil.projectsToString(projects, input.getRowType, getRowType))
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
-
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val config = planner.getTableConfig
-    val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
-    val inputType = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
-    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
-
-    val ctx = CodeGeneratorContext(config)
-    val operator = ExpandCodeGenerator.generateExpandOperator(
-      ctx,
-      inputType,
-      outputType,
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecExpand(
       projects,
-      opName = "BatchExpand")
-
-    ExecNodeUtil.createOneInputTransformation(
-      inputTransform,
-      getRelDetailedDescription,
-      operator,
-      InternalTypeInfo.of(outputType),
-      inputTransform.getParallelism,
-      0)
+      ExecEdge.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }

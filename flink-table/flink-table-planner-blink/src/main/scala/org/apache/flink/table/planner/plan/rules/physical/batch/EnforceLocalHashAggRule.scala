@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchExecExpand, BatchExecHashAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchPhysicalExpand, BatchExecHashAggregate}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.RelOptRuleCall
@@ -51,12 +51,12 @@ import org.apache.calcite.plan.RelOptRuleCall
 class EnforceLocalHashAggRule extends EnforceLocalAggRuleBase(
   operand(classOf[BatchExecHashAggregate],
     operand(classOf[BatchPhysicalExchange],
-      operand(classOf[BatchExecExpand], any))),
+      operand(classOf[BatchPhysicalExpand], any))),
   "EnforceLocalHashAggRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: BatchExecHashAggregate = call.rel(0)
-    val expand: BatchExecExpand = call.rel(2)
+    val expand: BatchPhysicalExpand = call.rel(2)
 
     val enableTwoPhaseAgg = isTwoPhaseAggEnabled(agg)
 
@@ -68,7 +68,7 @@ class EnforceLocalHashAggRule extends EnforceLocalAggRuleBase(
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val agg: BatchExecHashAggregate = call.rel(0)
-    val expand: BatchExecExpand = call.rel(2)
+    val expand: BatchPhysicalExpand = call.rel(2)
 
     val localAgg = createLocalAgg(agg, expand, call.builder)
     val exchange = createExchange(agg, localAgg)
