@@ -132,7 +132,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 	private void declareResourceRequirements() {
 		final Collection<ResourceRequirement> resourceRequirements = getResourceRequirements();
 
-		LOG.debug("Declare new resource requirements for job {}: {}.", jobId, resourceRequirements);
+		LOG.debug("Declare new resource requirements for job {}.{}\trequired resources: {}{}\tacquired resources: {}", jobId, System.lineSeparator(), resourceRequirements, System.lineSeparator(), fulfilledResourceRequirements);
 		notifyNewResourceRequirements.accept(resourceRequirements);
 	}
 
@@ -167,6 +167,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 				if (acceptedSlot.isPresent()) {
 					acceptedSlotOffers.add(offer);
 					acceptedSlots.add(acceptedSlot.get());
+				} else {
+					LOG.debug("Could not match offer {} to any outstanding requirement.", offer.getAllocationId());
 				}
 			}
 		}
@@ -174,6 +176,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 		slotPool.addSlots(acceptedSlots, currentTime);
 
 		if (!acceptedSlots.isEmpty()) {
+			LOG.debug("Acquired new resources; new total acquired resources: {}", fulfilledResourceRequirements);
 			notifyNewSlots.accept(acceptedSlots);
 		}
 
@@ -359,6 +362,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 		}
 
 		releaseSlots(slotsToReturnToOwner, new FlinkException("Returning idle slots to their owners."));
+		LOG.debug("Idle slots have been returned; new total acquired resources: {}", fulfilledResourceRequirements);
 	}
 
 	private void releaseSlots(Iterable<AllocatedSlot> slotsToReturnToOwner, Throwable cause) {
