@@ -397,12 +397,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	public CompletableFuture<Execution> registerProducedPartitions(
 			TaskManagerLocation location,
-			boolean sendScheduleOrUpdateConsumersMessage) {
+			boolean notifyPartitionDataAvailable) {
 
 		assertRunningInJobMasterMainThread();
 
 		return FutureUtils.thenApplyAsyncIfNotDone(
-			registerProducedPartitions(vertex, location, attemptId, sendScheduleOrUpdateConsumersMessage),
+			registerProducedPartitions(vertex, location, attemptId, notifyPartitionDataAvailable),
 			vertex.getExecutionGraph().getJobMasterMainThreadExecutor(),
 			producedPartitionsCache -> {
 				producedPartitions = producedPartitionsCache;
@@ -436,7 +436,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			ExecutionVertex vertex,
 			TaskManagerLocation location,
 			ExecutionAttemptID attemptId,
-			boolean sendScheduleOrUpdateConsumersMessage) {
+			boolean notifyPartitionDataAvailable) {
 
 		ProducerDescriptor producerDescriptor = ProducerDescriptor.create(location, attemptId);
 
@@ -460,7 +460,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					partitionDescriptor,
 					shuffleDescriptor,
 					maxParallelism,
-					sendScheduleOrUpdateConsumersMessage));
+					notifyPartitionDataAvailable));
 			partitionRegistrations.add(partitionRegistration);
 		}
 

@@ -121,6 +121,6 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		assertThat(copy.getPartitionId(), is(partitionId));
 		assertThat(copy.getPartitionType(), is(partitionType));
 		assertThat(copy.getNumberOfSubpartitions(), is(numberOfSubpartitions));
-		assertThat(copy.sendScheduleOrUpdateConsumersMessage(), is(true));
+		assertThat(copy.notifyPartitionDataAvailable(), is(true));
 	}
 }

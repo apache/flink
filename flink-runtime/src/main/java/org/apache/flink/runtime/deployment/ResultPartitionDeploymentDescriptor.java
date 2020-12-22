@@ -45,19 +45,19 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 	private final int maxParallelism;
 
-	/** Flag whether the result partition should send scheduleOrUpdateConsumer messages. */
-	private final boolean sendScheduleOrUpdateConsumersMessage;
+	/** Flag whether the result partition should notify master when its data is available. */
+	private final boolean notifyPartitionDataAvailable;
 
 	public ResultPartitionDeploymentDescriptor(
 			PartitionDescriptor partitionDescriptor,
 			ShuffleDescriptor shuffleDescriptor,
 			int maxParallelism,
-			boolean sendScheduleOrUpdateConsumersMessage) {
+			boolean notifyPartitionDataAvailable) {
 		this.partitionDescriptor = checkNotNull(partitionDescriptor);
 		this.shuffleDescriptor = checkNotNull(shuffleDescriptor);
 		KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelism);
 		this.maxParallelism = maxParallelism;
-		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
+		this.notifyPartitionDataAvailable = notifyPartitionDataAvailable;
 	}
 
 	public IntermediateDataSetID getResultId() {
@@ -88,8 +88,8 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		return shuffleDescriptor;
 	}
 
-	public boolean sendScheduleOrUpdateConsumersMessage() {
-		return sendScheduleOrUpdateConsumersMessage;
+	public boolean notifyPartitionDataAvailable() {
+		return notifyPartitionDataAvailable;
 	}
 
 	@Override
