@@ -696,7 +696,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             partitionStateChecker,
                             getRpcService().getExecutor());
 
-            taskMetricGroup.gauge(MetricNames.IS_BACKPRESSURED, task::isBackPressured);
+            taskMetricGroup.gauge(MetricNames.IS_BACK_PRESSURED, task::isBackPressured);
 
             log.info(
                     "Received task {} ({}), deploy into slot with allocation id {}.",
