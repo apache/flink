@@ -106,16 +106,16 @@ public final class FirstValueAggFunction<T> extends InternalAggregateFunction<T,
         }
     }
 
-    public void merge(RowData acc, Iterable<RowData> its) {
+    public void merge(RowData acc, Iterable<RowData> accIt) {
         GenericRowData accRowData = (GenericRowData) acc;
         long accOrder = accRowData.getLong(1);
         GenericRowData firstAcc = accRowData;
         boolean needUpdate = false;
 
-        for (RowData rowData : its) {
+        for (RowData rowData : accIt) {
             long order = rowData.getLong(1);
             // if there is a lower order
-            if (accOrder > order) {
+            if (order < accOrder) {
                 needUpdate = true;
                 firstAcc = (GenericRowData) rowData;
             }

@@ -482,11 +482,18 @@ class AggregateITCase(
 
     val sql =
       """
-        |SELECT sum(b), count(a), max(a), min(a), c
+        |SELECT
+        | sum(b),
+        | count(a),
+        | max(a),
+        | min(a),
+        | first_value(a),
+        | last_value(a),
+        | c
         |FROM (
-        | SELECT b, count(c) as c, sum(a) as a
-        | FROM T
-        | GROUP BY b)
+        |   SELECT b, count(c) as c, sum(a) as a
+        |   FROM T
+        |   GROUP BY b)
         |GROUP BY c
       """.stripMargin
 
@@ -495,7 +502,7 @@ class AggregateITCase(
     t1.toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1,1,1,1,1", "3,1,15,15,3", "4,1,34,34,4", "7,2,23,5,2")
+    val expected = List("1,1,1,1,1,1,1", "3,1,15,15,15,15,3", "4,1,34,34,34,34,4", "7,2,23,5,5,23,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

@@ -106,24 +106,24 @@ public final class LastValueAggFunction<T> extends InternalAggregateFunction<T, 
         }
     }
 
-    public void merge(RowData acc, Iterable<RowData> its) {
+    public void merge(RowData acc, Iterable<RowData> accIt) {
         GenericRowData accRowData = (GenericRowData) acc;
         long accOrder = accRowData.getLong(1);
-        GenericRowData firstAcc = accRowData;
+        GenericRowData lastAcc = accRowData;
         boolean needUpdate = false;
 
-        for (RowData rowData : its) {
+        for (RowData rowData : accIt) {
             long order = rowData.getLong(1);
             // if there is a upper order
-            if (accOrder < order) {
+            if (order > accOrder) {
                 needUpdate = true;
-                firstAcc = (GenericRowData) rowData;
+                lastAcc = (GenericRowData) rowData;
             }
         }
 
         if (needUpdate) {
-            accRowData.setField(0, firstAcc.getField(0));
-            accRowData.setField(1, firstAcc.getField(1));
+            accRowData.setField(0, lastAcc.getField(0));
+            accRowData.setField(1, lastAcc.getField(1));
         }
     }
 

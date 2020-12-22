@@ -31,7 +31,8 @@ import java.util.function.BiFunction;
 public final class FirstValueWithRetractAggFunction<T>
         extends FirstLastValueWithRetractAggFunctionBase<T> {
 
-    private static final BiFunction<Long, Long, Boolean> comparator = (x, y) -> (x - y) > 0;
+    private static final BiFunction<Long, Long, Boolean> comparator =
+            (order1, order2) -> order1 > order2;;
 
     public FirstValueWithRetractAggFunction(LogicalType valueType) {
         super(valueType);
@@ -62,9 +63,9 @@ public final class FirstValueWithRetractAggFunction<T>
 
     public void merge(
             FirstLastValueWithRetractAccumulator<T> acc,
-            Iterable<FirstLastValueWithRetractAccumulator<T>> its)
+            Iterable<FirstLastValueWithRetractAccumulator<T>> accIt)
             throws Exception {
-        merge(acc, its, comparator);
+        merge(acc, accIt, comparator);
     }
 
     /**

@@ -37,7 +37,7 @@ import java.util.function.BiFunction;
 import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
 /**
- * Base retraction aggregate function for FIRST_VALUE and LAST_VALUE.
+ * Base aggregate function with retraction for FIRST_VALUE and LAST_VALUE.
  */
 @Internal
 abstract class FirstLastValueWithRetractAggFunctionBase<T>
@@ -100,7 +100,7 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 	// Runtime
 	// --------------------------------------------------------------------------------------------
 
-	/** Accumulator for FIRST_VALUE or LAST_VALUE. */
+	/** Accumulator for FIRST_VALUE and LAST_VALUE. */
 	public static class FirstLastValueWithRetractAccumulator<T> {
 		public T value = null;
 		public Long order = null;
@@ -168,7 +168,7 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 				acc.order = order;
 			}
 
-			// save order to orderToValueMap
+			// save order to valueToOrderMap
 			List<Long> orderList = acc.valueToOrderMap.get(v);
 			if (orderList == null) {
 				orderList = new ArrayList<>();
@@ -242,7 +242,7 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 					acc.valueToOrderMap.put(v, orderList);
 				}
 			} else {
-				// if not exist, save to valueToOrderRetractMap
+				// if not exists, save to valueToOrderRetractMap
 				List<Long> retractOrderList = acc.valueToOrderRetractMap.get(v);
 				if (retractOrderList == null) {
 					retractOrderList = new ArrayList<>();
@@ -252,7 +252,7 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 			}
 			// remove from orderToValueMap
 			List<T> valueList = acc.orderToValueMap.get(order);
-			int index = -1;
+			int index;
 			if (valueList != null &&  (index = valueList.indexOf(v)) >= 0) {
 				valueList.remove(index);
 				if (valueList.isEmpty()) {
@@ -261,7 +261,7 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 					acc.orderToValueMap.put(order, valueList);
 				}
 			} else {
-				// if not exist, save to orderToValueRetractMap
+				// if not exists, save to orderToValueRetractMap
 				List<T> retractValueList = acc.orderToValueRetractMap.get(order);
 				if (retractValueList == null) {
 					retractValueList = new ArrayList<>();
@@ -269,7 +269,7 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 				retractValueList.add(v);
 				acc.orderToValueRetractMap.put(order, retractValueList);
 			}
-			// if retract current first value
+			// update the acc value if the retracted value equals first/last value
 			if (v.equals(acc.value)) {
 				updateValue(acc);
 			}
@@ -278,16 +278,16 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 
 	public void merge(
 			FirstLastValueWithRetractAccumulator<T> acc,
-			Iterable<FirstLastValueWithRetractAccumulator<T>> its,
+			Iterable<FirstLastValueWithRetractAccumulator<T>> accIt,
 			BiFunction<Long, Long, Boolean> compare) throws Exception {
-		for (FirstLastValueWithRetractAccumulator<T> it : its) {
-			if (acc.order == null || (it.order != null && compare.apply(acc.order, it.order))) {
-				acc.value = it.value;
-				acc.order = it.order;
+		for (FirstLastValueWithRetractAccumulator<T> otherAcc : accIt) {
+			if (acc.order == null || (otherAcc.order != null && compare.apply(acc.order, otherAcc.order))) {
+				acc.value = otherAcc.value;
+				acc.order = otherAcc.order;
 			}
-			mergeValueToOrderMap(acc, it);
-			mergeOrderToValueMap(acc, it);
-			// if current first value is retract
+			mergeValueToOrderMap(acc, otherAcc);
+			mergeOrderToValueMap(acc, otherAcc);
+			// update the acc value if the first/last value has been retracted after merge
 			if (!acc.valueToOrderMap.contains(acc.value)) {
 				updateValue(acc);
 			}
@@ -310,9 +310,9 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 
 	private void mergeOrderToValueMap(
 			FirstLastValueWithRetractAccumulator<T> acc,
-			FirstLastValueWithRetractAccumulator<T> it) throws Exception {
+			FirstLastValueWithRetractAccumulator<T> otherAcc) throws Exception {
 		// merge orderToValueMap
-		for (Map.Entry<Long, List<T>> entry : it.orderToValueMap.entries()) {
+		for (Map.Entry<Long, List<T>> entry : otherAcc.orderToValueMap.entries()) {
 			Long key = entry.getKey();
 			if (acc.orderToValueMap.contains(key)) {
 				List<T> itList = entry.getValue();
@@ -338,7 +338,7 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 		}
 
 		// merge orderToValueRetractMap
-		for (Map.Entry<Long, List<T>> entry : it.orderToValueRetractMap.entries()) {
+		for (Map.Entry<Long, List<T>> entry : otherAcc.orderToValueRetractMap.entries()) {
 			Long key = entry.getKey();
 			if (acc.orderToValueRetractMap.contains(key)) {
 				List<T> valueList = acc.orderToValueRetractMap.get(key);
@@ -380,9 +380,9 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 
 	private void mergeValueToOrderMap(
 			FirstLastValueWithRetractAccumulator<T> acc,
-			FirstLastValueWithRetractAccumulator<T> it) throws Exception {
+			FirstLastValueWithRetractAccumulator<T> otherAcc) throws Exception {
 		// merge valueToOrderMap
-		for (Map.Entry<T, List<Long>> entry : it.valueToOrderMap.entries()) {
+		for (Map.Entry<T, List<Long>> entry : otherAcc.valueToOrderMap.entries()) {
 			T key = entry.getKey();
 			if (acc.valueToOrderMap.contains(key)) {
 				List<Long> itList = entry.getValue();
@@ -402,7 +402,7 @@ abstract class FirstLastValueWithRetractAggFunctionBase<T>
 		}
 
 		// merge valueToOrderRetractMap
-		for (Map.Entry<T, List<Long>> entry : it.valueToOrderRetractMap.entries()) {
+		for (Map.Entry<T, List<Long>> entry : otherAcc.valueToOrderRetractMap.entries()) {
 			T key = entry.getKey();
 			if (acc.valueToOrderRetractMap.contains(key)) {
 				List<Long> accList = acc.valueToOrderMap.get(key);
