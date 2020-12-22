@@ -402,7 +402,7 @@ object FlinkBatchRuleSets {
     BatchPhysicalCalcRule.INSTANCE,
     BatchPhysicalPythonCalcRule.INSTANCE,
     // union
-    BatchExecUnionRule.INSTANCE,
+    BatchPhysicalUnionRule.INSTANCE,
     // sort
     BatchExecSortRule.INSTANCE,
     BatchExecLimitRule.INSTANCE,
