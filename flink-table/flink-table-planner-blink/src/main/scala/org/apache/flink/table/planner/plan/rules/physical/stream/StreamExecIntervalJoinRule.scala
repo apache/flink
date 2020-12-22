@@ -18,18 +18,12 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecIntervalJoin
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, IntervalJoinUtil}
-
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -38,11 +32,7 @@ import scala.collection.JavaConversions._
   * to [[StreamExecIntervalJoin]].
   */
 class StreamExecIntervalJoinRule
-  extends ConverterRule(
-    classOf[FlinkLogicalJoin],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecIntervalJoinRule") {
+  extends StreamExecJoinRuleBase("StreamExecIntervalJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
@@ -53,13 +43,7 @@ class StreamExecIntervalJoinRule
       return false
     }
 
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
-    val (windowBounds, _) = IntervalJoinUtil.extractWindowBoundsFromPredicate(
-      join.getCondition,
-      join.getLeft.getRowType.getFieldCount,
-      joinRowType,
-      join.getCluster.getRexBuilder,
-      tableConfig)
+    val (windowBounds, _) = extractWindowBounds(join)
 
     if (windowBounds.isDefined) {
       if (windowBounds.get.isEventTime) {
@@ -76,55 +60,22 @@ class StreamExecIntervalJoinRule
     }
   }
 
-  override def convert(rel: RelNode): RelNode = {
-    val join: FlinkLogicalJoin = rel.asInstanceOf[FlinkLogicalJoin]
-    val joinRowType = join.getRowType
-    val left = join.getLeft
-    val right = join.getRight
-
-    def toHashTraitByColumns(
-        columns: util.Collection[_ <: Number],
-        inputTraitSet: RelTraitSet): RelTraitSet = {
-      val distribution = if (columns.size() == 0) {
-        FlinkRelDistribution.SINGLETON
-      } else {
-        FlinkRelDistribution.hash(columns)
-      }
-      inputTraitSet
-        .replace(FlinkConventions.STREAM_PHYSICAL)
-        .replace(distribution)
-    }
-
-    val joinInfo = join.analyzeCondition
-    val (leftRequiredTrait, rightRequiredTrait) = (
-      toHashTraitByColumns(joinInfo.leftKeys, left.getTraitSet),
-      toHashTraitByColumns(joinInfo.rightKeys, right.getTraitSet))
-
-    val newLeft = RelOptRule.convert(left, leftRequiredTrait)
-    val newRight = RelOptRule.convert(right, rightRequiredTrait)
-    val providedTraitSet = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-
-    val tableConfig = rel
-      .getCluster
-      .getPlanner
-      .getContext
-      .unwrap(classOf[FlinkContext])
-      .getTableConfig
-    val (windowBounds, remainCondition) = IntervalJoinUtil.extractWindowBoundsFromPredicate(
-      join.getCondition,
-      left.getRowType.getFieldCount,
-      joinRowType,
-      join.getCluster.getRexBuilder,
-      tableConfig)
-
+  override protected def transform(
+      join: FlinkLogicalJoin,
+      leftInput: FlinkRelNode,
+      leftConversion: RelNode => RelNode,
+      rightInput: FlinkRelNode,
+      rightConversion: RelNode => RelNode,
+      providedTraitSet: RelTraitSet): FlinkRelNode = {
+    val (windowBounds, remainCondition) = extractWindowBounds(join)
     new StreamExecIntervalJoin(
-      rel.getCluster,
+      join.getCluster,
       providedTraitSet,
-      newLeft,
-      newRight,
+      leftConversion(leftInput),
+      rightConversion(rightInput),
       join.getCondition,
       join.getJoinType,
-      joinRowType,
+      join.getRowType,
       windowBounds.get.isEventTime,
       windowBounds.get.leftLowerBound,
       windowBounds.get.leftUpperBound,
