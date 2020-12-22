@@ -18,13 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.transformations.UnionTransformation
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecUnion
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecUnion
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelDistribution.Type.{ANY, BROADCAST_DISTRIBUTED, HASH_DISTRIBUTED, RANDOM_DISTRIBUTED, RANGE_DISTRIBUTED, ROUND_ROBIN_DISTRIBUTED, SINGLETON}
@@ -39,23 +36,21 @@ import scala.collection.JavaConversions._
 /**
   * Batch physical RelNode for [[Union]].
   */
-class BatchExecUnion(
+class BatchPhysicalUnion(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRels: util.List[RelNode],
     all: Boolean,
     outputRowType: RelDataType)
   extends Union(cluster, traitSet, inputRels, all)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData]
-  with CommonExecUnion {
+  with BatchPhysicalRel {
 
   require(all, "Only support union all now")
 
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode], all: Boolean): SetOp = {
-    new BatchExecUnion(cluster, traitSet, inputs, all, outputRowType)
+    new BatchPhysicalUnion(cluster, traitSet, inputs, all, outputRowType)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -98,16 +93,11 @@ class BatchExecUnion(
     Some(copy(providedTraitSet, newInputs))
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] =
-    inputRels.map(_ => ExecEdge.DEFAULT)
-
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val transformations = getInputNodes.map {
-      input => input.translateToPlan(planner).asInstanceOf[Transformation[RowData]]
-    }
-    new UnionTransformation(transformations)
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecUnion(
+      getInputs.map(_ => ExecEdge.DEFAULT),
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }
