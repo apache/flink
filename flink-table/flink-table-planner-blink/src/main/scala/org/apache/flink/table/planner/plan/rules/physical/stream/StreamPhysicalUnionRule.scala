@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalUnion
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecUnion
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalUnion
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -29,14 +29,14 @@ import org.apache.calcite.rel.convert.ConverterRule
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that converts [[FlinkLogicalUnion]] to [[StreamExecUnion]].
+  * Rule that converts [[FlinkLogicalUnion]] to [[StreamPhysicalUnion]].
   */
-class StreamExecUnionRule
+class StreamPhysicalUnionRule
   extends ConverterRule(
     classOf[FlinkLogicalUnion],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecUnionRule") {
+    "StreamPhysicalUnionRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     call.rel(0).asInstanceOf[FlinkLogicalUnion].all
@@ -47,7 +47,7 @@ class StreamExecUnionRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInputs = union.getInputs.map(RelOptRule.convert(_, FlinkConventions.STREAM_PHYSICAL))
 
-    new StreamExecUnion(
+    new StreamPhysicalUnion(
       rel.getCluster,
       traitSet,
       newInputs,
@@ -56,6 +56,6 @@ class StreamExecUnionRule
   }
 }
 
-object StreamExecUnionRule {
-  val INSTANCE: RelOptRule = new StreamExecUnionRule
+object StreamPhysicalUnionRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalUnionRule
 }
