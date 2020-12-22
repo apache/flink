@@ -26,7 +26,7 @@ import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.delegation.StreamPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
@@ -35,8 +35,6 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import java.util.Collections;
-
 import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM;
 
 /**
@@ -44,18 +42,18 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOW
  *
  * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
  */
-public class StreamExecExchange extends StreamExecNode<RowData> implements CommonExecExchange {
+public class StreamExecExchange extends CommonExecExchange implements StreamExecNode<RowData> {
 
 	public StreamExecExchange(
 			ExecEdge inputEdge,
 			RowType outputType,
 			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
+		super(inputEdge, outputType, description);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected Transformation<RowData> translateToPlanInternal(StreamPlanner planner) {
+	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
 		final Transformation<RowData> inputTransform =
 				(Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
 

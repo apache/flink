@@ -20,14 +20,15 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.delegation.StreamPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 
 import java.util.List;
 
 /**
- * Stream exec node for multiple input which contains a sub-graph of {@link ExecNode}s.
+ * Stream {@link ExecNode} for multiple input which contains a sub-graph of {@link ExecNode}s.
  * The root node of the sub-graph is {@link #rootNode}, and the leaf nodes of the sub-graph are
  * the output nodes of the {@link #getInputNodes()}.
  *
@@ -53,7 +54,7 @@ import java.util.List;
  * `Agg1` and `Agg2` are the leaf nodes of the sub-graph,
  * `Exchange1` and `Exchange2` are the input nodes of the multiple input node.
  */
-public class StreamExecMultipleInput extends StreamExecNode<RowData> {
+public class StreamExecMultipleInput extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
 
 	private final ExecNode<?> rootNode;
 
@@ -66,7 +67,7 @@ public class StreamExecMultipleInput extends StreamExecNode<RowData> {
 	}
 
 	@Override
-	protected Transformation<RowData> translateToPlanInternal(StreamPlanner planner) {
+	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
 		throw new UnsupportedOperationException("This method is not implemented yet.");
 	}
 }

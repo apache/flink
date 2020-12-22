@@ -18,42 +18,25 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.delegation.StreamPlanner;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexProgram;
 
-import java.util.Collections;
-
 /**
- * Stream exec node for Calc.
+ * Stream {@link ExecNode} for Calc.
  */
-public class StreamExecCalc extends StreamExecNode<RowData> implements CommonExecCalc {
-	private final RexProgram calcProgram;
+public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<RowData> {
 
 	public StreamExecCalc(
 			RexProgram calcProgram,
 			ExecEdge inputEdge,
 			RowType outputType,
 			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-		this.calcProgram = calcProgram;
-	}
-
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(StreamPlanner planner) {
-		return translateToTransformation(
-				planner,
-				planner.getTableConfig(),
-				calcProgram,
-				AbstractProcessStreamOperator.class,
-				"StreamExecCalc",
-				true,
-				inputsContainSingleton());
+		super(calcProgram, AbstractProcessStreamOperator.class, true, inputEdge, outputType, description);
 	}
 }

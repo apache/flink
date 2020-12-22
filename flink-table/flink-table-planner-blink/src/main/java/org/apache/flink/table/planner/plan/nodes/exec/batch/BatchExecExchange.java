@@ -33,7 +33,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.HashCodeGenerator;
-import org.apache.flink.table.planner.delegation.BatchPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
@@ -44,7 +44,6 @@ import org.apache.flink.table.types.logical.RowType;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Optional;
 
 /**
@@ -52,14 +51,14 @@ import java.util.Optional;
  *
  * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
  */
-public class BatchExecExchange extends BatchExecNode<RowData> implements CommonExecExchange {
+public class BatchExecExchange extends CommonExecExchange implements BatchExecNode<RowData> {
 	// the required shuffle mode for reusable BatchExecExchange
 	// if it's None, use value from configuration
 	@Nullable
 	private ShuffleMode requiredShuffleMode;
 
 	public BatchExecExchange(ExecEdge inputEdge, RowType outputType, String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
+		super(inputEdge, outputType, description);
 	}
 
 	public void setRequiredShuffleMode(@Nullable ShuffleMode requiredShuffleMode) {
@@ -92,7 +91,7 @@ public class BatchExecExchange extends BatchExecNode<RowData> implements CommonE
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected Transformation<RowData> translateToPlanInternal(BatchPlanner planner) {
+	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
 		final ExecNode<?> inputNode = getInputNodes().get(0);
 		final Transformation<RowData> inputTransform = (Transformation<RowData>) inputNode.translateToPlan(planner);
 

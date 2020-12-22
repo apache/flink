@@ -28,19 +28,18 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator;
-import org.apache.flink.table.planner.delegation.StreamPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacyTableSourceScan;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator;
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
@@ -57,60 +56,35 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Stream exec node to read data from an external source defined by a {@link StreamTableSource}.
+ * Stream {@link ExecNode} to read data from an external source defined by a {@link StreamTableSource}.
  */
 public class StreamExecLegacyTableSourceScan
-		extends StreamExecNode<RowData>
-		implements CommonExecLegacyTableSourceScan {
-	private final TableSource<?> tableSource;
-	private final List<String> qualifiedName;
+		extends CommonExecLegacyTableSourceScan
+		implements StreamExecNode<RowData> {
 
 	public StreamExecLegacyTableSourceScan(
 			TableSource<?> tableSource,
 			List<String> qualifiedName,
 			RowType outputType,
 			String description) {
-		super(Collections.emptyList(), outputType, description);
-		this.tableSource = tableSource;
-		this.qualifiedName = qualifiedName;
+		super(tableSource, qualifiedName, outputType, description);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected Transformation<RowData> translateToPlanInternal(StreamPlanner planner) {
-		final Transformation<?> sourceTransform = getSourceTransformation(planner.getExecEnv(), tableSource);
-
-		final TypeInformation<?> inputType = sourceTransform.getOutputType();
-		final DataType producedDataType = tableSource.getProducedDataType();
-		// check that declared and actual type of table source DataStream are identical
-		if (!inputType.equals(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType))) {
-			throw new TableException(String.format("TableSource of type %s " +
-							"returned a DataStream of data type %s that does not match with the " +
-							"data type %s declared by the TableSource.getProducedDataType() method. " +
-							"Please validate the implementation of the TableSource.",
-					tableSource.getClass().getCanonicalName(), inputType, producedDataType));
-		}
+	protected Transformation<RowData> createConversionTransformationIfNeeded(
+			PlannerBase planner,
+			Transformation<?> sourceTransform,
+			@Nullable RexNode rowtimeExpression) {
 
 		final RowType outputType = (RowType) getOutputType();
-		final RelDataType relDataType = FlinkTypeFactory.INSTANCE().buildRelNodeRowType(outputType);
-		// get expression to extract rowtime attribute
-		final Optional<RexNode> rowtimeExpression = JavaScalaConversionUtil.toJava(
-				TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, relDataType))
-				.map(desc -> TableSourceUtil.getRowtimeExtractionExpression(
-						desc.getTimestampExtractor(),
-						producedDataType,
-						planner.getRelBuilder(),
-						getNameRemapping(tableSource)
-				));
-
 		final Transformation<RowData> transformation;
-		final int[] fieldIndexes = computeIndexMapping(tableSource, outputType, true);
-		if (needInternalConversion(tableSource, fieldIndexes)) {
+		final int[] fieldIndexes = computeIndexMapping(true);
+		if (needInternalConversion(fieldIndexes)) {
 			final String extractElement, resetElement;
 			if (ScanUtil.hasTimeAttributeField(fieldIndexes)) {
 				String elementTerm = OperatorCodeGenerator.ELEMENT();
@@ -135,13 +109,14 @@ public class StreamExecLegacyTableSourceScan
 					fixedProducedDataType,
 					outputType,
 					qualifiedName,
-					JavaScalaConversionUtil.toScala(rowtimeExpression),
+					JavaScalaConversionUtil.toScala(Optional.ofNullable(rowtimeExpression)),
 					extractElement,
 					resetElement);
 		} else {
 			transformation = (Transformation<RowData>) sourceTransform;
 		}
 
+		final RelDataType relDataType = FlinkTypeFactory.INSTANCE().buildRelNodeRowType(outputType);
 		final DataStream<RowData> ingestedTable = new DataStream<>(planner.getExecEnv(), transformation);
 		final Optional<RowtimeAttributeDescriptor> rowtimeDesc = JavaScalaConversionUtil.toJava(
 				TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, relDataType));
@@ -156,7 +131,7 @@ public class StreamExecLegacyTableSourceScan
 			} else if (strategy instanceof PunctuatedWatermarkAssigner) {
 				PunctuatedWatermarkAssignerWrapper watermarkGenerator =
 						new PunctuatedWatermarkAssignerWrapper(
-								(PunctuatedWatermarkAssigner) strategy, rowtimeFieldIdx, producedDataType);
+								(PunctuatedWatermarkAssigner) strategy, rowtimeFieldIdx, tableSource.getProducedDataType());
 				return ingestedTable.assignTimestampsAndWatermarks(watermarkGenerator);
 			} else {
 				// The watermarks have already been provided by the underlying DataStream.
@@ -167,7 +142,7 @@ public class StreamExecLegacyTableSourceScan
 	}
 
 	@Override
-	public <IN> Transformation<IN> createInput(
+	protected  <IN> Transformation<IN> createInput(
 			StreamExecutionEnvironment env,
 			InputFormat<IN, ? extends InputSplit> format,
 			TypeInformation<IN> typeInfo) {
