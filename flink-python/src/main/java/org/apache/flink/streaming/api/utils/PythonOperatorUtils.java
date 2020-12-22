@@ -119,7 +119,7 @@ public enum PythonOperatorUtils {
 			}
 			builder.addInputs(inputProto);
 		}
-		builder.setUsedInRowBasedOperation(pythonFunctionInfo.getPythonFunction().isUsedInRowBasedOperation());
+		builder.setTakesRowAsInput(pythonFunctionInfo.getPythonFunction().isUsedInRowBasedOperation());
 		return builder.build();
 	}
 
@@ -130,6 +130,7 @@ public enum PythonOperatorUtils {
 		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
 		builder.setDistinct(pythonFunctionInfo.isDistinct());
 		builder.setFilterArg(pythonFunctionInfo.getFilterArg());
+		builder.setTakesRowAsInput(pythonFunctionInfo.getPythonFunction().isUsedInRowBasedOperation());
 		for (Object input : pythonFunctionInfo.getInputs()) {
 			FlinkFnApi.Input.Builder inputProto =
 				FlinkFnApi.Input.newBuilder();

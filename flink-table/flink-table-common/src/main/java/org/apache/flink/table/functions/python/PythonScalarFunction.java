@@ -55,8 +55,8 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 		TypeInformation resultType,
 		PythonFunctionKind pythonFunctionKind,
 		boolean deterministic,
-		PythonEnv pythonEnv,
-		boolean usedInRowBasedOperation) {
+		boolean usedInRowBasedOperation,
+		PythonEnv pythonEnv) {
 		this.name = name;
 		this.serializedScalarFunction = serializedScalarFunction;
 		this.inputTypes = inputTypes;

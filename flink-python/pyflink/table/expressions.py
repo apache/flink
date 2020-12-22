@@ -553,9 +553,9 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
             j_result_type = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
                 j_result_types)
             return gateway.jvm.org.apache.flink.table.functions.TableFunctionDefinition(
-                'f', f.java_user_defined_function(), j_result_type)
+                'f', f._java_user_defined_function(), j_result_type)
         else:
-            return f.java_user_defined_function()
+            return f._java_user_defined_function()
 
     expressions_clz = load_java_class("org.apache.flink.table.api.Expressions")
     function_definition_clz = load_java_class('org.apache.flink.table.functions.FunctionDefinition')

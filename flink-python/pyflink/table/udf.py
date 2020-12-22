@@ -358,11 +358,11 @@ class UserDefinedFunctionWrapper(object):
         self._alias_names = alias_names
         return self
 
-    def set_used_in_row_based_operation(self):
+    def _set_takes_row_as_input(self):
         self._used_in_row_based_operation = True
         return self
 
-    def java_user_defined_function(self):
+    def _java_user_defined_function(self):
         if self._judf_placeholder is None:
             gateway = get_gateway()
 
@@ -426,8 +426,8 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
             j_result_type,
             j_function_kind,
             self._deterministic,
-            _get_python_env(),
-            self._used_in_row_based_operation)
+            self._used_in_row_based_operation,
+            _get_python_env())
         return j_scalar_function
 
     def _create_delegate_function(self) -> UserDefinedFunction:
@@ -470,8 +470,8 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
             j_result_type,
             j_function_kind,
             self._deterministic,
-            _get_python_env(),
-            self._used_in_row_based_operation)
+            self._used_in_row_based_operation,
+            _get_python_env())
         return j_table_function
 
     def _create_delegate_function(self) -> UserDefinedFunction:
@@ -534,8 +534,8 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
             j_accumulator_type,
             j_function_kind,
             self._deterministic,
-            _get_python_env(),
-            self._used_in_row_based_operation)
+            self._used_in_row_based_operation,
+            _get_python_env())
         return j_aggregate_function
 
     def _create_delegate_function(self) -> UserDefinedFunction:

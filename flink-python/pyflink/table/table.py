@@ -772,7 +772,9 @@ class Table(object):
             ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
             >>> tab.map(add(tab.a)).alias("a, b")
             >>> # take all the columns as inputs
-            >>> tab.map(add)
+            >>> identity = udf(lambda row: row, result_type=DataTypes.Row(
+            ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
+            >>> tab.map(identity)
 
         :param func: user-defined scalar function.
         :return: The result table.
@@ -784,7 +786,7 @@ class Table(object):
         elif isinstance(func, Expression):
             return Table(self._j_table.map(func._j_expr), self._t_env)
         else:
-            func.set_used_in_row_based_operation()
+            func._set_takes_row_as_input()
             return Table(self._j_table.map(func(with_columns(col("*")))._j_expr), self._t_env)
 
     def flat_map(self, func: Union[str, Expression, UserDefinedTableFunctionWrapper]) -> 'Table':
@@ -800,7 +802,11 @@ class Table(object):
             ...         yield x, s
             >>> tab.flat_map(split(tab.a, table.b))
             >>> # take all the columns as inputs
-            >>> tab.flat_map(split)
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split_row(row: Row):
+            ...     for s in row[1].split(","):
+            ...         yield row[0], s
+            >>> tab.flat_map(split_row)
 
         :param func: user-defined table function.
         :return: The result table.
@@ -812,7 +818,7 @@ class Table(object):
         elif isinstance(func, Expression):
             return Table(self._j_table.flatMap(func._j_expr), self._t_env)
         else:
-            func.set_used_in_row_based_operation()
+            func._set_takes_row_as_input()
             return Table(self._j_table.flatMap(func(with_columns(col("*")))._j_expr), self._t_env)
 
     def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
@@ -831,6 +837,12 @@ class Table(object):
             ...               func_type="pandas")
             >>> tab.aggregate(agg(tab.a).alias("a", "b")).select("a, b")
             >>> # take all the columns as inputs
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
             >>> tab.aggregate(agg.alias("a, b")).select("a, b")
 
         :param func: user-defined aggregate function.
@@ -843,7 +855,7 @@ class Table(object):
         elif isinstance(func, Expression):
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
         else:
-            func.set_used_in_row_based_operation()
+            func._set_takes_row_as_input()
             if hasattr(func, "_alias_names"):
                 alias_names = getattr(func, "_alias_names")
                 func = func(with_columns(col("*"))).alias(*alias_names)
@@ -864,7 +876,31 @@ class Table(object):
             >>> table_agg = udtaf(MyTableAggregateFunction())
             >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select("a, b")
             >>> # take all the columns as inputs
-            >>> tab.flat_aggregate(table_agg.alias("a", "b")).select("a, b")
+            >>> class Top2(TableAggregateFunction):
+            ...     def emit_value(self, accumulator):
+            ...         yield Row(accumulator[0])
+            ...         yield Row(accumulator[1])
+            ...
+            ...     def create_accumulator(self):
+            ...         return [None, None]
+            ...
+            ...     def accumulate(self, accumulator, *args):
+            ...         args[0] # type: Row
+            ...         if args[0][0] is not None:
+            ...             if accumulator[0] is None or args[0][0] > accumulator[0]:
+            ...                 accumulator[1] = accumulator[0]
+            ...                 accumulator[0] = args[0][0]
+            ...             elif accumulator[1] is None or args[0][0] > accumulator[1]:
+            ...                 accumulator[1] = args[0][0]
+            ...
+            ...     def get_accumulator_type(self):
+            ...         return DataTypes.ARRAY(DataTypes.BIGINT())
+            ...
+            ...     def get_result_type(self):
+            ...         return DataTypes.ROW(
+            ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
+            >>> top2 = udtaf(Top2())
+            >>> tab.flat_aggregate(top2.alias("a", "b")).select("a, b")
 
         :param func: user-defined table aggregate function.
         :return: The result table.
@@ -876,7 +912,7 @@ class Table(object):
         elif isinstance(func, Expression):
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
         else:
-            func.set_used_in_row_based_operation()
+            func._set_takes_row_as_input()
             if hasattr(func, "_alias_names"):
                 alias_names = getattr(func, "_alias_names")
                 func = func(with_columns(col("*"))).alias(*alias_names)
@@ -1065,7 +1101,13 @@ class GroupedTable(object):
             ...               func_type="pandas")
             >>> tab.group_by(tab.a).aggregate(agg(tab.b).alias("c", "d")).select("a, c, d")
             >>> # take all the columns as inputs
-            >>> tab.group_by(tab.a).aggregate(agg.alias("c, d")).select("a, c, d")
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.b.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.group_by(tab.a).aggregate(agg.alias("a, b")).select("a, b")
 
         :param func: user-defined aggregate function.
         :return: The result table.
@@ -1077,7 +1119,7 @@ class GroupedTable(object):
         elif isinstance(func, Expression):
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
         else:
-            func.set_used_in_row_based_operation()
+            func._set_takes_row_as_input()
             if hasattr(func, "_alias_names"):
                 alias_names = getattr(func, "_alias_names")
                 func = func(with_columns(col("*"))).alias(*alias_names)
@@ -1098,7 +1140,31 @@ class GroupedTable(object):
             >>> table_agg = udtaf(MyTableAggregateFunction())
             >>> tab.group_by(tab.c).flat_aggregate(table_agg(tab.a).alias("a")).select("c, a")
             >>> # take all the columns as inputs
-            >>> tab.group_by(tab.a).flat_aggregate(table_agg.alias("b, c")).select("a, b, c")
+            >>> class Top2(TableAggregateFunction):
+            ...     def emit_value(self, accumulator):
+            ...         yield Row(accumulator[0])
+            ...         yield Row(accumulator[1])
+            ...
+            ...     def create_accumulator(self):
+            ...         return [None, None]
+            ...
+            ...     def accumulate(self, accumulator, *args):
+            ...         args[0] # type: Row
+            ...         if args[0][0] is not None:
+            ...             if accumulator[0] is None or args[0][0] > accumulator[0]:
+            ...                 accumulator[1] = accumulator[0]
+            ...                 accumulator[0] = args[0][0]
+            ...             elif accumulator[1] is None or args[0][0] > accumulator[1]:
+            ...                 accumulator[1] = args[0][0]
+            ...
+            ...     def get_accumulator_type(self):
+            ...         return DataTypes.ARRAY(DataTypes.BIGINT())
+            ...
+            ...     def get_result_type(self):
+            ...         return DataTypes.ROW(
+            ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
+            >>> top2 = udtaf(Top2())
+            >>> tab.group_by(tab.c).flat_aggregate(top2.alias("a", "b")).select("a, b")
 
         :param func: user-defined table aggregate function.
         :return: The result table.
@@ -1110,7 +1176,7 @@ class GroupedTable(object):
         elif isinstance(func, Expression):
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
         else:
-            func.set_used_in_row_based_operation()
+            func._set_takes_row_as_input()
             if hasattr(func, "_alias_names"):
                 alias_names = getattr(func, "_alias_names")
                 func = func(with_columns(col("*"))).alias(*alias_names)
@@ -1215,7 +1281,13 @@ class WindowGroupedTable(object):
             ...     .alias("c", "d")) \
             ...     .select("c, d")
             >>> # take all the columns as inputs
-            >>> window_grouped_table.group_by("w, a").aggregate(agg)
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.b.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> window_grouped_table.group_by("w, a").aggregate(agg_row)
 
         :param func: user-defined aggregate function.
         :return: The result table.
@@ -1227,7 +1299,7 @@ class WindowGroupedTable(object):
         elif isinstance(func, Expression):
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
         else:
-            func.set_used_in_row_based_operation()
+            func._set_takes_row_as_input()
             func = self._to_expr(func)
             return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
 
@@ -1306,6 +1378,14 @@ class AggregatedTable(object):
             ...                    DataTypes.FIELD("b", DataTypes.INT())]),
             ...               func_type="pandas")
             >>> tab.aggregate(agg(tab.a).alias("a", "b")).select("a, b")
+            >>> # take all the columns as inputs
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.b.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.group_by(tab.a).aggregate(agg.alias("a, b")).select("a, b")
 
         :param fields: Expression string.
         :return: The result table.
@@ -1338,6 +1418,32 @@ class FlatAggregateTable(object):
 
             >>> table_agg = udtaf(MyTableAggregateFunction())
             >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select("a, b")
+            >>> # take all the columns as inputs
+            >>> class Top2(TableAggregateFunction):
+            ...     def emit_value(self, accumulator):
+            ...         yield Row(accumulator[0])
+            ...         yield Row(accumulator[1])
+            ...
+            ...     def create_accumulator(self):
+            ...         return [None, None]
+            ...
+            ...     def accumulate(self, accumulator, *args):
+            ...         args[0] # type: Row
+            ...         if args[0][0] is not None:
+            ...             if accumulator[0] is None or args[0][0] > accumulator[0]:
+            ...                 accumulator[1] = accumulator[0]
+            ...                 accumulator[0] = args[0][0]
+            ...             elif accumulator[1] is None or args[0][0] > accumulator[1]:
+            ...                 accumulator[1] = args[0][0]
+            ...
+            ...     def get_accumulator_type(self):
+            ...         return DataTypes.ARRAY(DataTypes.BIGINT())
+            ...
+            ...     def get_result_type(self):
+            ...         return DataTypes.ROW(
+            ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
+            >>> top2 = udtaf(Top2())
+            >>> tab.group_by(tab.c).flat_aggregate(top2.alias("a", "b")).select("a, b")
 
         :param fields: Expression string.
         :return: The result table.

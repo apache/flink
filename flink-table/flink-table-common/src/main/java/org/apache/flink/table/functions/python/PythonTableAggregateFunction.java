@@ -53,8 +53,8 @@ public class PythonTableAggregateFunction extends TableAggregateFunction impleme
 		DataType accumulatorType,
 		PythonFunctionKind pythonFunctionKind,
 		boolean deterministic,
-		PythonEnv pythonEnv,
-		boolean usedInRowBasedOperation) {
+		boolean usedInRowBasedOperation,
+		PythonEnv pythonEnv) {
 		this.name = name;
 		this.serializedTableAggregateFunction = serializedTableAggregateFunction;
 		this.inputTypes = inputTypes;

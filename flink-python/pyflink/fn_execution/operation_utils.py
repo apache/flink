@@ -43,7 +43,7 @@ def wrap_pandas_result(it):
     return arrays
 
 
-def wrap_inputs_to_row(*args):
+def wrap_inputs_as_row(*args):
     from pyflink.common.types import Row
     import pandas as pd
     if type(args[0]) == pd.Series:
@@ -112,9 +112,9 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
     func_args, input_variable_dict, input_funcs = _extract_input(user_defined_function_proto.inputs)
     variable_dict.update(input_variable_dict)
     user_defined_funcs.extend(input_funcs)
-    if user_defined_function_proto.used_in_row_based_operation:
-        variable_dict['wrap_inputs_to_row'] = wrap_inputs_to_row
-        func_str = "%s(wrap_inputs_to_row(%s))" % (func_name, func_args)
+    if user_defined_function_proto.takes_row_as_input:
+        variable_dict['wrap_inputs_as_row'] = wrap_inputs_as_row
+        func_str = "%s(wrap_inputs_as_row(%s))" % (func_name, func_args)
     else:
         func_str = "%s(%s)" % (func_name, func_args)
     return func_str, variable_dict, user_defined_funcs
@@ -191,8 +191,13 @@ def extract_user_defined_aggregate_function(
             distinct_index = current_index
     else:
         distinct_index = -1
+    if user_defined_function_proto.takes_row_as_input:
+        local_variable_dict['wrap_inputs_as_row'] = wrap_inputs_as_row
+        func_str = "lambda value : [wrap_inputs_as_row(%s)]" % ",".join(args_str)
+    else:
+        func_str = "lambda value : (%s,)" % ",".join(args_str)
     return user_defined_agg, \
-        eval("lambda value : (%s,)" % ",".join(args_str), local_variable_dict) \
+        eval(func_str, local_variable_dict) \
         if args_str else lambda v: tuple(), \
         user_defined_function_proto.filter_arg, \
         distinct_index

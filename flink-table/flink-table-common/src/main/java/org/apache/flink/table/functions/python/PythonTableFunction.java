@@ -57,8 +57,8 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 		RowTypeInfo resultType,
 		PythonFunctionKind pythonFunctionKind,
 		boolean deterministic,
-		PythonEnv pythonEnv,
-		boolean usedInRowBasedOperation) {
+		boolean usedInRowBasedOperation,
+		PythonEnv pythonEnv) {
 		this.name = name;
 		this.serializedScalarFunction = serializedScalarFunction;
 		this.inputTypes = inputTypes;

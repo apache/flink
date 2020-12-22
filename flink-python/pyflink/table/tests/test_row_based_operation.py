@@ -117,7 +117,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
             ['a', 'b', 'c'],
             [DataTypes.TINYINT(), DataTypes.FLOAT(), DataTypes.INT()])
         self.t_env.register_table_sink("Results", table_sink)
-        pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
+        pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.a.max()),
                            result_type=DataTypes.ROW(
                                [DataTypes.FIELD("a", DataTypes.FLOAT()),
                                 DataTypes.FIELD("b", DataTypes.INT())]),
@@ -129,7 +129,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,5.0,8", "2,2.0,3"])
+        self.assert_equals(actual, ["1,5.0,1", "2,2.0,2"])
 
     def test_aggregate_with_pandas_udaf_without_keys(self):
         t = self.t_env.from_elements(
@@ -220,7 +220,7 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamT
                    accumulator_type=function.get_accumulator_type(),
                    name=str(function.__class__.__name__))
         result = t.group_by(t.a) \
-            .aggregate(agg(t.b).alias("c", "d")) \
+            .aggregate(agg.alias("c", "d")) \
             .select("a, c, d") \
             .to_pandas()
         assert_frame_equal(result, pd.DataFrame([[1, 3, 15], [2, 2, 4]], columns=['a', 'c', 'd']))
@@ -285,11 +285,11 @@ class CountAndSumAggregateFunction(AggregateFunction):
 
     def accumulate(self, accumulator, *args):
         accumulator[0] += 1
-        accumulator[1] += args[0]
+        accumulator[1] += args[0][1]
 
     def retract(self, accumulator, *args):
         accumulator[0] -= 1
-        accumulator[1] -= args[0]
+        accumulator[1] -= args[0][1]
 
     def merge(self, accumulator, accumulators):
         for other_acc in accumulators:
@@ -317,12 +317,12 @@ class Top2(TableAggregateFunction):
         return [None, None]
 
     def accumulate(self, accumulator, *args):
-        if args[0] is not None:
-            if accumulator[0] is None or args[0] > accumulator[0]:
+        if args[0][0] is not None:
+            if accumulator[0] is None or args[0][0] > accumulator[0]:
                 accumulator[1] = accumulator[0]
-                accumulator[0] = args[0]
-            elif accumulator[1] is None or args[0] > accumulator[1]:
-                accumulator[1] = args[0]
+                accumulator[0] = args[0][0]
+            elif accumulator[1] is None or args[0][0] > accumulator[1]:
+                accumulator[1] = args[0][0]
 
     def retract(self, accumulator, *args):
         accumulator[0] = accumulator[0] - 1
