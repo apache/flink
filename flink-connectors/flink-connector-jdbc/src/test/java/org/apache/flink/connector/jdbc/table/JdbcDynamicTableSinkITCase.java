@@ -19,17 +19,32 @@
 package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.JdbcTestFixture;
+import org.apache.flink.connector.jdbc.internal.GenericJdbcSinkFunction;
+import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
+import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
@@ -45,7 +60,9 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB;
 import static org.apache.flink.connector.jdbc.internal.JdbcTableOutputFormatTest.check;
@@ -61,6 +78,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 	public static final String OUTPUT_TABLE2 = "dynamicSinkForAppend";
 	public static final String OUTPUT_TABLE3 = "dynamicSinkForBatch";
 	public static final String OUTPUT_TABLE4 = "REAL_TABLE";
+	public static final String OUTPUT_TABLE5 = "checkpointTable";
 	public static final String USER_TABLE = "USER_TABLE";
 
 	@Before
@@ -89,6 +107,9 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 
 			stat.executeUpdate("CREATE TABLE " + OUTPUT_TABLE4 + " (real_data REAL)");
 
+			stat.executeUpdate("CREATE TABLE " + OUTPUT_TABLE5 + " (" +
+				"id BIGINT NOT NULL DEFAULT 0)");
+
 			stat.executeUpdate("CREATE TABLE " + USER_TABLE + " (" +
 				"user_id VARCHAR(20) NOT NULL," +
 				"user_name VARCHAR(20) NOT NULL," +
@@ -110,6 +131,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 			stat.execute("DROP TABLE " + OUTPUT_TABLE2);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE3);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE4);
+			stat.execute("DROP TABLE " + OUTPUT_TABLE5);
 			stat.execute("DROP TABLE " + USER_TABLE);
 		}
 	}
@@ -315,5 +337,40 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 			Row.of("user3", "Bailey", "bailey@qq.com", new BigDecimal("9.99"), new BigDecimal("19.98")),
 			Row.of("user4", "Tina", "tina@gmail.com", new BigDecimal("11.30"), new BigDecimal("22.60"))
 		}, DB_URL, USER_TABLE, new String[]{"user_id", "user_name", "email", "balance", "balance2"});
+	}
+
+	@Test
+	public void testFlushBufferWhenCheckpoint() throws Exception {
+		Map<String, String> options = new HashMap<>();
+		options.put("connector", "jdbc");
+		options.put("url", DB_URL);
+		options.put("table-name", OUTPUT_TABLE5);
+		options.put("sink.buffer-flush.interval", "0");
+
+		TableSchema sinkTableSchema = TableSchema.builder()
+			.field("id", DataTypes.BIGINT().notNull())
+			.build();
+
+		DynamicTableSink tableSink = FactoryUtil.createTableSink(
+			null,
+			ObjectIdentifier.of("default", "default", "checkpoint_sink"),
+			new CatalogTableImpl(sinkTableSchema, options, "mock sink"),
+			new Configuration(),
+			this.getClass().getClassLoader(),
+			false
+		);
+
+		SinkRuntimeProviderContext context = new SinkRuntimeProviderContext(false);
+		SinkFunctionProvider sinkProvider = (SinkFunctionProvider) tableSink.getSinkRuntimeProvider(context);
+		GenericJdbcSinkFunction<RowData> sinkFunction = (GenericJdbcSinkFunction<RowData>) sinkProvider.createSinkFunction();
+		sinkFunction.setRuntimeContext(new MockStreamingRuntimeContext(true, 1, 0));
+		sinkFunction.open(new Configuration());
+		sinkFunction.invoke(GenericRowData.of(1L), SinkContextUtil.forTimestamp(1));
+		sinkFunction.invoke(GenericRowData.of(2L), SinkContextUtil.forTimestamp(1));
+
+		check(new Row[]{}, DB_URL, OUTPUT_TABLE5, new String[]{"id"});
+		sinkFunction.snapshotState(new StateSnapshotContextSynchronousImpl(1, 1));
+		check(new Row[]{Row.of(1L), Row.of(2L)}, DB_URL, OUTPUT_TABLE5, new String[]{"id"});
+		sinkFunction.close();
 	}
 }
