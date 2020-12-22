@@ -410,7 +410,7 @@ object FlinkBatchRuleSets {
     BatchExecRankRule.INSTANCE,
     RemoveRedundantLocalRankRule.INSTANCE,
     // expand
-    BatchExecExpandRule.INSTANCE,
+    BatchPhysicalExpandRule.INSTANCE,
     // group agg
     BatchExecHashAggRule.INSTANCE,
     BatchExecSortAggRule.INSTANCE,

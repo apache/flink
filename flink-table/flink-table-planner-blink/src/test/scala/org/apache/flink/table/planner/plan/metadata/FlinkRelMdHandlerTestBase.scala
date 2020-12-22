@@ -283,7 +283,7 @@ class FlinkRelMdHandlerTestBase {
     val flinkLogicalExpand = new FlinkLogicalExpand(cluster, flinkLogicalTraits,
       studentFlinkLogicalScan, expandOutputType, expandProjects, 7)
 
-    val batchExpand = new BatchExecExpand(cluster, batchPhysicalTraits,
+    val batchExpand = new BatchPhysicalExpand(cluster, batchPhysicalTraits,
       studentBatchScan, expandOutputType, expandProjects, 7)
 
     val streamExecExpand = new StreamPhysicalExpand(cluster, streamPhysicalTraits,
