@@ -246,7 +246,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
         .. versionadded:: 1.12.0
         """
         function = self._wrap_aggregate_function_if_needed(function)
-        java_function = function.java_user_defined_function()
+        java_function = function._java_user_defined_function()
         self._j_tenv.createTemporarySystemFunction(name, java_function)
 
     def drop_temporary_system_function(self, name: str) -> bool:
@@ -384,7 +384,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
         .. versionadded:: 1.12.0
         """
         function = self._wrap_aggregate_function_if_needed(function)
-        java_function = function.java_user_defined_function()
+        java_function = function._java_user_defined_function()
         self._j_tenv.createTemporaryFunction(path, java_function)
 
     def drop_temporary_function(self, path: str) -> bool:
@@ -1087,7 +1087,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
         warnings.warn("Deprecated in 1.12. Use :func:`create_temporary_system_function` "
                       "instead.", DeprecationWarning)
         function = self._wrap_aggregate_function_if_needed(function)
-        java_function = function.java_user_defined_function()
+        java_function = function._java_user_defined_function()
         # this is a temporary solution and will be unified later when we use the new type
         # system(DataType) to replace the old type system(TypeInformation).
         if self._is_blink_planner and isinstance(self, BatchTableEnvironment):
