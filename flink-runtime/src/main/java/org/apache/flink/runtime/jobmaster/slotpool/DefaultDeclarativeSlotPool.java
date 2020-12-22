@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -78,6 +79,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 	private final Time idleSlotTimeout;
 	private final Time rpcTimeout;
 
+	private final JobID jobId;
 	private final AllocatedSlotPool slotPool;
 
 	private final Map<AllocationID, ResourceProfile> slotToRequirementProfileMappings;
@@ -89,12 +91,14 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 	private final RequirementMatcher requirementMatcher = new DefaultRequirementMatcher();
 
 	public DefaultDeclarativeSlotPool(
+		JobID jobId,
 		AllocatedSlotPool slotPool,
 		Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
 		Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots,
 		Time idleSlotTimeout,
 		Time rpcTimeout) {
 
+		this.jobId = jobId;
 		this.slotPool = slotPool;
 		this.notifyNewResourceRequirements = notifyNewResourceRequirements;
 		this.notifyNewSlots = notifyNewSlots;
@@ -120,7 +124,10 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 	}
 
 	private void declareResourceRequirements() {
-		notifyNewResourceRequirements.accept(getResourceRequirements());
+		final Collection<ResourceRequirement> resourceRequirements = getResourceRequirements();
+
+		LOG.debug("Declare new resource requirements for job {}: {}.", jobId, resourceRequirements);
+		notifyNewResourceRequirements.accept(resourceRequirements);
 	}
 
 	@Override
