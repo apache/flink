@@ -60,6 +60,9 @@ public class MetricNames {
     public static final String IS_BACK_PRESSURED = "isBackPressured";
     public static final String IS_BACK_PRESSURED_RATIO = "isBackPressuredRatio";
 
+    public static final String IS_CAUSING_BACK_PRESSURE = "isCausingBackPressure";
+    public static final String IS_CAUSING_BACK_PRESSURE_RATIO = "isCausingBackPressureRatio";
+
     public static final String CHECKPOINT_ALIGNMENT_TIME = "checkpointAlignmentTime";
     public static final String CHECKPOINT_START_DELAY_TIME = "checkpointStartDelayNanos";
 

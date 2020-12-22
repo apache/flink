@@ -1254,6 +1254,16 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>isCausingBackPressure</td>
+      <td>Whether the task is currently causing back-pressure.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>isCausingBackPressureRatio</td>
+      <td>Ratio how often this task is causing back-pressure. Can have values between 0.0 and 1.0, where value 1.0 means the task is constantly causing back-pressure. It is created by sampling isCausingBackPressure and averaging the sampled value using the exponential moving average algorithm.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>idleTimeMsPerSecond</td>
       <td>The time (in milliseconds) this task is idle (either has no data to process or it is back pressured) per second.</td>
       <td>Meter</td>

@@ -519,6 +519,11 @@ public class Task
         return !CompletableFuture.allOf(outputFutures).isDone();
     }
 
+    public boolean isCausingBackPressure() {
+        return !isBackPressured()
+                && metrics.getIOMetricGroup().getIdleTimeMsPerSecond().getRate() < 1.0;
+    }
+
     // ------------------------------------------------------------------------
     //  Task Execution
     // ------------------------------------------------------------------------

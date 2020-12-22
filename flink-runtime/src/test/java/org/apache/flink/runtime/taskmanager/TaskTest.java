@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.MeterView;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -989,6 +990,62 @@ public class TaskTest extends TestLogger {
         assertFalse(task.isBackPressured());
     }
 
+    @Test
+    public void testIsCausingBackPressure() throws Exception {
+        final Task task =
+                createTaskBuilder().setInvokable(InvokableBlockingWithTrigger.class).build();
+
+        task.startTaskThread();
+        awaitLatch.await();
+
+        assertTrue(task.isCausingBackPressure());
+        assertFalse(task.isBackPressured());
+
+        triggerLatch.trigger();
+        task.getExecutingThread().join();
+    }
+
+    @Test
+    public void testNotCausingBackPressure() throws Exception {
+        final Task task = createTaskBuilder().setInvokable(IdlingTask.class).build();
+
+        task.startTaskThread();
+        awaitLatch.await();
+
+        assertFalse(task.isCausingBackPressure());
+        assertFalse(task.isBackPressured());
+
+        triggerLatch.trigger();
+        task.getExecutingThread().join();
+    }
+
+    /** Task that is not doing anything and marking this a the idle time. */
+    private static class IdlingTask extends AbstractInvokable {
+        public IdlingTask(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            MeterView idleTimeMeter =
+                    (MeterView)
+                            getEnvironment()
+                                    .getMetricGroup()
+                                    .getIOMetricGroup()
+                                    .getIdleTimeMsPerSecond();
+
+            idleTimeMeter.markEvent(1000);
+            idleTimeMeter.update();
+            awaitLatch.trigger();
+            while (!triggerLatch.isTriggered()) {
+                idleTimeMeter.markEvent(1000);
+                idleTimeMeter.update();
+
+                Thread.sleep(1);
+            }
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  customized TaskManagerActions
     // ------------------------------------------------------------------------
@@ -1090,7 +1147,7 @@ public class TaskTest extends TestLogger {
         public void cancel() {}
     }
 
-    private static final class InvokableBlockingWithTrigger extends AbstractInvokable {
+    private static class InvokableBlockingWithTrigger extends AbstractInvokable {
         public InvokableBlockingWithTrigger(Environment environment) {
             super(environment);
         }

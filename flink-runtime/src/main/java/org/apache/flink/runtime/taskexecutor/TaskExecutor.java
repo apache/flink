@@ -709,6 +709,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     MetricNames.IS_BACK_PRESSURED_RATIO,
                     new EMAGaugeSampler<>(() -> task.isBackPressured() ? 1.0 : 0.0, emaAlpha));
 
+            taskMetricGroup.gauge(
+                    MetricNames.IS_CAUSING_BACK_PRESSURE, task::isCausingBackPressure);
+            taskMetricGroup.gauge(
+                    MetricNames.IS_CAUSING_BACK_PRESSURE_RATIO,
+                    new EMAGaugeSampler<>(
+                            () -> task.isCausingBackPressure() ? 1.0 : 0.0, emaAlpha));
+
             log.info(
                     "Received task {} ({}), deploy into slot with allocation id {}.",
                     task.getTaskInfo().getTaskNameWithSubtasks(),
