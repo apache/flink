@@ -364,12 +364,12 @@ CREATE TABLE KafkaTable (
 
 特性
 ----------------
-
 ### 消息键（Key）与消息体（Value）的格式
 
-Kafka 消息的消息键和消息体部分都可以使用某种 [格式]({% link dev/table/connectors/formats/index.md %}) 来序列化或反序列化成二进制数据。
+Kafka 消息的消息键和消息体部分都可以使用某种 [格式]({% link dev/table/connectors/formats/index.zh.md %}) 来序列化或反序列化成二进制数据。
 
 **消息体格式**
+
 由于 Kafka 消息中消息键是可选的，以下语句将使用消息体格式读取和写入消息，但不使用消息键格式。`'format'` 选项与 `'value.format'` 意义相同。
 所有的格式配置使用格式识别符作为前缀。
 
