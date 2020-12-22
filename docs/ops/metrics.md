@@ -1245,7 +1245,12 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
     </tr>
     <tr>
       <td>isBackPressured</td>
-      <td>Whether the task is back-pressured.</td>
+      <td>Whether the task is currently back-pressured.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>isBackPressuredRatio</td>
+      <td>Ratio how often this task is back-pressured. Can have values between 0.0 and 1.0, where value 1.0 means the task is constantly back-pressured. It is created by sampling isBackPressured and averaging the sampled value using the exponential moving average algorithm.</td>
       <td>Gauge</td>
     </tr>
     <tr>

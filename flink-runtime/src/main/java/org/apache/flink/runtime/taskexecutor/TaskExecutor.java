@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.metrics.EMAGaugeSampler;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
@@ -697,6 +698,16 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             getRpcService().getExecutor());
 
             taskMetricGroup.gauge(MetricNames.IS_BACK_PRESSURED, task::isBackPressured);
+            /**
+             * {@code 0.5} was picked because currently views are updated once every 5 seconds.
+             * 0.5^4 ~= 94%, which means it will take four samples: 4 * 5sec = 20 seconds to change
+             * the backpressure ratio from 0% to 94%, or from 100% to 6%. For more frequent updates,
+             * alpha value should be increased.
+             */
+            final double emaAlpha = 0.5;
+            taskMetricGroup.gauge(
+                    MetricNames.IS_BACK_PRESSURED_RATIO,
+                    new EMAGaugeSampler<>(() -> task.isBackPressured() ? 1.0 : 0.0, emaAlpha));
 
             log.info(
                     "Received task {} ({}), deploy into slot with allocation id {}.",
