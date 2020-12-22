@@ -205,10 +205,13 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 
 		long startMillis = System.currentTimeMillis();
 
+		boolean success = false;
 		if (paths.size() == 1) {
-			// optimizer for single file, we just want an atomic rename
-			doAtomicRename(paths.get(0), target);
-		} else {
+			// optimizer for single file
+			success = doSingleFileMove(paths.get(0), target);
+		}
+
+		if (!success) {
 			doMultiFilesCompact(partition, paths, target);
 		}
 
@@ -217,10 +220,18 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 				costSeconds, target, paths);
 	}
 
-	private void doAtomicRename(Path src, Path dst) throws IOException {
-		// optimizer for Object Store (For example: S3 Filesystem).
-		// just copy bytes
-		RecoverableWriter writer = fileSystem.createRecoverableWriter();
+	private boolean doSingleFileMove(Path src, Path dst) throws IOException {
+		// We can not rename, because we need to keep original file for failover
+		RecoverableWriter writer;
+		try {
+			writer = fileSystem.createRecoverableWriter();
+		} catch (UnsupportedOperationException ignore) {
+			// Some writer not support RecoverableWriter, so fallback to per record moving.
+			// For example, see the constructor of HadoopRecoverableWriter. Although it not support
+			// RecoverableWriter, but HadoopPathBasedBulkFormatBuilder can support streaming writing.
+			return false;
+		}
+
 		RecoverableFsDataOutputStream out = writer.open(dst);
 		try (FSDataInputStream in = fileSystem.open(src)) {
 			IOUtils.copyBytes(in, out, false);
@@ -229,6 +240,7 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 			throw t;
 		}
 		out.closeForCommit().commit();
+		return true;
 	}
 
 	private void doMultiFilesCompact(String partition, List<Path> files, Path dst) throws IOException {

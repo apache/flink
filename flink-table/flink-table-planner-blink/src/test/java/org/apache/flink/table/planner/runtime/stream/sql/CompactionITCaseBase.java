@@ -90,7 +90,17 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
 	protected abstract void createPartitionTable(String path);
 
 	@Test
+	public void testSingleParallelism() throws Exception {
+		innerTestNonPartition(1);
+	}
+
+	@Test
 	public void testNonPartition() throws Exception {
+		innerTestNonPartition(3);
+	}
+
+	public void innerTestNonPartition(int parallelism) throws Exception {
+		env().setParallelism(parallelism);
 		createTable(resultPath);
 		tEnv().executeSql("insert into sink_table select * from my_table").await();
 
