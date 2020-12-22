@@ -83,7 +83,7 @@ public class ElasticsearchOptions {
 				.list(
 					text("\"fail\" (throws an exception if a request fails and thus causes a job failure),"),
 					text("\"ignore\" (ignores failures and drops the request),"),
-					text("\"retry_rejected\" (re-adds requests that have failed due to queue capacity saturation),"),
+					text("\"retry-rejected\" (re-adds requests that have failed due to queue capacity saturation),"),
 					text("\"class name\" for failure handling with a ActionRequestFailureHandler subclass"))
 				.build());
 	public static final ConfigOption<Boolean> FLUSH_ON_CHECKPOINT_OPTION =
