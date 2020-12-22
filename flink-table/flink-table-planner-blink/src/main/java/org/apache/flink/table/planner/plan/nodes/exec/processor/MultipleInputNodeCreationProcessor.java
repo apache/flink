@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStre
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecUnion;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputOrderCalculator;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputPriorityConflictResolver;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDataStreamScan;
@@ -36,8 +37,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleI
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.util.Preconditions;
-
-import org.apache.calcite.rel.core.Union;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -232,7 +231,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			}
 
 			boolean shouldRemove = false;
-			if (wrapper.execNode instanceof Union) {
+			if (wrapper.execNode instanceof CommonExecUnion) {
 				// optimization 1. we do not allow union to be the tail of a multiple input
 				// as we're paying extra function calls for this, unless one of the united
 				// input is a FLIP-27 source
@@ -278,7 +277,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				continue;
 			}
 
-			boolean isUnion = wrapper.execNode instanceof Union;
+			boolean isUnion = wrapper.execNode instanceof CommonExecUnion;
 
 			if (group.members.size() == 1) {
 				// optimization 4. we clean up multiple input groups with only 1 member,
@@ -320,7 +319,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 					List<ExecNodeWrapper> sameGroupWrappers = getInputWrappersInSameGroup(inputWrapper, wrapper.group);
 					sameGroupWrappersList.add(sameGroupWrappers);
 					long numberOfValuableNodes = sameGroupWrappers.stream()
-						.filter(w -> w.inputs.size() >= 2 && !(w.execNode instanceof Union))
+						.filter(w -> w.inputs.size() >= 2 && !(w.execNode instanceof CommonExecUnion))
 						.count();
 					if (numberOfValuableNodes > 0) {
 						numberOfUsefulInputs++;

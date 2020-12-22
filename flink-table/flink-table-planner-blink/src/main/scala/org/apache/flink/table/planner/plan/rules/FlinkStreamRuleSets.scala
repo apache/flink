@@ -406,7 +406,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalCalcRule.INSTANCE,
     StreamPhysicalPythonCalcRule.INSTANCE,
     // union
-    StreamExecUnionRule.INSTANCE,
+    StreamPhysicalUnionRule.INSTANCE,
     // sort
     StreamExecSortRule.INSTANCE,
     StreamExecLimitRule.INSTANCE,
