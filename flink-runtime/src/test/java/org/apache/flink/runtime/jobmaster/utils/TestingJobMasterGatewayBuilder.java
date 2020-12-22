@@ -83,7 +83,7 @@ public class TestingJobMasterGatewayBuilder {
 	private Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 	private BiFunction<JobVertexID, ExecutionAttemptID, CompletableFuture<SerializedInputSplit>> requestNextInputSplitFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(new SerializedInputSplit(null));
 	private BiFunction<IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> requestPartitionStateFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(ExecutionState.RUNNING);
-	private Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+	private Function<ResultPartitionID, CompletableFuture<Acknowledge>> notifyPartitionDataAvailableFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 	private Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 	private Consumer<ResourceManagerId> disconnectResourceManagerConsumer = ignored -> {};
 	private BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Collections.emptyList());
@@ -138,8 +138,8 @@ public class TestingJobMasterGatewayBuilder {
 		return this;
 	}
 
-	public TestingJobMasterGatewayBuilder setScheduleOrUpdateConsumersFunction(Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction) {
-		this.scheduleOrUpdateConsumersFunction = scheduleOrUpdateConsumersFunction;
+	public TestingJobMasterGatewayBuilder setNotifyPartitionDataAvailableFunction(Function<ResultPartitionID, CompletableFuture<Acknowledge>> notifyPartitionDataAvailableFunction) {
+		this.notifyPartitionDataAvailableFunction = notifyPartitionDataAvailableFunction;
 		return this;
 	}
 
@@ -266,7 +266,7 @@ public class TestingJobMasterGatewayBuilder {
 			updateTaskExecutionStateFunction,
 			requestNextInputSplitFunction,
 			requestPartitionStateFunction,
-			scheduleOrUpdateConsumersFunction,
+			notifyPartitionDataAvailableFunction,
 			disconnectTaskManagerFunction,
 			disconnectResourceManagerConsumer,
 			offerSlotsFunction,

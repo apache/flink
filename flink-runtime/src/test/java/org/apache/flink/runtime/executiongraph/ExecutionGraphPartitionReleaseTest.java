@@ -142,7 +142,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 			final Execution operator1Execution = getCurrentExecution(operator1Vertex, executionGraph);
 			// finish o1 and schedule the consumers (o2,o3); this should not result in any release calls since not all operators of the pipelined region are finished
 			for (final IntermediateResultPartitionID partitionId : operator1Execution.getVertex().getProducedPartitions().keySet()) {
-				scheduler.scheduleOrUpdateConsumers(new ResultPartitionID(partitionId, operator1Execution.getAttemptId()));
+				scheduler.notifyPartitionDataAvailable(new ResultPartitionID(partitionId, operator1Execution.getAttemptId()));
 			}
 			scheduler.updateTaskExecutionState(new TaskExecutionState(executionGraph.getJobID(), operator1Execution.getAttemptId(), ExecutionState.FINISHED));
 			assertThat(releasedPartitions, empty());

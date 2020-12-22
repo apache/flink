@@ -37,11 +37,11 @@ import static org.junit.Assert.fail;
 public class ExecutionGraphVariousFailuesTest extends TestLogger {
 
 	/**
-	 * Tests that a failing scheduleOrUpdateConsumers call with a non-existing execution attempt
+	 * Tests that a failing notifyPartitionDataAvailable call with a non-existing execution attempt
 	 * id, will not fail the execution graph.
 	 */
 	@Test
-	public void testFailingScheduleOrUpdateConsumers() throws Exception {
+	public void testFailingNotifyPartitionDataAvailable() throws Exception {
 		final SchedulerBase scheduler = SchedulerTestingUtils.newSchedulerBuilder(new JobGraph()).build();
 		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		scheduler.startScheduling();
@@ -55,11 +55,11 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
 		ExecutionAttemptID producerId = new ExecutionAttemptID();
 		ResultPartitionID resultPartitionId = new ResultPartitionID(intermediateResultPartitionId, producerId);
 
-		// The execution attempt id does not exist and thus the scheduleOrUpdateConsumers call
+		// The execution attempt id does not exist and thus the notifyPartitionDataAvailable call
 		// should fail
 
 		try {
-			scheduler.scheduleOrUpdateConsumers(resultPartitionId);
+			scheduler.notifyPartitionDataAvailable(resultPartitionId);
 			fail("Error expected.");
 		} catch (IllegalStateException e) {
 			// we've expected this exception to occur

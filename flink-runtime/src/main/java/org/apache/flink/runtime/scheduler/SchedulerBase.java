@@ -685,15 +685,15 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	@Override
-	public final void scheduleOrUpdateConsumers(final ResultPartitionID partitionId) {
+	public final void notifyPartitionDataAvailable(final ResultPartitionID partitionId) {
 		mainThreadExecutor.assertRunningInMainThread();
 
 		executionGraph.notifyPartitionDataAvailable(partitionId);
 
-		scheduleOrUpdateConsumersInternal(partitionId.getPartitionId());
+		notifyPartitionDataAvailableInternal(partitionId.getPartitionId());
 	}
 
-	protected void scheduleOrUpdateConsumersInternal(IntermediateResultPartitionID resultPartitionId) {
+	protected void notifyPartitionDataAvailableInternal(IntermediateResultPartitionID resultPartitionId) {
 	}
 
 	@Override

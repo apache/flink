@@ -131,7 +131,7 @@ public class TestingSchedulerNG implements SchedulerNG {
 	}
 
 	@Override
-	public void scheduleOrUpdateConsumers(ResultPartitionID partitionID) {
+	public void notifyPartitionDataAvailable(ResultPartitionID partitionID) {
 		failOperation();
 	}
 

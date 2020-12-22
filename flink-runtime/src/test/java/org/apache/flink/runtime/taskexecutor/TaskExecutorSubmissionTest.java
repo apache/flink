@@ -269,7 +269,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		TestingJobMasterGateway testingJobMasterGateway =
 			new TestingJobMasterGatewayBuilder()
 			.setFencingTokenSupplier(() -> jobMasterId)
-			.setScheduleOrUpdateConsumersFunction(
+			.setNotifyPartitionDataAvailableFunction(
 				resultPartitionID -> CompletableFuture.completedFuture(Acknowledge.get()))
 			.build();
 
@@ -501,7 +501,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	}
 
 	/**
-	 * Test that a failing schedule or update consumers call leads to the failing of the respective
+	 * Test that a failing notifyPartitionDataAvailable call leads to the failing of the respective
 	 * task.
 	 *
 	 * <p>IMPORTANT: We have to make sure that the invokable's cancel method is called, because only
@@ -509,14 +509,14 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * the invokable to fill one memory segment. The completed memory segment will trigger the
 	 * scheduling of the downstream operator since it is in pipeline mode. After we've filled the
 	 * memory segment, we'll block the invokable and wait for the task failure due to the failed
-	 * schedule or update consumers call.
+	 * notifyPartitionDataAvailable call.
 	 */
 	@Test(timeout = TEST_TIMEOUT)
-	public void testFailingScheduleOrUpdateConsumers() throws Exception {
+	public void testFailingNotifyPartitionDataAvailable() throws Exception {
 		final Configuration configuration = new Configuration();
 
 		// set the memory segment to the smallest size possible, because we have to fill one
-		// memory buffer to trigger the schedule or update consumers message to the downstream
+		// memory buffer to trigger notifyPartitionDataAvailable to the downstream
 		// operators
 		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
 
@@ -527,13 +527,13 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 
-		final Exception exception = new Exception("Failed schedule or update consumers");
+		final Exception exception = new Exception("Failed notifyPartitionDataAvailable");
 
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		TestingJobMasterGateway testingJobMasterGateway =
 			new TestingJobMasterGatewayBuilder()
 				.setFencingTokenSupplier(() -> jobMasterId)
-				.setUpdateTaskExecutionStateFunction(resultPartitionID -> FutureUtils.completedExceptionally(exception))
+				.setNotifyPartitionDataAvailableFunction(resultPartitionID -> FutureUtils.completedExceptionally(exception))
 				.build();
 
 		try (TaskSubmissionTestEnvironment env =

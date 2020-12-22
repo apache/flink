@@ -48,16 +48,17 @@ public class RpcResultPartitionConsumableNotifier implements ResultPartitionCons
 		this.executor = Preconditions.checkNotNull(executor);
 		this.timeout = Preconditions.checkNotNull(timeout);
 	}
+
 	@Override
 	public void notifyPartitionConsumable(JobID jobId, ResultPartitionID partitionId, final TaskActions taskActions) {
-		CompletableFuture<Acknowledge> acknowledgeFuture = jobMasterGateway.scheduleOrUpdateConsumers(partitionId, timeout);
+		CompletableFuture<Acknowledge> acknowledgeFuture = jobMasterGateway.notifyPartitionDataAvailable(partitionId, timeout);
 
 		acknowledgeFuture.whenCompleteAsync(
 			(Acknowledge ack, Throwable throwable) -> {
 				if (throwable != null) {
-					LOG.error("Could not schedule or update consumers at the JobManager.", throwable);
+					LOG.error("Could not notify partition data available to JobManager.", throwable);
 
-					taskActions.failExternally(new RuntimeException("Could not notify JobManager to schedule or update consumers.", throwable));
+					taskActions.failExternally(new RuntimeException("Could not notify partition data available to JobManager.", throwable));
 				}
 			},
 			executor);
