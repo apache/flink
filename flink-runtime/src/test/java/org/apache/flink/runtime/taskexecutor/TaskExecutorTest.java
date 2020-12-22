@@ -2075,7 +2075,7 @@ public class TaskExecutorTest extends TestLogger {
                     .taskExecutor
                     .getSelfGateway(TaskExecutorGateway.class)
                     .requestSlot(
-                            SlotID.generateDynamicSlotID(ResourceID.generate()),
+                            SlotID.getDynamicSlotID(ResourceID.generate()),
                             jobId,
                             allocationId,
                             resourceProfile,
@@ -2092,7 +2092,7 @@ public class TaskExecutorTest extends TestLogger {
                             new SlotStatus(new SlotID(resourceId, 0), DEFAULT_RESOURCE_PROFILE),
                             new SlotStatus(new SlotID(resourceId, 1), DEFAULT_RESOURCE_PROFILE),
                             new SlotStatus(
-                                    SlotID.generateDynamicSlotID(resourceId),
+                                    new SlotID(resourceId, 2),
                                     resourceProfile,
                                     jobId,
                                     allocationId)));

@@ -90,8 +90,8 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
         return resourceId + "_" + (slotNumber >= 0 ? slotNumber : "dynamic");
     }
 
-    /** Generate a SlotID without actual slot index for dynamic slot allocation. */
-    public static SlotID generateDynamicSlotID(ResourceID resourceID) {
+    /** Get a SlotID without actual slot index for dynamic slot allocation. */
+    public static SlotID getDynamicSlotID(ResourceID resourceID) {
         return new SlotID(resourceID);
     }
 }
