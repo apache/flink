@@ -18,11 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.codegen.ValuesCodeGenerator
-import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecValues
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
@@ -31,41 +29,32 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
 
+import scala.collection.JavaConversions._
+
 /**
-  * Stream physical RelNode for [[Values]].
-  */
-class StreamExecValues(
+ * Stream physical RelNode for [[Values]].
+ */
+class StreamPhysicalValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     tuples: ImmutableList[ImmutableList[RexLiteral]],
     outputRowType: RelDataType)
   extends Values(cluster, outputRowType, tuples, traitSet)
-  with StreamPhysicalRel
-  with LegacyStreamExecNode[RowData] {
+  with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
 
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamExecValues(cluster, traitSet, getTuples, outputRowType)
+    new StreamPhysicalValues(cluster, traitSet, getTuples, outputRowType)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[RowData] = {
-    val inputFormat = ValuesCodeGenerator.generatorInputFormat(
-      planner.getTableConfig,
-      getRowType,
-      tuples,
-      getRelTypeName)
-    val transformation = planner.getExecEnv.createInput(inputFormat,
-      inputFormat.getProducedType).getTransformation
-    transformation.setName(getRelDetailedDescription)
-    transformation.setParallelism(1)
-    transformation.setMaxParallelism(1)
-    transformation
+  override def translateToExecNode(): ExecNode[_] = {
+    new StreamExecValues(
+      tuples.asList().map(_.asList()),
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
-
 }

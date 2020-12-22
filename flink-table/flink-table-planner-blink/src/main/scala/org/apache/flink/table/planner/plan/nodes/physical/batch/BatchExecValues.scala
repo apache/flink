@@ -20,9 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.ValuesCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -66,8 +67,8 @@ class BatchExecValues(
       planner: BatchPlanner): Transformation[RowData] = {
     val inputFormat = ValuesCodeGenerator.generatorInputFormat(
       planner.getTableConfig,
-      getRowType,
-      tuples,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      tuples.asList().map(_.asList()),
       getRelTypeName)
     val transformation = planner.getExecEnv.createInput(inputFormat,
       inputFormat.getProducedType).getTransformation

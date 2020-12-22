@@ -20,27 +20,27 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalValues
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecValues
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalValues
 
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
 /**
-  * Rule that converts [[FlinkLogicalValues]] to [[StreamExecValues]].
+  * Rule that converts [[FlinkLogicalValues]] to [[StreamPhysicalValues]].
   */
-class StreamExecValuesRule
+class StreamPhysicalValuesRule
   extends ConverterRule(
     classOf[FlinkLogicalValues],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecValuesRule") {
+    "StreamPhysicalValuesRule") {
 
   def convert(rel: RelNode): RelNode = {
     val values: FlinkLogicalValues = rel.asInstanceOf[FlinkLogicalValues]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
-    new StreamExecValues(
+    new StreamPhysicalValues(
       rel.getCluster,
       traitSet,
       values.getTuples,
@@ -48,6 +48,6 @@ class StreamExecValuesRule
   }
 }
 
-object StreamExecValuesRule {
-  val INSTANCE: RelOptRule = new StreamExecValuesRule
+object StreamPhysicalValuesRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalValuesRule
 }
