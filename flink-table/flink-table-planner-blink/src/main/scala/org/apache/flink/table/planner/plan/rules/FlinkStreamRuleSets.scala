@@ -244,6 +244,7 @@ object FlinkStreamRuleSets {
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
+    PushLimitIntoTableSourceScanRule.INSTANCE,
 
     // reorder the projecct and watermark assigner
     ProjectWatermarkAssignerTransposeRule.INSTANCE,

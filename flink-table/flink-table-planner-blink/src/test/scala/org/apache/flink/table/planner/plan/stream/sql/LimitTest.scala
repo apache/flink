@@ -22,13 +22,17 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.{Before, Test}
 
 class LimitTest extends TableTestBase {
 
-  private val util = streamTestUtil()
-  util.addDataStream[(Int, String, Long)](
-    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+  protected val util = streamTestUtil()
+
+  @Before
+  def setup(): Unit = {
+    util.addDataStream[(Int, String, Long)](
+      "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+  }
 
   @Test
   def testLimitWithoutOffset(): Unit = {
