@@ -167,9 +167,7 @@ public class DeclarativeSlotPoolBridge implements SlotPool {
 			}
 		}
 
-		if (!decreasedResourceRequirements.isEmpty()) {
-			declarativeSlotPool.decreaseResourceRequirementsBy(decreasedResourceRequirements);
-		}
+		declarativeSlotPool.decreaseResourceRequirementsBy(decreasedResourceRequirements);
 	}
 
 	private void clearState() {
@@ -375,9 +373,7 @@ public class DeclarativeSlotPoolBridge implements SlotPool {
 		Preconditions.checkNotNull(resourceId, "This slot pool only supports failAllocation calls coming from the TaskExecutor.");
 
 		ResourceCounter previouslyFulfilledRequirements = declarativeSlotPool.releaseSlot(allocationID, cause);
-		if (!previouslyFulfilledRequirements.isEmpty()) {
-			declarativeSlotPool.decreaseResourceRequirementsBy(previouslyFulfilledRequirements);
-		}
+		declarativeSlotPool.decreaseResourceRequirementsBy(previouslyFulfilledRequirements);
 
 		if (declarativeSlotPool.containsSlots(resourceId)) {
 			return Optional.empty();
@@ -403,9 +399,7 @@ public class DeclarativeSlotPoolBridge implements SlotPool {
 
 			if (allocationId != null) {
 				ResourceCounter previouslyFulfilledRequirement = declarativeSlotPool.freeReservedSlot(allocationId, cause, clock.relativeTimeMillis());
-				if (!previouslyFulfilledRequirement.isEmpty()) {
-					declarativeSlotPool.decreaseResourceRequirementsBy(previouslyFulfilledRequirement);
-				}
+				declarativeSlotPool.decreaseResourceRequirementsBy(previouslyFulfilledRequirement);
 			} else {
 				LOG.debug("Could not find slot which has fulfilled slot request {}. Ignoring the release operation.", slotRequestId);
 			}
