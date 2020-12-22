@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 
@@ -56,6 +57,7 @@ final class DefaultDeclarativeSlotPoolBuilder {
 
 	public DefaultDeclarativeSlotPool build() {
 		return new DefaultDeclarativeSlotPool(
+				new JobID(),
 				allocatedSlotPool,
 				notifyNewResourceRequirements,
 				notifyNewSlots,

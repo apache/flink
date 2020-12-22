@@ -115,6 +115,7 @@ public class DeclarativeSlotPoolBridge implements SlotPool {
 		this.registeredTaskManagers = new HashSet<>();
 		this.declareResourceRequirementServiceConnectionManager = NoOpDeclareResourceRequirementServiceConnectionManager.INSTANCE;
 		this.declarativeSlotPool = declarativeSlotPoolFactory.create(
+				jobId,
 				this::declareResourceRequirements,
 				this::newSlotsAreAvailable,
 				idleSlotTimeout,
@@ -357,8 +358,6 @@ public class DeclarativeSlotPoolBridge implements SlotPool {
 
 	private void declareResourceRequirements(Collection<ResourceRequirement> resourceRequirements) {
 		assertRunningInMainThread();
-
-		LOG.debug("Declare new resource requirements for job {}: {}.", jobId, resourceRequirements);
 
 		declareResourceRequirementServiceConnectionManager.declareResourceRequirements(ResourceRequirements.create(jobId, jobManagerAddress, resourceRequirements));
 	}
