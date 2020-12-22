@@ -18,12 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.ValuesCodeGenerator
-import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecValues
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -39,19 +36,18 @@ import scala.collection.JavaConversions._
 /**
   * Batch physical RelNode for [[Values]].
   */
-class BatchExecValues(
+class BatchPhysicalValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     tuples: ImmutableList[ImmutableList[RexLiteral]],
     outputRowType: RelDataType)
   extends Values(cluster, outputRowType, tuples, traitSet)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData] {
+  with BatchPhysicalRel {
 
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecValues(cluster, traitSet, getTuples, outputRowType)
+    new BatchPhysicalValues(cluster, traitSet, getTuples, outputRowType)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -59,23 +55,11 @@ class BatchExecValues(
       .item("values", getRowType.getFieldNames.toList.mkString(", "))
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List()
-
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val inputFormat = ValuesCodeGenerator.generatorInputFormat(
-      planner.getTableConfig,
-      FlinkTypeFactory.toLogicalRowType(getRowType),
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecValues(
       tuples.asList().map(_.asList()),
-      getRelTypeName)
-    val transformation = planner.getExecEnv.createInput(inputFormat,
-      inputFormat.getProducedType).getTransformation
-    transformation.setName(getRelDetailedDescription)
-    transformation.setParallelism(1)
-    transformation
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
-
 }
-
