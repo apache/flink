@@ -31,6 +31,7 @@ import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -42,13 +43,18 @@ import java.util.Objects;
  * A {@link DynamicTableSource} for JDBC.
  */
 @Internal
-public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
+public class JdbcDynamicTableSource implements
+		ScanTableSource,
+		LookupTableSource,
+		SupportsProjectionPushDown,
+		SupportsLimitPushDown {
 
 	private final JdbcOptions options;
 	private final JdbcReadOptions readOptions;
 	private final JdbcLookupOptions lookupOptions;
 	private TableSchema physicalSchema;
 	private final String dialectName;
+	private long limit = -1;
 
 	public JdbcDynamicTableSource(
 			JdbcOptions options,
@@ -96,8 +102,9 @@ public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSourc
 			builder.setFetchSize(readOptions.getFetchSize());
 		}
 		final JdbcDialect dialect = options.getDialect();
-		String query = dialect.getSelectFromStatement(
-			options.getTableName(), physicalSchema.getFieldNames(), new String[0]);
+		String query;
+		query = dialect.getSelectFromStatement(
+				options.getTableName(), physicalSchema.getFieldNames(), new String[0], limit);
 		if (readOptions.getPartitionColumnName().isPresent()) {
 			long lowerBound = readOptions.getPartitionLowerBound().get();
 			long upperBound = readOptions.getPartitionUpperBound().get();
@@ -156,11 +163,17 @@ public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSourc
 			Objects.equals(readOptions, that.readOptions) &&
 			Objects.equals(lookupOptions, that.lookupOptions) &&
 			Objects.equals(physicalSchema, that.physicalSchema) &&
-			Objects.equals(dialectName, that.dialectName);
+			Objects.equals(dialectName, that.dialectName) &&
+			Objects.equals(limit, that.limit);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(options, readOptions, lookupOptions, physicalSchema, dialectName);
+		return Objects.hash(options, readOptions, lookupOptions, physicalSchema, dialectName, limit);
+	}
+
+	@Override
+	public void applyLimit(long limit) {
+		this.limit = limit;
 	}
 }

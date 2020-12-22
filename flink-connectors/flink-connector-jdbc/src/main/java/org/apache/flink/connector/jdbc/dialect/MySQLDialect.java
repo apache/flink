@@ -56,6 +56,15 @@ public class MySQLDialect extends AbstractDialect {
 	}
 
 	@Override
+	public String getLimit(long limit) {
+		if (limit >= 0) {
+			return " limit " + limit;
+		} else {
+			return "";
+		}
+	}
+
+	@Override
 	public Optional<String> defaultDriverName() {
 		return Optional.of("com.mysql.jdbc.Driver");
 	}

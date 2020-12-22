@@ -113,7 +113,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 		this.keySqlTypes = Arrays.stream(keyTypes).mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
 		this.outputSqlTypes = Arrays.stream(fieldTypes).mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
 		this.query = FieldNamedPreparedStatementImpl.parseNamedStatement(
-			options.getDialect().getSelectFromStatement(options.getTableName(), fieldNames, keyNames),
+			options.getDialect().getSelectFromStatement(options.getTableName(), fieldNames, keyNames, -1),
 			new HashMap<>());
 	}
 

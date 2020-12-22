@@ -189,7 +189,7 @@ public class JdbcTableSource implements
 	private String getBaseQueryStatement(RowTypeInfo rowTypeInfo) {
 		return readOptions.getQuery().orElseGet(() ->
 			FieldNamedPreparedStatementImpl.parseNamedStatement(
-				options.getDialect().getSelectFromStatement(options.getTableName(), rowTypeInfo.getFieldNames(), new String[0]),
+				options.getDialect().getSelectFromStatement(options.getTableName(), rowTypeInfo.getFieldNames(), new String[0], -1),
 				new HashMap<>()
 			)
 		);

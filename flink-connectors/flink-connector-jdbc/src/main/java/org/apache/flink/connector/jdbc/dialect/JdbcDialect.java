@@ -57,6 +57,8 @@ public interface JdbcDialect extends Serializable {
 	 */
 	JdbcRowConverter getRowConverter(RowType rowType);
 
+	String getLimit(long limit);
+
 	/**
 	 * Check if this dialect instance support a specific data type in table schema.
 	 * @param schema the table schema.
@@ -148,7 +150,7 @@ public interface JdbcDialect extends Serializable {
 	/**
 	 * Get select fields statement by condition fields. Default use SELECT.
 	 */
-	default String getSelectFromStatement(String tableName, String[] selectFields, String[] conditionFields) {
+	default String getSelectFromStatement(String tableName, String[] selectFields, String[] conditionFields, long limit) {
 		String selectExpressions = Arrays.stream(selectFields)
 				.map(this::quoteIdentifier)
 				.collect(Collectors.joining(", "));
@@ -156,6 +158,7 @@ public interface JdbcDialect extends Serializable {
 				.map(f -> format("%s = :%s", quoteIdentifier(f), f))
 				.collect(Collectors.joining(" AND "));
 		return "SELECT " + selectExpressions + " FROM " +
-				quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
+				quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "") +
+				getLimit(limit);
 	}
 }

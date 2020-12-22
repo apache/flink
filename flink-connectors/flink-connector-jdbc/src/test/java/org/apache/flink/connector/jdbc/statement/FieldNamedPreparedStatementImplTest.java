@@ -136,7 +136,7 @@ public class FieldNamedPreparedStatementImplTest {
 
 	@Test
 	public void testSelectStatement() {
-		String selectStmt = dialect.getSelectFromStatement(tableName, fieldNames, keyFields);
+		String selectStmt = dialect.getSelectFromStatement(tableName, fieldNames, keyFields, -1);
 		assertEquals(
 			"SELECT `id`, `name`, `email`, `ts`, `field1`, `field_2`, `__field_3__` FROM `tbl` " +
 				"WHERE `id` = :id AND `__field_3__` = :__field_3__",
