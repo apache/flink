@@ -99,10 +99,10 @@ public class ResultPartitionTest {
 	}
 
 	/**
-	 * Tests the schedule or update consumers message sending behaviour depending on the relevant flags.
+	 * Tests notifyPartitionDataAvailable behaviour depending on the relevant flags.
 	 */
 	@Test
-	public void testSendScheduleOrUpdateConsumersMessage() throws Exception {
+	public void testNotifyPartitionDataAvailable() throws Exception {
 		FutureConsumerWithException[] notificationCalls = new FutureConsumerWithException[] {
 			writer -> ((ResultPartitionWriter) writer).finish(),
 			writer -> ((ResultPartitionWriter) writer).emitRecord(ByteBuffer.allocate(bufferSize), 0),
@@ -111,11 +111,11 @@ public class ResultPartitionTest {
 		};
 
 		for (FutureConsumerWithException notificationCall: notificationCalls) {
-			testSendScheduleOrUpdateConsumersMessage(notificationCall);
+			testNotifyPartitionDataAvailable(notificationCall);
 		}
 	}
 
-	private void testSendScheduleOrUpdateConsumersMessage(
+	private void testNotifyPartitionDataAvailable(
 			FutureConsumerWithException<ResultPartitionWriter, Exception> notificationCall) throws Exception {
 		JobID jobId = new JobID();
 		TaskActions taskActions = new NoOpTaskActions();

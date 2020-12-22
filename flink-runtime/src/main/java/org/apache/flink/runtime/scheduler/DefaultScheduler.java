@@ -313,7 +313,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	@Override
-	protected void scheduleOrUpdateConsumersInternal(final IntermediateResultPartitionID partitionId) {
+	protected void notifyPartitionDataAvailableInternal(final IntermediateResultPartitionID partitionId) {
 		schedulingStrategy.onPartitionConsumable(partitionId);
 	}
 
@@ -442,10 +442,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 			if (throwable == null) {
 				final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
-				final boolean sendScheduleOrUpdateConsumerMessage = deploymentHandle.getDeploymentOption().sendScheduleOrUpdateConsumerMessage();
+				final boolean notifyPartitionDataAvailable = deploymentHandle
+					.getDeploymentOption()
+					.notifyPartitionDataAvailable();
 				executionVertex
 					.getCurrentExecutionAttempt()
-					.registerProducedPartitions(logicalSlot.getTaskManagerLocation(), sendScheduleOrUpdateConsumerMessage);
+					.registerProducedPartitions(logicalSlot.getTaskManagerLocation(), notifyPartitionDataAvailable);
 				executionVertex.tryAssignResource(logicalSlot);
 			} else {
 				handleTaskDeploymentFailure(executionVertexId, maybeWrapWithNoResourceAvailableException(throwable));

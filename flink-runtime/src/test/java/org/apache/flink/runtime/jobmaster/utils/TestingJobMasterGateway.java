@@ -95,7 +95,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	private final BiFunction<IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> requestPartitionStateFunction;
 
 	@Nonnull
-	private final Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction;
+	private final Function<ResultPartitionID, CompletableFuture<Acknowledge>> notifyPartitionDataAvailableFunction;
 
 	@Nonnull
 	private final Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction;
@@ -172,7 +172,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 			@Nonnull Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction,
 			@Nonnull BiFunction<JobVertexID, ExecutionAttemptID, CompletableFuture<SerializedInputSplit>> requestNextInputSplitFunction,
 			@Nonnull BiFunction<IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> requestPartitionStateFunction,
-			@Nonnull Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction,
+			@Nonnull Function<ResultPartitionID, CompletableFuture<Acknowledge>> notifyPartitionDataAvailableFunction,
 			@Nonnull Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction,
 			@Nonnull Consumer<ResourceManagerId> disconnectResourceManagerConsumer,
 			@Nonnull BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction,
@@ -202,7 +202,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 		this.updateTaskExecutionStateFunction = updateTaskExecutionStateFunction;
 		this.requestNextInputSplitFunction = requestNextInputSplitFunction;
 		this.requestPartitionStateFunction = requestPartitionStateFunction;
-		this.scheduleOrUpdateConsumersFunction = scheduleOrUpdateConsumersFunction;
+		this.notifyPartitionDataAvailableFunction = notifyPartitionDataAvailableFunction;
 		this.disconnectTaskManagerFunction = disconnectTaskManagerFunction;
 		this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
 		this.offerSlotsFunction = offerSlotsFunction;
@@ -249,8 +249,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> scheduleOrUpdateConsumers(ResultPartitionID partitionID, Time timeout) {
-		return scheduleOrUpdateConsumersFunction.apply(partitionID);
+	public CompletableFuture<Acknowledge> notifyPartitionDataAvailable(ResultPartitionID partitionID, Time timeout) {
+		return notifyPartitionDataAvailableFunction.apply(partitionID);
 	}
 
 	@Override

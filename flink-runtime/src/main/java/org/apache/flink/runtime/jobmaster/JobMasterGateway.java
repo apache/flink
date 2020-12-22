@@ -118,9 +118,9 @@ public interface JobMasterGateway extends
 	 *
 	 * @param partitionID     The partition which has already produced data
 	 * @param timeout         before the rpc call fails
-	 * @return Future acknowledge of the schedule or update operation
+	 * @return Future acknowledge of the notification
 	 */
-	CompletableFuture<Acknowledge> scheduleOrUpdateConsumers(
+	CompletableFuture<Acknowledge> notifyPartitionDataAvailable(
 			final ResultPartitionID partitionID,
 			@RpcTimeout final Time timeout);
 

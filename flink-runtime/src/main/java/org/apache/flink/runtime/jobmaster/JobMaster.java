@@ -453,11 +453,11 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId> impleme
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> scheduleOrUpdateConsumers(
+	public CompletableFuture<Acknowledge> notifyPartitionDataAvailable(
 			final ResultPartitionID partitionID,
 			final Time timeout) {
 
-		schedulerNG.scheduleOrUpdateConsumers(partitionID);
+		schedulerNG.notifyPartitionDataAvailable(partitionID);
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
