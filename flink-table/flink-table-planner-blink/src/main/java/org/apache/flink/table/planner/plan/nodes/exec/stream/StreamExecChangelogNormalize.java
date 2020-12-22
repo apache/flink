@@ -26,9 +26,10 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.delegation.StreamPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -42,11 +43,11 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.Collections;
 
 /**
- * Stream exec node which normalizes a changelog stream which maybe an upsert stream or
+ * Stream {@link ExecNode} which normalizes a changelog stream which maybe an upsert stream or
  * a changelog stream containing duplicate events. This node normalize such stream into a regular
  * changelog stream that contains INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE records without duplication.
  */
-public class StreamExecChangelogNormalize extends StreamExecNode<RowData> {
+public class StreamExecChangelogNormalize extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
 	private final int[] uniqueKeys;
 	private final boolean generateUpdateBefore;
 
@@ -63,7 +64,7 @@ public class StreamExecChangelogNormalize extends StreamExecNode<RowData> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected Transformation<RowData> translateToPlanInternal(StreamPlanner planner) {
+	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
 		final ExecNode<?> inputNode = getInputNodes().get(0);
 		final Transformation<RowData> inputTransform = (Transformation<RowData>) inputNode.translateToPlan(planner);
 		final InternalTypeInfo<RowData> rowTypeInfo = (InternalTypeInfo<RowData>) inputTransform.getOutputType();
