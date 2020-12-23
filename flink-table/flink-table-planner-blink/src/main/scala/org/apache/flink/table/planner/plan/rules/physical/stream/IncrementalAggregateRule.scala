@@ -22,8 +22,8 @@ import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.PartialFinalType
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecIncrementalGroupAggregate, StreamPhysicalExchange, StreamPhysicalGlobalGroupAggregate, StreamPhysicalLocalGroupAggregate}
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, DistinctInfo}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalExchange, StreamPhysicalGlobalGroupAggregate, StreamPhysicalIncrementalGroupAggregate, StreamPhysicalLocalGroupAggregate}
+import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -37,7 +37,7 @@ import java.util.Collections
  * on final [[StreamPhysicalLocalGroupAggregate]] on partial [[StreamPhysicalGlobalGroupAggregate]],
  * and combines the final [[StreamPhysicalLocalGroupAggregate]] and
  * the partial [[StreamPhysicalGlobalGroupAggregate]] into a
- * [[StreamExecIncrementalGroupAggregate]].
+ * [[StreamPhysicalIncrementalGroupAggregate]].
  */
 class IncrementalAggregateRule
   extends RelOptRule(
@@ -69,55 +69,26 @@ class IncrementalAggregateRule
     val exchange: StreamPhysicalExchange = call.rel(1)
     val finalLocalAgg: StreamPhysicalLocalGroupAggregate = call.rel(2)
     val partialGlobalAgg: StreamPhysicalGlobalGroupAggregate = call.rel(3)
-    val aggInputRowType = partialGlobalAgg.localAggInputRowType
+    val partialLocalAggInputRowType = partialGlobalAgg.localAggInputRowType
 
-    val partialLocalAggInfoList = partialGlobalAgg.localAggInfoList
-    val partialGlobalAggInfoList = partialGlobalAgg.globalAggInfoList
-    val finalGlobalAggInfoList = finalGlobalAgg.globalAggInfoList
-    val aggCalls = finalGlobalAggInfoList.getActualAggregateCalls
+    val partialOriginalAggCalls = partialGlobalAgg.aggCalls.toArray
+    val partialRealAggCalls = partialGlobalAgg.localAggInfoList.getActualAggregateCalls
+    val finalRealAggCalls = finalGlobalAgg.globalAggInfoList.getActualAggregateCalls
 
-    val typeFactory = finalGlobalAgg.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-
-    // pick distinct info from global which is on state, and modify excludeAcc parameter
-    val incrDistinctInfo = partialGlobalAggInfoList.distinctInfos.map { info =>
-      DistinctInfo(
-        info.argIndexes,
-        info.keyType,
-        info.accType,
-        // exclude distinct acc from the aggregate accumulator,
-        // because the output acc only need to contain the count
-        excludeAcc = true,
-        info.dataViewSpec,
-        info.consumeRetraction,
-        info.filterArgs,
-        info.aggIndexes
-      )
-    }
-
-    val incrAggInfoList = AggregateInfoList(
-      // pick local aggs info from local which is on heap
-      partialLocalAggInfoList.aggInfos,
-      partialGlobalAggInfoList.indexOfCountStar,
-      partialGlobalAggInfoList.countStarInserted,
-      incrDistinctInfo)
-
-    val incrAggOutputRowType = AggregateUtil.inferLocalAggRowType(
-      incrAggInfoList,
-      partialGlobalAgg.getRowType,
-      finalGlobalAgg.grouping,
-      typeFactory)
-
-    val incrAgg = new StreamExecIncrementalGroupAggregate(
+    val incrAgg = new StreamPhysicalIncrementalGroupAggregate(
       partialGlobalAgg.getCluster,
       finalLocalAgg.getTraitSet, // extends final local agg traits (ACC trait)
       partialGlobalAgg.getInput,
-      aggInputRowType,
-      incrAggOutputRowType,
-      partialLocalAggInfoList,
-      incrAggInfoList,
-      aggCalls,
+      partialGlobalAgg.grouping,
+      partialRealAggCalls,
       finalLocalAgg.grouping,
-      partialGlobalAgg.grouping)
+      finalRealAggCalls,
+      partialOriginalAggCalls,
+      partialGlobalAgg.aggCallNeedRetractions,
+      partialGlobalAgg.needRetraction,
+      partialLocalAggInputRowType,
+      partialGlobalAgg.getRowType)
+    val incrAggOutputRowType = incrAgg.getRowType
 
     val newExchange = exchange.copy(exchange.getTraitSet, incrAgg, exchange.distribution)
 
@@ -135,9 +106,9 @@ class IncrementalAggregateRule
       val localAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
         // the final agg input is partial agg
         FlinkTypeFactory.toLogicalRowType(partialGlobalAgg.getRowType),
-        aggCalls,
+        finalRealAggCalls,
         // all the aggs do not need retraction
-        Array.fill(aggCalls.length)(false),
+        Array.fill(finalRealAggCalls.length)(false),
         // also do not need count*
         needInputCount = false,
         // the local agg is not works on state
@@ -148,7 +119,7 @@ class IncrementalAggregateRule
         localAggInfoList,
         incrAgg.getRowType,
         finalGlobalAgg.grouping,
-        typeFactory)
+        finalGlobalAgg.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
 
       Preconditions.checkState(RelOptUtil.areRowTypesEqual(
         incrAggOutputRowType,
@@ -161,9 +132,9 @@ class IncrementalAggregateRule
         newExchange,
         finalGlobalAgg.getRowType,
         finalGlobalAgg.grouping,
-        aggCalls,
+        finalRealAggCalls,
         // all the aggs do not need retraction
-        Array.fill(aggCalls.length)(false),
+        Array.fill(finalRealAggCalls.length)(false),
         finalGlobalAgg.localAggInputRowType,
         needRetraction = false,
         finalGlobalAgg.partialFinalType)

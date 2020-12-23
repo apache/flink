@@ -40,9 +40,9 @@ class StreamPhysicalGlobalGroupAggregate(
     outputRowType: RelDataType,
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall],
-    aggCallNeedRetractions: Array[Boolean],
+    val aggCallNeedRetractions: Array[Boolean],
     val localAggInputRowType: RelDataType,
-    needRetraction: Boolean,
+    val needRetraction: Boolean,
     val partialFinalType: PartialFinalType)
   extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel) {
 
