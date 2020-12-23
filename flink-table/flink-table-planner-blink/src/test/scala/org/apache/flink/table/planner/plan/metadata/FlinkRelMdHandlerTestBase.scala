@@ -363,10 +363,10 @@ class FlinkRelMdHandlerTestBase {
         FlinkRelDistribution.SINGLETON),
       logicalSort.offset, logicalSort.fetch, true)
 
-    val streamSort = new StreamExecLimit(cluster, streamPhysicalTraits.replace(collation),
+    val streamLimit = new StreamPhysicalLimit(cluster, streamPhysicalTraits.replace(collation),
       studentStreamScan, logicalSort.offset, logicalSort.fetch)
 
-    (logicalSort, flinkLogicalSort, batchSort, batchSortLocal, batchSortGlobal, streamSort)
+    (logicalSort, flinkLogicalSort, batchSort, batchSortLocal, batchSortGlobal, streamLimit)
   }
 
   // equivalent SQL is
@@ -408,7 +408,7 @@ class FlinkRelMdHandlerTestBase {
       collection, offset, fetch, true)
 
     val streamSort = new StreamExecSortLimit(cluster, streamPhysicalTraits.replace(collection),
-      studentStreamScan, collection, offset, fetch, UndefinedStrategy)
+      studentStreamScan, collection, offset, fetch, RankProcessStrategy.UNDEFINED_STRATEGY)
 
     (logicalSortLimit, flinkLogicalSortLimit,
       batchSortLimit, batchSortLocalLimit, batchSortGlobal, streamSort)
@@ -480,7 +480,7 @@ class FlinkRelMdHandlerTestBase {
 
     val streamExchange = new BatchPhysicalExchange(cluster,
       studentStreamScan.getTraitSet.replace(hash6), studentStreamScan, hash6)
-    val streamRank = new StreamExecRank(
+    val streamRank = new StreamPhysicalRank(
       cluster,
       streamPhysicalTraits,
       streamExchange,
@@ -490,7 +490,7 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(1, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      UndefinedStrategy
+      RankProcessStrategy.UNDEFINED_STRATEGY
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -562,7 +562,7 @@ class FlinkRelMdHandlerTestBase {
 
     val streamExchange = new BatchPhysicalExchange(cluster,
       studentStreamScan.getTraitSet.replace(hash6), studentStreamScan, hash6)
-    val streamRank = new StreamExecRank(
+    val streamRank = new StreamPhysicalRank(
       cluster,
       streamPhysicalTraits,
       streamExchange,
@@ -572,7 +572,7 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(3, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      UndefinedStrategy
+      RankProcessStrategy.UNDEFINED_STRATEGY
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -611,7 +611,7 @@ class FlinkRelMdHandlerTestBase {
     val singleton = FlinkRelDistribution.SINGLETON
     val streamExchange = new BatchPhysicalExchange(cluster,
       studentStreamScan.getTraitSet.replace(singleton), studentStreamScan, singleton)
-    val streamRowNumber = new StreamExecRank(
+    val streamRowNumber = new StreamPhysicalRank(
       cluster,
       streamPhysicalTraits,
       streamExchange,
@@ -621,7 +621,7 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(3, 6),
       new RelDataTypeFieldImpl("rn", 7, longType),
       outputRankNumber = true,
-      UndefinedStrategy
+      RankProcessStrategy.UNDEFINED_STRATEGY
     )
 
     (logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
@@ -762,7 +762,7 @@ class FlinkRelMdHandlerTestBase {
       outputRankNumber = true
     )
 
-    val streamRankWithVariableRange = new StreamExecRank(
+    val streamRankWithVariableRange = new StreamPhysicalRank(
       cluster,
       logicalTraits,
       studentStreamScan,
@@ -772,7 +772,7 @@ class FlinkRelMdHandlerTestBase {
       new VariableRankRange(3),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      UndefinedStrategy
+      RankProcessStrategy.UNDEFINED_STRATEGY
     )
 
     (logicalRankWithVariableRange, flinkLogicalRankWithVariableRange, streamRankWithVariableRange)
