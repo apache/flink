@@ -216,7 +216,6 @@ cdef class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
         cdef int distinct_index, filter_arg
         cdef int*filter_args
         cdef bint filtered
-        cdef tuple args
         cdef DistinctViewDescriptor distinct_view_descriptor
         cdef object distinct_data_view
         for i in range(self._udf_num):
@@ -259,7 +258,6 @@ cdef class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
         cdef size_t i, j, filter_length
         cdef int distinct_index, filter_arg
         cdef bint filtered
-        cdef tuple args
         cdef DistinctViewDescriptor distinct_view_descriptor
         cdef object distinct_data_view
         for i in range(self._udf_num):
