@@ -70,14 +70,24 @@ class RowBasedOperationTests(object):
             res = pd.concat([x.a, x.c + x.d], axis=1)
             return res
 
+        def func2(x):
+            return x * 2
+
         pandas_udf = udf(func,
                          result_type=DataTypes.ROW(
                              [DataTypes.FIELD("c", DataTypes.BIGINT()),
                               DataTypes.FIELD("d", DataTypes.BIGINT())]),
                          func_type='pandas')
-        t.map(pandas_udf).execute_insert("Results").wait()
+
+        pandas_udf_2 = udf(func2,
+                           result_type=DataTypes.ROW(
+                               [DataTypes.FIELD("c", DataTypes.BIGINT()),
+                                DataTypes.FIELD("d", DataTypes.BIGINT())]),
+                           func_type='pandas')
+
+        t.map(pandas_udf).map(pandas_udf_2).execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["2,4", "1,5", "1,14", "1,9", "2,7"])
+        self.assert_equals(actual, ["4,8", "2,10", "2,28", "2,18", "4,14"])
 
     def test_flat_map(self):
         t = self.t_env.from_elements(

@@ -383,8 +383,9 @@ object FlinkBatchRuleSets {
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
-    PythonCalcSplitRule.REWRITE_PROJECT
-  )
+    PythonCalcSplitRule.REWRITE_PROJECT,
+    PythonMapMergeRule.INSTANCE
+    )
 
   /**
     * RuleSet to do physical optimize for batch

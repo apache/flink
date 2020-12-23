@@ -257,9 +257,18 @@ public class JavaUserDefinedScalarFunctions {
 			return Row.of(a + 1, Row.of(a * a));
 		}
 
+		public Row eval(Object... args) {
+			return Row.of(1, Row.of(2));
+		}
+
 		@Override
 		public TypeInformation<?> getResultType(Class<?>[] signature) {
 			return Types.ROW(BasicTypeInfo.INT_TYPE_INFO, Types.ROW(BasicTypeInfo.INT_TYPE_INFO));
+		}
+
+		@Override
+		public boolean takesRowAsInput() {
+			return true;
 		}
 
 		@Override
