@@ -459,7 +459,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     * @return interval of the given column on stream local group Aggregate
     */
   def getColumnInterval(
-      aggregate: StreamExecLocalGroupAggregate,
+      aggregate: StreamPhysicalLocalGroupAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
 
@@ -536,7 +536,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val groupSet = aggregate match {
       case agg: StreamPhysicalGroupAggregate => agg.grouping
-      case agg: StreamExecLocalGroupAggregate => agg.grouping
+      case agg: StreamPhysicalLocalGroupAggregate => agg.grouping
       case agg: StreamExecGlobalGroupAggregate => agg.grouping
       case agg: StreamExecIncrementalGroupAggregate => agg.partialAggGrouping
       case agg: StreamExecGroupWindowAggregate => agg.getGrouping
@@ -606,9 +606,8 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
             } else {
               null
             }
-          case agg: StreamExecLocalGroupAggregate =>
-            getAggCallFromLocalAgg(
-              aggCallIndex, agg.aggInfoList.getActualAggregateCalls, agg.getInput.getRowType)
+          case agg: StreamPhysicalLocalGroupAggregate =>
+            getAggCallFromLocalAgg(aggCallIndex, agg.aggCalls, agg.getInput.getRowType)
           case agg: StreamExecIncrementalGroupAggregate
             if agg.partialAggInfoList.getActualAggregateCalls.length > aggCallIndex =>
             agg.partialAggInfoList.getActualAggregateCalls(aggCallIndex)
