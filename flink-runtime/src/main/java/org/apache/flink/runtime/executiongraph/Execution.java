@@ -70,7 +70,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -671,17 +670,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return releaseFuture;
 	}
 
-	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
-		assertRunningInJobMasterMainThread();
-
-		final HashSet<ExecutionVertex> consumerDeduplicator = new HashSet<>();
-		scheduleOrUpdateConsumers(allConsumers, consumerDeduplicator);
-	}
-
-	private void scheduleOrUpdateConsumers(
-			final List<List<ExecutionEdge>> allConsumers,
-			final HashSet<ExecutionVertex> consumerDeduplicator) {
-
+	private void updatePartitionConsumers(final List<List<ExecutionEdge>> allConsumers) {
 		if (allConsumers.size() == 0) {
 			return;
 		}
@@ -888,7 +877,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				if (transitionState(current, FINISHED)) {
 					try {
-						finishPartitionsAndScheduleOrUpdateConsumers();
+						finishPartitionsAndUpdateConsumers();
 						updateAccumulatorsAndMetrics(userAccumulators, metrics);
 						releaseAssignedResource(null);
 						vertex.getExecutionGraph().deregisterExecution(this);
@@ -919,20 +908,18 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	private void finishPartitionsAndScheduleOrUpdateConsumers() {
+	private void finishPartitionsAndUpdateConsumers() {
 		final List<IntermediateResultPartition> newlyFinishedResults = getVertex().finishAllBlockingPartitions();
 		if (newlyFinishedResults.isEmpty()) {
 			return;
 		}
-
-		final HashSet<ExecutionVertex> consumerDeduplicator = new HashSet<>();
 
 		for (IntermediateResultPartition finishedPartition : newlyFinishedResults) {
 			final IntermediateResultPartition[] allPartitionsOfNewlyFinishedResults =
 					finishedPartition.getIntermediateResult().getPartitions();
 
 			for (IntermediateResultPartition partition : allPartitionsOfNewlyFinishedResults) {
-				scheduleOrUpdateConsumers(partition.getConsumers(), consumerDeduplicator);
+				updatePartitionConsumers(partition.getConsumers());
 			}
 		}
 	}
