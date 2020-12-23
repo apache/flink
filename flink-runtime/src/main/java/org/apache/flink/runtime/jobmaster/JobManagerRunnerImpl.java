@@ -85,6 +85,8 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	private final CompletableFuture<Void> jobMasterCreationFuture;
+
 	private CompletableFuture<Void> leadershipOperation;
 
 	/** flag marking the runner as shut down. */
@@ -136,9 +138,20 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
 		this.leaderGatewayFuture = new CompletableFuture<>();
+		this.jobMasterCreationFuture = new CompletableFuture<>();
 
-		// now start the JobManager
-		this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader, initializationTimestamp);
+		synchronized (lock) {
+			try {
+				leaderElectionService.start(this);
+			} catch (Exception e) {
+				log.error("Could not start the JobManager because the leader election service did not start.", e);
+				throw new Exception("Could not start the leader election service.", e);
+			}
+			// now start the JobManager
+			this.jobMasterService = jobMasterFactory.createJobMasterService(
+				jobGraph, this, userCodeLoader, initializationTimestamp);
+			jobMasterCreationFuture.complete(null);
+		}
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -166,12 +179,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 	@Override
 	public void start() throws Exception {
-		try {
-			leaderElectionService.start(this);
-		} catch (Exception e) {
-			log.error("Could not start the JobManager because the leader election service did not start.", e);
-			throw new Exception("Could not start the leader election service.", e);
-		}
+		// noop
 	}
 
 	@Override
@@ -268,21 +276,27 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 	@Override
 	public void grantLeadership(final UUID leaderSessionID) {
-		synchronized (lock) {
-			if (shutdown) {
-				log.debug("JobManagerRunner cannot be granted leadership because it is already shut down.");
-				return;
-			}
-
-			leadershipOperation = leadershipOperation.thenCompose(
-				(ignored) -> {
-					synchronized (lock) {
-						return verifyJobSchedulingStatusAndStartJobManager(leaderSessionID);
+		jobMasterCreationFuture.whenComplete(
+			(ignore, throwable) -> {
+				if (throwable != null) {
+					handleJobManagerRunnerError(new FlinkException(throwable));
+				}
+				synchronized (lock) {
+					if (shutdown) {
+						log.debug("JobManagerRunner cannot be granted leadership because it is already shut down.");
+						return;
 					}
-				});
 
-			handleException(leadershipOperation, "Could not start the job manager.");
-		}
+					leadershipOperation = leadershipOperation.thenCompose(
+						(ignored) -> {
+							synchronized (lock) {
+								return verifyJobSchedulingStatusAndStartJobManager(leaderSessionID);
+							}
+						});
+
+					handleException(leadershipOperation, "Could not start the job manager.");
+				}
+			});
 	}
 
 	private CompletableFuture<Void> verifyJobSchedulingStatusAndStartJobManager(UUID leaderSessionId) {
@@ -361,21 +375,27 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 	@Override
 	public void revokeLeadership() {
-		synchronized (lock) {
-			if (shutdown) {
-				log.debug("Ignoring revoking leadership because JobManagerRunner is already shut down.");
-				return;
-			}
-
-			leadershipOperation = leadershipOperation.thenCompose(
-				(ignored) -> {
-					synchronized (lock) {
-						return revokeJobMasterLeadership();
+		jobMasterCreationFuture.whenComplete(
+			(ignore, throwable) -> {
+				if (throwable != null) {
+					handleJobManagerRunnerError(new FlinkException(throwable));
+				}
+				synchronized (lock) {
+					if (shutdown) {
+						log.debug("Ignoring revoking leadership because JobManagerRunner is already shut down.");
+						return;
 					}
-				});
 
-			handleException(leadershipOperation, "Could not suspend the job manager.");
-		}
+					leadershipOperation = leadershipOperation.thenCompose(
+						(ignored) -> {
+							synchronized (lock) {
+								return revokeJobMasterLeadership();
+							}
+						});
+
+					handleException(leadershipOperation, "Could not suspend the job manager.");
+				}
+			});
 	}
 
 	private CompletableFuture<Void> revokeJobMasterLeadership() {
@@ -417,7 +437,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 	@Override
 	public String getDescription() {
-		return jobMasterService.getAddress();
+		return jobMasterService == null ? LeaderContender.super.getDescription() : jobMasterService.getAddress();
 	}
 
 	@Override

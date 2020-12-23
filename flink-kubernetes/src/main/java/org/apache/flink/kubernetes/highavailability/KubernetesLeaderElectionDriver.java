@@ -30,6 +30,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionEventHandler;
 import org.apache.flink.runtime.leaderelection.LeaderElectionException;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
@@ -73,6 +75,8 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
 	private final FatalErrorHandler fatalErrorHandler;
 
+	private final CountDownLatch configMapLatch = new CountDownLatch(1);
+
 	private volatile boolean running;
 
 	public KubernetesLeaderElectionDriver(
@@ -95,6 +99,12 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 		running = true;
 		leaderElector.run();
 		kubernetesWatch = kubeClient.watchConfigMaps(configMapName, new ConfigMapCallbackHandlerImpl());
+		// Wait for the ConfigMap to be created.
+		try {
+			configMapLatch.await();
+		} catch (InterruptedException e) {
+			throw new FlinkRuntimeException("Interrupted while waiting for leader ConfigMap to be created.", e);
+		}
 	}
 
 	@Override
@@ -179,7 +189,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 	private class ConfigMapCallbackHandlerImpl implements FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap> {
 		@Override
 		public void onAdded(List<KubernetesConfigMap> configMaps) {
-			// noop
+			configMapLatch.countDown();
 		}
 
 		@Override
