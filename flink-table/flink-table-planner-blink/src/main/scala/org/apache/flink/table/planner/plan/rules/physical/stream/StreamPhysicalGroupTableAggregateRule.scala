@@ -18,22 +18,26 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecGroupTableAggregate
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalGroupTableAggregate
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
+
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
 
 import scala.collection.JavaConversions._
 
-class StreamExecGroupTableAggregateRule extends ConverterRule(
+/**
+ * Rule to convert a [[FlinkLogicalTableAggregate]] into a [[StreamPhysicalGroupTableAggregate]].
+ */
+class StreamPhysicalGroupTableAggregateRule extends ConverterRule(
     classOf[FlinkLogicalTableAggregate],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecGroupTableAggregateRule") {
+    "StreamPhysicalGroupTableAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: FlinkLogicalTableAggregate = call.rel(0)
@@ -53,7 +57,7 @@ class StreamExecGroupTableAggregateRule extends ConverterRule(
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(agg.getInput, requiredTraitSet)
 
-    new StreamExecGroupTableAggregate(
+    new StreamPhysicalGroupTableAggregate(
       rel.getCluster,
       providedTraitSet,
       newInput,
@@ -64,7 +68,6 @@ class StreamExecGroupTableAggregateRule extends ConverterRule(
   }
 }
 
-object StreamExecGroupTableAggregateRule {
-  val INSTANCE: StreamExecGroupTableAggregateRule = new StreamExecGroupTableAggregateRule()
+object StreamPhysicalGroupTableAggregateRule {
+  val INSTANCE: StreamPhysicalGroupTableAggregateRule = new StreamPhysicalGroupTableAggregateRule()
 }
-

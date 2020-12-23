@@ -835,7 +835,7 @@ class FlinkRelMdHandlerTestBase {
     builder.add("f1", new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.INTEGER))
     val relDataType = builder.build()
 
-    val streamExecTableAgg = new StreamExecGroupTableAggregate(
+    val streamTableAgg = new StreamPhysicalGroupTableAggregate(
       cluster,
       logicalTraits,
       studentLogicalScan,
@@ -844,7 +844,7 @@ class FlinkRelMdHandlerTestBase {
       Seq(tableAggCall)
     )
 
-    (logicalTableAgg, flinkLogicalTableAgg, streamExecTableAgg)
+    (logicalTableAgg, flinkLogicalTableAgg, streamTableAgg)
   }
 
   // equivalent Table API is
