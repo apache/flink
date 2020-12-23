@@ -48,10 +48,10 @@ import scala.collection.JavaConversions._
   *
   * <p>Considering the following sub-plan:
   * {{{
-  *   StreamExecGlobalGroupAggregate (final-global-aggregate)
+  *   StreamPhysicalGlobalGroupAggregate (final-global-aggregate)
   *   +- StreamPhysicalExchange
   *      +- StreamPhysicalLocalGroupAggregate (final-local-aggregate)
-  *         +- StreamExecGlobalGroupAggregate (partial-global-aggregate)
+  *         +- StreamPhysicalGlobalGroupAggregate (partial-global-aggregate)
   *            +- StreamPhysicalExchange
   *               +- StreamPhysicalLocalGroupAggregate (partial-local-aggregate)
   * }}}
@@ -60,7 +60,7 @@ import scala.collection.JavaConversions._
   * this node to share [[org.apache.flink.api.common.state.State]].
   * now the sub-plan is
   * {{{
-  *   StreamExecGlobalGroupAggregate (final-global-aggregate)
+  *   StreamPhysicalGlobalGroupAggregate (final-global-aggregate)
   *   +- StreamPhysicalExchange
   *      +- StreamExecIncrementalGroupAggregate
   *         +- StreamPhysicalExchange

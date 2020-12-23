@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.PartialFinalType
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecGlobalGroupAggregate, StreamExecIncrementalGroupAggregate, StreamPhysicalLocalGroupAggregate, StreamPhysicalExchange}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecIncrementalGroupAggregate, StreamPhysicalExchange, StreamPhysicalGlobalGroupAggregate, StreamPhysicalLocalGroupAggregate}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, DistinctInfo}
 import org.apache.flink.util.Preconditions
 
@@ -33,23 +33,24 @@ import java.lang.{Boolean => JBoolean}
 import java.util.Collections
 
 /**
-  * Rule that matches final [[StreamExecGlobalGroupAggregate]] on [[StreamPhysicalExchange]]
-  * on final [[StreamPhysicalLocalGroupAggregate]] on partial [[StreamExecGlobalGroupAggregate]],
-  * and combines the final [[StreamPhysicalLocalGroupAggregate]] and
-  * the partial [[StreamExecGlobalGroupAggregate]] into a [[StreamExecIncrementalGroupAggregate]].
-  */
+ * Rule that matches final [[StreamPhysicalGlobalGroupAggregate]] on [[StreamPhysicalExchange]]
+ * on final [[StreamPhysicalLocalGroupAggregate]] on partial [[StreamPhysicalGlobalGroupAggregate]],
+ * and combines the final [[StreamPhysicalLocalGroupAggregate]] and
+ * the partial [[StreamPhysicalGlobalGroupAggregate]] into a
+ * [[StreamExecIncrementalGroupAggregate]].
+ */
 class IncrementalAggregateRule
   extends RelOptRule(
-    operand(classOf[StreamExecGlobalGroupAggregate], // final global agg
+    operand(classOf[StreamPhysicalGlobalGroupAggregate], // final global agg
       operand(classOf[StreamPhysicalExchange], // key by
         operand(classOf[StreamPhysicalLocalGroupAggregate], // final local agg
-          operand(classOf[StreamExecGlobalGroupAggregate], any())))), // partial global agg
+          operand(classOf[StreamPhysicalGlobalGroupAggregate], any())))), // partial global agg
     "IncrementalAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val finalGlobalAgg: StreamExecGlobalGroupAggregate = call.rel(0)
+    val finalGlobalAgg: StreamPhysicalGlobalGroupAggregate = call.rel(0)
     val finalLocalAgg: StreamPhysicalLocalGroupAggregate = call.rel(2)
-    val partialGlobalAgg: StreamExecGlobalGroupAggregate = call.rel(3)
+    val partialGlobalAgg: StreamPhysicalGlobalGroupAggregate = call.rel(3)
 
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
 
@@ -64,11 +65,11 @@ class IncrementalAggregateRule
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val finalGlobalAgg: StreamExecGlobalGroupAggregate = call.rel(0)
+    val finalGlobalAgg: StreamPhysicalGlobalGroupAggregate = call.rel(0)
     val exchange: StreamPhysicalExchange = call.rel(1)
     val finalLocalAgg: StreamPhysicalLocalGroupAggregate = call.rel(2)
-    val partialGlobalAgg: StreamExecGlobalGroupAggregate = call.rel(3)
-    val aggInputRowType = partialGlobalAgg.inputRowType
+    val partialGlobalAgg: StreamPhysicalGlobalGroupAggregate = call.rel(3)
+    val aggInputRowType = partialGlobalAgg.localAggInputRowType
 
     val partialLocalAggInfoList = partialGlobalAgg.localAggInfoList
     val partialGlobalAggInfoList = partialGlobalAgg.globalAggInfoList
@@ -141,16 +142,6 @@ class IncrementalAggregateRule
         needInputCount = false,
         // the local agg is not works on state
         isStateBackendDataViews = false)
-      val globalAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
-        // the final agg input is partial agg
-        FlinkTypeFactory.toLogicalRowType(partialGlobalAgg.getRowType),
-        aggCalls,
-        // all the aggs do not need retraction
-        Array.fill(aggCalls.length)(false),
-        // also do not need count*
-        needInputCount = false,
-        // the global agg is works on state
-        isStateBackendDataViews = true)
 
       // check whether the global agg required input row type equals the incr agg output row type
       val globalAggInputAccType = AggregateUtil.inferLocalAggRowType(
@@ -164,15 +155,17 @@ class IncrementalAggregateRule
         globalAggInputAccType,
         false))
 
-      new StreamExecGlobalGroupAggregate(
+      new StreamPhysicalGlobalGroupAggregate(
         finalGlobalAgg.getCluster,
         finalGlobalAgg.getTraitSet,
         newExchange,
-        finalGlobalAgg.inputRowType,
         finalGlobalAgg.getRowType,
         finalGlobalAgg.grouping,
-        localAggInfoList, // the agg info list is changed
-        globalAggInfoList, // the agg info list is changed
+        aggCalls,
+        // all the aggs do not need retraction
+        Array.fill(aggCalls.length)(false),
+        finalGlobalAgg.localAggInputRowType,
+        needRetraction = false,
         finalGlobalAgg.partialFinalType)
     }
 
