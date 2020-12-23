@@ -42,7 +42,7 @@ import scala.collection.JavaConversions._
 /**
   * Stream physical RelNode for time-ascending-order [[Sort]] without `limit`.
   *
-  * @see [[StreamExecRank]] which must be with `limit` order by.
+  * @see [[StreamPhysicalRank]] which must be with `limit` order by.
   * @see [[StreamExecSort]] which can be used for testing now, its sort key can be any type.
   */
 class StreamExecTemporalSort(

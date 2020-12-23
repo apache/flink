@@ -408,11 +408,11 @@ object FlinkStreamRuleSets {
     StreamExecUnionRule.INSTANCE,
     // sort
     StreamExecSortRule.INSTANCE,
-    StreamExecLimitRule.INSTANCE,
+    StreamPhysicalLimitRule.INSTANCE,
     StreamExecSortLimitRule.INSTANCE,
     StreamExecTemporalSortRule.INSTANCE,
     // rank
-    StreamExecRankRule.INSTANCE,
+    StreamPhysicalRankRule.INSTANCE,
     StreamExecDeduplicateRule.RANK_INSTANCE,
     // expand
     StreamPhysicalExpandRule.INSTANCE,

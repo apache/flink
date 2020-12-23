@@ -20,51 +20,57 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecLimit
-
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRank
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.flink.table.planner.plan.utils.RankProcessStrategy
 
 /**
-  * Rule that matches [[FlinkLogicalSort]] with empty sort fields,
-  * and converts it to [[StreamExecLimit]].
+  * Rule that converts [[FlinkLogicalRank]] with fetch to [[StreamPhysicalRank]].
+  * NOTES: the rank can not be converted to [[StreamExecDeduplicate]].
   */
-class StreamExecLimitRule
+class StreamPhysicalRankRule
   extends ConverterRule(
-    classOf[FlinkLogicalSort],
+    classOf[FlinkLogicalRank],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecLimitRule") {
+    "StreamPhysicalRankRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val sort: FlinkLogicalSort = call.rel(0)
-    // only matches Sort with empty sort fields
-    sort.getCollation.getFieldCollations.isEmpty
-}
+    val rank: FlinkLogicalRank = call.rel(0)
+    !StreamExecDeduplicateRule.canConvertToDeduplicate(rank)
+  }
 
   override def convert(rel: RelNode): RelNode = {
-    val sort = rel.asInstanceOf[FlinkLogicalSort]
-    val input = sort.getInput
-
-    // require SINGLETON exchange
-    val newTraitSet = input.getTraitSet
+    val rank = rel.asInstanceOf[FlinkLogicalRank]
+    val input = rank.getInput
+    val requiredDistribution = if (!rank.partitionKey.isEmpty) {
+      FlinkRelDistribution.hash(rank.partitionKey.toList)
+    } else {
+      FlinkRelDistribution.SINGLETON
+    }
+    val requiredTraitSet = input.getTraitSet
       .replace(FlinkConventions.STREAM_PHYSICAL)
-      .replace(FlinkRelDistribution.SINGLETON)
-    val newInput = RelOptRule.convert(input, newTraitSet)
+      .replace(requiredDistribution)
+    val providedTraitSet = rank.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
-    // create StreamExecLimit
-    val providedGlobalTraitSet = newTraitSet
-    new StreamExecLimit(
-      rel.getCluster,
-      providedGlobalTraitSet,
+    new StreamPhysicalRank(
+      rank.getCluster,
+      providedTraitSet,
       newInput,
-      sort.offset,
-      sort.fetch)
+      rank.partitionKey,
+      rank.orderKey,
+      rank.rankType,
+      rank.rankRange,
+      rank.rankNumberType,
+      rank.outputRankNumber,
+      RankProcessStrategy.UNDEFINED_STRATEGY)
   }
 }
 
-object StreamExecLimitRule {
-  val INSTANCE: RelOptRule = new StreamExecLimitRule
+object StreamPhysicalRankRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalRankRule
 }
