@@ -30,7 +30,6 @@ final class DefaultDeclarativeSlotPoolBuilder {
     private AllocatedSlotPool allocatedSlotPool = new DefaultAllocatedSlotPool();
     private Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements =
             ignored -> {};
-    private Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots = ignored -> {};
     private Time idleSlotTimeout = Time.seconds(20);
     private Time rpcTimeout = Time.seconds(20);
 
@@ -46,12 +45,6 @@ final class DefaultDeclarativeSlotPoolBuilder {
         return this;
     }
 
-    public DefaultDeclarativeSlotPoolBuilder setNotifyNewSlots(
-            Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots) {
-        this.notifyNewSlots = notifyNewSlots;
-        return this;
-    }
-
     public DefaultDeclarativeSlotPoolBuilder setIdleSlotTimeout(Time idleSlotTimeout) {
         this.idleSlotTimeout = idleSlotTimeout;
         return this;
@@ -62,7 +55,6 @@ final class DefaultDeclarativeSlotPoolBuilder {
                 new JobID(),
                 allocatedSlotPool,
                 notifyNewResourceRequirements,
-                notifyNewSlots,
                 idleSlotTimeout,
                 rpcTimeout);
     }

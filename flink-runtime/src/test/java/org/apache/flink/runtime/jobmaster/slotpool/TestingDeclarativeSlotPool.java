@@ -172,6 +172,11 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
         releaseIdleSlotsConsumer.accept(currentTimeMillis);
     }
 
+    @Override
+    public void registerNewSlotsListener(NewSlotsListener listener) {
+        // noop
+    }
+
     public static TestingDeclarativeSlotPoolBuilder builder() {
         return new TestingDeclarativeSlotPoolBuilder();
     }
