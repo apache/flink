@@ -289,7 +289,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: StreamExecGlobalGroupAggregate,
+      rel: StreamPhysicalGlobalGroupAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     // global and local agg should have same update monotonicity
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
