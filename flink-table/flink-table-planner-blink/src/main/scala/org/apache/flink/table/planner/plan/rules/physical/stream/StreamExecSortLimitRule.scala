@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecSortL
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.planner.plan.utils.UndefinedStrategy
+import org.apache.flink.table.planner.plan.utils.RankProcessStrategy
 
 /**
   * Rule that matches [[FlinkLogicalSort]] with non-empty sort fields and non-null fetch or offset,
@@ -61,7 +61,7 @@ class StreamExecSortLimitRule
       sort.collation,
       sort.offset,
       sort.fetch,
-      UndefinedStrategy)
+      RankProcessStrategy.UNDEFINED_STRATEGY)
   }
 }
 

@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDeduplicate, StreamExecRank}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDeduplicate, StreamPhysicalRank}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -35,8 +35,8 @@ import org.apache.calcite.rel.{RelCollation, RelNode}
   * limits 1 and its rank type is ROW_NUMBER, and converts it to [[StreamExecDeduplicate]].
   *
   * NOTES: Queries that can be converted to [[StreamExecDeduplicate]] could be converted to
-  * [[StreamExecRank]] too. [[StreamExecDeduplicate]] is more efficient than [[StreamExecRank]]
-  * due to mini-batch and less state access.
+  * [[StreamPhysicalRank]] too. [[StreamExecDeduplicate]] is more efficient than
+  * [[StreamPhysicalRank]] due to mini-batch and less state access.
   *
   * e.g.
   * 1. {{{

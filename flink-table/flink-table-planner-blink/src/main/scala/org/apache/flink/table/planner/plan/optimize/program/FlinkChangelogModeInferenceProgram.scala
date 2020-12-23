@@ -27,9 +27,9 @@ import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 
 import scala.collection.JavaConversions._
 
@@ -210,7 +210,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = new ModifyKindSetTrait(builder.build())
         createNewNode(window, children, providedTrait, requiredTrait, requester)
 
-      case limit: StreamExecLimit =>
+      case limit: StreamPhysicalLimit =>
         // limit support all changes in input
         val children = visitChildren(limit, ModifyKindSetTrait.ALL_CHANGES)
         val providedTrait = if (getModifyKindSet(children.head).isInsertOnly) {
@@ -220,7 +220,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
         createNewNode(limit, children, providedTrait, requiredTrait, requester)
 
-      case _: StreamExecRank | _: StreamExecSortLimit =>
+      case _: StreamPhysicalRank | _: StreamExecSortLimit =>
         // Rank and SortLimit supports consuming all changes
         val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
         createNewNode(
@@ -462,7 +462,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         visitSink(sink, sinkRequiredTraits)
 
       case _: StreamExecGroupAggregate | _: StreamExecGroupTableAggregate |
-           _: StreamExecLimit | _: StreamExecPythonGroupAggregate |
+           _: StreamPhysicalLimit | _: StreamExecPythonGroupAggregate |
            _: StreamExecPythonGroupTableAggregate =>
         // Aggregate, TableAggregate and Limit requires update_before if there are updates
         val requiredChildTrait = beforeAfterOrNone(getModifyKindSet(rel.getInput(0)))
@@ -479,7 +479,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val children = visitChildren(rel, UpdateKindTrait.NONE)
         createNewNode(rel, children, requiredTrait)
 
-      case rank: StreamExecRank =>
+      case rank: StreamPhysicalRank =>
         val rankStrategies = RankProcessStrategy.analyzeRankProcessStrategies(
           rank, rank.partitionKey, rank.orderKey)
         visitRankStrategies(rankStrategies, requiredTrait, rankStrategy => rank.copy(rankStrategy))
@@ -724,9 +724,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       // return the first satisfied converted node
       for (strategy <- rankStrategies) {
         val requiredChildrenTrait = strategy match {
-          case UpdateFastStrategy(_) => UpdateKindTrait.ONLY_UPDATE_AFTER
-          case RetractStrategy => UpdateKindTrait.BEFORE_AND_AFTER
-          case AppendFastStrategy => UpdateKindTrait.NONE
+          case _: UpdateFastStrategy => UpdateKindTrait.ONLY_UPDATE_AFTER
+          case _: RetractStrategy => UpdateKindTrait.BEFORE_AND_AFTER
+          case _: AppendFastStrategy => UpdateKindTrait.NONE
         }
         val node = applyRankStrategy(strategy)
         val children = visitChildren(node, requiredChildrenTrait)
