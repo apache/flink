@@ -45,7 +45,7 @@ changing parallelism, forking a second job like for a red/blue deployment, and s
 more on portability and support for the previously mentioned changes to the job.
 
 Those conceptual differences aside, the current implementations of Checkpoints and Savepoints are basically using the same code and produce the same format. However, there is currently one exception from this, and we might
-introduce more differences in the future. The exception are incremental checkpoints with the RocksDB state backend. They are using some RocksDB internal format instead of Flink’s native savepoint format. This makes them the
+introduce more differences in the future. The exception is incremental checkpoints with the RocksDB state backend. They are using some RocksDB internal format instead of Flink’s native savepoint format. This makes them the
 first instance of a more lightweight checkpointing mechanism, compared to Savepoints.
 
 ## Assigning Operator IDs
