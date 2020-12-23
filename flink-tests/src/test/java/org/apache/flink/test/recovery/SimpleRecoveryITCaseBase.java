@@ -47,7 +47,7 @@ public abstract class SimpleRecoveryITCaseBase {
 	public void testFailedRunThenSuccessfulRun() throws Exception {
 
 		try {
-			List<Long> resultCollection = new ArrayList<Long>();
+			List<Long> resultCollection = new ArrayList<>();
 
 			// attempt 1
 			{
@@ -58,14 +58,9 @@ public abstract class SimpleRecoveryITCaseBase {
 
 				env.generateSequence(1, 10)
 						.rebalance()
-						.map(new FailingMapper1<Long>())
-						.reduce(new ReduceFunction<Long>() {
-							@Override
-							public Long reduce(Long value1, Long value2) {
-								return value1 + value2;
-							}
-						})
-						.output(new LocalCollectionOutputFormat<Long>(resultCollection));
+						.map(new FailingMapper1<>())
+						.reduce(Long::sum)
+						.output(new LocalCollectionOutputFormat<>(resultCollection));
 
 				try {
 					JobExecutionResult res = env.execute();
@@ -86,14 +81,9 @@ public abstract class SimpleRecoveryITCaseBase {
 
 				env.generateSequence(1, 10)
 						.rebalance()
-						.map(new FailingMapper1<Long>())
-						.reduce(new ReduceFunction<Long>() {
-							@Override
-							public Long reduce(Long value1, Long value2) {
-								return value1 + value2;
-							}
-						})
-						.output(new LocalCollectionOutputFormat<Long>(resultCollection));
+						.map(new FailingMapper1<>())
+						.reduce((ReduceFunction<Long>) Long::sum)
+						.output(new LocalCollectionOutputFormat<>(resultCollection));
 
 				executeAndRunAssertions(env);
 
@@ -104,10 +94,6 @@ public abstract class SimpleRecoveryITCaseBase {
 				assertEquals(55, sum);
 			}
 
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		} finally {
 			FailingMapper1.failuresBeforeSuccess = 1;
 		}
@@ -121,14 +107,14 @@ public abstract class SimpleRecoveryITCaseBase {
 			assertTrue(result.getAllAccumulatorResults().isEmpty());
 		}
 		catch (JobExecutionException e) {
-			fail("The program should have succeeded on the second run");
+			throw new AssertionError("The program should have succeeded on the second run", e);
 		}
 	}
 
 	@Test
-	public void testRestart() {
+	public void testRestart() throws Exception {
 		try {
-			List<Long> resultCollection = new ArrayList<Long>();
+			List<Long> resultCollection = new ArrayList<>();
 
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -137,14 +123,9 @@ public abstract class SimpleRecoveryITCaseBase {
 
 			env.generateSequence(1, 10)
 					.rebalance()
-					.map(new FailingMapper2<Long>())
-					.reduce(new ReduceFunction<Long>() {
-						@Override
-						public Long reduce(Long value1, Long value2) {
-							return value1 + value2;
-						}
-					})
-					.output(new LocalCollectionOutputFormat<Long>(resultCollection));
+					.map(new FailingMapper2<>())
+					.reduce(Long::sum)
+					.output(new LocalCollectionOutputFormat<>(resultCollection));
 
 			executeAndRunAssertions(env);
 
@@ -153,19 +134,15 @@ public abstract class SimpleRecoveryITCaseBase {
 				sum += l;
 			}
 			assertEquals(55, sum);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		} finally {
 			FailingMapper2.failuresBeforeSuccess = 1;
 		}
 	}
 
 	@Test
-	public void testRestartMultipleTimes() {
+	public void testRestartMultipleTimes() throws Exception {
 		try {
-			List<Long> resultCollection = new ArrayList<Long>();
+			List<Long> resultCollection = new ArrayList<>();
 
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -174,14 +151,9 @@ public abstract class SimpleRecoveryITCaseBase {
 
 			env.generateSequence(1, 10)
 					.rebalance()
-					.map(new FailingMapper3<Long>())
-					.reduce(new ReduceFunction<Long>() {
-						@Override
-						public Long reduce(Long value1, Long value2) {
-							return value1 + value2;
-						}
-					})
-					.output(new LocalCollectionOutputFormat<Long>(resultCollection));
+					.map(new FailingMapper3<>())
+					.reduce(Long::sum)
+					.output(new LocalCollectionOutputFormat<>(resultCollection));
 
 			executeAndRunAssertions(env);
 
@@ -190,10 +162,6 @@ public abstract class SimpleRecoveryITCaseBase {
 				sum += l;
 			}
 			assertEquals(55, sum);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		} finally {
 			FailingMapper3.failuresBeforeSuccess = 3;
 		}
