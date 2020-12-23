@@ -207,7 +207,7 @@ With the help of temporal table join, we can express such a query in SQL as:
 
 {% highlight sql %}
 SELECT
-  o.amout, o.currency, r.rate, o.amount * r.rate
+  o.amount, o.currency, r.rate, o.amount * r.rate
 FROM
   Orders AS o
   JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
