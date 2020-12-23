@@ -33,7 +33,7 @@ public final class LastValueWithRetractAggFunction<T>
         extends FirstLastValueWithRetractAggFunctionBase<T> {
 
     private static final BiFunction<Long, Long, Boolean> comparator =
-            (order1, order2) -> order1 < order2;;
+            (order1, order2) -> order1 < order2;
 
     public LastValueWithRetractAggFunction(LogicalType valueType) {
         super(valueType);
