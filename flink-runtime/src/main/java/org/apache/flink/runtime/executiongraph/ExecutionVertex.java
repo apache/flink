@@ -59,6 +59,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several times, each of
@@ -705,34 +707,15 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		currentExecution.markFailed(t);
 	}
 
-	/**
-	 * Schedules or updates the consumer tasks of the result partition with the given ID.
-	 */
-	void scheduleOrUpdateConsumers(ResultPartitionID partitionId) {
-
-		final Execution execution = currentExecution;
-
-		// Abort this request if there was a concurrent reset
-		if (!partitionId.getProducerId().equals(execution.getAttemptId())) {
-			return;
-		}
+	void notifyPartitionDataAvailable(ResultPartitionID partitionId) {
+		checkArgument(partitionId.getProducerId().equals(currentExecution.getAttemptId()));
 
 		final IntermediateResultPartition partition = resultPartitions.get(partitionId.getPartitionId());
-
-		if (partition == null) {
-			throw new IllegalStateException("Unknown partition " + partitionId + ".");
-		}
+		checkState(partition != null, "Unknown partition " + partitionId + ".");
+		checkState(partition.getResultType().isPipelined(), "partition data available notification is " +
+			"only valid for pipelined partitions.");
 
 		partition.markDataProduced();
-
-		if (partition.getIntermediateResult().getResultType().isPipelined()) {
-			// Schedule or update receivers of this partition
-			execution.scheduleOrUpdateConsumers(partition.getConsumers());
-		}
-		else {
-			throw new IllegalArgumentException("ScheduleOrUpdateConsumers msg is only valid for" +
-					"pipelined partitions.");
-		}
 	}
 
 	void cachePartitionInfo(PartitionInfo partitionInfo){
