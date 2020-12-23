@@ -176,7 +176,7 @@ import org.apache.avro.Schema;
 
 
 Schema schema = ...;
-DataStream<GenericRecord> stream = ...;
+DataStream<GenericRecord> input = ...;
 
 final StreamingFileSink<GenericRecord> sink = StreamingFileSink
 	.forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
@@ -214,7 +214,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters;
 
 // ProtoRecord is a generated protobuf Message class.
-DataStream<ProtoRecord> stream = ...;
+DataStream<ProtoRecord> input = ...;
 
 final StreamingFileSink<ProtoRecord> sink = StreamingFileSink
 	.forBulkFormat(outputBasePath, ParquetProtoWriters.forType(ProtoRecord.class))
@@ -269,7 +269,7 @@ import org.apache.avro.Schema;
 
 
 Schema schema = ...;
-DataStream<GenericRecord> stream = ...;
+DataStream<GenericRecord> input = ...;
 
 final StreamingFileSink<GenericRecord> sink = StreamingFileSink
 	.forBulkFormat(outputBasePath, AvroWriters.forGenericRecord(schema))
@@ -438,7 +438,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 
 String schema = "struct<_col0:string,_col1:int>";
-DataStream<Person> stream = ...;
+DataStream<Person> input = ...;
 
 final OrcBulkWriterFactory<Person> writerFactory = new OrcBulkWriterFactory<>(new PersonVectorizer(schema));
 
