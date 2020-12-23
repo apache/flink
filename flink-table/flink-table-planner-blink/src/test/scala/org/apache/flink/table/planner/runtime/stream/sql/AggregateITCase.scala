@@ -502,7 +502,11 @@ class AggregateITCase(
     t1.toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1,1,1,1,1,1,1", "3,1,15,15,15,15,3", "4,1,34,34,34,34,4", "7,2,23,5,5,23,2")
+    val expected = List(
+      "1,1,1,1,1,1,1",
+      "3,1,15,15,15,15,3",
+      "4,1,34,34,34,34,4",
+      "7,2,23,5,5,23,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
