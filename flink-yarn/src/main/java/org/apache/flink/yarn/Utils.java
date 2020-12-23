@@ -83,6 +83,9 @@ public final class Utils {
     /** Yarn site xml file name populated in YARN container for secure IT run. */
     public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
 
+    /** The prefixes that Flink adds to the YARN config. */
+    private static final String[] FLINK_CONFIG_PREFIXES = {"flink.yarn."};
+
     @VisibleForTesting
     static final String YARN_RM_FAIR_SCHEDULER_CLAZZ =
             "org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler";
@@ -663,5 +666,41 @@ public final class Utils {
             }
         }
         return providedLibDirs;
+    }
+
+    public static YarnConfiguration getYarnAndHadoopConfiguration(
+            org.apache.flink.configuration.Configuration flinkConfig) {
+        final YarnConfiguration yarnConfig = getYarnConfiguration(flinkConfig);
+        yarnConfig.addResource(HadoopUtils.getHadoopConfiguration(flinkConfig));
+
+        return yarnConfig;
+    }
+
+    /**
+     * Add additional config entries from the flink config to the yarn config.
+     *
+     * @param flinkConfig The Flink configuration object.
+     * @return The yarn configuration.
+     */
+    public static YarnConfiguration getYarnConfiguration(
+            org.apache.flink.configuration.Configuration flinkConfig) {
+        final YarnConfiguration yarnConfig = new YarnConfiguration();
+
+        for (String key : flinkConfig.keySet()) {
+            for (String prefix : FLINK_CONFIG_PREFIXES) {
+                if (key.startsWith(prefix)) {
+                    String newKey = key.substring("flink.".length());
+                    String value = flinkConfig.getString(key, null);
+                    yarnConfig.set(newKey, value);
+                    LOG.debug(
+                            "Adding Flink config entry for {} as {}={} to Yarn config",
+                            key,
+                            newKey,
+                            value);
+                }
+            }
+        }
+
+        return yarnConfig;
     }
 }

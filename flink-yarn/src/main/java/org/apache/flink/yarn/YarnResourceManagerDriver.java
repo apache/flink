@@ -123,7 +123,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
             YarnNodeManagerClientFactory yarnNodeManagerClientFactory) {
         super(flinkConfig, GlobalConfiguration.loadConfiguration(configuration.getCurrentDir()));
 
-        this.yarnConfig = new YarnConfiguration();
+        this.yarnConfig = Utils.getYarnAndHadoopConfiguration(flinkConfig);
         this.requestResourceFutures = new HashMap<>();
         this.configuration = configuration;
 
