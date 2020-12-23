@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.planner.plan.stream.sql
 
+import org.apache.flink.table.planner.plan.rules.logical.PushLimitIntoTableSourceScanRule
+
 import org.junit.Before
 
 /**
- * Test for.
+ * Test for [[PushLimitIntoTableSourceScanRule]].
  */
 class LimitableSourceTest extends LimitTest {
 

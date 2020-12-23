@@ -57,7 +57,7 @@ public interface JdbcDialect extends Serializable {
 	 */
 	JdbcRowConverter getRowConverter(RowType rowType);
 
-	String getLimit(long limit);
+	String getLimitStatement(long limit);
 
 	/**
 	 * Check if this dialect instance support a specific data type in table schema.
@@ -159,6 +159,6 @@ public interface JdbcDialect extends Serializable {
 				.collect(Collectors.joining(" AND "));
 		return "SELECT " + selectExpressions + " FROM " +
 				quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "") +
-				getLimit(limit);
+				getLimitStatement(limit);
 	}
 }

@@ -56,7 +56,7 @@ public class PostgresDialect extends AbstractDialect {
 	}
 
 	@Override
-	public String getLimit(long limit) {
+	public String getLimitStatement(long limit) {
 		if (limit >= 0) {
 			return " limit " + limit;
 		} else {
