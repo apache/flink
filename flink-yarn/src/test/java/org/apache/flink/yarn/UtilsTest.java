@@ -40,7 +40,9 @@ import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link Utils}. */
@@ -128,6 +130,32 @@ public class UtilsTest extends TestLogger {
                             + "contain dirs accessible from all worker nodes";
             assertThat(ex, FlinkMatchers.containsMessage(msg));
         }
+    }
+
+    @Test
+    public void testGetYarnConfiguration() {
+        final String flinkPrefix = "flink.yarn.";
+        final String yarnPrefix = "yarn.";
+
+        final String k1 = "brooklyn";
+        final String v1 = "nets";
+
+        final String k2 = "golden.state";
+        final String v2 = "warriors";
+
+        final String k3 = "miami";
+        final String v3 = "heat";
+
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.setString(flinkPrefix + k1, v1);
+        flinkConfig.setString(flinkPrefix + k2, v2);
+        flinkConfig.setString(k3, v3);
+
+        final YarnConfiguration yarnConfig = Utils.getYarnConfiguration(flinkConfig);
+
+        assertEquals(v1, yarnConfig.get(yarnPrefix + k1, null));
+        assertEquals(v2, yarnConfig.get(yarnPrefix + k2, null));
+        assertTrue(yarnConfig.get(yarnPrefix + k3) == null);
     }
 
     private static void verifyUnitResourceVariousSchedulers(
