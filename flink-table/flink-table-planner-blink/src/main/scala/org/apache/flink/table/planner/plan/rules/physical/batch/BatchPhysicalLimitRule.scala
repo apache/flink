@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecLimit
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLimit
 import org.apache.flink.table.planner.plan.utils.SortUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -34,25 +34,25 @@ import org.apache.calcite.sql.`type`.SqlTypeName
   * Rule that matches [[FlinkLogicalSort]] with empty sort fields,
   * and converts it to
   * {{{
-  * BatchExecLimit (global)
+  * BatchPhysicalLimit (global)
   * +- BatchPhysicalExchange (singleton)
-  *    +- BatchExecLimit (local)
+  *    +- BatchPhysicalLimit (local)
   *       +- input of sort
   * }}}
   * when fetch is not null, or
   * {{{
-  * BatchExecLimit
+  * BatchPhysicalLimit
   * +- BatchPhysicalExchange (singleton)
   *    +- input of sort
   * }}}
   * when fetch is null.
   */
-class BatchExecLimitRule
+class BatchPhysicalLimitRule
   extends ConverterRule(
     classOf[FlinkLogicalSort],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecLimitRule") {
+    "BatchPhysicalLimitRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
@@ -69,14 +69,14 @@ class BatchExecLimitRule
     val traitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val newLocalInput = RelOptRule.convert(input, traitSet)
 
-    // if fetch is null, there is no need to create local BatchExecLimit
+    // if fetch is null, there is no need to create local BatchPhysicalLimit
     val inputOfExchange = if (sort.fetch != null) {
       val providedLocalTraitSet = traitSet
       val limit = SortUtil.getLimitEnd(sort.offset, sort.fetch)
       val rexBuilder = sort.getCluster.getRexBuilder
       val intType = rexBuilder.getTypeFactory.createSqlType(SqlTypeName.INTEGER)
-      // for local BatchExecLimit, offset is always 0, and fetch is `limit`
-      new BatchExecLimit(
+      // for local BatchPhysicalLimit, offset is always 0, and fetch is `limit`
+      new BatchPhysicalLimit(
         rel.getCluster,
         providedLocalTraitSet,
         newLocalInput,
@@ -91,9 +91,9 @@ class BatchExecLimitRule
     val newTraitSet = traitSet.replace(FlinkRelDistribution.SINGLETON)
     val newInput = RelOptRule.convert(inputOfExchange, newTraitSet)
 
-    // create global BatchExecLimit
+    // create global BatchPhysicalLimit
     val providedGlobalTraitSet = newTraitSet
-    new BatchExecLimit(
+    new BatchPhysicalLimit(
       rel.getCluster,
       providedGlobalTraitSet,
       newInput,
@@ -103,6 +103,6 @@ class BatchExecLimitRule
   }
 }
 
-object BatchExecLimitRule {
-  val INSTANCE: RelOptRule = new BatchExecLimitRule
+object BatchPhysicalLimitRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalLimitRule
 }
