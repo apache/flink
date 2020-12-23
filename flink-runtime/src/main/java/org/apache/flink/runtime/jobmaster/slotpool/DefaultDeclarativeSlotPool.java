@@ -62,7 +62,7 @@ import java.util.stream.Collectors;
  * <p>Slots which are released won't be returned directly to their owners. Instead, the slot pool
  * implementation will only return them after the idleSlotTimeout has been exceeded by a free slot.
  *
- * <p>The slot pool will call {@link #notifyNewSlots} whenever newly offered slots are accepted or
+ * <p>The slot pool will call {@link #newSlotsListener} whenever newly offered slots are accepted or
  * if an allocated slot should become free after it is being {@link #freeReservedSlot freed}.
  */
 public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
@@ -70,8 +70,6 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultDeclarativeSlotPool.class);
 
     private final Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements;
-
-    private final Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots;
 
     private final Time idleSlotTimeout;
     private final Time rpcTimeout;
@@ -85,20 +83,20 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private ResourceCounter fulfilledResourceRequirements;
 
+    private NewSlotsListener newSlotsListener = NoOpNewSlotsListener.INSTANCE;
+
     private final RequirementMatcher requirementMatcher = new DefaultRequirementMatcher();
 
     public DefaultDeclarativeSlotPool(
             JobID jobId,
             AllocatedSlotPool slotPool,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
-            Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots,
             Time idleSlotTimeout,
             Time rpcTimeout) {
 
         this.jobId = jobId;
         this.slotPool = slotPool;
         this.notifyNewResourceRequirements = notifyNewResourceRequirements;
-        this.notifyNewSlots = notifyNewSlots;
         this.idleSlotTimeout = idleSlotTimeout;
         this.rpcTimeout = rpcTimeout;
         this.totalResourceRequirements = ResourceCounter.empty();
@@ -192,7 +190,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             LOG.debug(
                     "Acquired new resources; new total acquired resources: {}",
                     fulfilledResourceRequirements);
-            notifyNewSlots.accept(acceptedSlots);
+            newSlotsListener.notifyNewSlotsAreAvailable(acceptedSlots);
         }
 
         return acceptedSlotOffers;
@@ -307,7 +305,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         freedSlot.ifPresent(
                 allocatedSlot -> {
                     releasePayload(Collections.singleton(allocatedSlot), cause);
-                    notifyNewSlots.accept(Collections.singletonList(allocatedSlot));
+                    newSlotsListener.notifyNewSlotsAreAvailable(
+                            Collections.singletonList(allocatedSlot));
                 });
 
         return previouslyFulfilledRequirement.orElseGet(ResourceCounter::empty);
@@ -335,6 +334,14 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         // be able to fulfill the total requirements
         decreaseResourceRequirementsBy(ResourceCounter.withResource(newResourceProfile, 1));
         increaseResourceRequirementsBy(ResourceCounter.withResource(oldResourceProfile, 1));
+    }
+
+    @Override
+    public void registerNewSlotsListener(NewSlotsListener newSlotsListener) {
+        Preconditions.checkState(
+                this.newSlotsListener == NoOpNewSlotsListener.INSTANCE,
+                "DefaultDeclarativeSlotPool only supports a single slot listener.");
+        this.newSlotsListener = newSlotsListener;
     }
 
     @Override

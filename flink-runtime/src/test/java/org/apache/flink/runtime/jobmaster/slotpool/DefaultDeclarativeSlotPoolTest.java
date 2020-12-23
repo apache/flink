@@ -141,7 +141,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
     public void testOfferSlots() throws InterruptedException {
         final NewSlotsService notifyNewSlots = new NewSlotsService();
         final DefaultDeclarativeSlotPool slotPool =
-                createDefaultDeclarativeSlotPool(notifyNewSlots);
+                createDefaultDeclarativeSlotPoolWithNewSlotsListener(notifyNewSlots);
 
         final ResourceCounter resourceRequirements = createResourceRequirements();
 
@@ -174,7 +174,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
     public void testDuplicateSlotOfferings() throws InterruptedException {
         final NewSlotsService notifyNewSlots = new NewSlotsService();
         final DefaultDeclarativeSlotPool slotPool =
-                createDefaultDeclarativeSlotPool(notifyNewSlots);
+                createDefaultDeclarativeSlotPoolWithNewSlotsListener(notifyNewSlots);
 
         final ResourceCounter resourceRequirements = createResourceRequirements();
 
@@ -198,7 +198,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
     public void testOfferingTooManySlots() {
         final NewSlotsService notifyNewSlots = new NewSlotsService();
         final DefaultDeclarativeSlotPool slotPool =
-                createDefaultDeclarativeSlotPool(notifyNewSlots);
+                createDefaultDeclarativeSlotPoolWithNewSlotsListener(notifyNewSlots);
 
         final ResourceCounter resourceRequirements = createResourceRequirements();
 
@@ -279,7 +279,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
             throws InterruptedException {
         final NewSlotsService notifyNewSlots = new NewSlotsService();
         final DefaultDeclarativeSlotPool slotPool =
-                createDefaultDeclarativeSlotPool(notifyNewSlots);
+                createDefaultDeclarativeSlotPoolWithNewSlotsListener(notifyNewSlots);
 
         final ResourceCounter resourceRequirements = createResourceRequirements();
         increaseRequirementsAndOfferSlotsToSlotPool(slotPool, resourceRequirements, null);
@@ -299,7 +299,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
     public void testReleaseSlotReturnsSlot() throws InterruptedException {
         final NewSlotsService notifyNewSlots = new NewSlotsService();
         final DefaultDeclarativeSlotPool slotPool =
-                createDefaultDeclarativeSlotPool(notifyNewSlots);
+                createDefaultDeclarativeSlotPoolWithNewSlotsListener(notifyNewSlots);
 
         final ResourceCounter resourceRequirements = createResourceRequirements();
         final FreeSlotConsumer freeSlotConsumer = new FreeSlotConsumer();
@@ -401,7 +401,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
             throws InterruptedException {
         final NewSlotsService notifyNewSlots = new NewSlotsService();
         final DefaultDeclarativeSlotPool slotPool =
-                createDefaultDeclarativeSlotPool(notifyNewSlots);
+                createDefaultDeclarativeSlotPoolWithNewSlotsListener(notifyNewSlots);
 
         final ResourceCounter initialRequirements =
                 ResourceCounter.withResource(RESOURCE_PROFILE_1, 1);
@@ -566,11 +566,17 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
     }
 
     @Nonnull
-    private static DefaultDeclarativeSlotPool createDefaultDeclarativeSlotPool(
-            NewSlotsService newSlotsListener) {
-        return DefaultDeclarativeSlotPoolBuilder.builder()
-                .setNotifyNewSlots(newSlotsListener)
-                .build();
+    private static DefaultDeclarativeSlotPool createDefaultDeclarativeSlotPoolWithNewSlotsListener(
+            DeclarativeSlotPool.NewSlotsListener newSlotsListener) {
+        final DefaultDeclarativeSlotPool declarativeSlotPool = createDefaultDeclarativeSlotPool();
+
+        declarativeSlotPool.registerNewSlotsListener(newSlotsListener);
+        return declarativeSlotPool;
+    }
+
+    @Nonnull
+    private static DefaultDeclarativeSlotPool createDefaultDeclarativeSlotPool() {
+        return DefaultDeclarativeSlotPoolBuilder.builder().build();
     }
 
     @Nonnull
@@ -652,16 +658,10 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
         }
     }
 
-    private static final class NewSlotsService
-            implements Consumer<Collection<? extends PhysicalSlot>> {
+    private static final class NewSlotsService implements DeclarativeSlotPool.NewSlotsListener {
 
         private final BlockingQueue<Collection<? extends PhysicalSlot>> physicalSlotsQueue =
                 new ArrayBlockingQueue<>(2);
-
-        @Override
-        public void accept(Collection<? extends PhysicalSlot> physicalSlots) {
-            physicalSlotsQueue.offer(physicalSlots);
-        }
 
         private Collection<? extends PhysicalSlot> takeNewSlots() throws InterruptedException {
             return physicalSlotsQueue.take();
@@ -669,6 +669,12 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
 
         private boolean hasNextNewSlots() {
             return !physicalSlotsQueue.isEmpty();
+        }
+
+        @Override
+        public void notifyNewSlotsAreAvailable(
+                Collection<? extends PhysicalSlot> newlyAvailableSlots) {
+            physicalSlotsQueue.offer(newlyAvailableSlots);
         }
     }
 
