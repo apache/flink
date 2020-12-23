@@ -178,7 +178,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = new ModifyKindSetTrait(builder.build())
         createNewNode(agg, children, providedTrait, requiredTrait, requester)
 
-      case tagg: StreamExecGroupTableAggregateBase =>
+      case tagg: StreamPhysicalGroupTableAggregateBase =>
         // table agg support all changes in input
         val children = visitChildren(tagg, ModifyKindSetTrait.ALL_CHANGES)
         // table aggregate will produce all changes, including deletions
@@ -461,7 +461,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
         visitSink(sink, sinkRequiredTraits)
 
-      case _: StreamPhysicalGroupAggregate | _: StreamExecGroupTableAggregate |
+      case _: StreamPhysicalGroupAggregate | _: StreamPhysicalGroupTableAggregate |
            _: StreamPhysicalLimit | _: StreamPhysicalPythonGroupAggregate |
            _: StreamExecPythonGroupTableAggregate =>
         // Aggregate, TableAggregate and Limit requires update_before if there are updates
