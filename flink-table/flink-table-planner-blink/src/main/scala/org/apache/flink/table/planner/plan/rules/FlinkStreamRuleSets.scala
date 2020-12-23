@@ -386,7 +386,8 @@ object FlinkStreamRuleSets {
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
-    PythonCalcSplitRule.REWRITE_PROJECT
+    PythonCalcSplitRule.REWRITE_PROJECT,
+    PythonCalcMergeRule.INSTANCE
   )
 
   /**
