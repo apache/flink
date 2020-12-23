@@ -1019,23 +1019,16 @@ class FlinkRelMdHandlerTestBase {
       aggCallToAggFunction,
       isMerge = false)
 
-    val needRetractionArray = AggregateUtil.deriveAggCallNeedRetractions(
+    val aggCallNeedRetractions = AggregateUtil.deriveAggCallNeedRetractions(
       1, aggCalls, needRetraction = false, null)
-
-    val localAggInfoList = transformToStreamAggregateInfoList(
-      FlinkTypeFactory.toLogicalRowType(studentStreamScan.getRowType),
-      aggCalls,
-      needRetractionArray,
-      needInputCount = false,
-      isStateBackendDataViews = false)
-    val streamLocalAgg = new StreamExecLocalGroupAggregate(
+    val streamLocalAgg = new StreamPhysicalLocalGroupAggregate(
       cluster,
       streamPhysicalTraits,
       studentStreamScan,
-      rowTypeOfLocalAgg,
       Array(3),
       aggCalls,
-      localAggInfoList,
+      aggCallNeedRetractions,
+      false,
       PartialFinalType.NONE)
 
     val streamExchange1 = new StreamPhysicalExchange(
@@ -1043,9 +1036,16 @@ class FlinkRelMdHandlerTestBase {
     val globalAggInfoList = transformToStreamAggregateInfoList(
       FlinkTypeFactory.toLogicalRowType(streamExchange1.getRowType),
       aggCalls,
-      needRetractionArray,
+      aggCallNeedRetractions,
       needInputCount = false,
       isStateBackendDataViews = true)
+    // TODO Temporary solution, remove it later
+    val localAggInfoList = transformToStreamAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType(studentStreamScan.getRowType),
+      aggCalls,
+      aggCallNeedRetractions,
+      needInputCount = false,
+      isStateBackendDataViews = false)
     val streamGlobalAgg = new StreamExecGlobalGroupAggregate(
       cluster,
       streamPhysicalTraits,

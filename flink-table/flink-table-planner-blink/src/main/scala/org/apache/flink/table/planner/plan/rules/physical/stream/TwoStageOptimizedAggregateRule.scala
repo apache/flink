@@ -28,9 +28,11 @@ import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionR
 import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, ChangelogPlanUtils}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
+
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.AggregateCall
 
 import java.util
 
@@ -46,7 +48,7 @@ import java.util
   * {{{
   *   StreamExecGlobalGroupAggregate
   *   +- StreamPhysicalExchange
-  *      +- StreamExecLocalGroupAggregate
+  *      +- StreamPhysicalLocalGroupAggregate
   *         +- input of exchange
   * }}}
   */
@@ -97,52 +99,43 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
       realInput.asInstanceOf[StreamPhysicalRel])
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(agg)
-    val needRetractionArray = AggregateUtil.deriveAggCallNeedRetractions(
+    val aggCallNeedRetractions = AggregateUtil.deriveAggCallNeedRetractions(
       agg.grouping.length, agg.aggCalls, needRetraction, monotonicity)
-
-    val localAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
-      FlinkTypeFactory.toLogicalRowType(realInput.getRowType),
-      agg.aggCalls,
-      needRetractionArray,
-      needRetraction,
-      isStateBackendDataViews = false)
 
     val globalAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
       FlinkTypeFactory.toLogicalRowType(realInput.getRowType),
       agg.aggCalls,
-      needRetractionArray,
+      aggCallNeedRetractions,
       needRetraction,
       isStateBackendDataViews = true)
 
-    val globalHashAgg = createTwoStageAgg(realInput, localAggInfoList, globalAggInfoList, agg)
+    val globalHashAgg = createTwoStageAgg(
+      realInput, agg.aggCalls, aggCallNeedRetractions, needRetraction, globalAggInfoList, agg)
     call.transformTo(globalHashAgg)
   }
 
   // the difference between localAggInfos and aggInfos is local agg use heap dataview,
   // but global agg use state dataview
   private def createTwoStageAgg(
-      input: RelNode,
-      localAggInfoList: AggregateInfoList,
+      realInput: RelNode,
+      aggCalls: Seq[AggregateCall],
+      aggCallNeedRetractions: Array[Boolean],
+      needRetraction: Boolean,
       globalAggInfoList: AggregateInfoList,
       agg: StreamPhysicalGroupAggregate): StreamExecGlobalGroupAggregate = {
-    val localAggRowType = AggregateUtil.inferLocalAggRowType(
-      localAggInfoList,
-      input.getRowType,
-      agg.grouping,
-      input.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
 
     // local agg shouldn't produce insert only messages
-    val localAggTraitSet = input.getTraitSet
+    val localAggTraitSet = realInput.getTraitSet
       .plus(ModifyKindSetTrait.INSERT_ONLY)
       .plus(UpdateKindTrait.NONE)
-    val localHashAgg = new StreamExecLocalGroupAggregate(
+    val localHashAgg = new StreamPhysicalLocalGroupAggregate(
       agg.getCluster,
       localAggTraitSet,
-      input,
-      localAggRowType,
+      realInput,
       agg.grouping,
       agg.aggCalls,
-      localAggInfoList,
+      aggCallNeedRetractions,
+      needRetraction,
       agg.partialFinalType)
 
     // grouping keys is forwarded by local agg, use indices instead of groupings
@@ -153,11 +146,18 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
       FlinkConventions.STREAM_PHYSICAL, localHashAgg, globalDistribution)
     val globalAggProvidedTraitSet = agg.getTraitSet
 
+    // TODO Temporary solution, remove it later
+    val localAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType(realInput.getRowType),
+      aggCalls,
+      aggCallNeedRetractions,
+      needRetraction,
+      isStateBackendDataViews = false)
     new StreamExecGlobalGroupAggregate(
       agg.getCluster,
       globalAggProvidedTraitSet,
       newInput,
-      input.getRowType,
+      realInput.getRowType,
       agg.getRowType,
       globalGrouping,
       localAggInfoList,

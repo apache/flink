@@ -50,10 +50,10 @@ import scala.collection.JavaConversions._
   * {{{
   *   StreamExecGlobalGroupAggregate (final-global-aggregate)
   *   +- StreamPhysicalExchange
-  *      +- StreamExecLocalGroupAggregate (final-local-aggregate)
+  *      +- StreamPhysicalLocalGroupAggregate (final-local-aggregate)
   *         +- StreamExecGlobalGroupAggregate (partial-global-aggregate)
   *            +- StreamPhysicalExchange
-  *               +- StreamExecLocalGroupAggregate (partial-local-aggregate)
+  *               +- StreamPhysicalLocalGroupAggregate (partial-local-aggregate)
   * }}}
   *
   * partial-global-aggregate and final-local-aggregate can be combined as
@@ -64,7 +64,7 @@ import scala.collection.JavaConversions._
   *   +- StreamPhysicalExchange
   *      +- StreamExecIncrementalGroupAggregate
   *         +- StreamPhysicalExchange
-  *            +- StreamExecLocalGroupAggregate (partial-local-aggregate)
+  *            +- StreamPhysicalLocalGroupAggregate (partial-local-aggregate)
   * }}}
   *
   * @see [[StreamPhysicalGroupAggregateBase]] for more info.
