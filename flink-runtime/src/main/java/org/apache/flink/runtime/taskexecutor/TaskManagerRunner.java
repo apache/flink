@@ -71,6 +71,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TaskManagerExceptionUtils;
 
+import org.apache.flink.util.log.OutErrLoggerUitls;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -332,6 +334,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 	}
 
 	public static void runTaskManager(Configuration configuration, PluginManager pluginManager) throws Exception {
+		OutErrLoggerUitls.setOutAndErrToLog();
 		final TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, pluginManager, TaskManagerRunner::createTaskExecutorService);
 
 		taskManagerRunner.start();

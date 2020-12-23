@@ -333,18 +333,18 @@ public class KubernetesUtils {
 		startCommandValues.put("jvmmem", jvmMemOpts);
 
 		final String opts;
-		final String logFileName;
+		final String fileName;
 		if (mode == ClusterComponent.JOB_MANAGER) {
 			opts = getJavaOpts(flinkConfig, CoreOptions.FLINK_JM_JVM_OPTIONS);
-			logFileName = "jobmanager";
+			fileName = "jobmanager";
 		} else {
 			opts = getJavaOpts(flinkConfig, CoreOptions.FLINK_TM_JVM_OPTIONS);
-			logFileName = "taskmanager";
+			fileName = "taskmanager";
 		}
 		startCommandValues.put("jvmopts", opts);
 
 		startCommandValues.put("logging",
-			getLogging(logDirectory + "/" + logFileName + ".log", configDirectory, hasLogback, hasLog4j));
+			getLogging(logDirectory + "/" + fileName, configDirectory, hasLogback, hasLog4j));
 
 		startCommandValues.put("class", mainClass);
 
@@ -379,10 +379,12 @@ public class KubernetesUtils {
 		}
 	}
 
-	private static String getLogging(String logFile, String confDir, boolean hasLogback, boolean hasLog4j) {
+	private static String getLogging(String fileName, String confDir, boolean hasLogback, boolean hasLog4j) {
 		StringBuilder logging = new StringBuilder();
 		if (hasLogback || hasLog4j) {
-			logging.append("-Dlog.file=").append(logFile);
+			logging.append("-Dout.file=").append(fileName).append(".out");
+			logging.append(" -Dlog.file=").append(fileName).append(".log");
+			logging.append(" -Derr.file=").append(fileName).append(".err");
 			if (hasLogback) {
 				logging.append(" -Dlogback.configurationFile=file:").append(confDir).append("/").append(CONFIG_FILE_LOGBACK_NAME);
 			}

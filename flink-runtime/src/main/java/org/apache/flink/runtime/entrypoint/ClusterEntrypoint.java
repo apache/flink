@@ -69,6 +69,8 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 
+import org.apache.flink.util.log.OutErrLoggerUitls;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -523,6 +525,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	// --------------------------------------------------
 
 	public static void runClusterEntrypoint(ClusterEntrypoint clusterEntrypoint) {
+
+		OutErrLoggerUitls.setOutAndErrToLog();
 
 		final String clusterEntrypointName = clusterEntrypoint.getClass().getSimpleName();
 		try {

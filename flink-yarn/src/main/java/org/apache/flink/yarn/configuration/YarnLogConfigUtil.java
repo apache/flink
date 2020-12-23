@@ -108,7 +108,9 @@ public class YarnLogConfigUtil {
 			return "";
 		}
 
-		return new StringBuilder("-Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"")
+		return new StringBuilder("-Dout.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out\"")
+				.append(" -Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"")
+				.append(" -Derr.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err\"")
 				.append(" -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME)
 				.append(" -Dlog4j.configurationFile=file:" + CONFIG_FILE_LOG4J_NAME)
 				.toString();
