@@ -29,7 +29,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -60,10 +60,10 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
 
 		try {
 			scheduler.scheduleOrUpdateConsumers(resultPartitionId);
-			fail("Expected ExecutionGraphException.");
-		} catch (RuntimeException e) {
+			fail("Error expected.");
+		} catch (IllegalStateException e) {
 			// we've expected this exception to occur
-			assertThat(e.getCause(), instanceOf(ExecutionGraphException.class));
+			assertThat(e.getMessage(), containsString("Cannot find execution for execution Id"));
 		}
 
 		assertEquals(JobStatus.RUNNING, eg.getState());

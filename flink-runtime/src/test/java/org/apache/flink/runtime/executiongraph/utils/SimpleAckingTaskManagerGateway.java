@@ -33,6 +33,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.function.TriConsumer;
 
 import java.util.Collection;
 import java.util.Set;
@@ -66,6 +67,9 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 		checkpointOptions,
 		advanceToEndOfEventTime) -> { };
 
+	private TriConsumer<ExecutionAttemptID, Iterable<PartitionInfo>, Time> updatePartitionsConsumer =
+		(ignore1, ignore2, ignore3) -> { };
+
 	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
 		this.submitConsumer = submitConsumer;
 	}
@@ -84,6 +88,10 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	public void setCheckpointConsumer(CheckpointConsumer checkpointConsumer) {
 		this.checkpointConsumer = checkpointConsumer;
+	}
+
+	public void setUpdatePartitionsConsumer(TriConsumer<ExecutionAttemptID, Iterable<PartitionInfo>, Time> updatePartitionsConsumer) {
+		this.updatePartitionsConsumer = updatePartitionsConsumer;
 	}
 
 	@Override
@@ -113,6 +121,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos, Time timeout) {
+		updatePartitionsConsumer.accept(executionAttemptID, partitionInfos, timeout);
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 

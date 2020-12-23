@@ -1320,27 +1320,20 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	/**
-	 * Schedule or updates consumers of the given result partition.
+	 * Mark the data of a result partition to be available. Note that only PIPELINED partitions are accepted
+	 * because it is for the case that a TM side PIPELINED result partition has data produced and notifies JM.
 	 *
-	 * @param partitionId specifying the result partition whose consumer shall be scheduled or updated
-	 * @throws ExecutionGraphException if the schedule or update consumers operation could not be executed
+	 * @param partitionId specifying the result partition whose data have become available
 	 */
-	public void scheduleOrUpdateConsumers(ResultPartitionID partitionId) throws ExecutionGraphException {
-
+	public void notifyPartitionDataAvailable(ResultPartitionID partitionId) {
 		assertRunningInJobMasterMainThread();
 
 		final Execution execution = currentExecutions.get(partitionId.getProducerId());
 
-		if (execution == null) {
-			throw new ExecutionGraphException("Cannot find execution for execution Id " +
-				partitionId.getPartitionId() + '.');
-		}
-		else if (execution.getVertex() == null){
-			throw new ExecutionGraphException("Execution with execution Id " +
-				partitionId.getPartitionId() + " has no vertex assigned.");
-		} else {
-			execution.getVertex().scheduleOrUpdateConsumers(partitionId);
-		}
+		checkState(execution != null, "Cannot find execution for execution Id " +
+			partitionId.getPartitionId() + ".");
+
+		execution.getVertex().notifyPartitionDataAvailable(partitionId);
 	}
 
 	public Map<ExecutionAttemptID, Execution> getRegisteredExecutions() {
