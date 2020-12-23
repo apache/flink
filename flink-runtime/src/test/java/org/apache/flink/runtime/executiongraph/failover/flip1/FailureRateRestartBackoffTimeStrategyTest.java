@@ -47,8 +47,8 @@ public class FailureRateRestartBackoffTimeStrategyTest extends TestLogger {
 			new FailureRateRestartBackoffTimeStrategy(clock, 1, intervalMS, 0);
 
 		for (int failuresLeft = numFailures; failuresLeft > 0; failuresLeft--) {
-			assertTrue(restartStrategy.canRestart());
 			restartStrategy.notifyFailure(failure);
+			assertTrue(restartStrategy.canRestart());
 			clock.advanceTime(intervalMS + 1, TimeUnit.MILLISECONDS);
 		}
 
@@ -64,10 +64,11 @@ public class FailureRateRestartBackoffTimeStrategyTest extends TestLogger {
 			new FailureRateRestartBackoffTimeStrategy(new ManualClock(), numFailures, intervalMS, 0);
 
 		for (int failuresLeft = numFailures; failuresLeft > 0; failuresLeft--) {
-			assertTrue(restartStrategy.canRestart());
 			restartStrategy.notifyFailure(failure);
+			assertTrue(restartStrategy.canRestart());
 		}
 
+		restartStrategy.notifyFailure(failure);
 		assertFalse(restartStrategy.canRestart());
 	}
 

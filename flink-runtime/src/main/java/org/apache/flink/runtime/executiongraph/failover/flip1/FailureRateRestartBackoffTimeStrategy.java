@@ -91,7 +91,7 @@ public class FailureRateRestartBackoffTimeStrategy implements RestartBackoffTime
 	}
 
 	private boolean isFailureTimestampsQueueFull() {
-		return failureTimestamps.size() >= maxFailuresPerInterval;
+		return failureTimestamps.size() > maxFailuresPerInterval;
 	}
 
 	private String generateStrategyString() {
