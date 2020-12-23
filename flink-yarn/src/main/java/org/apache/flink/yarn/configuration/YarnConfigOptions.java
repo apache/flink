@@ -94,7 +94,7 @@ public class YarnConfigOptions {
                                                     + "The restart number is also limited by YARN (configured via %s). "
                                                     + "Note that that the entire Flink cluster will restart and the YARN Client will lose the connection.",
                                             link(
-                                                    "https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-common/yarn-default.xml",
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml",
                                                     "yarn.resourcemanager.am.max-attempts"))
                                     .build());
 
@@ -327,6 +327,39 @@ public class YarnConfigOptions {
                     .noDefaultValue()
                     .withDescription(
                             "A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.");
+
+    @SuppressWarnings("unused")
+    public static final ConfigOption<String> HADOOP_CONFIG_KEY =
+            key("flink.hadoop.<key>")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "A general option to probe Hadoop configuration through prefix 'flink.hadoop.'. Flink will remove the prefix to get <key> (from %s and %s) then set the <key> and value to Hadoop configuration."
+                                                    + " For example, flink.hadoop.dfs.replication=5 in Flink configuration and convert to dfs.replication=5 in Hadoop configuration.",
+                                            link(
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/core-default.xml",
+                                                    "core-default.xml"),
+                                            link(
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/hdfs-default.xml",
+                                                    "hdfs-default.xml"))
+                                    .build());
+
+    @SuppressWarnings("unused")
+    public static final ConfigOption<String> YARN_CONFIG_KEY =
+            key("flink.yarn.<key>")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "A general option to probe Yarn configuration through prefix 'flink.yarn.'. Flink will remove the prefix 'flink.' to get yarn.<key> (from %s) then set the yarn.<key> and value to Yarn configuration."
+                                                    + " For example, flink.yarn.resourcemanager.container.liveness-monitor.interval-ms=300000 in Flink configuration and convert to yarn.resourcemanager.container.liveness-monitor.interval-ms=300000 in Yarn configuration.",
+                                            link(
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml",
+                                                    "yarn-default.xml"))
+                                    .build());
 
     /**
      * Defines the configuration key of that external resource in Yarn. This is used as a suffix in
