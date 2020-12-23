@@ -28,7 +28,6 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexProgram;
 
 import javax.annotation.Nullable;
 
