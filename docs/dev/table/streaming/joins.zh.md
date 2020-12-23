@@ -223,7 +223,7 @@ amount currency
 例如，我们想要以表 `LatestRates` 中的汇率将以下订单转换，则结果将为：
 
 {% highlight text %}
-amount currency     rate   amout*rate
+amount currency     rate   amount*rate
 ====== ========= ======= ============
      2 Euro          114          228    <== arrived at time 10:15
      1 US Dollar     102          102    <== arrived at time 10:30
@@ -234,7 +234,7 @@ amount currency     rate   amout*rate
 
 {% highlight sql %}
 SELECT
-  o.amout, o.currency, r.rate, o.amount * r.rate
+  o.amount, o.currency, r.rate, o.amount * r.rate
 FROM
   Orders AS o
   JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
