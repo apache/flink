@@ -48,6 +48,8 @@ def wrap_inputs_as_row(*args):
     import pandas as pd
     if type(args[0]) == pd.Series:
         return pd.concat(args, axis=1)
+    elif len(args) == 1 and isinstance(args[0], (pd.DataFrame, Row, Tuple)):
+        return args[0]
     else:
         return Row(*args)
 
