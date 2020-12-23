@@ -84,7 +84,7 @@ public class ExecutionCheckpointingOptions {
 			.intType()
 			.noDefaultValue()
 			.withDescription("The tolerable checkpoint failure number. If set to 0, that means " +
-				" we do not tolerance any checkpoint failure.");
+				"we do not tolerance any checkpoint failure.");
 
 	public static final ConfigOption<CheckpointConfig.ExternalizedCheckpointCleanup> EXTERNALIZED_CHECKPOINT =
 		ConfigOptions.key("execution.checkpointing.externalized-checkpoint-retention")
