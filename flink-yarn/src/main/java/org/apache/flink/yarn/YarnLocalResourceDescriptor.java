@@ -41,7 +41,7 @@ class YarnLocalResourceDescriptor {
 	private static final String STRING_FORMAT = "YarnLocalResourceDescriptor{" +
 		"key=%s, path=%s, size=%d, modificationTime=%d, visibility=%s, type=%s}";
 	private static final Pattern LOCAL_RESOURCE_DESC_FORMAT = Pattern.compile("YarnLocalResourceDescriptor\\{" +
-		"key=(\\S+), path=(\\S+), size=([\\d]+), modificationTime=([\\d]+), visibility=(\\S+), type=(\\S+)}");
+		"key=(\\S+), path=(\\S+), size=(-?[\\d]+), modificationTime=([\\d]+), visibility=(\\S+), type=(\\S+)}");
 
 	private final String resourceKey;
 	private final Path path;

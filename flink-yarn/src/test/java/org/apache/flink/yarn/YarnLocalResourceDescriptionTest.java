@@ -25,6 +25,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.core.Is.is;
@@ -33,28 +35,41 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for the {@link YarnLocalResourceDescriptor}.
  */
+@RunWith(Parameterized.class)
 public class YarnLocalResourceDescriptionTest extends TestLogger {
 
-	private final String key = "flink.jar";
-	private final Path path = new Path("hdfs://nn/tmp/flink.jar");
-	private final long size = 100 * 1024 * 1024;
 	private final long ts = System.currentTimeMillis();
+
+	@Parameterized.Parameter
+	public String pathStr;
+
+	@Parameterized.Parameter(1)
+	public long length;
+
+	@Parameterized.Parameters(name = "pathStr = {0}, length = {1}")
+	public static Object[] parameters() {
+		return new Object[][]{
+				new Object[]{"hdfs://nn/tmp/flink.jar", 100 * 1024 * 1024L},
+				new Object[]{"https://flink/test/flink.jar", -1L}
+		};
+	}
 
 	@Test
 	public void testFromString() throws Exception {
+		Path path = new Path(pathStr);
 		final YarnLocalResourceDescriptor localResourceDesc = new YarnLocalResourceDescriptor(
-			key,
+			path.getName(),
 			path,
-			size,
+			length,
 			ts,
 			LocalResourceVisibility.PUBLIC,
 			LocalResourceType.FILE);
 
 		final String desc = localResourceDesc.toString();
 		YarnLocalResourceDescriptor newLocalResourceDesc = YarnLocalResourceDescriptor.fromString(desc);
-		assertThat(newLocalResourceDesc.getResourceKey(), is(key));
+		assertThat(newLocalResourceDesc.getResourceKey(), is(path.getName()));
 		assertThat(newLocalResourceDesc.getPath(), is(path));
-		assertThat(newLocalResourceDesc.getSize(), is(size));
+		assertThat(newLocalResourceDesc.getSize(), is(length));
 		assertThat(newLocalResourceDesc.getModificationTime(), is(ts));
 		assertThat(newLocalResourceDesc.getVisibility(), is(LocalResourceVisibility.PUBLIC));
 		assertThat(newLocalResourceDesc.getResourceType(), is(LocalResourceType.FILE));
@@ -62,11 +77,12 @@ public class YarnLocalResourceDescriptionTest extends TestLogger {
 
 	@Test
 	public void testFromStringMalformed() {
+		Path path = new Path(pathStr);
 		final String desc = String.format(
 			"YarnLocalResourceDescriptor{key=%s path=%s size=%d modTime=%d visibility=%s}",
-			key,
+			path.getName(),
 			path.toString(),
-			size,
+			length,
 			ts,
 			LocalResourceVisibility.PUBLIC);
 		assertThrows(
