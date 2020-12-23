@@ -113,11 +113,8 @@ public class DeclarativeSlotPoolBridge implements SlotPool {
                 NoOpDeclareResourceRequirementServiceConnectionManager.INSTANCE;
         this.declarativeSlotPool =
                 declarativeSlotPoolFactory.create(
-                        jobId,
-                        this::declareResourceRequirements,
-                        this::newSlotsAreAvailable,
-                        idleSlotTimeout,
-                        rpcTimeout);
+                        jobId, this::declareResourceRequirements, idleSlotTimeout, rpcTimeout);
+        this.declarativeSlotPool.registerNewSlotsListener(this::newSlotsAreAvailable);
     }
 
     @Override

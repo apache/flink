@@ -230,7 +230,6 @@ public class DeclarativeSlotPoolBridgeTest extends TestLogger {
         public DeclarativeSlotPool create(
                 JobID jobId,
                 Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
-                Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots,
                 Time idleSlotTimeout,
                 Time rpcTimeout) {
             return builder.build();

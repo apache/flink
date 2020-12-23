@@ -153,4 +153,40 @@ public interface DeclarativeSlotPool {
      * @param currentTimeMillis current time
      */
     void releaseIdleSlots(long currentTimeMillis);
+
+    /**
+     * Registers a listener which is called whenever new slots become available.
+     *
+     * @param listener which is called whenever new slots become available
+     */
+    void registerNewSlotsListener(NewSlotsListener listener);
+
+    /**
+     * Listener interface for newly available slots.
+     *
+     * <p>Implementations of the {@link DeclarativeSlotPool} will call {@link
+     * #notifyNewSlotsAreAvailable} whenever newly offered slots are accepted or if an allocated
+     * slot should become free after it is being {@link #freeReservedSlot freed}.
+     */
+    interface NewSlotsListener {
+
+        /**
+         * Notifies the listener about newly available slots.
+         *
+         * <p>This method will be called whenever newly offered slots are accepted or if an
+         * allocated slot should become free after it is being {@link #freeReservedSlot freed}.
+         *
+         * @param newlyAvailableSlots are the newly available slots
+         */
+        void notifyNewSlotsAreAvailable(Collection<? extends PhysicalSlot> newlyAvailableSlots);
+    }
+
+    /** No-op {@link NewSlotsListener} implementation. */
+    enum NoOpNewSlotsListener implements NewSlotsListener {
+        INSTANCE;
+
+        @Override
+        public void notifyNewSlotsAreAvailable(
+                Collection<? extends PhysicalSlot> newlyAvailableSlots) {}
+    }
 }
