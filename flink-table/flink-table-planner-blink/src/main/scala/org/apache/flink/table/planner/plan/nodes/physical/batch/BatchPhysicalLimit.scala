@@ -18,17 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.fetchToString
 import org.apache.flink.table.planner.plan.utils.SortUtil
-import org.apache.flink.table.runtime.operators.sort.LimitOperator
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel._
@@ -36,16 +32,12 @@ import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
-import java.util
-
-import scala.collection.JavaConversions._
-
 /**
   * Batch physical RelNode for [[Sort]].
   *
   * This node will output `limit` records beginning with the first `offset` records without sort.
   */
-class BatchExecLimit(
+class BatchPhysicalLimit(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -59,8 +51,7 @@ class BatchExecLimit(
     traitSet.getTrait(RelCollationTraitDef.INSTANCE),
     offset,
     fetch)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData] {
+  with BatchPhysicalRel {
 
   private lazy val limitStart: Long = SortUtil.getLimitStart(offset)
   private lazy val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
@@ -71,7 +62,7 @@ class BatchExecLimit(
       newCollation: RelCollation,
       offset: RexNode,
       fetch: RexNode): Sort = {
-    new BatchExecLimit(cluster, traitSet, newInput, offset, fetch, isGlobal)
+    new BatchPhysicalLimit(cluster, traitSet, newInput, offset, fetch, isGlobal)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -88,22 +79,13 @@ class BatchExecLimit(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, 0)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
-
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val input = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[RowData]]
-    val inputType = input.getOutputType
-    val operator = new LimitOperator(isGlobal, limitStart, limitEnd)
-    ExecNodeUtil.createOneInputTransformation(
-      input,
-      getRelDetailedDescription,
-      SimpleOperatorFactory.of(operator),
-      inputType,
-      input.getParallelism,
-      0)
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecLimit(
+        limitStart,
+        limitEnd,
+        isGlobal,
+        ExecEdge.DEFAULT,
+        FlinkTypeFactory.toLogicalRowType(getRowType),
+        getRelDetailedDescription)
   }
 }
