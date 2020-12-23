@@ -67,8 +67,7 @@ class RowBasedOperationTests(object):
 
         def func(x):
             import pandas as pd
-            b = (x.c + x.d).rename('b')
-            res = pd.concat([x.a, b], axis=1)
+            res = pd.concat([x.a, x.c + x.d], axis=1)
             return res
 
         def func2(x):

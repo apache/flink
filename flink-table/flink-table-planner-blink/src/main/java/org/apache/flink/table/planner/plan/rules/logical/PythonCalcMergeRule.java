@@ -81,10 +81,22 @@ public class PythonCalcMergeRule extends RelOptRule {
 		}
 
 		RexProgram middleProgram = middleCalc.getProgram();
+		if (middleProgram.getCondition() != null) {
+			return false;
+		}
+
 		List<RexNode> middleProjects = middleProgram.getProjectList()
 			.stream()
 			.map(middleProgram::expandLocalRef)
 			.collect(Collectors.toList());
+		int inputRowFieldCount = middleProgram.getInputRowType()
+			.getFieldList()
+			.get(0)
+			.getValue()
+			.getFieldList().size();
+		if (inputRowFieldCount != middleProjects.size()) {
+			return false;
+		}
 
 		return isInputsCorrespondWithUpstreamOutputs(bottomProjects, middleProjects) &&
 			isFlattenCalc(middleProjects);
