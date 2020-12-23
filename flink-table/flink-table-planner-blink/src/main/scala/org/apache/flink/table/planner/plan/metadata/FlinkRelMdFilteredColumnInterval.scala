@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.FilteredColumnInterval
 import org.apache.flink.table.planner.plan.nodes.calcite.TableAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecGroupAggregateBase
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecGlobalGroupAggregate, StreamExecGroupTableAggregate, StreamExecGroupWindowAggregate, StreamExecGroupWindowTableAggregate, StreamPhysicalGroupAggregate, StreamPhysicalLocalGroupAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecGroupTableAggregate, StreamExecGroupWindowAggregate, StreamExecGroupWindowTableAggregate, StreamPhysicalGlobalGroupAggregate, StreamPhysicalGroupAggregate, StreamPhysicalLocalGroupAggregate}
 import org.apache.flink.table.planner.plan.stats.ValueInterval
 import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil
 import org.apache.flink.util.Preconditions.checkArgument
@@ -208,7 +208,7 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
   }
 
   def getFilteredColumnInterval(
-      aggregate: StreamExecGlobalGroupAggregate,
+      aggregate: StreamPhysicalGlobalGroupAggregate,
       mq: RelMetadataQuery,
       columnIndex: Int,
       filterArg: Int): ValueInterval = {

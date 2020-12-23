@@ -44,7 +44,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
-import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.{CountAggFunction, Top3}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
@@ -1033,28 +1032,16 @@ class FlinkRelMdHandlerTestBase {
 
     val streamExchange1 = new StreamPhysicalExchange(
       cluster, streamLocalAgg.getTraitSet.replace(hash0), streamLocalAgg, hash0)
-    val globalAggInfoList = transformToStreamAggregateInfoList(
-      FlinkTypeFactory.toLogicalRowType(streamExchange1.getRowType),
-      aggCalls,
-      aggCallNeedRetractions,
-      needInputCount = false,
-      isStateBackendDataViews = true)
-    // TODO Temporary solution, remove it later
-    val localAggInfoList = transformToStreamAggregateInfoList(
-      FlinkTypeFactory.toLogicalRowType(studentStreamScan.getRowType),
-      aggCalls,
-      aggCallNeedRetractions,
-      needInputCount = false,
-      isStateBackendDataViews = false)
-    val streamGlobalAgg = new StreamExecGlobalGroupAggregate(
+    val streamGlobalAgg = new StreamPhysicalGlobalGroupAggregate(
       cluster,
       streamPhysicalTraits,
       streamExchange1,
-      streamExchange1.getRowType,
       rowTypeOfGlobalAgg,
       Array(0),
-      localAggInfoList,
-      globalAggInfoList,
+      aggCalls,
+      aggCallNeedRetractions,
+      streamLocalAgg.getInput.getRowType,
+      AggregateUtil.needRetraction(streamLocalAgg),
       PartialFinalType.NONE)
 
     val streamExchange2 = new StreamPhysicalExchange(cluster,
