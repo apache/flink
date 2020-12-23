@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.nodes.physical.stream
+
+package org.apache.flink.table.planner.plan.nodes.exec.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
@@ -24,54 +25,41 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate
-import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, KeySelectorUtil}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode, ExecNodeBase}
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, KeySelectorUtil}
 import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
+import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 
-import java.util
+import java.util.Collections
 
 /**
-  * Stream physical RelNode for unbounded python group table aggregate.
-  */
+ * Stream [[ExecNode]] for unbounded python group table aggregate.
+ *
+ * <p>Note: This class can't be ported to Java,
+ * because java class can't extend scala interface with default implementation.
+ * FLINK-20750 will port this class to Java.
+ */
 class StreamExecPythonGroupTableAggregate(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    inputRel: RelNode,
-    outputRowType: RelDataType,
     grouping: Array[Int],
-    aggCalls: Seq[AggregateCall])
-  extends StreamPhysicalGroupTableAggregateBase(
-    cluster,
-    traitSet,
-    inputRel,
-    outputRowType,
-    grouping,
-    aggCalls)
-  with LegacyStreamExecNode[RowData]
-  with CommonExecPythonAggregate {
+    aggCalls: Seq[AggregateCall],
+    aggCallNeedRetractions: Array[Boolean],
+    generateUpdateBefore: Boolean,
+    needRetraction: Boolean,
+    inputEdge: ExecEdge,
+    outputType: RowType,
+    description: String)
+  extends ExecNodeBase[RowData](Collections.singletonList(inputEdge), outputType, description)
+  with StreamExecNode[RowData]
+  with CommonExecPythonAggregate
+  with Logging {
 
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamExecPythonGroupTableAggregate(
-      cluster,
-      traitSet,
-      inputs.get(0),
-      outputRowType,
-      grouping,
-      aggCalls)
-  }
-
-  override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[RowData] = {
+  override protected def translateToPlanInternal(planner: PlannerBase): Transformation[RowData] = {
     val tableConfig = planner.getTableConfig
 
     if (grouping.length > 0 && tableConfig.getMinIdleStateRetentionTime < 0) {
@@ -80,14 +68,17 @@ class StreamExecPythonGroupTableAggregate(
         "state size. You may specify a retention time of 0 to not clean up the state.")
     }
 
-    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
+    val inputNode = getInputNodes.get(0).asInstanceOf[ExecNode[RowData]]
+    val inputTransformation = inputNode.translateToPlan(planner)
 
-    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
-    val inputRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
+    val inputRowType = inputNode.getOutputType.asInstanceOf[RowType]
 
-    val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
-
+    val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+      inputRowType,
+      aggCalls,
+      aggCallNeedRetractions,
+      needRetraction,
+      isStateBackendDataViews = true)
     val inputCountIndex = aggInfoList.getIndexOfCountStar
 
     var (pythonFunctionInfos, dataViewSpecs) =
@@ -100,7 +91,7 @@ class StreamExecPythonGroupTableAggregate(
     val operator = getPythonTableAggregateFunctionOperator(
       getConfig(planner.getExecEnv, tableConfig),
       inputRowType,
-      outRowType,
+      outputType,
       pythonFunctionInfos,
       dataViewSpecs,
       tableConfig.getMinIdleStateRetentionTime,
@@ -109,16 +100,14 @@ class StreamExecPythonGroupTableAggregate(
       generateUpdateBefore,
       inputCountIndex)
 
-    val selector = KeySelectorUtil.getRowDataSelector(
-      grouping,
-      InternalTypeInfo.of(inputRowType))
+    val selector = KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType))
 
     // partitioned aggregation
     val ret = new OneInputTransformation(
       inputTransformation,
-      getRelDetailedDescription,
+      getDesc,
       operator,
-      InternalTypeInfo.of(outRowType),
+      InternalTypeInfo.of(outputType),
       inputTransformation.getParallelism)
 
     if (inputsContainSingleton()) {
