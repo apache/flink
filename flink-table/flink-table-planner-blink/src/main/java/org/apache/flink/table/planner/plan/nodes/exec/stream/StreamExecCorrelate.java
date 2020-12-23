@@ -39,7 +39,6 @@ public class StreamExecCorrelate extends CommonExecCorrelate implements StreamEx
 
 	public StreamExecCorrelate(
 			FlinkJoinType joinType,
-			@Nullable RexProgram project,
 			RexCall invocation,
 			@Nullable RexNode condition,
 			ExecEdge inputEdge,
@@ -47,7 +46,6 @@ public class StreamExecCorrelate extends CommonExecCorrelate implements StreamEx
 			String description) {
 		super(
 				joinType,
-				project,
 				invocation,
 				condition,
 				AbstractProcessStreamOperator.class,

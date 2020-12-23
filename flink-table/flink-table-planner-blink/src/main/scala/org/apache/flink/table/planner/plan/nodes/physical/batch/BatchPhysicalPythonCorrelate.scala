@@ -38,7 +38,6 @@ class BatchPhysicalPythonCorrelate(
     inputRel: RelNode,
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
-    projectProgram: Option[RexProgram],
     outputRowType: RelDataType,
     joinType: JoinRelType)
   extends BatchPhysicalCorrelateBase(
@@ -47,7 +46,6 @@ class BatchPhysicalPythonCorrelate(
     inputRel,
     scan,
     condition,
-    projectProgram,
     outputRowType,
     joinType)
   with CommonPythonCorrelate {
@@ -55,7 +53,6 @@ class BatchPhysicalPythonCorrelate(
   def copy(
       traitSet: RelTraitSet,
       child: RelNode,
-      projectProgram: Option[RexProgram],
       outputType: RelDataType): RelNode = {
     new BatchPhysicalPythonCorrelate(
       cluster,
@@ -63,7 +60,6 @@ class BatchPhysicalPythonCorrelate(
       child,
       scan,
       condition,
-      projectProgram,
       outputType,
       joinType)
   }

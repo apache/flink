@@ -118,7 +118,6 @@ public class BatchPhysicalPythonCorrelateRule extends ConverterRule {
 					convInput,
 					scan,
 					condition,
-					null,
 					correlate.getRowType(),
 					correlate.getJoinType());
 			}

@@ -70,7 +70,6 @@ class StreamPhysicalConstantTableFunctionScanRule
       cluster,
       traitSet,
       values,
-      None,
       scan,
       None,
       scan.getRowType,

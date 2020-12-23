@@ -77,7 +77,6 @@ class BatchPhysicalCorrelateRule extends ConverterRule(
             convInput,
             scan,
             condition,
-            None,
             rel.getRowType,
             join.getJoinType)
       }

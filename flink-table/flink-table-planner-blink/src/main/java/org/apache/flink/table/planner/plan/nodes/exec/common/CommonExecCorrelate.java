@@ -44,8 +44,6 @@ import java.util.Optional;
  */
 public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
 	private final FlinkJoinType joinType;
-	@Nullable
-	private final RexProgram project;
 	private final RexCall invocation;
 	@Nullable
 	private final RexNode condition;
@@ -54,7 +52,6 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
 
 	public CommonExecCorrelate(
 			FlinkJoinType joinType,
-			@Nullable RexProgram project,
 			RexCall invocation,
 			@Nullable RexNode condition,
 			Class<?> operatorBaseClass,
@@ -64,7 +61,6 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
 			String description) {
 		super(Collections.singletonList(inputEdge), outputType, description);
 		this.joinType = joinType;
-		this.project = project;
 		this.invocation = invocation;
 		this.condition = condition;
 		this.operatorBaseClass = operatorBaseClass;
@@ -83,7 +79,6 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
 				ctx,
 				inputTransform,
 				(RowType) inputNode.getOutputType(),
-				JavaScalaConversionUtil.toScala(Optional.ofNullable(project)),
 				invocation,
 				JavaScalaConversionUtil.toScala(Optional.ofNullable(condition)),
 				(RowType) getOutputType(),
