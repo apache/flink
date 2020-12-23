@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT id, time_col FROM jdbc LIMIT 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[3])
 +- LogicalProject(id=[$0], time_col=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, jdbc]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Limit(offset=[0], fetch=[3])
 +- Exchange(distribution=[single])
