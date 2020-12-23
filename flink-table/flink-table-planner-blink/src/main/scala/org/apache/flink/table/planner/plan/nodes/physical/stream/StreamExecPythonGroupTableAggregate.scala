@@ -26,6 +26,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, KeySelectorUtil}
 import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
@@ -49,13 +50,14 @@ class StreamExecPythonGroupTableAggregate(
     outputRowType: RelDataType,
     grouping: Array[Int],
     aggCalls: Seq[AggregateCall])
-  extends StreamExecGroupTableAggregateBase(
+  extends StreamPhysicalGroupTableAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
     grouping,
     aggCalls)
+  with LegacyStreamExecNode[RowData]
   with CommonExecPythonAggregate {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {

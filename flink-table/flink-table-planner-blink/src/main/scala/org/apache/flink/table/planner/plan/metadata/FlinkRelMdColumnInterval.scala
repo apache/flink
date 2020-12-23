@@ -446,7 +446,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     * @return interval of the given column on stream group TableAggregate
     */
   def getColumnInterval(
-    aggregate: StreamExecGroupTableAggregate,
+    aggregate: StreamPhysicalGroupTableAggregate,
     mq: RelMetadataQuery,
     index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
 
@@ -550,7 +550,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
         agg.getGrouping ++ Array(agg.inputTimeFieldIndex) ++ agg.getAuxGrouping
       case agg: BatchExecWindowAggregateBase => agg.getGrouping ++ agg.getAuxGrouping
       case agg: TableAggregate => agg.getGroupSet.toArray
-      case agg: StreamExecGroupTableAggregate => agg.grouping
+      case agg: StreamPhysicalGroupTableAggregate => agg.grouping
       case agg: StreamExecGroupWindowTableAggregate => agg.getGrouping
     }
 
