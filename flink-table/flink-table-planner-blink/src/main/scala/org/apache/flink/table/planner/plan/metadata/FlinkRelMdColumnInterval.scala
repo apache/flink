@@ -538,7 +538,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       case agg: StreamPhysicalGroupAggregate => agg.grouping
       case agg: StreamPhysicalLocalGroupAggregate => agg.grouping
       case agg: StreamPhysicalGlobalGroupAggregate => agg.grouping
-      case agg: StreamExecIncrementalGroupAggregate => agg.partialAggGrouping
+      case agg: StreamPhysicalIncrementalGroupAggregate => agg.partialAggGrouping
       case agg: StreamExecGroupWindowAggregate => agg.getGrouping
       case agg: BatchExecGroupAggregateBase => agg.getGrouping ++ agg.getAuxGrouping
       case agg: Aggregate => AggregateUtil.checkAndGetFullGroupSet(agg)
@@ -608,9 +608,9 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
             }
           case agg: StreamPhysicalLocalGroupAggregate =>
             getAggCallFromLocalAgg(aggCallIndex, agg.aggCalls, agg.getInput.getRowType)
-          case agg: StreamExecIncrementalGroupAggregate
-            if agg.partialAggInfoList.getActualAggregateCalls.length > aggCallIndex =>
-            agg.partialAggInfoList.getActualAggregateCalls(aggCallIndex)
+          case agg: StreamPhysicalIncrementalGroupAggregate
+            if agg.partialAggCalls.length > aggCallIndex =>
+            agg.partialAggCalls(aggCallIndex)
           case agg: StreamExecGroupWindowAggregate if agg.aggCalls.length > aggCallIndex =>
             agg.aggCalls(aggCallIndex)
           case agg: BatchExecLocalHashAggregate =>

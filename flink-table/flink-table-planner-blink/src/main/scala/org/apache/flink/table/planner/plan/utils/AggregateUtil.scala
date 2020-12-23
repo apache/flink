@@ -175,6 +175,62 @@ object AggregateUtil extends Enumeration {
     map
   }
 
+  def createPartialAggInfoList(
+      partialLocalAggInputRowType: RowType,
+      partialOriginalAggCalls: Seq[AggregateCall],
+      partialAggCallNeedRetractions: Array[Boolean],
+      partialAggNeedRetraction: Boolean,
+      isGlobal: Boolean): AggregateInfoList = {
+    transformToStreamAggregateInfoList(
+      partialLocalAggInputRowType,
+      partialOriginalAggCalls,
+      partialAggCallNeedRetractions,
+      partialAggNeedRetraction,
+      isStateBackendDataViews = isGlobal)
+  }
+
+  def createIncrementalAggInfoList(
+      partialLocalAggInputRowType: RowType,
+      partialOriginalAggCalls: Seq[AggregateCall],
+      partialAggCallNeedRetractions: Array[Boolean],
+      partialAggNeedRetraction: Boolean): AggregateInfoList = {
+    val partialLocalAggInfoList = createPartialAggInfoList(
+      partialLocalAggInputRowType,
+      partialOriginalAggCalls,
+      partialAggCallNeedRetractions,
+      partialAggNeedRetraction,
+      isGlobal = false)
+    val partialGlobalAggInfoList = createPartialAggInfoList(
+      partialLocalAggInputRowType,
+      partialOriginalAggCalls,
+      partialAggCallNeedRetractions,
+      partialAggNeedRetraction,
+      isGlobal = true)
+
+    // pick distinct info from global which is on state, and modify excludeAcc parameter
+    val incrementalDistinctInfos = partialGlobalAggInfoList.distinctInfos.map { info =>
+      DistinctInfo(
+        info.argIndexes,
+        info.keyType,
+        info.accType,
+        // exclude distinct acc from the aggregate accumulator,
+        // because the output acc only need to contain the count
+        excludeAcc = true,
+        info.dataViewSpec,
+        info.consumeRetraction,
+        info.filterArgs,
+        info.aggIndexes
+      )
+    }
+
+    AggregateInfoList(
+      // pick local aggs info from local which is on heap
+      partialLocalAggInfoList.aggInfos,
+      partialGlobalAggInfoList.indexOfCountStar,
+      partialGlobalAggInfoList.countStarInserted,
+      incrementalDistinctInfos)
+  }
+
   def deriveAggregateInfoList(
       agg: StreamPhysicalRel,
       groupCount: Int,
@@ -532,6 +588,7 @@ object AggregateUtil extends Enumeration {
   /**
     * Inserts an COUNT(*) aggregate call if needed. The COUNT(*) aggregate call is used
     * to count the number of added and retracted input records.
+    *
     * @param needInputCount whether to insert an InputCount aggregate
     * @param aggregateCalls original aggregate calls
     * @return (indexOfCountStar, countStarInserted, newAggCalls)
@@ -885,7 +942,7 @@ object AggregateUtil extends Enumeration {
   def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[RowData] = {
     val size = tableConfig.getConfiguration.getLong(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE)
-    if (size <= 0 ) {
+    if (size <= 0) {
       throw new IllegalArgumentException(
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE + " must be > 0.")
     }
