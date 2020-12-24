@@ -44,7 +44,7 @@ import org.apache.calcite.rel.{RelNode, SingleRel}
   *
   * <p>NOTES: partial-aggregation supports local-global mode, so does final-aggregation.
   */
-abstract class StreamExecGroupAggregateBase(
+abstract class StreamPhysicalGroupAggregateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode)

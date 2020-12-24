@@ -1019,7 +1019,7 @@ class FlinkRelMdHandlerTestBase {
       aggCallToAggFunction,
       isMerge = false)
 
-    val needRetractionArray = AggregateUtil.getNeedRetractions(
+    val needRetractionArray = AggregateUtil.deriveAggCallNeedRetractions(
       1, aggCalls, needRetraction = false, null)
 
     val localAggInfoList = transformToStreamAggregateInfoList(
@@ -1059,7 +1059,7 @@ class FlinkRelMdHandlerTestBase {
 
     val streamExchange2 = new StreamPhysicalExchange(cluster,
       studentStreamScan.getTraitSet.replace(hash3), studentStreamScan, hash3)
-    val streamGlobalAggWithoutLocal = new StreamExecGroupAggregate(
+    val streamGlobalAggWithoutLocal = new StreamPhysicalGroupAggregate(
       cluster,
       streamPhysicalTraits,
       streamExchange2,

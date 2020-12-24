@@ -67,7 +67,7 @@ import scala.collection.JavaConversions._
   *            +- StreamExecLocalGroupAggregate (partial-local-aggregate)
   * }}}
   *
-  * @see [[StreamExecGroupAggregateBase]] for more info.
+  * @see [[StreamPhysicalGroupAggregateBase]] for more info.
   */
 class StreamExecIncrementalGroupAggregate(
     cluster: RelOptCluster,
@@ -80,7 +80,7 @@ class StreamExecIncrementalGroupAggregate(
     val finalAggCalls: Seq[AggregateCall],
     val finalAggGrouping: Array[Int],
     val partialAggGrouping: Array[Int])
-  extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
+  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel)
   with LegacyStreamExecNode[RowData] {
 
   override def deriveRowType(): RelDataType = outputRowType

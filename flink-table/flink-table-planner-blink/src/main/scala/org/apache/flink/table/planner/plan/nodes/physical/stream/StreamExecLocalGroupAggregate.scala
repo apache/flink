@@ -44,7 +44,7 @@ import scala.collection.JavaConversions._
 /**
   * Stream physical RelNode for unbounded local group aggregate.
   *
-  * @see [[StreamExecGroupAggregateBase]] for more info.
+  * @see [[StreamPhysicalGroupAggregateBase]] for more info.
   */
 class StreamExecLocalGroupAggregate(
     cluster: RelOptCluster,
@@ -55,7 +55,7 @@ class StreamExecLocalGroupAggregate(
     val aggCalls: Seq[AggregateCall],
     val aggInfoList: AggregateInfoList,
     val partialFinalType: PartialFinalType)
-  extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
+  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel)
   with LegacyStreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
