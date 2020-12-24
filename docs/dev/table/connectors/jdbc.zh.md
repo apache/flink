@@ -39,7 +39,7 @@ Dependencies
 ------------
 
 {% assign connector = site.data.sql-connectors['jdbc'] %} 
-{% include sql-connector-download-table.html 
+{% include sql-connector-download-table.zh.html 
     connector=connector
 %}
 

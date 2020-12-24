@@ -37,7 +37,7 @@ Raw format 允许读写原始（基于字节）值作为单个列。
 ------------
 
 {% assign connector = site.data.sql-connectors['raw'] %}
-{% include sql-connector-download-table.html
+{% include sql-connector-download-table.zh.html
     connector=connector
 %}
 

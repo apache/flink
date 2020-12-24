@@ -41,7 +41,7 @@ Avro Schema Registry 格式只能与[Apache Kafka SQL连接器]({% link dev/tabl
 ------------
 
 {% assign connector = site.data.sql-connectors['avro-confluent'] %} 
-{% include sql-connector-download-table.html 
+{% include sql-connector-download-table.zh.html 
     connector=connector
 %}
 

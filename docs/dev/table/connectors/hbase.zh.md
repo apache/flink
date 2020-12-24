@@ -39,7 +39,7 @@ HBase 连接器在 upsert 模式下运行，可以使用 DDL 中定义的主键�
 ------------
 
 {% assign connector = site.data.sql-connectors['hbase'] %} 
-{% include sql-connector-download-table.html 
+{% include sql-connector-download-table.zh.html 
     connector=connector
 %}
 
