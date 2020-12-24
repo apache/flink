@@ -132,9 +132,9 @@ class IncrementalAggregateRule
     } else {
       // an additional count1 is inserted, need to adapt the global agg
       val localAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
-        aggCalls,
         // the final agg input is partial agg
-        partialGlobalAgg.getRowType,
+        FlinkTypeFactory.toLogicalRowType(partialGlobalAgg.getRowType),
+        aggCalls,
         // all the aggs do not need retraction
         Array.fill(aggCalls.length)(false),
         // also do not need count*
@@ -142,9 +142,9 @@ class IncrementalAggregateRule
         // the local agg is not works on state
         isStateBackendDataViews = false)
       val globalAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
-        aggCalls,
         // the final agg input is partial agg
-        partialGlobalAgg.getRowType,
+        FlinkTypeFactory.toLogicalRowType(partialGlobalAgg.getRowType),
+        aggCalls,
         // all the aggs do not need retraction
         Array.fill(aggCalls.length)(false),
         // also do not need count*

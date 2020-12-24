@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecPythonGroupAggregate;
@@ -106,7 +107,9 @@ public class BatchExecPythonAggregateRule extends ConverterRule {
 
         Tuple3<int[][], DataType[][], UserDefinedFunction[]> aggBufferTypesAndFunctions =
                 AggregateUtil.transformToBatchAggregateFunctions(
-                        aggCallsWithoutAuxGroupCalls, input.getRowType(), null);
+                        FlinkTypeFactory.toLogicalRowType(input.getRowType()),
+                        aggCallsWithoutAuxGroupCalls,
+                        null);
         UserDefinedFunction[] aggFunctions = aggBufferTypesAndFunctions._3();
 
         RelTraitSet requiredTraitSet =

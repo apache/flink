@@ -66,11 +66,11 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(agg)
     val needRetractionArray = AggregateUtil.getNeedRetractions(
-      agg.grouping.length, needRetraction, monotonicity, agg.aggCalls)
+      agg.grouping.length, agg.aggCalls, needRetraction, monotonicity)
 
     val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType( agg.getInput.getRowType),
       agg.aggCalls,
-      agg.getInput.getRowType,
       needRetractionArray,
       needRetraction,
       isStateBackendDataViews = true)
@@ -98,18 +98,18 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(agg)
     val needRetractionArray = AggregateUtil.getNeedRetractions(
-      agg.grouping.length, needRetraction, monotonicity, agg.aggCalls)
+      agg.grouping.length, agg.aggCalls, needRetraction, monotonicity)
 
     val localAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType(realInput.getRowType),
       agg.aggCalls,
-      realInput.getRowType,
       needRetractionArray,
       needRetraction,
       isStateBackendDataViews = false)
 
     val globalAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType(realInput.getRowType),
       agg.aggCalls,
-      realInput.getRowType,
       needRetractionArray,
       needRetraction,
       isStateBackendDataViews = true)

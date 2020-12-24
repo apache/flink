@@ -151,12 +151,12 @@ object AggregateUtil extends Enumeration {
   def getOutputIndexToAggCallIndexMap(
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
-      orderKeyIdx: Array[Int] = null): util.Map[Integer, Integer] = {
+      orderKeyIndexes: Array[Int] = null): util.Map[Integer, Integer] = {
     val aggInfos = transformToAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType(inputType),
       aggregateCalls,
-      inputType,
-      orderKeyIdx,
       Array.fill(aggregateCalls.size)(false),
+      orderKeyIndexes,
       needInputCount = false,
       isStateBackedDataViews = false,
       needDistinctInfo = false).aggInfos
@@ -176,10 +176,10 @@ object AggregateUtil extends Enumeration {
   }
 
   def deriveAggregateInfoList(
-      aggNode: StreamPhysicalRel,
-      aggCalls: Seq[AggregateCall],
-      grouping: Array[Int]): AggregateInfoList = {
-    val input = aggNode.getInput(0)
+      agg: StreamPhysicalRel,
+      groupCount: Int,
+      aggCalls: Seq[AggregateCall]): AggregateInfoList = {
+    val input = agg.getInput(0)
     // need to call `retract()` if input contains update or delete
     val modifyKindSetTrait = input.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
     val needRetraction = if (modifyKindSetTrait == null) {
@@ -188,29 +188,28 @@ object AggregateUtil extends Enumeration {
     } else {
       !modifyKindSetTrait.modifyKindSet.isInsertOnly
     }
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(aggNode.getCluster.getMetadataQuery)
-    val monotonicity = fmq.getRelModifiedMonotonicity(aggNode)
-    val needRetractionArray = AggregateUtil.getNeedRetractions(
-      grouping.length, needRetraction, monotonicity, aggCalls)
-    AggregateUtil.transformToStreamAggregateInfoList(
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(agg.getCluster.getMetadataQuery)
+    val monotonicity = fmq.getRelModifiedMonotonicity(agg)
+    val needRetractionArray = getNeedRetractions(groupCount, aggCalls, needRetraction, monotonicity)
+    transformToStreamAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType(input.getRowType),
       aggCalls,
-      input.getRowType,
       needRetractionArray,
       needInputCount = needRetraction,
       isStateBackendDataViews = true)
   }
 
   def transformToBatchAggregateFunctions(
+      inputRowType: RowType,
       aggregateCalls: Seq[AggregateCall],
-      inputRowType: RelDataType,
-      orderKeyIdx: Array[Int] = null)
+      orderKeyIndexes: Array[Int] = null)
   : (Array[Array[Int]], Array[Array[DataType]], Array[UserDefinedFunction]) = {
 
     val aggInfos = transformToAggregateInfoList(
-      aggregateCalls,
       inputRowType,
-      orderKeyIdx,
+      aggregateCalls,
       Array.fill(aggregateCalls.size)(false),
+      orderKeyIndexes,
       needInputCount = false,
       isStateBackedDataViews = false,
       needDistinctInfo = false).aggInfos
@@ -223,39 +222,39 @@ object AggregateUtil extends Enumeration {
   }
 
   def transformToBatchAggregateInfoList(
-      aggregateCalls: Seq[AggregateCall],
-      inputRowType: RelDataType,
-      orderKeyIdx: Array[Int] = null,
-      needRetractions: Array[Boolean] = null): AggregateInfoList = {
+      inputRowType: RowType,
+      aggCalls: Seq[AggregateCall],
+      aggCallNeedRetractions: Array[Boolean] = null,
+      orderKeyIndexes: Array[Int] = null): AggregateInfoList = {
 
-    val needRetractionArray = if (needRetractions == null) {
-      Array.fill(aggregateCalls.size)(false)
+    val finalAggCallNeedRetractions = if (aggCallNeedRetractions == null) {
+      Array.fill(aggCalls.size)(false)
     } else {
-      needRetractions
+      aggCallNeedRetractions
     }
 
     transformToAggregateInfoList(
-      aggregateCalls,
       inputRowType,
-      orderKeyIdx,
-      needRetractionArray,
+      aggCalls,
+      finalAggCallNeedRetractions,
+      orderKeyIndexes,
       needInputCount = false,
       isStateBackedDataViews = false,
       needDistinctInfo = false)
   }
 
   def transformToStreamAggregateInfoList(
+      inputRowType: RowType,
       aggregateCalls: Seq[AggregateCall],
-      inputRowType: RelDataType,
-      needRetraction: Array[Boolean],
+      aggCallNeedRetractions: Array[Boolean],
       needInputCount: Boolean,
       isStateBackendDataViews: Boolean,
       needDistinctInfo: Boolean = true): AggregateInfoList = {
     transformToAggregateInfoList(
-      aggregateCalls,
       inputRowType,
-      orderKeyIdx = null,
-      needRetraction ++ Array(needInputCount), // for additional count(*)
+      aggregateCalls,
+      aggCallNeedRetractions ++ Array(needInputCount), // for additional count(*)
+      orderKeyIndexes = null,
       needInputCount,
       isStateBackendDataViews,
       needDistinctInfo)
@@ -264,10 +263,10 @@ object AggregateUtil extends Enumeration {
   /**
     * Transforms calcite aggregate calls to AggregateInfos.
     *
+    * @param inputRowType     the input's output RowType
     * @param aggregateCalls   the calcite aggregate calls
-    * @param inputRowType     the input rel data type
-    * @param orderKeyIdx      the index of order by field in the input, null if not over agg
-    * @param needRetraction   whether the aggregate function need retract method
+    * @param aggCallNeedRetractions   whether the aggregate function need retract method
+    * @param orderKeyIndexes      the index of order by field in the input, null if not over agg
     * @param needInputCount   whether need to calculate the input counts, which is used in
     *                         aggregation with retraction input.If needed,
     *                         insert a count(1) aggregate into the agg list.
@@ -275,10 +274,10 @@ object AggregateUtil extends Enumeration {
     * @param needDistinctInfo  whether need to extract distinct information
     */
   private def transformToAggregateInfoList(
+      inputRowType: RowType,
       aggregateCalls: Seq[AggregateCall],
-      inputRowType: RelDataType,
-      orderKeyIdx: Array[Int],
-      needRetraction: Array[Boolean],
+      aggCallNeedRetractions: Array[Boolean],
+      orderKeyIndexes: Array[Int],
       needInputCount: Boolean,
       isStateBackedDataViews: Boolean,
       needDistinctInfo: Boolean): AggregateInfoList = {
@@ -301,12 +300,12 @@ object AggregateUtil extends Enumeration {
 
     // Step-3:
     // create aggregate information
-    val factory = new AggFunctionFactory(inputRowType, orderKeyIdx, needRetraction)
+    val factory = new AggFunctionFactory(inputRowType, orderKeyIndexes, aggCallNeedRetractions)
     val aggInfos = newAggCalls
       .zipWithIndex
       .map { case (call, index) =>
         val argIndexes = call.getAggregation match {
-          case _: SqlRankFunction => orderKeyIdx
+          case _: SqlRankFunction => orderKeyIndexes
           case _ => call.getArgList.map(_.intValue()).toArray
         }
         transformToAggregateInfo(
@@ -316,14 +315,14 @@ object AggregateUtil extends Enumeration {
           argIndexes,
           factory.createAggFunction(call, index),
           isStateBackedDataViews,
-          needRetraction(index))
+          aggCallNeedRetractions(index))
       }
 
     AggregateInfoList(aggInfos.toArray, indexOfCountStar, countStarInserted, distinctInfos)
   }
 
   private def transformToAggregateInfo(
-      inputRowRelDataType: RelDataType,
+      inputRowType: RowType,
       call: AggregateCall,
       index: Int,
       argIndexes: Array[Int],
@@ -334,7 +333,7 @@ object AggregateUtil extends Enumeration {
 
     case _: BridgingSqlAggFunction =>
       createAggregateInfoFromBridgingFunction(
-        inputRowRelDataType,
+        inputRowType,
         call,
         index,
         argIndexes,
@@ -344,7 +343,7 @@ object AggregateUtil extends Enumeration {
 
     case _: AggSqlFunction =>
       createAggregateInfoFromLegacyFunction(
-        inputRowRelDataType,
+        inputRowType,
         call,
         index,
         argIndexes,
@@ -363,7 +362,7 @@ object AggregateUtil extends Enumeration {
   }
 
   private def createAggregateInfoFromBridgingFunction(
-      inputRowRelDataType: RelDataType,
+      inputRowType: RowType,
       call: AggregateCall,
       index: Int,
       argIndexes: Array[Int],
@@ -387,7 +386,7 @@ object AggregateUtil extends Enumeration {
         function.getTypeFactory,
         function,
         SqlTypeUtil.projectTypes(
-          inputRowRelDataType,
+          FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType),
           argIndexes.map(Int.box).toList),
         0,
         false))
@@ -490,7 +489,7 @@ object AggregateUtil extends Enumeration {
   }
 
   private def createAggregateInfoFromLegacyFunction(
-      inputRowRelDataType: RelDataType,
+      inputRowType: RowType,
       call: AggregateCall,
       index: Int,
       argIndexes: Array[Int],
@@ -507,8 +506,7 @@ object AggregateUtil extends Enumeration {
           }
           val externalAccType = getAccumulatorTypeOfAggregateFunction(a, implicitAccType)
           val argTypes = call.getArgList
-            .map(idx => inputRowRelDataType.getFieldList.get(idx).getType)
-            .map(FlinkTypeFactory.toLogicalType)
+            .map(idx => inputRowType.getChildren.get(idx))
           val externalArgTypes: Array[DataType] = getAggUserDefinedInputTypes(
             a,
             externalAccType,
@@ -605,7 +603,7 @@ object AggregateUtil extends Enumeration {
   private def extractDistinctInformation(
       needDistinctInfo: Boolean,
       aggCalls: Seq[AggregateCall],
-      inputType: RelDataType,
+      inputType: RowType,
       hasStateBackedDataViews: Boolean,
       consumeRetraction: Boolean): (Array[DistinctInfo], Seq[AggregateCall]) = {
 
@@ -621,8 +619,7 @@ object AggregateUtil extends Enumeration {
       if (call.isDistinct && !call.isApproximate && argIndexes.length > 0) {
         val argTypes: Array[LogicalType] = call
           .getArgList
-          .map(inputType.getFieldList.get(_).getType)
-          .map(FlinkTypeFactory.toLogicalType)
+          .map(inputType.getChildren.get(_))
           .toArray
 
         val keyType = createDistinctKeyType(argTypes)
@@ -790,9 +787,9 @@ object AggregateUtil extends Enumeration {
     */
   def getNeedRetractions(
       groupCount: Int,
+      aggCalls: Seq[AggregateCall],
       needRetraction: Boolean,
-      monotonicity: RelModifiedMonotonicity,
-      aggCalls: Seq[AggregateCall]): Array[Boolean] = {
+      monotonicity: RelModifiedMonotonicity): Array[Boolean] = {
     val needRetractionArray = Array.fill(aggCalls.size)(needRetraction)
     if (monotonicity != null && needRetraction) {
       aggCalls.zipWithIndex.foreach { case (aggCall, idx) =>
