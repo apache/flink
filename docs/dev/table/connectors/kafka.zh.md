@@ -541,10 +541,10 @@ Flink 提供两种 CDC 格式：[debezium-json]({% link dev/table/connectors/for
 
 Flink 对于 Kafka 支持发送按分区的 watermark。Watermark 在 Kafka consumer 中生成。按分区 watermark 的合并方式和在流 shuffle 时合并
 Watermark 的方式一致。 Source 输出的 watermark 由读取的分区中最小的 watermark 决定。如果 topic 的某个分区闲置，则 watermark 生成器将不会向前推进。
-您可以通过在表配置中设置 [`'table.exec.source.idle-timeout'`]({% link dev/table/config.md %}#table-exec-source-idle-timeout) 选项来避免
+您可以通过在表配置中设置 [`'table.exec.source.idle-timeout'`]({% link dev/table/config.zh.md %}#table-exec-source-idle-timeout) 选项来避免
 上述问题。
 
-请参阅 [Kafka watermark 策略]({% link dev/event_timestamps_watermarks.md %}#watermark-strategies-and-the-kafka-connector) 一节以获取更多细节。
+请参阅 [Kafka watermark 策略]({% link dev/event_timestamps_watermarks.zh.md %}#watermark-strategies-and-the-kafka-connector) 一节以获取更多细节。
 
 数据类型映射
 ----------------
