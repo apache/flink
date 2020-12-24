@@ -31,3 +31,4 @@ run_mvn test -Dtest=org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClien
 run_mvn test -Dtest=org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElectorITCase
 run_mvn test -Dtest=org.apache.flink.kubernetes.highavailability.KubernetesLeaderElectionAndRetrievalITCase
 run_mvn test -Dtest=org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStoreITCase
+run_mvn test -Dtest=org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityRecoverFromSavepointITCase
