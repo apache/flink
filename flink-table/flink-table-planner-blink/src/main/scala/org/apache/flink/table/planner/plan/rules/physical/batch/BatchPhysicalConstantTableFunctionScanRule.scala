@@ -72,7 +72,6 @@ class BatchPhysicalConstantTableFunctionScanRule
       values,
       scan,
       None,
-      None,
       scan.getRowType,
       JoinRelType.INNER)
     call.transformTo(correlate)

@@ -124,7 +124,6 @@ public class StreamPhysicalPythonCorrelateRule extends ConverterRule {
 					correlate.getCluster(),
 					traitSet,
 					convInput,
-					null,
 					scan,
 					condition,
 					correlate.getRowType(),

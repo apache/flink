@@ -26,8 +26,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Correlate, JoinRelType}
 import org.apache.calcite.rel.{RelCollationTraitDef, RelDistribution, RelFieldCollation, RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexProgram}
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
 
 import scala.collection.JavaConversions._
@@ -41,7 +40,6 @@ abstract class BatchPhysicalCorrelateBase(
     inputRel: RelNode,
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
-    projectProgram: Option[RexProgram],
     outputRowType: RelDataType,
     joinType: JoinRelType)
   extends SingleRel(cluster, traitSet, inputRel)
@@ -52,7 +50,7 @@ abstract class BatchPhysicalCorrelateBase(
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    copy(traitSet, inputs.get(0), projectProgram, outputRowType)
+    copy(traitSet, inputs.get(0), outputRowType)
   }
 
   /**
@@ -61,7 +59,6 @@ abstract class BatchPhysicalCorrelateBase(
   def copy(
       traitSet: RelTraitSet,
       child: RelNode,
-      projectProgram: Option[RexProgram],
       outputType: RelDataType): RelNode
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -85,30 +82,11 @@ abstract class BatchPhysicalCorrelateBase(
 
     def getOutputInputMapping: Mapping = {
       val inputFieldCnt = getInput.getRowType.getFieldCount
-      projectProgram match {
-        case Some(program) =>
-          val projects = program.getProjectList.map(program.expandLocalRef)
-          val mapping = Mappings.create(MappingType.INVERSE_FUNCTION, inputFieldCnt, projects.size)
-          projects.zipWithIndex.foreach {
-            case (project, index) =>
-              project match {
-                case inputRef: RexInputRef => mapping.set(inputRef.getIndex, index)
-                case call: RexCall if call.getKind == SqlKind.AS =>
-                  call.getOperands.head match {
-                    case inputRef: RexInputRef => mapping.set(inputRef.getIndex, index)
-                    case _ => // ignore
-                  }
-                case _ => // ignore
-              }
-          }
-          mapping.inverse()
-        case _ =>
-          val mapping = Mappings.create(MappingType.FUNCTION, inputFieldCnt, inputFieldCnt)
-          (0 until inputFieldCnt).foreach {
-            index => mapping.set(index, index)
-          }
-          mapping
+      val mapping = Mappings.create(MappingType.FUNCTION, inputFieldCnt, inputFieldCnt)
+      (0 until inputFieldCnt).foreach {
+        index => mapping.set(index, index)
       }
+      mapping
     }
 
     val mapping = getOutputInputMapping

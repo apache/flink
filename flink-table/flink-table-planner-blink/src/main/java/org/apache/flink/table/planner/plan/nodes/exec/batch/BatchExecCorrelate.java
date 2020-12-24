@@ -27,7 +27,6 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexProgram;
 
 import javax.annotation.Nullable;
 
@@ -38,7 +37,6 @@ public class BatchExecCorrelate extends CommonExecCorrelate implements BatchExec
 
 	public BatchExecCorrelate(
 			FlinkJoinType joinType,
-			@Nullable RexProgram project,
 			RexCall invocation,
 			@Nullable RexNode condition,
 			ExecEdge inputEdge,
@@ -46,7 +44,6 @@ public class BatchExecCorrelate extends CommonExecCorrelate implements BatchExec
 			String description) {
 		super(
 				joinType,
-				project,
 				invocation,
 				condition,
 				TableStreamOperator.class,
