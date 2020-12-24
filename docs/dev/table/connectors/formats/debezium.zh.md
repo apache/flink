@@ -47,13 +47,13 @@ Flink 还支持将 Flink SQL 中的 INSERT / UPDATE / DELETE 消息编码为 Deb
 <div class="codetabs" markdown="1">
 <div data-lang="Debezium Avro" markdown="1">
 {% assign connector = site.data.sql-connectors['debezium-avro-confluent'] %}
-{% include sql-connector-download-table.html
+{% include sql-connector-download-table.zh.html
     connector=connector
 %}
 </div>
 <div data-lang="Debezium Json" markdown="1">
 {% assign connector = site.data.sql-connectors['debezium-json'] %}
-{% include sql-connector-download-table.html
+{% include sql-connector-download-table.zh.html
     connector=connector
 %}
 </div>

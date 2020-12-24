@@ -45,7 +45,7 @@ Dependencies
 ------------
 
 {% assign connector = site.data.sql-connectors['maxwell'] %}
-{% include sql-connector-download-table.html
+{% include sql-connector-download-table.zh.html
     connector=connector
 %}
 

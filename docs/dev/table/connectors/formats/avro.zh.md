@@ -35,7 +35,7 @@ under the License.
 ------------
 
 {% assign connector = site.data.sql-connectors['avro'] %} 
-{% include sql-connector-download-table.html 
+{% include sql-connector-download-table.zh.html 
     connector=connector
 %}
 

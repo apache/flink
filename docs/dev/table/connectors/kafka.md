@@ -536,7 +536,7 @@ See more about how to use the CDC formats in [debezium-json]({% link dev/table/c
 ### Sink Partitioning
 
 The config option `sink.partitioner` specifies output partitioning from Flink's partitions into Kafka's partitions.
-By default, Flink uses the [Kafka default partitioner](https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/clients/producer/internals/DefaultPartitioner.java) to parititon records. It uses the [sticky partition strategy](https://www.confluent.io/blog/apache-kafka-producer-improvements-sticky-partitioner/) for records with null keys and uses a murmur2 hash to compute the partition for a record with the key defined.
+By default, Flink uses the [Kafka default partitioner](https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/clients/producer/internals/DefaultPartitioner.java) to partition records. It uses the [sticky partition strategy](https://www.confluent.io/blog/apache-kafka-producer-improvements-sticky-partitioner/) for records with null keys and uses a murmur2 hash to compute the partition for a record with the key defined.
 
 In order to control the routing of rows into partitions, a custom sink partitioner can be provided. The 'fixed' partitioner will write the records in the same Flink partition into the same Kafka partition, which could reduce the cost of the network connections.
 

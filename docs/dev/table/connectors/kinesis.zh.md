@@ -35,7 +35,7 @@ Dependencies
 ------------
 
 {% assign connector = site.data.sql-connectors['kinesis'] %} 
-{% include sql-connector-download-table.html 
+{% include sql-connector-download-table.zh.html 
     connector=connector
 %}
 

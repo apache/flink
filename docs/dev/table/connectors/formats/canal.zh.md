@@ -47,7 +47,7 @@ Flink 还支持将 Flink SQL 中的 INSERT / UPDATE / DELETE 消息编码为 Can
 ------------
 
 {% assign connector = site.data.sql-connectors['canal'] %} 
-{% include sql-connector-download-table.html 
+{% include sql-connector-download-table.zh.html 
     connector=connector
 %}
 
