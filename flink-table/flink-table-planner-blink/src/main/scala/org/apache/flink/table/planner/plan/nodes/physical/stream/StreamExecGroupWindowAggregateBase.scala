@@ -137,8 +137,8 @@ abstract class StreamExecGroupWindowAggregateBase(
 
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
     val aggInfoList = transformToStreamAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType(inputRowType),
       aggCalls,
-      inputRowType,
       Array.fill(aggCalls.size)(needRetraction),
       needInputCount = needRetraction,
       isStateBackendDataViews = true)
