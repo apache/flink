@@ -40,8 +40,6 @@ public class DebeziumJsonOptions {
 			"This option indicates the Debezium JSON data include the schema in the message or not. " +
 			"Default is false.");
 
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
-
 	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
 
 	public static final ConfigOption<String> JSON_MAP_NULL_KEY_MODE = JsonOptions.MAP_NULL_KEY_MODE;

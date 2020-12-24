@@ -73,7 +73,8 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
 		DebeziumAvroDeserializationSchema expectedDeser = new DebeziumAvroDeserializationSchema(
 			ROW_TYPE,
 			InternalTypeInfo.of(ROW_TYPE),
-			REGISTRY_URL);
+			REGISTRY_URL,
+			true);
 		DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
 		assertEquals(expectedDeser, actualDeser);
 
@@ -95,6 +96,7 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
 		options.put("format", DebeziumAvroFormatFactory.IDENTIFIER);
 		options.put("debezium-avro-confluent.schema-registry.url", REGISTRY_URL);
 		options.put("debezium-avro-confluent.schema-registry.subject", SUBJECT);
+		options.put("debezium-avro-confluent.ignore-parse-errors", Boolean.toString(true));
 		return options;
 	}
 

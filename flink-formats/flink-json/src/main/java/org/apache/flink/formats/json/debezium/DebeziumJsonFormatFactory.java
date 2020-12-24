@@ -41,13 +41,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.JSON_MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.JSON_MAP_NULL_KEY_MODE;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.SCHEMA_INCLUDE;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.validateDecodingFormatOptions;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.validateEncodingFormatOptions;
+import static org.apache.flink.table.factories.FactoryUtil.IGNORE_PARSE_ERRORS;
 
 /**
  * Format factory for providing configured instances of Debezium JSON to RowData {@link DeserializationSchema}.

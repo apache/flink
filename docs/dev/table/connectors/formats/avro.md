@@ -34,8 +34,8 @@ The [Apache Avro](https://avro.apache.org/) format allows to read and write Avro
 Dependencies
 ------------
 
-{% assign connector = site.data.sql-connectors['avro'] %} 
-{% include sql-connector-download-table.html 
+{% assign connector = site.data.sql-connectors['avro'] %}
+{% include sql-connector-download-table.html
     connector=connector
 %}
 
@@ -91,6 +91,14 @@ Format Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>For <a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a> only, the compression codec for avro. No compression as default. The valid enumerations are: deflate, snappy, bzip2, xz.</td>
+    </tr>
+    <tr>
+      <td><h5>avro.ignore-parse-errors</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Skip fields and rows with parse errors instead of failing.
+      Fields are set to null in case of errors.</td>
     </tr>
     </tbody>
 </table>

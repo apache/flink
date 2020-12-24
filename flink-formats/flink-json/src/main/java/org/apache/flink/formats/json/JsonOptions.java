@@ -30,6 +30,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.factories.FactoryUtil.IGNORE_PARSE_ERRORS;
+
 /**
  * This class holds configuration constants used by json format.
  */
@@ -40,13 +42,6 @@ public class JsonOptions {
 			.booleanType()
 			.defaultValue(false)
 			.withDescription("Optional flag to specify whether to fail if a field is missing or not, false by default.");
-
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = ConfigOptions
-			.key("ignore-parse-errors")
-			.booleanType()
-			.defaultValue(false)
-			.withDescription("Optional flag to skip fields and rows with parse errors instead of failing;\n"
-					+ "fields are set to null in case of errors, false by default.");
 
 	public static final ConfigOption<String> MAP_NULL_KEY_MODE = ConfigOptions
 		.key("map-null-key.mode")

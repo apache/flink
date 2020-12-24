@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.avro.generated.LogicalTimeRecord;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -68,6 +69,7 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  * Test for the Avro serialization and deserialization schema.
@@ -204,5 +206,27 @@ public class AvroRowDataDeSerializationSchemaTest {
 				rowData.getInt(1)).toString());
 		Assert.assertEquals("12:12:12", DataFormatConverters.LocalTimeConverter.INSTANCE.toExternal(
 				rowData.getInt(2)).toString());
+	}
+
+	@Test
+	public void testIgnoreParseErrors() throws Exception {
+		DataType serDataType = ROW(FIELD("type_int", INT().notNull())).notNull();
+		RowType serRowType = (RowType) serDataType.getLogicalType();
+		AvroRowDataSerializationSchema serializationSchema = new AvroRowDataSerializationSchema(serRowType);
+		serializationSchema.open(null);
+		RowData input = GenericRowData.of(1);
+		byte[] byteData = serializationSchema.serialize(input);
+
+		DataType deserDataType = ROW(FIELD("type_int", DOUBLE().notNull())).notNull();
+		RowType deserRowType = (RowType) deserDataType.getLogicalType();
+		AvroRowDataDeserializationSchema deserializationSchema = new AvroRowDataDeserializationSchema(
+				AvroDeserializationSchema.forGeneric(AvroSchemaConverter.convertToSchema(deserRowType)),
+				AvroToRowDataConverters.createRowConverter(deserRowType),
+				InternalTypeInfo.of(deserRowType),
+				true);
+
+		deserializationSchema.open(null);
+		RowData actual = deserializationSchema.deserialize(byteData);
+		assertThat(actual, org.hamcrest.core.IsNull.nullValue(RowData.class));
 	}
 }

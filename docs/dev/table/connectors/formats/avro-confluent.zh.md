@@ -40,8 +40,8 @@ Avro Schema Registry 格式只能与[Apache Kafka SQL连接器]({% link dev/tabl
 依赖
 ------------
 
-{% assign connector = site.data.sql-connectors['avro-confluent'] %} 
-{% include sql-connector-download-table.html 
+{% assign connector = site.data.sql-connectors['avro-confluent'] %}
+{% include sql-connector-download-table.html
     connector=connector
 %}
 
@@ -106,6 +106,13 @@ Format 参数
       <td>String</td>
       <td>Confluent Schema Registry主题，用于在序列化期间注册此格式使用的 schema </td>
     </tr>
+    <tr>
+      <td><h5>avro.ignore-parse-errors</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>当解析异常时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。如果忽略字段的解析异常，则会将该字段值设置为<code>null</code>。</td>
+    </tr>
     </tbody>
 </table>
 
@@ -113,7 +120,7 @@ Format 参数
 ----------------
 
 目前 Apache Flink 都是从 table schema 去推断反序列化期间的 Avro reader schema 和序列化期间的 Avro writer schema。显式地定义 Avro schema 暂不支持。
-[Apache Avro Format]({% link dev/table/connectors/formats/avro.zh.md%}#data-type-mapping)中描述了 Flink 数据类型和 Avro 类型的对应关系。 
+[Apache Avro Format]({% link dev/table/connectors/formats/avro.zh.md%}#data-type-mapping)中描述了 Flink 数据类型和 Avro 类型的对应关系。
 
 除了此处列出的类型之外，Flink 还支持读取/写入可为空（nullable）的类型。 Flink 将可为空的类型映射到 Avro `union(something, null)`, 其中 `something` 是从 Flink 类型转换的 Avro 类型。
 

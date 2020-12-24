@@ -56,13 +56,6 @@ public class CsvOptions {
 					+ "(disabled by default);\n"
 					+ "if enabled, make sure to also ignore parse errors to allow empty rows");
 
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = ConfigOptions
-			.key("ignore-parse-errors")
-			.booleanType()
-			.defaultValue(false)
-			.withDescription("Optional flag to skip fields and rows with parse errors instead of failing;\n"
-					+ "fields are set to null in case of errors");
-
 	public static final ConfigOption<String> ARRAY_ELEMENT_DELIMITER = ConfigOptions
 			.key("array-element-delimiter")
 			.stringType()

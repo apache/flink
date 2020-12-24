@@ -41,12 +41,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.formats.json.JsonOptions.FAIL_ON_MISSING_FIELD;
-import static org.apache.flink.formats.json.JsonOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.JsonOptions.MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.JsonOptions.MAP_NULL_KEY_MODE;
 import static org.apache.flink.formats.json.JsonOptions.TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.JsonOptions.validateDecodingFormatOptions;
 import static org.apache.flink.formats.json.JsonOptions.validateEncodingFormatOptions;
+import static org.apache.flink.table.factories.FactoryUtil.IGNORE_PARSE_ERRORS;
 
 /**
  * Table format factory for providing configured instances of JSON to RowData

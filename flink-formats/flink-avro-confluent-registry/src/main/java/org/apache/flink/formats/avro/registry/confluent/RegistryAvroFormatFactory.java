@@ -48,6 +48,7 @@ import java.util.Set;
 
 import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_SUBJECT;
 import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_URL;
+import static org.apache.flink.table.factories.FactoryUtil.IGNORE_PARSE_ERRORS;
 
 /**
  * Table format factory for providing configured instances of Schema Registry Avro to RowData
@@ -66,6 +67,8 @@ public class RegistryAvroFormatFactory implements
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 
 		String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
+		boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
+
 		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override
 			public DeserializationSchema<RowData> createRuntimeDecoder(
@@ -79,7 +82,8 @@ public class RegistryAvroFormatFactory implements
 								AvroSchemaConverter.convertToSchema(rowType),
 								schemaRegistryURL),
 						AvroToRowDataConverters.createRowConverter(rowType),
-						rowDataTypeInfo);
+						rowDataTypeInfo,
+						ignoreParseErrors);
 			}
 
 			@Override
@@ -140,6 +144,7 @@ public class RegistryAvroFormatFactory implements
 	public Set<ConfigOption<?>> optionalOptions() {
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(SCHEMA_REGISTRY_SUBJECT);
+		options.add(IGNORE_PARSE_ERRORS);
 		return options;
 	}
 }

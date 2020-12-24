@@ -18,7 +18,6 @@
 
 package org.apache.flink.formats.avro.registry.confluent.debezium;
 
-import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.AvroRowDataDeserializationSchema;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
@@ -68,11 +67,18 @@ public class DebeziumAvroSerDeSchemaTest {
 
 	private static final String SUBJECT = "testDebeziumAvro";
 
-	private static final RowType rowType = (RowType) ROW(
+	private static final RowType consistentRowType = (RowType) ROW(
 		FIELD("id", BIGINT()),
 		FIELD("name", STRING()),
 		FIELD("description", STRING()),
 		FIELD("weight", DOUBLE())
+	).getLogicalType();
+
+	private static final RowType inconsistentRowType = (RowType) ROW(
+			FIELD("id", DOUBLE()),
+			FIELD("name", STRING()),
+			FIELD("description", STRING()),
+			FIELD("weight", BIGINT())
 	).getLogicalType();
 
 	private static final Schema DEBEZIUM_SCHEMA_COMPATIBLE_TEST = new Schema.Parser().parse(
@@ -84,8 +90,8 @@ public class DebeziumAvroSerDeSchemaTest {
 	@Test
 	public void testSerializationDeserialization() throws Exception {
 
-		RowType rowTypeDe = DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(fromLogicalToDataType(rowType));
-		RowType rowTypeSe = DebeziumAvroSerializationSchema.createDebeziumAvroRowType(fromLogicalToDataType(rowType));
+		RowType rowTypeDe = DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(fromLogicalToDataType(consistentRowType));
+		RowType rowTypeSe = DebeziumAvroSerializationSchema.createDebeziumAvroRowType(fromLogicalToDataType(consistentRowType));
 
 		DebeziumAvroSerializationSchema dbzSerializer = new DebeziumAvroSerializationSchema(getSerializationSchema(rowTypeSe));
 		dbzSerializer.open(mock(SerializationSchema.InitializationContext.class));
@@ -94,9 +100,10 @@ public class DebeziumAvroSerDeSchemaTest {
 
 		client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST);
 		DebeziumAvroDeserializationSchema dbzDeserializer = new DebeziumAvroDeserializationSchema(
-			InternalTypeInfo.of(rowType),
-			getDeserializationSchema(rowTypeDe));
-		dbzDeserializer.open(mock(DeserializationSchema.InitializationContext.class));
+			InternalTypeInfo.of(consistentRowType),
+			getDeserializationSchema(rowTypeDe),
+			false);
+		dbzDeserializer.open(null);
 
 		SimpleCollector collector = new SimpleCollector();
 		dbzDeserializer.deserialize(serialize, collector);
@@ -112,7 +119,7 @@ public class DebeziumAvroSerDeSchemaTest {
 
 	@Test
 	public void testInsertDataDeserialization() throws Exception {
-		List<String> actual = testDeserialization("debezium-avro-insert.avro");
+		List<String> actual = testDeserialization("debezium-avro-insert.avro", consistentRowType);
 
 		List<String> expected = Collections.singletonList(
 			"+I(1,lisi,test debezium avro data,21.799999237060547)");
@@ -120,8 +127,16 @@ public class DebeziumAvroSerDeSchemaTest {
 	}
 
 	@Test
+	public void testInsertDataDeserializationWithErrors() throws Exception {
+		List<String> actual = testDeserialization("debezium-avro-insert.avro", inconsistentRowType);
+
+		List<String> expected = Collections.emptyList();
+		assertEquals(expected, actual);
+	}
+
+	@Test
 	public void testUpdateDataDeserialization() throws Exception {
-		List<String> actual = testDeserialization("debezium-avro-update.avro");
+		List<String> actual = testDeserialization("debezium-avro-update.avro", consistentRowType);
 
 		List<String> expected = Arrays.asList(
 			"-U(1,lisi,test debezium avro data,21.799999237060547)",
@@ -130,24 +145,41 @@ public class DebeziumAvroSerDeSchemaTest {
 	}
 
 	@Test
+	public void testUpdateDataDeserializationWithErrors() throws Exception {
+		List<String> actual = testDeserialization("debezium-avro-update.avro", inconsistentRowType);
+
+		List<String> expected = Collections.emptyList();
+		assertEquals(expected, actual);
+	}
+
+	@Test
 	public void testDeleteDataDeserialization() throws Exception {
-		List<String> actual = testDeserialization("debezium-avro-delete.avro");
+		List<String> actual = testDeserialization("debezium-avro-delete.avro", consistentRowType);
 
 		List<String> expected = Collections.singletonList(
 			"-D(1,zhangsan,test debezium avro data,21.799999237060547)");
 		assertEquals(expected, actual);
 	}
 
-	public List<String> testDeserialization(String dataPath) throws Exception {
+	@Test
+	public void testDeleteDataDeserializationWithErrors() throws Exception {
+		List<String> actual = testDeserialization("debezium-avro-delete.avro", inconsistentRowType);
+
+		List<String> expected = Collections.emptyList();
+		assertEquals(expected, actual);
+	}
+
+	public List<String> testDeserialization(String dataPath, RowType deserRowType) throws Exception {
 		RowType rowTypeDe = DebeziumAvroDeserializationSchema
-			.createDebeziumAvroRowType(fromLogicalToDataType(rowType));
+			.createDebeziumAvroRowType(fromLogicalToDataType(deserRowType));
 
 		client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, 1, 81);
 
 		DebeziumAvroDeserializationSchema dbzDeserializer = new DebeziumAvroDeserializationSchema(
-			InternalTypeInfo.of(rowType),
-			getDeserializationSchema(rowTypeDe));
-		dbzDeserializer.open(mock(DeserializationSchema.InitializationContext.class));
+			InternalTypeInfo.of(deserRowType),
+			getDeserializationSchema(rowTypeDe),
+			true);
+		dbzDeserializer.open(null);
 
 		SimpleCollector collector = new SimpleCollector();
 		dbzDeserializer.deserialize(readBytesFromFile(dataPath), collector);

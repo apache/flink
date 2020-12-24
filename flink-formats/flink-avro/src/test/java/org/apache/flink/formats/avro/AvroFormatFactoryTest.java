@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -58,7 +59,11 @@ public class AvroFormatFactoryTest extends TestLogger {
 	@Test
 	public void testSeDeSchema() {
 		final AvroRowDataDeserializationSchema expectedDeser =
-				new AvroRowDataDeserializationSchema(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE));
+				new AvroRowDataDeserializationSchema(
+					AvroDeserializationSchema.forGeneric(AvroSchemaConverter.convertToSchema(ROW_TYPE)),
+					AvroToRowDataConverters.createRowConverter(ROW_TYPE),
+					InternalTypeInfo.of(ROW_TYPE),
+					true);
 
 		final Map<String, String> options = getAllOptions();
 
@@ -101,6 +106,7 @@ public class AvroFormatFactoryTest extends TestLogger {
 		options.put("buffer-size", "1000");
 
 		options.put("format", AvroFormatFactory.IDENTIFIER);
+		options.put("avro.ignore-parse-errors", Boolean.toString(true));
 		return options;
 	}
 

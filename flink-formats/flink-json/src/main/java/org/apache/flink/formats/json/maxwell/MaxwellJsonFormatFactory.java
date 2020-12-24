@@ -43,12 +43,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.JSON_MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.JSON_MAP_NULL_KEY_MODE;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.validateDecodingFormatOptions;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.validateEncodingFormatOptions;
+import static org.apache.flink.table.factories.FactoryUtil.IGNORE_PARSE_ERRORS;
 
 /**
  * Format factory for providing configured instances of Maxwell JSON to RowData {@link DeserializationSchema}.
