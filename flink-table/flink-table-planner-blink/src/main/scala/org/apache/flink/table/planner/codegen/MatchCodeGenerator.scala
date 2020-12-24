@@ -682,8 +682,8 @@ class MatchCodeGenerator(
         matchAgg.inputExprs.indices.map(i => s"TMP$i"))
 
       val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+        FlinkTypeFactory.toLogicalRowType(inputRelType),
         aggCalls,
-        inputRelType,
         needRetraction,
         needInputCount = false,
         isStateBackendDataViews = false,

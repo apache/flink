@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.calcite.FlinkRelFactories;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -121,7 +122,9 @@ public class BatchExecPythonWindowAggregateRule extends RelOptRule {
 
         Tuple3<int[][], DataType[][], UserDefinedFunction[]> aggBufferTypesAndFunctions =
                 AggregateUtil.transformToBatchAggregateFunctions(
-                        aggCallsWithoutAuxGroupCalls, input.getRowType(), null);
+                        FlinkTypeFactory.toLogicalRowType(input.getRowType()),
+                        aggCallsWithoutAuxGroupCalls,
+                        null);
         UserDefinedFunction[] aggFunctions = aggBufferTypesAndFunctions._3();
 
         int inputTimeFieldIndex =

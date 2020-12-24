@@ -243,9 +243,9 @@ class StreamExecOverAggregate(
 
     val needRetraction = false
     val aggInfoList = transformToStreamAggregateInfoList(
-      aggregateCalls,
       // use aggInputType which considers constants as input instead of inputSchema.relDataType
-      aggInputType,
+      FlinkTypeFactory.toLogicalRowType(aggInputType),
+      aggregateCalls,
       Array.fill(aggregateCalls.size)(needRetraction),
       needInputCount = needRetraction,
       isStateBackendDataViews = true)
@@ -322,9 +322,9 @@ class StreamExecOverAggregate(
 
     val needRetraction = true
     val aggInfoList = transformToStreamAggregateInfoList(
-      aggregateCalls,
       // use aggInputType which considers constants as input instead of inputSchema.relDataType
-      aggInputType,
+      FlinkTypeFactory.toLogicalRowType(aggInputType),
+      aggregateCalls,
       Array.fill(aggregateCalls.size)(needRetraction),
       needInputCount = needRetraction,
       isStateBackendDataViews = true)

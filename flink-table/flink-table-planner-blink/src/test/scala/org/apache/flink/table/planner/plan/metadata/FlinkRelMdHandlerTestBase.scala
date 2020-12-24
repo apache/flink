@@ -952,7 +952,9 @@ class FlinkRelMdHandlerTestBase {
 
     val aggCalls = logicalAgg.getAggCallList
     val aggFunctionFactory = new AggFunctionFactory(
-      studentBatchScan.getRowType, Array.empty[Int], Array.fill(aggCalls.size())(false))
+      FlinkTypeFactory.toLogicalRowType(studentBatchScan.getRowType),
+      Array.empty[Int],
+      Array.fill(aggCalls.size())(false))
     val aggCallToAggFunction = aggCalls.zipWithIndex.map {
       case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
     }
@@ -1018,11 +1020,11 @@ class FlinkRelMdHandlerTestBase {
       isMerge = false)
 
     val needRetractionArray = AggregateUtil.getNeedRetractions(
-      1, needRetraction = false, null, aggCalls)
+      1, aggCalls, needRetraction = false, null)
 
     val localAggInfoList = transformToStreamAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType(studentStreamScan.getRowType),
       aggCalls,
-      studentStreamScan.getRowType,
       needRetractionArray,
       needInputCount = false,
       isStateBackendDataViews = false)
@@ -1039,8 +1041,8 @@ class FlinkRelMdHandlerTestBase {
     val streamExchange1 = new StreamPhysicalExchange(
       cluster, streamLocalAgg.getTraitSet.replace(hash0), streamLocalAgg, hash0)
     val globalAggInfoList = transformToStreamAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType(streamExchange1.getRowType),
       aggCalls,
-      streamExchange1.getRowType,
       needRetractionArray,
       needInputCount = false,
       isStateBackendDataViews = true)
@@ -1103,7 +1105,9 @@ class FlinkRelMdHandlerTestBase {
       call => call.getAggregation != FlinkSqlOperatorTable.AUXILIARY_GROUP
     }
     val aggFunctionFactory = new AggFunctionFactory(
-      studentBatchScan.getRowType, Array.empty[Int], Array.fill(aggCalls.size())(false))
+      FlinkTypeFactory.toLogicalRowType(studentBatchScan.getRowType),
+      Array.empty[Int],
+      Array.fill(aggCalls.size())(false))
     val aggCallToAggFunction = aggCalls.zipWithIndex.map {
       case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
     }
@@ -1245,7 +1249,8 @@ class FlinkRelMdHandlerTestBase {
       cluster, batchPhysicalTraits.replace(hash01), batchCalc, hash01)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
-        flinkLogicalWindowAgg.getAggCallList, batchExchange1.getRowType)
+        FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
+        flinkLogicalWindowAgg.getAggCallList)
     val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
 
     val localWindowAggTypes =
@@ -1390,7 +1395,8 @@ class FlinkRelMdHandlerTestBase {
       cluster, batchPhysicalTraits.replace(hash1), batchCalc, hash1)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
-        flinkLogicalWindowAgg.getAggCallList, batchExchange1.getRowType)
+        FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
+        flinkLogicalWindowAgg.getAggCallList)
     val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
 
     val localWindowAggTypes =
@@ -1538,7 +1544,8 @@ class FlinkRelMdHandlerTestBase {
     val aggCallsWithoutAuxGroup = flinkLogicalWindowAggWithAuxGroup.getAggCallList.drop(1)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
-        aggCallsWithoutAuxGroup, batchExchange1.getRowType)
+        FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
+        aggCallsWithoutAuxGroup)
     val aggCallToAggFunction = aggCallsWithoutAuxGroup.zip(aggregates)
 
     val localWindowAggTypes =
@@ -2438,7 +2445,9 @@ class FlinkRelMdHandlerTestBase {
     ).build().asInstanceOf[LogicalAggregate]
     val aggCalls = logicalAgg.getAggCallList
     val aggFunctionFactory = new AggFunctionFactory(
-      studentBatchScan.getRowType, Array.empty[Int], Array.fill(aggCalls.size())(false))
+      FlinkTypeFactory.toLogicalRowType(studentBatchScan.getRowType),
+      Array.empty[Int],
+      Array.fill(aggCalls.size())(false))
     val aggCallToAggFunction = aggCalls.zipWithIndex.map {
       case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
     }

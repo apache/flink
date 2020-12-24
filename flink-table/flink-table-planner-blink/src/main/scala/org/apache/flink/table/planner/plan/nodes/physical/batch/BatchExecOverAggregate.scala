@@ -140,10 +140,10 @@ class BatchExecOverAggregate(
       //operator needn't cache data
       val aggHandlers = modeToGroupToAggCallToAggFunction.map { case (_, _, aggCallToAggFunction) =>
         val aggInfoList = transformToBatchAggregateInfoList(
-          aggCallToAggFunction.map(_._1),
           // use aggInputType which considers constants as input instead of inputType
-          inputTypeWithConstants,
-          orderKeyIndices)
+          FlinkTypeFactory.toLogicalRowType(inputTypeWithConstants),
+          aggCallToAggFunction.map(_._1),
+          orderKeyIndexes = orderKeyIndices)
         val codeGenCtx = CodeGeneratorContext(config)
         val generator = new AggsHandlerCodeGenerator(
           codeGenCtx,
@@ -191,10 +191,10 @@ class BatchExecOverAggregate(
           //lies on the offset of the window frame.
           aggCallToAggFunction.map { case (aggCall, _) =>
             val aggInfoList = transformToBatchAggregateInfoList(
+              FlinkTypeFactory.toLogicalRowType(inputTypeWithConstants),
               Seq(aggCall),
-              inputTypeWithConstants,
-              orderKeyIndices,
-              Array[Boolean](true) /* needRetraction = true, See LeadLagAggFunction */)
+              Array[Boolean](true), /* needRetraction = true, See LeadLagAggFunction */
+              orderKeyIndexes = orderKeyIndices)
 
             val generator = new AggsHandlerCodeGenerator(
               CodeGeneratorContext(config),
@@ -263,10 +263,10 @@ class BatchExecOverAggregate(
 
         case _ =>
           val aggInfoList = transformToBatchAggregateInfoList(
-            aggCallToAggFunction.map(_._1),
             //use aggInputType which considers constants as input instead of inputSchema.relDataType
-            inputTypeWithConstants,
-            orderKeyIndices)
+            FlinkTypeFactory.toLogicalRowType(inputTypeWithConstants),
+            aggCallToAggFunction.map(_._1),
+            orderKeyIndexes = orderKeyIndices)
           val codeGenCtx = CodeGeneratorContext(config)
           val generator = new AggsHandlerCodeGenerator(
             codeGenCtx,

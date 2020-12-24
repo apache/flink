@@ -101,7 +101,7 @@ class BatchExecWindowAggregateRule
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 
     val (_, aggBufferTypes, aggregates) = AggregateUtil.transformToBatchAggregateFunctions(
-      aggCallsWithoutAuxGroupCalls, input.getRowType)
+      FlinkTypeFactory.toLogicalRowType(input.getRowType), aggCallsWithoutAuxGroupCalls)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
     val internalAggBufferTypes = aggBufferTypes.map(_.map(fromDataTypeToLogicalType))
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
