@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveCompactReaderFactory;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
@@ -37,6 +38,9 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.BucketsBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -230,8 +234,14 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         builder.setTempPath(
                 new org.apache.flink.core.fs.Path(toStagingDir(sd.getLocation(), jobConf)));
         builder.setOutputFileConfig(fileNaming);
+        CopyingRowConverter toRowConverter =
+                new CopyingRowConverter(rowData -> (Row) converter.toExternal(rowData));
         return dataStream
-                .map((MapFunction<RowData, Row>) value -> (Row) converter.toExternal(value))
+                .transform(
+                        CopyingRowConverter.class.getSimpleName(),
+                        TypeExtractor.getMapReturnTypes(
+                                toRowConverter.getUserFunction(), dataStream.getType()),
+                        toRowConverter)
                 .writeUsingOutputFormat(builder.build())
                 .setParallelism(parallelism);
     }
@@ -499,6 +509,24 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
+        }
+    }
+
+    /** An operator to convert RowData to Row and copies the input StreamRecord. */
+    private static class CopyingRowConverter
+            extends AbstractUdfStreamOperator<Row, MapFunction<RowData, Row>>
+            implements OneInputStreamOperator<RowData, Row> {
+
+        private static final long serialVersionUID = 1L;
+
+        public CopyingRowConverter(MapFunction<RowData, Row> userFunction) {
+            super(userFunction);
+        }
+
+        @Override
+        public void processElement(StreamRecord<RowData> element) throws Exception {
+            StreamRecord<RowData> copy = element.copy(element.getValue());
+            output.collect(copy.replace(userFunction.map(copy.getValue())));
         }
     }
 }
