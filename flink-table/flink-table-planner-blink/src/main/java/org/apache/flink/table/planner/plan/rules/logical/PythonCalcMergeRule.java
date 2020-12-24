@@ -94,12 +94,9 @@ public class PythonCalcMergeRule extends RelOptRule {
 			.get(0)
 			.getValue()
 			.getFieldList().size();
-		if (inputRowFieldCount != middleProjects.size()) {
-			return false;
-		}
 
 		return isInputsCorrespondWithUpstreamOutputs(bottomProjects, middleProjects) &&
-			isFlattenCalc(middleProjects);
+			isFlattenCalc(middleProjects, inputRowFieldCount);
 	}
 
 	private boolean isInputsCorrespondWithUpstreamOutputs(List<RexNode> bottomProjects, List<RexNode> middleProjects) {
@@ -121,10 +118,18 @@ public class PythonCalcMergeRule extends RelOptRule {
 		return true;
 	}
 
-	private boolean isFlattenCalc(List<RexNode> middleProjects) {
-		for (RexNode middleProject : middleProjects) {
+	private boolean isFlattenCalc(List<RexNode> middleProjects, int inputRowFieldCount) {
+		if (inputRowFieldCount != middleProjects.size()) {
+			return false;
+		}
+		for (int i = 0; i < inputRowFieldCount; i++) {
+			RexNode middleProject = middleProjects.get(i);
 			if (middleProject instanceof RexFieldAccess) {
-				RexNode expr = ((RexFieldAccess) middleProject).getReferenceExpr();
+				RexFieldAccess rexField = ((RexFieldAccess) middleProject);
+				if (rexField.getField().getIndex() != i) {
+					return false;
+				}
+				RexNode expr = rexField.getReferenceExpr();
 				if (expr instanceof RexInputRef) {
 					if (((RexInputRef) expr).getIndex() != 0) {
 						return false;
