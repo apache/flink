@@ -69,9 +69,13 @@ public class BatchGroupedReduceOperator<IN, KEY>
 		IN value = element.getValue();
 		IN currentValue = values.value();
 
-		if (currentValue != null) {
-			value = userFunction.reduce(currentValue, value);
+		if (currentValue == null) {
+			// register a timer for emitting the result at the end when this is the
+			// first input for this key
 			timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, Long.MAX_VALUE);
+		} else {
+			// otherwise, reduce things
+			value = userFunction.reduce(currentValue, value);
 		}
 		values.update(value);
 	}
