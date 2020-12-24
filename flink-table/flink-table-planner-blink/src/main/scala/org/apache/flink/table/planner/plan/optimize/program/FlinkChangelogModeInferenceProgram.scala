@@ -635,7 +635,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         if (providedTrait.equals(UpdateKindTrait.BEFORE_AND_AFTER) &&
             requiredTrait.equals(UpdateKindTrait.ONLY_UPDATE_AFTER)) {
           // requiring only-after, but the source is CDC source, then drop update_before manually
-          val dropUB = new StreamExecDropUpdateBefore(rel.getCluster, rel.getTraitSet, rel)
+          val dropUB = new StreamPhysicalDropUpdateBefore(rel.getCluster, rel.getTraitSet, rel)
           createNewNode(dropUB, newSource.map(s => List(s)), requiredTrait)
         } else {
           newSource
