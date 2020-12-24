@@ -18,15 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.operators.StreamFilter
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDropUpdateBefore
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
-import org.apache.flink.table.runtime.operators.misc.DropUpdateBeforeFunction
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -39,46 +34,35 @@ import java.util
  * This is usually used as an optimization for the downstream operators that doesn't need
  * the UPDATE_BEFORE messages, but the upstream operator can't drop it by itself (e.g. the source).
  */
-class StreamExecDropUpdateBefore(
+class StreamPhysicalDropUpdateBefore(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode)
   extends SingleRel(cluster, traitSet, input)
-  with StreamPhysicalRel
-  with LegacyStreamExecNode[RowData] {
+  with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
 
   override def deriveRowType(): RelDataType = getInput.getRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamExecDropUpdateBefore(
+    new StreamPhysicalDropUpdateBefore(
       cluster,
       traitSet,
       inputs.get(0))
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[RowData] = {
-
+  override def translateToExecNode(): ExecNode[_] = {
     // sanity check
     if (ChangelogPlanUtils.generateUpdateBefore(this)) {
       throw new IllegalStateException(s"${this.getClass.getSimpleName} is required to emit " +
-        s"UPDATE_BEFORE messages. This should never happen." )
+        s"UPDATE_BEFORE messages. This should never happen.")
     }
 
-    val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
-    val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
-    val operator = new StreamFilter[RowData](new DropUpdateBeforeFunction)
-
-    new OneInputTransformation(
-      inputTransform,
-      getRelDetailedDescription,
-      operator,
-      rowTypeInfo,
-      inputTransform.getParallelism)
+    new StreamExecDropUpdateBefore(
+      ExecEdge.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }
