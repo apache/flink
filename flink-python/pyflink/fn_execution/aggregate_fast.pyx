@@ -24,14 +24,13 @@ from typing import List, Dict
 
 from apache_beam.coders import PickleCoder, Coder
 
-from pyflink.common import Row, RowKind
 from pyflink.fn_execution.aggregate import DataViewSpec, ListViewSpec, MapViewSpec, \
     StateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import AggregateFunction, TableAggregateFunction
 
-cdef object join_row(list left, list right):
-    return Row(*(left.__add__(right)))
+cdef InternalRow join_row(list left, list right, InternalRowKind row_kind):
+    return InternalRow(left.__add__(right), row_kind)
 
 cdef class DistinctViewDescriptor:
     def __cinit__(self, input_extractor, filter_args):
@@ -374,14 +373,15 @@ cdef class SimpleTableAggsHandleFunction(SimpleAggsHandleFunctionBase):
             distinct_view_descriptors)
 
     cdef list emit_value(self, list current_key, bint is_retract):
+        cdef InternalRow result
+        cdef list results
         udf = self._udfs[0]  # type: TableAggregateFunction
         results = []
         for x in udf.emit_value(self._accumulators[0]):
-            result = join_row(current_key, x._values)
             if is_retract:
-                result.set_row_kind(RowKind.DELETE)
+                result = join_row(current_key, x._values, InternalRowKind.DELETE)
             else:
-                result.set_row_kind(RowKind.INSERT)
+                result = join_row(current_key, x._values, InternalRowKind.INSERT)
             results.append(result)
         return results
 
@@ -436,7 +436,7 @@ cdef class GroupAggFunctionBase:
     cpdef void close(self):
         self.aggs_handle.close()
 
-    cpdef void on_timer(self, object key):
+    cpdef void on_timer(self, InternalRow key):
         if self.state_cleaning_enabled:
             self.state_backend.set_current_key(key)
             accumulator_state = self.state_backend.get_value_state(
@@ -444,13 +444,13 @@ cdef class GroupAggFunctionBase:
             accumulator_state.clear()
             self.aggs_handle.cleanup()
 
-    cdef bint is_retract_msg(self, object data):
-        return data.get_row_kind() == RowKind.UPDATE_BEFORE or data.get_row_kind() == RowKind.DELETE
+    cdef bint is_retract_msg(self, InternalRowKind row_kind):
+        return row_kind == InternalRowKind.UPDATE_BEFORE or row_kind == InternalRowKind.DELETE
 
-    cdef bint is_accumulate_msg(self, object data):
-        return data.get_row_kind() == RowKind.UPDATE_AFTER or data.get_row_kind() == RowKind.INSERT
+    cdef bint is_accumulate_msg(self, InternalRowKind row_kind):
+        return row_kind == InternalRowKind.UPDATE_AFTER or row_kind == InternalRowKind.INSERT
 
-    cpdef list process_element(self, object input_data):
+    cpdef list process_element(self, InternalRow input_data):
         pass
 
 cdef class GroupAggFunction(GroupAggFunctionBase):
@@ -466,13 +466,15 @@ cdef class GroupAggFunction(GroupAggFunctionBase):
             aggs_handle, key_selector, state_backend, state_value_coder, generate_update_before,
             state_cleaning_enabled, index_of_count_star)
 
-    cpdef list process_element(self, object input_data):
+    cpdef list process_element(self, InternalRow input_data):
         cdef list results = []
         cdef bint first_row
         cdef list key, pre_agg_value, new_agg_value, accumulators, input_value
-        cdef object retract_row, result_row
+        cdef InternalRow retract_row, result_row
         cdef SimpleAggsHandleFunction aggs_handle
-        input_value = input_data._values
+        cdef InternalRowKind input_row_kind
+        input_row_kind = input_data.row_kind
+        input_value = input_data.values
         aggs_handle = <SimpleAggsHandleFunction> self.aggs_handle
         key = self.key_selector.get_key(input_value)
         self.state_backend.set_current_key(key)
@@ -481,7 +483,7 @@ cdef class GroupAggFunction(GroupAggFunctionBase):
             "accumulators", self.state_value_coder)
         accumulators = accumulator_state.value()
         if accumulators is None:
-            if self.is_retract_msg(input_data):
+            if self.is_retract_msg(input_row_kind):
                 # Don't create a new accumulator for a retraction message. This might happen if the
                 # retraction message is the first message for the key or after a state clean up.
                 return
@@ -496,7 +498,7 @@ cdef class GroupAggFunction(GroupAggFunctionBase):
         pre_agg_value = aggs_handle.get_value()
 
         # update aggregate result and set to the newRow
-        if self.is_accumulate_msg(input_data):
+        if self.is_accumulate_msg(input_row_kind):
             # accumulate input
             aggs_handle.accumulate(input_value)
         else:
@@ -527,25 +529,21 @@ cdef class GroupAggFunction(GroupAggFunctionBase):
                     # retract previous result
                     if self.generate_update_before:
                         # prepare UPDATE_BEFORE message for previous row
-                        retract_row = join_row(key, pre_agg_value)
-                        retract_row.set_row_kind(RowKind.UPDATE_BEFORE)
+                        retract_row = join_row(key, pre_agg_value, InternalRowKind.UPDATE_BEFORE)
                         results.append(retract_row)
                     # prepare UPDATE_AFTER message for new row
-                    result_row = join_row(key, new_agg_value)
-                    result_row.set_row_kind(RowKind.UPDATE_AFTER)
+                    result_row = join_row(key, new_agg_value, InternalRowKind.UPDATE_AFTER)
             else:
                 # this is the first, output new result
                 # prepare INSERT message for new row
-                result_row = join_row(key, new_agg_value)
-                result_row.set_row_kind(RowKind.INSERT)
+                result_row = join_row(key, new_agg_value, InternalRowKind.INSERT)
             results.append(result_row)
         else:
             # we retracted the last record for this key
             # sent out a delete message
             if not first_row:
                 # prepare delete message for previous row
-                result_row = join_row(key, pre_agg_value)
-                result_row.set_row_kind(RowKind.DELETE)
+                result_row = join_row(key, pre_agg_value, InternalRowKind.DELETE)
                 results.append(result_row)
             # and clear all state
             accumulator_state.clear()
@@ -566,12 +564,14 @@ cdef class GroupTableAggFunction(GroupAggFunctionBase):
             aggs_handle, key_selector, state_backend, state_value_coder, generate_update_before,
             state_cleaning_enabled, index_of_count_star)
 
-    cpdef list process_element(self, object input_data):
+    cpdef list process_element(self, InternalRow input_data):
         cdef bint first_row
         cdef list key, accumulators, input_value, results
         cdef SimpleTableAggsHandleFunction aggs_handle
+        cdef InternalRowKind input_row_kind
         results = []
-        input_value = input_data._values
+        input_value = input_data.values
+        input_row_kind = input_data.row_kind
         aggs_handle = <SimpleTableAggsHandleFunction> self.aggs_handle
         key = self.key_selector.get_key(input_value)
         self.state_backend.set_current_key(key)
@@ -592,7 +592,7 @@ cdef class GroupTableAggFunction(GroupAggFunctionBase):
             results.append(aggs_handle.emit_value(key, True))
 
         # update aggregate result and set to the newRow
-        if self.is_accumulate_msg(input_data):
+        if self.is_accumulate_msg(input_row_kind):
             # accumulate input
             aggs_handle.accumulate(input_value)
         else:
