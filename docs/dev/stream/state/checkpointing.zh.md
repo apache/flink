@@ -122,6 +122,9 @@ env.getCheckpointConfig.setFailTasksOnCheckpointingErrors(false)
 
 // 同一时间只允许一个 checkpoint 进行
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
+
+// 开启实验性的 unaligned checkpoints
+env.getCheckpointConfig.enableUnalignedCheckpoints()
 {% endhighlight %}
 </div>
 <div data-lang="python" markdown="1">
