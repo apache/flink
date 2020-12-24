@@ -22,9 +22,10 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecPythonGroupAggregate;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalPythonGroupAggregate;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -36,21 +37,20 @@ import org.apache.calcite.rel.core.AggregateCall;
 
 import java.util.List;
 
-import scala.collection.JavaConverters;
-
 /**
- * Rule to convert a {@link FlinkLogicalAggregate} into a {@link StreamExecPythonGroupAggregate}.
+ * Rule to convert a {@link FlinkLogicalAggregate} into a {@link
+ * StreamPhysicalPythonGroupAggregate}.
  */
-public class StreamExecPythonGroupAggregateRule extends ConverterRule {
+public class StreamPhysicalPythonGroupAggregateRule extends ConverterRule {
 
-    public static final RelOptRule INSTANCE = new StreamExecPythonGroupAggregateRule();
+    public static final RelOptRule INSTANCE = new StreamPhysicalPythonGroupAggregateRule();
 
-    public StreamExecPythonGroupAggregateRule() {
+    public StreamPhysicalPythonGroupAggregateRule() {
         super(
                 FlinkLogicalAggregate.class,
                 FlinkConventions.LOGICAL(),
                 FlinkConventions.STREAM_PHYSICAL(),
-                "StreamExecPythonGroupAggregateRule");
+                "StreamPhysicalPythonGroupAggregateRule");
     }
 
     @Override
@@ -111,14 +111,12 @@ public class StreamExecPythonGroupAggregateRule extends ConverterRule {
                 rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
         RelNode newInput = RelOptRule.convert(agg.getInput(), requiredTraitSet);
 
-        return new StreamExecPythonGroupAggregate(
+        return new StreamPhysicalPythonGroupAggregate(
                 rel.getCluster(),
                 providedTraitSet,
                 newInput,
                 rel.getRowType(),
                 agg.getGroupSet().toArray(),
-                JavaConverters.asScalaIteratorConverter(agg.getAggCallList().iterator())
-                        .asScala()
-                        .toSeq());
+                JavaScalaConversionUtil.toScala(agg.getAggCallList()));
     }
 }
