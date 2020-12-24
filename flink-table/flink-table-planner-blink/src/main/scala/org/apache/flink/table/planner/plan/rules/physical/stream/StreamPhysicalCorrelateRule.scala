@@ -92,7 +92,6 @@ class StreamPhysicalCorrelateRule
             rel.getCluster,
             traitSet,
             convInput,
-            None,
             scan,
             condition,
             rel.getRowType,

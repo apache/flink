@@ -27,7 +27,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
+import org.apache.calcite.rex.{RexCall, RexNode}
 
 /**
   * Flink RelNode which matches along with join a python user defined table function.
@@ -36,7 +36,6 @@ class StreamPhysicalPythonCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    projectProgram: Option[RexProgram],
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
     outputRowType: RelDataType,
@@ -45,7 +44,6 @@ class StreamPhysicalPythonCorrelate(
     cluster,
     traitSet,
     inputRel,
-    projectProgram,
     scan,
     condition,
     outputRowType,
@@ -55,13 +53,11 @@ class StreamPhysicalPythonCorrelate(
   def copy(
       traitSet: RelTraitSet,
       newChild: RelNode,
-      projectProgram: Option[RexProgram],
       outputType: RelDataType): RelNode = {
     new StreamPhysicalPythonCorrelate(
       cluster,
       traitSet,
       newChild,
-      projectProgram,
       scan,
       condition,
       outputType,

@@ -27,7 +27,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Correlate, JoinRelType}
-import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
+import org.apache.calcite.rex.{RexCall, RexNode}
 
 /**
   * Batch physical RelNode for [[Correlate]] (Java/Scala user defined table function).
@@ -38,7 +38,6 @@ class BatchPhysicalCorrelate(
     inputRel: RelNode,
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
-    projectProgram: Option[RexProgram],
     outputRowType: RelDataType,
     joinType: JoinRelType)
   extends BatchPhysicalCorrelateBase(
@@ -47,14 +46,12 @@ class BatchPhysicalCorrelate(
     inputRel,
     scan,
     condition,
-    projectProgram,
     outputRowType,
     joinType) {
 
   def copy(
       traitSet: RelTraitSet,
       child: RelNode,
-      projectProgram: Option[RexProgram],
       outputType: RelDataType): RelNode = {
     new BatchPhysicalCorrelate(
       cluster,
@@ -62,7 +59,6 @@ class BatchPhysicalCorrelate(
       child,
       scan,
       condition,
-      projectProgram,
       outputType,
       joinType)
   }
@@ -70,7 +66,6 @@ class BatchPhysicalCorrelate(
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecCorrelate(
       JoinTypeUtil.getFlinkJoinType(joinType),
-      projectProgram.orNull,
       scan.getCall.asInstanceOf[RexCall],
       condition.orNull,
       ExecEdge.DEFAULT,

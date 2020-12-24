@@ -24,7 +24,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
+import org.apache.calcite.rex.{RexCall, RexNode}
 
 import scala.collection.JavaConversions._
 
@@ -35,7 +35,6 @@ abstract class StreamPhysicalCorrelateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    val projectProgram: Option[RexProgram],
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
     outputRowType: RelDataType,
@@ -50,7 +49,7 @@ abstract class StreamPhysicalCorrelateBase(
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    copy(traitSet, inputs.get(0), projectProgram, outputRowType)
+    copy(traitSet, inputs.get(0), outputRowType)
   }
 
   /**
@@ -59,7 +58,6 @@ abstract class StreamPhysicalCorrelateBase(
   def copy(
       traitSet: RelTraitSet,
       newChild: RelNode,
-      projectProgram: Option[RexProgram],
       outputType: RelDataType): RelNode
 
   override def explainTerms(pw: RelWriter): RelWriter = {
