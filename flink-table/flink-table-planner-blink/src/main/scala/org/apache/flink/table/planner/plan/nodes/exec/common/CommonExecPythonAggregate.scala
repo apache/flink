@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.common
+package org.apache.flink.table.planner.plan.nodes.exec.common
 
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview.{DataView, ListView, MapView}
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -27,15 +26,18 @@ import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
+import org.apache.flink.table.planner.plan.nodes.common.CommonPythonBase
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
 import org.apache.flink.table.types.logical.{RowType, StructuredType}
 import org.apache.flink.table.types.{DataType, FieldsDataType}
 
+import org.apache.calcite.rel.core.AggregateCall
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-trait CommonPythonAggregate extends CommonPythonBase {
+trait CommonExecPythonAggregate extends CommonPythonBase {
 
   /**
     * For batch execution we extract the PythonFunctionInfo from AggregateCall.

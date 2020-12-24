@@ -26,7 +26,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, KeySelectorUtil}
 import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -56,7 +56,7 @@ class StreamExecPythonGroupTableAggregate(
     outputRowType,
     grouping,
     aggCalls)
-  with CommonPythonAggregate {
+  with CommonExecPythonAggregate {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamExecPythonGroupTableAggregate(
