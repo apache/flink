@@ -180,22 +180,13 @@ object AggregateUtil extends Enumeration {
       groupCount: Int,
       aggCalls: Seq[AggregateCall]): AggregateInfoList = {
     val input = agg.getInput(0)
-    // need to call `retract()` if input contains update or delete
-    val modifyKindSetTrait = input.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
-    val needRetraction = if (modifyKindSetTrait == null) {
-      // FlinkChangelogModeInferenceProgram is not applied yet, false as default
-      false
-    } else {
-      !modifyKindSetTrait.modifyKindSet.isInsertOnly
-    }
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(agg.getCluster.getMetadataQuery)
-    val monotonicity = fmq.getRelModifiedMonotonicity(agg)
-    val needRetractionArray = getNeedRetractions(groupCount, aggCalls, needRetraction, monotonicity)
+    val aggCallNeedRetractions = deriveAggCallNeedRetractions(agg, groupCount, aggCalls)
+    val needInputCount = needRetraction(agg)
     transformToStreamAggregateInfoList(
       FlinkTypeFactory.toLogicalRowType(input.getRowType),
       aggCalls,
-      needRetractionArray,
-      needInputCount = needRetraction,
+      aggCallNeedRetractions,
+      needInputCount,
       isStateBackendDataViews = true)
   }
 
@@ -782,10 +773,40 @@ object AggregateUtil extends Enumeration {
   }
 
   /**
-    * Optimize max or min with retraction agg. MaxWithRetract can be optimized to Max if input is
-    * update increasing.
-    */
-  def getNeedRetractions(
+   * Return true if the given agg rel needs retraction message, else false.
+   */
+  def needRetraction(agg: StreamPhysicalRel): Boolean = {
+    // need to call `retract()` if input contains update or delete
+    val modifyKindSetTrait = agg.getInput(0).getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
+    if (modifyKindSetTrait == null) {
+      // FlinkChangelogModeInferenceProgram is not applied yet, false as default
+      false
+    } else {
+      !modifyKindSetTrait.modifyKindSet.isInsertOnly
+    }
+  }
+
+  /**
+   * Return the retraction flags for each given agg calls, currently MAX and MIN are supported.
+   * MaxWithRetract can be optimized to Max if input is update increasing,
+   * MinWithRetract can be optimized to Min if input is update decreasing.
+   */
+  def deriveAggCallNeedRetractions(
+      agg: StreamPhysicalRel,
+      groupCount: Int,
+      aggCalls: Seq[AggregateCall]): Array[Boolean] = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(agg.getCluster.getMetadataQuery)
+    val monotonicity = fmq.getRelModifiedMonotonicity(agg)
+    val needRetractionFlag = needRetraction(agg)
+    deriveAggCallNeedRetractions(groupCount, aggCalls, needRetractionFlag, monotonicity)
+  }
+
+  /**
+   * Return the retraction flags for each given agg calls, currently max and min are supported.
+   * MaxWithRetract can be optimized to Max if input is update increasing,
+   * MinWithRetract can be optimized to Min if input is update decreasing.
+   */
+  def deriveAggCallNeedRetractions(
       groupCount: Int,
       aggCalls: Seq[AggregateCall],
       needRetraction: Boolean,

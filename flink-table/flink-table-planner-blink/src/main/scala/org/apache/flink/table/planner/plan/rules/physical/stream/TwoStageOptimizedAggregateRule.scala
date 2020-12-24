@@ -35,7 +35,7 @@ import org.apache.calcite.rel.RelNode
 import java.util
 
 /**
-  * Rule that matches [[StreamExecGroupAggregate]] on [[StreamPhysicalExchange]]
+  * Rule that matches [[StreamPhysicalGroupAggregate]] on [[StreamPhysicalExchange]]
   * with the following condition:
   * 1. mini-batch is enabled in given TableConfig,
   * 2. two-phase aggregation is enabled in given TableConfig,
@@ -51,21 +51,21 @@ import java.util
   * }}}
   */
 class TwoStageOptimizedAggregateRule extends RelOptRule(
-  operand(classOf[StreamExecGroupAggregate],
+  operand(classOf[StreamPhysicalGroupAggregate],
     operand(classOf[StreamPhysicalExchange],
       operand(classOf[RelNode], any))),
   "TwoStageOptimizedAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    val agg: StreamExecGroupAggregate = call.rel(0)
+    val agg: StreamPhysicalGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
 
     val needRetraction = !ChangelogPlanUtils.isInsertOnly(
       realInput.asInstanceOf[StreamPhysicalRel])
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(agg)
-    val needRetractionArray = AggregateUtil.getNeedRetractions(
+    val needRetractionArray = AggregateUtil.deriveAggCallNeedRetractions(
       agg.grouping.length, agg.aggCalls, needRetraction, monotonicity)
 
     val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
@@ -91,13 +91,13 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val agg: StreamExecGroupAggregate = call.rel(0)
+    val agg: StreamPhysicalGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
     val needRetraction = !ChangelogPlanUtils.isInsertOnly(
       realInput.asInstanceOf[StreamPhysicalRel])
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(agg)
-    val needRetractionArray = AggregateUtil.getNeedRetractions(
+    val needRetractionArray = AggregateUtil.deriveAggCallNeedRetractions(
       agg.grouping.length, agg.aggCalls, needRetraction, monotonicity)
 
     val localAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
@@ -124,7 +124,7 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
       input: RelNode,
       localAggInfoList: AggregateInfoList,
       globalAggInfoList: AggregateInfoList,
-      agg: StreamExecGroupAggregate): StreamExecGlobalGroupAggregate = {
+      agg: StreamPhysicalGroupAggregate): StreamExecGlobalGroupAggregate = {
     val localAggRowType = AggregateUtil.inferLocalAggRowType(
       localAggInfoList,
       input.getRowType,

@@ -341,7 +341,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: StreamExecGroupAggregate,
+      rel: StreamPhysicalGroupAggregate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {

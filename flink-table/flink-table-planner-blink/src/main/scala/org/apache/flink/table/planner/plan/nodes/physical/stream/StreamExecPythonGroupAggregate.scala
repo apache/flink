@@ -44,7 +44,7 @@ import java.util
 /**
   * Stream physical RelNode for Python unbounded group aggregate.
   *
-  * @see [[StreamExecGroupAggregateBase]] for more info.
+  * @see [[StreamPhysicalGroupAggregateBase]] for more info.
   */
 class StreamExecPythonGroupAggregate(
     cluster: RelOptCluster,
@@ -53,7 +53,7 @@ class StreamExecPythonGroupAggregate(
     outputRowType: RelDataType,
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall])
-  extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
+  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel)
   with LegacyStreamExecNode[RowData]
   with CommonPythonAggregate {
 
