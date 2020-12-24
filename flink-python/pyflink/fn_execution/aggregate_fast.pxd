@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 # cython: language_level=3
+from pyflink.fn_execution.coder_impl_fast cimport InternalRow, InternalRowKind
 
 cdef class DistinctViewDescriptor:
     cdef object input_extractor
@@ -83,10 +84,10 @@ cdef class GroupAggFunctionBase:
 
     cpdef void open(self, function_context)
     cpdef void close(self)
-    cpdef list process_element(self, object input_data)
-    cpdef void on_timer(self, object key)
-    cdef bint is_retract_msg(self, object input_data)
-    cdef bint is_accumulate_msg(self, object input_data)
+    cpdef list process_element(self, InternalRow input_data)
+    cpdef void on_timer(self, InternalRow key)
+    cdef bint is_retract_msg(self, InternalRowKind row_kind)
+    cdef bint is_accumulate_msg(self, InternalRowKind row_kind)
 
 cdef class GroupAggFunction(GroupAggFunctionBase):
     pass
