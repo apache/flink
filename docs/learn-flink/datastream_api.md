@@ -97,7 +97,6 @@ This example takes a stream of records about people as input, and filters it to 
 {% highlight java %}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.api.common.functions.FilterFunction;
 
 public class Example {
 
@@ -110,13 +109,8 @@ public class Example {
                 new Person("Wilma", 35),
                 new Person("Pebbles", 2));
 
-        DataStream<Person> adults = flintstones.filter(new FilterFunction<Person>() {
-            @Override
-            public boolean filter(Person person) throws Exception {
-                return person.age >= 18;
-            }
-        });
-
+        DataStream<Person> adults = flintstones.filter(person -> person.age >= 18);
+		
         adults.print();
 
         env.execute();
