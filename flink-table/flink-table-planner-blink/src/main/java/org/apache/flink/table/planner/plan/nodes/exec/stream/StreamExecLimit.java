@@ -24,6 +24,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.PartitionSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy;
 import org.apache.flink.table.runtime.operators.rank.ConstantRankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
@@ -43,11 +45,9 @@ public class StreamExecLimit extends StreamExecRank {
             LogicalType outputType,
             String description) {
         super(
+                PartitionSpec.ALL_IN_ONE,
+                SortSpec.ANY,
                 RankType.ROW_NUMBER,
-                new int[0],
-                new int[0],
-                new boolean[0],
-                new boolean[0],
                 new ConstantRankRange(limitStart + 1, limitEnd),
                 getRankStrategy(needRetraction),
                 false,

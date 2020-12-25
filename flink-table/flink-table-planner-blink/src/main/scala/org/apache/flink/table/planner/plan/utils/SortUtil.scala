@@ -21,11 +21,11 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
-
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.{RelCollation, RelFieldCollation}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec
 
 import scala.collection.mutable
 
@@ -82,6 +82,15 @@ object SortUtil {
   /** Returns the default null direction if not specified. */
   def getNullDefaultOrder(ascending: Boolean): Boolean = {
     FlinkPlannerImpl.defaultNullCollation.last(!ascending)
+  }
+
+  def getSortSpec(fieldCollations: Seq[RelFieldCollation]): SortSpec = {
+    val (keys, orders, nullsIslast) = getKeysAndOrders(fieldCollations)
+    val sortSpecBuilder = SortSpec.builder();
+    for (i <- keys.indices) {
+      sortSpecBuilder.addField(keys(i), orders(i), nullsIslast(i))
+    }
+    sortSpecBuilder.build()
   }
 
   def getKeysAndOrders(
