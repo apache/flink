@@ -22,14 +22,14 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
 
-import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
- * General tests for the {@link InitJobManagerDecorator}.
+ * Tests for {@link InitJobManagerDecorator} decorating service account.
  */
 public class InitJobManagerDecoratorAccountTest extends KubernetesJobManagerTestBase {
 
@@ -37,7 +37,6 @@ public class InitJobManagerDecoratorAccountTest extends KubernetesJobManagerTest
 	private static final String JOB_MANGER_SERVICE_ACCOUNT_NAME = "jm-service-test";
 
 	private Pod resultPod;
-	private Container resultMainContainer;
 
 	@Override
 	protected void setupFlinkConfig() {
@@ -56,11 +55,10 @@ public class InitJobManagerDecoratorAccountTest extends KubernetesJobManagerTest
 		final FlinkPod resultFlinkPod = initJobManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
 
 		this.resultPod = resultFlinkPod.getPod();
-		this.resultMainContainer = resultFlinkPod.getMainContainer();
 	}
 
 	@Test
 	public void testPodServiceAccountName() {
-		assertEquals(JOB_MANGER_SERVICE_ACCOUNT_NAME, this.resultPod.getSpec().getServiceAccountName());
+		assertThat(this.resultPod.getSpec().getServiceAccountName(), is(JOB_MANGER_SERVICE_ACCOUNT_NAME));
 	}
 }

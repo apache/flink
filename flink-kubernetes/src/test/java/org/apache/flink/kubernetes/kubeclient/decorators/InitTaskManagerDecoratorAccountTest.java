@@ -22,7 +22,6 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
 
-import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
 import org.junit.Test;
 
@@ -30,7 +29,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * General tests for the {@link InitJobManagerDecorator}.
+ * Tests for {@link InitTaskManagerDecorator} decorating service account.
  */
 public class InitTaskManagerDecoratorAccountTest extends KubernetesTaskManagerTestBase {
 
@@ -38,7 +37,6 @@ public class InitTaskManagerDecoratorAccountTest extends KubernetesTaskManagerTe
 	private static final String TASK_MANAGER_SERVICE_ACCOUNT_NAME = "tm-service-test";
 
 	private Pod resultPod;
-	private Container resultMainContainer;
 
 	@Override
 	protected void setupFlinkConfig() {
@@ -57,11 +55,10 @@ public class InitTaskManagerDecoratorAccountTest extends KubernetesTaskManagerTe
 
 		final FlinkPod resultFlinkPod = initTaskManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
 		this.resultPod = resultFlinkPod.getPod();
-		this.resultMainContainer = resultFlinkPod.getMainContainer();
 	}
 
 	@Test
 	public void testPodServiceAccountName() {
-		assertThat(TASK_MANAGER_SERVICE_ACCOUNT_NAME, is(this.resultPod.getSpec().getServiceAccountName()));
+		assertThat(this.resultPod.getSpec().getServiceAccountName(), is(TASK_MANAGER_SERVICE_ACCOUNT_NAME));
 	}
 }

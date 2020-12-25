@@ -191,7 +191,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 
 	@Test
 	public void testPodServiceAccountName() {
-		assertThat(SERVICE_ACCOUNT_NAME, is(this.resultPod.getSpec().getServiceAccountName()));
+		assertThat(this.resultPod.getSpec().getServiceAccountName(), is(SERVICE_ACCOUNT_NAME));
 	}
 
 	@Test
