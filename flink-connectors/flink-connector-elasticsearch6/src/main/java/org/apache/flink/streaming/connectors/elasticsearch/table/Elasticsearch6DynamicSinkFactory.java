@@ -54,6 +54,7 @@ import static org.apache.flink.streaming.connectors.elasticsearch.table.Elastics
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.INDEX_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.KEY_DELIMITER_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.PASSWORD_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.ROUTING_FILED_NAME;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.USERNAME_OPTION;
 
 /** A {@link DynamicTableSinkFactory} for discovering {@link Elasticsearch6DynamicSink}. */
@@ -64,6 +65,7 @@ public class Elasticsearch6DynamicSinkFactory implements DynamicTableSinkFactory
     private static final Set<ConfigOption<?>> optionalOptions =
             Stream.of(
                             KEY_DELIMITER_OPTION,
+                            ROUTING_FILED_NAME,
                             FAILURE_HANDLER_OPTION,
                             FLUSH_ON_CHECKPOINT_OPTION,
                             BULK_FLASH_MAX_SIZE_OPTION,
