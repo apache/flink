@@ -220,7 +220,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
         createNewNode(limit, children, providedTrait, requiredTrait, requester)
 
-      case _: StreamPhysicalRank | _: StreamExecSortLimit =>
+      case _: StreamPhysicalRank | _: StreamPhysicalSortLimit =>
         // Rank and SortLimit supports consuming all changes
         val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
         createNewNode(
@@ -484,7 +484,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           rank, rank.partitionKey, rank.orderKey)
         visitRankStrategies(rankStrategies, requiredTrait, rankStrategy => rank.copy(rankStrategy))
 
-      case sortLimit: StreamExecSortLimit =>
+      case sortLimit: StreamPhysicalSortLimit =>
         val rankStrategies = RankProcessStrategy.analyzeRankProcessStrategies(
           sortLimit, ImmutableBitSet.of(), sortLimit.getCollation)
         visitRankStrategies(

@@ -406,7 +406,7 @@ class FlinkRelMdHandlerTestBase {
         FlinkRelDistribution.SINGLETON),
       collection, offset, fetch, true)
 
-    val streamSort = new StreamExecSortLimit(cluster, streamPhysicalTraits.replace(collection),
+    val streamSort = new StreamPhysicalSortLimit(cluster, streamPhysicalTraits.replace(collection),
       studentStreamScan, collection, offset, fetch, RankProcessStrategy.UNDEFINED_STRATEGY)
 
     (logicalSortLimit, flinkLogicalSortLimit,
