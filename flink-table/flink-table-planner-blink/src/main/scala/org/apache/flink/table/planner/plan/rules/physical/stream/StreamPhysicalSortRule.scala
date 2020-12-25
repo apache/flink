@@ -40,7 +40,7 @@ class StreamPhysicalSortRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
     !sort.getCollation.getFieldCollations.isEmpty && sort.fetch == null && sort.offset == null &&
-      !StreamExecTemporalSortRule.canConvertToTemporalSort(sort)
+      !StreamPhysicalTemporalSortRule.canConvertToTemporalSort(sort)
   }
 
   override def convert(rel: RelNode): RelNode = {
