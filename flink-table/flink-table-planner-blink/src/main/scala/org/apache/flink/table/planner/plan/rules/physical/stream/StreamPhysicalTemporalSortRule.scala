@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTemporalSort
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalTemporalSort
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -30,18 +30,18 @@ import org.apache.calcite.rel.convert.ConverterRule
 
 /**
   * Rule that matches [[FlinkLogicalSort]] which is sorted by time attribute in ascending order
-  * and its `fetch` and `offset` are null, and converts it to [[StreamExecTemporalSort]].
+  * and its `fetch` and `offset` are null, and converts it to [[StreamPhysicalTemporalSort]].
   */
-class StreamExecTemporalSortRule
+class StreamPhysicalTemporalSortRule
   extends ConverterRule(
     classOf[FlinkLogicalSort],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecTemporalSortRule") {
+    "StreamPhysicalTemporalSortRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
-    StreamExecTemporalSortRule.canConvertToTemporalSort(sort)
+    StreamPhysicalTemporalSortRule.canConvertToTemporalSort(sort)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -56,7 +56,7 @@ class StreamExecTemporalSortRule
 
     val convInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
-    new StreamExecTemporalSort(
+    new StreamPhysicalTemporalSort(
       rel.getCluster,
       providedTraitSet,
       convInput,
@@ -65,17 +65,17 @@ class StreamExecTemporalSortRule
 
 }
 
-object StreamExecTemporalSortRule {
-  val INSTANCE: RelOptRule = new StreamExecTemporalSortRule
+object StreamPhysicalTemporalSortRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalTemporalSortRule
 
   /**
-    * Whether the given sort could be converted to [[StreamExecTemporalSort]].
+    * Whether the given sort could be converted to [[StreamPhysicalTemporalSort]].
     *
     * Return true if the given sort is sorted by time attribute in ascending order
     * and its `fetch` and `offset` are null, else false.
     *
     * @param sort the [[FlinkLogicalSort]] node
-    * @return True if the input sort could be converted to [[StreamExecTemporalSort]]
+    * @return True if the input sort could be converted to [[StreamPhysicalTemporalSort]]
     */
   def canConvertToTemporalSort(sort: FlinkLogicalSort): Boolean = {
     val fieldCollations = sort.collation.getFieldCollations

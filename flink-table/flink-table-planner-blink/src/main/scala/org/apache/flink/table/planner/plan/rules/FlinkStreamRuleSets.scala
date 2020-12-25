@@ -413,7 +413,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalSortRule.INSTANCE,
     StreamPhysicalLimitRule.INSTANCE,
     StreamPhysicalSortLimitRule.INSTANCE,
-    StreamExecTemporalSortRule.INSTANCE,
+    StreamPhysicalTemporalSortRule.INSTANCE,
     // rank
     StreamPhysicalRankRule.INSTANCE,
     StreamExecDeduplicateRule.RANK_INSTANCE,

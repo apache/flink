@@ -18,34 +18,25 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.annotation.Experimental
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTemporalSort
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rex.RexNode
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSort
-
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for [[Sort]].
+  * Stream physical RelNode for time-ascending-order [[Sort]] without `limit`.
   *
-  * <b>NOTES:</b> This class is used for testing with bounded source now.
-  * If a query is converted to this node in product environment, an exception will be thrown.
-  *
-  * @see [[StreamPhysicalTemporalSort]] which must be time-ascending-order sort without `limit`.
-  *
-  * e.g.
-  *      ''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to
-  *         [[StreamPhysicalTemporalSort]]
-  *      ''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to [[StreamPhysicalSort]]
+  * @see [[StreamPhysicalRank]] which must be with `limit` order by.
+  * @see [[StreamPhysicalSort]] which can be used for testing now, its sort key can be any type.
   */
-@Experimental
-class StreamPhysicalSort(
+class StreamPhysicalTemporalSort(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -61,7 +52,7 @@ class StreamPhysicalSort(
       newCollation: RelCollation,
       offset: RexNode,
       fetch: RexNode): Sort = {
-    new StreamPhysicalSort(cluster, traitSet, input, newCollation)
+    new StreamPhysicalTemporalSort(cluster, traitSet, input, newCollation)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -69,15 +60,12 @@ class StreamPhysicalSort(
       .item("orderBy", RelExplainUtil.collationToString(sortCollation, getRowType))
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
   override def translateToExecNode(): ExecNode[_] = {
-    new StreamExecSort(
+    new StreamExecTemporalSort(
       SortUtil.getSortSpec(sortCollation.getFieldCollations),
       ExecEdge.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )
   }
-
 }
