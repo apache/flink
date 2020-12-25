@@ -226,7 +226,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(
           rel, children, ModifyKindSetTrait.ALL_CHANGES, requiredTrait, requester)
 
-      case sort: StreamExecSort =>
+      case sort: StreamPhysicalSort =>
         // Sort supports consuming all changes
         val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
         // Sort will buffer all inputs, and produce insert-only messages when input is finished
@@ -492,7 +492,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           requiredTrait,
           rankStrategy => sortLimit.copy(rankStrategy))
 
-      case sort: StreamExecSort =>
+      case sort: StreamPhysicalSort =>
         val requiredChildTrait = beforeAfterOrNone(getModifyKindSet(sort.getInput))
         val children = visitChildren(sort, requiredChildTrait)
         createNewNode(sort, children, requiredTrait)
