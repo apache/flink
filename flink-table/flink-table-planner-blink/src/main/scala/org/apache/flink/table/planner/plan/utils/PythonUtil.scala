@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.calcite.rex.{RexCall, RexFieldAccess, RexNode}
 import org.apache.flink.table.functions.FunctionDefinition
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionKind}
 import org.apache.flink.table.planner.functions.aggfunctions.{DeclarativeAggregateFunction, InternalAggregateFunction}
@@ -157,6 +157,10 @@ object PythonUtil {
     override def visitCall(call: RexCall): Boolean = {
       findPythonFunction == isPythonRexCall(call) ||
         (recursive && call.getOperands.exists(_.accept(this)))
+    }
+
+    override def visitFieldAccess(fieldAccess: RexFieldAccess): Boolean = {
+      fieldAccess.getReferenceExpr.accept(this)
     }
 
     override def visitNode(rexNode: RexNode): Boolean = false
