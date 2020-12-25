@@ -288,6 +288,32 @@ public class JavaUserDefinedScalarFunctions {
 	}
 
 	/**
+	 * Test for Python Scalar Function.
+	 */
+	public static class RowJavaScalarFunction extends ScalarFunction {
+
+		private final String name;
+
+		public RowJavaScalarFunction(String name) {
+			this.name = name;
+		}
+
+		public Row eval(Object... a) {
+			return Row.of(1, 2);
+		}
+
+		@Override
+		public TypeInformation<?> getResultType(Class<?>[] signature) {
+			return Types.ROW(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+		}
+
+		@Override
+		public String toString() {
+			return name;
+		}
+	}
+
+	/**
 	 * Test for Pandas Python Scalar Function.
 	 */
 	public static class PandasScalarFunction extends PythonScalarFunction {

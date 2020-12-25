@@ -381,7 +381,8 @@ object FlinkStreamRuleSets {
     //Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.
-    PythonCalcSplitRule.SPLIT_REX_FIELD,
+    PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
+    PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
