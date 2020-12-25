@@ -285,13 +285,10 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 			JobConf jobConf) throws IOException {
 		List<HiveTableInputSplit> hiveSplits = new ArrayList<>();
 		int splitNum = 0;
-		FileSystem fs = null;
 		for (HiveTablePartition partition : partitions) {
 			StorageDescriptor sd = partition.getStorageDescriptor();
 			Path inputPath = new Path(sd.getLocation());
-			if (fs == null) {
-				fs = inputPath.getFileSystem(jobConf);
-			}
+			FileSystem fs = inputPath.getFileSystem(jobConf);
 			// it's possible a partition exists in metastore but the data has been removed
 			if (!fs.exists(inputPath)) {
 				continue;
