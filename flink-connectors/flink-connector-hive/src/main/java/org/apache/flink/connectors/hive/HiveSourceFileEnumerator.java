@@ -62,13 +62,10 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
 			List<HiveTablePartition> partitions,
 			JobConf jobConf) throws IOException {
 		List<HiveSourceSplit> hiveSplits = new ArrayList<>();
-		FileSystem fs = null;
 		for (HiveTablePartition partition : partitions) {
 			StorageDescriptor sd = partition.getStorageDescriptor();
 			org.apache.hadoop.fs.Path inputPath = new org.apache.hadoop.fs.Path(sd.getLocation());
-			if (fs == null) {
-				fs = inputPath.getFileSystem(jobConf);
-			}
+			FileSystem fs = inputPath.getFileSystem(jobConf);
 			// it's possible a partition exists in metastore but the data has been removed
 			if (!fs.exists(inputPath)) {
 				continue;
