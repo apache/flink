@@ -33,6 +33,8 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.PartitionSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -66,10 +68,8 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
                                     + " state access. Cache size is the number of records in each TopN task.");
 
     private final RankType rankType;
-    private final int[] partitionFields;
-    private final int[] sortFields;
-    private final boolean[] sortDirections;
-    private final boolean[] nullsIsLast;
+    private final PartitionSpec partitionSpec;
+    private final SortSpec sortSpec;
     private final RankRange rankRange;
     private final RankProcessStrategy rankStrategy;
     private final boolean outputRankNumber;
@@ -77,25 +77,21 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
 
     public StreamExecRank(
             RankType rankType,
-            int[] partitionFields,
-            int[] sortFields,
-            boolean[] sortDirections,
-            boolean[] nullsIsLast,
+            PartitionSpec partitionSpec,
+            SortSpec sortSpec,
             RankRange rankRange,
             RankProcessStrategy rankStrategy,
             boolean outputRankNumber,
             boolean generateUpdateBefore,
             ExecEdge inputEdge,
-            LogicalType outputType,
+            RowType outputType,
             String description) {
         super(Collections.singletonList(inputEdge), outputType, description);
         this.rankType = rankType;
-        this.partitionFields = partitionFields;
-        this.sortFields = sortFields;
-        this.sortDirections = sortDirections;
-        this.nullsIsLast = nullsIsLast;
         this.rankRange = rankRange;
         this.rankStrategy = rankStrategy;
+        this.sortSpec = sortSpec;
+        this.partitionSpec = partitionSpec;
         this.outputRankNumber = outputRankNumber;
         this.generateUpdateBefore = generateUpdateBefore;
     }
@@ -122,10 +118,9 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
 
         RowType inputType = (RowType) inputNode.getOutputType();
         InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputType);
+        int[] sortFields = sortSpec.getFieldIndices();
         RowDataKeySelector sortKeySelector =
                 KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo);
-        LogicalType[] sortKeyTypes =
-                IntStream.of(sortFields).mapToObj(inputType::getTypeAt).toArray(LogicalType[]::new);
         int[] sortKeyPositions = IntStream.range(0, sortFields.length).toArray();
         TableConfig tableConfig = planner.getTableConfig();
         GeneratedRecordComparator sortKeyComparator =
@@ -133,9 +128,9 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
                         tableConfig,
                         "StreamExecSortComparator",
                         sortKeyPositions,
-                        sortKeyTypes,
-                        sortDirections,
-                        nullsIsLast);
+                        sortSpec.getFieldTypes(inputType),
+                        sortSpec.getAscendingOrders(),
+                        sortSpec.getNullsIsLast());
         long cacheSize = tableConfig.getConfiguration().getLong(TABLE_EXEC_TOPN_CACHE_SIZE);
         long minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime();
         long maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime();
@@ -186,9 +181,9 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
                     new ComparableRecordComparator(
                             sortKeyComparator,
                             sortKeyPositions,
-                            sortKeyTypes,
-                            sortDirections,
-                            nullsIsLast);
+                            sortSpec.getFieldTypes(inputType),
+                            sortSpec.getAscendingOrders(),
+                            sortSpec.getNullsIsLast());
             processFunction =
                     new RetractableTopNFunction(
                             minIdleStateRetentionTime,
@@ -220,7 +215,8 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
 
         // set KeyType and Selector for state
         RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(partitionFields, inputRowTypeInfo);
+                KeySelectorUtil.getRowDataSelector(
+                        partitionSpec.getFieldIndices(), inputRowTypeInfo);
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 

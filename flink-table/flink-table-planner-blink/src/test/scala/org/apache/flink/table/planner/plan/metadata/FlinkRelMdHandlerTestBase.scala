@@ -322,7 +322,7 @@ class FlinkRelMdHandlerTestBase {
     val batchSort = new BatchExecSort(cluster,
       batchPhysicalTraits.replace(collation).replace(FlinkRelDistribution.SINGLETON),
       studentBatchScan, collation)
-    val streamSort = new StreamExecSort(cluster,
+    val streamSort = new StreamPhysicalSort(cluster,
       streamPhysicalTraits.replace(collation).replace(FlinkRelDistribution.SINGLETON),
       studentStreamScan, collation)
     (logicalSort, flinkLogicalSort, batchSort, streamSort)
