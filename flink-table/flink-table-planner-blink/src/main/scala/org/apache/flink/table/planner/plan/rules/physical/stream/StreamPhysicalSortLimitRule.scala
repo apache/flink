@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecSortLimit
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalSortLimit
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
@@ -28,14 +28,14 @@ import org.apache.flink.table.planner.plan.utils.RankProcessStrategy
 
 /**
   * Rule that matches [[FlinkLogicalSort]] with non-empty sort fields and non-null fetch or offset,
-  * and converts it to [[StreamExecSortLimit]].
+  * and converts it to [[StreamPhysicalSortLimit]].
   */
-class StreamExecSortLimitRule
+class StreamPhysicalSortLimitRule
   extends ConverterRule(
     classOf[FlinkLogicalSort],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecSortLimitRule") {
+    "StreamPhysicalSortLimitRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
@@ -54,7 +54,7 @@ class StreamExecSortLimitRule
       .replace(FlinkConventions.STREAM_PHYSICAL)
 
     val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
-    new StreamExecSortLimit(
+    new StreamPhysicalSortLimit(
       rel.getCluster,
       providedTraitSet,
       newInput,
@@ -65,6 +65,6 @@ class StreamExecSortLimitRule
   }
 }
 
-object StreamExecSortLimitRule {
-  val INSTANCE: RelOptRule = new StreamExecSortLimitRule
+object StreamPhysicalSortLimitRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalSortLimitRule
 }
