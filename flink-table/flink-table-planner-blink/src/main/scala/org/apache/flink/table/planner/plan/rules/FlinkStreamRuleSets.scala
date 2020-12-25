@@ -412,7 +412,7 @@ object FlinkStreamRuleSets {
     // sort
     StreamPhysicalSortRule.INSTANCE,
     StreamPhysicalLimitRule.INSTANCE,
-    StreamExecSortLimitRule.INSTANCE,
+    StreamPhysicalSortLimitRule.INSTANCE,
     StreamExecTemporalSortRule.INSTANCE,
     // rank
     StreamPhysicalRankRule.INSTANCE,
