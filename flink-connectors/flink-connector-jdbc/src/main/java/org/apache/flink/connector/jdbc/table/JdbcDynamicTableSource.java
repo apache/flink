@@ -102,9 +102,8 @@ public class JdbcDynamicTableSource implements
 			builder.setFetchSize(readOptions.getFetchSize());
 		}
 		final JdbcDialect dialect = options.getDialect();
-		String query;
-		query = dialect.getSelectFromStatement(
-				options.getTableName(), physicalSchema.getFieldNames(), new String[0], limit);
+		String query = dialect.getSelectFromStatement(
+				options.getTableName(), physicalSchema.getFieldNames(), new String[0]);
 		if (readOptions.getPartitionColumnName().isPresent()) {
 			long lowerBound = readOptions.getPartitionLowerBound().get();
 			long upperBound = readOptions.getPartitionUpperBound().get();
@@ -114,6 +113,9 @@ public class JdbcDynamicTableSource implements
 			query += " WHERE " +
 				dialect.quoteIdentifier(readOptions.getPartitionColumnName().get()) +
 				" BETWEEN ? AND ?";
+		}
+		if (limit >= 0) {
+			query = String.format("%s %s", query, dialect.getLimitClause(limit));
 		}
 		builder.setQuery(query);
 		final RowType rowType = (RowType) physicalSchema.toRowDataType().getLogicalType();

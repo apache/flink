@@ -67,12 +67,8 @@ class DerbyDialect extends AbstractDialect {
 	}
 
 	@Override
-	public String getLimitStatement(long limit) {
-		if (limit >= 0) {
-			return String.format(" fetch first %d rows only", limit);
-		} else {
-			return "";
-		}
+	public String getLimitClause(long limit) {
+		return String.format("FETCH FIRST %d ROWS ONLY", limit);
 	}
 
 	@Override
