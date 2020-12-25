@@ -168,19 +168,8 @@ abstract class PythonCalcSplitProjectionRuleBase(description: String)
   }
 }
 
-/**
-  * Rule that splits the RexField with the input of Python function contained in the projection of
-  * [[FlinkLogicalCalc]]s.
-  */
-object PythonCalcSplitRexFieldRule extends PythonCalcSplitRuleBase(
-  "PythonCalcSplitRexFieldRule") {
-
-  override def matches(call: RelOptRuleCall): Boolean = {
-    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-
-    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
-    projects.exists(containsFieldAccessAfterPythonCall)
-  }
+abstract class PythonCalcSplitRexFieldRuleBase(description: String)
+  extends PythonCalcSplitRuleBase(description) {
 
   override def needConvert(program: RexProgram, node: RexNode): Boolean = {
     node match {
@@ -192,19 +181,57 @@ object PythonCalcSplitRexFieldRule extends PythonCalcSplitRuleBase(
     }
   }
 
-  override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
-      : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
-    (Option(program.getCondition).map(program.expandLocalRef), None,
-      program.getProjectList.map(_.accept(splitter)))
-  }
-
-  private def containsFieldAccessAfterPythonCall(node: RexNode): Boolean = {
+  protected def containsFieldAccessAfterPythonCall(node: RexNode): Boolean = {
     node match {
       case call: RexCall => call.getOperands.exists(containsFieldAccessAfterPythonCall)
       case x: RexFieldAccess => isPythonCall(x.getReferenceExpr)
       case _ => false
     }
   }
+}
+
+/**
+  * Rule that splits the RexField with the input of Python function contained in the projection of
+  * [[FlinkLogicalCalc]]s.
+  */
+object PythonCalcSplitProjectionRexFieldRule extends PythonCalcSplitRexFieldRuleBase(
+  "PythonCalcSplitProjectionRexFieldRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
+
+    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
+    projects.exists(containsFieldAccessAfterPythonCall)
+  }
+
+  override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
+      : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
+    (Option(program.getCondition).map(program.expandLocalRef), None,
+      program.getProjectList.map(_.accept(splitter)))
+  }
+
+}
+
+/**
+  * Rule that splits the RexField with the input of Python function contained in the condition of
+  * [[FlinkLogicalCalc]]s.
+  */
+object PythonCalcSplitConditionRexFieldRule extends PythonCalcSplitRexFieldRuleBase(
+  "PythonCalcSplitConditionRexFieldRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
+
+    Option(calc.getProgram.getCondition)
+      .map(calc.getProgram.expandLocalRef).exists(containsFieldAccessAfterPythonCall)
+  }
+
+  override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
+      : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
+    (None, Option(program.getCondition).map(_.accept(splitter)),
+      program.getProjectList.map(_.accept(splitter)))
+  }
+
 }
 
 /**
@@ -455,7 +482,8 @@ object PythonCalcSplitRule {
   val SPLIT_CONDITION: RelOptRule = PythonCalcSplitConditionRule
   val SPLIT_PROJECT: RelOptRule = PythonCalcSplitProjectionRule
   val SPLIT_PANDAS_IN_PROJECT: RelOptRule = PythonCalcSplitPandasInProjectionRule
-  val SPLIT_REX_FIELD: RelOptRule = PythonCalcSplitRexFieldRule
+  val SPLIT_PROJECTION_REX_FIELD: RelOptRule = PythonCalcSplitProjectionRexFieldRule
+  val SPLIT_CONDITION_REX_FIELD: RelOptRule = PythonCalcSplitConditionRexFieldRule
   val EXPAND_PROJECT: RelOptRule = PythonCalcExpandProjectRule
   val PUSH_CONDITION: RelOptRule = PythonCalcPushConditionRule
   val REWRITE_PROJECT: RelOptRule = PythonCalcRewriteProjectionRule
