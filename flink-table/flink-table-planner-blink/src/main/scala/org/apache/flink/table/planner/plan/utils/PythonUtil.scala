@@ -102,6 +102,14 @@ object PythonUtil {
     }
   }
 
+  def takesRowAsInput(call: RexCall): Boolean = {
+    (call.getOperator match {
+      case sfc: ScalarSqlFunction => sfc.scalarFunction
+      case tfc: TableSqlFunction => tfc.udtf
+      case bsf: BridgingSqlFunction => bsf.getDefinition
+    }).asInstanceOf[PythonFunction].takesRowAsInput()
+  }
+
   private[this] def isPythonFunction(
       function: FunctionDefinition,
       pythonFunctionKind: PythonFunctionKind): Boolean = {

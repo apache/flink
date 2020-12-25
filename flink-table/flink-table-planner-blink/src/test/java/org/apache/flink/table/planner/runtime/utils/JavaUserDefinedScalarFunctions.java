@@ -267,6 +267,11 @@ public class JavaUserDefinedScalarFunctions {
 		}
 
 		@Override
+		public boolean takesRowAsInput() {
+			return true;
+		}
+
+		@Override
 		public String toString() {
 			return name;
 		}

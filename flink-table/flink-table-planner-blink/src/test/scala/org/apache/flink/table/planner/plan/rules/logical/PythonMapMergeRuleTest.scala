@@ -31,9 +31,9 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.junit.{Before, Test}
 
 /**
-  * Test for [[PythonCalcMergeRule]].
+  * Test for [[PythonMapMergeRule]].
   */
-class PythonCalcMergeRuleTest extends TableTestBase {
+class PythonMapMergeRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
   @Before
