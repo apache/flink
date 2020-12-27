@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
+import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.split.JdbcParameterValuesProvider;
@@ -57,10 +58,10 @@ import java.util.Arrays;
 @Internal
 public class JdbcRowDataInputFormat extends RichInputFormat<RowData, InputSplit> implements ResultTypeQueryable<RowData> {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 2L;
 	private static final Logger LOG = LoggerFactory.getLogger(JdbcRowDataInputFormat.class);
 
-	private JdbcConnectionOptions connectionOptions;
+	private JdbcConnectionProvider connectionProvider;
 	private int fetchSize;
 	private Boolean autoCommit;
 	private Object[][] parameterValues;
@@ -70,13 +71,12 @@ public class JdbcRowDataInputFormat extends RichInputFormat<RowData, InputSplit>
 	private JdbcRowConverter rowConverter;
 	private TypeInformation<RowData> rowDataTypeInfo;
 
-	private transient Connection dbConn;
 	private transient PreparedStatement statement;
 	private transient ResultSet resultSet;
 	private transient boolean hasNext;
 
 	private JdbcRowDataInputFormat(
-			JdbcConnectionOptions connectionOptions,
+			JdbcConnectionProvider connectionProvider,
 			int fetchSize,
 			Boolean autoCommit,
 			Object[][] parameterValues,
@@ -85,7 +85,7 @@ public class JdbcRowDataInputFormat extends RichInputFormat<RowData, InputSplit>
 			int resultSetConcurrency,
 			JdbcRowConverter rowConverter,
 			TypeInformation<RowData> rowDataTypeInfo) {
-		this.connectionOptions = connectionOptions;
+		this.connectionProvider = connectionProvider;
 		this.fetchSize = fetchSize;
 		this.autoCommit = autoCommit;
 		this.parameterValues = parameterValues;
@@ -105,7 +105,7 @@ public class JdbcRowDataInputFormat extends RichInputFormat<RowData, InputSplit>
 	public void openInputFormat() {
 		//called once per inputFormat (on open)
 		try {
-			dbConn = new SimpleJdbcConnectionProvider(connectionOptions).getConnection();
+			Connection dbConn = connectionProvider.getOrEstablishConnection();
 			// set autoCommit mode only if it was explicitly configured.
 			// keep connection default otherwise.
 			if (autoCommit != null) {
@@ -135,15 +135,7 @@ public class JdbcRowDataInputFormat extends RichInputFormat<RowData, InputSplit>
 			statement = null;
 		}
 
-		try {
-			if (dbConn != null) {
-				dbConn.close();
-			}
-		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} finally {
-			dbConn = null;
-		}
+		connectionProvider.closeConnection();
 
 		parameterValues = null;
 	}
@@ -380,16 +372,16 @@ public class JdbcRowDataInputFormat extends RichInputFormat<RowData, InputSplit>
 
 		public JdbcRowDataInputFormat build() {
 			if (this.queryTemplate == null) {
-				throw new IllegalArgumentException("No query supplied");
+				throw new NullPointerException("No query supplied");
 			}
 			if (this.rowConverter == null) {
-				throw new IllegalArgumentException("No row converter supplied");
+				throw new NullPointerException("No row converter supplied");
 			}
 			if (this.parameterValues == null) {
 				LOG.debug("No input splitting configured (data will be read with parallelism 1).");
 			}
 			return new JdbcRowDataInputFormat(
-				connOptionsBuilder.build(),
+				new SimpleJdbcConnectionProvider(connOptionsBuilder.build()),
 				this.fetchSize,
 				this.autoCommit,
 				this.parameterValues,

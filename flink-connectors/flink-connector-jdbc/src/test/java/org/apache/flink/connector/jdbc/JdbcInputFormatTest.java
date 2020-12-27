@@ -26,7 +26,9 @@ import org.apache.flink.types.Row;
 
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -48,6 +50,9 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
  */
 public class JdbcInputFormatTest extends JdbcDataTestBase {
 
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
+
 	private JdbcInputFormat jdbcInputFormat;
 
 	@After
@@ -59,10 +64,12 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
 		jdbcInputFormat = null;
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testUntypedRowInfo() throws IOException {
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("No RowTypeInfo supplied");
 		jdbcInputFormat = JdbcInputFormat.buildJdbcInputFormat()
-			.setDrivername("org.apache.derby.jdbc.idontexist")
+			.setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
 			.setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
 			.setQuery(SELECT_ALL_BOOKS)
 			.finish();
@@ -102,11 +109,24 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
 		jdbcInputFormat.openInputFormat();
 	}
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testIncompleteConfiguration() throws IOException {
+	@Test
+	public void testNoUrl() throws IOException {
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("jdbc url is empty");
 		jdbcInputFormat = JdbcInputFormat.buildJdbcInputFormat()
 			.setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
 			.setQuery(SELECT_ALL_BOOKS)
+			.setRowTypeInfo(ROW_TYPE_INFO)
+			.finish();
+	}
+
+	@Test
+	public void testNoQuery() throws IOException {
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("No query supplied");
+		jdbcInputFormat = JdbcInputFormat.buildJdbcInputFormat()
+			.setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
+			.setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
 			.setRowTypeInfo(ROW_TYPE_INFO)
 			.finish();
 	}

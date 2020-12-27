@@ -75,7 +75,7 @@ public class SimpleJdbcConnectionProviderDriverClassConcurrentLoadingTest {
 				public void go() throws Exception {
 					startLatch.await();
 					JdbcConnectionProvider connectionProvider = new SimpleJdbcConnectionProvider(options);
-					Connection connection = connectionProvider.getConnection();
+					Connection connection = connectionProvider.getOrEstablishConnection();
 					connection.close();
 				}
 			};

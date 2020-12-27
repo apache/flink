@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Flushable;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.SQLException;
 
 /**
  * Base jdbc outputFormat.
@@ -42,7 +41,6 @@ public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> im
 	public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractJdbcOutputFormat.class);
-	protected transient Connection connection;
 	protected final JdbcConnectionProvider connectionProvider;
 
 	public AbstractJdbcOutputFormat(JdbcConnectionProvider connectionProvider) {
@@ -56,31 +54,15 @@ public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> im
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
 		try {
-			establishConnection();
+			connectionProvider.getOrEstablishConnection();
 		} catch (Exception e) {
 			throw new IOException("unable to open JDBC writer", e);
 		}
 	}
 
-	protected void establishConnection() throws Exception {
-		connection = connectionProvider.getConnection();
-	}
-
 	@Override
 	public void close() {
-		closeDbConnection();
-	}
-
-	private void closeDbConnection() {
-		if (connection != null) {
-			try {
-				connection.close();
-			} catch (SQLException se) {
-				LOG.warn("JDBC connection could not be closed: " + se.getMessage());
-			} finally {
-				connection = null;
-			}
-		}
+		connectionProvider.closeConnection();
 	}
 
 	@Override
@@ -89,6 +71,6 @@ public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> im
 
 	@VisibleForTesting
 	public Connection getConnection() {
-		return connection;
+		return connectionProvider.getConnection();
 	}
 }
