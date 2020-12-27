@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -31,8 +32,8 @@ public class JdbcTablePlanTest extends TableTestBase {
 
 	private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
 
-	@Test
-	public void testProjectionPushDown() {
+	@Before
+	public void setup() {
 		util.tableEnv().executeSql(
 			"CREATE TABLE jdbc (" +
 				"id BIGINT," +
@@ -48,7 +49,15 @@ public class JdbcTablePlanTest extends TableTestBase {
 				"  'table-name'='test_table'" +
 				")"
 		);
+	}
+
+	@Test
+	public void testProjectionPushDown() {
 		util.verifyExecPlan("SELECT decimal_col, timestamp9_col, id FROM jdbc");
 	}
 
+	@Test
+	public void testLimitPushDown() {
+		util.verifyExecPlan("SELECT id, time_col FROM jdbc LIMIT 3");
+	}
 }
