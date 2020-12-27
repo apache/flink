@@ -97,8 +97,9 @@ class RowBasedOperationTests(object):
                  DataTypes.FIELD("b", DataTypes.STRING())]))
 
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'],
-            [DataTypes.BIGINT(), DataTypes.STRING()])
+            ['a', 'b', 'c', 'd', 'e', 'f'],
+            [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.BIGINT(),
+             DataTypes.STRING(), DataTypes.BIGINT(), DataTypes.STRING()])
         self.t_env.register_table_sink("Results", table_sink)
 
         @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
@@ -108,10 +109,13 @@ class RowBasedOperationTests(object):
 
         t.flat_map(split) \
             .flat_map(split) \
+            .join_lateral(split.alias("a", "b")) \
+            .left_outer_join_lateral(split.alias("c", "d")) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,2", "1,3", "2,1", "1,5", "1,6", "1,7"])
+        self.assert_equals(actual, ["1,2,1,2,1,2", "1,3,1,3,1,3", "2,1,2,1,2,1",
+                                    "1,5,1,5,1,5", "1,6,1,6,1,6", "1,7,1,7,1,7"])
 
 
 class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTableTestCase):
