@@ -41,6 +41,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.concurrent.Executors;
@@ -131,7 +132,7 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 	private JdbcExec createAndOpenStatementExecutor(StatementExecutorFactory<JdbcExec> statementExecutorFactory) throws IOException {
 		JdbcExec exec = statementExecutorFactory.apply(getRuntimeContext());
 		try {
-			exec.prepareStatements(connection);
+			exec.prepareStatements(connectionProvider.getConnection());
 		} catch (SQLException e) {
 			throw new IOException("unable to open JDBC writer", e);
 		}
@@ -179,13 +180,13 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 				}
 				try {
 					if (!connectionProvider.isConnectionValid()){
-						connection = connectionProvider.reestablishConnection();
 						jdbcStatementExecutor.closeStatements();
+						Connection connection = connectionProvider.reestablishConnection();
 						jdbcStatementExecutor.prepareStatements(connection);
 					}
-				} catch (Exception excpetion) {
-					LOG.error("JDBC connection is not valid, and reestablish connection failed.", excpetion);
-					throw new IOException("Reestablish JDBC connection failed", excpetion);
+				} catch (Exception exception) {
+					LOG.error("JDBC connection is not valid, and reestablish connection failed.", exception);
+					throw new IOException("Reestablish JDBC connection failed", exception);
 				}
 				try {
 					Thread.sleep(1000 * i);
