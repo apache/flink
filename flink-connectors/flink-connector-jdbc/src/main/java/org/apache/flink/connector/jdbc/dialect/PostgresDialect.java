@@ -56,6 +56,11 @@ public class PostgresDialect extends AbstractDialect {
 	}
 
 	@Override
+	public String getLimitClause(long limit) {
+		return "LIMIT " + limit;
+	}
+
+	@Override
 	public Optional<String> defaultDriverName() {
 		return Optional.of("org.postgresql.Driver");
 	}

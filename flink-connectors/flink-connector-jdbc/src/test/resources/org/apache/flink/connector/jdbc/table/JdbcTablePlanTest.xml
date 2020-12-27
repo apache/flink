@@ -16,6 +16,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testLimitPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT id, time_col FROM jdbc LIMIT 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(fetch=[3])
++- LogicalProject(id=[$0], time_col=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, jdbc]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Limit(offset=[0], fetch=[3])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, jdbc, project=[id, time_col], limit=[3]]], fields=[id, time_col])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testProjectionPushDown">
     <Resource name="sql">
       <![CDATA[SELECT decimal_col, timestamp9_col, id FROM jdbc]]>

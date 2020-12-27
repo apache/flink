@@ -67,6 +67,11 @@ class DerbyDialect extends AbstractDialect {
 	}
 
 	@Override
+	public String getLimitClause(long limit) {
+		return String.format("FETCH FIRST %d ROWS ONLY", limit);
+	}
+
+	@Override
 	public int maxDecimalPrecision() {
 		return MAX_DECIMAL_PRECISION;
 	}
