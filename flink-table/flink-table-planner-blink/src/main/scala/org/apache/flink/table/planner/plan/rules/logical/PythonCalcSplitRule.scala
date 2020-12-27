@@ -174,7 +174,7 @@ abstract class PythonCalcSplitRexFieldRuleBase(description: String)
   override def needConvert(program: RexProgram, node: RexNode): Boolean = {
     node match {
       case x: RexFieldAccess => x.getReferenceExpr match {
-        case y: RexLocalRef if isPythonCall(program.expandLocalRef(y)) => true
+        case y: RexLocalRef if containsPythonCall(program.expandLocalRef(y)) => true
         case _ => false
       }
       case _ => false
@@ -184,7 +184,7 @@ abstract class PythonCalcSplitRexFieldRuleBase(description: String)
   protected def containsFieldAccessAfterPythonCall(node: RexNode): Boolean = {
     node match {
       case call: RexCall => call.getOperands.exists(containsFieldAccessAfterPythonCall)
-      case x: RexFieldAccess => isPythonCall(x.getReferenceExpr)
+      case x: RexFieldAccess => containsPythonCall(x.getReferenceExpr)
       case _ => false
     }
   }
@@ -393,7 +393,7 @@ private class ScalarFunctionSplitter(
     if (needConvert(fieldAccess)) {
       val expr = fieldAccess.getReferenceExpr
       expr match {
-        case localRef: RexLocalRef if isPythonCall(program.expandLocalRef(localRef))
+        case localRef: RexLocalRef if containsPythonCall(program.expandLocalRef(localRef))
           => getExtractedRexFieldAccess(fieldAccess, localRef.getIndex)
         case _ => getExtractedRexNode(fieldAccess)
       }
