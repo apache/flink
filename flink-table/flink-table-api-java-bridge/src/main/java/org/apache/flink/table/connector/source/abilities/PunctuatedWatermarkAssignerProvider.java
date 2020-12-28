@@ -28,7 +28,8 @@ import org.apache.flink.table.data.RowData;
  * generating watermarks in {@link ScanTableSource}.
  */
 @PublicEvolving
-public interface PunctuatedWatermarkAssignerProvider extends SupportsWatermarkPushDown.WatermarkProvider {
+public interface PunctuatedWatermarkAssignerProvider
+        extends SupportsWatermarkPushDown.WatermarkProvider {
 
-	AssignerWithPunctuatedWatermarks<RowData> getPunctuatedWatermarkAssigner();
+    AssignerWithPunctuatedWatermarks<RowData> getPunctuatedWatermarkAssigner();
 }

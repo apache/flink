@@ -25,31 +25,28 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import static org.junit.Assert.fail;
 
-/**
- * Test utilities.
- */
+/** Test utilities. */
 public class TestUtils {
 
-	public static JobExecutionResult tryExecute(StreamExecutionEnvironment see, String name) throws Exception {
-		try {
-			return see.execute(name);
-		}
-		catch (ProgramInvocationException | JobExecutionException root) {
-			Throwable cause = root.getCause();
+    public static JobExecutionResult tryExecute(StreamExecutionEnvironment see, String name)
+            throws Exception {
+        try {
+            return see.execute(name);
+        } catch (ProgramInvocationException | JobExecutionException root) {
+            Throwable cause = root.getCause();
 
-			// search for nested SuccessExceptions
-			int depth = 0;
-			while (!(cause instanceof SuccessException)) {
-				if (cause == null || depth++ == 20) {
-					root.printStackTrace();
-					fail("Test failed: " + root.getMessage());
-				}
-				else {
-					cause = cause.getCause();
-				}
-			}
-		}
+            // search for nested SuccessExceptions
+            int depth = 0;
+            while (!(cause instanceof SuccessException)) {
+                if (cause == null || depth++ == 20) {
+                    root.printStackTrace();
+                    fail("Test failed: " + root.getMessage());
+                } else {
+                    cause = cause.getCause();
+                }
+            }
+        }
 
-		return null;
-	}
+        return null;
+    }
 }

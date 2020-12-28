@@ -31,49 +31,54 @@ import java.io.File;
 import java.util.Collections;
 
 /**
- * Implementation of {@link EmbeddedElasticsearchNodeEnvironment} for Elasticsearch 7.
- * Will be dynamically loaded in {@link ElasticsearchSinkITCase} for integration tests.
+ * Implementation of {@link EmbeddedElasticsearchNodeEnvironment} for Elasticsearch 7. Will be
+ * dynamically loaded in {@link ElasticsearchSinkITCase} for integration tests.
  */
-public class EmbeddedElasticsearchNodeEnvironmentImpl implements EmbeddedElasticsearchNodeEnvironment {
+public class EmbeddedElasticsearchNodeEnvironmentImpl
+        implements EmbeddedElasticsearchNodeEnvironment {
 
-	private Node node;
+    private Node node;
 
-	@Override
-	public void start(File tmpDataFolder, String clusterName) throws Exception {
-		if (node == null) {
-			Settings settings = Settings.builder()
-				.put("cluster.name", clusterName)
-				.put("http.cors.enabled", true)
-				.put("path.home", tmpDataFolder.getParent())
-				.put("path.data", tmpDataFolder.getAbsolutePath())
-				.build();
+    @Override
+    public void start(File tmpDataFolder, String clusterName) throws Exception {
+        if (node == null) {
+            Settings settings =
+                    Settings.builder()
+                            .put("cluster.name", clusterName)
+                            .put("http.cors.enabled", true)
+                            .put("path.home", tmpDataFolder.getParent())
+                            .put("path.data", tmpDataFolder.getAbsolutePath())
+                            .build();
 
-			node = new PluginNode(settings);
-			node.start();
-		}
-	}
+            node = new PluginNode(settings);
+            node.start();
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		if (node != null && !node.isClosed()) {
-			node.close();
-			node = null;
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        if (node != null && !node.isClosed()) {
+            node.close();
+            node = null;
+        }
+    }
 
-	@Override
-	public Client getClient() {
-		if (node != null && !node.isClosed()) {
-			return node.client();
-		} else {
-			return null;
-		}
-	}
+    @Override
+    public Client getClient() {
+        if (node != null && !node.isClosed()) {
+            return node.client();
+        } else {
+            return null;
+        }
+    }
 
-	private static class PluginNode extends Node {
-		public PluginNode(Settings settings) {
-			super(InternalSettingsPreparer.prepareEnvironment(settings, Collections.emptyMap(), null, () -> "node1"), Collections.<Class<? extends Plugin>>singletonList(Netty4Plugin.class), true);
-		}
-	}
-
+    private static class PluginNode extends Node {
+        public PluginNode(Settings settings) {
+            super(
+                    InternalSettingsPreparer.prepareEnvironment(
+                            settings, Collections.emptyMap(), null, () -> "node1"),
+                    Collections.<Class<? extends Plugin>>singletonList(Netty4Plugin.class),
+                    true);
+        }
+    }
 }

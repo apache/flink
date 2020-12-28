@@ -41,151 +41,143 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * A {@link ExecutionEnvironment} implementation which executes its jobs on a
- * {@link MiniCluster}.
+ * A {@link ExecutionEnvironment} implementation which executes its jobs on a {@link MiniCluster}.
  */
 public class TestEnvironment extends ExecutionEnvironment {
 
-	private final JobExecutor jobExecutor;
+    private final JobExecutor jobExecutor;
 
-	private final Collection<Path> jarFiles;
+    private final Collection<Path> jarFiles;
 
-	private final Collection<URL> classPaths;
+    private final Collection<URL> classPaths;
 
-	private TestEnvironment lastEnv;
+    private TestEnvironment lastEnv;
 
-	public TestEnvironment(
-			JobExecutor jobExecutor,
-			int parallelism,
-			boolean isObjectReuseEnabled,
-			Collection<Path> jarFiles,
-			Collection<URL> classPaths) {
-		this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
-		this.jarFiles = Preconditions.checkNotNull(jarFiles);
-		this.classPaths = Preconditions.checkNotNull(classPaths);
-		getConfiguration().set(DeploymentOptions.TARGET, LocalExecutor.NAME);
-		getConfiguration().set(DeploymentOptions.ATTACHED, true);
+    public TestEnvironment(
+            JobExecutor jobExecutor,
+            int parallelism,
+            boolean isObjectReuseEnabled,
+            Collection<Path> jarFiles,
+            Collection<URL> classPaths) {
+        this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
+        this.jarFiles = Preconditions.checkNotNull(jarFiles);
+        this.classPaths = Preconditions.checkNotNull(classPaths);
+        getConfiguration().set(DeploymentOptions.TARGET, LocalExecutor.NAME);
+        getConfiguration().set(DeploymentOptions.ATTACHED, true);
 
-		setParallelism(parallelism);
+        setParallelism(parallelism);
 
-		if (isObjectReuseEnabled) {
-			getConfig().enableObjectReuse();
-		} else {
-			getConfig().disableObjectReuse();
-		}
+        if (isObjectReuseEnabled) {
+            getConfig().enableObjectReuse();
+        } else {
+            getConfig().disableObjectReuse();
+        }
 
-		lastEnv = null;
-	}
+        lastEnv = null;
+    }
 
-	public TestEnvironment(
-			JobExecutor executor,
-			int parallelism,
-			boolean isObjectReuseEnabled) {
-		this(
-			executor,
-			parallelism,
-			isObjectReuseEnabled,
-			Collections.emptyList(),
-			Collections.emptyList());
-	}
+    public TestEnvironment(JobExecutor executor, int parallelism, boolean isObjectReuseEnabled) {
+        this(
+                executor,
+                parallelism,
+                isObjectReuseEnabled,
+                Collections.emptyList(),
+                Collections.emptyList());
+    }
 
-	@Override
-	public JobExecutionResult getLastJobExecutionResult() {
-		if (lastEnv == null) {
-			return lastJobExecutionResult;
-		}
-		else {
-			return lastEnv.getLastJobExecutionResult();
-		}
-	}
+    @Override
+    public JobExecutionResult getLastJobExecutionResult() {
+        if (lastEnv == null) {
+            return lastJobExecutionResult;
+        } else {
+            return lastEnv.getLastJobExecutionResult();
+        }
+    }
 
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		OptimizedPlan op = compileProgram(jobName);
+    @Override
+    public JobExecutionResult execute(String jobName) throws Exception {
+        OptimizedPlan op = compileProgram(jobName);
 
-		JobGraphGenerator jgg = new JobGraphGenerator();
-		JobGraph jobGraph = jgg.compileJobGraph(op);
+        JobGraphGenerator jgg = new JobGraphGenerator();
+        JobGraph jobGraph = jgg.compileJobGraph(op);
 
-		for (Path jarFile: jarFiles) {
-			jobGraph.addJar(jarFile);
-		}
+        for (Path jarFile : jarFiles) {
+            jobGraph.addJar(jarFile);
+        }
 
-		jobGraph.setClasspaths(new ArrayList<>(classPaths));
+        jobGraph.setClasspaths(new ArrayList<>(classPaths));
 
-		this.lastJobExecutionResult = jobExecutor.executeJobBlocking(jobGraph);
-		return this.lastJobExecutionResult;
-	}
+        this.lastJobExecutionResult = jobExecutor.executeJobBlocking(jobGraph);
+        return this.lastJobExecutionResult;
+    }
 
-	private OptimizedPlan compileProgram(String jobName) {
-		Plan p = createProgramPlan(jobName);
+    private OptimizedPlan compileProgram(String jobName) {
+        Plan p = createProgramPlan(jobName);
 
-		Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
-		return pc.compile(p);
-	}
+        Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
+        return pc.compile(p);
+    }
 
-	public void setAsContext() {
-		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
-			@Override
-			public ExecutionEnvironment createExecutionEnvironment() {
-				lastEnv = new TestEnvironment(jobExecutor, getParallelism(), getConfig().isObjectReuseEnabled());
-				return lastEnv;
-			}
-		};
+    public void setAsContext() {
+        ExecutionEnvironmentFactory factory =
+                new ExecutionEnvironmentFactory() {
+                    @Override
+                    public ExecutionEnvironment createExecutionEnvironment() {
+                        lastEnv =
+                                new TestEnvironment(
+                                        jobExecutor,
+                                        getParallelism(),
+                                        getConfig().isObjectReuseEnabled());
+                        return lastEnv;
+                    }
+                };
 
-		initializeContextEnvironment(factory);
-	}
+        initializeContextEnvironment(factory);
+    }
 
-	// ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
-	/**
-	 * Sets the current {@link ExecutionEnvironment} to be a {@link TestEnvironment}. The test
-	 * environment executes the given jobs on a Flink mini cluster with the given default
-	 * parallelism and the additional jar files and class paths.
-	 *
-	 * @param jobExecutor The executor to run the jobs on
-	 * @param parallelism The default parallelism
-	 * @param jarFiles Additional jar files to execute the job with
-	 * @param classPaths Additional class paths to execute the job with
-	 */
-	public static void setAsContext(
-		final JobExecutor jobExecutor,
-		final int parallelism,
-		final Collection<Path> jarFiles,
-		final Collection<URL> classPaths) {
+    /**
+     * Sets the current {@link ExecutionEnvironment} to be a {@link TestEnvironment}. The test
+     * environment executes the given jobs on a Flink mini cluster with the given default
+     * parallelism and the additional jar files and class paths.
+     *
+     * @param jobExecutor The executor to run the jobs on
+     * @param parallelism The default parallelism
+     * @param jarFiles Additional jar files to execute the job with
+     * @param classPaths Additional class paths to execute the job with
+     */
+    public static void setAsContext(
+            final JobExecutor jobExecutor,
+            final int parallelism,
+            final Collection<Path> jarFiles,
+            final Collection<URL> classPaths) {
 
-		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
-			@Override
-			public ExecutionEnvironment createExecutionEnvironment() {
-				return new TestEnvironment(
-					jobExecutor,
-					parallelism,
-					false,
-					jarFiles,
-					classPaths
-				);
-			}
-		};
+        ExecutionEnvironmentFactory factory =
+                new ExecutionEnvironmentFactory() {
+                    @Override
+                    public ExecutionEnvironment createExecutionEnvironment() {
+                        return new TestEnvironment(
+                                jobExecutor, parallelism, false, jarFiles, classPaths);
+                    }
+                };
 
-		initializeContextEnvironment(factory);
-	}
+        initializeContextEnvironment(factory);
+    }
 
-	/**
-	 * Sets the current {@link ExecutionEnvironment} to be a {@link TestEnvironment}. The test
-	 * environment executes the given jobs on a Flink mini cluster with the given default
-	 * parallelism and the additional jar files and class paths.
-	 *
-	 * @param jobExecutor The executor to run the jobs on
-	 * @param parallelism The default parallelism
-	 */
-	public static void setAsContext(final JobExecutor jobExecutor, final int parallelism) {
-		setAsContext(
-			jobExecutor,
-			parallelism,
-			Collections.emptyList(),
-			Collections.emptyList());
-	}
+    /**
+     * Sets the current {@link ExecutionEnvironment} to be a {@link TestEnvironment}. The test
+     * environment executes the given jobs on a Flink mini cluster with the given default
+     * parallelism and the additional jar files and class paths.
+     *
+     * @param jobExecutor The executor to run the jobs on
+     * @param parallelism The default parallelism
+     */
+    public static void setAsContext(final JobExecutor jobExecutor, final int parallelism) {
+        setAsContext(jobExecutor, parallelism, Collections.emptyList(), Collections.emptyList());
+    }
 
-	public static void unsetAsContext() {
-		resetContextEnvironment();
-	}
+    public static void unsetAsContext() {
+        resetContextEnvironment();
+    }
 }

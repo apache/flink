@@ -40,119 +40,135 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * A Yarn {@link AMRMClientAsync} implementation for testing.
- */
+/** A Yarn {@link AMRMClientAsync} implementation for testing. */
 public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.ContainerRequest> {
 
-	private volatile Function<Tuple4<Priority, String, Resource, CallbackHandler>, List<? extends Collection<AMRMClient.ContainerRequest>>>
-		getMatchingRequestsFunction = ignored -> Collections.emptyList();
-	private volatile BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> addContainerRequestConsumer = (ignored1, ignored2) -> {};
-	private volatile BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> removeContainerRequestConsumer = (ignored1, ignored2) -> {};
-	private volatile BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer = (ignored1, ignored2) -> {};
-	private volatile Consumer<Integer> setHeartbeatIntervalConsumer = (ignored) -> {};
-	private volatile TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction =
-		(ignored1, ignored2, ignored3) -> RegisterApplicationMasterResponse.newInstance(
-			Resource.newInstance(0, 0),
-			Resource.newInstance(Integer.MAX_VALUE, Integer.MAX_VALUE),
-			Collections.emptyMap(),
-			null,
-			Collections.emptyList(),
-			null,
-			Collections.emptyList());
-	private volatile TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer = (ignored1, ignored2, ignored3) -> {};
+    private volatile Function<
+                    Tuple4<Priority, String, Resource, CallbackHandler>,
+                    List<? extends Collection<AMRMClient.ContainerRequest>>>
+            getMatchingRequestsFunction = ignored -> Collections.emptyList();
+    private volatile BiConsumer<AMRMClient.ContainerRequest, CallbackHandler>
+            addContainerRequestConsumer = (ignored1, ignored2) -> {};
+    private volatile BiConsumer<AMRMClient.ContainerRequest, CallbackHandler>
+            removeContainerRequestConsumer = (ignored1, ignored2) -> {};
+    private volatile BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer =
+            (ignored1, ignored2) -> {};
+    private volatile Consumer<Integer> setHeartbeatIntervalConsumer = (ignored) -> {};
+    private volatile TriFunction<String, Integer, String, RegisterApplicationMasterResponse>
+            registerApplicationMasterFunction =
+                    (ignored1, ignored2, ignored3) ->
+                            RegisterApplicationMasterResponse.newInstance(
+                                    Resource.newInstance(0, 0),
+                                    Resource.newInstance(Integer.MAX_VALUE, Integer.MAX_VALUE),
+                                    Collections.emptyMap(),
+                                    null,
+                                    Collections.emptyList(),
+                                    null,
+                                    Collections.emptyList());
+    private volatile TriConsumer<FinalApplicationStatus, String, String>
+            unregisterApplicationMasterConsumer = (ignored1, ignored2, ignored3) -> {};
 
-	TestingYarnAMRMClientAsync(CallbackHandler callbackHandler) {
-		super(0, callbackHandler);
-	}
+    TestingYarnAMRMClientAsync(CallbackHandler callbackHandler) {
+        super(0, callbackHandler);
+    }
 
-	@Override
-	public List<? extends Collection<AMRMClient.ContainerRequest>> getMatchingRequests(Priority priority, String resourceName, Resource capability) {
-		return getMatchingRequestsFunction.apply(Tuple4.of(priority, resourceName, capability, handler));
-	}
+    @Override
+    public List<? extends Collection<AMRMClient.ContainerRequest>> getMatchingRequests(
+            Priority priority, String resourceName, Resource capability) {
+        return getMatchingRequestsFunction.apply(
+                Tuple4.of(priority, resourceName, capability, handler));
+    }
 
-	@Override
-	public void addContainerRequest(AMRMClient.ContainerRequest req) {
-		addContainerRequestConsumer.accept(req, handler);
-	}
+    @Override
+    public void addContainerRequest(AMRMClient.ContainerRequest req) {
+        addContainerRequestConsumer.accept(req, handler);
+    }
 
-	@Override
-	public void removeContainerRequest(AMRMClient.ContainerRequest req) {
-		removeContainerRequestConsumer.accept(req, handler);
-	}
+    @Override
+    public void removeContainerRequest(AMRMClient.ContainerRequest req) {
+        removeContainerRequestConsumer.accept(req, handler);
+    }
 
-	@Override
-	public void releaseAssignedContainer(ContainerId containerId) {
-		releaseAssignedContainerConsumer.accept(containerId, handler);
-	}
+    @Override
+    public void releaseAssignedContainer(ContainerId containerId) {
+        releaseAssignedContainerConsumer.accept(containerId, handler);
+    }
 
-	@Override
-	public void setHeartbeatInterval(int interval) {
-		setHeartbeatIntervalConsumer.accept(interval);
-	}
+    @Override
+    public void setHeartbeatInterval(int interval) {
+        setHeartbeatIntervalConsumer.accept(interval);
+    }
 
-	@Override
-	public RegisterApplicationMasterResponse registerApplicationMaster(String appHostName, int appHostPort, String appTrackingUrl) {
-		return registerApplicationMasterFunction.apply(appHostName, appHostPort, appTrackingUrl);
-	}
+    @Override
+    public RegisterApplicationMasterResponse registerApplicationMaster(
+            String appHostName, int appHostPort, String appTrackingUrl) {
+        return registerApplicationMasterFunction.apply(appHostName, appHostPort, appTrackingUrl);
+    }
 
-	@Override
-	public void unregisterApplicationMaster(FinalApplicationStatus appStatus, String appMessage, String appTrackingUrl) {
-		unregisterApplicationMasterConsumer.accept(appStatus, appMessage, appTrackingUrl);
-	}
+    @Override
+    public void unregisterApplicationMaster(
+            FinalApplicationStatus appStatus, String appMessage, String appTrackingUrl) {
+        unregisterApplicationMasterConsumer.accept(appStatus, appMessage, appTrackingUrl);
+    }
 
-	void setGetMatchingRequestsFunction(
-		Function<Tuple4<Priority, String, Resource, CallbackHandler>, List<? extends Collection<AMRMClient.ContainerRequest>>>
-			getMatchingRequestsFunction) {
-		this.getMatchingRequestsFunction = Preconditions.checkNotNull(getMatchingRequestsFunction);
-	}
+    void setGetMatchingRequestsFunction(
+            Function<
+                            Tuple4<Priority, String, Resource, CallbackHandler>,
+                            List<? extends Collection<AMRMClient.ContainerRequest>>>
+                    getMatchingRequestsFunction) {
+        this.getMatchingRequestsFunction = Preconditions.checkNotNull(getMatchingRequestsFunction);
+    }
 
-	void setAddContainerRequestConsumer(
-		BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> addContainerRequestConsumer) {
-		this.addContainerRequestConsumer = Preconditions.checkNotNull(addContainerRequestConsumer);
-	}
+    void setAddContainerRequestConsumer(
+            BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> addContainerRequestConsumer) {
+        this.addContainerRequestConsumer = Preconditions.checkNotNull(addContainerRequestConsumer);
+    }
 
-	void setRemoveContainerRequestConsumer(
-		BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> removeContainerRequestConsumer) {
-		this.removeContainerRequestConsumer = Preconditions.checkNotNull(removeContainerRequestConsumer);
-	}
+    void setRemoveContainerRequestConsumer(
+            BiConsumer<AMRMClient.ContainerRequest, CallbackHandler>
+                    removeContainerRequestConsumer) {
+        this.removeContainerRequestConsumer =
+                Preconditions.checkNotNull(removeContainerRequestConsumer);
+    }
 
-	void setReleaseAssignedContainerConsumer(
-		BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer) {
-		this.releaseAssignedContainerConsumer = Preconditions.checkNotNull(releaseAssignedContainerConsumer);
-	}
+    void setReleaseAssignedContainerConsumer(
+            BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer) {
+        this.releaseAssignedContainerConsumer =
+                Preconditions.checkNotNull(releaseAssignedContainerConsumer);
+    }
 
-	void setSetHeartbeatIntervalConsumer(
-		Consumer<Integer> setHeartbeatIntervalConsumer) {
-		this.setHeartbeatIntervalConsumer = setHeartbeatIntervalConsumer;
-	}
+    void setSetHeartbeatIntervalConsumer(Consumer<Integer> setHeartbeatIntervalConsumer) {
+        this.setHeartbeatIntervalConsumer = setHeartbeatIntervalConsumer;
+    }
 
-	void setRegisterApplicationMasterFunction(
-		TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction) {
-		this.registerApplicationMasterFunction = registerApplicationMasterFunction;
-	}
+    void setRegisterApplicationMasterFunction(
+            TriFunction<String, Integer, String, RegisterApplicationMasterResponse>
+                    registerApplicationMasterFunction) {
+        this.registerApplicationMasterFunction = registerApplicationMasterFunction;
+    }
 
-	void setUnregisterApplicationMasterConsumer(
-		TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer) {
-		this.unregisterApplicationMasterConsumer = unregisterApplicationMasterConsumer;
-	}
+    void setUnregisterApplicationMasterConsumer(
+            TriConsumer<FinalApplicationStatus, String, String>
+                    unregisterApplicationMasterConsumer) {
+        this.unregisterApplicationMasterConsumer = unregisterApplicationMasterConsumer;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Override lifecycle methods to avoid actually starting the service
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Override lifecycle methods to avoid actually starting the service
+    // ------------------------------------------------------------------------
 
-	@Override
-	protected void serviceInit(Configuration conf) throws Exception {
-		// noop
-	}
+    @Override
+    protected void serviceInit(Configuration conf) throws Exception {
+        // noop
+    }
 
-	@Override
-	protected void serviceStart() throws Exception {
-		// noop
-	}
+    @Override
+    protected void serviceStart() throws Exception {
+        // noop
+    }
 
-	@Override
-	protected void serviceStop() throws Exception {
-		// noop
-	}
+    @Override
+    protected void serviceStop() throws Exception {
+        // noop
+    }
 }

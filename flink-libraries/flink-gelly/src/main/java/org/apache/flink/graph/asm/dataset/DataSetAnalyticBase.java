@@ -28,31 +28,27 @@ import org.apache.flink.util.Preconditions;
  * @param <T> element type
  * @param <R> the return type
  */
-public abstract class DataSetAnalyticBase<T, R>
-implements DataSetAnalytic<T, R> {
+public abstract class DataSetAnalyticBase<T, R> implements DataSetAnalytic<T, R> {
 
-	protected ExecutionEnvironment env;
+    protected ExecutionEnvironment env;
 
-	@Override
-	public DataSetAnalyticBase<T, R> run(DataSet<T> input)
-			throws Exception {
-		env = input.getExecutionEnvironment();
-		return this;
-	}
+    @Override
+    public DataSetAnalyticBase<T, R> run(DataSet<T> input) throws Exception {
+        env = input.getExecutionEnvironment();
+        return this;
+    }
 
-	@Override
-	public R execute()
-			throws Exception {
-		env.execute();
-		return getResult();
-	}
+    @Override
+    public R execute() throws Exception {
+        env.execute();
+        return getResult();
+    }
 
-	@Override
-	public R execute(String jobName)
-			throws Exception {
-		Preconditions.checkNotNull(jobName);
+    @Override
+    public R execute(String jobName) throws Exception {
+        Preconditions.checkNotNull(jobName);
 
-		env.execute(jobName);
-		return getResult();
-	}
+        env.execute(jobName);
+        return getResult();
+    }
 }

@@ -39,55 +39,73 @@ import static org.apache.flink.table.runtime.utils.PythonTestUtils.createMockJob
  *
  * @param <IN> Type of the input elements.
  */
-public abstract class PassThroughPythonScalarFunctionRunner<IN> extends AbstractGeneralPythonScalarFunctionRunner<IN> {
+public abstract class PassThroughPythonScalarFunctionRunner<IN>
+        extends AbstractGeneralPythonScalarFunctionRunner<IN> {
 
-	private final JobBundleFactory jobBundleFactory;
-	private final List<byte[]> bufferedInputs;
+    private final JobBundleFactory jobBundleFactory;
+    private final List<byte[]> bufferedInputs;
 
-	public PassThroughPythonScalarFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		this(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, createMockJobBundleFactory(), flinkMetricContainer);
-	}
+    public PassThroughPythonScalarFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonFunctionInfo[] scalarFunctions,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer) {
+        this(
+                taskName,
+                resultReceiver,
+                scalarFunctions,
+                environmentManager,
+                inputType,
+                outputType,
+                jobOptions,
+                createMockJobBundleFactory(),
+                flinkMetricContainer);
+    }
 
-	public PassThroughPythonScalarFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		Map<String, String> jobOptions,
-		JobBundleFactory jobBundleFactory,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, flinkMetricContainer);
-		this.jobBundleFactory = jobBundleFactory;
-		this.bufferedInputs = new ArrayList<>();
-	}
+    public PassThroughPythonScalarFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonFunctionInfo[] scalarFunctions,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            Map<String, String> jobOptions,
+            JobBundleFactory jobBundleFactory,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                resultReceiver,
+                scalarFunctions,
+                environmentManager,
+                inputType,
+                outputType,
+                jobOptions,
+                flinkMetricContainer);
+        this.jobBundleFactory = jobBundleFactory;
+        this.bufferedInputs = new ArrayList<>();
+    }
 
-	@Override
-	public void startBundle() {
-		super.startBundle();
-		this.mainInputReceiver = input -> bufferedInputs.add(input.getValue());
-	}
+    @Override
+    public void startBundle() {
+        super.startBundle();
+        this.mainInputReceiver = input -> bufferedInputs.add(input.getValue());
+    }
 
-	@Override
-	public void finishBundle() throws Exception {
-		super.finishBundle();
-		for (byte[] input : bufferedInputs) {
-			resultReceiver.accept(input);
-		}
-		bufferedInputs.clear();
-	}
+    @Override
+    public void finishBundle() throws Exception {
+        super.finishBundle();
+        for (byte[] input : bufferedInputs) {
+            resultReceiver.accept(input);
+        }
+        bufferedInputs.clear();
+    }
 
-	@Override
-	public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
-		return jobBundleFactory;
-	}
+    @Override
+    public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
+        return jobBundleFactory;
+    }
 }

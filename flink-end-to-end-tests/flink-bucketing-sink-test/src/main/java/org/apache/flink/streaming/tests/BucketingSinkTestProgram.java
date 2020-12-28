@@ -50,152 +50,153 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Contains a simple stateful job that emits into buckets per key.
  *
- * <p>The stream is bounded and will complete after about a minute.
- * The result is always constant.
+ * <p>The stream is bounded and will complete after about a minute. The result is always constant.
  *
- * <p>Parameters:
- * -outputPath Sets the path to where the result data is written.
+ * <p>Parameters: -outputPath Sets the path to where the result data is written.
  */
 public class BucketingSinkTestProgram {
 
-	public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
-		ParameterTool params = ParameterTool.fromArgs(args);
-		String outputPath = params.getRequired("outputPath");
+        ParameterTool params = ParameterTool.fromArgs(args);
+        String outputPath = params.getRequired("outputPath");
 
-		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-		sEnv.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-				Integer.MAX_VALUE,
-				Time.of(10, TimeUnit.SECONDS)
-			));
-		sEnv.enableCheckpointing(4000);
+        StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+        sEnv.setRestartStrategy(
+                RestartStrategies.fixedDelayRestart(
+                        Integer.MAX_VALUE, Time.of(10, TimeUnit.SECONDS)));
+        sEnv.enableCheckpointing(4000);
 
-		final int idlenessMs = 10;
+        final int idlenessMs = 10;
 
-		// define bucketing sink to emit the result
-		BucketingSink<Tuple4<Integer, Long, Integer, String>> sink = new BucketingSink<Tuple4<Integer, Long, Integer, String>>(outputPath)
-				.setBucketer(new KeyBucketer())
-				.setBatchSize(Long.MAX_VALUE)
-				.setBatchRolloverInterval(Long.MAX_VALUE)
-				.setInactiveBucketCheckInterval(50)
-				.setInactiveBucketThreshold(1000);
+        // define bucketing sink to emit the result
+        BucketingSink<Tuple4<Integer, Long, Integer, String>> sink =
+                new BucketingSink<Tuple4<Integer, Long, Integer, String>>(outputPath)
+                        .setBucketer(new KeyBucketer())
+                        .setBatchSize(Long.MAX_VALUE)
+                        .setBatchRolloverInterval(Long.MAX_VALUE)
+                        .setInactiveBucketCheckInterval(50)
+                        .setInactiveBucketThreshold(1000);
 
-		// generate data, shuffle, perform stateful operation, sink
-		sEnv.addSource(new Generator(10, idlenessMs, 60))
-			.keyBy(0)
-			.map(new SubtractingMapper(-1L * idlenessMs))
-			.addSink(sink);
+        // generate data, shuffle, perform stateful operation, sink
+        sEnv.addSource(new Generator(10, idlenessMs, 60))
+                .keyBy(0)
+                .map(new SubtractingMapper(-1L * idlenessMs))
+                .addSink(sink);
 
-		sEnv.execute();
-	}
+        sEnv.execute();
+    }
 
-	/**
-	 * Use first field for buckets.
-	 */
-	public static class KeyBucketer implements Bucketer<Tuple4<Integer, Long, Integer, String>> {
+    /** Use first field for buckets. */
+    public static class KeyBucketer implements Bucketer<Tuple4<Integer, Long, Integer, String>> {
 
-		@Override
-		public Path getBucketPath(Clock clock, Path basePath, Tuple4<Integer, Long, Integer, String> element) {
-			return basePath.suffix(String.valueOf(element.f0));
-		}
-	}
+        @Override
+        public Path getBucketPath(
+                Clock clock, Path basePath, Tuple4<Integer, Long, Integer, String> element) {
+            return basePath.suffix(String.valueOf(element.f0));
+        }
+    }
 
-	/**
-	 * Subtracts the timestamp of the previous element from the current element.
-	 */
-	public static class SubtractingMapper extends RichMapFunction<Tuple3<Integer, Long, String>, Tuple4<Integer, Long, Integer, String>> {
+    /** Subtracts the timestamp of the previous element from the current element. */
+    public static class SubtractingMapper
+            extends RichMapFunction<
+                    Tuple3<Integer, Long, String>, Tuple4<Integer, Long, Integer, String>> {
 
-		private final long initialValue;
+        private final long initialValue;
 
-		private ValueState<Integer> counter;
-		private ValueState<Long> last;
+        private ValueState<Integer> counter;
+        private ValueState<Long> last;
 
-		public SubtractingMapper(long initialValue) {
-			this.initialValue = initialValue;
-		}
+        public SubtractingMapper(long initialValue) {
+            this.initialValue = initialValue;
+        }
 
-		@Override
-		public void open(Configuration parameters) {
-			counter = getRuntimeContext().getState(new ValueStateDescriptor<>("counter", Types.INT));
-			last = getRuntimeContext().getState(new ValueStateDescriptor<>("last", Types.LONG));
-		}
+        @Override
+        public void open(Configuration parameters) {
+            counter =
+                    getRuntimeContext().getState(new ValueStateDescriptor<>("counter", Types.INT));
+            last = getRuntimeContext().getState(new ValueStateDescriptor<>("last", Types.LONG));
+        }
 
-		@Override
-		public Tuple4<Integer, Long, Integer, String> map(Tuple3<Integer, Long, String> value) throws IOException {
-			// update counter
-			Integer counterValue = counter.value();
-			if (counterValue == null) {
-				counterValue = 0;
-			}
-			counter.update(counterValue + 1);
+        @Override
+        public Tuple4<Integer, Long, Integer, String> map(Tuple3<Integer, Long, String> value)
+                throws IOException {
+            // update counter
+            Integer counterValue = counter.value();
+            if (counterValue == null) {
+                counterValue = 0;
+            }
+            counter.update(counterValue + 1);
 
-			// save last value
-			Long lastValue = last.value();
-			if (lastValue == null) {
-				lastValue = initialValue;
-			}
-			last.update(value.f1);
+            // save last value
+            Long lastValue = last.value();
+            if (lastValue == null) {
+                lastValue = initialValue;
+            }
+            last.update(value.f1);
 
-			return Tuple4.of(value.f0, value.f1 - lastValue, counterValue, value.f2);
-		}
-	}
+            return Tuple4.of(value.f0, value.f1 - lastValue, counterValue, value.f2);
+        }
+    }
 
-	/**
-	 * Data-generating source function.
-	 */
-	public static class Generator implements SourceFunction<Tuple3<Integer, Long, String>>, CheckpointedFunction {
+    /** Data-generating source function. */
+    public static class Generator
+            implements SourceFunction<Tuple3<Integer, Long, String>>, CheckpointedFunction {
 
-		private final int numKeys;
-		private final int idlenessMs;
-		private final int durationMs;
+        private final int numKeys;
+        private final int idlenessMs;
+        private final int durationMs;
 
-		private long ms = 0;
-		private volatile boolean canceled = false;
+        private long ms = 0;
+        private volatile boolean canceled = false;
 
-		private ListState<Long> state = null;
+        private ListState<Long> state = null;
 
-		public Generator(int numKeys, int idlenessMs, int durationSeconds) {
-			this.numKeys = numKeys;
-			this.idlenessMs = idlenessMs;
-			this.durationMs = durationSeconds * 1000;
-		}
+        public Generator(int numKeys, int idlenessMs, int durationSeconds) {
+            this.numKeys = numKeys;
+            this.idlenessMs = idlenessMs;
+            this.durationMs = durationSeconds * 1000;
+        }
 
-		@Override
-		public void run(SourceContext<Tuple3<Integer, Long, String>> ctx) throws Exception {
-			while (ms < durationMs && !canceled) {
-				synchronized (ctx.getCheckpointLock()) {
-					for (int i = 0; i < numKeys; i++) {
-						ctx.collect(Tuple3.of(i, ms, "Some payload..."));
-					}
-					ms += idlenessMs;
-				}
-				Thread.sleep(idlenessMs);
-			}
+        @Override
+        public void run(SourceContext<Tuple3<Integer, Long, String>> ctx) throws Exception {
+            while (ms < durationMs && !canceled) {
+                synchronized (ctx.getCheckpointLock()) {
+                    for (int i = 0; i < numKeys; i++) {
+                        ctx.collect(Tuple3.of(i, ms, "Some payload..."));
+                    }
+                    ms += idlenessMs;
+                }
+                Thread.sleep(idlenessMs);
+            }
 
-			while (!canceled) {
-				Thread.sleep(50);
-			}
-		}
+            while (!canceled) {
+                Thread.sleep(50);
+            }
+        }
 
-		@Override
-		public void cancel() {
-			canceled = true;
-		}
+        @Override
+        public void cancel() {
+            canceled = true;
+        }
 
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			state = context.getOperatorStateStore().getListState(
-					new ListStateDescriptor<Long>("state", LongSerializer.INSTANCE));
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            state =
+                    context.getOperatorStateStore()
+                            .getListState(
+                                    new ListStateDescriptor<Long>(
+                                            "state", LongSerializer.INSTANCE));
 
-			for (Long l : state.get()) {
-				ms += l;
-			}
-		}
+            for (Long l : state.get()) {
+                ms += l;
+            }
+        }
 
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			state.clear();
-			state.add(ms);
-		}
-	}
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            state.clear();
+            state.add(ms);
+        }
+    }
 }

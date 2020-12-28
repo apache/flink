@@ -27,54 +27,49 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Operation to describe a CREATE TABLE statement.
- */
+/** Operation to describe a CREATE TABLE statement. */
 public class CreateTableOperation implements CreateOperation {
-	private final ObjectIdentifier tableIdentifier;
-	private CatalogTable catalogTable;
-	private boolean ignoreIfExists;
-	private boolean isTemporary;
+    private final ObjectIdentifier tableIdentifier;
+    private CatalogTable catalogTable;
+    private boolean ignoreIfExists;
+    private boolean isTemporary;
 
-	public CreateTableOperation(
-			ObjectIdentifier tableIdentifier,
-			CatalogTable catalogTable,
-			boolean ignoreIfExists,
-			boolean isTemporary) {
-		this.tableIdentifier = tableIdentifier;
-		this.catalogTable = catalogTable;
-		this.ignoreIfExists = ignoreIfExists;
-		this.isTemporary = isTemporary;
-	}
+    public CreateTableOperation(
+            ObjectIdentifier tableIdentifier,
+            CatalogTable catalogTable,
+            boolean ignoreIfExists,
+            boolean isTemporary) {
+        this.tableIdentifier = tableIdentifier;
+        this.catalogTable = catalogTable;
+        this.ignoreIfExists = ignoreIfExists;
+        this.isTemporary = isTemporary;
+    }
 
-	public CatalogTable getCatalogTable() {
-		return catalogTable;
-	}
+    public CatalogTable getCatalogTable() {
+        return catalogTable;
+    }
 
-	public ObjectIdentifier getTableIdentifier() {
-		return tableIdentifier;
-	}
+    public ObjectIdentifier getTableIdentifier() {
+        return tableIdentifier;
+    }
 
-	public boolean isIgnoreIfExists() {
-		return ignoreIfExists;
-	}
+    public boolean isIgnoreIfExists() {
+        return ignoreIfExists;
+    }
 
-	public boolean isTemporary() {
-		return isTemporary;
-	}
+    public boolean isTemporary() {
+        return isTemporary;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("catalogTable", catalogTable.toProperties());
-		params.put("identifier", tableIdentifier);
-		params.put("ignoreIfExists", ignoreIfExists);
-		params.put("isTemporary", isTemporary);
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("catalogTable", catalogTable.toProperties());
+        params.put("identifier", tableIdentifier);
+        params.put("ignoreIfExists", ignoreIfExists);
+        params.put("isTemporary", isTemporary);
 
-		return OperationUtils.formatWithChildren(
-			"CREATE TABLE",
-			params,
-			Collections.emptyList(),
-			Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "CREATE TABLE", params, Collections.emptyList(), Operation::asSummaryString);
+    }
 }

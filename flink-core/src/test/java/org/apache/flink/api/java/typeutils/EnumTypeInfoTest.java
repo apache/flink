@@ -20,25 +20,25 @@ package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link EnumTypeInfo}.
- */
+/** Test for {@link EnumTypeInfo}. */
 public class EnumTypeInfoTest extends TypeInformationTestBase<EnumTypeInfo<?>> {
 
-	@Override
-	@SuppressWarnings("unchecked")
-	protected EnumTypeInfo<?>[] getTestData() {
-		return new EnumTypeInfo<?>[] {
-			(EnumTypeInfo<?>) new EnumTypeInfo(TestEnum.class),
-			(EnumTypeInfo<?>) new EnumTypeInfo(AlternativeEnum.class)
-		};
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    protected EnumTypeInfo<?>[] getTestData() {
+        return new EnumTypeInfo<?>[] {
+            (EnumTypeInfo<?>) new EnumTypeInfo(TestEnum.class),
+            (EnumTypeInfo<?>) new EnumTypeInfo(AlternativeEnum.class)
+        };
+    }
 
-	enum TestEnum {
-		ONE, TWO
-	}
+    enum TestEnum {
+        ONE,
+        TWO
+    }
 
-	enum AlternativeEnum {
-		ONE, TWO
-	}
+    enum AlternativeEnum {
+        ONE,
+        TWO
+    }
 }

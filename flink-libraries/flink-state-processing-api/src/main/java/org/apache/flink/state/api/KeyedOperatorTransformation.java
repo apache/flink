@@ -28,8 +28,8 @@ import org.apache.flink.state.api.output.operators.KeyedStateBootstrapOperator;
 import java.util.OptionalInt;
 
 /**
- * A {@link KeyedOperatorTransformation} represents a {@link OneInputOperatorTransformation} on which operator state is
- * partitioned by key using a provided {@link KeySelector}.
+ * A {@link KeyedOperatorTransformation} represents a {@link OneInputOperatorTransformation} on
+ * which operator state is partitioned by key using a provided {@link KeySelector}.
  *
  * @param <K> The type of the key in the Keyed OperatorTransformation.
  * @param <T> The type of the elements in the Keyed OperatorTransformation.
@@ -38,54 +38,57 @@ import java.util.OptionalInt;
 @SuppressWarnings("WeakerAccess")
 public class KeyedOperatorTransformation<K, T> {
 
-	/** The data set containing the data to bootstrap the operator state with. */
-	private final DataSet<T> dataSet;
+    /** The data set containing the data to bootstrap the operator state with. */
+    private final DataSet<T> dataSet;
 
-	/** Local max parallelism for the bootstrapped operator. */
-	private final OptionalInt operatorMaxParallelism;
+    /** Local max parallelism for the bootstrapped operator. */
+    private final OptionalInt operatorMaxParallelism;
 
-	/** Partitioner for the bootstrapping data set. */
-	private final KeySelector<T, K> keySelector;
+    /** Partitioner for the bootstrapping data set. */
+    private final KeySelector<T, K> keySelector;
 
-	/** Type information for the key of the bootstrapped operator. */
-	private final TypeInformation<K> keyType;
+    /** Type information for the key of the bootstrapped operator. */
+    private final TypeInformation<K> keyType;
 
-	KeyedOperatorTransformation(
-		DataSet<T> dataSet,
-		OptionalInt operatorMaxParallelism,
-		KeySelector<T, K> keySelector,
-		TypeInformation<K> keyType) {
-		this.dataSet = dataSet;
-		this.operatorMaxParallelism = operatorMaxParallelism;
-		this.keySelector = keySelector;
-		this.keyType = keyType;
-	}
+    KeyedOperatorTransformation(
+            DataSet<T> dataSet,
+            OptionalInt operatorMaxParallelism,
+            KeySelector<T, K> keySelector,
+            TypeInformation<K> keyType) {
+        this.dataSet = dataSet;
+        this.operatorMaxParallelism = operatorMaxParallelism;
+        this.keySelector = keySelector;
+        this.keyType = keyType;
+    }
 
-	/**
-	 * Applies the given {@link KeyedStateBootstrapFunction} on the keyed input.
-	 *
-	 * <p>The function will be called for every element in the input and can be used for writing both
-	 * keyed and operator state into a {@link Savepoint}.
-	 *
-	 * @param processFunction The {@link KeyedStateBootstrapFunction} that is called for each element.
-	 * @return An {@link OperatorTransformation} that can be added to a {@link Savepoint}.
-	 */
-	public BootstrapTransformation<T> transform(KeyedStateBootstrapFunction<K, T> processFunction) {
-		SavepointWriterOperatorFactory factory = (timestamp, path) -> new KeyedStateBootstrapOperator<>(timestamp, path, processFunction);
-		return transform(factory);
-	}
+    /**
+     * Applies the given {@link KeyedStateBootstrapFunction} on the keyed input.
+     *
+     * <p>The function will be called for every element in the input and can be used for writing
+     * both keyed and operator state into a {@link Savepoint}.
+     *
+     * @param processFunction The {@link KeyedStateBootstrapFunction} that is called for each
+     *     element.
+     * @return An {@link OperatorTransformation} that can be added to a {@link Savepoint}.
+     */
+    public BootstrapTransformation<T> transform(KeyedStateBootstrapFunction<K, T> processFunction) {
+        SavepointWriterOperatorFactory factory =
+                (timestamp, path) ->
+                        new KeyedStateBootstrapOperator<>(timestamp, path, processFunction);
+        return transform(factory);
+    }
 
-	/**
-	 * Method for passing user defined operators along with the type information that will transform
-	 * the OperatorTransformation.
-	 *
-	 * <p><b>IMPORTANT:</b> Any output from this operator will be discarded.
-	 *
-	 * @param factory A factory returning transformation logic type of the return stream
-	 * @return An {@link BootstrapTransformation} that can be added to a {@link Savepoint}.
-	 */
-	public BootstrapTransformation<T> transform(SavepointWriterOperatorFactory factory) {
-		return new BootstrapTransformation<>(dataSet, operatorMaxParallelism, factory, keySelector, keyType);
-	}
+    /**
+     * Method for passing user defined operators along with the type information that will transform
+     * the OperatorTransformation.
+     *
+     * <p><b>IMPORTANT:</b> Any output from this operator will be discarded.
+     *
+     * @param factory A factory returning transformation logic type of the return stream
+     * @return An {@link BootstrapTransformation} that can be added to a {@link Savepoint}.
+     */
+    public BootstrapTransformation<T> transform(SavepointWriterOperatorFactory factory) {
+        return new BootstrapTransformation<>(
+                dataSet, operatorMaxParallelism, factory, keySelector, keyType);
+    }
 }
-

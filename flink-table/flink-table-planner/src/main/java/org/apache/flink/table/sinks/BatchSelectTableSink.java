@@ -40,67 +40,64 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-/**
- * A {@link SelectTableSink} for batch select job.
- */
+/** A {@link SelectTableSink} for batch select job. */
 public class BatchSelectTableSink implements BatchTableSink<Row>, SelectTableSink {
-	private final TableSchema tableSchema;
-	private final String accumulatorName;
-	private final TypeSerializer<Row> typeSerializer;
-	private JobClient jobClient;
+    private final TableSchema tableSchema;
+    private final String accumulatorName;
+    private final TypeSerializer<Row> typeSerializer;
+    private JobClient jobClient;
 
-	public BatchSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema =
-				SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
-		this.accumulatorName = new AbstractID().toString();
-		this.typeSerializer = this.tableSchema.toRowType().createSerializer(new ExecutionConfig());
-	}
+    public BatchSelectTableSink(TableSchema tableSchema) {
+        this.tableSchema =
+                SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
+        this.accumulatorName = new AbstractID().toString();
+        this.typeSerializer = this.tableSchema.toRowType().createSerializer(new ExecutionConfig());
+    }
 
-	@Override
-	public DataType getConsumedDataType() {
-		return tableSchema.toRowDataType();
-	}
+    @Override
+    public DataType getConsumedDataType() {
+        return tableSchema.toRowDataType();
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 
-	@Override
-	public DataSink<?> consumeDataSet(DataSet<Row> dataSet) {
-		return dataSet.output(
-				new Utils.CollectHelper<>(accumulatorName, typeSerializer))
-				.name("Batch select table sink")
-				.setParallelism(1);
-	}
+    @Override
+    public DataSink<?> consumeDataSet(DataSet<Row> dataSet) {
+        return dataSet.output(new Utils.CollectHelper<>(accumulatorName, typeSerializer))
+                .name("Batch select table sink")
+                .setParallelism(1);
+    }
 
-	@Override
-	public void setJobClient(JobClient jobClient) {
-		this.jobClient = Preconditions.checkNotNull(jobClient, "jobClient should not be null");
-	}
+    @Override
+    public void setJobClient(JobClient jobClient) {
+        this.jobClient = Preconditions.checkNotNull(jobClient, "jobClient should not be null");
+    }
 
-	@Override
-	public CloseableIterator<Row> getResultIterator() {
-		Preconditions.checkNotNull(jobClient, "jobClient is null, please call setJobClient first.");
-		JobExecutionResult jobExecutionResult;
-		try {
-			jobExecutionResult = jobClient.getJobExecutionResult(
-					Thread.currentThread().getContextClassLoader())
-					.get();
-		} catch (InterruptedException | ExecutionException e) {
-			throw new TableException("Failed to get job execution result.", e);
-		}
-		ArrayList<byte[]> accResult = jobExecutionResult.getAccumulatorResult(accumulatorName);
-		if (accResult == null) {
-			throw new TableException("result is null.");
-		}
-		List<Row> rowList;
-		try {
-			rowList = SerializedListAccumulator.deserializeList(accResult, typeSerializer);
-		} catch (IOException | ClassNotFoundException e) {
-			throw new TableException("Failed to deserialize the result.", e);
-		}
-		return CloseableIterator.adapterForIterator(rowList.iterator());
-	}
-
+    @Override
+    public CloseableIterator<Row> getResultIterator() {
+        Preconditions.checkNotNull(jobClient, "jobClient is null, please call setJobClient first.");
+        JobExecutionResult jobExecutionResult;
+        try {
+            jobExecutionResult =
+                    jobClient
+                            .getJobExecutionResult(Thread.currentThread().getContextClassLoader())
+                            .get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new TableException("Failed to get job execution result.", e);
+        }
+        ArrayList<byte[]> accResult = jobExecutionResult.getAccumulatorResult(accumulatorName);
+        if (accResult == null) {
+            throw new TableException("result is null.");
+        }
+        List<Row> rowList;
+        try {
+            rowList = SerializedListAccumulator.deserializeList(accResult, typeSerializer);
+        } catch (IOException | ClassNotFoundException e) {
+            throw new TableException("Failed to deserialize the result.", e);
+        }
+        return CloseableIterator.adapterForIterator(rowList.iterator());
+    }
 }

@@ -28,52 +28,43 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-/**
- * Test for {@link RowDataTypeInfo}.
- */
+/** Test for {@link RowDataTypeInfo}. */
 public class RowDataTypeInfoTest {
-	private static LogicalType[] typeList = new LogicalType[]{
-			new IntType(),
-			new VarCharType(VarCharType.MAX_LENGTH)
-	};
+    private static LogicalType[] typeList =
+            new LogicalType[] {new IntType(), new VarCharType(VarCharType.MAX_LENGTH)};
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testWrongNumberOfFieldNames() {
-		new RowDataTypeInfo(typeList, new String[]{"int", "string", "int"});
-		// number of field names should be equal to number of types, go fail
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testWrongNumberOfFieldNames() {
+        new RowDataTypeInfo(typeList, new String[] {"int", "string", "int"});
+        // number of field names should be equal to number of types, go fail
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testDuplicateCustomFieldNames() {
-		new RowDataTypeInfo(typeList, new String[]{"int", "int"});
-		// field names should not be the same, go fail
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testDuplicateCustomFieldNames() {
+        new RowDataTypeInfo(typeList, new String[] {"int", "int"});
+        // field names should not be the same, go fail
+    }
 
-	@Test
-	public void testBinaryRowTypeInfoEquality() {
-		RowDataTypeInfo typeInfo1 = new RowDataTypeInfo(
-				new IntType(),
-				new VarCharType(VarCharType.MAX_LENGTH));
+    @Test
+    public void testBinaryRowTypeInfoEquality() {
+        RowDataTypeInfo typeInfo1 =
+                new RowDataTypeInfo(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
 
-		RowDataTypeInfo typeInfo2 = new RowDataTypeInfo(
-				new IntType(),
-				new VarCharType(VarCharType.MAX_LENGTH));
+        RowDataTypeInfo typeInfo2 =
+                new RowDataTypeInfo(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
 
-		assertEquals(typeInfo1, typeInfo2);
-		assertEquals(typeInfo1.hashCode(), typeInfo2.hashCode());
-	}
+        assertEquals(typeInfo1, typeInfo2);
+        assertEquals(typeInfo1.hashCode(), typeInfo2.hashCode());
+    }
 
-	@Test
-	public void testBinaryRowTypeInfoInequality() {
-		RowDataTypeInfo typeInfo1 = new RowDataTypeInfo(
-				new IntType(),
-				new VarCharType(VarCharType.MAX_LENGTH));
+    @Test
+    public void testBinaryRowTypeInfoInequality() {
+        RowDataTypeInfo typeInfo1 =
+                new RowDataTypeInfo(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
 
-		RowDataTypeInfo typeInfo2 = new RowDataTypeInfo(
-				new IntType(),
-				new BooleanType());
+        RowDataTypeInfo typeInfo2 = new RowDataTypeInfo(new IntType(), new BooleanType());
 
-		assertNotEquals(typeInfo1, typeInfo2);
-		assertNotEquals(typeInfo1.hashCode(), typeInfo2.hashCode());
-	}
+        assertNotEquals(typeInfo1, typeInfo2);
+        assertNotEquals(typeInfo1.hashCode(), typeInfo2.hashCode());
+    }
 }

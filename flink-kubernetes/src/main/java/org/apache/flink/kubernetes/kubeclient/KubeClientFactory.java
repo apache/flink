@@ -35,46 +35,52 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Factory class to create {@link FlinkKubeClient}.
- */
+/** Factory class to create {@link FlinkKubeClient}. */
 public class KubeClientFactory {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KubeClientFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KubeClientFactory.class);
 
-	public static FlinkKubeClient fromConfiguration(Configuration flinkConfig) {
+    public static FlinkKubeClient fromConfiguration(Configuration flinkConfig) {
 
-		final Config config;
+        final Config config;
 
-		final String kubeContext = flinkConfig.getString(KubernetesConfigOptions.CONTEXT);
-		if (kubeContext != null) {
-			LOG.info("Configuring kubernetes client to use context {}.", kubeContext);
-		}
+        final String kubeContext = flinkConfig.getString(KubernetesConfigOptions.CONTEXT);
+        if (kubeContext != null) {
+            LOG.info("Configuring kubernetes client to use context {}.", kubeContext);
+        }
 
-		final String kubeConfigFile = flinkConfig.getString(KubernetesConfigOptions.KUBE_CONFIG_FILE);
-		if (kubeConfigFile != null) {
-			LOG.debug("Trying to load kubernetes config from file: {}.", kubeConfigFile);
-			try {
-				// If kubeContext is null, the default context in the kubeConfigFile will be used.
-				// Note: the third parameter kubeconfigPath is optional and is set to null. It is only used to rewrite
-				// relative tls asset paths inside kubeconfig when a file is passed, and in the case that the kubeconfig
-				// references some assets via relative paths.
-				config = Config.fromKubeconfig(kubeContext, FileUtils.readFileUtf8(new File(kubeConfigFile)), null);
-			} catch (IOException e) {
-				throw new KubernetesClientException("Load kubernetes config failed.", e);
-			}
-		} else {
-			LOG.debug("Trying to load default kubernetes config.");
+        final String kubeConfigFile =
+                flinkConfig.getString(KubernetesConfigOptions.KUBE_CONFIG_FILE);
+        if (kubeConfigFile != null) {
+            LOG.debug("Trying to load kubernetes config from file: {}.", kubeConfigFile);
+            try {
+                // If kubeContext is null, the default context in the kubeConfigFile will be used.
+                // Note: the third parameter kubeconfigPath is optional and is set to null. It is
+                // only used to rewrite
+                // relative tls asset paths inside kubeconfig when a file is passed, and in the case
+                // that the kubeconfig
+                // references some assets via relative paths.
+                config =
+                        Config.fromKubeconfig(
+                                kubeContext,
+                                FileUtils.readFileUtf8(new File(kubeConfigFile)),
+                                null);
+            } catch (IOException e) {
+                throw new KubernetesClientException("Load kubernetes config failed.", e);
+            }
+        } else {
+            LOG.debug("Trying to load default kubernetes config.");
 
-			config = Config.autoConfigure(kubeContext);
-		}
+            config = Config.autoConfigure(kubeContext);
+        }
 
-		final KubernetesClient client = new DefaultKubernetesClient(config);
+        final KubernetesClient client = new DefaultKubernetesClient(config);
 
-		return new Fabric8FlinkKubeClient(flinkConfig, client, KubeClientFactory::createThreadPoolForAsyncIO);
-	}
+        return new Fabric8FlinkKubeClient(
+                flinkConfig, client, KubeClientFactory::createThreadPoolForAsyncIO);
+    }
 
-	private static ExecutorService createThreadPoolForAsyncIO() {
-		return Executors.newFixedThreadPool(2, new ExecutorThreadFactory("FlinkKubeClient-IO"));
-	}
+    private static ExecutorService createThreadPoolForAsyncIO() {
+        return Executors.newFixedThreadPool(2, new ExecutorThreadFactory("FlinkKubeClient-IO"));
+    }
 }

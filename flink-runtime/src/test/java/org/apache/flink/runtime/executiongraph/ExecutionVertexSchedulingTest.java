@@ -38,97 +38,97 @@ import static org.junit.Assert.fail;
 
 public class ExecutionVertexSchedulingTest extends TestLogger {
 
-	@Test
-	public void testSlotReleasedWhenScheduledImmediately() {
-		try {
-			final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+    @Test
+    public void testSlotReleasedWhenScheduledImmediately() {
+        try {
+            final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
+            final ExecutionVertex vertex =
+                    new ExecutionVertex(
+                            ejv, 0, new IntermediateResult[0], AkkaUtils.getDefaultTimeout());
 
-			// a slot than cannot be deployed to
-			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
-			slot.releaseSlot(new Exception("Test Exception"));
+            // a slot than cannot be deployed to
+            final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
+            slot.releaseSlot(new Exception("Test Exception"));
 
-			assertFalse(slot.isAlive());
+            assertFalse(slot.isAlive());
 
-			CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
-			future.complete(slot);
+            CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
+            future.complete(slot);
 
-			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
-			// try to deploy to the slot
-			vertex.scheduleForExecution(
-				TestingSlotProviderStrategy.from(new TestingSlotProvider((i) -> future)),
-				LocationPreferenceConstraint.ALL,
-				Collections.emptySet());
+            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            // try to deploy to the slot
+            vertex.scheduleForExecution(
+                    TestingSlotProviderStrategy.from(new TestingSlotProvider((i) -> future)),
+                    LocationPreferenceConstraint.ALL,
+                    Collections.emptySet());
 
-			// will have failed
-			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            // will have failed
+            assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testSlotReleasedWhenScheduledQueued() {
-		try {
-			final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+    @Test
+    public void testSlotReleasedWhenScheduledQueued() {
+        try {
+            final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
+            final ExecutionVertex vertex =
+                    new ExecutionVertex(
+                            ejv, 0, new IntermediateResult[0], AkkaUtils.getDefaultTimeout());
 
-			// a slot than cannot be deployed to
-			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
-			slot.releaseSlot(new Exception("Test Exception"));
+            // a slot than cannot be deployed to
+            final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
+            slot.releaseSlot(new Exception("Test Exception"));
 
-			assertFalse(slot.isAlive());
+            assertFalse(slot.isAlive());
 
-			final CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
+            final CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
 
-			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
-			// try to deploy to the slot
-			vertex.scheduleForExecution(
-				TestingSlotProviderStrategy.from(new TestingSlotProvider(ignore -> future)),
-				LocationPreferenceConstraint.ALL,
-				Collections.emptySet());
+            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            // try to deploy to the slot
+            vertex.scheduleForExecution(
+                    TestingSlotProviderStrategy.from(new TestingSlotProvider(ignore -> future)),
+                    LocationPreferenceConstraint.ALL,
+                    Collections.emptySet());
 
-			// future has not yet a slot
-			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
+            // future has not yet a slot
+            assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
 
-			future.complete(slot);
+            future.complete(slot);
 
-			// will have failed
-			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            // will have failed
+            assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testScheduleToDeploying() {
-		try {
-			final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+    @Test
+    public void testScheduleToDeploying() {
+        try {
+            final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
+            final ExecutionVertex vertex =
+                    new ExecutionVertex(
+                            ejv, 0, new IntermediateResult[0], AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
+            final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
-			CompletableFuture<LogicalSlot> future = CompletableFuture.completedFuture(slot);
+            CompletableFuture<LogicalSlot> future = CompletableFuture.completedFuture(slot);
 
-			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
-			// try to deploy to the slot
-			vertex.scheduleForExecution(
-				TestingSlotProviderStrategy.from(new TestingSlotProvider(ignore -> future)),
-				LocationPreferenceConstraint.ALL,
-				Collections.emptySet());
-			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            // try to deploy to the slot
+            vertex.scheduleForExecution(
+                    TestingSlotProviderStrategy.from(new TestingSlotProvider(ignore -> future)),
+                    LocationPreferenceConstraint.ALL,
+                    Collections.emptySet());
+            assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

@@ -34,29 +34,26 @@ import java.util.Map;
 @PublicEvolving
 public interface StreamTableSinkFactory<T> extends TableSinkFactory<T> {
 
-	/**
-	 * Creates and configures a {@link StreamTableSink} using the given properties.
-	 *
-	 * @param properties normalized properties describing a table sink.
-	 * @return the configured table sink.
-	 * @deprecated {@link Context} contains more information, and already contains table schema too.
-	 * Please use {@link #createTableSink(Context)} instead.
-	 */
-	@Deprecated
-	default StreamTableSink<T> createStreamTableSink(Map<String, String> properties) {
-		return null;
-	}
+    /**
+     * Creates and configures a {@link StreamTableSink} using the given properties.
+     *
+     * @param properties normalized properties describing a table sink.
+     * @return the configured table sink.
+     * @deprecated {@link Context} contains more information, and already contains table schema too.
+     *     Please use {@link #createTableSink(Context)} instead.
+     */
+    @Deprecated
+    default StreamTableSink<T> createStreamTableSink(Map<String, String> properties) {
+        return null;
+    }
 
-	/**
-	 * Only create stream table sink.
-	 */
-	@Override
-	default TableSink<T> createTableSink(Map<String, String> properties) {
-		StreamTableSink<T> sink = createStreamTableSink(properties);
-		if (sink == null) {
-			throw new ValidationException(
-					"Please override 'createTableSink(Context)' method.");
-		}
-		return sink;
-	}
+    /** Only create stream table sink. */
+    @Override
+    default TableSink<T> createTableSink(Map<String, String> properties) {
+        StreamTableSink<T> sink = createStreamTableSink(properties);
+        if (sink == null) {
+            throw new ValidationException("Please override 'createTableSink(Context)' method.");
+        }
+        return sink;
+    }
 }

@@ -43,241 +43,269 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * ITCase for the {@link org.apache.flink.api.common.state.BroadcastState}.
- */
+/** ITCase for the {@link org.apache.flink.api.common.state.BroadcastState}. */
 public class BroadcastStateITCase extends AbstractTestBase {
 
-	@Test
-	public void testKeyedWithBroadcastTranslation() throws Exception {
+    @Test
+    public void testKeyedWithBroadcastTranslation() throws Exception {
 
-		final MapStateDescriptor<Long, String> utterDescriptor = new MapStateDescriptor<>(
-				"broadcast-state", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
-		);
+        final MapStateDescriptor<Long, String> utterDescriptor =
+                new MapStateDescriptor<>(
+                        "broadcast-state",
+                        BasicTypeInfo.LONG_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
 
-		final Map<Long, String> expected = new HashMap<>();
-		expected.put(0L, "test:0");
-		expected.put(1L, "test:1");
-		expected.put(2L, "test:2");
-		expected.put(3L, "test:3");
-		expected.put(4L, "test:4");
-		expected.put(5L, "test:5");
+        final Map<Long, String> expected = new HashMap<>();
+        expected.put(0L, "test:0");
+        expected.put(1L, "test:1");
+        expected.put(2L, "test:2");
+        expected.put(3L, "test:3");
+        expected.put(4L, "test:4");
+        expected.put(5L, "test:5");
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		final DataStream<Long> srcOne = env.generateSequence(0L, 5L)
-				.assignTimestampsAndWatermarks(new CustomWmEmitter<Long>() {
+        final DataStream<Long> srcOne =
+                env.generateSequence(0L, 5L)
+                        .assignTimestampsAndWatermarks(
+                                new CustomWmEmitter<Long>() {
 
-					private static final long serialVersionUID = -8500904795760316195L;
+                                    private static final long serialVersionUID =
+                                            -8500904795760316195L;
 
-					@Override
-					public long extractTimestamp(Long element, long previousElementTimestamp) {
-						return element;
-					}
-				}).keyBy((KeySelector<Long, Long>) value -> value);
+                                    @Override
+                                    public long extractTimestamp(
+                                            Long element, long previousElementTimestamp) {
+                                        return element;
+                                    }
+                                })
+                        .keyBy((KeySelector<Long, Long>) value -> value);
 
-		final DataStream<String> srcTwo = env.fromCollection(expected.values())
-				.assignTimestampsAndWatermarks(new CustomWmEmitter<String>() {
+        final DataStream<String> srcTwo =
+                env.fromCollection(expected.values())
+                        .assignTimestampsAndWatermarks(
+                                new CustomWmEmitter<String>() {
 
-					private static final long serialVersionUID = -2148318224248467213L;
+                                    private static final long serialVersionUID =
+                                            -2148318224248467213L;
 
-					@Override
-					public long extractTimestamp(String element, long previousElementTimestamp) {
-						return Long.parseLong(element.split(":")[1]);
-					}
-				});
+                                    @Override
+                                    public long extractTimestamp(
+                                            String element, long previousElementTimestamp) {
+                                        return Long.parseLong(element.split(":")[1]);
+                                    }
+                                });
 
-		final BroadcastStream<String> broadcast = srcTwo.broadcast(utterDescriptor);
+        final BroadcastStream<String> broadcast = srcTwo.broadcast(utterDescriptor);
 
-		// the timestamp should be high enough to trigger the timer after all the elements arrive.
-		final DataStream<String> output = srcOne.connect(broadcast).process(
-				new TestKeyedBroadcastProcessFunction(100000L, expected));
+        // the timestamp should be high enough to trigger the timer after all the elements arrive.
+        final DataStream<String> output =
+                srcOne.connect(broadcast)
+                        .process(new TestKeyedBroadcastProcessFunction(100000L, expected));
 
-		output
-				.addSink(new TestSink(expected.size()))
-				.setParallelism(1);
-		env.execute();
-	}
+        output.addSink(new TestSink(expected.size())).setParallelism(1);
+        env.execute();
+    }
 
-	@Test
-	public void testBroadcastTranslation() throws Exception {
+    @Test
+    public void testBroadcastTranslation() throws Exception {
 
-		final MapStateDescriptor<Long, String> utterDescriptor = new MapStateDescriptor<>(
-			"broadcast-state", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
-		);
+        final MapStateDescriptor<Long, String> utterDescriptor =
+                new MapStateDescriptor<>(
+                        "broadcast-state",
+                        BasicTypeInfo.LONG_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
 
-		final Map<Long, String> expected = new HashMap<>();
-		expected.put(0L, "test:0");
-		expected.put(1L, "test:1");
-		expected.put(2L, "test:2");
-		expected.put(3L, "test:3");
-		expected.put(4L, "test:4");
-		expected.put(5L, "test:5");
+        final Map<Long, String> expected = new HashMap<>();
+        expected.put(0L, "test:0");
+        expected.put(1L, "test:1");
+        expected.put(2L, "test:2");
+        expected.put(3L, "test:3");
+        expected.put(4L, "test:4");
+        expected.put(5L, "test:5");
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		final DataStream<Long> srcOne = env.generateSequence(0L, 5L)
-			.assignTimestampsAndWatermarks(new CustomWmEmitter<Long>() {
+        final DataStream<Long> srcOne =
+                env.generateSequence(0L, 5L)
+                        .assignTimestampsAndWatermarks(
+                                new CustomWmEmitter<Long>() {
 
-				private static final long serialVersionUID = -8500904795760316195L;
+                                    private static final long serialVersionUID =
+                                            -8500904795760316195L;
 
-				@Override
-				public long extractTimestamp(Long element, long previousElementTimestamp) {
-					return element;
-				}
-			});
+                                    @Override
+                                    public long extractTimestamp(
+                                            Long element, long previousElementTimestamp) {
+                                        return element;
+                                    }
+                                });
 
-		final DataStream<String> srcTwo = env.fromCollection(expected.values())
-			.assignTimestampsAndWatermarks(new CustomWmEmitter<String>() {
+        final DataStream<String> srcTwo =
+                env.fromCollection(expected.values())
+                        .assignTimestampsAndWatermarks(
+                                new CustomWmEmitter<String>() {
 
-				private static final long serialVersionUID = -2148318224248467213L;
+                                    private static final long serialVersionUID =
+                                            -2148318224248467213L;
 
-				@Override
-				public long extractTimestamp(String element, long previousElementTimestamp) {
-					return Long.parseLong(element.split(":")[1]);
-				}
-			});
+                                    @Override
+                                    public long extractTimestamp(
+                                            String element, long previousElementTimestamp) {
+                                        return Long.parseLong(element.split(":")[1]);
+                                    }
+                                });
 
-		final BroadcastStream<String> broadcast = srcTwo.broadcast(utterDescriptor);
+        final BroadcastStream<String> broadcast = srcTwo.broadcast(utterDescriptor);
 
-		// the timestamp should be high enough to trigger the timer after all the elements arrive.
-		final DataStream<String> output = srcOne.connect(broadcast).process(
-			new TestBroadcastProcessFunction());
+        // the timestamp should be high enough to trigger the timer after all the elements arrive.
+        final DataStream<String> output =
+                srcOne.connect(broadcast).process(new TestBroadcastProcessFunction());
 
-		output
-			.addSink(new TestSink(0))
-			.setParallelism(1);
-		env.execute();
-	}
+        output.addSink(new TestSink(0)).setParallelism(1);
+        env.execute();
+    }
 
-	private static class TestSink extends RichSinkFunction<String> {
+    private static class TestSink extends RichSinkFunction<String> {
 
-		private static final long serialVersionUID = 7252508825104554749L;
+        private static final long serialVersionUID = 7252508825104554749L;
 
-		private final int expectedOutputCounter;
+        private final int expectedOutputCounter;
 
-		private int outputCounter;
+        private int outputCounter;
 
-		TestSink(int expectedOutputCounter) {
-			this.expectedOutputCounter = expectedOutputCounter;
-			this.outputCounter = 0;
-		}
+        TestSink(int expectedOutputCounter) {
+            this.expectedOutputCounter = expectedOutputCounter;
+            this.outputCounter = 0;
+        }
 
-		@Override
-		public void invoke(String value, Context context) throws Exception {
-			outputCounter++;
-		}
+        @Override
+        public void invoke(String value, Context context) throws Exception {
+            outputCounter++;
+        }
 
-		@Override
-		public void close() throws Exception {
-			super.close();
+        @Override
+        public void close() throws Exception {
+            super.close();
 
-			// make sure that all the timers fired
-			assertEquals(expectedOutputCounter, outputCounter);
-		}
-	}
+            // make sure that all the timers fired
+            assertEquals(expectedOutputCounter, outputCounter);
+        }
+    }
 
-	private abstract static class CustomWmEmitter<T> implements AssignerWithPunctuatedWatermarks<T> {
+    private abstract static class CustomWmEmitter<T>
+            implements AssignerWithPunctuatedWatermarks<T> {
 
-		private static final long serialVersionUID = -5187335197674841233L;
+        private static final long serialVersionUID = -5187335197674841233L;
 
-		@Nullable
-		@Override
-		public Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
-			return new Watermark(extractedTimestamp);
-		}
-	}
+        @Nullable
+        @Override
+        public Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
+            return new Watermark(extractedTimestamp);
+        }
+    }
 
-	/**
-	 * A {@link KeyedBroadcastProcessFunction} which on the broadcast side puts elements in the broadcast state
-	 * while on the non-broadcast side, it sets a timer to fire at some point in the future. Finally, when the onTimer
-	 * method is called (i.e. when the timer fires), we verify that the result is the expected one.
-	 */
-	private static class TestKeyedBroadcastProcessFunction extends KeyedBroadcastProcessFunction<Long, Long, String, String> {
+    /**
+     * A {@link KeyedBroadcastProcessFunction} which on the broadcast side puts elements in the
+     * broadcast state while on the non-broadcast side, it sets a timer to fire at some point in the
+     * future. Finally, when the onTimer method is called (i.e. when the timer fires), we verify
+     * that the result is the expected one.
+     */
+    private static class TestKeyedBroadcastProcessFunction
+            extends KeyedBroadcastProcessFunction<Long, Long, String, String> {
 
-		private static final long serialVersionUID = 7616910653561100842L;
+        private static final long serialVersionUID = 7616910653561100842L;
 
-		private final Map<Long, String> expectedState;
-		private final Map<Long, Long> timerToExpectedKey = new HashMap<>();
+        private final Map<Long, String> expectedState;
+        private final Map<Long, Long> timerToExpectedKey = new HashMap<>();
 
-		private long nextTimerTimestamp;
+        private long nextTimerTimestamp;
 
-		private transient MapStateDescriptor<Long, String> descriptor;
+        private transient MapStateDescriptor<Long, String> descriptor;
 
-		TestKeyedBroadcastProcessFunction(final long initialTimerTimestamp, final Map<Long, String> expectedBroadcastState) {
-			expectedState = expectedBroadcastState;
-			nextTimerTimestamp = initialTimerTimestamp;
-		}
+        TestKeyedBroadcastProcessFunction(
+                final long initialTimerTimestamp, final Map<Long, String> expectedBroadcastState) {
+            expectedState = expectedBroadcastState;
+            nextTimerTimestamp = initialTimerTimestamp;
+        }
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
 
-			descriptor = new MapStateDescriptor<>(
-					"broadcast-state", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
-			);
-		}
+            descriptor =
+                    new MapStateDescriptor<>(
+                            "broadcast-state",
+                            BasicTypeInfo.LONG_TYPE_INFO,
+                            BasicTypeInfo.STRING_TYPE_INFO);
+        }
 
-		@Override
-		public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
-			long currentTime = nextTimerTimestamp;
-			nextTimerTimestamp++;
-			ctx.timerService().registerEventTimeTimer(currentTime);
-			timerToExpectedKey.put(currentTime, value);
-		}
+        @Override
+        public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out)
+                throws Exception {
+            long currentTime = nextTimerTimestamp;
+            nextTimerTimestamp++;
+            ctx.timerService().registerEventTimeTimer(currentTime);
+            timerToExpectedKey.put(currentTime, value);
+        }
 
-		@Override
-		public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
-			long key = Long.parseLong(value.split(":")[1]);
-			ctx.getBroadcastState(descriptor).put(key, value);
-		}
+        @Override
+        public void processBroadcastElement(String value, Context ctx, Collector<String> out)
+                throws Exception {
+            long key = Long.parseLong(value.split(":")[1]);
+            ctx.getBroadcastState(descriptor).put(key, value);
+        }
 
-		@Override
-		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
-			assertEquals(timerToExpectedKey.get(timestamp), ctx.getCurrentKey());
+        @Override
+        public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out)
+                throws Exception {
+            assertEquals(timerToExpectedKey.get(timestamp), ctx.getCurrentKey());
 
-			Map<Long, String> map = new HashMap<>();
-			for (Map.Entry<Long, String> entry : ctx.getBroadcastState(descriptor).immutableEntries()) {
-				map.put(entry.getKey(), entry.getValue());
-			}
+            Map<Long, String> map = new HashMap<>();
+            for (Map.Entry<Long, String> entry :
+                    ctx.getBroadcastState(descriptor).immutableEntries()) {
+                map.put(entry.getKey(), entry.getValue());
+            }
 
-			assertEquals(expectedState, map);
+            assertEquals(expectedState, map);
 
-			out.collect(Long.toString(timestamp));
-		}
-	}
+            out.collect(Long.toString(timestamp));
+        }
+    }
 
-	/**
-	 * This doesn't do much but we use it to verify that translation of non-keyed broadcast connect
-	 * works.
-	 */
-	private static class TestBroadcastProcessFunction extends
-			BroadcastProcessFunction<Long, String, String> {
+    /**
+     * This doesn't do much but we use it to verify that translation of non-keyed broadcast connect
+     * works.
+     */
+    private static class TestBroadcastProcessFunction
+            extends BroadcastProcessFunction<Long, String, String> {
 
-		private static final long serialVersionUID = 7616910653561100842L;
+        private static final long serialVersionUID = 7616910653561100842L;
 
-		private transient MapStateDescriptor<Long, String> descriptor;
+        private transient MapStateDescriptor<Long, String> descriptor;
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
 
-			descriptor = new MapStateDescriptor<>(
-				"broadcast-state", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
-			);
-		}
+            descriptor =
+                    new MapStateDescriptor<>(
+                            "broadcast-state",
+                            BasicTypeInfo.LONG_TYPE_INFO,
+                            BasicTypeInfo.STRING_TYPE_INFO);
+        }
 
-		@Override
-		public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
-		}
+        @Override
+        public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out)
+                throws Exception {}
 
-		@Override
-		public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
-			long key = Long.parseLong(value.split(":")[1]);
-			ctx.getBroadcastState(descriptor).put(key, value);
-		}
-	}
-
+        @Override
+        public void processBroadcastElement(String value, Context ctx, Collector<String> out)
+                throws Exception {
+            long key = Long.parseLong(value.split(":")[1]);
+            ctx.getBroadcastState(descriptor).put(key, value);
+        }
+    }
 }

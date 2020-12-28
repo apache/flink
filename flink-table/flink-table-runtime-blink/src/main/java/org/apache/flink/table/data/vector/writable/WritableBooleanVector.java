@@ -20,18 +20,12 @@ package org.apache.flink.table.data.vector.writable;
 
 import org.apache.flink.table.data.vector.BooleanColumnVector;
 
-/**
- * Writable {@link BooleanColumnVector}.
- */
+/** Writable {@link BooleanColumnVector}. */
 public interface WritableBooleanVector extends WritableColumnVector, BooleanColumnVector {
 
-	/**
-	 * Set boolean at rowId with the provided value.
-	 */
-	void setBoolean(int rowId, boolean value);
+    /** Set boolean at rowId with the provided value. */
+    void setBoolean(int rowId, boolean value);
 
-	/**
-	 * Fill the column vector with the provided value.
-	 */
-	void fill(boolean value);
+    /** Fill the column vector with the provided value. */
+    void fill(boolean value);
 }

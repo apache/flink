@@ -29,52 +29,49 @@ import org.apache.flink.util.clock.SystemClock;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Testing extension of the {@link SlotPoolImpl} which adds additional methods
- * for testing.
- */
+/** Testing extension of the {@link SlotPoolImpl} which adds additional methods for testing. */
 public class TestingSlotPoolImpl extends SlotPoolImpl {
 
-	private ResourceProfile lastRequestedSlotResourceProfile;
+    private ResourceProfile lastRequestedSlotResourceProfile;
 
-	public TestingSlotPoolImpl(JobID jobId) {
-		this(
-			jobId,
-			SystemClock.getInstance(),
-			AkkaUtils.getDefaultTimeout(),
-			AkkaUtils.getDefaultTimeout(),
-			Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
-	}
+    public TestingSlotPoolImpl(JobID jobId) {
+        this(
+                jobId,
+                SystemClock.getInstance(),
+                AkkaUtils.getDefaultTimeout(),
+                AkkaUtils.getDefaultTimeout(),
+                Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
+    }
 
-	public TestingSlotPoolImpl(
-			JobID jobId,
-			Clock clock,
-			Time rpcTimeout,
-			Time idleSlotTimeout,
-			Time batchSlotTimeout) {
-		super(jobId, clock, rpcTimeout, idleSlotTimeout, batchSlotTimeout);
-	}
+    public TestingSlotPoolImpl(
+            JobID jobId,
+            Clock clock,
+            Time rpcTimeout,
+            Time idleSlotTimeout,
+            Time batchSlotTimeout) {
+        super(jobId, clock, rpcTimeout, idleSlotTimeout, batchSlotTimeout);
+    }
 
-	void triggerCheckIdleSlot() {
-		runAsync(this::checkIdleSlot);
-	}
+    void triggerCheckIdleSlot() {
+        runAsync(this::checkIdleSlot);
+    }
 
-	void triggerCheckBatchSlotTimeout() {
-		runAsync(this::checkBatchSlotTimeout);
-	}
+    void triggerCheckBatchSlotTimeout() {
+        runAsync(this::checkBatchSlotTimeout);
+    }
 
-	@Override
-	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-			final SlotRequestId slotRequestId,
-			final ResourceProfile resourceProfile,
-			final Time timeout) {
+    @Override
+    public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
+            final SlotRequestId slotRequestId,
+            final ResourceProfile resourceProfile,
+            final Time timeout) {
 
-		this.lastRequestedSlotResourceProfile = resourceProfile;
+        this.lastRequestedSlotResourceProfile = resourceProfile;
 
-		return super.requestNewAllocatedSlot(slotRequestId, resourceProfile, timeout);
-	}
+        return super.requestNewAllocatedSlot(slotRequestId, resourceProfile, timeout);
+    }
 
-	public ResourceProfile getLastRequestedSlotResourceProfile() {
-		return lastRequestedSlotResourceProfile;
-	}
+    public ResourceProfile getLastRequestedSlotResourceProfile() {
+        return lastRequestedSlotResourceProfile;
+    }
 }

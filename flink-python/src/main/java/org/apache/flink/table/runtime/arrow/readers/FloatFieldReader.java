@@ -22,18 +22,16 @@ import org.apache.flink.annotation.Internal;
 
 import org.apache.arrow.vector.Float4Vector;
 
-/**
- * {@link ArrowFieldReader} for Float.
- */
+/** {@link ArrowFieldReader} for Float. */
 @Internal
 public final class FloatFieldReader extends ArrowFieldReader<Float> {
 
-	public FloatFieldReader(Float4Vector floatVector) {
-		super(floatVector);
-	}
+    public FloatFieldReader(Float4Vector floatVector) {
+        super(floatVector);
+    }
 
-	@Override
-	public Float read(int index) {
-		return ((Float4Vector) getValueVector()).getObject(index);
-	}
+    @Override
+    public Float read(int index) {
+        return ((Float4Vector) getValueVector()).getObject(index);
+    }
 }

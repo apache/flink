@@ -17,12 +17,8 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-/**
- * An {@link InputGate} with a specific index.
- */
+/** An {@link InputGate} with a specific index. */
 public abstract class IndexedInputGate extends InputGate {
-	/**
-	 * Returns the index of this input gate. Only supported on
-	 */
-	public abstract int getGateIndex();
+    /** Returns the index of this input gate. Only supported on */
+    public abstract int getGateIndex();
 }

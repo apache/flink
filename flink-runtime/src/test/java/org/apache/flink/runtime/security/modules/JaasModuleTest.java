@@ -33,64 +33,58 @@ import java.io.IOException;
 import static org.apache.flink.runtime.security.modules.JaasModule.JAVA_SECURITY_AUTH_LOGIN_CONFIG;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for {@link JaasModule}.
- */
+/** Test for {@link JaasModule}. */
 public class JaasModuleTest {
-	@Rule
-	public TemporaryFolder folder = new TemporaryFolder();
+    @Rule public TemporaryFolder folder = new TemporaryFolder();
 
-	@Before
-	public void setUp() throws IOException {
-		// clear the property
-		System.getProperties().remove(JAVA_SECURITY_AUTH_LOGIN_CONFIG);
-		folder.create();
-	}
+    @Before
+    public void setUp() throws IOException {
+        // clear the property
+        System.getProperties().remove(JAVA_SECURITY_AUTH_LOGIN_CONFIG);
+        folder.create();
+    }
 
-	@Test
-	public void testJaasModuleFilePathIfWorkingDirPresent() throws IOException {
-		File file = folder.newFolder();
-		testJaasModuleFilePath(file.toPath().toString());
-	}
+    @Test
+    public void testJaasModuleFilePathIfWorkingDirPresent() throws IOException {
+        File file = folder.newFolder();
+        testJaasModuleFilePath(file.toPath().toString());
+    }
 
-	@Test
-	public void testJaasModuleFilePathIfWorkingDirNotPresent() throws IOException {
-		File file = folder.newFolder();
-		testJaasModuleFilePath(file.toPath().toString() + "/tmp");
-	}
+    @Test
+    public void testJaasModuleFilePathIfWorkingDirNotPresent() throws IOException {
+        File file = folder.newFolder();
+        testJaasModuleFilePath(file.toPath().toString() + "/tmp");
+    }
 
-	/**
-	 * Test that the jaas config file is created in the working directory.
-	 */
-	private void testJaasModuleFilePath(String workingDir) {
-		Configuration configuration = new Configuration();
-		// set the string for CoreOptions.TMP_DIRS to mock the working directory.
-		configuration.setString(CoreOptions.TMP_DIRS, workingDir);
-		SecurityConfiguration sc = new SecurityConfiguration(configuration);
-		JaasModule module = new JaasModule(sc);
+    /** Test that the jaas config file is created in the working directory. */
+    private void testJaasModuleFilePath(String workingDir) {
+        Configuration configuration = new Configuration();
+        // set the string for CoreOptions.TMP_DIRS to mock the working directory.
+        configuration.setString(CoreOptions.TMP_DIRS, workingDir);
+        SecurityConfiguration sc = new SecurityConfiguration(configuration);
+        JaasModule module = new JaasModule(sc);
 
-		module.install();
+        module.install();
 
-		assertJaasFileLocateInRightDirectory(workingDir);
-	}
+        assertJaasFileLocateInRightDirectory(workingDir);
+    }
 
-	/**
-	 * Test that the jaas file will be created in the directory specified by {@link CoreOptions#TMP_DIRS}'s default value
-	 * if we do not manually specify it.
-	 */
-	@Test
-	public void testCreateJaasModuleFileInTemporary() {
-		Configuration configuration = new Configuration();
-		SecurityConfiguration sc = new SecurityConfiguration(configuration);
-		JaasModule module = new JaasModule(sc);
+    /**
+     * Test that the jaas file will be created in the directory specified by {@link
+     * CoreOptions#TMP_DIRS}'s default value if we do not manually specify it.
+     */
+    @Test
+    public void testCreateJaasModuleFileInTemporary() {
+        Configuration configuration = new Configuration();
+        SecurityConfiguration sc = new SecurityConfiguration(configuration);
+        JaasModule module = new JaasModule(sc);
 
-		module.install();
+        module.install();
 
-		assertJaasFileLocateInRightDirectory(CoreOptions.TMP_DIRS.defaultValue());
-	}
+        assertJaasFileLocateInRightDirectory(CoreOptions.TMP_DIRS.defaultValue());
+    }
 
-	private void assertJaasFileLocateInRightDirectory(String directory) {
-		assertTrue(System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG).startsWith(directory));
-	}
+    private void assertJaasFileLocateInRightDirectory(String directory) {
+        assertTrue(System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG).startsWith(directory));
+    }
 }
-

@@ -20,23 +20,21 @@ package org.apache.flink.kubernetes.configuration;
 
 import org.apache.flink.api.common.time.Time;
 
-/**
- * Configuration specific to {@link org.apache.flink.kubernetes.KubernetesResourceManager}.
- */
+/** Configuration specific to {@link org.apache.flink.kubernetes.KubernetesResourceManager}. */
 public class KubernetesResourceManagerConfiguration {
-	private final String clusterId;
-	private final Time podCreationRetryInterval;
+    private final String clusterId;
+    private final Time podCreationRetryInterval;
 
-	public KubernetesResourceManagerConfiguration(String clusterId, Time podCreationRetryInterval) {
-		this.clusterId = clusterId;
-		this.podCreationRetryInterval = podCreationRetryInterval;
-	}
+    public KubernetesResourceManagerConfiguration(String clusterId, Time podCreationRetryInterval) {
+        this.clusterId = clusterId;
+        this.podCreationRetryInterval = podCreationRetryInterval;
+    }
 
-	public String getClusterId() {
-		return clusterId;
-	}
+    public String getClusterId() {
+        return clusterId;
+    }
 
-	public Time getPodCreationRetryInterval() {
-		return podCreationRetryInterval;
-	}
+    public Time getPodCreationRetryInterval() {
+        return podCreationRetryInterval;
+    }
 }

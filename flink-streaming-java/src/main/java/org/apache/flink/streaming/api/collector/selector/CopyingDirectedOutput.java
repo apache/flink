@@ -26,42 +26,41 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-
 /**
- * Special version of {@link DirectedOutput} that performs a shallow copy of the
- * {@link StreamRecord} to ensure that multi-chaining works correctly.
+ * Special version of {@link DirectedOutput} that performs a shallow copy of the {@link
+ * StreamRecord} to ensure that multi-chaining works correctly.
  */
 public class CopyingDirectedOutput<OUT> extends DirectedOutput<OUT> {
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public CopyingDirectedOutput(
-			List<OutputSelector<OUT>> outputSelectors,
-			List<? extends Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
-		super(outputSelectors, outputs);
-	}
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public CopyingDirectedOutput(
+            List<OutputSelector<OUT>> outputSelectors,
+            List<? extends Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
+        super(outputSelectors, outputs);
+    }
 
-	@Override
-	public void collect(StreamRecord<OUT> record) {
-		Set<Output<StreamRecord<OUT>>> selectedOutputs = selectOutputs(record);
+    @Override
+    public void collect(StreamRecord<OUT> record) {
+        Set<Output<StreamRecord<OUT>>> selectedOutputs = selectOutputs(record);
 
-		if (selectedOutputs.isEmpty()) {
-			return;
-		}
+        if (selectedOutputs.isEmpty()) {
+            return;
+        }
 
-		Iterator<Output<StreamRecord<OUT>>> it = selectedOutputs.iterator();
+        Iterator<Output<StreamRecord<OUT>>> it = selectedOutputs.iterator();
 
-		while (true) {
-			Output<StreamRecord<OUT>> out = it.next();
-			if (it.hasNext()) {
-				// we don't have the last output
-				// perform a shallow copy
-				StreamRecord<OUT> shallowCopy = record.copy(record.getValue());
-				out.collect(shallowCopy);
-			} else {
-				// this is the last output
-				out.collect(record);
-				break;
-			}
-		}
-	}
+        while (true) {
+            Output<StreamRecord<OUT>> out = it.next();
+            if (it.hasNext()) {
+                // we don't have the last output
+                // perform a shallow copy
+                StreamRecord<OUT> shallowCopy = record.copy(record.getValue());
+                out.collect(shallowCopy);
+            } else {
+                // this is the last output
+                out.collect(record);
+                break;
+            }
+        }
+    }
 }

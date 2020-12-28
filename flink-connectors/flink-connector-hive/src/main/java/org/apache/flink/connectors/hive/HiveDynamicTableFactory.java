@@ -34,55 +34,53 @@ import java.util.Set;
 import static org.apache.flink.table.catalog.config.CatalogConfig.IS_GENERIC;
 
 /**
- * A dynamic table factory implementation for Hive catalog. Now it only support generic tables.
- * Hive tables should be resolved by {@link HiveTableFactory}.
+ * A dynamic table factory implementation for Hive catalog. Now it only support generic tables. Hive
+ * tables should be resolved by {@link HiveTableFactory}.
  */
-public class HiveDynamicTableFactory implements
-		DynamicTableSourceFactory,
-		DynamicTableSinkFactory {
+public class HiveDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-	@Override
-	public String factoryIdentifier() {
-		throw new UnsupportedOperationException("Hive factory is only work for catalog.");
-	}
+    @Override
+    public String factoryIdentifier() {
+        throw new UnsupportedOperationException("Hive factory is only work for catalog.");
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		throw new UnsupportedOperationException("Hive factory is only work for catalog.");
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        throw new UnsupportedOperationException("Hive factory is only work for catalog.");
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		throw new UnsupportedOperationException("Hive factory is only work for catalog.");
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        throw new UnsupportedOperationException("Hive factory is only work for catalog.");
+    }
 
-	private static CatalogTable removeIsGenericFlag(CatalogTable table) {
-		Map<String, String> newOptions = new HashMap<>(table.getOptions());
-		boolean isGeneric = Boolean.parseBoolean(newOptions.remove(IS_GENERIC));
-		if (!isGeneric) {
-			throw new ValidationException(
-					"Hive dynamic table factory now only work for generic table.");
-		}
-		return table.copy(newOptions);
-	}
+    private static CatalogTable removeIsGenericFlag(CatalogTable table) {
+        Map<String, String> newOptions = new HashMap<>(table.getOptions());
+        boolean isGeneric = Boolean.parseBoolean(newOptions.remove(IS_GENERIC));
+        if (!isGeneric) {
+            throw new ValidationException(
+                    "Hive dynamic table factory now only work for generic table.");
+        }
+        return table.copy(newOptions);
+    }
 
-	@Override
-	public DynamicTableSink createDynamicTableSink(Context context) {
-		return FactoryUtil.createTableSink(
-				null, // we already in the factory of catalog
-				context.getObjectIdentifier(),
-				removeIsGenericFlag(context.getCatalogTable()),
-				context.getConfiguration(),
-				context.getClassLoader());
-	}
+    @Override
+    public DynamicTableSink createDynamicTableSink(Context context) {
+        return FactoryUtil.createTableSink(
+                null, // we already in the factory of catalog
+                context.getObjectIdentifier(),
+                removeIsGenericFlag(context.getCatalogTable()),
+                context.getConfiguration(),
+                context.getClassLoader());
+    }
 
-	@Override
-	public DynamicTableSource createDynamicTableSource(Context context) {
-		return FactoryUtil.createTableSource(
-				null, // we already in the factory of catalog
-				context.getObjectIdentifier(),
-				removeIsGenericFlag(context.getCatalogTable()),
-				context.getConfiguration(),
-				context.getClassLoader());
-	}
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        return FactoryUtil.createTableSource(
+                null, // we already in the factory of catalog
+                context.getObjectIdentifier(),
+                removeIsGenericFlag(context.getCatalogTable()),
+                context.getConfiguration(),
+                context.getClassLoader());
+    }
 }

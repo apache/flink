@@ -30,47 +30,50 @@ import org.apache.flink.util.clock.SystemClock;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Builder for a {@link TestingSlotPoolImpl}.
- */
+/** Builder for a {@link TestingSlotPoolImpl}. */
 public class SlotPoolBuilder {
 
-	private ComponentMainThreadExecutor componentMainThreadExecutor;
-	private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-	private Time batchSlotTimeout = Time.milliseconds(2L);
-	private Clock clock = SystemClock.getInstance();
+    private ComponentMainThreadExecutor componentMainThreadExecutor;
+    private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+    private Time batchSlotTimeout = Time.milliseconds(2L);
+    private Clock clock = SystemClock.getInstance();
 
-	public SlotPoolBuilder(ComponentMainThreadExecutor componentMainThreadExecutor) {
-		this.componentMainThreadExecutor = componentMainThreadExecutor;
-	}
+    public SlotPoolBuilder(ComponentMainThreadExecutor componentMainThreadExecutor) {
+        this.componentMainThreadExecutor = componentMainThreadExecutor;
+    }
 
-	public SlotPoolBuilder setResourceManagerGateway(ResourceManagerGateway resourceManagerGateway) {
-		this.resourceManagerGateway = resourceManagerGateway;
-		return this;
-	}
+    public SlotPoolBuilder setResourceManagerGateway(
+            ResourceManagerGateway resourceManagerGateway) {
+        this.resourceManagerGateway = resourceManagerGateway;
+        return this;
+    }
 
-	public SlotPoolBuilder setBatchSlotTimeout(Time batchSlotTimeout) {
-		this.batchSlotTimeout = batchSlotTimeout;
-		return this;
-	}
+    public SlotPoolBuilder setBatchSlotTimeout(Time batchSlotTimeout) {
+        this.batchSlotTimeout = batchSlotTimeout;
+        return this;
+    }
 
-	public SlotPoolBuilder setClock(Clock clock) {
-		this.clock = clock;
-		return this;
-	}
+    public SlotPoolBuilder setClock(Clock clock) {
+        this.clock = clock;
+        return this;
+    }
 
-	public TestingSlotPoolImpl build() throws Exception {
-		final TestingSlotPoolImpl slotPool = new TestingSlotPoolImpl(
-			new JobID(),
-			clock,
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			batchSlotTimeout);
+    public TestingSlotPoolImpl build() throws Exception {
+        final TestingSlotPoolImpl slotPool =
+                new TestingSlotPoolImpl(
+                        new JobID(),
+                        clock,
+                        TestingUtils.infiniteTime(),
+                        TestingUtils.infiniteTime(),
+                        batchSlotTimeout);
 
-		slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
+        slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
 
-		CompletableFuture.runAsync(() -> slotPool.connectToResourceManager(resourceManagerGateway), componentMainThreadExecutor).join();
+        CompletableFuture.runAsync(
+                        () -> slotPool.connectToResourceManager(resourceManagerGateway),
+                        componentMainThreadExecutor)
+                .join();
 
-		return slotPool;
-	}
+        return slotPool;
+    }
 }

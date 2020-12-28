@@ -27,9 +27,9 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * This transformation represents a selection of only certain upstream elements. This must
- * follow a {@link org.apache.flink.streaming.api.transformations.SplitTransformation} that
- * splits elements into several logical streams with assigned names.
+ * This transformation represents a selection of only certain upstream elements. This must follow a
+ * {@link org.apache.flink.streaming.api.transformations.SplitTransformation} that splits elements
+ * into several logical streams with assigned names.
  *
  * <p>This does not create a physical operation, it only affects how upstream operations are
  * connected to downstream operations.
@@ -39,44 +39,38 @@ import java.util.List;
 @Internal
 public class SelectTransformation<T> extends Transformation<T> {
 
-	private final Transformation<T> input;
-	private final List<String> selectedNames;
+    private final Transformation<T> input;
+    private final List<String> selectedNames;
 
-	/**
-	 * Creates a new {@code SelectionTransformation} from the given input that only selects
-	 * the streams with the selected names.
-	 *
-	 * @param input The input {@code Transformation}
-	 * @param selectedNames The names from the upstream {@code SplitTransformation} that this
-	 *                      {@code SelectTransformation} selects.
-	 */
-	public SelectTransformation(
-		Transformation<T> input,
-			List<String> selectedNames) {
-		super("Select", input.getOutputType(), input.getParallelism());
-		this.input = input;
-		this.selectedNames = selectedNames;
-	}
+    /**
+     * Creates a new {@code SelectionTransformation} from the given input that only selects the
+     * streams with the selected names.
+     *
+     * @param input The input {@code Transformation}
+     * @param selectedNames The names from the upstream {@code SplitTransformation} that this {@code
+     *     SelectTransformation} selects.
+     */
+    public SelectTransformation(Transformation<T> input, List<String> selectedNames) {
+        super("Select", input.getOutputType(), input.getParallelism());
+        this.input = input;
+        this.selectedNames = selectedNames;
+    }
 
-	/**
-	 * Returns the input {@code Transformation}.
-	 */
-	public Transformation<T> getInput() {
-		return input;
-	}
+    /** Returns the input {@code Transformation}. */
+    public Transformation<T> getInput() {
+        return input;
+    }
 
-	/**
-	 * Returns the names of the split streams that this {@code SelectTransformation} selects.
-	 */
-	public List<String> getSelectedNames() {
-		return selectedNames;
-	}
+    /** Returns the names of the split streams that this {@code SelectTransformation} selects. */
+    public List<String> getSelectedNames() {
+        return selectedNames;
+    }
 
-	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
-		List<Transformation<?>> result = Lists.newArrayList();
-		result.add(this);
-		result.addAll(input.getTransitivePredecessors());
-		return result;
-	}
+    @Override
+    public Collection<Transformation<?>> getTransitivePredecessors() {
+        List<Transformation<?>> result = Lists.newArrayList();
+        result.add(this);
+        result.addAll(input.getTransitivePredecessors());
+        return result;
+    }
 }

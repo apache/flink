@@ -20,30 +20,28 @@ package org.apache.flink.table.runtime.io;
 
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 
-/**
- * Channel with block count and numBytesInLastBlock of file.
- */
+/** Channel with block count and numBytesInLastBlock of file. */
 public class ChannelWithMeta {
 
-	private final FileIOChannel.ID channel;
-	private final int blockCount;
-	private final int numBytesInLastBlock;
+    private final FileIOChannel.ID channel;
+    private final int blockCount;
+    private final int numBytesInLastBlock;
 
-	public ChannelWithMeta(FileIOChannel.ID channel, int blockCount, int numBytesInLastBlock) {
-		this.channel = channel;
-		this.blockCount = blockCount;
-		this.numBytesInLastBlock = numBytesInLastBlock;
-	}
+    public ChannelWithMeta(FileIOChannel.ID channel, int blockCount, int numBytesInLastBlock) {
+        this.channel = channel;
+        this.blockCount = blockCount;
+        this.numBytesInLastBlock = numBytesInLastBlock;
+    }
 
-	public FileIOChannel.ID getChannel() {
-		return channel;
-	}
+    public FileIOChannel.ID getChannel() {
+        return channel;
+    }
 
-	public int getBlockCount() {
-		return blockCount;
-	}
+    public int getBlockCount() {
+        return blockCount;
+    }
 
-	public int getNumBytesInLastBlock() {
-		return numBytesInLastBlock;
-	}
+    public int getNumBytesInLastBlock() {
+        return numBytesInLastBlock;
+    }
 }

@@ -59,172 +59,174 @@ import static org.apache.flink.table.factories.DataGenTableSourceFactory.SEQUENC
 import static org.apache.flink.table.factories.DataGenTableSourceFactory.START;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link DataGenTableSourceFactory}.
- */
+/** Tests for {@link DataGenTableSourceFactory}. */
 public class DataGenTableSourceFactoryTest {
 
-	private static final TableSchema TEST_SCHEMA = TableSchema.builder()
-		.field("f0", DataTypes.STRING())
-		.field("f1", DataTypes.BIGINT())
-		.field("f2", DataTypes.BIGINT())
-		.build();
+    private static final TableSchema TEST_SCHEMA =
+            TableSchema.builder()
+                    .field("f0", DataTypes.STRING())
+                    .field("f1", DataTypes.BIGINT())
+                    .field("f2", DataTypes.BIGINT())
+                    .build();
 
-	@Test
-	public void testSource() throws Exception {
-		DescriptorProperties descriptor = new DescriptorProperties();
-		descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-		descriptor.putLong(ROWS_PER_SECOND.key(), 100);
+    @Test
+    public void testSource() throws Exception {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+        descriptor.putLong(ROWS_PER_SECOND.key(), 100);
 
-		descriptor.putString(FIELDS + ".f0." + KIND, RANDOM);
-		descriptor.putLong(FIELDS + ".f0." + LENGTH, 20);
+        descriptor.putString(FIELDS + ".f0." + KIND, RANDOM);
+        descriptor.putLong(FIELDS + ".f0." + LENGTH, 20);
 
-		descriptor.putString(FIELDS + ".f1." + KIND, RANDOM);
-		descriptor.putLong(FIELDS + ".f1." + MIN, 10);
-		descriptor.putLong(FIELDS + ".f1." + MAX, 100);
+        descriptor.putString(FIELDS + ".f1." + KIND, RANDOM);
+        descriptor.putLong(FIELDS + ".f1." + MIN, 10);
+        descriptor.putLong(FIELDS + ".f1." + MAX, 100);
 
-		descriptor.putString(FIELDS + ".f2." + KIND, SEQUENCE);
-		descriptor.putLong(FIELDS + ".f2." + START, 50);
-		descriptor.putLong(FIELDS + ".f2." + END, 60);
+        descriptor.putString(FIELDS + ".f2." + KIND, SEQUENCE);
+        descriptor.putLong(FIELDS + ".f2." + START, 50);
+        descriptor.putLong(FIELDS + ".f2." + END, 60);
 
-		DynamicTableSource source = createSource(
-				TEST_SCHEMA, descriptor.asMap());
+        DynamicTableSource source = createSource(TEST_SCHEMA, descriptor.asMap());
 
-		assertTrue(source instanceof DataGenTableSource);
+        assertTrue(source instanceof DataGenTableSource);
 
-		DataGenTableSource dataGenTableSource = (DataGenTableSource) source;
-		DataGeneratorSource<RowData> gen = dataGenTableSource.createSource();
+        DataGenTableSource dataGenTableSource = (DataGenTableSource) source;
+        DataGeneratorSource<RowData> gen = dataGenTableSource.createSource();
 
-		// test java serialization.
-		gen = InstantiationUtil.clone(gen);
+        // test java serialization.
+        gen = InstantiationUtil.clone(gen);
 
-		StreamSource<RowData, DataGeneratorSource<RowData>> src = new StreamSource<>(gen);
-		AbstractStreamOperatorTestHarness<RowData> testHarness =
-				new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
-		testHarness.open();
+        StreamSource<RowData, DataGeneratorSource<RowData>> src = new StreamSource<>(gen);
+        AbstractStreamOperatorTestHarness<RowData> testHarness =
+                new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+        testHarness.open();
 
-		List<RowData> results = new ArrayList<>();
+        List<RowData> results = new ArrayList<>();
 
-		gen.run(new SourceFunction.SourceContext<RowData>() {
+        gen.run(
+                new SourceFunction.SourceContext<RowData>() {
 
-			private Object lock = new Object();
+                    private Object lock = new Object();
 
-			@Override
-			public void collect(RowData element) {
-				results.add(element);
-			}
+                    @Override
+                    public void collect(RowData element) {
+                        results.add(element);
+                    }
 
-			@Override
-			public void collectWithTimestamp(RowData element, long timestamp) {
-			}
+                    @Override
+                    public void collectWithTimestamp(RowData element, long timestamp) {}
 
-			@Override
-			public void emitWatermark(Watermark mark) {
-			}
+                    @Override
+                    public void emitWatermark(Watermark mark) {}
 
-			@Override
-			public void markAsTemporarilyIdle() {
-			}
+                    @Override
+                    public void markAsTemporarilyIdle() {}
 
-			@Override
-			public Object getCheckpointLock() {
-				return lock;
-			}
+                    @Override
+                    public Object getCheckpointLock() {
+                        return lock;
+                    }
 
-			@Override
-			public void close() {
-			}
-		});
+                    @Override
+                    public void close() {}
+                });
 
-		Assert.assertEquals(11, results.size());
-		for (int i = 0; i < results.size(); i++) {
-			RowData row = results.get(i);
-			Assert.assertEquals(20, row.getString(0).toString().length());
-			long f1 = row.getLong(1);
-			Assert.assertTrue(f1 >= 10 && f1 <= 100);
-			Assert.assertEquals(i + 50, row.getLong(2));
-		}
-	}
+        Assert.assertEquals(11, results.size());
+        for (int i = 0; i < results.size(); i++) {
+            RowData row = results.get(i);
+            Assert.assertEquals(20, row.getString(0).toString().length());
+            long f1 = row.getLong(1);
+            Assert.assertTrue(f1 >= 10 && f1 <= 100);
+            Assert.assertEquals(i + 50, row.getLong(2));
+        }
+    }
 
-	@Test
-	public void testSequenceCheckpointRestore() throws Exception {
-		DescriptorProperties descriptor = new DescriptorProperties();
-		descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-		descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
-		descriptor.putLong(FIELDS + ".f0." + START, 0);
-		descriptor.putLong(FIELDS + ".f0." + END, 100);
+    @Test
+    public void testSequenceCheckpointRestore() throws Exception {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+        descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
+        descriptor.putLong(FIELDS + ".f0." + START, 0);
+        descriptor.putLong(FIELDS + ".f0." + END, 100);
 
-		DynamicTableSource dynamicTableSource = createSource(
-				TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
-				descriptor.asMap());
+        DynamicTableSource dynamicTableSource =
+                createSource(
+                        TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+                        descriptor.asMap());
 
-		DataGenTableSource dataGenTableSource = (DataGenTableSource) dynamicTableSource;
-		DataGeneratorSource<RowData> source = dataGenTableSource.createSource();
+        DataGenTableSource dataGenTableSource = (DataGenTableSource) dynamicTableSource;
+        DataGeneratorSource<RowData> source = dataGenTableSource.createSource();
 
-		final int initElement = 0;
-		final int maxElement = 100;
-		final Set<RowData> expectedOutput = new HashSet<>();
-		for (long i = initElement; i <= maxElement; i++) {
-			expectedOutput.add(GenericRowData.of(i));
-		}
-		DataGeneratorSourceTest.innerTestDataGenCheckpointRestore(
-				() -> {
-					try {
-						return InstantiationUtil.clone(source);
-					} catch (IOException | ClassNotFoundException e) {
-						throw new RuntimeException(e);
-					}
-				}, expectedOutput);
-	}
+        final int initElement = 0;
+        final int maxElement = 100;
+        final Set<RowData> expectedOutput = new HashSet<>();
+        for (long i = initElement; i <= maxElement; i++) {
+            expectedOutput.add(GenericRowData.of(i));
+        }
+        DataGeneratorSourceTest.innerTestDataGenCheckpointRestore(
+                () -> {
+                    try {
+                        return InstantiationUtil.clone(source);
+                    } catch (IOException | ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                expectedOutput);
+    }
 
-	@Test
-	public void testLackStartForSequence() {
-		try {
-			DescriptorProperties descriptor = new DescriptorProperties();
-			descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-			descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
-			descriptor.putLong(FIELDS + ".f0." + END, 100);
+    @Test
+    public void testLackStartForSequence() {
+        try {
+            DescriptorProperties descriptor = new DescriptorProperties();
+            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+            descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
+            descriptor.putLong(FIELDS + ".f0." + END, 100);
 
-			createSource(
-					TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
-					descriptor.asMap());
-		} catch (ValidationException e) {
-			Throwable cause = e.getCause();
-			Assert.assertTrue(cause instanceof ValidationException);
-			Assert.assertTrue(cause.getMessage().contains(
-					"Could not find required property 'fields.f0.start' for sequence generator."));
-			return;
-		}
-		Assert.fail("Should fail by ValidationException.");
-	}
+            createSource(
+                    TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+                    descriptor.asMap());
+        } catch (ValidationException e) {
+            Throwable cause = e.getCause();
+            Assert.assertTrue(cause instanceof ValidationException);
+            Assert.assertTrue(
+                    cause.getMessage()
+                            .contains(
+                                    "Could not find required property 'fields.f0.start' for sequence generator."));
+            return;
+        }
+        Assert.fail("Should fail by ValidationException.");
+    }
 
-	@Test
-	public void testLackEndForSequence() {
-		try {
-			DescriptorProperties descriptor = new DescriptorProperties();
-			descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-			descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
-			descriptor.putLong(FIELDS + ".f0." + START, 0);
+    @Test
+    public void testLackEndForSequence() {
+        try {
+            DescriptorProperties descriptor = new DescriptorProperties();
+            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+            descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
+            descriptor.putLong(FIELDS + ".f0." + START, 0);
 
-			createSource(
-					TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
-					descriptor.asMap());
-		} catch (ValidationException e) {
-			Throwable cause = e.getCause();
-			Assert.assertTrue(cause instanceof ValidationException);
-			Assert.assertTrue(cause.getMessage().contains(
-					"Could not find required property 'fields.f0.end' for sequence generator."));
-			return;
-		}
-		Assert.fail("Should fail by ValidationException.");
-	}
+            createSource(
+                    TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+                    descriptor.asMap());
+        } catch (ValidationException e) {
+            Throwable cause = e.getCause();
+            Assert.assertTrue(cause instanceof ValidationException);
+            Assert.assertTrue(
+                    cause.getMessage()
+                            .contains(
+                                    "Could not find required property 'fields.f0.end' for sequence generator."));
+            return;
+        }
+        Assert.fail("Should fail by ValidationException.");
+    }
 
-	private static DynamicTableSource createSource(TableSchema schema, Map<String, String> options) {
-		return FactoryUtil.createTableSource(
-				null,
-				ObjectIdentifier.of("", "", ""),
-				new CatalogTableImpl(schema, options, ""),
-				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
-	}
+    private static DynamicTableSource createSource(
+            TableSchema schema, Map<String, String> options) {
+        return FactoryUtil.createTableSource(
+                null,
+                ObjectIdentifier.of("", "", ""),
+                new CatalogTableImpl(schema, options, ""),
+                new Configuration(),
+                Thread.currentThread().getContextClassLoader());
+    }
 }

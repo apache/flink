@@ -31,48 +31,31 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-/**
- * Partition strategy for helping fetch hive partitioned table.
- */
+/** Partition strategy for helping fetch hive partitioned table. */
 @Internal
 public interface PartitionDiscovery {
 
-	/**
-	 * Fetch partitions by previous timestamp (Including).
-	 */
-	List<Tuple2<Partition, Long>> fetchPartitions(Context context, long previousTimestamp) throws Exception;
+    /** Fetch partitions by previous timestamp (Including). */
+    List<Tuple2<Partition, Long>> fetchPartitions(Context context, long previousTimestamp)
+            throws Exception;
 
-	/**
-	 * Context for fetch partitions, partition information is stored in hive meta store.
-	 */
-	interface Context {
+    /** Context for fetch partitions, partition information is stored in hive meta store. */
+    interface Context {
 
-		/**
-		 * Partition keys of this table.
-		 */
-		List<String> partitionKeys();
+        /** Partition keys of this table. */
+        List<String> partitionKeys();
 
-		/**
-		 * See {@link IMetaStoreClient#getPartition}.
-		 */
-		Optional<Partition> getPartition(List<String> partValues) throws TException;
+        /** See {@link IMetaStoreClient#getPartition}. */
+        Optional<Partition> getPartition(List<String> partValues) throws TException;
 
-		/**
-		 * Hadoop filesystem.
-		 */
-		FileSystem fileSystem();
+        /** Hadoop filesystem. */
+        FileSystem fileSystem();
 
-		/**
-		 * Root location of table.
-		 */
-		Path tableLocation();
+        /** Root location of table. */
+        Path tableLocation();
 
-		/**
-		 * Extract timestamp from partition.
-		 */
-		long extractTimestamp(
-				List<String> partKeys,
-				List<String> partValues,
-				Supplier<Long> fileTime);
-	}
+        /** Extract timestamp from partition. */
+        long extractTimestamp(
+                List<String> partKeys, List<String> partValues, Supplier<Long> fileTime);
+    }
 }

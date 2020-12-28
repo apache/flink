@@ -39,37 +39,48 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
- * Request handler that returns, aggregated across jobs, a list of all available metrics or the values
- * for a set of metrics.
+ * Request handler that returns, aggregated across jobs, a list of all available metrics or the
+ * values for a set of metrics.
  *
  * <p>Specific jobs can be selected for aggregation by specifying a comma-separated list of job IDs.
  * {@code /metrics?get=X,Y&jobs=A,B}
  */
-public class AggregatingJobsMetricsHandler extends AbstractAggregatingMetricsHandler<AggregatedJobMetricsParameters> {
+public class AggregatingJobsMetricsHandler
+        extends AbstractAggregatingMetricsHandler<AggregatedJobMetricsParameters> {
 
-	public AggregatingJobsMetricsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout, Map<String, String> responseHeaders,
-			Executor executor,
-			MetricFetcher fetcher) {
-		super(leaderRetriever, timeout, responseHeaders, AggregatedJobMetricsHeaders.getInstance(), executor, fetcher);
-	}
+    public AggregatingJobsMetricsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            Executor executor,
+            MetricFetcher fetcher) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                AggregatedJobMetricsHeaders.getInstance(),
+                executor,
+                fetcher);
+    }
 
-	@Nonnull
-	@Override
-	Collection<? extends MetricStore.ComponentMetricStore> getStores(MetricStore store, HandlerRequest<EmptyRequestBody, AggregatedJobMetricsParameters> request) {
-		List<JobID> jobs = request.getQueryParameter(JobsFilterQueryParameter.class);
-		if (jobs.isEmpty()) {
-			return store.getJobs().values();
-		} else {
-			Collection<MetricStore.ComponentMetricStore> jobStores = new ArrayList<>(jobs.size());
-			for (JobID job : jobs) {
-				MetricStore.ComponentMetricStore jobMetricStore = store.getJobMetricStore(job.toString());
-				if (jobMetricStore != null) {
-					jobStores.add(jobMetricStore);
-				}
-			}
-			return jobStores;
-		}
-	}
+    @Nonnull
+    @Override
+    Collection<? extends MetricStore.ComponentMetricStore> getStores(
+            MetricStore store,
+            HandlerRequest<EmptyRequestBody, AggregatedJobMetricsParameters> request) {
+        List<JobID> jobs = request.getQueryParameter(JobsFilterQueryParameter.class);
+        if (jobs.isEmpty()) {
+            return store.getJobs().values();
+        } else {
+            Collection<MetricStore.ComponentMetricStore> jobStores = new ArrayList<>(jobs.size());
+            for (JobID job : jobs) {
+                MetricStore.ComponentMetricStore jobMetricStore =
+                        store.getJobMetricStore(job.toString());
+                if (jobMetricStore != null) {
+                    jobStores.add(jobMetricStore);
+                }
+            }
+            return jobStores;
+        }
+    }
 }

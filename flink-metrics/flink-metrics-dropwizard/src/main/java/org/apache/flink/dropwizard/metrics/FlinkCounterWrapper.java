@@ -20,18 +20,16 @@ package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.metrics.Counter;
 
-/**
- * A wrapper that allows a Flink counter to be used as a DropWizard counter.
- */
+/** A wrapper that allows a Flink counter to be used as a DropWizard counter. */
 public class FlinkCounterWrapper extends com.codahale.metrics.Counter {
-	private final Counter counter;
+    private final Counter counter;
 
-	public FlinkCounterWrapper(Counter counter) {
-		this.counter = counter;
-	}
+    public FlinkCounterWrapper(Counter counter) {
+        this.counter = counter;
+    }
 
-	@Override
-	public long getCount() {
-		return this.counter.getCount();
-	}
+    @Override
+    public long getCount() {
+        return this.counter.getCount();
+    }
 }

@@ -42,97 +42,90 @@ import java.util.List;
 @Internal
 public class SinkTransformation<T> extends PhysicalTransformation<Object> {
 
-	private final Transformation<T> input;
+    private final Transformation<T> input;
 
-	private final StreamOperatorFactory<Object> operatorFactory;
+    private final StreamOperatorFactory<Object> operatorFactory;
 
-	// We need this because sinks can also have state that is partitioned by key
-	private KeySelector<T, ?> stateKeySelector;
+    // We need this because sinks can also have state that is partitioned by key
+    private KeySelector<T, ?> stateKeySelector;
 
-	private TypeInformation<?> stateKeyType;
+    private TypeInformation<?> stateKeyType;
 
-	/**
-	 * Creates a new {@code SinkTransformation} from the given input {@code Transformation}.
-	 *
-	 * @param input The input {@code Transformation}
-	 * @param name The name of the {@code Transformation}, this will be shown in Visualizations and the Log
-	 * @param operator The sink operator
-	 * @param parallelism The parallelism of this {@code SinkTransformation}
-	 */
-	public SinkTransformation(
-			Transformation<T> input,
-			String name,
-			StreamSink<T> operator,
-			int parallelism) {
-		this(input, name, SimpleOperatorFactory.of(operator), parallelism);
-	}
+    /**
+     * Creates a new {@code SinkTransformation} from the given input {@code Transformation}.
+     *
+     * @param input The input {@code Transformation}
+     * @param name The name of the {@code Transformation}, this will be shown in Visualizations and
+     *     the Log
+     * @param operator The sink operator
+     * @param parallelism The parallelism of this {@code SinkTransformation}
+     */
+    public SinkTransformation(
+            Transformation<T> input, String name, StreamSink<T> operator, int parallelism) {
+        this(input, name, SimpleOperatorFactory.of(operator), parallelism);
+    }
 
-	public SinkTransformation(
-			Transformation<T> input,
-			String name,
-			StreamOperatorFactory<Object> operatorFactory,
-			int parallelism) {
-		super(name, TypeExtractor.getForClass(Object.class), parallelism);
-		this.input = input;
-		this.operatorFactory = operatorFactory;
-	}
+    public SinkTransformation(
+            Transformation<T> input,
+            String name,
+            StreamOperatorFactory<Object> operatorFactory,
+            int parallelism) {
+        super(name, TypeExtractor.getForClass(Object.class), parallelism);
+        this.input = input;
+        this.operatorFactory = operatorFactory;
+    }
 
-	/**
-	 * Returns the input {@code Transformation} of this {@code SinkTransformation}.
-	 */
-	public Transformation<T> getInput() {
-		return input;
-	}
+    /** Returns the input {@code Transformation} of this {@code SinkTransformation}. */
+    public Transformation<T> getInput() {
+        return input;
+    }
 
-	@VisibleForTesting
-	public StreamSink<T> getOperator() {
-		return (StreamSink<T>) ((SimpleOperatorFactory) operatorFactory).getOperator();
-	}
+    @VisibleForTesting
+    public StreamSink<T> getOperator() {
+        return (StreamSink<T>) ((SimpleOperatorFactory) operatorFactory).getOperator();
+    }
 
-	/**
-	 * Returns the {@link StreamOperatorFactory} of this {@code SinkTransformation}.
-	 */
-	public StreamOperatorFactory<Object> getOperatorFactory() {
-		return operatorFactory;
-	}
+    /** Returns the {@link StreamOperatorFactory} of this {@code SinkTransformation}. */
+    public StreamOperatorFactory<Object> getOperatorFactory() {
+        return operatorFactory;
+    }
 
-	/**
-	 * Sets the {@link KeySelector} that must be used for partitioning keyed state of this Sink.
-	 *
-	 * @param stateKeySelector The {@code KeySelector} to set
-	 */
-	public void setStateKeySelector(KeySelector<T, ?> stateKeySelector) {
-		this.stateKeySelector = stateKeySelector;
-	}
+    /**
+     * Sets the {@link KeySelector} that must be used for partitioning keyed state of this Sink.
+     *
+     * @param stateKeySelector The {@code KeySelector} to set
+     */
+    public void setStateKeySelector(KeySelector<T, ?> stateKeySelector) {
+        this.stateKeySelector = stateKeySelector;
+    }
 
-	/**
-	 * Returns the {@code KeySelector} that must be used for partitioning keyed state in this
-	 * Sink.
-	 *
-	 * @see #setStateKeySelector
-	 */
-	public KeySelector<T, ?> getStateKeySelector() {
-		return stateKeySelector;
-	}
+    /**
+     * Returns the {@code KeySelector} that must be used for partitioning keyed state in this Sink.
+     *
+     * @see #setStateKeySelector
+     */
+    public KeySelector<T, ?> getStateKeySelector() {
+        return stateKeySelector;
+    }
 
-	public void setStateKeyType(TypeInformation<?> stateKeyType) {
-		this.stateKeyType = stateKeyType;
-	}
+    public void setStateKeyType(TypeInformation<?> stateKeyType) {
+        this.stateKeyType = stateKeyType;
+    }
 
-	public TypeInformation<?> getStateKeyType() {
-		return stateKeyType;
-	}
+    public TypeInformation<?> getStateKeyType() {
+        return stateKeyType;
+    }
 
-	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
-		List<Transformation<?>> result = Lists.newArrayList();
-		result.add(this);
-		result.addAll(input.getTransitivePredecessors());
-		return result;
-	}
+    @Override
+    public Collection<Transformation<?>> getTransitivePredecessors() {
+        List<Transformation<?>> result = Lists.newArrayList();
+        result.add(this);
+        result.addAll(input.getTransitivePredecessors());
+        return result;
+    }
 
-	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		operatorFactory.setChainingStrategy(strategy);
-	}
+    @Override
+    public final void setChainingStrategy(ChainingStrategy strategy) {
+        operatorFactory.setChainingStrategy(strategy);
+    }
 }

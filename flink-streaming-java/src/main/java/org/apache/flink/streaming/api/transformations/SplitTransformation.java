@@ -28,9 +28,9 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * This transformation represents a split of one
- * {@link org.apache.flink.streaming.api.datastream.DataStream} into several {@code DataStreams}
- * using an {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}.
+ * This transformation represents a split of one {@link
+ * org.apache.flink.streaming.api.datastream.DataStream} into several {@code DataStreams} using an
+ * {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}.
  *
  * <p>This does not create a physical operation, it only affects how upstream operations are
  * connected to downstream operations.
@@ -40,43 +40,37 @@ import java.util.List;
 @Internal
 public class SplitTransformation<T> extends Transformation<T> {
 
-	private final Transformation<T> input;
+    private final Transformation<T> input;
 
-	private final OutputSelector<T> outputSelector;
+    private final OutputSelector<T> outputSelector;
 
-	/**
-	 * Creates a new {@code SplitTransformation} from the given input and {@code OutputSelector}.
-	 *
-	 * @param input The input {@code Transformation}
-	 * @param outputSelector The output selector
-	 */
-	public SplitTransformation(
-		Transformation<T> input,
-			OutputSelector<T> outputSelector) {
-		super("Split", input.getOutputType(), input.getParallelism());
-		this.input = input;
-		this.outputSelector = outputSelector;
-	}
+    /**
+     * Creates a new {@code SplitTransformation} from the given input and {@code OutputSelector}.
+     *
+     * @param input The input {@code Transformation}
+     * @param outputSelector The output selector
+     */
+    public SplitTransformation(Transformation<T> input, OutputSelector<T> outputSelector) {
+        super("Split", input.getOutputType(), input.getParallelism());
+        this.input = input;
+        this.outputSelector = outputSelector;
+    }
 
-	/**
-	 * Returns the input {@code Transformation}.
-	 */
-	public Transformation<T> getInput() {
-		return input;
-	}
+    /** Returns the input {@code Transformation}. */
+    public Transformation<T> getInput() {
+        return input;
+    }
 
-	/**
-	 * Returns the {@code OutputSelector}.
-	 */
-	public OutputSelector<T> getOutputSelector() {
-		return outputSelector;
-	}
+    /** Returns the {@code OutputSelector}. */
+    public OutputSelector<T> getOutputSelector() {
+        return outputSelector;
+    }
 
-	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
-		List<Transformation<?>> result = Lists.newArrayList();
-		result.add(this);
-		result.addAll(input.getTransitivePredecessors());
-		return result;
-	}
+    @Override
+    public Collection<Transformation<?>> getTransitivePredecessors() {
+        List<Transformation<?>> result = Lists.newArrayList();
+        result.add(this);
+        result.addAll(input.getTransitivePredecessors());
+        return result;
+    }
 }

@@ -41,45 +41,47 @@ import java.util.Properties;
  */
 @RunWith(Parameterized.class)
 public class FlinkKafkaProducer011MigrationTest extends KafkaMigrationTestBase {
-	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
-	public static Collection<MigrationVersion> parameters() {
-		return Arrays.asList(
-			MigrationVersion.v1_8,
-			MigrationVersion.v1_9,
-			MigrationVersion.v1_10,
-			MigrationVersion.v1_11);
-	}
+    @Parameterized.Parameters(name = "Migration Savepoint: {0}")
+    public static Collection<MigrationVersion> parameters() {
+        return Arrays.asList(
+                MigrationVersion.v1_8,
+                MigrationVersion.v1_9,
+                MigrationVersion.v1_10,
+                MigrationVersion.v1_11);
+    }
 
-	public FlinkKafkaProducer011MigrationTest(MigrationVersion testMigrateVersion) {
-		super(testMigrateVersion);
-	}
+    public FlinkKafkaProducer011MigrationTest(MigrationVersion testMigrateVersion) {
+        super(testMigrateVersion);
+    }
 
-	@Override
-	protected Properties createProperties() {
-		Properties properties = new Properties();
-		properties.putAll(standardProps);
-		properties.putAll(secureProps);
-		properties.put(ProducerConfig.CLIENT_ID_CONFIG, "producer-client-id");
-		properties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "producer-transaction-id");
-		properties.put(FlinkKafkaProducer011.KEY_DISABLE_METRICS, "true");
-		return properties;
-	}
+    @Override
+    protected Properties createProperties() {
+        Properties properties = new Properties();
+        properties.putAll(standardProps);
+        properties.putAll(secureProps);
+        properties.put(ProducerConfig.CLIENT_ID_CONFIG, "producer-client-id");
+        properties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "producer-transaction-id");
+        properties.put(FlinkKafkaProducer011.KEY_DISABLE_METRICS, "true");
+        return properties;
+    }
 
-	@Override
-	protected OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness() throws Exception {
-		FlinkKafkaProducer011<Integer> kafkaProducer = new FlinkKafkaProducer011<>(
-			TOPIC,
-			integerKeyedSerializationSchema,
-			createProperties(),
-			FlinkKafkaProducer011.Semantic.EXACTLY_ONCE
-		).ignoreFailuresAfterTransactionTimeout();
+    @Override
+    protected OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness()
+            throws Exception {
+        FlinkKafkaProducer011<Integer> kafkaProducer =
+                new FlinkKafkaProducer011<>(
+                                TOPIC,
+                                integerKeyedSerializationSchema,
+                                createProperties(),
+                                FlinkKafkaProducer011.Semantic.EXACTLY_ONCE)
+                        .ignoreFailuresAfterTransactionTimeout();
 
-		return new OneInputStreamOperatorTestHarness<>(
-			new StreamSink<>(kafkaProducer),
-			1,
-			1,
-			0,
-			IntSerializer.INSTANCE,
-			new OperatorID(1, 1));
-	}
+        return new OneInputStreamOperatorTestHarness<>(
+                new StreamSink<>(kafkaProducer),
+                1,
+                1,
+                0,
+                IntSerializer.INSTANCE,
+                new OperatorID(1, 1));
+    }
 }

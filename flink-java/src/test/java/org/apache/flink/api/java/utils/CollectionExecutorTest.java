@@ -40,45 +40,48 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link CollectionPipelineExecutor} and {@link CollectionExecutorFactory}.
- */
+/** Tests for {@link CollectionPipelineExecutor} and {@link CollectionExecutorFactory}. */
 public class CollectionExecutorTest {
 
-	@Test
-	public void testExecuteWithCollectionExecutor() throws Exception {
-		Configuration config = new Configuration();
-		config.set(DeploymentOptions.TARGET, CollectionPipelineExecutor.NAME);
-		config.set(DeploymentOptions.ATTACHED, true);
+    @Test
+    public void testExecuteWithCollectionExecutor() throws Exception {
+        Configuration config = new Configuration();
+        config.set(DeploymentOptions.TARGET, CollectionPipelineExecutor.NAME);
+        config.set(DeploymentOptions.ATTACHED, true);
 
-		PipelineExecutorFactory factory = new DefaultExecutorServiceLoader().getExecutorFactory(config);
-		assertTrue(factory instanceof CollectionExecutorFactory);
+        PipelineExecutorFactory factory =
+                new DefaultExecutorServiceLoader().getExecutorFactory(config);
+        assertTrue(factory instanceof CollectionExecutorFactory);
 
-		PipelineExecutor executor = factory.getExecutor(config);
-		assertTrue(executor instanceof CollectionPipelineExecutor);
+        PipelineExecutor executor = factory.getExecutor(config);
+        assertTrue(executor instanceof CollectionPipelineExecutor);
 
-		// use CollectionsEnvironment to build DataSet graph
-		final ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
-		List<String> result = new ArrayList<>();
+        // use CollectionsEnvironment to build DataSet graph
+        final ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
+        List<String> result = new ArrayList<>();
 
-		DataSink<?> sink = env.fromCollection(Collections.singletonList("a#b")).flatMap(
-				new FlatMapIterator<String, String>() {
-					@Override
-					public Iterator<String> flatMap(String value) {
-						return Arrays.asList(value.split("#")).iterator();
-					}
-				}).output(new LocalCollectionOutputFormat<>(result));
+        DataSink<?> sink =
+                env.fromCollection(Collections.singletonList("a#b"))
+                        .flatMap(
+                                new FlatMapIterator<String, String>() {
+                                    @Override
+                                    public Iterator<String> flatMap(String value) {
+                                        return Arrays.asList(value.split("#")).iterator();
+                                    }
+                                })
+                        .output(new LocalCollectionOutputFormat<>(result));
 
-		PlanGenerator generator = new PlanGenerator(
-				Collections.singletonList(sink),
-				env.getConfig(),
-				env.getParallelism(),
-				Collections.emptyList(),
-				"test");
-		Plan plan = generator.generate();
-		// execute with CollectionPipelineExecutor
-		executor.execute(plan, config);
+        PlanGenerator generator =
+                new PlanGenerator(
+                        Collections.singletonList(sink),
+                        env.getConfig(),
+                        env.getParallelism(),
+                        Collections.emptyList(),
+                        "test");
+        Plan plan = generator.generate();
+        // execute with CollectionPipelineExecutor
+        executor.execute(plan, config);
 
-		assertEquals(Arrays.asList("a", "b"), result);
-	}
+        assertEquals(Arrays.asList("a", "b"), result);
+    }
 }

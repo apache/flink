@@ -23,42 +23,42 @@ import org.apache.flink.api.common.JobID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-/**
- * {@link EmbeddedHaServices} extension for testing purposes.
- */
+/** {@link EmbeddedHaServices} extension for testing purposes. */
 public class TestingEmbeddedHaServices extends EmbeddedHaServices {
 
-	public TestingEmbeddedHaServices(Executor executor) {
-		super(executor);
-	}
+    public TestingEmbeddedHaServices(Executor executor) {
+        super(executor);
+    }
 
-	public CompletableFuture<Void> revokeDispatcherLeadership() {
-		final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
-		return dispatcherLeaderService.revokeLeadership();
-	}
+    public CompletableFuture<Void> revokeDispatcherLeadership() {
+        final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
+        return dispatcherLeaderService.revokeLeadership();
+    }
 
-	public CompletableFuture<Void> grantDispatcherLeadership() {
-		final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
-		return dispatcherLeaderService.grantLeadership();
-	}
+    public CompletableFuture<Void> grantDispatcherLeadership() {
+        final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
+        return dispatcherLeaderService.grantLeadership();
+    }
 
-	public CompletableFuture<Void> revokeJobMasterLeadership(JobID jobId) {
-		final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
-		return jobMasterLeaderService.revokeLeadership();
-	}
+    public CompletableFuture<Void> revokeJobMasterLeadership(JobID jobId) {
+        final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
+        return jobMasterLeaderService.revokeLeadership();
+    }
 
-	public CompletableFuture<Void> grantJobMasterLeadership(JobID jobId) {
-		final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
-		return jobMasterLeaderService.grantLeadership();
-	}
+    public CompletableFuture<Void> grantJobMasterLeadership(JobID jobId) {
+        final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
+        return jobMasterLeaderService.grantLeadership();
+    }
 
-	public CompletableFuture<Void> revokeResourceManagerLeadership() {
-		final EmbeddedLeaderService resourceManagerLeaderService = getResourceManagerLeaderService();
-		return resourceManagerLeaderService.revokeLeadership();
-	}
+    public CompletableFuture<Void> revokeResourceManagerLeadership() {
+        final EmbeddedLeaderService resourceManagerLeaderService =
+                getResourceManagerLeaderService();
+        return resourceManagerLeaderService.revokeLeadership();
+    }
 
-	public CompletableFuture<Void> grantResourceManagerLeadership() {
-		final EmbeddedLeaderService resourceManagerLeaderService = getResourceManagerLeaderService();
-		return resourceManagerLeaderService.grantLeadership();
-	}
+    public CompletableFuture<Void> grantResourceManagerLeadership() {
+        final EmbeddedLeaderService resourceManagerLeaderService =
+                getResourceManagerLeaderService();
+        return resourceManagerLeaderService.grantLeadership();
+    }
 }

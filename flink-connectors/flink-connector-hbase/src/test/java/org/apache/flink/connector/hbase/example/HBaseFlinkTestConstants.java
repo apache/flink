@@ -22,9 +22,8 @@ import org.apache.hadoop.hbase.util.Bytes;
 
 class HBaseFlinkTestConstants {
 
-	static final byte[] CF_SOME = Bytes.toBytes("someCf");
-	static final byte[] Q_SOME = Bytes.toBytes("someQual");
-	static final String TEST_TABLE_NAME = "test-table";
-	static final String TMP_DIR = "/tmp/test";
-
+    static final byte[] CF_SOME = Bytes.toBytes("someCf");
+    static final byte[] Q_SOME = Bytes.toBytes("someQual");
+    static final String TEST_TABLE_NAME = "test-table";
+    static final String TMP_DIR = "/tmp/test";
 }

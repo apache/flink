@@ -28,18 +28,22 @@ import java.util.Collections;
 /**
  * Base class for PythonTableFunctionRunner and RowDataPythonTableFunctionRunner test.
  *
- * @param <IN>  Type of the input elements.
+ * @param <IN> Type of the input elements.
  */
 public abstract class AbstractPythonTableFunctionRunnerTest<IN> {
-	AbstractPythonTableFunctionRunner<IN> createUDTFRunner() throws Exception {
-		PythonFunctionInfo pythonFunctionInfo = new PythonFunctionInfo(
-			AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
-			new Integer[]{0});
+    AbstractPythonTableFunctionRunner<IN> createUDTFRunner() throws Exception {
+        PythonFunctionInfo pythonFunctionInfo =
+                new PythonFunctionInfo(
+                        AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
+                        new Integer[] {0});
 
-		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
-		return createPythonTableFunctionRunner(pythonFunctionInfo, rowType, rowType);
-	}
+        RowType rowType =
+                new RowType(
+                        Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
+        return createPythonTableFunctionRunner(pythonFunctionInfo, rowType, rowType);
+    }
 
-	public abstract AbstractPythonTableFunctionRunner<IN> createPythonTableFunctionRunner(
-		PythonFunctionInfo pythonFunctionInfo, RowType inputType, RowType outputType) throws Exception;
+    public abstract AbstractPythonTableFunctionRunner<IN> createPythonTableFunctionRunner(
+            PythonFunctionInfo pythonFunctionInfo, RowType inputType, RowType outputType)
+            throws Exception;
 }

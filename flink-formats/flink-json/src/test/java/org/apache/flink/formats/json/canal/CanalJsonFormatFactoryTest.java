@@ -46,101 +46,100 @@ import java.util.function.Consumer;
 import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link CanalJsonFormatFactory}.
- */
+/** Tests for {@link CanalJsonFormatFactory}. */
 public class CanalJsonFormatFactoryTest extends TestLogger {
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	private static final TableSchema SCHEMA = TableSchema.builder()
-			.field("a", DataTypes.STRING())
-			.field("b", DataTypes.INT())
-			.field("c", DataTypes.BOOLEAN())
-			.build();
+    private static final TableSchema SCHEMA =
+            TableSchema.builder()
+                    .field("a", DataTypes.STRING())
+                    .field("b", DataTypes.INT())
+                    .field("c", DataTypes.BOOLEAN())
+                    .build();
 
-	private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
+    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
 
-	@Test
-	public void testSeDeSchema() {
-		final CanalJsonDeserializationSchema expectedDeser = new CanalJsonDeserializationSchema(
-			ROW_TYPE,
-			new RowDataTypeInfo(ROW_TYPE),
-			true,
-			TimestampFormat.ISO_8601);
+    @Test
+    public void testSeDeSchema() {
+        final CanalJsonDeserializationSchema expectedDeser =
+                new CanalJsonDeserializationSchema(
+                        ROW_TYPE, new RowDataTypeInfo(ROW_TYPE), true, TimestampFormat.ISO_8601);
 
-		final Map<String, String> options = getAllOptions();
+        final Map<String, String> options = getAllOptions();
 
-		final DynamicTableSource actualSource = createTableSource(options);
-		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
-		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
-				(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+        final DynamicTableSource actualSource = createTableSource(options);
+        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
-		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
-				.createRuntimeDecoder(
-						ScanRuntimeProviderContext.INSTANCE,
-						SCHEMA.toRowDataType());
+        DeserializationSchema<RowData> actualDeser =
+                scanSourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
 
-		assertEquals(expectedDeser, actualDeser);
+        assertEquals(expectedDeser, actualDeser);
 
-		thrown.expect(containsCause(new UnsupportedOperationException(
-			"Canal format doesn't support as a sink format yet.")));
-		createTableSink(options);
-	}
+        thrown.expect(
+                containsCause(
+                        new UnsupportedOperationException(
+                                "Canal format doesn't support as a sink format yet.")));
+        createTableSink(options);
+    }
 
-	@Test
-	public void testInvalidIgnoreParseError() {
-		thrown.expect(containsCause(new IllegalArgumentException(
-			"Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
+    @Test
+    public void testInvalidIgnoreParseError() {
+        thrown.expect(
+                containsCause(
+                        new IllegalArgumentException(
+                                "Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
 
-		final Map<String, String> options =
-				getModifiedOptions(opts -> opts.put("canal-json.ignore-parse-errors", "abc"));
+        final Map<String, String> options =
+                getModifiedOptions(opts -> opts.put("canal-json.ignore-parse-errors", "abc"));
 
-		createTableSource(options);
-	}
+        createTableSource(options);
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Returns the full options modified by the given consumer {@code optionModifier}.
-	 *
-	 * @param optionModifier Consumer to modify the options
-	 */
-	private Map<String, String> getModifiedOptions(Consumer<Map<String, String>> optionModifier) {
-		Map<String, String> options = getAllOptions();
-		optionModifier.accept(options);
-		return options;
-	}
+    /**
+     * Returns the full options modified by the given consumer {@code optionModifier}.
+     *
+     * @param optionModifier Consumer to modify the options
+     */
+    private Map<String, String> getModifiedOptions(Consumer<Map<String, String>> optionModifier) {
+        Map<String, String> options = getAllOptions();
+        optionModifier.accept(options);
+        return options;
+    }
 
-	private Map<String, String> getAllOptions() {
-		final Map<String, String> options = new HashMap<>();
-		options.put("connector", TestDynamicTableFactory.IDENTIFIER);
-		options.put("target", "MyTarget");
-		options.put("buffer-size", "1000");
+    private Map<String, String> getAllOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("connector", TestDynamicTableFactory.IDENTIFIER);
+        options.put("target", "MyTarget");
+        options.put("buffer-size", "1000");
 
-		options.put("format", "canal-json");
-		options.put("canal-json.ignore-parse-errors", "true");
-		options.put("canal-json.timestamp-format.standard", "ISO-8601");
-		return options;
-	}
+        options.put("format", "canal-json");
+        options.put("canal-json.ignore-parse-errors", "true");
+        options.put("canal-json.timestamp-format.standard", "ISO-8601");
+        return options;
+    }
 
-	private static DynamicTableSource createTableSource(Map<String, String> options) {
-		return FactoryUtil.createTableSource(
-				null,
-				ObjectIdentifier.of("default", "default", "t1"),
-				new CatalogTableImpl(SCHEMA, options, "mock source"),
-				new Configuration(),
-				CanalJsonFormatFactoryTest.class.getClassLoader());
-	}
+    private static DynamicTableSource createTableSource(Map<String, String> options) {
+        return FactoryUtil.createTableSource(
+                null,
+                ObjectIdentifier.of("default", "default", "t1"),
+                new CatalogTableImpl(SCHEMA, options, "mock source"),
+                new Configuration(),
+                CanalJsonFormatFactoryTest.class.getClassLoader());
+    }
 
-	private static DynamicTableSink createTableSink(Map<String, String> options) {
-		return FactoryUtil.createTableSink(
-				null,
-				ObjectIdentifier.of("default", "default", "t1"),
-				new CatalogTableImpl(SCHEMA, options, "mock sink"),
-				new Configuration(),
-				CanalJsonFormatFactoryTest.class.getClassLoader());
-	}
+    private static DynamicTableSink createTableSink(Map<String, String> options) {
+        return FactoryUtil.createTableSink(
+                null,
+                ObjectIdentifier.of("default", "default", "t1"),
+                new CatalogTableImpl(SCHEMA, options, "mock sink"),
+                new Configuration(),
+                CanalJsonFormatFactoryTest.class.getClassLoader());
+    }
 }

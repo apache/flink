@@ -36,81 +36,88 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the calculation of preferred locations based on inputs in {@link DefaultExecutionSlotAllocator}.
+ * Tests for the calculation of preferred locations based on inputs in {@link
+ * DefaultExecutionSlotAllocator}.
  */
 public class DefaultExecutionSlotAllocatorPreferredLocationsTest extends TestLogger {
 
-	/**
-	 * Tests that the input edge will be ignored if it has too many different locations.
-	 */
-	@Test
-	public void testIgnoreEdgeOfTooManyLocations() throws Exception {
-		final ExecutionVertexID consumerId = new ExecutionVertexID(new JobVertexID(), 0);
-		final List<ExecutionVertexID> producerIds = new ArrayList<>(ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER + 1);
+    /** Tests that the input edge will be ignored if it has too many different locations. */
+    @Test
+    public void testIgnoreEdgeOfTooManyLocations() throws Exception {
+        final ExecutionVertexID consumerId = new ExecutionVertexID(new JobVertexID(), 0);
+        final List<ExecutionVertexID> producerIds =
+                new ArrayList<>(ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER + 1);
 
-		TestingInputsLocationsRetriever.Builder locationRetrieverBuilder = new TestingInputsLocationsRetriever.Builder();
-		JobVertexID jobVertexID = new JobVertexID();
-		for (int i = 0; i < ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER + 1; i++) {
-			final ExecutionVertexID producerId = new ExecutionVertexID(jobVertexID, i);
-			locationRetrieverBuilder.connectConsumerToProducer(consumerId, producerId);
-			producerIds.add(producerId);
-		}
+        TestingInputsLocationsRetriever.Builder locationRetrieverBuilder =
+                new TestingInputsLocationsRetriever.Builder();
+        JobVertexID jobVertexID = new JobVertexID();
+        for (int i = 0; i < ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER + 1; i++) {
+            final ExecutionVertexID producerId = new ExecutionVertexID(jobVertexID, i);
+            locationRetrieverBuilder.connectConsumerToProducer(consumerId, producerId);
+            producerIds.add(producerId);
+        }
 
-		final TestingInputsLocationsRetriever inputsLocationsRetriever = locationRetrieverBuilder.build();
+        final TestingInputsLocationsRetriever inputsLocationsRetriever =
+                locationRetrieverBuilder.build();
 
-		for (int i = 0; i < ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER + 1; i++) {
-			inputsLocationsRetriever.markScheduled(producerIds.get(i));
-		}
+        for (int i = 0; i < ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER + 1; i++) {
+            inputsLocationsRetriever.markScheduled(producerIds.get(i));
+        }
 
-		CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
-				DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(consumerId, inputsLocationsRetriever);
+        CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
+                DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(
+                        consumerId, inputsLocationsRetriever);
 
-		assertThat(preferredLocations.get(), hasSize(0));
-	}
+        assertThat(preferredLocations.get(), hasSize(0));
+    }
 
-	/**
-	 * Tests that will choose the locations on the edge which has less different number.
-	 */
-	@Test
-	public void testChooseLocationsOnEdgeWithLessDifferentNumber() throws Exception {
-		final ExecutionVertexID consumerId = new ExecutionVertexID(new JobVertexID(), 0);
+    /** Tests that will choose the locations on the edge which has less different number. */
+    @Test
+    public void testChooseLocationsOnEdgeWithLessDifferentNumber() throws Exception {
+        final ExecutionVertexID consumerId = new ExecutionVertexID(new JobVertexID(), 0);
 
-		TestingInputsLocationsRetriever.Builder locationRetrieverBuilder = new TestingInputsLocationsRetriever.Builder();
-		final JobVertexID jobVertexID1 = new JobVertexID();
-		final JobVertexID jobVertexID2 = new JobVertexID();
-		int parallelism1 = 3;
-		int parallelism2 = 5;
-		List<ExecutionVertexID> producers1 = new ArrayList<>(parallelism1);
-		List<ExecutionVertexID> producers2 = new ArrayList<>(parallelism2);
+        TestingInputsLocationsRetriever.Builder locationRetrieverBuilder =
+                new TestingInputsLocationsRetriever.Builder();
+        final JobVertexID jobVertexID1 = new JobVertexID();
+        final JobVertexID jobVertexID2 = new JobVertexID();
+        int parallelism1 = 3;
+        int parallelism2 = 5;
+        List<ExecutionVertexID> producers1 = new ArrayList<>(parallelism1);
+        List<ExecutionVertexID> producers2 = new ArrayList<>(parallelism2);
 
-		for (int i = 0; i < parallelism1; i++) {
-			final ExecutionVertexID producerId = new ExecutionVertexID(jobVertexID1, i);
-			producers1.add(producerId);
-			locationRetrieverBuilder.connectConsumerToProducer(consumerId, producerId);
-		}
+        for (int i = 0; i < parallelism1; i++) {
+            final ExecutionVertexID producerId = new ExecutionVertexID(jobVertexID1, i);
+            producers1.add(producerId);
+            locationRetrieverBuilder.connectConsumerToProducer(consumerId, producerId);
+        }
 
-		for (int i = 0; i < parallelism2; i++) {
-			final ExecutionVertexID producerId = new ExecutionVertexID(jobVertexID2, i);
-			producers2.add(producerId);
-			locationRetrieverBuilder.connectConsumerToProducer(consumerId, producerId);
-		}
+        for (int i = 0; i < parallelism2; i++) {
+            final ExecutionVertexID producerId = new ExecutionVertexID(jobVertexID2, i);
+            producers2.add(producerId);
+            locationRetrieverBuilder.connectConsumerToProducer(consumerId, producerId);
+        }
 
-		final TestingInputsLocationsRetriever inputsLocationsRetriever = locationRetrieverBuilder.build();
+        final TestingInputsLocationsRetriever inputsLocationsRetriever =
+                locationRetrieverBuilder.build();
 
-		List<TaskManagerLocation> expectedLocations = new ArrayList<>(parallelism1);
-		for (int i = 0; i < parallelism1; i++) {
-			inputsLocationsRetriever.assignTaskManagerLocation(producers1.get(i));
-			expectedLocations.add(inputsLocationsRetriever.getTaskManagerLocation(producers1.get(i)).get().getNow(null));
-		}
+        List<TaskManagerLocation> expectedLocations = new ArrayList<>(parallelism1);
+        for (int i = 0; i < parallelism1; i++) {
+            inputsLocationsRetriever.assignTaskManagerLocation(producers1.get(i));
+            expectedLocations.add(
+                    inputsLocationsRetriever
+                            .getTaskManagerLocation(producers1.get(i))
+                            .get()
+                            .getNow(null));
+        }
 
-		for (int i = 0; i < parallelism2; i++) {
-			inputsLocationsRetriever.assignTaskManagerLocation(producers2.get(i));
-		}
+        for (int i = 0; i < parallelism2; i++) {
+            inputsLocationsRetriever.assignTaskManagerLocation(producers2.get(i));
+        }
 
-		CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
-				DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(consumerId, inputsLocationsRetriever);
+        CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
+                DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(
+                        consumerId, inputsLocationsRetriever);
 
-		assertThat(preferredLocations.get(), containsInAnyOrder(expectedLocations.toArray()));
-	}
-
+        assertThat(preferredLocations.get(), containsInAnyOrder(expectedLocations.toArray()));
+    }
 }

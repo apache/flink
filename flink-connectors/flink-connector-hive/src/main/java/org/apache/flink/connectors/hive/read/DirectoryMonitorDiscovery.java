@@ -34,79 +34,82 @@ import java.util.List;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionValues;
 
-/**
- * Directory monitor {@link PartitionDiscovery}.
- */
+/** Directory monitor {@link PartitionDiscovery}. */
 public class DirectoryMonitorDiscovery implements PartitionDiscovery {
 
-	@Override
-	public List<Tuple2<Partition, Long>> fetchPartitions(
-			Context context, long previousTimestamp) throws Exception {
-		FileStatus[] statuses = getFileStatusRecurse(
-				context.tableLocation(), context.partitionKeys().size(), context.fileSystem());
-		List<Tuple2<List<String>, Long>> partValueList = suitablePartitions(context, previousTimestamp, statuses);
+    @Override
+    public List<Tuple2<Partition, Long>> fetchPartitions(Context context, long previousTimestamp)
+            throws Exception {
+        FileStatus[] statuses =
+                getFileStatusRecurse(
+                        context.tableLocation(),
+                        context.partitionKeys().size(),
+                        context.fileSystem());
+        List<Tuple2<List<String>, Long>> partValueList =
+                suitablePartitions(context, previousTimestamp, statuses);
 
-		List<Tuple2<Partition, Long>> partitions = new ArrayList<>();
-		for (Tuple2<List<String>, Long> tuple2 : partValueList) {
-			context.getPartition(tuple2.f0).ifPresent(
-					partition -> partitions.add(new Tuple2<>(partition, tuple2.f1)));
-		}
-		return partitions;
-	}
+        List<Tuple2<Partition, Long>> partitions = new ArrayList<>();
+        for (Tuple2<List<String>, Long> tuple2 : partValueList) {
+            context.getPartition(tuple2.f0)
+                    .ifPresent(partition -> partitions.add(new Tuple2<>(partition, tuple2.f1)));
+        }
+        return partitions;
+    }
 
-	/**
-	 * Find suitable partitions, extract timestamp and compare it with previousTimestamp.
-	 */
-	@VisibleForTesting
-	static List<Tuple2<List<String>, Long>> suitablePartitions(
-			Context context,
-			long previousTimestamp,
-			FileStatus[] statuses) {
-		List<Tuple2<List<String>, Long>> partValueList = new ArrayList<>();
-		for (FileStatus status : statuses) {
-			List<String> partValues = extractPartitionValues(
-					new org.apache.flink.core.fs.Path(status.getPath().toString()));
-			long timestamp = context.extractTimestamp(
-					context.partitionKeys(),
-					partValues,
-					// to UTC millisecond.
-					() -> TimestampData.fromTimestamp(
-							new Timestamp(status.getModificationTime())).getMillisecond());
-			if (timestamp >= previousTimestamp) {
-				partValueList.add(new Tuple2<>(partValues, timestamp));
-			}
-		}
-		return partValueList;
-	}
+    /** Find suitable partitions, extract timestamp and compare it with previousTimestamp. */
+    @VisibleForTesting
+    static List<Tuple2<List<String>, Long>> suitablePartitions(
+            Context context, long previousTimestamp, FileStatus[] statuses) {
+        List<Tuple2<List<String>, Long>> partValueList = new ArrayList<>();
+        for (FileStatus status : statuses) {
+            List<String> partValues =
+                    extractPartitionValues(
+                            new org.apache.flink.core.fs.Path(status.getPath().toString()));
+            long timestamp =
+                    context.extractTimestamp(
+                            context.partitionKeys(),
+                            partValues,
+                            // to UTC millisecond.
+                            () ->
+                                    TimestampData.fromTimestamp(
+                                                    new Timestamp(status.getModificationTime()))
+                                            .getMillisecond());
+            if (timestamp >= previousTimestamp) {
+                partValueList.add(new Tuple2<>(partValues, timestamp));
+            }
+        }
+        return partValueList;
+    }
 
-	private static FileStatus[] getFileStatusRecurse(Path path, int expectLevel, FileSystem fs) {
-		ArrayList<FileStatus> result = new ArrayList<>();
+    private static FileStatus[] getFileStatusRecurse(Path path, int expectLevel, FileSystem fs) {
+        ArrayList<FileStatus> result = new ArrayList<>();
 
-		try {
-			FileStatus fileStatus = fs.getFileStatus(path);
-			listStatusRecursively(fs, fileStatus, 0, expectLevel, result);
-		} catch (IOException ignore) {
-			return new FileStatus[0];
-		}
+        try {
+            FileStatus fileStatus = fs.getFileStatus(path);
+            listStatusRecursively(fs, fileStatus, 0, expectLevel, result);
+        } catch (IOException ignore) {
+            return new FileStatus[0];
+        }
 
-		return result.toArray(new FileStatus[0]);
-	}
+        return result.toArray(new FileStatus[0]);
+    }
 
-	private static void listStatusRecursively(
-			FileSystem fs,
-			FileStatus fileStatus,
-			int level,
-			int expectLevel,
-			List<FileStatus> results) throws IOException {
-		if (expectLevel == level) {
-			results.add(fileStatus);
-			return;
-		}
+    private static void listStatusRecursively(
+            FileSystem fs,
+            FileStatus fileStatus,
+            int level,
+            int expectLevel,
+            List<FileStatus> results)
+            throws IOException {
+        if (expectLevel == level) {
+            results.add(fileStatus);
+            return;
+        }
 
-		if (fileStatus.isDir()) {
-			for (FileStatus stat : fs.listStatus(fileStatus.getPath())) {
-				listStatusRecursively(fs, stat, level + 1, expectLevel, results);
-			}
-		}
-	}
+        if (fileStatus.isDir()) {
+            for (FileStatus stat : fs.listStatus(fileStatus.getPath())) {
+                listStatusRecursively(fs, stat, level + 1, expectLevel, results);
+            }
+        }
+    }
 }

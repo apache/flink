@@ -35,117 +35,118 @@ import org.apache.flink.util.OutputTag;
 /**
  * An example that illustrates the use of side output.
  *
- * <p>This is a modified version of {@link org.apache.flink.streaming.examples.windowing.WindowWordCount}
- * that has a filter in the tokenizer and only emits some words for counting
- * while emitting the other words to a side output.
+ * <p>This is a modified version of {@link
+ * org.apache.flink.streaming.examples.windowing.WindowWordCount} that has a filter in the tokenizer
+ * and only emits some words for counting while emitting the other words to a side output.
  */
 public class SideOutputExample {
 
-	/**
-	 * We need to create an {@link OutputTag} so that we can reference it when emitting
-	 * data to a side output and also to retrieve the side output stream from an operation.
-	 */
-	private static final OutputTag<String> rejectedWordsTag = new OutputTag<String>("rejected") {};
+    /**
+     * We need to create an {@link OutputTag} so that we can reference it when emitting data to a
+     * side output and also to retrieve the side output stream from an operation.
+     */
+    private static final OutputTag<String> rejectedWordsTag = new OutputTag<String>("rejected") {};
 
-	public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
-		// Checking input parameters
-		final ParameterTool params = ParameterTool.fromArgs(args);
+        // Checking input parameters
+        final ParameterTool params = ParameterTool.fromArgs(args);
 
-		// set up the execution environment
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        // set up the execution environment
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
+        env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
-		// make parameters available in the web interface
-		env.getConfig().setGlobalJobParameters(params);
+        // make parameters available in the web interface
+        env.getConfig().setGlobalJobParameters(params);
 
-		// get input data
-		DataStream<String> text;
-		if (params.has("input")) {
-			// read the text file from given input path
-			text = env.readTextFile(params.get("input"));
-		} else {
-			System.out.println("Executing WordCount example with default input data set.");
-			System.out.println("Use --input to specify file input.");
-			// get default test text data
-			text = env.fromElements(WordCountData.WORDS);
-		}
+        // get input data
+        DataStream<String> text;
+        if (params.has("input")) {
+            // read the text file from given input path
+            text = env.readTextFile(params.get("input"));
+        } else {
+            System.out.println("Executing WordCount example with default input data set.");
+            System.out.println("Use --input to specify file input.");
+            // get default test text data
+            text = env.fromElements(WordCountData.WORDS);
+        }
 
-		SingleOutputStreamOperator<Tuple2<String, Integer>> tokenized = text
-				.keyBy(new KeySelector<String, Integer>() {
-					private static final long serialVersionUID = 1L;
+        SingleOutputStreamOperator<Tuple2<String, Integer>> tokenized =
+                text.keyBy(
+                                new KeySelector<String, Integer>() {
+                                    private static final long serialVersionUID = 1L;
 
-					@Override
-					public Integer getKey(String value) throws Exception {
-						return 0;
-					}
-				})
-				.process(new Tokenizer());
+                                    @Override
+                                    public Integer getKey(String value) throws Exception {
+                                        return 0;
+                                    }
+                                })
+                        .process(new Tokenizer());
 
-		DataStream<String> rejectedWords = tokenized
-				.getSideOutput(rejectedWordsTag)
-				.map(new MapFunction<String, String>() {
-					private static final long serialVersionUID = 1L;
+        DataStream<String> rejectedWords =
+                tokenized
+                        .getSideOutput(rejectedWordsTag)
+                        .map(
+                                new MapFunction<String, String>() {
+                                    private static final long serialVersionUID = 1L;
 
-					@Override
-					public String map(String value) throws Exception {
-						return "rejected: " + value;
-					}
-				});
+                                    @Override
+                                    public String map(String value) throws Exception {
+                                        return "rejected: " + value;
+                                    }
+                                });
 
-		DataStream<Tuple2<String, Integer>> counts = tokenized
-				.keyBy(value -> value.f0)
-				.window(TumblingEventTimeWindows.of(Time.seconds(5)))
-				// group by the tuple field "0" and sum up tuple field "1"
-				.sum(1);
+        DataStream<Tuple2<String, Integer>> counts =
+                tokenized
+                        .keyBy(value -> value.f0)
+                        .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+                        // group by the tuple field "0" and sum up tuple field "1"
+                        .sum(1);
 
-		// emit result
-		if (params.has("output")) {
-			counts.writeAsText(params.get("output"));
-			rejectedWords.writeAsText(params.get("rejected-words-output"));
-		} else {
-			System.out.println("Printing result to stdout. Use --output to specify output path.");
-			counts.print();
-			rejectedWords.print();
-		}
+        // emit result
+        if (params.has("output")) {
+            counts.writeAsText(params.get("output"));
+            rejectedWords.writeAsText(params.get("rejected-words-output"));
+        } else {
+            System.out.println("Printing result to stdout. Use --output to specify output path.");
+            counts.print();
+            rejectedWords.print();
+        }
 
-		// execute program
-		env.execute("Streaming WordCount SideOutput");
-	}
+        // execute program
+        env.execute("Streaming WordCount SideOutput");
+    }
 
-	// *************************************************************************
-	// USER FUNCTIONS
-	// *************************************************************************
+    // *************************************************************************
+    // USER FUNCTIONS
+    // *************************************************************************
 
-	/**
-	 * Implements the string tokenizer that splits sentences into words as a
-	 * user-defined FlatMapFunction. The function takes a line (String) and
-	 * splits it into multiple pairs in the form of "(word,1)" ({@code Tuple2<String,
-	 * Integer>}).
-	 *
-	 * <p>This rejects words that are longer than 5 characters long.
-	 */
-	public static final class Tokenizer extends ProcessFunction<String, Tuple2<String, Integer>> {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Implements the string tokenizer that splits sentences into words as a user-defined
+     * FlatMapFunction. The function takes a line (String) and splits it into multiple pairs in the
+     * form of "(word,1)" ({@code Tuple2<String, Integer>}).
+     *
+     * <p>This rejects words that are longer than 5 characters long.
+     */
+    public static final class Tokenizer extends ProcessFunction<String, Tuple2<String, Integer>> {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public void processElement(
-				String value,
-				Context ctx,
-				Collector<Tuple2<String, Integer>> out) throws Exception {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
+        @Override
+        public void processElement(
+                String value, Context ctx, Collector<Tuple2<String, Integer>> out)
+                throws Exception {
+            // normalize and split the line
+            String[] tokens = value.toLowerCase().split("\\W+");
 
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 5) {
-					ctx.output(rejectedWordsTag, token);
-				} else if (token.length() > 0) {
-					out.collect(new Tuple2<>(token, 1));
-				}
-			}
-
-		}
-	}
+            // emit the pairs
+            for (String token : tokens) {
+                if (token.length() > 5) {
+                    ctx.output(rejectedWordsTag, token);
+                } else if (token.length() > 0) {
+                    out.collect(new Tuple2<>(token, 1));
+                }
+            }
+        }
+    }
 }

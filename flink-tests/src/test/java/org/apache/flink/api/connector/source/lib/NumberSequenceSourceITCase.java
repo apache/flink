@@ -33,31 +33,29 @@ import java.util.stream.LongStream;
 
 import static org.junit.Assert.assertArrayEquals;
 
-/**
- * Tests {@link NumberSequenceSource}.
- */
+/** Tests {@link NumberSequenceSource}. */
 public class NumberSequenceSourceITCase {
-	@Rule
-	public StreamCollector collector = new StreamCollector();
+    @Rule public StreamCollector collector = new StreamCollector();
 
-	@Test
-	public void testCheckpointingWithDelayedAssignment() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
-		env.enableCheckpointing(10, CheckpointingMode.EXACTLY_ONCE);
-		final SingleOutputStreamOperator<Long> stream = env
-			.fromSource(
-				new NumberSequenceSource(0, 100),
-				WatermarkStrategy.noWatermarks(),
-				"Sequence Source")
-			.map(x -> {
-				Thread.sleep(10);
-				return x;
-			});
-		final CompletableFuture<Collection<Long>> result = collector.collect(stream);
-		env.execute();
+    @Test
+    public void testCheckpointingWithDelayedAssignment() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
+        env.enableCheckpointing(10, CheckpointingMode.EXACTLY_ONCE);
+        final SingleOutputStreamOperator<Long> stream =
+                env.fromSource(
+                                new NumberSequenceSource(0, 100),
+                                WatermarkStrategy.noWatermarks(),
+                                "Sequence Source")
+                        .map(
+                                x -> {
+                                    Thread.sleep(10);
+                                    return x;
+                                });
+        final CompletableFuture<Collection<Long>> result = collector.collect(stream);
+        env.execute();
 
-		assertArrayEquals(LongStream.rangeClosed(0, 100).boxed().toArray(), result.get().toArray());
-	}
+        assertArrayEquals(LongStream.rangeClosed(0, 100).boxed().toArray(), result.get().toArray());
+    }
 }

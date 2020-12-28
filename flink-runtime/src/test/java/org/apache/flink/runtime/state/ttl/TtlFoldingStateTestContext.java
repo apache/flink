@@ -26,42 +26,44 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 /** Test suite for {@link TtlFoldingState}. */
 @SuppressWarnings("deprecation")
-class TtlFoldingStateTestContext extends TtlStateTestContextBase<TtlFoldingState<?, String, Long, String>, Long, String> {
-	@Override
-	void initTestValues() {
-		updateEmpty = 5L;
-		updateUnexpired = 7L;
-		updateExpired = 6L;
+class TtlFoldingStateTestContext
+        extends TtlStateTestContextBase<TtlFoldingState<?, String, Long, String>, Long, String> {
+    @Override
+    void initTestValues() {
+        updateEmpty = 5L;
+        updateUnexpired = 7L;
+        updateExpired = 6L;
 
-		getUpdateEmpty = "6";
-		getUnexpired = "13";
-		getUpdateExpired = "7";
-	}
+        getUpdateEmpty = "6";
+        getUnexpired = "13";
+        getUpdateExpired = "7";
+    }
 
-	@Override
-	public void update(Long value) throws Exception {
-		ttlState.add(value);
-	}
+    @Override
+    public void update(Long value) throws Exception {
+        ttlState.add(value);
+    }
 
-	@Override
-	public String get() throws Exception {
-		return ttlState.get();
-	}
+    @Override
+    public String get() throws Exception {
+        return ttlState.get();
+    }
 
-	@Override
-	public Object getOriginal() throws Exception {
-		return ttlState.original.get();
-	}
+    @Override
+    public Object getOriginal() throws Exception {
+        return ttlState.original.get();
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
-		return (StateDescriptor<US, SV>) new FoldingStateDescriptor<>(
-			getName(), "1",  FOLD, StringSerializer.INSTANCE);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+        return (StateDescriptor<US, SV>)
+                new FoldingStateDescriptor<>(getName(), "1", FOLD, StringSerializer.INSTANCE);
+    }
 
-	private static final FoldFunction<Long, String> FOLD = (acc, val) -> {
-		long lacc = acc == null ? 0 : Long.parseLong(acc);
-		return Long.toString(val == null ? lacc : lacc + val);
-	};
+    private static final FoldFunction<Long, String> FOLD =
+            (acc, val) -> {
+                long lacc = acc == null ? 0 : Long.parseLong(acc);
+                return Long.toString(val == null ? lacc : lacc + val);
+            };
 }

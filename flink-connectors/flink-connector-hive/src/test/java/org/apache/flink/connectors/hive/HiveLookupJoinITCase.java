@@ -45,61 +45,82 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test lookup join of hive tables.
- */
+/** Test lookup join of hive tables. */
 public class HiveLookupJoinITCase {
 
-	private TableEnvironment tableEnv;
-	private HiveCatalog hiveCatalog;
+    private TableEnvironment tableEnv;
+    private HiveCatalog hiveCatalog;
 
-	@Before
-	public void setup() {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build();
-		tableEnv = TableEnvironment.create(settings);
-		hiveCatalog = HiveTestUtils.createHiveCatalog();
-		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-		tableEnv.useCatalog(hiveCatalog.getName());
-	}
+    @Before
+    public void setup() {
+        EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build();
+        tableEnv = TableEnvironment.create(settings);
+        hiveCatalog = HiveTestUtils.createHiveCatalog();
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+    }
 
-	@After
-	public void tearDown() {
-		if (hiveCatalog != null) {
-			hiveCatalog.close();
-		}
-	}
+    @After
+    public void tearDown() {
+        if (hiveCatalog != null) {
+            hiveCatalog.close();
+        }
+    }
 
-	@Test
-	public void test() throws Exception {
-		// create the hive build table
-		tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
-		tableEnv.executeSql(String.format("create table build (x int,y string,z int) tblproperties ('%s'='5min')",
-				FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key()));
-		tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+    @Test
+    public void test() throws Exception {
+        // create the hive build table
+        tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        tableEnv.executeSql(
+                String.format(
+                        "create table build (x int,y string,z int) tblproperties ('%s'='5min')",
+                        FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key()));
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
 
-		// verify we properly configured the cache TTL
-		ObjectIdentifier tableIdentifier = ObjectIdentifier.of(hiveCatalog.getName(), "default", "build");
-		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
-		HiveTableSource hiveTableSource = (HiveTableSource) ((HiveTableFactory) hiveCatalog.getTableFactory().get()).createTableSource(
-				new TableSourceFactoryContextImpl(tableIdentifier, catalogTable, tableEnv.getConfig().getConfiguration()));
-		FileSystemLookupFunction lookupFunction = (FileSystemLookupFunction) hiveTableSource.getLookupFunction(new String[]{"x"});
-		assertEquals(Duration.ofMinutes(5), lookupFunction.getCacheTTL());
+        // verify we properly configured the cache TTL
+        ObjectIdentifier tableIdentifier =
+                ObjectIdentifier.of(hiveCatalog.getName(), "default", "build");
+        CatalogTable catalogTable =
+                (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
+        HiveTableSource hiveTableSource =
+                (HiveTableSource)
+                        ((HiveTableFactory) hiveCatalog.getTableFactory().get())
+                                .createTableSource(
+                                        new TableSourceFactoryContextImpl(
+                                                tableIdentifier,
+                                                catalogTable,
+                                                tableEnv.getConfig().getConfiguration()));
+        FileSystemLookupFunction lookupFunction =
+                (FileSystemLookupFunction) hiveTableSource.getLookupFunction(new String[] {"x"});
+        assertEquals(Duration.ofMinutes(5), lookupFunction.getCacheTTL());
 
-		try {
-			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv,
-					"insert into build values (1,'a',10),(2,'a',21),(2,'b',22),(3,'c',33)");
+        try {
+            TableEnvUtil.execInsertSqlAndWaitResult(
+                    tableEnv,
+                    "insert into build values (1,'a',10),(2,'a',21),(2,'b',22),(3,'c',33)");
 
-			TestCollectionTableFactory.initData(
-					Arrays.asList(Row.of(1, "a"), Row.of(1, "c"), Row.of(2, "b"), Row.of(2, "c"), Row.of(3, "c"), Row.of(4, "d")));
-			tableEnv.executeSql("create table default_catalog.default_database.probe (x int,y string,p as proctime()) " +
-					"with ('connector'='COLLECTION','is-bounded' = 'false')");
+            TestCollectionTableFactory.initData(
+                    Arrays.asList(
+                            Row.of(1, "a"),
+                            Row.of(1, "c"),
+                            Row.of(2, "b"),
+                            Row.of(2, "c"),
+                            Row.of(3, "c"),
+                            Row.of(4, "d")));
+            tableEnv.executeSql(
+                    "create table default_catalog.default_database.probe (x int,y string,p as proctime()) "
+                            + "with ('connector'='COLLECTION','is-bounded' = 'false')");
 
-			TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select p.x,p.y from default_catalog.default_database.probe as p join " +
-					"build for system_time as of p.p as b on p.x=b.x and p.y=b.y");
-			List<Row> results = Lists.newArrayList(flinkTable.execute().collect());
-			assertEquals("[1,a, 2,b, 3,c]", results.toString());
-		} finally {
-			tableEnv.executeSql("drop table build");
-		}
-	}
+            TableImpl flinkTable =
+                    (TableImpl)
+                            tableEnv.sqlQuery(
+                                    "select p.x,p.y from default_catalog.default_database.probe as p join "
+                                            + "build for system_time as of p.p as b on p.x=b.x and p.y=b.y");
+            List<Row> results = Lists.newArrayList(flinkTable.execute().collect());
+            assertEquals("[1,a, 2,b, 3,c]", results.toString());
+        } finally {
+            tableEnv.executeSql("drop table build");
+        }
+    }
 }

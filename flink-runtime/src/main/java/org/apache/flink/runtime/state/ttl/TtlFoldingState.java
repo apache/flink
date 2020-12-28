@@ -29,47 +29,48 @@ import javax.annotation.Nullable;
  *
  * @param <T> Type of the values folded into the state
  * @param <ACC> Type of the value in the state
- *
  * @deprecated use {@link AggregatingState} instead
  */
 @Deprecated
 class TtlFoldingState<K, N, T, ACC>
-	extends AbstractTtlState<K, N, ACC, TtlValue<ACC>, InternalFoldingState<K, N, T, TtlValue<ACC>>>
-	implements InternalFoldingState<K, N, T, ACC> {
-	TtlFoldingState(TtlStateContext<InternalFoldingState<K, N, T, TtlValue<ACC>>, ACC> ttlStateContext) {
-		super(ttlStateContext);
-	}
+        extends AbstractTtlState<
+                K, N, ACC, TtlValue<ACC>, InternalFoldingState<K, N, T, TtlValue<ACC>>>
+        implements InternalFoldingState<K, N, T, ACC> {
+    TtlFoldingState(
+            TtlStateContext<InternalFoldingState<K, N, T, TtlValue<ACC>>, ACC> ttlStateContext) {
+        super(ttlStateContext);
+    }
 
-	@Override
-	public ACC get() throws Exception {
-		accessCallback.run();
-		return getInternal();
-	}
+    @Override
+    public ACC get() throws Exception {
+        accessCallback.run();
+        return getInternal();
+    }
 
-	@Override
-	public void add(T value) throws Exception {
-		accessCallback.run();
-		original.add(value);
-	}
+    @Override
+    public void add(T value) throws Exception {
+        accessCallback.run();
+        original.add(value);
+    }
 
-	@Nullable
-	@Override
-	public TtlValue<ACC> getUnexpiredOrNull(@Nonnull TtlValue<ACC> ttlValue) {
-		return expired(ttlValue) ? null : ttlValue;
-	}
+    @Nullable
+    @Override
+    public TtlValue<ACC> getUnexpiredOrNull(@Nonnull TtlValue<ACC> ttlValue) {
+        return expired(ttlValue) ? null : ttlValue;
+    }
 
-	@Override
-	public void clear() {
-		original.clear();
-	}
+    @Override
+    public void clear() {
+        original.clear();
+    }
 
-	@Override
-	public ACC getInternal() throws Exception {
-		return getWithTtlCheckAndUpdate(original::getInternal, original::updateInternal);
-	}
+    @Override
+    public ACC getInternal() throws Exception {
+        return getWithTtlCheckAndUpdate(original::getInternal, original::updateInternal);
+    }
 
-	@Override
-	public void updateInternal(ACC valueToStore) throws Exception {
-		original.updateInternal(wrapWithTs(valueToStore));
-	}
+    @Override
+    public void updateInternal(ACC valueToStore) throws Exception {
+        original.updateInternal(wrapWithTs(valueToStore));
+    }
 }

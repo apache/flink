@@ -36,53 +36,51 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * ITCase for {@link OrcFileSystemFormatFactory}.
- */
+/** ITCase for {@link OrcFileSystemFormatFactory}. */
 @RunWith(Parameterized.class)
 public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 
-	private final boolean configure;
+    private final boolean configure;
 
-	@Parameterized.Parameters(name = "{0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(false, true);
-	}
+    @Parameterized.Parameters(name = "{0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(false, true);
+    }
 
-	public OrcFileSystemITCase(boolean configure) {
-		this.configure = configure;
-	}
+    public OrcFileSystemITCase(boolean configure) {
+        this.configure = configure;
+    }
 
-	@Override
-	public String[] formatProperties() {
-		List<String> ret = new ArrayList<>();
-		ret.add("'format'='orc'");
-		if (configure) {
-			ret.add("'orc.compress'='snappy'");
-		}
-		return ret.toArray(new String[0]);
-	}
+    @Override
+    public String[] formatProperties() {
+        List<String> ret = new ArrayList<>();
+        ret.add("'format'='orc'");
+        if (configure) {
+            ret.add("'orc.compress'='snappy'");
+        }
+        return ret.toArray(new String[0]);
+    }
 
-	@Override
-	public void testNonPartition() {
-		super.testNonPartition();
+    @Override
+    public void testNonPartition() {
+        super.testNonPartition();
 
-		// test configure success
-		File directory = new File(URI.create(resultPath()).getPath());
-		File[] files = directory.listFiles((dir, name) ->
-				!name.startsWith(".") && !name.startsWith("_"));
-		Assert.assertNotNull(files);
-		Path path = new Path(URI.create(files[0].getAbsolutePath()));
+        // test configure success
+        File directory = new File(URI.create(resultPath()).getPath());
+        File[] files =
+                directory.listFiles((dir, name) -> !name.startsWith(".") && !name.startsWith("_"));
+        Assert.assertNotNull(files);
+        Path path = new Path(URI.create(files[0].getAbsolutePath()));
 
-		try {
-			Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(new Configuration()));
-			if (configure) {
-				Assert.assertEquals("SNAPPY", reader.getCompressionKind().toString());
-			} else {
-				Assert.assertEquals("ZLIB", reader.getCompressionKind().toString());
-			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+        try {
+            Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(new Configuration()));
+            if (configure) {
+                Assert.assertEquals("SNAPPY", reader.getCompressionKind().toString());
+            } else {
+                Assert.assertEquals("ZLIB", reader.getCompressionKind().toString());
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

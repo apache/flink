@@ -74,325 +74,352 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the HistoryServer.
- */
+/** Tests for the HistoryServer. */
 @RunWith(Parameterized.class)
 public class HistoryServerTest extends TestLogger {
 
-	private static final JsonFactory JACKSON_FACTORY = new JsonFactory()
-		.enable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
-		.disable(JsonGenerator.Feature.AUTO_CLOSE_JSON_CONTENT);
-	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
-		.enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
+    private static final JsonFactory JACKSON_FACTORY =
+            new JsonFactory()
+                    .enable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
+                    .disable(JsonGenerator.Feature.AUTO_CLOSE_JSON_CONTENT);
+    private static final ObjectMapper OBJECT_MAPPER =
+            new ObjectMapper().enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
 
-	@Rule
-	public final TemporaryFolder tmpFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
-	private MiniClusterWithClientResource cluster;
-	private File jmDirectory;
-	private File hsDirectory;
+    private MiniClusterWithClientResource cluster;
+    private File jmDirectory;
+    private File hsDirectory;
 
-	@Parameterized.Parameters(name = "Flink version less than 1.4: {0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(true, false);
-	}
+    @Parameterized.Parameters(name = "Flink version less than 1.4: {0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(true, false);
+    }
 
-	@Parameterized.Parameter
-	public static boolean versionLessThan14;
+    @Parameterized.Parameter public static boolean versionLessThan14;
 
-	@Before
-	public void setUp() throws Exception {
-		jmDirectory = tmpFolder.newFolder("jm_" + versionLessThan14);
-		hsDirectory = tmpFolder.newFolder("hs_" + versionLessThan14);
+    @Before
+    public void setUp() throws Exception {
+        jmDirectory = tmpFolder.newFolder("jm_" + versionLessThan14);
+        hsDirectory = tmpFolder.newFolder("hs_" + versionLessThan14);
 
-		Configuration clusterConfig = new Configuration();
-		clusterConfig.setString(JobManagerOptions.ARCHIVE_DIR, jmDirectory.toURI().toString());
+        Configuration clusterConfig = new Configuration();
+        clusterConfig.setString(JobManagerOptions.ARCHIVE_DIR, jmDirectory.toURI().toString());
 
-		cluster = new MiniClusterWithClientResource(
-			new MiniClusterResourceConfiguration.Builder()
-				.setConfiguration(clusterConfig)
-				.setNumberTaskManagers(1)
-				.setNumberSlotsPerTaskManager(1)
-				.build());
-		cluster.before();
-	}
+        cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(clusterConfig)
+                                .setNumberTaskManagers(1)
+                                .setNumberSlotsPerTaskManager(1)
+                                .build());
+        cluster.before();
+    }
 
-	@After
-	public void tearDown() {
-		if (cluster != null) {
-			cluster.after();
-		}
-	}
+    @After
+    public void tearDown() {
+        if (cluster != null) {
+            cluster.after();
+        }
+    }
 
-	@Test
-	public void testHistoryServerIntegration() throws Exception {
-		final int numJobs = 2;
-		for (int x = 0; x < numJobs; x++) {
-			runJob();
-		}
-		final int numLegacyJobs = 1;
-		createLegacyArchive(jmDirectory.toPath());
+    @Test
+    public void testHistoryServerIntegration() throws Exception {
+        final int numJobs = 2;
+        for (int x = 0; x < numJobs; x++) {
+            runJob();
+        }
+        final int numLegacyJobs = 1;
+        createLegacyArchive(jmDirectory.toPath());
 
-		waitForArchivesCreation(numJobs + numLegacyJobs);
+        waitForArchivesCreation(numJobs + numLegacyJobs);
 
-		CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs + numLegacyJobs);
+        CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs + numLegacyJobs);
 
-		Configuration historyServerConfig = createTestConfiguration(false);
+        Configuration historyServerConfig = createTestConfiguration(false);
 
-		HistoryServer hs = new HistoryServer(historyServerConfig, (event) -> {
-			if (event.getType() == HistoryServerArchiveFetcher.ArchiveEventType.CREATED) {
-				numExpectedArchivedJobs.countDown();
-			}
-		});
+        HistoryServer hs =
+                new HistoryServer(
+                        historyServerConfig,
+                        (event) -> {
+                            if (event.getType()
+                                    == HistoryServerArchiveFetcher.ArchiveEventType.CREATED) {
+                                numExpectedArchivedJobs.countDown();
+                            }
+                        });
 
-		try {
-			hs.start();
-			String baseUrl = "http://localhost:" + hs.getWebPort();
-			assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
+        try {
+            hs.start();
+            String baseUrl = "http://localhost:" + hs.getWebPort();
+            assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
 
-			Assert.assertEquals(numJobs + numLegacyJobs, getJobsOverview(baseUrl).getJobs().size());
+            Assert.assertEquals(numJobs + numLegacyJobs, getJobsOverview(baseUrl).getJobs().size());
 
-			// checks whether the dashboard configuration contains all expected fields
-			getDashboardConfiguration(baseUrl);
-		} finally {
-			hs.stop();
-		}
-	}
+            // checks whether the dashboard configuration contains all expected fields
+            getDashboardConfiguration(baseUrl);
+        } finally {
+            hs.stop();
+        }
+    }
 
-	@Test
-	public void testCleanExpiredJob() throws Exception {
-		runArchiveExpirationTest(true);
-	}
+    @Test
+    public void testCleanExpiredJob() throws Exception {
+        runArchiveExpirationTest(true);
+    }
 
-	@Test
-	public void testRemainExpiredJob() throws Exception {
-		runArchiveExpirationTest(false);
-	}
+    @Test
+    public void testRemainExpiredJob() throws Exception {
+        runArchiveExpirationTest(false);
+    }
 
-	private void runArchiveExpirationTest(boolean cleanupExpiredJobs) throws Exception {
-		int numExpiredJobs = cleanupExpiredJobs ? 1 : 0;
-		int numJobs = 3;
-		for (int x = 0; x < numJobs; x++) {
-			runJob();
-		}
-		waitForArchivesCreation(numJobs);
+    private void runArchiveExpirationTest(boolean cleanupExpiredJobs) throws Exception {
+        int numExpiredJobs = cleanupExpiredJobs ? 1 : 0;
+        int numJobs = 3;
+        for (int x = 0; x < numJobs; x++) {
+            runJob();
+        }
+        waitForArchivesCreation(numJobs);
 
-		CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs);
-		CountDownLatch firstArchiveExpiredLatch = new CountDownLatch(numExpiredJobs);
-		CountDownLatch allArchivesExpiredLatch = new CountDownLatch(cleanupExpiredJobs ? numJobs : 0);
+        CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs);
+        CountDownLatch firstArchiveExpiredLatch = new CountDownLatch(numExpiredJobs);
+        CountDownLatch allArchivesExpiredLatch =
+                new CountDownLatch(cleanupExpiredJobs ? numJobs : 0);
 
-		Configuration historyServerConfig = createTestConfiguration(cleanupExpiredJobs);
+        Configuration historyServerConfig = createTestConfiguration(cleanupExpiredJobs);
 
-		HistoryServer hs =
-			new HistoryServer(
-				historyServerConfig,
-				(event) -> {
-					switch (event.getType()){
-						case CREATED:
-							numExpectedArchivedJobs.countDown();
-							break;
-						case DELETED:
-							firstArchiveExpiredLatch.countDown();
-							allArchivesExpiredLatch.countDown();
-							break;
-					}
-				});
+        HistoryServer hs =
+                new HistoryServer(
+                        historyServerConfig,
+                        (event) -> {
+                            switch (event.getType()) {
+                                case CREATED:
+                                    numExpectedArchivedJobs.countDown();
+                                    break;
+                                case DELETED:
+                                    firstArchiveExpiredLatch.countDown();
+                                    allArchivesExpiredLatch.countDown();
+                                    break;
+                            }
+                        });
 
-		try {
-			hs.start();
-			String baseUrl = "http://localhost:" + hs.getWebPort();
-			assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
+        try {
+            hs.start();
+            String baseUrl = "http://localhost:" + hs.getWebPort();
+            assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
 
-			Collection<JobDetails> jobs = getJobsOverview(baseUrl).getJobs();
-			Assert.assertEquals(numJobs, jobs.size());
+            Collection<JobDetails> jobs = getJobsOverview(baseUrl).getJobs();
+            Assert.assertEquals(numJobs, jobs.size());
 
-			String jobIdToDelete = jobs.stream()
-				.findFirst()
-				.map(JobDetails::getJobId)
-				.map(JobID::toString)
-				.orElseThrow(() -> new IllegalStateException("Expected at least one existing job"));
+            String jobIdToDelete =
+                    jobs.stream()
+                            .findFirst()
+                            .map(JobDetails::getJobId)
+                            .map(JobID::toString)
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "Expected at least one existing job"));
 
-			// delete one archive from jm
-			Files.deleteIfExists(jmDirectory.toPath().resolve(jobIdToDelete));
+            // delete one archive from jm
+            Files.deleteIfExists(jmDirectory.toPath().resolve(jobIdToDelete));
 
-			assertTrue(firstArchiveExpiredLatch.await(10L, TimeUnit.SECONDS));
+            assertTrue(firstArchiveExpiredLatch.await(10L, TimeUnit.SECONDS));
 
-			// check that archive is still/no longer present in hs
-			Collection<JobDetails> jobsAfterDeletion = getJobsOverview(baseUrl).getJobs();
-			Assert.assertEquals(numJobs - numExpiredJobs, jobsAfterDeletion.size());
-			Assert.assertEquals(1 - numExpiredJobs, jobsAfterDeletion.stream()
-				.map(JobDetails::getJobId)
-				.map(JobID::toString)
-				.filter(jobId -> jobId.equals(jobIdToDelete))
-				.count());
+            // check that archive is still/no longer present in hs
+            Collection<JobDetails> jobsAfterDeletion = getJobsOverview(baseUrl).getJobs();
+            Assert.assertEquals(numJobs - numExpiredJobs, jobsAfterDeletion.size());
+            Assert.assertEquals(
+                    1 - numExpiredJobs,
+                    jobsAfterDeletion.stream()
+                            .map(JobDetails::getJobId)
+                            .map(JobID::toString)
+                            .filter(jobId -> jobId.equals(jobIdToDelete))
+                            .count());
 
-			// delete remaining archives from jm and ensure files are cleaned up
-			List<String> remainingJobIds = jobsAfterDeletion.stream()
-				.map(JobDetails::getJobId)
-				.map(JobID::toString)
-				.collect(Collectors.toList());
+            // delete remaining archives from jm and ensure files are cleaned up
+            List<String> remainingJobIds =
+                    jobsAfterDeletion.stream()
+                            .map(JobDetails::getJobId)
+                            .map(JobID::toString)
+                            .collect(Collectors.toList());
 
-			for (String remainingJobId : remainingJobIds) {
-				Files.deleteIfExists(jmDirectory.toPath().resolve(remainingJobId));
-			}
+            for (String remainingJobId : remainingJobIds) {
+                Files.deleteIfExists(jmDirectory.toPath().resolve(remainingJobId));
+            }
 
-			assertTrue(allArchivesExpiredLatch.await(10L, TimeUnit.SECONDS));
+            assertTrue(allArchivesExpiredLatch.await(10L, TimeUnit.SECONDS));
 
-			assertJobFilesCleanedUp(cleanupExpiredJobs);
-		} finally {
-			hs.stop();
-		}
-	}
+            assertJobFilesCleanedUp(cleanupExpiredJobs);
+        } finally {
+            hs.stop();
+        }
+    }
 
-	private void assertJobFilesCleanedUp(boolean jobFilesShouldBeDeleted) throws IOException {
-		try (Stream<Path> paths = Files.walk(hsDirectory.toPath())) {
-			final List<Path> jobFiles = paths
-				.filter(path -> !path.equals(hsDirectory.toPath()))
-				.map(path -> hsDirectory.toPath().relativize(path))
-				.filter(path -> !path.equals(Paths.get("config.json")))
-				.filter(path -> !path.equals(Paths.get("jobs")))
-				.filter(path -> !path.equals(Paths.get("jobs", "overview.json")))
-				.filter(path -> !path.equals(Paths.get("overviews")))
-				.collect(Collectors.toList());
+    private void assertJobFilesCleanedUp(boolean jobFilesShouldBeDeleted) throws IOException {
+        try (Stream<Path> paths = Files.walk(hsDirectory.toPath())) {
+            final List<Path> jobFiles =
+                    paths.filter(path -> !path.equals(hsDirectory.toPath()))
+                            .map(path -> hsDirectory.toPath().relativize(path))
+                            .filter(path -> !path.equals(Paths.get("config.json")))
+                            .filter(path -> !path.equals(Paths.get("jobs")))
+                            .filter(path -> !path.equals(Paths.get("jobs", "overview.json")))
+                            .filter(path -> !path.equals(Paths.get("overviews")))
+                            .collect(Collectors.toList());
 
-			assertThat(jobFiles, jobFilesShouldBeDeleted ? empty() : not(empty()));
-		}
-	}
+            assertThat(jobFiles, jobFilesShouldBeDeleted ? empty() : not(empty()));
+        }
+    }
 
-	private void waitForArchivesCreation(int numJobs) throws InterruptedException {
-		// the job is archived asynchronously after env.execute() returns
-		File[] archives = jmDirectory.listFiles();
-		while (archives == null || archives.length != numJobs) {
-			Thread.sleep(50);
-			archives = jmDirectory.listFiles();
-		}
-	}
+    private void waitForArchivesCreation(int numJobs) throws InterruptedException {
+        // the job is archived asynchronously after env.execute() returns
+        File[] archives = jmDirectory.listFiles();
+        while (archives == null || archives.length != numJobs) {
+            Thread.sleep(50);
+            archives = jmDirectory.listFiles();
+        }
+    }
 
-	private Configuration createTestConfiguration(boolean cleanupExpiredJobs) {
-		Configuration historyServerConfig = new Configuration();
-		historyServerConfig.setString(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS, jmDirectory.toURI().toString());
-		historyServerConfig.setString(HistoryServerOptions.HISTORY_SERVER_WEB_DIR, hsDirectory.getAbsolutePath());
-		historyServerConfig.setLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL, 100L);
+    private Configuration createTestConfiguration(boolean cleanupExpiredJobs) {
+        Configuration historyServerConfig = new Configuration();
+        historyServerConfig.setString(
+                HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS, jmDirectory.toURI().toString());
+        historyServerConfig.setString(
+                HistoryServerOptions.HISTORY_SERVER_WEB_DIR, hsDirectory.getAbsolutePath());
+        historyServerConfig.setLong(
+                HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL, 100L);
 
-		historyServerConfig.setBoolean(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS, cleanupExpiredJobs);
+        historyServerConfig.setBoolean(
+                HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS, cleanupExpiredJobs);
 
-		historyServerConfig.setInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, 0);
-		return historyServerConfig;
-	}
+        historyServerConfig.setInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, 0);
+        return historyServerConfig;
+    }
 
-	private static DashboardConfiguration getDashboardConfiguration(String baseUrl) throws Exception {
-		Tuple2<Integer, String> response = getFromHTTP(baseUrl + DashboardConfigurationHeaders.INSTANCE.getTargetRestEndpointURL());
-		return OBJECT_MAPPER.readValue(response.f1, DashboardConfiguration.class);
+    private static DashboardConfiguration getDashboardConfiguration(String baseUrl)
+            throws Exception {
+        Tuple2<Integer, String> response =
+                getFromHTTP(
+                        baseUrl
+                                + DashboardConfigurationHeaders.INSTANCE
+                                        .getTargetRestEndpointURL());
+        return OBJECT_MAPPER.readValue(response.f1, DashboardConfiguration.class);
+    }
 
-	}
+    private static MultipleJobsDetails getJobsOverview(String baseUrl) throws Exception {
+        Tuple2<Integer, String> response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
+        return OBJECT_MAPPER.readValue(response.f1, MultipleJobsDetails.class);
+    }
 
-	private static MultipleJobsDetails getJobsOverview(String baseUrl) throws Exception {
-		Tuple2<Integer, String> response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
-		return OBJECT_MAPPER.readValue(response.f1, MultipleJobsDetails.class);
-	}
+    private static void runJob() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromElements(1, 2, 3).addSink(new DiscardingSink<>());
 
-	private static void runJob() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements(1, 2, 3).addSink(new DiscardingSink<>());
+        env.execute();
+    }
 
-		env.execute();
-	}
+    static Tuple2<Integer, String> getFromHTTP(String url) throws Exception {
+        URL u = new URL(url);
+        HttpURLConnection connection = (HttpURLConnection) u.openConnection();
+        connection.setConnectTimeout(100000);
+        connection.connect();
+        InputStream is;
+        if (connection.getResponseCode() >= 400) {
+            // error!
+            is = connection.getErrorStream();
+        } else {
+            is = connection.getInputStream();
+        }
 
-	static Tuple2<Integer, String> getFromHTTP(String url) throws Exception {
-		URL u = new URL(url);
-		HttpURLConnection connection = (HttpURLConnection) u.openConnection();
-		connection.setConnectTimeout(100000);
-		connection.connect();
-		InputStream is;
-		if (connection.getResponseCode() >= 400) {
-			// error!
-			is = connection.getErrorStream();
-		} else {
-			is = connection.getInputStream();
-		}
+        return Tuple2.of(
+                connection.getResponseCode(),
+                IOUtils.toString(
+                        is,
+                        connection.getContentEncoding() != null
+                                ? connection.getContentEncoding()
+                                : "UTF-8"));
+    }
 
-		return Tuple2.of(connection.getResponseCode(), IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8"));
-	}
+    private static String createLegacyArchive(Path directory) throws IOException {
+        JobID jobId = JobID.generate();
 
-	private static String createLegacyArchive(Path directory) throws IOException {
-		JobID jobId = JobID.generate();
+        StringWriter sw = new StringWriter();
+        try (JsonGenerator gen = JACKSON_FACTORY.createGenerator(sw)) {
+            try (JsonObject root = new JsonObject(gen)) {
+                try (JsonArray finished = new JsonArray(gen, "finished")) {
+                    try (JsonObject job = new JsonObject(gen)) {
+                        gen.writeStringField("jid", jobId.toString());
+                        gen.writeStringField("name", "testjob");
+                        gen.writeStringField("state", JobStatus.FINISHED.name());
 
-		StringWriter sw = new StringWriter();
-		try (JsonGenerator gen = JACKSON_FACTORY.createGenerator(sw)) {
-			try (JsonObject root = new JsonObject(gen)) {
-				try (JsonArray finished = new JsonArray(gen, "finished")) {
-					try (JsonObject job = new JsonObject(gen)) {
-						gen.writeStringField("jid", jobId.toString());
-						gen.writeStringField("name", "testjob");
-						gen.writeStringField("state", JobStatus.FINISHED.name());
+                        gen.writeNumberField("start-time", 0L);
+                        gen.writeNumberField("end-time", 1L);
+                        gen.writeNumberField("duration", 1L);
+                        gen.writeNumberField("last-modification", 1L);
 
-						gen.writeNumberField("start-time", 0L);
-						gen.writeNumberField("end-time", 1L);
-						gen.writeNumberField("duration", 1L);
-						gen.writeNumberField("last-modification", 1L);
+                        try (JsonObject tasks = new JsonObject(gen, "tasks")) {
+                            gen.writeNumberField("total", 0);
 
-						try (JsonObject tasks = new JsonObject(gen, "tasks")) {
-							gen.writeNumberField("total", 0);
+                            if (versionLessThan14) {
+                                gen.writeNumberField("pending", 0);
+                            } else {
+                                gen.writeNumberField("created", 0);
+                                gen.writeNumberField("deploying", 0);
+                                gen.writeNumberField("scheduled", 0);
+                            }
+                            gen.writeNumberField("running", 0);
+                            gen.writeNumberField("finished", 0);
+                            gen.writeNumberField("canceling", 0);
+                            gen.writeNumberField("canceled", 0);
+                            gen.writeNumberField("failed", 0);
+                        }
+                    }
+                }
+            }
+        }
+        String json = sw.toString();
 
-							if (versionLessThan14) {
-								gen.writeNumberField("pending", 0);
-							} else {
-								gen.writeNumberField("created", 0);
-								gen.writeNumberField("deploying", 0);
-								gen.writeNumberField("scheduled", 0);
-							}
-							gen.writeNumberField("running", 0);
-							gen.writeNumberField("finished", 0);
-							gen.writeNumberField("canceling", 0);
-							gen.writeNumberField("canceled", 0);
-							gen.writeNumberField("failed", 0);
-						}
-					}
-				}
-			}
-		}
-		String json = sw.toString();
+        ArchivedJson archivedJson = new ArchivedJson("/joboverview", json);
 
-		ArchivedJson archivedJson = new ArchivedJson("/joboverview", json);
+        FsJobArchivist.archiveJob(
+                new org.apache.flink.core.fs.Path(directory.toUri()),
+                jobId,
+                Collections.singleton(archivedJson));
 
-		FsJobArchivist.archiveJob(new org.apache.flink.core.fs.Path(directory.toUri()), jobId, Collections.singleton(archivedJson));
+        return jobId.toString();
+    }
 
-		return jobId.toString();
-	}
+    private static final class JsonObject implements AutoCloseable {
 
-	private static final class JsonObject implements AutoCloseable {
+        private final JsonGenerator gen;
 
-		private final JsonGenerator gen;
+        JsonObject(JsonGenerator gen) throws IOException {
+            this.gen = gen;
+            gen.writeStartObject();
+        }
 
-		JsonObject(JsonGenerator gen) throws IOException {
-			this.gen = gen;
-			gen.writeStartObject();
-		}
+        private JsonObject(JsonGenerator gen, String name) throws IOException {
+            this.gen = gen;
+            gen.writeObjectFieldStart(name);
+        }
 
-		private JsonObject(JsonGenerator gen, String name) throws IOException {
-			this.gen = gen;
-			gen.writeObjectFieldStart(name);
-		}
+        @Override
+        public void close() throws IOException {
+            gen.writeEndObject();
+        }
+    }
 
-		@Override
-		public void close() throws IOException {
-			gen.writeEndObject();
-		}
-	}
+    private static final class JsonArray implements AutoCloseable {
 
-	private static final class JsonArray implements AutoCloseable {
+        private final JsonGenerator gen;
 
-		private final JsonGenerator gen;
+        JsonArray(JsonGenerator gen, String name) throws IOException {
+            this.gen = gen;
+            gen.writeArrayFieldStart(name);
+        }
 
-		JsonArray(JsonGenerator gen, String name) throws IOException {
-			this.gen = gen;
-			gen.writeArrayFieldStart(name);
-		}
-
-		@Override
-		public void close() throws IOException {
-			gen.writeEndArray();
-		}
-	}
+        @Override
+        public void close() throws IOException {
+            gen.writeEndArray();
+        }
+    }
 }

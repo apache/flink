@@ -47,161 +47,184 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assume.assumeTrue;
 
-/**
- * Test for {@link HiveModule}.
- */
+/** Test for {@link HiveModule}. */
 public class HiveModuleTest {
-	@BeforeClass
-	public static void init() {
-		assumeTrue(HIVE_120_OR_LATER);
-	}
+    @BeforeClass
+    public static void init() {
+        assumeTrue(HIVE_120_OR_LATER);
+    }
 
-	@Test
-	public void testNumberOfBuiltinFunctions() {
-		String hiveVersion = HiveShimLoader.getHiveVersion();
-		HiveModule hiveModule = new HiveModule(hiveVersion);
+    @Test
+    public void testNumberOfBuiltinFunctions() {
+        String hiveVersion = HiveShimLoader.getHiveVersion();
+        HiveModule hiveModule = new HiveModule(hiveVersion);
 
-		switch (hiveVersion) {
-			case HIVE_VERSION_V1_2_0:
-				assertEquals(231, hiveModule.listFunctions().size());
-				break;
-			case HIVE_VERSION_V2_0_0:
-				assertEquals(235, hiveModule.listFunctions().size());
-				break;
-			case HIVE_VERSION_V2_1_1:
-				assertEquals(245, hiveModule.listFunctions().size());
-				break;
-			case HIVE_VERSION_V2_2_0:
-				assertEquals(261, hiveModule.listFunctions().size());
-				break;
-			case HIVE_VERSION_V2_3_4:
-				assertEquals(279, hiveModule.listFunctions().size());
-				break;
-			case HIVE_VERSION_V3_1_1:
-				assertEquals(298, hiveModule.listFunctions().size());
-				break;
-		}
-	}
+        switch (hiveVersion) {
+            case HIVE_VERSION_V1_2_0:
+                assertEquals(231, hiveModule.listFunctions().size());
+                break;
+            case HIVE_VERSION_V2_0_0:
+                assertEquals(235, hiveModule.listFunctions().size());
+                break;
+            case HIVE_VERSION_V2_1_1:
+                assertEquals(245, hiveModule.listFunctions().size());
+                break;
+            case HIVE_VERSION_V2_2_0:
+                assertEquals(261, hiveModule.listFunctions().size());
+                break;
+            case HIVE_VERSION_V2_3_4:
+                assertEquals(279, hiveModule.listFunctions().size());
+                break;
+            case HIVE_VERSION_V3_1_1:
+                assertEquals(298, hiveModule.listFunctions().size());
+                break;
+        }
+    }
 
-	@Test
-	public void testHiveBuiltInFunction() {
-		FunctionDefinition fd = new HiveModule().getFunctionDefinition("reverse").get();
+    @Test
+    public void testHiveBuiltInFunction() {
+        FunctionDefinition fd = new HiveModule().getFunctionDefinition("reverse").get();
 
-		ScalarFunction func = ((ScalarFunctionDefinition) fd).getScalarFunction();
-		HiveSimpleUDF udf = (HiveSimpleUDF) func;
+        ScalarFunction func = ((ScalarFunctionDefinition) fd).getScalarFunction();
+        HiveSimpleUDF udf = (HiveSimpleUDF) func;
 
-		DataType[] inputType = new DataType[] {
-			DataTypes.STRING()
-		};
+        DataType[] inputType = new DataType[] {DataTypes.STRING()};
 
-		udf.setArgumentTypesAndConstants(new Object[0], inputType);
-		udf.getHiveResultType(new Object[0], inputType);
+        udf.setArgumentTypesAndConstants(new Object[0], inputType);
+        udf.getHiveResultType(new Object[0], inputType);
 
-		udf.open(null);
+        udf.open(null);
 
-		assertEquals("cba", udf.eval("abc"));
-	}
+        assertEquals("cba", udf.eval("abc"));
+    }
 
-	@Test
-	public void testNonExistFunction() {
-		assertFalse(new HiveModule().getFunctionDefinition("nonexist").isPresent());
-	}
+    @Test
+    public void testNonExistFunction() {
+        assertFalse(new HiveModule().getFunctionDefinition("nonexist").isPresent());
+    }
 
-	@Test
-	public void testConstantArguments() throws Exception {
-		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+    @Test
+    public void testConstantArguments() throws Exception {
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 
-		tEnv.unloadModule("core");
-		tEnv.loadModule("hive", new HiveModule());
+        tEnv.unloadModule("core");
+        tEnv.loadModule("hive", new HiveModule());
 
-		List<Row> results = Lists.newArrayList(
-				tEnv.sqlQuery("select concat('an', 'bn')").execute().collect());
-		assertEquals("[anbn]", results.toString());
+        List<Row> results =
+                Lists.newArrayList(tEnv.sqlQuery("select concat('an', 'bn')").execute().collect());
+        assertEquals("[anbn]", results.toString());
 
-		results = Lists.newArrayList(
-				tEnv.sqlQuery("select concat('ab', cast('cdefghi' as varchar(5)))").execute().collect());
-		assertEquals("[abcdefg]", results.toString());
+        results =
+                Lists.newArrayList(
+                        tEnv.sqlQuery("select concat('ab', cast('cdefghi' as varchar(5)))")
+                                .execute()
+                                .collect());
+        assertEquals("[abcdefg]", results.toString());
 
-		results = Lists.newArrayList(
-				tEnv.sqlQuery("select concat('ab',cast(12.34 as decimal(10,5)))").execute().collect());
-		assertEquals("[ab12.34]", results.toString());
+        results =
+                Lists.newArrayList(
+                        tEnv.sqlQuery("select concat('ab',cast(12.34 as decimal(10,5)))")
+                                .execute()
+                                .collect());
+        assertEquals("[ab12.34]", results.toString());
 
-		results = Lists.newArrayList(
-				tEnv.sqlQuery("select concat(cast('2018-01-19' as date),cast('2019-12-27 17:58:23.385' as timestamp))").execute().collect());
-		assertEquals("[2018-01-192019-12-27 17:58:23.385]", results.toString());
+        results =
+                Lists.newArrayList(
+                        tEnv.sqlQuery(
+                                        "select concat(cast('2018-01-19' as date),cast('2019-12-27 17:58:23.385' as timestamp))")
+                                .execute()
+                                .collect());
+        assertEquals("[2018-01-192019-12-27 17:58:23.385]", results.toString());
 
-		// TODO: null cannot be a constant argument at the moment. This test will make more sense when that changes.
-		results = Lists.newArrayList(
-				tEnv.sqlQuery("select concat('ab',cast(null as int))").execute().collect());
-		assertEquals("[null]", results.toString());
-	}
+        // TODO: null cannot be a constant argument at the moment. This test will make more sense
+        // when that changes.
+        results =
+                Lists.newArrayList(
+                        tEnv.sqlQuery("select concat('ab',cast(null as int))").execute().collect());
+        assertEquals("[null]", results.toString());
+    }
 
-	@Test
-	public void testDecimalReturnType() throws Exception {
-		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+    @Test
+    public void testDecimalReturnType() throws Exception {
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 
-		tEnv.unloadModule("core");
-		tEnv.loadModule("hive", new HiveModule());
+        tEnv.unloadModule("core");
+        tEnv.loadModule("hive", new HiveModule());
 
-		List<Row> results = Lists.newArrayList(tEnv.sqlQuery("select negative(5.1)").execute().collect());
+        List<Row> results =
+                Lists.newArrayList(tEnv.sqlQuery("select negative(5.1)").execute().collect());
 
-		assertEquals("[-5.1]", results.toString());
-	}
+        assertEquals("[-5.1]", results.toString());
+    }
 
-	@Test
-	public void testBlackList() {
-		HiveModule hiveModule = new HiveModule();
-		assertFalse(hiveModule.listFunctions().removeAll(HiveModule.BUILT_IN_FUNC_BLACKLIST));
-		for (String banned : HiveModule.BUILT_IN_FUNC_BLACKLIST) {
-			assertFalse(hiveModule.getFunctionDefinition(banned).isPresent());
-		}
-	}
+    @Test
+    public void testBlackList() {
+        HiveModule hiveModule = new HiveModule();
+        assertFalse(hiveModule.listFunctions().removeAll(HiveModule.BUILT_IN_FUNC_BLACKLIST));
+        for (String banned : HiveModule.BUILT_IN_FUNC_BLACKLIST) {
+            assertFalse(hiveModule.getFunctionDefinition(banned).isPresent());
+        }
+    }
 
-	@Test
-	public void testConstantReturnValue() throws Exception {
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+    @Test
+    public void testConstantReturnValue() throws Exception {
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 
-		tableEnv.unloadModule("core");
-		tableEnv.loadModule("hive", new HiveModule());
+        tableEnv.unloadModule("core");
+        tableEnv.loadModule("hive", new HiveModule());
 
-		List<Row> results = Lists.newArrayList(
-				tableEnv.sqlQuery("select str_to_map('a:1,b:2,c:3',',',':')").execute().collect());
+        List<Row> results =
+                Lists.newArrayList(
+                        tableEnv.sqlQuery("select str_to_map('a:1,b:2,c:3',',',':')")
+                                .execute()
+                                .collect());
 
-		assertEquals("[{a=1, b=2, c=3}]", results.toString());
-	}
+        assertEquals("[{a=1, b=2, c=3}]", results.toString());
+    }
 
-	@Test
-	public void testEmptyStringLiteralParameters() {
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+    @Test
+    public void testEmptyStringLiteralParameters() {
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 
-		tableEnv.unloadModule("core");
-		tableEnv.loadModule("hive", new HiveModule());
+        tableEnv.unloadModule("core");
+        tableEnv.loadModule("hive", new HiveModule());
 
-		// UDF
-		List<Row> results = Lists.newArrayList(
-				tableEnv.sqlQuery("select regexp_replace('foobar','oo|ar','')").execute().collect());
-		assertEquals("[fb]", results.toString());
+        // UDF
+        List<Row> results =
+                Lists.newArrayList(
+                        tableEnv.sqlQuery("select regexp_replace('foobar','oo|ar','')")
+                                .execute()
+                                .collect());
+        assertEquals("[fb]", results.toString());
 
-		// GenericUDF
-		results = Lists.newArrayList(tableEnv.sqlQuery("select length('')").execute().collect());
-		assertEquals("[0]", results.toString());
-	}
+        // GenericUDF
+        results = Lists.newArrayList(tableEnv.sqlQuery("select length('')").execute().collect());
+        assertEquals("[0]", results.toString());
+    }
 
-	@Test
-	// tests to verify we have set arguments for hive udf before trying to get result type
-	public void testHiveUDFSetArguments() throws Exception {
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+    @Test
+    // tests to verify we have set arguments for hive udf before trying to get result type
+    public void testHiveUDFSetArguments() throws Exception {
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 
-		tableEnv.unloadModule("core");
-		tableEnv.loadModule("hive", new HiveModule());
-		tableEnv.loadModule("core", CoreModule.INSTANCE);
+        tableEnv.unloadModule("core");
+        tableEnv.loadModule("hive", new HiveModule());
+        tableEnv.loadModule("core", CoreModule.INSTANCE);
 
-		String path = getClass().getResource("/csv/test.csv").toURI().toString();
-		tableEnv.executeSql(String.format(
-				"create table src(x int,y int) with ('connector'='filesystem','format'='csv','path'='%s')", path));
+        String path = getClass().getResource("/csv/test.csv").toURI().toString();
+        tableEnv.executeSql(
+                String.format(
+                        "create table src(x int,y int) with ('connector'='filesystem','format'='csv','path'='%s')",
+                        path));
 
-		Lists.newArrayList(tableEnv.executeSql("select x from src where y is not null limit 10").collect());
-		Lists.newArrayList(tableEnv.executeSql("select count(distinct if(y is null, 0, y)) from src where x=-1 limit 1").collect());
-		Lists.newArrayList(tableEnv.executeSql("select x, rank() over (partition by x order by y) from src").collect());
-	}
+        Lists.newArrayList(
+                tableEnv.executeSql("select x from src where y is not null limit 10").collect());
+        Lists.newArrayList(
+                tableEnv.executeSql(
+                                "select count(distinct if(y is null, 0, y)) from src where x=-1 limit 1")
+                        .collect());
+        Lists.newArrayList(
+                tableEnv.executeSql("select x, rank() over (partition by x order by y) from src")
+                        .collect());
+    }
 }

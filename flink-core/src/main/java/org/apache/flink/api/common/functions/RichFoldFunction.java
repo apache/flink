@@ -22,21 +22,21 @@ import org.apache.flink.annotation.Public;
 
 /**
  * Rich variant of the {@link FoldFunction}. As a {@link RichFunction}, it gives access to the
- * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
- * {@link RichFunction#close()}.
+ * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
+ * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#close()}.
  *
  * @param <T> Type of the initial input and the returned element
  * @param <O> Type of the elements that the group/list/stream contains
- *
- *@deprecated use {@link RichAggregateFunction} instead
+ * @deprecated use {@link RichAggregateFunction} instead
  */
 @Public
 @Deprecated
-public abstract class RichFoldFunction<O, T> extends AbstractRichFunction implements FoldFunction<O, T> {
+public abstract class RichFoldFunction<O, T> extends AbstractRichFunction
+        implements FoldFunction<O, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public abstract T fold(T accumulator, O value) throws Exception;
+    @Override
+    public abstract T fold(T accumulator, O value) throws Exception;
 }

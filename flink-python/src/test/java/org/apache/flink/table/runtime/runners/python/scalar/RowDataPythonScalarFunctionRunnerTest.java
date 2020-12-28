@@ -35,57 +35,60 @@ import static org.apache.flink.table.runtime.utils.PythonTestUtils.createTestEnv
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link RowDataPythonScalarFunctionRunner}. These test that
- * the input data type and output data type are properly constructed.
+ * Tests for {@link RowDataPythonScalarFunctionRunner}. These test that the input data type and
+ * output data type are properly constructed.
  */
-public class RowDataPythonScalarFunctionRunnerTest extends AbstractPythonScalarFunctionRunnerTest<RowData> {
+public class RowDataPythonScalarFunctionRunnerTest
+        extends AbstractPythonScalarFunctionRunnerTest<RowData> {
 
-	@Test
-	public void testInputOutputDataTypeConstructedProperlyForSingleUDF() throws Exception {
-		final RowDataPythonScalarFunctionRunner runner = (RowDataPythonScalarFunctionRunner) createSingleUDFRunner();
+    @Test
+    public void testInputOutputDataTypeConstructedProperlyForSingleUDF() throws Exception {
+        final RowDataPythonScalarFunctionRunner runner =
+                (RowDataPythonScalarFunctionRunner) createSingleUDFRunner();
 
-		// check input TypeSerializer
-		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertEquals(1, ((RowDataSerializer) inputTypeSerializer).getArity());
-	}
+        // check input TypeSerializer
+        TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+        assertEquals(1, ((RowDataSerializer) inputTypeSerializer).getArity());
+    }
 
-	@Test
-	public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() throws Exception {
-		final RowDataPythonScalarFunctionRunner runner = (RowDataPythonScalarFunctionRunner) createMultipleUDFRunner();
+    @Test
+    public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() throws Exception {
+        final RowDataPythonScalarFunctionRunner runner =
+                (RowDataPythonScalarFunctionRunner) createMultipleUDFRunner();
 
-		// check input TypeSerializer
-		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertEquals(3, ((RowDataSerializer) inputTypeSerializer).getArity());
-	}
+        // check input TypeSerializer
+        TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+        assertEquals(3, ((RowDataSerializer) inputTypeSerializer).getArity());
+    }
 
-	@Test
-	public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() throws Exception {
-		final RowDataPythonScalarFunctionRunner runner = (RowDataPythonScalarFunctionRunner) createChainedUDFRunner();
+    @Test
+    public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() throws Exception {
+        final RowDataPythonScalarFunctionRunner runner =
+                (RowDataPythonScalarFunctionRunner) createChainedUDFRunner();
 
-		// check input TypeSerializer
-		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertEquals(5, ((RowDataSerializer) inputTypeSerializer).getArity());
-	}
+        // check input TypeSerializer
+        TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+        assertEquals(5, ((RowDataSerializer) inputTypeSerializer).getArity());
+    }
 
-	@Override
-	public AbstractGeneralPythonScalarFunctionRunner<RowData> createPythonScalarFunctionRunner(
-		final PythonFunctionInfo[] pythonFunctionInfos,
-		RowType inputType,
-		RowType outputType) {
-		final FnDataReceiver<byte[]> dummyReceiver = input -> {
-			// ignore the execution results
-		};
+    @Override
+    public AbstractGeneralPythonScalarFunctionRunner<RowData> createPythonScalarFunctionRunner(
+            final PythonFunctionInfo[] pythonFunctionInfos, RowType inputType, RowType outputType) {
+        final FnDataReceiver<byte[]> dummyReceiver =
+                input -> {
+                    // ignore the execution results
+                };
 
-		final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
+        final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
 
-		return new RowDataPythonScalarFunctionRunner(
-			"testPythonRunner",
-			dummyReceiver,
-			pythonFunctionInfos,
-			environmentManager,
-			inputType,
-			outputType,
-			Collections.emptyMap(),
-			PythonTestUtils.createMockFlinkMetricContainer());
-	}
+        return new RowDataPythonScalarFunctionRunner(
+                "testPythonRunner",
+                dummyReceiver,
+                pythonFunctionInfos,
+                environmentManager,
+                inputType,
+                outputType,
+                Collections.emptyMap(),
+                PythonTestUtils.createMockFlinkMetricContainer());
+    }
 }

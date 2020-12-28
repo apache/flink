@@ -31,117 +31,127 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Integration tests for a streaming {@link OutputSelector}.
- */
+/** Integration tests for a streaming {@link OutputSelector}. */
 public class OutputSplitterITCase extends AbstractTestBase {
 
-	private static ArrayList<Integer> expectedSplitterResult = new ArrayList<Integer>();
+    private static ArrayList<Integer> expectedSplitterResult = new ArrayList<Integer>();
 
-	@SuppressWarnings("unchecked")
-	@Test
-	public void testOnMergedDataStream() throws Exception {
-		TestListResultSink<Integer> splitterResultSink1 = new TestListResultSink<Integer>();
-		TestListResultSink<Integer> splitterResultSink2 = new TestListResultSink<Integer>();
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testOnMergedDataStream() throws Exception {
+        TestListResultSink<Integer> splitterResultSink1 = new TestListResultSink<Integer>();
+        TestListResultSink<Integer> splitterResultSink2 = new TestListResultSink<Integer>();
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.setBufferTimeout(1);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.setBufferTimeout(1);
 
-		DataStream<Integer> d1 = env.fromElements(0, 2, 4, 6, 8);
-		DataStream<Integer> d2 = env.fromElements(1, 3, 5, 7, 9);
+        DataStream<Integer> d1 = env.fromElements(0, 2, 4, 6, 8);
+        DataStream<Integer> d2 = env.fromElements(1, 3, 5, 7, 9);
 
-		d1 = d1.union(d2);
+        d1 = d1.union(d2);
 
-		d1.split(new OutputSelector<Integer>() {
-			private static final long serialVersionUID = 8354166915727490130L;
+        d1.split(
+                        new OutputSelector<Integer>() {
+                            private static final long serialVersionUID = 8354166915727490130L;
 
-			@Override
-			public Iterable<String> select(Integer value) {
-				List<String> s = new ArrayList<String>();
-				if (value > 4) {
-					s.add(">");
-				} else {
-					s.add("<");
-				}
-				return s;
-			}
-		}).select(">").addSink(splitterResultSink1);
+                            @Override
+                            public Iterable<String> select(Integer value) {
+                                List<String> s = new ArrayList<String>();
+                                if (value > 4) {
+                                    s.add(">");
+                                } else {
+                                    s.add("<");
+                                }
+                                return s;
+                            }
+                        })
+                .select(">")
+                .addSink(splitterResultSink1);
 
-		d1.split(new OutputSelector<Integer>() {
-			private static final long serialVersionUID = -6822487543355994807L;
+        d1.split(
+                        new OutputSelector<Integer>() {
+                            private static final long serialVersionUID = -6822487543355994807L;
 
-			@Override
-			public Iterable<String> select(Integer value) {
-				List<String> s = new ArrayList<String>();
-				if (value % 3 == 0) {
-					s.add("yes");
-				} else {
-					s.add("no");
-				}
-				return s;
-			}
-		}).select("yes").addSink(splitterResultSink2);
-		env.execute();
+                            @Override
+                            public Iterable<String> select(Integer value) {
+                                List<String> s = new ArrayList<String>();
+                                if (value % 3 == 0) {
+                                    s.add("yes");
+                                } else {
+                                    s.add("no");
+                                }
+                                return s;
+                            }
+                        })
+                .select("yes")
+                .addSink(splitterResultSink2);
+        env.execute();
 
-		expectedSplitterResult.clear();
-		expectedSplitterResult.addAll(Arrays.asList(5, 6, 7, 8, 9));
-		assertEquals(expectedSplitterResult, splitterResultSink1.getSortedResult());
+        expectedSplitterResult.clear();
+        expectedSplitterResult.addAll(Arrays.asList(5, 6, 7, 8, 9));
+        assertEquals(expectedSplitterResult, splitterResultSink1.getSortedResult());
 
-		expectedSplitterResult.clear();
-		expectedSplitterResult.addAll(Arrays.asList(0, 3, 6, 9));
-		assertEquals(expectedSplitterResult, splitterResultSink2.getSortedResult());
-	}
+        expectedSplitterResult.clear();
+        expectedSplitterResult.addAll(Arrays.asList(0, 3, 6, 9));
+        assertEquals(expectedSplitterResult, splitterResultSink2.getSortedResult());
+    }
 
-	@Test
-	public void testOnSingleDataStream() throws Exception {
-		TestListResultSink<Integer> splitterResultSink1 = new TestListResultSink<Integer>();
-		TestListResultSink<Integer> splitterResultSink2 = new TestListResultSink<Integer>();
+    @Test
+    public void testOnSingleDataStream() throws Exception {
+        TestListResultSink<Integer> splitterResultSink1 = new TestListResultSink<Integer>();
+        TestListResultSink<Integer> splitterResultSink2 = new TestListResultSink<Integer>();
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.setBufferTimeout(1);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.setBufferTimeout(1);
 
-		DataStream<Integer> ds = env.fromElements(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        DataStream<Integer> ds = env.fromElements(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
-		ds.split(new OutputSelector<Integer>() {
-			private static final long serialVersionUID = 2524335410904414121L;
+        ds.split(
+                        new OutputSelector<Integer>() {
+                            private static final long serialVersionUID = 2524335410904414121L;
 
-			@Override
-			public Iterable<String> select(Integer value) {
-				List<String> s = new ArrayList<String>();
-				if (value % 2 == 0) {
-					s.add("even");
-				} else {
-					s.add("odd");
-				}
-				return s;
-			}
-		}).select("even").addSink(splitterResultSink1);
+                            @Override
+                            public Iterable<String> select(Integer value) {
+                                List<String> s = new ArrayList<String>();
+                                if (value % 2 == 0) {
+                                    s.add("even");
+                                } else {
+                                    s.add("odd");
+                                }
+                                return s;
+                            }
+                        })
+                .select("even")
+                .addSink(splitterResultSink1);
 
-		ds.split(new OutputSelector<Integer>() {
+        ds.split(
+                        new OutputSelector<Integer>() {
 
-			private static final long serialVersionUID = -511693919586034092L;
+                            private static final long serialVersionUID = -511693919586034092L;
 
-			@Override
-			public Iterable<String> select(Integer value) {
-				List<String> s = new ArrayList<String>();
-				if (value % 4 == 0) {
-					s.add("yes");
-				} else {
-					s.add("no");
-				}
-				return s;
-			}
-		}).select("yes").addSink(splitterResultSink2);
-		env.execute();
+                            @Override
+                            public Iterable<String> select(Integer value) {
+                                List<String> s = new ArrayList<String>();
+                                if (value % 4 == 0) {
+                                    s.add("yes");
+                                } else {
+                                    s.add("no");
+                                }
+                                return s;
+                            }
+                        })
+                .select("yes")
+                .addSink(splitterResultSink2);
+        env.execute();
 
-		expectedSplitterResult.clear();
-		expectedSplitterResult.addAll(Arrays.asList(0, 2, 4, 6, 8));
-		assertEquals(expectedSplitterResult, splitterResultSink1.getSortedResult());
+        expectedSplitterResult.clear();
+        expectedSplitterResult.addAll(Arrays.asList(0, 2, 4, 6, 8));
+        assertEquals(expectedSplitterResult, splitterResultSink1.getSortedResult());
 
-		expectedSplitterResult.clear();
-		expectedSplitterResult.addAll(Arrays.asList(0, 4, 8));
-		assertEquals(expectedSplitterResult, splitterResultSink2.getSortedResult());
-	}
+        expectedSplitterResult.clear();
+        expectedSplitterResult.addAll(Arrays.asList(0, 4, 8));
+        assertEquals(expectedSplitterResult, splitterResultSink2.getSortedResult());
+    }
 }

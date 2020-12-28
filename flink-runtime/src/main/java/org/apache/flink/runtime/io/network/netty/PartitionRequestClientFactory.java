@@ -41,199 +41,201 @@ import java.util.concurrent.ConcurrentMap;
  */
 class PartitionRequestClientFactory {
 
-	private final NettyClient nettyClient;
+    private final NettyClient nettyClient;
 
-	private final ConcurrentMap<ConnectionID, Object> clients = new ConcurrentHashMap<ConnectionID, Object>();
+    private final ConcurrentMap<ConnectionID, Object> clients =
+            new ConcurrentHashMap<ConnectionID, Object>();
 
-	PartitionRequestClientFactory(NettyClient nettyClient) {
-		this.nettyClient = nettyClient;
-	}
+    PartitionRequestClientFactory(NettyClient nettyClient) {
+        this.nettyClient = nettyClient;
+    }
 
-	/**
-	 * Atomically establishes a TCP connection to the given remote address and
-	 * creates a {@link NettyPartitionRequestClient} instance for this connection.
-	 */
-	NettyPartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException, InterruptedException {
-		Object entry;
-		NettyPartitionRequestClient client = null;
+    /**
+     * Atomically establishes a TCP connection to the given remote address and creates a {@link
+     * NettyPartitionRequestClient} instance for this connection.
+     */
+    NettyPartitionRequestClient createPartitionRequestClient(ConnectionID connectionId)
+            throws IOException, InterruptedException {
+        Object entry;
+        NettyPartitionRequestClient client = null;
 
-		while (client == null) {
-			entry = clients.get(connectionId);
+        while (client == null) {
+            entry = clients.get(connectionId);
 
-			if (entry != null) {
-				// Existing channel or connecting channel
-				if (entry instanceof NettyPartitionRequestClient) {
-					client = (NettyPartitionRequestClient) entry;
-				}
-				else {
-					ConnectingChannel future = (ConnectingChannel) entry;
-					client = future.waitForChannel();
+            if (entry != null) {
+                // Existing channel or connecting channel
+                if (entry instanceof NettyPartitionRequestClient) {
+                    client = (NettyPartitionRequestClient) entry;
+                } else {
+                    ConnectingChannel future = (ConnectingChannel) entry;
+                    client = future.waitForChannel();
 
-					clients.replace(connectionId, future, client);
-				}
-			}
-			else {
-				// No channel yet. Create one, but watch out for a race.
-				// We create a "connecting future" and atomically add it to the map.
-				// Only the thread that really added it establishes the channel.
-				// The others need to wait on that original establisher's future.
-				ConnectingChannel connectingChannel = new ConnectingChannel(connectionId, this);
-				Object old = clients.putIfAbsent(connectionId, connectingChannel);
+                    clients.replace(connectionId, future, client);
+                }
+            } else {
+                // No channel yet. Create one, but watch out for a race.
+                // We create a "connecting future" and atomically add it to the map.
+                // Only the thread that really added it establishes the channel.
+                // The others need to wait on that original establisher's future.
+                ConnectingChannel connectingChannel = new ConnectingChannel(connectionId, this);
+                Object old = clients.putIfAbsent(connectionId, connectingChannel);
 
-				if (old == null) {
-					ChannelFuture channelFuture;
-					try {
-						channelFuture = nettyClient.connect(connectionId.getAddress());
-					} catch (Exception e) {
-						// https://issues.apache.org/jira/browse/FLINK-18821
-						connectingChannel.notifyOfError(e);
-						throw new IOException("Connecting the channel failed: " + e.getMessage(), e);
-					}
-					channelFuture.addListener(connectingChannel);
+                if (old == null) {
+                    ChannelFuture channelFuture;
+                    try {
+                        channelFuture = nettyClient.connect(connectionId.getAddress());
+                    } catch (Exception e) {
+                        // https://issues.apache.org/jira/browse/FLINK-18821
+                        connectingChannel.notifyOfError(e);
+                        throw new IOException(
+                                "Connecting the channel failed: " + e.getMessage(), e);
+                    }
+                    channelFuture.addListener(connectingChannel);
 
-					client = connectingChannel.waitForChannel();
+                    client = connectingChannel.waitForChannel();
 
-					clients.replace(connectionId, connectingChannel, client);
-				}
-				else if (old instanceof ConnectingChannel) {
-					client = ((ConnectingChannel) old).waitForChannel();
+                    clients.replace(connectionId, connectingChannel, client);
+                } else if (old instanceof ConnectingChannel) {
+                    client = ((ConnectingChannel) old).waitForChannel();
 
-					clients.replace(connectionId, old, client);
-				}
-				else {
-					client = (NettyPartitionRequestClient) old;
-				}
-			}
+                    clients.replace(connectionId, old, client);
+                } else {
+                    client = (NettyPartitionRequestClient) old;
+                }
+            }
 
-			// Make sure to increment the reference count before handing a client
-			// out to ensure correct bookkeeping for channel closing.
-			if (!client.incrementReferenceCounter()) {
-				destroyPartitionRequestClient(connectionId, client);
-				client = null;
-			}
-		}
+            // Make sure to increment the reference count before handing a client
+            // out to ensure correct bookkeeping for channel closing.
+            if (!client.incrementReferenceCounter()) {
+                destroyPartitionRequestClient(connectionId, client);
+                client = null;
+            }
+        }
 
-		return client;
-	}
+        return client;
+    }
 
-	public void closeOpenChannelConnections(ConnectionID connectionId) {
-		Object entry = clients.get(connectionId);
+    public void closeOpenChannelConnections(ConnectionID connectionId) {
+        Object entry = clients.get(connectionId);
 
-		if (entry instanceof ConnectingChannel) {
-			ConnectingChannel channel = (ConnectingChannel) entry;
+        if (entry instanceof ConnectingChannel) {
+            ConnectingChannel channel = (ConnectingChannel) entry;
 
-			if (channel.dispose()) {
-				clients.remove(connectionId, channel);
-			}
-		}
-	}
+            if (channel.dispose()) {
+                clients.remove(connectionId, channel);
+            }
+        }
+    }
 
-	int getNumberOfActiveClients() {
-		return clients.size();
-	}
+    int getNumberOfActiveClients() {
+        return clients.size();
+    }
 
-	/**
-	 * Removes the client for the given {@link ConnectionID}.
-	 */
-	void destroyPartitionRequestClient(ConnectionID connectionId, PartitionRequestClient client) {
-		clients.remove(connectionId, client);
-	}
+    /** Removes the client for the given {@link ConnectionID}. */
+    void destroyPartitionRequestClient(ConnectionID connectionId, PartitionRequestClient client) {
+        clients.remove(connectionId, client);
+    }
 
-	private static final class ConnectingChannel implements ChannelFutureListener {
+    private static final class ConnectingChannel implements ChannelFutureListener {
 
-		private final Object connectLock = new Object();
+        private final Object connectLock = new Object();
 
-		private final ConnectionID connectionId;
+        private final ConnectionID connectionId;
 
-		private final PartitionRequestClientFactory clientFactory;
+        private final PartitionRequestClientFactory clientFactory;
 
-		private boolean disposeRequestClient = false;
+        private boolean disposeRequestClient = false;
 
-		public ConnectingChannel(ConnectionID connectionId, PartitionRequestClientFactory clientFactory) {
-			this.connectionId = connectionId;
-			this.clientFactory = clientFactory;
-		}
+        public ConnectingChannel(
+                ConnectionID connectionId, PartitionRequestClientFactory clientFactory) {
+            this.connectionId = connectionId;
+            this.clientFactory = clientFactory;
+        }
 
-		private boolean dispose() {
-			boolean result;
-			synchronized (connectLock) {
-				if (partitionRequestClient != null) {
-					result = partitionRequestClient.disposeIfNotUsed();
-				}
-				else {
-					disposeRequestClient = true;
-					result = true;
-				}
+        private boolean dispose() {
+            boolean result;
+            synchronized (connectLock) {
+                if (partitionRequestClient != null) {
+                    result = partitionRequestClient.disposeIfNotUsed();
+                } else {
+                    disposeRequestClient = true;
+                    result = true;
+                }
 
-				connectLock.notifyAll();
-			}
+                connectLock.notifyAll();
+            }
 
-			return result;
-		}
+            return result;
+        }
 
-		private void handInChannel(Channel channel) {
-			synchronized (connectLock) {
-				try {
-					NetworkClientHandler clientHandler = channel.pipeline().get(NetworkClientHandler.class);
-					partitionRequestClient = new NettyPartitionRequestClient(
-						channel, clientHandler, connectionId, clientFactory);
+        private void handInChannel(Channel channel) {
+            synchronized (connectLock) {
+                try {
+                    NetworkClientHandler clientHandler =
+                            channel.pipeline().get(NetworkClientHandler.class);
+                    partitionRequestClient =
+                            new NettyPartitionRequestClient(
+                                    channel, clientHandler, connectionId, clientFactory);
 
-					if (disposeRequestClient) {
-						partitionRequestClient.disposeIfNotUsed();
-					}
+                    if (disposeRequestClient) {
+                        partitionRequestClient.disposeIfNotUsed();
+                    }
 
-					connectLock.notifyAll();
-				}
-				catch (Throwable t) {
-					notifyOfError(t);
-				}
-			}
-		}
+                    connectLock.notifyAll();
+                } catch (Throwable t) {
+                    notifyOfError(t);
+                }
+            }
+        }
 
-		private volatile NettyPartitionRequestClient partitionRequestClient;
+        private volatile NettyPartitionRequestClient partitionRequestClient;
 
-		private volatile Throwable error;
+        private volatile Throwable error;
 
-		private NettyPartitionRequestClient waitForChannel() throws IOException, InterruptedException {
-			synchronized (connectLock) {
-				while (error == null && partitionRequestClient == null) {
-					connectLock.wait(2000);
-				}
-			}
+        private NettyPartitionRequestClient waitForChannel()
+                throws IOException, InterruptedException {
+            synchronized (connectLock) {
+                while (error == null && partitionRequestClient == null) {
+                    connectLock.wait(2000);
+                }
+            }
 
-			if (error != null) {
-				throw new IOException("Connecting the channel failed: " + error.getMessage(), error);
-			}
+            if (error != null) {
+                throw new IOException(
+                        "Connecting the channel failed: " + error.getMessage(), error);
+            }
 
-			return partitionRequestClient;
-		}
+            return partitionRequestClient;
+        }
 
-		private void notifyOfError(Throwable error) {
-			synchronized (connectLock) {
-				this.error = error;
-				connectLock.notifyAll();
-			}
-		}
+        private void notifyOfError(Throwable error) {
+            synchronized (connectLock) {
+                this.error = error;
+                connectLock.notifyAll();
+            }
+        }
 
-		@Override
-		public void operationComplete(ChannelFuture future) throws Exception {
-			if (future.isSuccess()) {
-				handInChannel(future.channel());
-			}
-			else if (future.cause() != null) {
-				notifyOfError(new RemoteTransportException(
-						"Connecting to remote task manager + '" + connectionId.getAddress() +
-								"' has failed. This might indicate that the remote task " +
-								"manager has been lost.",
-						connectionId.getAddress(), future.cause()));
-			}
-			else {
-				notifyOfError(new LocalTransportException(
-					String.format(
-						"Connecting to remote task manager '%s' has been cancelled.",
-						connectionId.getAddress()),
-					null));
-			}
-		}
-	}
+        @Override
+        public void operationComplete(ChannelFuture future) throws Exception {
+            if (future.isSuccess()) {
+                handInChannel(future.channel());
+            } else if (future.cause() != null) {
+                notifyOfError(
+                        new RemoteTransportException(
+                                "Connecting to remote task manager + '"
+                                        + connectionId.getAddress()
+                                        + "' has failed. This might indicate that the remote task "
+                                        + "manager has been lost.",
+                                connectionId.getAddress(),
+                                future.cause()));
+            } else {
+                notifyOfError(
+                        new LocalTransportException(
+                                String.format(
+                                        "Connecting to remote task manager '%s' has been cancelled.",
+                                        connectionId.getAddress()),
+                                null));
+            }
+        }
+    }
 }

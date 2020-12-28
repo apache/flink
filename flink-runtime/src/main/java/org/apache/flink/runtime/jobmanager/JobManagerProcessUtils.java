@@ -35,75 +35,77 @@ import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMem
 
 import java.util.Collections;
 
-/**
- * JobManager utils to calculate {@link JobManagerProcessSpec} and JVM args.
- */
+/** JobManager utils to calculate {@link JobManagerProcessSpec} and JVM args. */
 public class JobManagerProcessUtils {
 
-	static final ProcessMemoryOptions JM_PROCESS_MEMORY_OPTIONS = new ProcessMemoryOptions(
-		Collections.singletonList(JobManagerOptions.JVM_HEAP_MEMORY),
-		JobManagerOptions.TOTAL_FLINK_MEMORY,
-		JobManagerOptions.TOTAL_PROCESS_MEMORY,
-		new JvmMetaspaceAndOverheadOptions(
-			JobManagerOptions.JVM_METASPACE,
-			JobManagerOptions.JVM_OVERHEAD_MIN,
-			JobManagerOptions.JVM_OVERHEAD_MAX,
-			JobManagerOptions.JVM_OVERHEAD_FRACTION));
+    static final ProcessMemoryOptions JM_PROCESS_MEMORY_OPTIONS =
+            new ProcessMemoryOptions(
+                    Collections.singletonList(JobManagerOptions.JVM_HEAP_MEMORY),
+                    JobManagerOptions.TOTAL_FLINK_MEMORY,
+                    JobManagerOptions.TOTAL_PROCESS_MEMORY,
+                    new JvmMetaspaceAndOverheadOptions(
+                            JobManagerOptions.JVM_METASPACE,
+                            JobManagerOptions.JVM_OVERHEAD_MIN,
+                            JobManagerOptions.JVM_OVERHEAD_MAX,
+                            JobManagerOptions.JVM_OVERHEAD_FRACTION));
 
-	@SuppressWarnings("deprecation")
-	static final LegacyMemoryOptions JM_LEGACY_HEAP_OPTIONS =
-		new LegacyMemoryOptions(
-			"FLINK_JM_HEAP",
-			JobManagerOptions.JOB_MANAGER_HEAP_MEMORY,
-			JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB);
+    @SuppressWarnings("deprecation")
+    static final LegacyMemoryOptions JM_LEGACY_HEAP_OPTIONS =
+            new LegacyMemoryOptions(
+                    "FLINK_JM_HEAP",
+                    JobManagerOptions.JOB_MANAGER_HEAP_MEMORY,
+                    JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB);
 
-	private static final ProcessMemoryUtils<JobManagerFlinkMemory> PROCESS_MEMORY_UTILS = new ProcessMemoryUtils<>(
-		JM_PROCESS_MEMORY_OPTIONS,
-		new JobManagerFlinkMemoryUtils());
+    private static final ProcessMemoryUtils<JobManagerFlinkMemory> PROCESS_MEMORY_UTILS =
+            new ProcessMemoryUtils<>(JM_PROCESS_MEMORY_OPTIONS, new JobManagerFlinkMemoryUtils());
 
-	private static final MemoryBackwardsCompatibilityUtils LEGACY_MEMORY_UTILS = new MemoryBackwardsCompatibilityUtils(JM_LEGACY_HEAP_OPTIONS);
+    private static final MemoryBackwardsCompatibilityUtils LEGACY_MEMORY_UTILS =
+            new MemoryBackwardsCompatibilityUtils(JM_LEGACY_HEAP_OPTIONS);
 
-	private JobManagerProcessUtils() {
-	}
+    private JobManagerProcessUtils() {}
 
-	public static JobManagerProcessSpec processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
-			Configuration config,
-			ConfigOption<MemorySize> newOptionToInterpretLegacyHeap) {
-		try {
-			return processSpecFromConfig(
-				getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
-					config,
-					newOptionToInterpretLegacyHeap));
-		} catch (IllegalConfigurationException e) {
-			throw new IllegalConfigurationException("JobManager memory configuration failed: " + e.getMessage(), e);
-		}
-	}
+    public static JobManagerProcessSpec processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
+            Configuration config, ConfigOption<MemorySize> newOptionToInterpretLegacyHeap) {
+        try {
+            return processSpecFromConfig(
+                    getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
+                            config, newOptionToInterpretLegacyHeap));
+        } catch (IllegalConfigurationException e) {
+            throw new IllegalConfigurationException(
+                    "JobManager memory configuration failed: " + e.getMessage(), e);
+        }
+    }
 
-	static JobManagerProcessSpec processSpecFromConfig(Configuration config) {
-		return createMemoryProcessSpec(PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
-	}
+    static JobManagerProcessSpec processSpecFromConfig(Configuration config) {
+        return createMemoryProcessSpec(PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
+    }
 
-	private static JobManagerProcessSpec createMemoryProcessSpec(
-			CommonProcessMemorySpec<JobManagerFlinkMemory> processMemory) {
-		return new JobManagerProcessSpec(processMemory.getFlinkMemory(), processMemory.getJvmMetaspaceAndOverhead());
-	}
+    private static JobManagerProcessSpec createMemoryProcessSpec(
+            CommonProcessMemorySpec<JobManagerFlinkMemory> processMemory) {
+        return new JobManagerProcessSpec(
+                processMemory.getFlinkMemory(), processMemory.getJvmMetaspaceAndOverhead());
+    }
 
-	static Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
-			Configuration configuration,
-			ConfigOption<MemorySize> configOption) {
-		return LEGACY_MEMORY_UTILS.getConfWithLegacyHeapSizeMappedToNewConfigOption(configuration, configOption);
-	}
+    static Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
+            Configuration configuration, ConfigOption<MemorySize> configOption) {
+        return LEGACY_MEMORY_UTILS.getConfWithLegacyHeapSizeMappedToNewConfigOption(
+                configuration, configOption);
+    }
 
-	@VisibleForTesting
-	public static JobManagerProcessSpec createDefaultJobManagerProcessSpec(int totalProcessMemoryMb) {
-		Configuration configuration = new Configuration();
-		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalProcessMemoryMb));
-		return processSpecFromConfig(configuration);
-	}
+    @VisibleForTesting
+    public static JobManagerProcessSpec createDefaultJobManagerProcessSpec(
+            int totalProcessMemoryMb) {
+        Configuration configuration = new Configuration();
+        configuration.set(
+                JobManagerOptions.TOTAL_PROCESS_MEMORY,
+                MemorySize.ofMebiBytes(totalProcessMemoryMb));
+        return processSpecFromConfig(configuration);
+    }
 
-	public static String generateJvmParametersStr(JobManagerProcessSpec processSpec, Configuration configuration) {
-		return ProcessMemoryUtils.generateJvmParametersStr(
-			processSpec,
-			configuration.getBoolean(JobManagerOptions.JVM_DIRECT_MEMORY_LIMIT_ENABLED));
-	}
+    public static String generateJvmParametersStr(
+            JobManagerProcessSpec processSpec, Configuration configuration) {
+        return ProcessMemoryUtils.generateJvmParametersStr(
+                processSpec,
+                configuration.getBoolean(JobManagerOptions.JVM_DIRECT_MEMORY_LIMIT_ENABLED));
+    }
 }

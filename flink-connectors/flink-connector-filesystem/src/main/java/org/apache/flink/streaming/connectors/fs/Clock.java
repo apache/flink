@@ -21,14 +21,11 @@ package org.apache.flink.streaming.connectors.fs;
 /**
  * A clock that can provide the current time.
  *
- *
  * <p>Normally this would be system time, but for testing a custom {@code Clock} can be provided.
  */
 @Deprecated
 public interface Clock {
 
-	/**
-	 * Return the current system time in milliseconds.
-	 */
-	long currentTimeMillis();
+    /** Return the current system time in milliseconds. */
+    long currentTimeMillis();
 }

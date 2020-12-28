@@ -57,186 +57,191 @@ import static org.mockito.Mockito.when;
  * Tests for {@link PythonScalarFunctionRunner}. These test that:
  *
  * <ul>
- *     <li>The input data type and output data type are properly constructed</li>
- *     <li>The UDF proto is properly constructed</li>
+ *   <li>The input data type and output data type are properly constructed
+ *   <li>The UDF proto is properly constructed
  * </ul>
  */
 public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunctionRunnerTest<Row> {
 
-	@Test
-	public void testInputOutputDataTypeConstructedProperlyForSingleUDF() throws Exception {
-		final PythonScalarFunctionRunner runner = (PythonScalarFunctionRunner) createSingleUDFRunner();
+    @Test
+    public void testInputOutputDataTypeConstructedProperlyForSingleUDF() throws Exception {
+        final PythonScalarFunctionRunner runner =
+                (PythonScalarFunctionRunner) createSingleUDFRunner();
 
-		// check input TypeSerializer
-		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertEquals(1, ((RowSerializer) inputTypeSerializer).getArity());
-	}
+        // check input TypeSerializer
+        TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+        assertEquals(1, ((RowSerializer) inputTypeSerializer).getArity());
+    }
 
-	@Test
-	public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() throws Exception {
-		final PythonScalarFunctionRunner runner = (PythonScalarFunctionRunner) createMultipleUDFRunner();
+    @Test
+    public void testInputOutputDataTypeConstructedProperlyForMultipleUDFs() throws Exception {
+        final PythonScalarFunctionRunner runner =
+                (PythonScalarFunctionRunner) createMultipleUDFRunner();
 
-		// check input TypeSerializer
-		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertEquals(3, ((RowSerializer) inputTypeSerializer).getArity());
-	}
+        // check input TypeSerializer
+        TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+        assertEquals(3, ((RowSerializer) inputTypeSerializer).getArity());
+    }
 
-	@Test
-	public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() throws Exception {
-		final PythonScalarFunctionRunner runner = (PythonScalarFunctionRunner) createChainedUDFRunner();
+    @Test
+    public void testInputOutputDataTypeConstructedProperlyForChainedUDFs() throws Exception {
+        final PythonScalarFunctionRunner runner =
+                (PythonScalarFunctionRunner) createChainedUDFRunner();
 
-		// check input TypeSerializer
-		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertEquals(5, ((RowSerializer) inputTypeSerializer).getArity());
-	}
+        // check input TypeSerializer
+        TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+        assertEquals(5, ((RowSerializer) inputTypeSerializer).getArity());
+    }
 
-	@Test
-	public void testUDFProtoConstructedProperlyForSingleUDF() throws Exception {
-		final AbstractPythonScalarFunctionRunner<Row> runner = createSingleUDFRunner();
+    @Test
+    public void testUDFProtoConstructedProperlyForSingleUDF() throws Exception {
+        final AbstractPythonScalarFunctionRunner<Row> runner = createSingleUDFRunner();
 
-		FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
-		assertEquals(1, udfs.getUdfsCount());
+        FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
+        assertEquals(1, udfs.getUdfsCount());
 
-		FlinkFnApi.UserDefinedFunction udf = udfs.getUdfs(0);
-		assertEquals(1, udf.getInputsCount());
-		assertEquals(0, udf.getInputs(0).getInputOffset());
-	}
+        FlinkFnApi.UserDefinedFunction udf = udfs.getUdfs(0);
+        assertEquals(1, udf.getInputsCount());
+        assertEquals(0, udf.getInputs(0).getInputOffset());
+    }
 
-	@Test
-	public void testUDFProtoConstructedProperlyForMultipleUDFs() throws Exception {
-		final AbstractPythonScalarFunctionRunner<Row> runner = createMultipleUDFRunner();
+    @Test
+    public void testUDFProtoConstructedProperlyForMultipleUDFs() throws Exception {
+        final AbstractPythonScalarFunctionRunner<Row> runner = createMultipleUDFRunner();
 
-		FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
-		assertEquals(2, udfs.getUdfsCount());
+        FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
+        assertEquals(2, udfs.getUdfsCount());
 
-		FlinkFnApi.UserDefinedFunction udf = udfs.getUdfs(0);
-		assertEquals(2, udf.getInputsCount());
-		assertEquals(0, udf.getInputs(0).getInputOffset());
-		assertEquals(1, udf.getInputs(1).getInputOffset());
+        FlinkFnApi.UserDefinedFunction udf = udfs.getUdfs(0);
+        assertEquals(2, udf.getInputsCount());
+        assertEquals(0, udf.getInputs(0).getInputOffset());
+        assertEquals(1, udf.getInputs(1).getInputOffset());
 
-		udf = udfs.getUdfs(1);
-		assertEquals(2, udf.getInputsCount());
-		assertEquals(0, udf.getInputs(0).getInputOffset());
-		assertEquals(2, udf.getInputs(1).getInputOffset());
-	}
+        udf = udfs.getUdfs(1);
+        assertEquals(2, udf.getInputsCount());
+        assertEquals(0, udf.getInputs(0).getInputOffset());
+        assertEquals(2, udf.getInputs(1).getInputOffset());
+    }
 
-	@Test
-	public void testUDFProtoConstructedProperlyForChainedUDFs() throws Exception {
-		final PythonScalarFunctionRunner runner = (PythonScalarFunctionRunner) createChainedUDFRunner();
+    @Test
+    public void testUDFProtoConstructedProperlyForChainedUDFs() throws Exception {
+        final PythonScalarFunctionRunner runner =
+                (PythonScalarFunctionRunner) createChainedUDFRunner();
 
-		FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
-		assertEquals(3, udfs.getUdfsCount());
+        FlinkFnApi.UserDefinedFunctions udfs = runner.getUserDefinedFunctionsProto();
+        assertEquals(3, udfs.getUdfsCount());
 
-		FlinkFnApi.UserDefinedFunction udf = udfs.getUdfs(0);
-		assertEquals(2, udf.getInputsCount());
-		assertEquals(0, udf.getInputs(0).getInputOffset());
-		assertEquals(1, udf.getInputs(1).getInputOffset());
+        FlinkFnApi.UserDefinedFunction udf = udfs.getUdfs(0);
+        assertEquals(2, udf.getInputsCount());
+        assertEquals(0, udf.getInputs(0).getInputOffset());
+        assertEquals(1, udf.getInputs(1).getInputOffset());
 
-		udf = udfs.getUdfs(1);
-		assertEquals(2, udf.getInputsCount());
-		assertEquals(0, udf.getInputs(0).getInputOffset());
-		FlinkFnApi.UserDefinedFunction chainedUdf = udf.getInputs(1).getUdf();
-		assertEquals(2, chainedUdf.getInputsCount());
-		assertEquals(1, chainedUdf.getInputs(0).getInputOffset());
-		assertEquals(2, chainedUdf.getInputs(1).getInputOffset());
+        udf = udfs.getUdfs(1);
+        assertEquals(2, udf.getInputsCount());
+        assertEquals(0, udf.getInputs(0).getInputOffset());
+        FlinkFnApi.UserDefinedFunction chainedUdf = udf.getInputs(1).getUdf();
+        assertEquals(2, chainedUdf.getInputsCount());
+        assertEquals(1, chainedUdf.getInputs(0).getInputOffset());
+        assertEquals(2, chainedUdf.getInputs(1).getInputOffset());
 
-		udf = udfs.getUdfs(2);
-		chainedUdf = udf.getInputs(0).getUdf();
-		assertEquals(2, chainedUdf.getInputsCount());
-		assertEquals(1, chainedUdf.getInputs(0).getInputOffset());
-		assertEquals(3, chainedUdf.getInputs(1).getInputOffset());
-		chainedUdf = udf.getInputs(1).getUdf();
-		assertEquals(2, chainedUdf.getInputsCount());
-		assertEquals(3, chainedUdf.getInputs(0).getInputOffset());
-		assertEquals(4, chainedUdf.getInputs(1).getInputOffset());
-	}
+        udf = udfs.getUdfs(2);
+        chainedUdf = udf.getInputs(0).getUdf();
+        assertEquals(2, chainedUdf.getInputsCount());
+        assertEquals(1, chainedUdf.getInputs(0).getInputOffset());
+        assertEquals(3, chainedUdf.getInputs(1).getInputOffset());
+        chainedUdf = udf.getInputs(1).getUdf();
+        assertEquals(2, chainedUdf.getInputsCount());
+        assertEquals(3, chainedUdf.getInputs(0).getInputOffset());
+        assertEquals(4, chainedUdf.getInputs(1).getInputOffset());
+    }
 
-	@Test
-	public void testPythonScalarFunctionRunner() throws Exception {
-		JobBundleFactory jobBundleFactorySpy = spy(JobBundleFactory.class);
-		FnDataReceiver<byte[]> resultReceiverSpy = spy(FnDataReceiver.class);
-		final AbstractGeneralPythonScalarFunctionRunner<Row> runner =
-			createUDFRunner(jobBundleFactorySpy, resultReceiverSpy);
+    @Test
+    public void testPythonScalarFunctionRunner() throws Exception {
+        JobBundleFactory jobBundleFactorySpy = spy(JobBundleFactory.class);
+        FnDataReceiver<byte[]> resultReceiverSpy = spy(FnDataReceiver.class);
+        final AbstractGeneralPythonScalarFunctionRunner<Row> runner =
+                createUDFRunner(jobBundleFactorySpy, resultReceiverSpy);
 
-		StageBundleFactory stageBundleFactorySpy = spy(StageBundleFactory.class);
-		when(jobBundleFactorySpy.forStage(any())).thenReturn(stageBundleFactorySpy);
-		RemoteBundle remoteBundleSpy = spy(RemoteBundle.class);
-		when(stageBundleFactorySpy.getBundle(any(), any(), any())).thenReturn(remoteBundleSpy);
-		Map<String, FnDataReceiver> inputReceivers = new HashMap<>();
-		FnDataReceiver<WindowedValue<?>> windowedValueReceiverSpy = spy(FnDataReceiver.class);
-		inputReceivers.put("input", windowedValueReceiverSpy);
-		when(remoteBundleSpy.getInputReceivers()).thenReturn(inputReceivers);
+        StageBundleFactory stageBundleFactorySpy = spy(StageBundleFactory.class);
+        when(jobBundleFactorySpy.forStage(any())).thenReturn(stageBundleFactorySpy);
+        RemoteBundle remoteBundleSpy = spy(RemoteBundle.class);
+        when(stageBundleFactorySpy.getBundle(any(), any(), any())).thenReturn(remoteBundleSpy);
+        Map<String, FnDataReceiver> inputReceivers = new HashMap<>();
+        FnDataReceiver<WindowedValue<?>> windowedValueReceiverSpy = spy(FnDataReceiver.class);
+        inputReceivers.put("input", windowedValueReceiverSpy);
+        when(remoteBundleSpy.getInputReceivers()).thenReturn(inputReceivers);
 
-		runner.open();
-		verify(jobBundleFactorySpy, times(1)).forStage(any());
+        runner.open();
+        verify(jobBundleFactorySpy, times(1)).forStage(any());
 
-		// verify stageBundleFactory.getBundle is called during startBundle
-		verify(stageBundleFactorySpy, times(0)).getBundle(any(), any(), any());
-		runner.startBundle();
-		verify(stageBundleFactorySpy, times(1)).getBundle(any(), any(), any());
+        // verify stageBundleFactory.getBundle is called during startBundle
+        verify(stageBundleFactorySpy, times(0)).getBundle(any(), any(), any());
+        runner.startBundle();
+        verify(stageBundleFactorySpy, times(1)).getBundle(any(), any(), any());
 
-		runner.processElement(Row.of(1L));
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		runner.getInputTypeSerializer().serialize(Row.of(1L), new DataOutputViewStreamWrapper(baos));
+        runner.processElement(Row.of(1L));
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        runner.getInputTypeSerializer()
+                .serialize(Row.of(1L), new DataOutputViewStreamWrapper(baos));
 
-		// verify remoteBundle.close() is called during finishBundle
-		verify(remoteBundleSpy, times(0)).close();
-		runner.finishBundle();
-		verify(remoteBundleSpy, times(1)).close();
+        // verify remoteBundle.close() is called during finishBundle
+        verify(remoteBundleSpy, times(0)).close();
+        runner.finishBundle();
+        verify(remoteBundleSpy, times(1)).close();
 
-		// verify the input element is processed and the result is hand over to the result receiver.
-		verify(resultReceiverSpy, times(1)).accept(argThat(
-			value -> Objects.deepEquals(value, baos.toByteArray())));
-	}
+        // verify the input element is processed and the result is hand over to the result receiver.
+        verify(resultReceiverSpy, times(1))
+                .accept(argThat(value -> Objects.deepEquals(value, baos.toByteArray())));
+    }
 
-	@Override
-	public AbstractGeneralPythonScalarFunctionRunner<Row> createPythonScalarFunctionRunner(
-		final PythonFunctionInfo[] pythonFunctionInfos,
-		RowType inputType,
-		RowType outputType) {
-		final FnDataReceiver<byte[]> dummyReceiver = input -> {
-			// ignore the execution results
-		};
+    @Override
+    public AbstractGeneralPythonScalarFunctionRunner<Row> createPythonScalarFunctionRunner(
+            final PythonFunctionInfo[] pythonFunctionInfos, RowType inputType, RowType outputType) {
+        final FnDataReceiver<byte[]> dummyReceiver =
+                input -> {
+                    // ignore the execution results
+                };
 
-		final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
+        final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
 
-		return new PythonScalarFunctionRunner(
-			"testPythonRunner",
-			dummyReceiver,
-			pythonFunctionInfos,
-			environmentManager,
-			inputType,
-			outputType,
-			Collections.emptyMap(),
-			PythonTestUtils.createMockFlinkMetricContainer());
-	}
+        return new PythonScalarFunctionRunner(
+                "testPythonRunner",
+                dummyReceiver,
+                pythonFunctionInfos,
+                environmentManager,
+                inputType,
+                outputType,
+                Collections.emptyMap(),
+                PythonTestUtils.createMockFlinkMetricContainer());
+    }
 
-	private AbstractGeneralPythonScalarFunctionRunner<Row> createUDFRunner(
-		JobBundleFactory jobBundleFactory, FnDataReceiver<byte[]> receiver) {
-		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
-			new PythonFunctionInfo(
-				DummyPythonFunction.INSTANCE,
-				new Integer[]{0})
-		};
+    private AbstractGeneralPythonScalarFunctionRunner<Row> createUDFRunner(
+            JobBundleFactory jobBundleFactory, FnDataReceiver<byte[]> receiver) {
+        PythonFunctionInfo[] pythonFunctionInfos =
+                new PythonFunctionInfo[] {
+                    new PythonFunctionInfo(DummyPythonFunction.INSTANCE, new Integer[] {0})
+                };
 
-		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
+        RowType rowType =
+                new RowType(
+                        Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
 
-		final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
+        final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
 
-		return new PassThroughPythonScalarFunctionRunner<Row>(
-			"testPythonRunner",
-			receiver,
-			pythonFunctionInfos,
-			environmentManager,
-			rowType,
-			rowType,
-			Collections.emptyMap(),
-			jobBundleFactory,
-			PythonTestUtils.createMockFlinkMetricContainer()) {
-			@Override
-			public TypeSerializer<Row> getInputTypeSerializer() {
-				return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
-			}
-		};
-	}
+        return new PassThroughPythonScalarFunctionRunner<Row>(
+                "testPythonRunner",
+                receiver,
+                pythonFunctionInfos,
+                environmentManager,
+                rowType,
+                rowType,
+                Collections.emptyMap(),
+                jobBundleFactory,
+                PythonTestUtils.createMockFlinkMetricContainer()) {
+            @Override
+            public TypeSerializer<Row> getInputTypeSerializer() {
+                return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
+            }
+        };
+    }
 }

@@ -29,80 +29,79 @@ import java.util.AbstractList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * A {@link CallContext} with unknown data types.
- */
+/** A {@link CallContext} with unknown data types. */
 @Internal
 public final class UnknownCallContext implements CallContext {
 
-	private static final DataType NULL = DataTypes.NULL();
+    private static final DataType NULL = DataTypes.NULL();
 
-	private final DataTypeFactory typeFactory;
+    private final DataTypeFactory typeFactory;
 
-	private final String name;
+    private final String name;
 
-	private final FunctionDefinition functionDefinition;
+    private final FunctionDefinition functionDefinition;
 
-	private final List<DataType> argumentDataTypes;
+    private final List<DataType> argumentDataTypes;
 
-	public UnknownCallContext(
-			DataTypeFactory typeFactory,
-			String name,
-			FunctionDefinition functionDefinition,
-			int argumentCount) {
-		this.typeFactory = typeFactory;
-		this.name = name;
-		this.functionDefinition = functionDefinition;
-		this.argumentDataTypes = new AbstractList<DataType>() {
-			@Override
-			public DataType get(int index) {
-				return NULL;
-			}
+    public UnknownCallContext(
+            DataTypeFactory typeFactory,
+            String name,
+            FunctionDefinition functionDefinition,
+            int argumentCount) {
+        this.typeFactory = typeFactory;
+        this.name = name;
+        this.functionDefinition = functionDefinition;
+        this.argumentDataTypes =
+                new AbstractList<DataType>() {
+                    @Override
+                    public DataType get(int index) {
+                        return NULL;
+                    }
 
-			@Override
-			public int size() {
-				return argumentCount;
-			}
-		};
-	}
+                    @Override
+                    public int size() {
+                        return argumentCount;
+                    }
+                };
+    }
 
-	@Override
-	public DataTypeFactory getDataTypeFactory() {
-		return typeFactory;
-	}
+    @Override
+    public DataTypeFactory getDataTypeFactory() {
+        return typeFactory;
+    }
 
-	@Override
-	public FunctionDefinition getFunctionDefinition() {
-		return functionDefinition;
-	}
+    @Override
+    public FunctionDefinition getFunctionDefinition() {
+        return functionDefinition;
+    }
 
-	@Override
-	public boolean isArgumentLiteral(int pos) {
-		return false;
-	}
+    @Override
+    public boolean isArgumentLiteral(int pos) {
+        return false;
+    }
 
-	@Override
-	public boolean isArgumentNull(int pos) {
-		return false;
-	}
+    @Override
+    public boolean isArgumentNull(int pos) {
+        return false;
+    }
 
-	@Override
-	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-		return Optional.empty();
-	}
+    @Override
+    public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+        return Optional.empty();
+    }
 
-	@Override
-	public String getName() {
-		return name;
-	}
+    @Override
+    public String getName() {
+        return name;
+    }
 
-	@Override
-	public List<DataType> getArgumentDataTypes() {
-		return argumentDataTypes;
-	}
+    @Override
+    public List<DataType> getArgumentDataTypes() {
+        return argumentDataTypes;
+    }
 
-	@Override
-	public Optional<DataType> getOutputDataType() {
-		return Optional.empty();
-	}
+    @Override
+    public Optional<DataType> getOutputDataType() {
+        return Optional.empty();
+    }
 }

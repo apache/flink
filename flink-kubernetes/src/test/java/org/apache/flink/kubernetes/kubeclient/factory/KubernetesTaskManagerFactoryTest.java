@@ -31,54 +31,54 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * General tests for the {@link KubernetesTaskManagerFactory}.
- */
+/** General tests for the {@link KubernetesTaskManagerFactory}. */
 public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestBase {
 
-	private Pod resultPod;
+    private Pod resultPod;
 
-	@Override
-	protected void onSetup() throws Exception {
-		super.onSetup();
+    @Override
+    protected void onSetup() throws Exception {
+        super.onSetup();
 
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
+        KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+        KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
 
-		setHadoopConfDirEnv();
-		generateHadoopConfFileItems();
+        setHadoopConfDirEnv();
+        generateHadoopConfFileItems();
 
-		this.resultPod =
-			KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(kubernetesTaskManagerParameters).getInternalResource();
-	}
+        this.resultPod =
+                KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
+                                kubernetesTaskManagerParameters)
+                        .getInternalResource();
+    }
 
-	@Test
-	public void testPod() {
-		assertEquals(POD_NAME, this.resultPod.getMetadata().getName());
-		assertEquals(5, this.resultPod.getMetadata().getLabels().size());
-		assertEquals(2, this.resultPod.getSpec().getVolumes().size());
-	}
+    @Test
+    public void testPod() {
+        assertEquals(POD_NAME, this.resultPod.getMetadata().getName());
+        assertEquals(5, this.resultPod.getMetadata().getLabels().size());
+        assertEquals(2, this.resultPod.getSpec().getVolumes().size());
+    }
 
-	@Test
-	public void testContainer() {
-		final List<Container> resultContainers = this.resultPod.getSpec().getContainers();
-		assertEquals(1, resultContainers.size());
+    @Test
+    public void testContainer() {
+        final List<Container> resultContainers = this.resultPod.getSpec().getContainers();
+        assertEquals(1, resultContainers.size());
 
-		final Container resultMainContainer = resultContainers.get(0);
-		assertEquals(
-			KubernetesTaskManagerParameters.TASK_MANAGER_MAIN_CONTAINER_NAME,
-			resultMainContainer.getName());
-		assertEquals(CONTAINER_IMAGE, resultMainContainer.getImage());
-		assertEquals(CONTAINER_IMAGE_PULL_POLICY.name(), resultMainContainer.getImagePullPolicy());
+        final Container resultMainContainer = resultContainers.get(0);
+        assertEquals(
+                KubernetesTaskManagerParameters.TASK_MANAGER_MAIN_CONTAINER_NAME,
+                resultMainContainer.getName());
+        assertEquals(CONTAINER_IMAGE, resultMainContainer.getImage());
+        assertEquals(CONTAINER_IMAGE_PULL_POLICY.name(), resultMainContainer.getImagePullPolicy());
 
-		assertEquals(4, resultMainContainer.getEnv().size());
-		assertTrue(resultMainContainer.getEnv()
-			.stream()
-			.anyMatch(envVar -> envVar.getName().equals("key1")));
+        assertEquals(4, resultMainContainer.getEnv().size());
+        assertTrue(
+                resultMainContainer.getEnv().stream()
+                        .anyMatch(envVar -> envVar.getName().equals("key1")));
 
-		assertEquals(1, resultMainContainer.getPorts().size());
-		assertEquals(1, resultMainContainer.getCommand().size());
-		assertEquals(3, resultMainContainer.getArgs().size());
-		assertEquals(2, resultMainContainer.getVolumeMounts().size());
-	}
+        assertEquals(1, resultMainContainer.getPorts().size());
+        assertEquals(1, resultMainContainer.getCommand().size());
+        assertEquals(3, resultMainContainer.getArgs().size());
+        assertEquals(2, resultMainContainer.getVolumeMounts().size());
+    }
 }

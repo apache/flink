@@ -22,14 +22,12 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 
 import java.util.Arrays;
 
-/**
- * Tests for {@link OutputSelector}.
- */
+/** Tests for {@link OutputSelector}. */
 public class EvenOddOutputSelector implements OutputSelector<Integer> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public Iterable<String> select(Integer value) {
-		return value % 2 == 0 ? Arrays.asList("even") : Arrays.asList("odd");
-	}
+    @Override
+    public Iterable<String> select(Integer value) {
+        return value % 2 == 0 ? Arrays.asList("even") : Arrays.asList("odd");
+    }
 }

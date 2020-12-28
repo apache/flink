@@ -20,37 +20,35 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
 
-/**
- * Utility class to encapsulate the logic of building a {@link RecordWriter} instance.
- */
+/** Utility class to encapsulate the logic of building a {@link RecordWriter} instance. */
 public class RecordWriterBuilder<T extends IOReadableWritable> {
 
-	private ChannelSelector<T> selector = new RoundRobinChannelSelector<>();
+    private ChannelSelector<T> selector = new RoundRobinChannelSelector<>();
 
-	private long timeout = -1;
+    private long timeout = -1;
 
-	private String taskName = "test";
+    private String taskName = "test";
 
-	public RecordWriterBuilder<T> setChannelSelector(ChannelSelector<T> selector) {
-		this.selector = selector;
-		return this;
-	}
+    public RecordWriterBuilder<T> setChannelSelector(ChannelSelector<T> selector) {
+        this.selector = selector;
+        return this;
+    }
 
-	public RecordWriterBuilder<T> setTimeout(long timeout) {
-		this.timeout = timeout;
-		return this;
-	}
+    public RecordWriterBuilder<T> setTimeout(long timeout) {
+        this.timeout = timeout;
+        return this;
+    }
 
-	public RecordWriterBuilder<T> setTaskName(String taskName) {
-		this.taskName = taskName;
-		return this;
-	}
+    public RecordWriterBuilder<T> setTaskName(String taskName) {
+        this.taskName = taskName;
+        return this;
+    }
 
-	public RecordWriter<T> build(ResultPartitionWriter writer) {
-		if (selector.isBroadcast()) {
-			return new BroadcastRecordWriter<>(writer, timeout, taskName);
-		} else {
-			return new ChannelSelectorRecordWriter<>(writer, selector, timeout, taskName);
-		}
-	}
+    public RecordWriter<T> build(ResultPartitionWriter writer) {
+        if (selector.isBroadcast()) {
+            return new BroadcastRecordWriter<>(writer, timeout, taskName);
+        } else {
+            return new ChannelSelectorRecordWriter<>(writer, selector, timeout, taskName);
+        }
+    }
 }

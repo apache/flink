@@ -45,84 +45,80 @@ import java.io.IOException;
 @Internal
 public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalarFunctionFlatMap {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Allocator which is used for byte buffer allocation.
-	 */
-	private transient BufferAllocator allocator;
+    /** Allocator which is used for byte buffer allocation. */
+    private transient BufferAllocator allocator;
 
-	/**
-	 * Reader which is responsible for deserialize the Arrow format data to the Flink rows.
-	 */
-	private transient ArrowReader<Row> arrowReader;
+    /** Reader which is responsible for deserialize the Arrow format data to the Flink rows. */
+    private transient ArrowReader<Row> arrowReader;
 
-	/**
-	 * Reader which is responsible for convert the execution result from
-	 * byte array to arrow format.
-	 */
-	private transient ArrowStreamReader reader;
+    /**
+     * Reader which is responsible for convert the execution result from byte array to arrow format.
+     */
+    private transient ArrowStreamReader reader;
 
-	public ArrowPythonScalarFunctionFlatMap(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-	}
+    public ArrowPythonScalarFunctionFlatMap(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
 
-		allocator = ArrowUtils.getRootAllocator().newChildAllocator("reader", 0, Long.MAX_VALUE);
-		reader = new ArrowStreamReader(bais, allocator);
-	}
+        allocator = ArrowUtils.getRootAllocator().newChildAllocator("reader", 0, Long.MAX_VALUE);
+        reader = new ArrowStreamReader(bais, allocator);
+    }
 
-	@Override
-	public void close() throws Exception {
-		try {
-			super.close();
-		} finally {
-			reader.close();
-			allocator.close();
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        try {
+            super.close();
+        } finally {
+            reader.close();
+            allocator.close();
+        }
+    }
 
-	@Override
-	public PythonFunctionRunner<Row> createPythonFunctionRunner() throws IOException {
-		final FnDataReceiver<byte[]> userDefinedFunctionResultReceiver = input -> {
-			// handover to queue, do not block the result receiver thread
-			userDefinedFunctionResultQueue.put(input);
-		};
+    @Override
+    public PythonFunctionRunner<Row> createPythonFunctionRunner() throws IOException {
+        final FnDataReceiver<byte[]> userDefinedFunctionResultReceiver =
+                input -> {
+                    // handover to queue, do not block the result receiver thread
+                    userDefinedFunctionResultQueue.put(input);
+                };
 
-		return new ArrowPythonScalarFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			userDefinedFunctionResultReceiver,
-			scalarFunctions,
-			createPythonEnvironmentManager(),
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			getPythonConfig().getMaxArrowBatchSize(),
-			jobOptions,
-			getFlinkMetricContainer());
-	}
+        return new ArrowPythonScalarFunctionRunner(
+                getRuntimeContext().getTaskName(),
+                userDefinedFunctionResultReceiver,
+                scalarFunctions,
+                createPythonEnvironmentManager(),
+                userDefinedFunctionInputType,
+                userDefinedFunctionOutputType,
+                getPythonConfig().getMaxArrowBatchSize(),
+                jobOptions,
+                getFlinkMetricContainer());
+    }
 
-	@Override
-	public void emitResults() throws IOException {
-		byte[] udfResult;
-		while ((udfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			bais.setBuffer(udfResult, 0, udfResult.length);
-			reader.loadNextBatch();
-			VectorSchemaRoot root = reader.getVectorSchemaRoot();
-			if (arrowReader == null) {
-				arrowReader = ArrowUtils.createRowArrowReader(root, userDefinedFunctionOutputType);
-			}
-			for (int i = 0; i < root.getRowCount(); i++) {
-				resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowReader.read(i)));
-			}
-		}
-	}
+    @Override
+    public void emitResults() throws IOException {
+        byte[] udfResult;
+        while ((udfResult = userDefinedFunctionResultQueue.poll()) != null) {
+            bais.setBuffer(udfResult, 0, udfResult.length);
+            reader.loadNextBatch();
+            VectorSchemaRoot root = reader.getVectorSchemaRoot();
+            if (arrowReader == null) {
+                arrowReader = ArrowUtils.createRowArrowReader(root, userDefinedFunctionOutputType);
+            }
+            for (int i = 0; i < root.getRowCount(); i++) {
+                resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowReader.read(i)));
+            }
+        }
+    }
 }

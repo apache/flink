@@ -34,6 +34,7 @@ import java.nio.ByteBuffer;
  * our use cases outside Netty handling use. In particular, we use two different indexes for read
  * and write operations, i.e. the <tt>reader</tt> and <tt>writer</tt> index (size of written data),
  * which specify three regions inside the memory segment:
+ *
  * <pre>
  *     +-------------------+----------------+----------------+
  *     | discardable bytes | readable bytes | writable bytes |
@@ -49,239 +50,226 @@ import java.nio.ByteBuffer;
  */
 public interface Buffer {
 
-	/**
-	 * Returns whether this buffer represents a buffer or an event.
-	 *
-	 * @return <tt>true</tt> if this is a real buffer, <tt>false</tt> if this is an event
-	 */
-	boolean isBuffer();
+    /**
+     * Returns whether this buffer represents a buffer or an event.
+     *
+     * @return <tt>true</tt> if this is a real buffer, <tt>false</tt> if this is an event
+     */
+    boolean isBuffer();
 
-	/**
-	 * Returns the underlying memory segment. This method is dangerous since it ignores read only protections and omits
-	 * slices. Use it only along the {@link #getMemorySegmentOffset()}.
-	 *
-	 * <p>This method will be removed in the future. For writing use {@link BufferBuilder}.
-	 *
-	 * @return the memory segment backing this buffer
-	 */
-	@Deprecated
-	MemorySegment getMemorySegment();
+    /**
+     * Returns the underlying memory segment. This method is dangerous since it ignores read only
+     * protections and omits slices. Use it only along the {@link #getMemorySegmentOffset()}.
+     *
+     * <p>This method will be removed in the future. For writing use {@link BufferBuilder}.
+     *
+     * @return the memory segment backing this buffer
+     */
+    @Deprecated
+    MemorySegment getMemorySegment();
 
-	/**
-	 * This method will be removed in the future. For writing use {@link BufferBuilder}.
-	 *
-	 * @return the offset where this (potential slice) {@link Buffer}'s data start in the underlying memory segment.
-	 */
-	@Deprecated
-	int getMemorySegmentOffset();
+    /**
+     * This method will be removed in the future. For writing use {@link BufferBuilder}.
+     *
+     * @return the offset where this (potential slice) {@link Buffer}'s data start in the underlying
+     *     memory segment.
+     */
+    @Deprecated
+    int getMemorySegmentOffset();
 
-	/**
-	 * Gets the buffer's recycler.
-	 *
-	 * @return buffer recycler
-	 */
-	BufferRecycler getRecycler();
+    /**
+     * Gets the buffer's recycler.
+     *
+     * @return buffer recycler
+     */
+    BufferRecycler getRecycler();
 
-	/**
-	 * Releases this buffer once, i.e. reduces the reference count and recycles the buffer if the
-	 * reference count reaches <tt>0</tt>.
-	 *
-	 * @see #retainBuffer()
-	 */
-	void recycleBuffer();
+    /**
+     * Releases this buffer once, i.e. reduces the reference count and recycles the buffer if the
+     * reference count reaches <tt>0</tt>.
+     *
+     * @see #retainBuffer()
+     */
+    void recycleBuffer();
 
-	/**
-	 * Returns whether this buffer has been recycled or not.
-	 *
-	 * @return <tt>true</tt> if already recycled, <tt>false</tt> otherwise
-	 */
-	boolean isRecycled();
+    /**
+     * Returns whether this buffer has been recycled or not.
+     *
+     * @return <tt>true</tt> if already recycled, <tt>false</tt> otherwise
+     */
+    boolean isRecycled();
 
-	/**
-	 * Retains this buffer for further use, increasing the reference counter by <tt>1</tt>.
-	 *
-	 * @return <tt>this</tt> instance (for chained calls)
-	 *
-	 * @see #recycleBuffer()
-	 */
-	Buffer retainBuffer();
+    /**
+     * Retains this buffer for further use, increasing the reference counter by <tt>1</tt>.
+     *
+     * @return <tt>this</tt> instance (for chained calls)
+     * @see #recycleBuffer()
+     */
+    Buffer retainBuffer();
 
-	/**
-	 * Returns a read-only slice of this buffer's readable bytes, i.e. between
-	 * {@link #getReaderIndex()} and {@link #getSize()}.
-	 *
-	 * <p>Reader and writer indices as well as markers are not shared. Reference counters are
-	 * shared but the slice is not {@link #retainBuffer() retained} automatically.
-	 *
-	 * @return a read-only sliced buffer
-	 */
-	Buffer readOnlySlice();
+    /**
+     * Returns a read-only slice of this buffer's readable bytes, i.e. between {@link
+     * #getReaderIndex()} and {@link #getSize()}.
+     *
+     * <p>Reader and writer indices as well as markers are not shared. Reference counters are shared
+     * but the slice is not {@link #retainBuffer() retained} automatically.
+     *
+     * @return a read-only sliced buffer
+     */
+    Buffer readOnlySlice();
 
-	/**
-	 * Returns a read-only slice of this buffer.
-	 *
-	 * <p>Reader and writer indices as well as markers are not shared. Reference counters are
-	 * shared but the slice is not {@link #retainBuffer() retained} automatically.
-	 *
-	 * @param index the index to start from
-	 * @param length the length of the slice
-	 *
-	 * @return a read-only sliced buffer
-	 */
-	Buffer readOnlySlice(int index, int length);
+    /**
+     * Returns a read-only slice of this buffer.
+     *
+     * <p>Reader and writer indices as well as markers are not shared. Reference counters are shared
+     * but the slice is not {@link #retainBuffer() retained} automatically.
+     *
+     * @param index the index to start from
+     * @param length the length of the slice
+     * @return a read-only sliced buffer
+     */
+    Buffer readOnlySlice(int index, int length);
 
-	/**
-	 * Returns the maximum size of the buffer, i.e. the capacity of the underlying {@link MemorySegment}.
-	 *
-	 * @return size of the buffer
-	 */
-	int getMaxCapacity();
+    /**
+     * Returns the maximum size of the buffer, i.e. the capacity of the underlying {@link
+     * MemorySegment}.
+     *
+     * @return size of the buffer
+     */
+    int getMaxCapacity();
 
-	/**
-	 * Returns the <tt>reader index</tt> of this buffer.
-	 *
-	 * <p>This is where readable (unconsumed) bytes start in the backing memory segment.
-	 *
-	 * @return reader index (from 0 (inclusive) to the size of the backing {@link MemorySegment}
-	 * (inclusive))
-	 */
-	int getReaderIndex();
+    /**
+     * Returns the <tt>reader index</tt> of this buffer.
+     *
+     * <p>This is where readable (unconsumed) bytes start in the backing memory segment.
+     *
+     * @return reader index (from 0 (inclusive) to the size of the backing {@link MemorySegment}
+     *     (inclusive))
+     */
+    int getReaderIndex();
 
-	/**
-	 * Sets the <tt>reader index</tt> of this buffer.
-	 *
-	 * @throws IndexOutOfBoundsException
-	 * 		if the index is less than <tt>0</tt> or greater than {@link #getSize()}
-	 */
-	void setReaderIndex(int readerIndex) throws IndexOutOfBoundsException;
+    /**
+     * Sets the <tt>reader index</tt> of this buffer.
+     *
+     * @throws IndexOutOfBoundsException if the index is less than <tt>0</tt> or greater than {@link
+     *     #getSize()}
+     */
+    void setReaderIndex(int readerIndex) throws IndexOutOfBoundsException;
 
-	/**
-	 * Returns the size of the written data, i.e. the <tt>writer index</tt>, of this buffer.
-	 *
-	 * <p>This is where writable bytes start in the backing memory segment.
-	 *
-	 * @return writer index (from 0 (inclusive) to the size of the backing {@link MemorySegment}
-	 * (inclusive))
-	 */
-	int getSize();
+    /**
+     * Returns the size of the written data, i.e. the <tt>writer index</tt>, of this buffer.
+     *
+     * <p>This is where writable bytes start in the backing memory segment.
+     *
+     * @return writer index (from 0 (inclusive) to the size of the backing {@link MemorySegment}
+     *     (inclusive))
+     */
+    int getSize();
 
-	/**
-	 * Sets the size of the written data, i.e. the <tt>writer index</tt>, of this buffer.
-	 *
-	 * @throws IndexOutOfBoundsException
-	 * 		if the index is less than {@link #getReaderIndex()} or greater than {@link #getMaxCapacity()}
-	 */
-	void setSize(int writerIndex);
+    /**
+     * Sets the size of the written data, i.e. the <tt>writer index</tt>, of this buffer.
+     *
+     * @throws IndexOutOfBoundsException if the index is less than {@link #getReaderIndex()} or
+     *     greater than {@link #getMaxCapacity()}
+     */
+    void setSize(int writerIndex);
 
-	/**
-	 * Returns the number of readable bytes (same as <tt>{@link #getSize()} -
-	 * {@link #getReaderIndex()}</tt>).
-	 */
-	int readableBytes();
+    /**
+     * Returns the number of readable bytes (same as <tt>{@link #getSize()} - {@link
+     * #getReaderIndex()}</tt>).
+     */
+    int readableBytes();
 
-	/**
-	 * Gets a new {@link ByteBuffer} instance wrapping this buffer's readable bytes, i.e. between
-	 * {@link #getReaderIndex()} and {@link #getSize()}.
-	 *
-	 * <p>Please note that neither index is updated by the returned buffer.
-	 *
-	 * @return byte buffer sharing the contents of the underlying memory segment
-	 */
-	ByteBuffer getNioBufferReadable();
+    /**
+     * Gets a new {@link ByteBuffer} instance wrapping this buffer's readable bytes, i.e. between
+     * {@link #getReaderIndex()} and {@link #getSize()}.
+     *
+     * <p>Please note that neither index is updated by the returned buffer.
+     *
+     * @return byte buffer sharing the contents of the underlying memory segment
+     */
+    ByteBuffer getNioBufferReadable();
 
-	/**
-	 * Gets a new {@link ByteBuffer} instance wrapping this buffer's bytes.
-	 *
-	 * <p>Please note that neither <tt>read</tt> nor <tt>write</tt> index are updated by the
-	 * returned buffer.
-	 *
-	 * @return byte buffer sharing the contents of the underlying memory segment
-	 *
-	 * @throws IndexOutOfBoundsException
-	 * 		if the indexes are not without the buffer's bounds
-	 * @see #getNioBufferReadable()
-	 */
-	ByteBuffer getNioBuffer(int index, int length) throws IndexOutOfBoundsException;
+    /**
+     * Gets a new {@link ByteBuffer} instance wrapping this buffer's bytes.
+     *
+     * <p>Please note that neither <tt>read</tt> nor <tt>write</tt> index are updated by the
+     * returned buffer.
+     *
+     * @return byte buffer sharing the contents of the underlying memory segment
+     * @throws IndexOutOfBoundsException if the indexes are not without the buffer's bounds
+     * @see #getNioBufferReadable()
+     */
+    ByteBuffer getNioBuffer(int index, int length) throws IndexOutOfBoundsException;
 
-	/**
-	 * Sets the buffer allocator for use in netty.
-	 *
-	 * @param allocator netty buffer allocator
-	 */
-	void setAllocator(ByteBufAllocator allocator);
+    /**
+     * Sets the buffer allocator for use in netty.
+     *
+     * @param allocator netty buffer allocator
+     */
+    void setAllocator(ByteBufAllocator allocator);
 
-	/**
-	 * @return self as ByteBuf implementation.
-	 */
-	ByteBuf asByteBuf();
+    /** @return self as ByteBuf implementation. */
+    ByteBuf asByteBuf();
 
-	/**
-	 * @return whether the buffer is compressed or not.
-	 */
-	boolean isCompressed();
+    /** @return whether the buffer is compressed or not. */
+    boolean isCompressed();
 
-	/**
-	 * Tags the buffer as compressed or uncompressed.
-	 */
-	void setCompressed(boolean isCompressed);
+    /** Tags the buffer as compressed or uncompressed. */
+    void setCompressed(boolean isCompressed);
 
-	/**
-	 * Gets the type of data this buffer represents.
-	 */
-	DataType getDataType();
+    /** Gets the type of data this buffer represents. */
+    DataType getDataType();
 
-	/**
-	 * Sets the type of data this buffer represents.
-	 */
-	void setDataType(DataType dataType);
+    /** Sets the type of data this buffer represents. */
+    void setDataType(DataType dataType);
 
-	/**
-	 * Used to identify the type of data contained in the {@link Buffer} so that we can get
-	 * the information without deserializing the serialized data.
-	 *
-	 * <p>Notes: Currently, one byte is used to serialize the ordinal of {@link DataType} in
-	 * {@link org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse}, so the
-	 * maximum number of supported data types is 128.
-	 */
-	enum DataType {
-		/**
-		 * DATA_BUFFER indicates that this buffer represents a non-event data buffer.
-		 */
-		DATA_BUFFER(true, false),
+    /**
+     * Used to identify the type of data contained in the {@link Buffer} so that we can get the
+     * information without deserializing the serialized data.
+     *
+     * <p>Notes: Currently, one byte is used to serialize the ordinal of {@link DataType} in {@link
+     * org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse}, so the maximum number
+     * of supported data types is 128.
+     */
+    enum DataType {
+        /** DATA_BUFFER indicates that this buffer represents a non-event data buffer. */
+        DATA_BUFFER(true, false),
 
-		/**
-		 * EVENT_BUFFER indicates that this buffer represents serialized data of an event.
-		 * Note that this type can be further divided into more fine-grained event types
-		 * like {@link #ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER} and etc.
-		 */
-		EVENT_BUFFER(false, false),
+        /**
+         * EVENT_BUFFER indicates that this buffer represents serialized data of an event. Note that
+         * this type can be further divided into more fine-grained event types like {@link
+         * #ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER} and etc.
+         */
+        EVENT_BUFFER(false, false),
 
-		/**
-		 * ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER indicates that this buffer represents a
-		 * serialized checkpoint barrier of aligned exactly-once checkpoint mode.
-		 */
-		ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER(false, true);
+        /**
+         * ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER indicates that this buffer represents a
+         * serialized checkpoint barrier of aligned exactly-once checkpoint mode.
+         */
+        ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER(false, true);
 
-		private final boolean isBuffer;
-		private final boolean isBlockingUpstream;
+        private final boolean isBuffer;
+        private final boolean isBlockingUpstream;
 
-		DataType(boolean isBuffer, boolean isBlockingUpstream) {
-			this.isBuffer = isBuffer;
-			this.isBlockingUpstream = isBlockingUpstream;
-		}
+        DataType(boolean isBuffer, boolean isBlockingUpstream) {
+            this.isBuffer = isBuffer;
+            this.isBlockingUpstream = isBlockingUpstream;
+        }
 
-		public boolean isBuffer() {
-			return isBuffer;
-		}
+        public boolean isBuffer() {
+            return isBuffer;
+        }
 
-		public boolean isBlockingUpstream() {
-			return isBlockingUpstream;
-		}
+        public boolean isBlockingUpstream() {
+            return isBlockingUpstream;
+        }
 
-		public static DataType getDataType(AbstractEvent event) {
-			return event instanceof CheckpointBarrier && ((CheckpointBarrier) event).getCheckpointOptions().needsAlignment() ?
-					ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER :
-					EVENT_BUFFER;
-		}
-	}
+        public static DataType getDataType(AbstractEvent event) {
+            return event instanceof CheckpointBarrier
+                            && ((CheckpointBarrier) event).getCheckpointOptions().needsAlignment()
+                    ? ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER
+                    : EVENT_BUFFER;
+        }
+    }
 }

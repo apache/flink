@@ -56,288 +56,292 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link BackPressureRequestCoordinator}.
- */
+/** Tests for the {@link BackPressureRequestCoordinator}. */
 public class BackPressureRequestCoordinatorTest extends TestLogger {
 
-	private static final long requestTimeout = 10000;
-	private static final double backPressureRatio = 0.5;
-	private static final String requestTimeoutMessage = "Request timeout.";
+    private static final long requestTimeout = 10000;
+    private static final double backPressureRatio = 0.5;
+    private static final String requestTimeoutMessage = "Request timeout.";
 
-	private static ScheduledExecutorService executorService;
-	private BackPressureRequestCoordinator coordinator;
+    private static ScheduledExecutorService executorService;
+    private BackPressureRequestCoordinator coordinator;
 
-	@Rule
-	public Timeout caseTimeout = new Timeout(10, TimeUnit.SECONDS);
+    @Rule public Timeout caseTimeout = new Timeout(10, TimeUnit.SECONDS);
 
-	@BeforeClass
-	public static void setUp() throws Exception {
-		executorService = new ScheduledThreadPoolExecutor(1);
-	}
+    @BeforeClass
+    public static void setUp() throws Exception {
+        executorService = new ScheduledThreadPoolExecutor(1);
+    }
 
-	@AfterClass
-	public static void tearDown() throws Exception {
-		if (executorService != null) {
-			executorService.shutdown();
-		}
-	}
+    @AfterClass
+    public static void tearDown() throws Exception {
+        if (executorService != null) {
+            executorService.shutdown();
+        }
+    }
 
-	@Before
-	public void initCoordinator() throws Exception {
-		coordinator = new BackPressureRequestCoordinator(executorService, requestTimeout);
-	}
+    @Before
+    public void initCoordinator() throws Exception {
+        coordinator = new BackPressureRequestCoordinator(executorService, requestTimeout);
+    }
 
-	@After
-	public void shutdownCoordinator() throws Exception {
-		if (coordinator != null) {
-			// verify no more pending request
-			assertEquals(0, coordinator.getNumberOfPendingRequests());
-			coordinator.shutDown();
-		}
-	}
+    @After
+    public void shutdownCoordinator() throws Exception {
+        if (coordinator != null) {
+            // verify no more pending request
+            assertEquals(0, coordinator.getNumberOfPendingRequests());
+            coordinator.shutDown();
+        }
+    }
 
-	/**
-	 * Tests request of task back pressure stats and verifies the response.
-	 */
-	@Test
-	public void testSuccessfulBackPressureRequest() throws Exception {
-		ExecutionVertex[] vertices = createExecutionVertices(ExecutionState.RUNNING, CompletionType.SUCCESSFULLY);
+    /** Tests request of task back pressure stats and verifies the response. */
+    @Test
+    public void testSuccessfulBackPressureRequest() throws Exception {
+        ExecutionVertex[] vertices =
+                createExecutionVertices(ExecutionState.RUNNING, CompletionType.SUCCESSFULLY);
 
-		CompletableFuture<BackPressureStats> requestFuture = coordinator.triggerBackPressureRequest(vertices);
-		BackPressureStats backPressureStats = requestFuture.get();
+        CompletableFuture<BackPressureStats> requestFuture =
+                coordinator.triggerBackPressureRequest(vertices);
+        BackPressureStats backPressureStats = requestFuture.get();
 
-		// verify the request result
-		assertEquals(0, backPressureStats.getRequestId());
-		Map<ExecutionAttemptID, Double> backPressureRatios = backPressureStats.getBackPressureRatios();
-		for (ExecutionVertex executionVertex : vertices) {
-			ExecutionAttemptID executionId = executionVertex.getCurrentExecutionAttempt().getAttemptId();
-			assertEquals(backPressureRatio, backPressureRatios.get(executionId), 0.0);
-		}
-	}
+        // verify the request result
+        assertEquals(0, backPressureStats.getRequestId());
+        Map<ExecutionAttemptID, Double> backPressureRatios =
+                backPressureStats.getBackPressureRatios();
+        for (ExecutionVertex executionVertex : vertices) {
+            ExecutionAttemptID executionId =
+                    executionVertex.getCurrentExecutionAttempt().getAttemptId();
+            assertEquals(backPressureRatio, backPressureRatios.get(executionId), 0.0);
+        }
+    }
 
-	/**
-	 * Tests back pressure request of non-running tasks fails the future.
-	 */
-	@Test
-	public void testRequestNotRunningTasks() throws Exception {
-		ExecutionVertex[] vertices = createExecutionVertices(ExecutionState.DEPLOYING, CompletionType.SUCCESSFULLY);
+    /** Tests back pressure request of non-running tasks fails the future. */
+    @Test
+    public void testRequestNotRunningTasks() throws Exception {
+        ExecutionVertex[] vertices =
+                createExecutionVertices(ExecutionState.DEPLOYING, CompletionType.SUCCESSFULLY);
 
-		CompletableFuture<BackPressureStats> requestFuture = coordinator.triggerBackPressureRequest(vertices);
-		assertTrue(requestFuture.isDone());
-		try {
-			requestFuture.get();
-			fail("Exception expected.");
-		} catch (ExecutionException e) {
-			assertTrue(e.getCause() instanceof IllegalStateException);
-		}
-	}
+        CompletableFuture<BackPressureStats> requestFuture =
+                coordinator.triggerBackPressureRequest(vertices);
+        assertTrue(requestFuture.isDone());
+        try {
+            requestFuture.get();
+            fail("Exception expected.");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof IllegalStateException);
+        }
+    }
 
-	/**
-	 * Tests failed request to execution fails the future.
-	 */
-	@Test
-	public void testBackPressureRequestWithException() throws Exception {
-		ExecutionVertex[] vertices = createExecutionVertices(ExecutionState.RUNNING, CompletionType.EXCEPTIONALLY);
+    /** Tests failed request to execution fails the future. */
+    @Test
+    public void testBackPressureRequestWithException() throws Exception {
+        ExecutionVertex[] vertices =
+                createExecutionVertices(ExecutionState.RUNNING, CompletionType.EXCEPTIONALLY);
 
-		CompletableFuture<BackPressureStats> requestFuture = coordinator.triggerBackPressureRequest(vertices);
-		try {
-			requestFuture.get();
-			fail("Exception expected.");
-		} catch (ExecutionException e) {
-			assertTrue(e.getCause() instanceof RuntimeException);
-		}
-	}
+        CompletableFuture<BackPressureStats> requestFuture =
+                coordinator.triggerBackPressureRequest(vertices);
+        try {
+            requestFuture.get();
+            fail("Exception expected.");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof RuntimeException);
+        }
+    }
 
-	/**
-	 * Tests that request timeout if not finished in time.
-	 */
-	@Test
-	public void testBackPressureRequestTimeout() throws Exception {
-		long requestTimeout = 100;
-		ExecutionVertex[] vertices = createExecutionVertices(ExecutionState.RUNNING, CompletionType.TIMEOUT, requestTimeout);
-		BackPressureRequestCoordinator coordinator = new BackPressureRequestCoordinator(executorService, requestTimeout);
+    /** Tests that request timeout if not finished in time. */
+    @Test
+    public void testBackPressureRequestTimeout() throws Exception {
+        long requestTimeout = 100;
+        ExecutionVertex[] vertices =
+                createExecutionVertices(
+                        ExecutionState.RUNNING, CompletionType.TIMEOUT, requestTimeout);
+        BackPressureRequestCoordinator coordinator =
+                new BackPressureRequestCoordinator(executorService, requestTimeout);
 
-		try {
-			CompletableFuture<BackPressureStats> requestFuture = coordinator.triggerBackPressureRequest(vertices);
-			requestFuture.get();
-			fail("Exception expected.");
-		} catch (ExecutionException e) {
-			assertTrue(ExceptionUtils.findThrowableWithMessage(e, requestTimeoutMessage).isPresent());
-		} finally {
-			coordinator.shutDown();
-		}
-	}
+        try {
+            CompletableFuture<BackPressureStats> requestFuture =
+                    coordinator.triggerBackPressureRequest(vertices);
+            requestFuture.get();
+            fail("Exception expected.");
+        } catch (ExecutionException e) {
+            assertTrue(
+                    ExceptionUtils.findThrowableWithMessage(e, requestTimeoutMessage).isPresent());
+        } finally {
+            coordinator.shutDown();
+        }
+    }
 
-	/**
-	 * Tests shutdown fails all pending requests and future request triggers.
-	 */
-	@Test
-	public void testShutDown() throws Exception {
-		ExecutionVertex[] vertices = createExecutionVertices(ExecutionState.RUNNING, CompletionType.NEVER_COMPLETE);
+    /** Tests shutdown fails all pending requests and future request triggers. */
+    @Test
+    public void testShutDown() throws Exception {
+        ExecutionVertex[] vertices =
+                createExecutionVertices(ExecutionState.RUNNING, CompletionType.NEVER_COMPLETE);
 
-		List<CompletableFuture<BackPressureStats>> requestFutures = new ArrayList<>();
+        List<CompletableFuture<BackPressureStats>> requestFutures = new ArrayList<>();
 
-		// trigger request
-		requestFutures.add(coordinator.triggerBackPressureRequest(vertices));
-		requestFutures.add(coordinator.triggerBackPressureRequest(vertices));
+        // trigger request
+        requestFutures.add(coordinator.triggerBackPressureRequest(vertices));
+        requestFutures.add(coordinator.triggerBackPressureRequest(vertices));
 
-		for (CompletableFuture<BackPressureStats> future : requestFutures) {
-			assertFalse(future.isDone());
-		}
+        for (CompletableFuture<BackPressureStats> future : requestFutures) {
+            assertFalse(future.isDone());
+        }
 
-		// shut down
-		coordinator.shutDown();
+        // shut down
+        coordinator.shutDown();
 
-		// verify all completed
-		for (CompletableFuture<BackPressureStats> future : requestFutures) {
-			assertTrue(future.isCompletedExceptionally());
-		}
+        // verify all completed
+        for (CompletableFuture<BackPressureStats> future : requestFutures) {
+            assertTrue(future.isCompletedExceptionally());
+        }
 
-		// verify new trigger returns failed future
-		CompletableFuture<BackPressureStats> future = coordinator.triggerBackPressureRequest(vertices);
-		assertTrue(future.isCompletedExceptionally());
-	}
+        // verify new trigger returns failed future
+        CompletableFuture<BackPressureStats> future =
+                coordinator.triggerBackPressureRequest(vertices);
+        assertTrue(future.isCompletedExceptionally());
+    }
 
-	private ExecutionVertex[] createExecutionVertices(
-			ExecutionState state,
-			CompletionType completionType) throws Exception {
-		return createExecutionVertices(state, completionType, requestTimeout);
-	}
+    private ExecutionVertex[] createExecutionVertices(
+            ExecutionState state, CompletionType completionType) throws Exception {
+        return createExecutionVertices(state, completionType, requestTimeout);
+    }
 
-	private ExecutionVertex[] createExecutionVertices(
-			ExecutionState state,
-			CompletionType completionType,
-			long requestTimeout) throws Exception {
-		return new ExecutionVertex[] {
-			createExecutionVertex(0, ExecutionState.RUNNING, CompletionType.SUCCESSFULLY, requestTimeout),
-			createExecutionVertex(1, state, completionType, requestTimeout),
-			createExecutionVertex(2, ExecutionState.RUNNING, CompletionType.SUCCESSFULLY, requestTimeout)
-		};
-	}
+    private ExecutionVertex[] createExecutionVertices(
+            ExecutionState state, CompletionType completionType, long requestTimeout)
+            throws Exception {
+        return new ExecutionVertex[] {
+            createExecutionVertex(
+                    0, ExecutionState.RUNNING, CompletionType.SUCCESSFULLY, requestTimeout),
+            createExecutionVertex(1, state, completionType, requestTimeout),
+            createExecutionVertex(
+                    2, ExecutionState.RUNNING, CompletionType.SUCCESSFULLY, requestTimeout)
+        };
+    }
 
-	private ExecutionVertex createExecutionVertex(
-			int subTaskIndex,
-			ExecutionState state,
-			CompletionType completionType,
-			long requestTimeout) throws Exception {
-		return new TestingExecutionVertex(
-			ExecutionJobVertexTest.createExecutionJobVertex(4, 4),
-			subTaskIndex,
-			Time.seconds(10),
-			1L,
-			System.currentTimeMillis(),
-			state,
-			completionType,
-			requestTimeout);
-	}
+    private ExecutionVertex createExecutionVertex(
+            int subTaskIndex,
+            ExecutionState state,
+            CompletionType completionType,
+            long requestTimeout)
+            throws Exception {
+        return new TestingExecutionVertex(
+                ExecutionJobVertexTest.createExecutionJobVertex(4, 4),
+                subTaskIndex,
+                Time.seconds(10),
+                1L,
+                System.currentTimeMillis(),
+                state,
+                completionType,
+                requestTimeout);
+    }
 
-	/**
-	 * Completion types of the request future.
-	 */
-	private enum CompletionType {
-		SUCCESSFULLY,
-		EXCEPTIONALLY,
-		TIMEOUT,
-		NEVER_COMPLETE
-	}
+    /** Completion types of the request future. */
+    private enum CompletionType {
+        SUCCESSFULLY,
+        EXCEPTIONALLY,
+        TIMEOUT,
+        NEVER_COMPLETE
+    }
 
-	/**
-	 * A testing {@link ExecutionVertex} implementation used to wrap {@link TestingExecution}.
-	 */
-	private static class TestingExecutionVertex extends ExecutionVertex {
+    /** A testing {@link ExecutionVertex} implementation used to wrap {@link TestingExecution}. */
+    private static class TestingExecutionVertex extends ExecutionVertex {
 
-		private final Execution execution;
+        private final Execution execution;
 
-		TestingExecutionVertex(
-				ExecutionJobVertex jobVertex,
-				int subTaskIndex,
-				Time timeout,
-				long initialGlobalModVersion,
-				long createTimestamp,
-				ExecutionState state,
-				CompletionType completionType,
-				long requestTimeout) {
+        TestingExecutionVertex(
+                ExecutionJobVertex jobVertex,
+                int subTaskIndex,
+                Time timeout,
+                long initialGlobalModVersion,
+                long createTimestamp,
+                ExecutionState state,
+                CompletionType completionType,
+                long requestTimeout) {
 
-			super(
-				jobVertex,
-				subTaskIndex,
-				new IntermediateResult[0],
-				timeout,
-				initialGlobalModVersion,
-				createTimestamp,
-				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue());
-			execution = new TestingExecution(
-				Runnable::run,
-				this,
-				0,
-				initialGlobalModVersion,
-				createTimestamp,
-				timeout,
-				state,
-				completionType,
-				requestTimeout);
-		}
+            super(
+                    jobVertex,
+                    subTaskIndex,
+                    new IntermediateResult[0],
+                    timeout,
+                    initialGlobalModVersion,
+                    createTimestamp,
+                    JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue());
+            execution =
+                    new TestingExecution(
+                            Runnable::run,
+                            this,
+                            0,
+                            initialGlobalModVersion,
+                            createTimestamp,
+                            timeout,
+                            state,
+                            completionType,
+                            requestTimeout);
+        }
 
-		@Override
-		public Execution getCurrentExecutionAttempt() {
-			return execution;
-		}
-	}
+        @Override
+        public Execution getCurrentExecutionAttempt() {
+            return execution;
+        }
+    }
 
-	/**
-	 * A testing implementation of {@link Execution} which acts differently according to
-	 * the given {@link ExecutionState} and {@link CompletionType}.
-	 */
-	private static class TestingExecution extends Execution {
+    /**
+     * A testing implementation of {@link Execution} which acts differently according to the given
+     * {@link ExecutionState} and {@link CompletionType}.
+     */
+    private static class TestingExecution extends Execution {
 
-		private final ExecutionState state;
-		private final CompletionType completionType;
-		private final long requestTimeout;
+        private final ExecutionState state;
+        private final CompletionType completionType;
+        private final long requestTimeout;
 
-		TestingExecution(
-				Executor executor,
-				ExecutionVertex vertex,
-				int attemptNumber,
-				long globalModVersion,
-				long startTimestamp,
-				Time rpcTimeout,
-				ExecutionState state,
-				CompletionType completionType,
-				long requestTimeout) {
-			super(executor, vertex, attemptNumber, globalModVersion, startTimestamp, rpcTimeout);
-			this.state = checkNotNull(state);
-			this.completionType = checkNotNull(completionType);
-			this.requestTimeout = requestTimeout;
-		}
+        TestingExecution(
+                Executor executor,
+                ExecutionVertex vertex,
+                int attemptNumber,
+                long globalModVersion,
+                long startTimestamp,
+                Time rpcTimeout,
+                ExecutionState state,
+                CompletionType completionType,
+                long requestTimeout) {
+            super(executor, vertex, attemptNumber, globalModVersion, startTimestamp, rpcTimeout);
+            this.state = checkNotNull(state);
+            this.completionType = checkNotNull(completionType);
+            this.requestTimeout = requestTimeout;
+        }
 
-		@Override
-		public CompletableFuture<TaskBackPressureResponse> requestBackPressure(int requestId, Time timeout) {
-			CompletableFuture<TaskBackPressureResponse> responseFuture = new CompletableFuture<>();
-			switch (completionType) {
-				case SUCCESSFULLY:
-					responseFuture.complete(new TaskBackPressureResponse(0, getAttemptId(), backPressureRatio));
-					break;
-				case EXCEPTIONALLY:
-					responseFuture.completeExceptionally(new RuntimeException("Request failed."));
-					break;
-				case TIMEOUT:
-					executorService.schedule(
-						() -> responseFuture.completeExceptionally(new TimeoutException(requestTimeoutMessage)),
-						requestTimeout,
-						TimeUnit.MILLISECONDS);
-					break;
-				case NEVER_COMPLETE:
-					break; // do nothing
-				default:
-					throw new RuntimeException("Unknown completion type.");
-			}
-			return responseFuture;
-		}
+        @Override
+        public CompletableFuture<TaskBackPressureResponse> requestBackPressure(
+                int requestId, Time timeout) {
+            CompletableFuture<TaskBackPressureResponse> responseFuture = new CompletableFuture<>();
+            switch (completionType) {
+                case SUCCESSFULLY:
+                    responseFuture.complete(
+                            new TaskBackPressureResponse(0, getAttemptId(), backPressureRatio));
+                    break;
+                case EXCEPTIONALLY:
+                    responseFuture.completeExceptionally(new RuntimeException("Request failed."));
+                    break;
+                case TIMEOUT:
+                    executorService.schedule(
+                            () ->
+                                    responseFuture.completeExceptionally(
+                                            new TimeoutException(requestTimeoutMessage)),
+                            requestTimeout,
+                            TimeUnit.MILLISECONDS);
+                    break;
+                case NEVER_COMPLETE:
+                    break; // do nothing
+                default:
+                    throw new RuntimeException("Unknown completion type.");
+            }
+            return responseFuture;
+        }
 
-		@Override
-		public ExecutionState getState() {
-			return state;
-		}
-	}
+        @Override
+        public ExecutionState getState() {
+            return state;
+        }
+    }
 }

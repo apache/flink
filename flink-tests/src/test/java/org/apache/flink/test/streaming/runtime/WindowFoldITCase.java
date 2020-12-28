@@ -46,297 +46,342 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Tests for Folds over windows. These also test whether OutputTypeConfigurable functions
- * work for windows, because FoldWindowFunction is OutputTypeConfigurable.
+ * Tests for Folds over windows. These also test whether OutputTypeConfigurable functions work for
+ * windows, because FoldWindowFunction is OutputTypeConfigurable.
  */
 @SuppressWarnings("serial")
 public class WindowFoldITCase extends AbstractTestBase {
 
-	private static List<String> testResults;
+    private static List<String> testResults;
 
-	@Test
-	public void testFoldWindow() throws Exception {
+    @Test
+    public void testFoldWindow() throws Exception {
 
-		testResults = new ArrayList<>();
+        testResults = new ArrayList<>();
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(1);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        env.setParallelism(1);
 
-		DataStream<Tuple2<String, Integer>> source1 = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
-			private static final long serialVersionUID = 1L;
+        DataStream<Tuple2<String, Integer>> source1 =
+                env.addSource(
+                                new SourceFunction<Tuple2<String, Integer>>() {
+                                    private static final long serialVersionUID = 1L;
 
-			@Override
-			public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
-				ctx.collect(Tuple2.of("a", 0));
-				ctx.collect(Tuple2.of("a", 1));
-				ctx.collect(Tuple2.of("a", 2));
+                                    @Override
+                                    public void run(SourceContext<Tuple2<String, Integer>> ctx)
+                                            throws Exception {
+                                        ctx.collect(Tuple2.of("a", 0));
+                                        ctx.collect(Tuple2.of("a", 1));
+                                        ctx.collect(Tuple2.of("a", 2));
 
-				ctx.collect(Tuple2.of("b", 3));
-				ctx.collect(Tuple2.of("b", 4));
-				ctx.collect(Tuple2.of("b", 5));
+                                        ctx.collect(Tuple2.of("b", 3));
+                                        ctx.collect(Tuple2.of("b", 4));
+                                        ctx.collect(Tuple2.of("b", 5));
 
-				ctx.collect(Tuple2.of("a", 6));
-				ctx.collect(Tuple2.of("a", 7));
-				ctx.collect(Tuple2.of("a", 8));
+                                        ctx.collect(Tuple2.of("a", 6));
+                                        ctx.collect(Tuple2.of("a", 7));
+                                        ctx.collect(Tuple2.of("a", 8));
 
-				// source is finite, so it will have an implicit MAX watermark when it finishes
-			}
+                                        // source is finite, so it will have an implicit MAX
+                                        // watermark when it finishes
+                                    }
 
-			@Override
-			public void cancel() {}
+                                    @Override
+                                    public void cancel() {}
+                                })
+                        .assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
 
-		}).assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
+        source1.keyBy(0)
+                .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                .fold(
+                        Tuple2.of("R:", 0),
+                        new FoldFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>() {
+                            @Override
+                            public Tuple2<String, Integer> fold(
+                                    Tuple2<String, Integer> accumulator,
+                                    Tuple2<String, Integer> value)
+                                    throws Exception {
+                                accumulator.f0 += value.f0;
+                                accumulator.f1 += value.f1;
+                                return accumulator;
+                            }
+                        })
+                .addSink(
+                        new SinkFunction<Tuple2<String, Integer>>() {
+                            @Override
+                            public void invoke(Tuple2<String, Integer> value) throws Exception {
+                                testResults.add(value.toString());
+                            }
+                        });
 
-		source1
-				.keyBy(0)
-				.window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-				.fold(Tuple2.of("R:", 0), new FoldFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>() {
-					@Override
-					public Tuple2<String, Integer> fold(Tuple2<String, Integer> accumulator,
-							Tuple2<String, Integer> value) throws Exception {
-						accumulator.f0 += value.f0;
-						accumulator.f1 += value.f1;
-						return accumulator;
-					}
-				})
-				.addSink(new SinkFunction<Tuple2<String, Integer>>() {
-					@Override
-					public void invoke(Tuple2<String, Integer> value) throws Exception {
-						testResults.add(value.toString());
-					}
-				});
+        env.execute("Fold Window Test");
 
-		env.execute("Fold Window Test");
+        List<String> expectedResult = Arrays.asList("(R:aaa,3)", "(R:aaa,21)", "(R:bbb,12)");
 
-		List<String> expectedResult = Arrays.asList(
-				"(R:aaa,3)",
-				"(R:aaa,21)",
-				"(R:bbb,12)");
+        Collections.sort(expectedResult);
+        Collections.sort(testResults);
 
-		Collections.sort(expectedResult);
-		Collections.sort(testResults);
+        Assert.assertEquals(expectedResult, testResults);
+    }
 
-		Assert.assertEquals(expectedResult, testResults);
-	}
+    @Test
+    public void testFoldProcessWindow() throws Exception {
 
-	@Test
-	public void testFoldProcessWindow() throws Exception {
+        testResults = new ArrayList<>();
 
-		testResults = new ArrayList<>();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        env.setParallelism(1);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(1);
+        DataStream<Tuple2<String, Integer>> source1 =
+                env.addSource(
+                                new SourceFunction<Tuple2<String, Integer>>() {
+                                    private static final long serialVersionUID = 1L;
 
-		DataStream<Tuple2<String, Integer>> source1 = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
-			private static final long serialVersionUID = 1L;
+                                    @Override
+                                    public void run(SourceContext<Tuple2<String, Integer>> ctx)
+                                            throws Exception {
+                                        ctx.collect(Tuple2.of("a", 0));
+                                        ctx.collect(Tuple2.of("a", 1));
+                                        ctx.collect(Tuple2.of("a", 2));
 
-			@Override
-			public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
-				ctx.collect(Tuple2.of("a", 0));
-				ctx.collect(Tuple2.of("a", 1));
-				ctx.collect(Tuple2.of("a", 2));
+                                        ctx.collect(Tuple2.of("b", 3));
+                                        ctx.collect(Tuple2.of("b", 4));
+                                        ctx.collect(Tuple2.of("b", 5));
 
-				ctx.collect(Tuple2.of("b", 3));
-				ctx.collect(Tuple2.of("b", 4));
-				ctx.collect(Tuple2.of("b", 5));
+                                        ctx.collect(Tuple2.of("a", 6));
+                                        ctx.collect(Tuple2.of("a", 7));
+                                        ctx.collect(Tuple2.of("a", 8));
 
-				ctx.collect(Tuple2.of("a", 6));
-				ctx.collect(Tuple2.of("a", 7));
-				ctx.collect(Tuple2.of("a", 8));
+                                        // source is finite, so it will have an implicit MAX
+                                        // watermark when it finishes
+                                    }
 
-				// source is finite, so it will have an implicit MAX watermark when it finishes
-			}
+                                    @Override
+                                    public void cancel() {}
+                                })
+                        .assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
 
-			@Override
-			public void cancel() {}
+        source1.keyBy(0)
+                .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                .fold(
+                        Tuple2.of(0, "R:"),
+                        new FoldFunction<Tuple2<String, Integer>, Tuple2<Integer, String>>() {
+                            @Override
+                            public Tuple2<Integer, String> fold(
+                                    Tuple2<Integer, String> accumulator,
+                                    Tuple2<String, Integer> value)
+                                    throws Exception {
+                                accumulator.f1 += value.f0;
+                                accumulator.f0 += value.f1;
+                                return accumulator;
+                            }
+                        },
+                        new ProcessWindowFunction<
+                                Tuple2<Integer, String>,
+                                Tuple3<String, Integer, Integer>,
+                                Tuple,
+                                TimeWindow>() {
+                            @Override
+                            public void process(
+                                    Tuple tuple,
+                                    Context context,
+                                    Iterable<Tuple2<Integer, String>> elements,
+                                    Collector<Tuple3<String, Integer, Integer>> out)
+                                    throws Exception {
+                                int i = 0;
+                                for (Tuple2<Integer, String> in : elements) {
+                                    out.collect(new Tuple3<>(in.f1, in.f0, i++));
+                                }
+                            }
+                        })
+                .addSink(
+                        new SinkFunction<Tuple3<String, Integer, Integer>>() {
+                            @Override
+                            public void invoke(Tuple3<String, Integer, Integer> value)
+                                    throws Exception {
+                                testResults.add(value.toString());
+                            }
+                        });
 
-		}).assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
+        env.execute("Fold Process Window Test");
 
-		source1
-			.keyBy(0)
-			.window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-			.fold(Tuple2.of(0, "R:"), new FoldFunction<Tuple2<String, Integer>, Tuple2<Integer, String>>() {
-				@Override
-				public Tuple2<Integer, String> fold(Tuple2<Integer, String> accumulator, Tuple2<String, Integer> value) throws Exception {
-					accumulator.f1 += value.f0;
-					accumulator.f0 += value.f1;
-					return accumulator;
-				}
-			}, new ProcessWindowFunction<Tuple2<Integer, String>, Tuple3<String, Integer, Integer>, Tuple, TimeWindow>() {
-				@Override
-				public void process(Tuple tuple, Context context, Iterable<Tuple2<Integer, String>> elements, Collector<Tuple3<String, Integer, Integer>> out) throws Exception {
-					int i = 0;
-					for (Tuple2<Integer, String> in : elements) {
-						out.collect(new Tuple3<>(in.f1, in.f0, i++));
-					}
-				}
-			})
-			.addSink(new SinkFunction<Tuple3<String, Integer, Integer>>() {
-				@Override
-				public void invoke(Tuple3<String, Integer, Integer> value) throws Exception {
-					testResults.add(value.toString());
-				}
-			});
+        List<String> expectedResult = Arrays.asList("(R:aaa,3,0)", "(R:aaa,21,0)", "(R:bbb,12,0)");
 
-		env.execute("Fold Process Window Test");
+        Collections.sort(expectedResult);
+        Collections.sort(testResults);
 
-		List<String> expectedResult = Arrays.asList(
-			"(R:aaa,3,0)",
-			"(R:aaa,21,0)",
-			"(R:bbb,12,0)");
+        Assert.assertEquals(expectedResult, testResults);
+    }
 
-		Collections.sort(expectedResult);
-		Collections.sort(testResults);
+    @Test
+    public void testFoldAllWindow() throws Exception {
 
-		Assert.assertEquals(expectedResult, testResults);
-	}
+        testResults = new ArrayList<>();
 
-	@Test
-	public void testFoldAllWindow() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        env.setParallelism(1);
 
-		testResults = new ArrayList<>();
+        DataStream<Tuple2<String, Integer>> source1 =
+                env.addSource(
+                                new SourceFunction<Tuple2<String, Integer>>() {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(1);
+                                    @Override
+                                    public void run(SourceContext<Tuple2<String, Integer>> ctx)
+                                            throws Exception {
+                                        ctx.collect(Tuple2.of("a", 0));
+                                        ctx.collect(Tuple2.of("a", 1));
+                                        ctx.collect(Tuple2.of("a", 2));
 
-		DataStream<Tuple2<String, Integer>> source1 = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
+                                        ctx.collect(Tuple2.of("b", 3));
+                                        ctx.collect(Tuple2.of("a", 3));
+                                        ctx.collect(Tuple2.of("b", 4));
+                                        ctx.collect(Tuple2.of("a", 4));
+                                        ctx.collect(Tuple2.of("b", 5));
+                                        ctx.collect(Tuple2.of("a", 5));
 
-			@Override
-			public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
-				ctx.collect(Tuple2.of("a", 0));
-				ctx.collect(Tuple2.of("a", 1));
-				ctx.collect(Tuple2.of("a", 2));
+                                        // source is finite, so it will have an implicit MAX
+                                        // watermark when it finishes
+                                    }
 
-				ctx.collect(Tuple2.of("b", 3));
-				ctx.collect(Tuple2.of("a", 3));
-				ctx.collect(Tuple2.of("b", 4));
-				ctx.collect(Tuple2.of("a", 4));
-				ctx.collect(Tuple2.of("b", 5));
-				ctx.collect(Tuple2.of("a", 5));
+                                    @Override
+                                    public void cancel() {}
+                                })
+                        .assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
 
-				// source is finite, so it will have an implicit MAX watermark when it finishes
-			}
+        source1.windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                .fold(
+                        Tuple2.of("R:", 0),
+                        new FoldFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>() {
+                            @Override
+                            public Tuple2<String, Integer> fold(
+                                    Tuple2<String, Integer> accumulator,
+                                    Tuple2<String, Integer> value)
+                                    throws Exception {
+                                accumulator.f0 += value.f0;
+                                accumulator.f1 += value.f1;
+                                return accumulator;
+                            }
+                        })
+                .addSink(
+                        new SinkFunction<Tuple2<String, Integer>>() {
+                            @Override
+                            public void invoke(Tuple2<String, Integer> value) throws Exception {
+                                testResults.add(value.toString());
+                            }
+                        });
 
-			@Override
-			public void cancel() {
-			}
-		}).assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
+        env.execute("Fold All-Window Test");
 
-		source1
-				.windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-				.fold(Tuple2.of("R:", 0), new FoldFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>() {
-					@Override
-					public Tuple2<String, Integer> fold(Tuple2<String, Integer> accumulator,
-							Tuple2<String, Integer> value) throws Exception {
-						accumulator.f0 += value.f0;
-						accumulator.f1 += value.f1;
-						return accumulator;
-					}
-				})
-				.addSink(new SinkFunction<Tuple2<String, Integer>>() {
-					@Override
-					public void invoke(Tuple2<String, Integer> value) throws Exception {
-						testResults.add(value.toString());
-					}
-				});
+        List<String> expectedResult = Arrays.asList("(R:aaa,3)", "(R:bababa,24)");
 
-		env.execute("Fold All-Window Test");
+        Collections.sort(expectedResult);
+        Collections.sort(testResults);
 
-		List<String> expectedResult = Arrays.asList(
-				"(R:aaa,3)",
-				"(R:bababa,24)");
+        Assert.assertEquals(expectedResult, testResults);
+    }
 
-		Collections.sort(expectedResult);
-		Collections.sort(testResults);
+    @Test
+    public void testFoldProcessAllWindow() throws Exception {
 
-		Assert.assertEquals(expectedResult, testResults);
-	}
+        testResults = new ArrayList<>();
 
-	@Test
-	public void testFoldProcessAllWindow() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        env.setParallelism(1);
 
-		testResults = new ArrayList<>();
+        DataStream<Tuple2<String, Integer>> source1 =
+                env.addSource(
+                                new SourceFunction<Tuple2<String, Integer>>() {
+                                    private static final long serialVersionUID = 1L;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(1);
+                                    @Override
+                                    public void run(SourceContext<Tuple2<String, Integer>> ctx)
+                                            throws Exception {
+                                        ctx.collect(Tuple2.of("a", 0));
+                                        ctx.collect(Tuple2.of("a", 1));
+                                        ctx.collect(Tuple2.of("a", 2));
 
-		DataStream<Tuple2<String, Integer>> source1 = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
-			private static final long serialVersionUID = 1L;
+                                        ctx.collect(Tuple2.of("b", 3));
+                                        ctx.collect(Tuple2.of("b", 4));
+                                        ctx.collect(Tuple2.of("b", 5));
 
-			@Override
-			public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
-				ctx.collect(Tuple2.of("a", 0));
-				ctx.collect(Tuple2.of("a", 1));
-				ctx.collect(Tuple2.of("a", 2));
+                                        ctx.collect(Tuple2.of("a", 6));
+                                        ctx.collect(Tuple2.of("a", 7));
+                                        ctx.collect(Tuple2.of("a", 8));
 
-				ctx.collect(Tuple2.of("b", 3));
-				ctx.collect(Tuple2.of("b", 4));
-				ctx.collect(Tuple2.of("b", 5));
+                                        // source is finite, so it will have an implicit MAX
+                                        // watermark when it finishes
+                                    }
 
-				ctx.collect(Tuple2.of("a", 6));
-				ctx.collect(Tuple2.of("a", 7));
-				ctx.collect(Tuple2.of("a", 8));
+                                    @Override
+                                    public void cancel() {}
+                                })
+                        .assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
 
-				// source is finite, so it will have an implicit MAX watermark when it finishes
-			}
+        source1.windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                .fold(
+                        Tuple2.of(0, "R:"),
+                        new FoldFunction<Tuple2<String, Integer>, Tuple2<Integer, String>>() {
+                            @Override
+                            public Tuple2<Integer, String> fold(
+                                    Tuple2<Integer, String> accumulator,
+                                    Tuple2<String, Integer> value)
+                                    throws Exception {
+                                accumulator.f1 += value.f0;
+                                accumulator.f0 += value.f1;
+                                return accumulator;
+                            }
+                        },
+                        new ProcessAllWindowFunction<
+                                Tuple2<Integer, String>,
+                                Tuple3<String, Integer, Integer>,
+                                TimeWindow>() {
+                            @Override
+                            public void process(
+                                    Context context,
+                                    Iterable<Tuple2<Integer, String>> elements,
+                                    Collector<Tuple3<String, Integer, Integer>> out)
+                                    throws Exception {
+                                int i = 0;
+                                for (Tuple2<Integer, String> in : elements) {
+                                    out.collect(new Tuple3<>(in.f1, in.f0, i++));
+                                }
+                            }
+                        })
+                .addSink(
+                        new SinkFunction<Tuple3<String, Integer, Integer>>() {
+                            @Override
+                            public void invoke(Tuple3<String, Integer, Integer> value)
+                                    throws Exception {
+                                testResults.add(value.toString());
+                            }
+                        });
 
-			@Override
-			public void cancel() {}
+        env.execute("Fold Process Window Test");
 
-		}).assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
+        List<String> expectedResult = Arrays.asList("(R:aaa,3,0)", "(R:aaa,21,0)", "(R:bbb,12,0)");
 
-		source1
-			.windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-			.fold(Tuple2.of(0, "R:"), new FoldFunction<Tuple2<String, Integer>, Tuple2<Integer, String>>() {
-				@Override
-				public Tuple2<Integer, String> fold(Tuple2<Integer, String> accumulator, Tuple2<String, Integer> value) throws Exception {
-					accumulator.f1 += value.f0;
-					accumulator.f0 += value.f1;
-					return accumulator;
-				}
-			}, new ProcessAllWindowFunction<Tuple2<Integer, String>, Tuple3<String, Integer, Integer>, TimeWindow>() {
-				@Override
-				public void process(Context context, Iterable<Tuple2<Integer, String>> elements, Collector<Tuple3<String, Integer, Integer>> out) throws Exception {
-					int i = 0;
-					for (Tuple2<Integer, String> in : elements) {
-						out.collect(new Tuple3<>(in.f1, in.f0, i++));
-					}
-				}
-			})
-			.addSink(new SinkFunction<Tuple3<String, Integer, Integer>>() {
-				@Override
-				public void invoke(Tuple3<String, Integer, Integer> value) throws Exception {
-					testResults.add(value.toString());
-				}
-			});
+        Collections.sort(expectedResult);
+        Collections.sort(testResults);
 
-		env.execute("Fold Process Window Test");
+        Assert.assertEquals(expectedResult, testResults);
+    }
 
-		List<String> expectedResult = Arrays.asList(
-			"(R:aaa,3,0)",
-			"(R:aaa,21,0)",
-			"(R:bbb,12,0)");
+    private static class Tuple2TimestampExtractor
+            implements AssignerWithPunctuatedWatermarks<Tuple2<String, Integer>> {
 
-		Collections.sort(expectedResult);
-		Collections.sort(testResults);
+        @Override
+        public long extractTimestamp(Tuple2<String, Integer> element, long previousTimestamp) {
+            return element.f1;
+        }
 
-		Assert.assertEquals(expectedResult, testResults);
-	}
-
-	private static class Tuple2TimestampExtractor implements AssignerWithPunctuatedWatermarks<Tuple2<String, Integer>> {
-
-		@Override
-		public long extractTimestamp(Tuple2<String, Integer> element, long previousTimestamp) {
-			return element.f1;
-		}
-
-		@Override
-		public Watermark checkAndGetNextWatermark(Tuple2<String, Integer> lastElement, long extractedTimestamp) {
-			return new Watermark(lastElement.f1 - 1);
-		}
-	}
+        @Override
+        public Watermark checkAndGetNextWatermark(
+                Tuple2<String, Integer> lastElement, long extractedTimestamp) {
+            return new Watermark(lastElement.f1 - 1);
+        }
+    }
 }

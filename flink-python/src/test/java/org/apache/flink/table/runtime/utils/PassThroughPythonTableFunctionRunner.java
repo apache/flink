@@ -30,70 +30,64 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A {@link PythonTableFunctionRunner} that just emit each input element.
- */
+/** A {@link PythonTableFunctionRunner} that just emit each input element. */
 public abstract class PassThroughPythonTableFunctionRunner<IN> implements PythonFunctionRunner<IN> {
-	private boolean bundleStarted;
-	private final List<IN> bufferedElements;
-	private final FnDataReceiver<byte[]> resultReceiver;
+    private boolean bundleStarted;
+    private final List<IN> bufferedElements;
+    private final FnDataReceiver<byte[]> resultReceiver;
 
-	/**
-	 * Reusable OutputStream used to holding the serialized input elements.
-	 */
-	private transient ByteArrayOutputStreamWithPos baos;
+    /** Reusable OutputStream used to holding the serialized input elements. */
+    private transient ByteArrayOutputStreamWithPos baos;
 
-	/**
-	 * OutputStream Wrapper.
-	 */
-	private transient DataOutputViewStreamWrapper baosWrapper;
+    /** OutputStream Wrapper. */
+    private transient DataOutputViewStreamWrapper baosWrapper;
 
-	public PassThroughPythonTableFunctionRunner(FnDataReceiver<byte[]> resultReceiver) {
-		this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
-		bundleStarted = false;
-		bufferedElements = new ArrayList<>();
-	}
+    public PassThroughPythonTableFunctionRunner(FnDataReceiver<byte[]> resultReceiver) {
+        this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
+        bundleStarted = false;
+        bufferedElements = new ArrayList<>();
+    }
 
-	@Override
-	public void open() {
-		baos = new ByteArrayOutputStreamWithPos();
-		baosWrapper = new DataOutputViewStreamWrapper(baos);
-	}
+    @Override
+    public void open() {
+        baos = new ByteArrayOutputStreamWithPos();
+        baosWrapper = new DataOutputViewStreamWrapper(baos);
+    }
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 
-	@Override
-	public void startBundle() {
-		Preconditions.checkState(!bundleStarted);
-		bundleStarted = true;
-	}
+    @Override
+    public void startBundle() {
+        Preconditions.checkState(!bundleStarted);
+        bundleStarted = true;
+    }
 
-	@Override
-	public void finishBundle() throws Exception {
-		Preconditions.checkState(bundleStarted);
-		bundleStarted = false;
-		int num = 0;
+    @Override
+    public void finishBundle() throws Exception {
+        Preconditions.checkState(bundleStarted);
+        bundleStarted = false;
+        int num = 0;
 
-		for (IN element : bufferedElements) {
-			num++;
-			baos.reset();
-			getInputTypeSerializer().serialize(element, baosWrapper);
-			// test for left join
-			if (num != 6 && num != 8) {
-				resultReceiver.accept(baos.toByteArray());
-			}
-			resultReceiver.accept(new byte[]{0});
-		}
-		bufferedElements.clear();
-	}
+        for (IN element : bufferedElements) {
+            num++;
+            baos.reset();
+            getInputTypeSerializer().serialize(element, baosWrapper);
+            // test for left join
+            if (num != 6 && num != 8) {
+                resultReceiver.accept(baos.toByteArray());
+            }
+            resultReceiver.accept(new byte[] {0});
+        }
+        bufferedElements.clear();
+    }
 
-	@Override
-	public void processElement(IN element) {
-		bufferedElements.add(copy(element));
-	}
+    @Override
+    public void processElement(IN element) {
+        bufferedElements.add(copy(element));
+    }
 
-	public abstract IN copy(IN element);
+    public abstract IN copy(IN element);
 
-	public abstract TypeSerializer<IN> getInputTypeSerializer();
+    public abstract TypeSerializer<IN> getInputTypeSerializer();
 }

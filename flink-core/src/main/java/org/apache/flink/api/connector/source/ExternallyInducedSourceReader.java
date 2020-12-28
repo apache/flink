@@ -23,35 +23,35 @@ import org.apache.flink.annotation.PublicEvolving;
 import java.util.Optional;
 
 /**
- * Sources that implement this interface do not trigger checkpoints when receiving a
- * trigger message from the checkpoint coordinator, but when their input data/events
- * indicate that a checkpoint should be triggered.
+ * Sources that implement this interface do not trigger checkpoints when receiving a trigger message
+ * from the checkpoint coordinator, but when their input data/events indicate that a checkpoint
+ * should be triggered.
  *
- * <p>The ExternallyInducedSourceReader tells the Flink runtime that a checkpoint needs to
- * be made by returning a checkpointId when shouldTriggerCheckpoint() is invoked.
+ * <p>The ExternallyInducedSourceReader tells the Flink runtime that a checkpoint needs to be made
+ * by returning a checkpointId when shouldTriggerCheckpoint() is invoked.
  *
- * <p>The implementations typically works together with the SplitEnumerator which informs
- * the external system to trigger a checkpoint.
+ * <p>The implementations typically works together with the SplitEnumerator which informs the
+ * external system to trigger a checkpoint.
  *
- * @param <T>        The type of records produced by the source.
- * @param <SplitT>   The type of splits handled by the source.
+ * @param <T> The type of records produced by the source.
+ * @param <SplitT> The type of splits handled by the source.
  */
 @PublicEvolving
 public interface ExternallyInducedSourceReader<T, SplitT extends SourceSplit>
-		extends SourceReader<T, SplitT> {
+        extends SourceReader<T, SplitT> {
 
-	/**
-	 * A method that informs the Flink runtime whether a checkpoint should be triggered on
-	 * this Source.
-	 *
-	 * <p>This method is invoked when the previous {@link #pollNext(ReaderOutput)}
-	 * returns {@link org.apache.flink.core.io.InputStatus#NOTHING_AVAILABLE}, to check
-	 * if the source needs to be checkpointed.
-	 *
-	 * <p>If a CheckpointId is returned, a checkpoint will be triggered on this source reader.
-	 * Otherwise, Flink runtime will continue to process the records.
-	 *
-	 * @return An optional checkpoint ID that Flink runtime should take a checkpoint for.
-	 */
-	Optional<Long> shouldTriggerCheckpoint();
+    /**
+     * A method that informs the Flink runtime whether a checkpoint should be triggered on this
+     * Source.
+     *
+     * <p>This method is invoked when the previous {@link #pollNext(ReaderOutput)} returns {@link
+     * org.apache.flink.core.io.InputStatus#NOTHING_AVAILABLE}, to check if the source needs to be
+     * checkpointed.
+     *
+     * <p>If a CheckpointId is returned, a checkpoint will be triggered on this source reader.
+     * Otherwise, Flink runtime will continue to process the records.
+     *
+     * @return An optional checkpoint ID that Flink runtime should take a checkpoint for.
+     */
+    Optional<Long> shouldTriggerCheckpoint();
 }

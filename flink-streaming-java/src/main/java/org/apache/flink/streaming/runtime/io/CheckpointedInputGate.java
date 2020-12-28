@@ -38,170 +38,163 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * The {@link CheckpointedInputGate} uses {@link CheckpointBarrierHandler} to handle incoming
- * {@link CheckpointBarrier} from the {@link InputGate}.
+ * The {@link CheckpointedInputGate} uses {@link CheckpointBarrierHandler} to handle incoming {@link
+ * CheckpointBarrier} from the {@link InputGate}.
  */
 @Internal
 public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEvent>, Closeable {
-	private final CheckpointBarrierHandler barrierHandler;
+    private final CheckpointBarrierHandler barrierHandler;
 
-	/** The gate that the buffer draws its input from. */
-	private final InputGate inputGate;
+    /** The gate that the buffer draws its input from. */
+    private final InputGate inputGate;
 
-	/** Indicate end of the input. */
-	private boolean isFinished;
+    /** Indicate end of the input. */
+    private boolean isFinished;
 
-	/**
-	 * Creates a new checkpoint stream aligner.
-	 *
-	 * <p>The aligner will allow only alignments that buffer up to the given number of bytes.
-	 * When that number is exceeded, it will stop the alignment and notify the task that the
-	 * checkpoint has been cancelled.
-	 *
-	 * @param inputGate The input gate to draw the buffers and events from.
-	 * @param barrierHandler Handler that controls which channels are blocked.
-	 */
-	public CheckpointedInputGate(
-			InputGate inputGate,
-			CheckpointBarrierHandler barrierHandler) {
-		this.inputGate = inputGate;
-		this.barrierHandler = barrierHandler;
-	}
+    /**
+     * Creates a new checkpoint stream aligner.
+     *
+     * <p>The aligner will allow only alignments that buffer up to the given number of bytes. When
+     * that number is exceeded, it will stop the alignment and notify the task that the checkpoint
+     * has been cancelled.
+     *
+     * @param inputGate The input gate to draw the buffers and events from.
+     * @param barrierHandler Handler that controls which channels are blocked.
+     */
+    public CheckpointedInputGate(InputGate inputGate, CheckpointBarrierHandler barrierHandler) {
+        this.inputGate = inputGate;
+        this.barrierHandler = barrierHandler;
+    }
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return inputGate.getAvailableFuture();
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return inputGate.getAvailableFuture();
+    }
 
-	@Override
-	public Optional<BufferOrEvent> pollNext() throws Exception {
-		while (true) {
-			Optional<BufferOrEvent> next = inputGate.pollNext();
+    @Override
+    public Optional<BufferOrEvent> pollNext() throws Exception {
+        while (true) {
+            Optional<BufferOrEvent> next = inputGate.pollNext();
 
-			if (!next.isPresent()) {
-				return handleEmptyBuffer();
-			}
+            if (!next.isPresent()) {
+                return handleEmptyBuffer();
+            }
 
-			BufferOrEvent bufferOrEvent = next.get();
-			checkState(!barrierHandler.isBlocked(bufferOrEvent.getChannelInfo()));
+            BufferOrEvent bufferOrEvent = next.get();
+            checkState(!barrierHandler.isBlocked(bufferOrEvent.getChannelInfo()));
 
-			if (bufferOrEvent.isBuffer()) {
-				return next;
-			}
-			else if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
-				CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
-				barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelInfo());
-				return next;
-			}
-			else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
-				barrierHandler.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent());
-			}
-			else {
-				if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
-					barrierHandler.processEndOfPartition();
-				}
-				return next;
-			}
-		}
-	}
+            if (bufferOrEvent.isBuffer()) {
+                return next;
+            } else if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
+                CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
+                barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelInfo());
+                return next;
+            } else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
+                barrierHandler.processCancellationBarrier(
+                        (CancelCheckpointMarker) bufferOrEvent.getEvent());
+            } else {
+                if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
+                    barrierHandler.processEndOfPartition();
+                }
+                return next;
+            }
+        }
+    }
 
-	public void spillInflightBuffers(
-			long checkpointId,
-			int channelIndex,
-			ChannelStateWriter channelStateWriter) throws IOException {
-		InputChannel channel = inputGate.getChannel(channelIndex);
-		if (barrierHandler.hasInflightData(checkpointId, channel.getChannelInfo())) {
-			channel.spillInflightBuffers(checkpointId, channelStateWriter);
-		}
-	}
+    public void spillInflightBuffers(
+            long checkpointId, int channelIndex, ChannelStateWriter channelStateWriter)
+            throws IOException {
+        InputChannel channel = inputGate.getChannel(channelIndex);
+        if (barrierHandler.hasInflightData(checkpointId, channel.getChannelInfo())) {
+            channel.spillInflightBuffers(checkpointId, channelStateWriter);
+        }
+    }
 
-	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
-		return barrierHandler.getAllBarriersReceivedFuture(checkpointId);
-	}
+    public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
+        return barrierHandler.getAllBarriersReceivedFuture(checkpointId);
+    }
 
-	private Optional<BufferOrEvent> handleEmptyBuffer() {
-		if (inputGate.isFinished()) {
-			isFinished = true;
-		}
+    private Optional<BufferOrEvent> handleEmptyBuffer() {
+        if (inputGate.isFinished()) {
+            isFinished = true;
+        }
 
-		return Optional.empty();
-	}
+        return Optional.empty();
+    }
 
-	@Override
-	public boolean isFinished() {
-		return isFinished;
-	}
+    @Override
+    public boolean isFinished() {
+        return isFinished;
+    }
 
-	/**
-	 * Cleans up all internally held resources.
-	 *
-	 * @throws IOException Thrown if the cleanup of I/O resources failed.
-	 */
-	public void close() throws IOException {
-		barrierHandler.close();
-	}
+    /**
+     * Cleans up all internally held resources.
+     *
+     * @throws IOException Thrown if the cleanup of I/O resources failed.
+     */
+    public void close() throws IOException {
+        barrierHandler.close();
+    }
 
-	// ------------------------------------------------------------------------
-	//  Properties
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Properties
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Gets the ID defining the current pending, or just completed, checkpoint.
-	 *
-	 * @return The ID of the pending of completed checkpoint.
-	 */
-	@VisibleForTesting
-	long getLatestCheckpointId() {
-		return barrierHandler.getLatestCheckpointId();
-	}
+    /**
+     * Gets the ID defining the current pending, or just completed, checkpoint.
+     *
+     * @return The ID of the pending of completed checkpoint.
+     */
+    @VisibleForTesting
+    long getLatestCheckpointId() {
+        return barrierHandler.getLatestCheckpointId();
+    }
 
-	/**
-	 * Gets the time that the latest alignment took, in nanoseconds.
-	 * If there is currently an alignment in progress, it will return the time spent in the
-	 * current alignment so far.
-	 *
-	 * @return The duration in nanoseconds
-	 */
-	@VisibleForTesting
-	long getAlignmentDurationNanos() {
-		return barrierHandler.getAlignmentDurationNanos();
-	}
+    /**
+     * Gets the time that the latest alignment took, in nanoseconds. If there is currently an
+     * alignment in progress, it will return the time spent in the current alignment so far.
+     *
+     * @return The duration in nanoseconds
+     */
+    @VisibleForTesting
+    long getAlignmentDurationNanos() {
+        return barrierHandler.getAlignmentDurationNanos();
+    }
 
-	/**
-	 * @return the time that elapsed, in nanoseconds, between the creation of the latest checkpoint
-	 * and the time when it's first {@link CheckpointBarrier} was received by this {@link InputGate}.
-	 */
-	@VisibleForTesting
-	long getCheckpointStartDelayNanos() {
-		return barrierHandler.getCheckpointStartDelayNanos();
-	}
+    /**
+     * @return the time that elapsed, in nanoseconds, between the creation of the latest checkpoint
+     *     and the time when it's first {@link CheckpointBarrier} was received by this {@link
+     *     InputGate}.
+     */
+    @VisibleForTesting
+    long getCheckpointStartDelayNanos() {
+        return barrierHandler.getCheckpointStartDelayNanos();
+    }
 
-	/**
-	 * @return number of underlying input channels.
-	 */
-	public int getNumberOfInputChannels() {
-		return inputGate.getNumberOfInputChannels();
-	}
+    /** @return number of underlying input channels. */
+    public int getNumberOfInputChannels() {
+        return inputGate.getNumberOfInputChannels();
+    }
 
-	// ------------------------------------------------------------------------
-	// Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // Utilities
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return barrierHandler.toString();
-	}
+    @Override
+    public String toString() {
+        return barrierHandler.toString();
+    }
 
-	public InputChannel getChannel(int channelIndex) {
-		return inputGate.getChannel(channelIndex);
-	}
+    public InputChannel getChannel(int channelIndex) {
+        return inputGate.getChannel(channelIndex);
+    }
 
-	public List<InputChannelInfo> getChannelInfos() {
-		return inputGate.getChannelInfos();
-	}
+    public List<InputChannelInfo> getChannelInfos() {
+        return inputGate.getChannelInfos();
+    }
 
-	@VisibleForTesting
-	CheckpointBarrierHandler getCheckpointBarrierHandler() {
-		return barrierHandler;
-	}
+    @VisibleForTesting
+    CheckpointBarrierHandler getCheckpointBarrierHandler() {
+        return barrierHandler;
+    }
 }

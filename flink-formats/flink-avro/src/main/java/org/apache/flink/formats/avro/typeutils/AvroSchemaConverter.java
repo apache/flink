@@ -47,270 +47,283 @@ import org.apache.avro.specific.SpecificRecord;
 import java.util.List;
 
 /**
- * Converts an Avro schema into Flink's type information. It uses {@link RowTypeInfo} for representing
- * objects and converts Avro types into types that are compatible with Flink's Table & SQL API.
+ * Converts an Avro schema into Flink's type information. It uses {@link RowTypeInfo} for
+ * representing objects and converts Avro types into types that are compatible with Flink's Table &
+ * SQL API.
  *
- * <p>Note: Changes in this class need to be kept in sync with the corresponding runtime
- * classes {@link AvroRowDeserializationSchema} and {@link AvroRowSerializationSchema}.
+ * <p>Note: Changes in this class need to be kept in sync with the corresponding runtime classes
+ * {@link AvroRowDeserializationSchema} and {@link AvroRowSerializationSchema}.
  */
 public class AvroSchemaConverter {
 
-	private AvroSchemaConverter() {
-		// private
-	}
+    private AvroSchemaConverter() {
+        // private
+    }
 
-	/**
-	 * Converts an Avro class into a nested row structure with deterministic field order and data
-	 * types that are compatible with Flink's Table & SQL API.
-	 *
-	 * @param avroClass Avro specific record that contains schema information
-	 * @return type information matching the schema
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T extends SpecificRecord> TypeInformation<Row> convertToTypeInfo(Class<T> avroClass) {
-		Preconditions.checkNotNull(avroClass, "Avro specific record class must not be null.");
-		// determine schema to retrieve deterministic field order
-		final Schema schema = SpecificData.get().getSchema(avroClass);
-		return (TypeInformation<Row>) convertToTypeInfo(schema);
-	}
+    /**
+     * Converts an Avro class into a nested row structure with deterministic field order and data
+     * types that are compatible with Flink's Table & SQL API.
+     *
+     * @param avroClass Avro specific record that contains schema information
+     * @return type information matching the schema
+     */
+    @SuppressWarnings("unchecked")
+    public static <T extends SpecificRecord> TypeInformation<Row> convertToTypeInfo(
+            Class<T> avroClass) {
+        Preconditions.checkNotNull(avroClass, "Avro specific record class must not be null.");
+        // determine schema to retrieve deterministic field order
+        final Schema schema = SpecificData.get().getSchema(avroClass);
+        return (TypeInformation<Row>) convertToTypeInfo(schema);
+    }
 
-	/**
-	 * Converts an Avro schema string into a nested row structure with deterministic field order and data
-	 * types that are compatible with Flink's Table & SQL API.
-	 *
-	 * @param avroSchemaString Avro schema definition string
-	 * @return type information matching the schema
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T> TypeInformation<T> convertToTypeInfo(String avroSchemaString) {
-		Preconditions.checkNotNull(avroSchemaString, "Avro schema must not be null.");
-		final Schema schema;
-		try {
-			schema = new Schema.Parser().parse(avroSchemaString);
-		} catch (SchemaParseException e) {
-			throw new IllegalArgumentException("Could not parse Avro schema string.", e);
-		}
-		return (TypeInformation<T>) convertToTypeInfo(schema);
-	}
+    /**
+     * Converts an Avro schema string into a nested row structure with deterministic field order and
+     * data types that are compatible with Flink's Table & SQL API.
+     *
+     * @param avroSchemaString Avro schema definition string
+     * @return type information matching the schema
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> TypeInformation<T> convertToTypeInfo(String avroSchemaString) {
+        Preconditions.checkNotNull(avroSchemaString, "Avro schema must not be null.");
+        final Schema schema;
+        try {
+            schema = new Schema.Parser().parse(avroSchemaString);
+        } catch (SchemaParseException e) {
+            throw new IllegalArgumentException("Could not parse Avro schema string.", e);
+        }
+        return (TypeInformation<T>) convertToTypeInfo(schema);
+    }
 
-	private static TypeInformation<?> convertToTypeInfo(Schema schema) {
-		switch (schema.getType()) {
-			case RECORD:
-				final List<Schema.Field> fields = schema.getFields();
+    private static TypeInformation<?> convertToTypeInfo(Schema schema) {
+        switch (schema.getType()) {
+            case RECORD:
+                final List<Schema.Field> fields = schema.getFields();
 
-				final TypeInformation<?>[] types = new TypeInformation<?>[fields.size()];
-				final String[] names = new String[fields.size()];
-				for (int i = 0; i < fields.size(); i++) {
-					final Schema.Field field = fields.get(i);
-					types[i] = convertToTypeInfo(field.schema());
-					names[i] = field.name();
-				}
-				return Types.ROW_NAMED(names, types);
-			case ENUM:
-				return Types.STRING;
-			case ARRAY:
-				// result type might either be ObjectArrayTypeInfo or BasicArrayTypeInfo for Strings
-				return Types.OBJECT_ARRAY(convertToTypeInfo(schema.getElementType()));
-			case MAP:
-				return Types.MAP(Types.STRING, convertToTypeInfo(schema.getValueType()));
-			case UNION:
-				final Schema actualSchema;
-				if (schema.getTypes().size() == 2 && schema.getTypes().get(0).getType() == Schema.Type.NULL) {
-					actualSchema = schema.getTypes().get(1);
-				} else if (schema.getTypes().size() == 2 && schema.getTypes().get(1).getType() == Schema.Type.NULL) {
-					actualSchema = schema.getTypes().get(0);
-				} else if (schema.getTypes().size() == 1) {
-					actualSchema = schema.getTypes().get(0);
-				} else {
-					// use Kryo for serialization
-					return Types.GENERIC(Object.class);
-				}
-				return convertToTypeInfo(actualSchema);
-			case FIXED:
-				// logical decimal type
-				if (schema.getLogicalType() instanceof LogicalTypes.Decimal) {
-					return Types.BIG_DEC;
-				}
-				// convert fixed size binary data to primitive byte arrays
-				return Types.PRIMITIVE_ARRAY(Types.BYTE);
-			case STRING:
-				// convert Avro's Utf8/CharSequence to String
-				return Types.STRING;
-			case BYTES:
-				// logical decimal type
-				if (schema.getLogicalType() instanceof LogicalTypes.Decimal) {
-					return Types.BIG_DEC;
-				}
-				return Types.PRIMITIVE_ARRAY(Types.BYTE);
-			case INT:
-				// logical date and time type
-				final org.apache.avro.LogicalType logicalType = schema.getLogicalType();
-				if (logicalType == LogicalTypes.date()) {
-					return Types.SQL_DATE;
-				} else if (logicalType == LogicalTypes.timeMillis()) {
-					return Types.SQL_TIME;
-				}
-				return Types.INT;
-			case LONG:
-				// logical timestamp type
-				if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
-					return Types.SQL_TIMESTAMP;
-				}
-				return Types.LONG;
-			case FLOAT:
-				return Types.FLOAT;
-			case DOUBLE:
-				return Types.DOUBLE;
-			case BOOLEAN:
-				return Types.BOOLEAN;
-			case NULL:
-				return Types.VOID;
-		}
-		throw new IllegalArgumentException("Unsupported Avro type '" + schema.getType() + "'.");
-	}
+                final TypeInformation<?>[] types = new TypeInformation<?>[fields.size()];
+                final String[] names = new String[fields.size()];
+                for (int i = 0; i < fields.size(); i++) {
+                    final Schema.Field field = fields.get(i);
+                    types[i] = convertToTypeInfo(field.schema());
+                    names[i] = field.name();
+                }
+                return Types.ROW_NAMED(names, types);
+            case ENUM:
+                return Types.STRING;
+            case ARRAY:
+                // result type might either be ObjectArrayTypeInfo or BasicArrayTypeInfo for Strings
+                return Types.OBJECT_ARRAY(convertToTypeInfo(schema.getElementType()));
+            case MAP:
+                return Types.MAP(Types.STRING, convertToTypeInfo(schema.getValueType()));
+            case UNION:
+                final Schema actualSchema;
+                if (schema.getTypes().size() == 2
+                        && schema.getTypes().get(0).getType() == Schema.Type.NULL) {
+                    actualSchema = schema.getTypes().get(1);
+                } else if (schema.getTypes().size() == 2
+                        && schema.getTypes().get(1).getType() == Schema.Type.NULL) {
+                    actualSchema = schema.getTypes().get(0);
+                } else if (schema.getTypes().size() == 1) {
+                    actualSchema = schema.getTypes().get(0);
+                } else {
+                    // use Kryo for serialization
+                    return Types.GENERIC(Object.class);
+                }
+                return convertToTypeInfo(actualSchema);
+            case FIXED:
+                // logical decimal type
+                if (schema.getLogicalType() instanceof LogicalTypes.Decimal) {
+                    return Types.BIG_DEC;
+                }
+                // convert fixed size binary data to primitive byte arrays
+                return Types.PRIMITIVE_ARRAY(Types.BYTE);
+            case STRING:
+                // convert Avro's Utf8/CharSequence to String
+                return Types.STRING;
+            case BYTES:
+                // logical decimal type
+                if (schema.getLogicalType() instanceof LogicalTypes.Decimal) {
+                    return Types.BIG_DEC;
+                }
+                return Types.PRIMITIVE_ARRAY(Types.BYTE);
+            case INT:
+                // logical date and time type
+                final org.apache.avro.LogicalType logicalType = schema.getLogicalType();
+                if (logicalType == LogicalTypes.date()) {
+                    return Types.SQL_DATE;
+                } else if (logicalType == LogicalTypes.timeMillis()) {
+                    return Types.SQL_TIME;
+                }
+                return Types.INT;
+            case LONG:
+                // logical timestamp type
+                if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
+                    return Types.SQL_TIMESTAMP;
+                }
+                return Types.LONG;
+            case FLOAT:
+                return Types.FLOAT;
+            case DOUBLE:
+                return Types.DOUBLE;
+            case BOOLEAN:
+                return Types.BOOLEAN;
+            case NULL:
+                return Types.VOID;
+        }
+        throw new IllegalArgumentException("Unsupported Avro type '" + schema.getType() + "'.");
+    }
 
-	/**
-	 * Converts Flink SQL {@link LogicalType} (can be nested) into an Avro schema.
-	 *
-	 * @param logicalType logical type
-	 * @return Avro's {@link Schema} matching this logical type.
-	 */
-	public static Schema convertToSchema(LogicalType logicalType) {
-		return convertToSchema(logicalType, "record");
-	}
+    /**
+     * Converts Flink SQL {@link LogicalType} (can be nested) into an Avro schema.
+     *
+     * @param logicalType logical type
+     * @return Avro's {@link Schema} matching this logical type.
+     */
+    public static Schema convertToSchema(LogicalType logicalType) {
+        return convertToSchema(logicalType, "record");
+    }
 
-	public static Schema convertToSchema(LogicalType logicalType, String rowName) {
-		int precision;
-		boolean isNullable = logicalType.isNullable();
-		switch (logicalType.getTypeRoot()) {
-			case NULL:
-				return SchemaBuilder.builder().nullType();
-			case BOOLEAN:
-				Schema booleanType = SchemaBuilder.builder().booleanType();
-				return isNullable ? nullableSchema(booleanType) : booleanType;
-			case TINYINT:
-			case SMALLINT:
-			case INTEGER:
-				Schema intType = SchemaBuilder.builder().intType();
-				return isNullable ? nullableSchema(intType) : intType;
-			case BIGINT:
-				Schema longType = SchemaBuilder.builder().longType();
-				return isNullable ? nullableSchema(longType) : longType;
-			case FLOAT:
-				Schema floatType = SchemaBuilder.builder().floatType();
-				return isNullable ? nullableSchema(floatType) : floatType;
-			case DOUBLE:
-				Schema doubleType = SchemaBuilder.builder().doubleType();
-				return isNullable ? nullableSchema(doubleType) : doubleType;
-			case CHAR:
-			case VARCHAR:
-				Schema stringType = SchemaBuilder.builder().stringType();
-				return isNullable ? nullableSchema(stringType) : stringType;
-			case BINARY:
-			case VARBINARY:
-				Schema bytesType = SchemaBuilder.builder().bytesType();
-				return isNullable ? nullableSchema(bytesType) : bytesType;
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				// use long to represents Timestamp
-				final TimestampType timestampType = (TimestampType) logicalType;
-				precision = timestampType.getPrecision();
-				org.apache.avro.LogicalType avroLogicalType;
-				if (precision <= 3) {
-					avroLogicalType = LogicalTypes.timestampMillis();
-				} else {
-					throw new IllegalArgumentException("Avro does not support TIMESTAMP type " +
-						"with precision: " + precision + ", it only supports precision less than 3.");
-				}
-				Schema timestampeType = avroLogicalType.addToSchema(SchemaBuilder.builder().longType());
-				return isNullable ? nullableSchema(timestampeType) : timestampeType;
-			case DATE:
-				// use int to represents Date
-				Schema dateType = LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType());
-				return isNullable ? nullableSchema(dateType) : dateType;
-			case TIME_WITHOUT_TIME_ZONE:
-				precision = ((TimeType) logicalType).getPrecision();
-				if (precision > 3) {
-					throw new IllegalArgumentException(
-						"Avro does not support TIME type with precision: " + precision +
-						", it only supports precision less than 3.");
-				}
-				// use int to represents Time, we only support millisecond when deserialization
-				Schema timeType = LogicalTypes
-					.timeMillis()
-					.addToSchema(SchemaBuilder.builder().intType());
-				return isNullable ? nullableSchema(timeType) : timeType;
-			case DECIMAL:
-				DecimalType decimalLogicalType = (DecimalType) logicalType;
-				// store BigDecimal as byte[]
-				Schema decimalType = LogicalTypes
-					.decimal(decimalLogicalType.getPrecision(), decimalLogicalType.getScale())
-					.addToSchema(SchemaBuilder.builder().bytesType());
-				return isNullable ? nullableSchema(decimalType) : decimalType;
-			case ROW:
-				RowType rowType = (RowType) logicalType;
-				List<String> fieldNames = rowType.getFieldNames();
-				// we have to make sure the record name is different in a Schema
-				SchemaBuilder.FieldAssembler<Schema> builder = SchemaBuilder
-					.builder()
-					.record(rowName)
-					.fields();
-				for (int i = 0; i < rowType.getFieldCount(); i++) {
-					String fieldName = fieldNames.get(i);
-					LogicalType fieldType = rowType.getTypeAt(i);
-					SchemaBuilder.GenericDefault<Schema> fieldBuilder = builder
-						.name(fieldName)
-						.type(convertToSchema(fieldType, rowName + "_" + fieldName));
+    public static Schema convertToSchema(LogicalType logicalType, String rowName) {
+        int precision;
+        boolean isNullable = logicalType.isNullable();
+        switch (logicalType.getTypeRoot()) {
+            case NULL:
+                return SchemaBuilder.builder().nullType();
+            case BOOLEAN:
+                Schema booleanType = SchemaBuilder.builder().booleanType();
+                return isNullable ? nullableSchema(booleanType) : booleanType;
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+                Schema intType = SchemaBuilder.builder().intType();
+                return isNullable ? nullableSchema(intType) : intType;
+            case BIGINT:
+                Schema longType = SchemaBuilder.builder().longType();
+                return isNullable ? nullableSchema(longType) : longType;
+            case FLOAT:
+                Schema floatType = SchemaBuilder.builder().floatType();
+                return isNullable ? nullableSchema(floatType) : floatType;
+            case DOUBLE:
+                Schema doubleType = SchemaBuilder.builder().doubleType();
+                return isNullable ? nullableSchema(doubleType) : doubleType;
+            case CHAR:
+            case VARCHAR:
+                Schema stringType = SchemaBuilder.builder().stringType();
+                return isNullable ? nullableSchema(stringType) : stringType;
+            case BINARY:
+            case VARBINARY:
+                Schema bytesType = SchemaBuilder.builder().bytesType();
+                return isNullable ? nullableSchema(bytesType) : bytesType;
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                // use long to represents Timestamp
+                final TimestampType timestampType = (TimestampType) logicalType;
+                precision = timestampType.getPrecision();
+                org.apache.avro.LogicalType avroLogicalType;
+                if (precision <= 3) {
+                    avroLogicalType = LogicalTypes.timestampMillis();
+                } else {
+                    throw new IllegalArgumentException(
+                            "Avro does not support TIMESTAMP type "
+                                    + "with precision: "
+                                    + precision
+                                    + ", it only supports precision less than 3.");
+                }
+                Schema timestampeType =
+                        avroLogicalType.addToSchema(SchemaBuilder.builder().longType());
+                return isNullable ? nullableSchema(timestampeType) : timestampeType;
+            case DATE:
+                // use int to represents Date
+                Schema dateType =
+                        LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType());
+                return isNullable ? nullableSchema(dateType) : dateType;
+            case TIME_WITHOUT_TIME_ZONE:
+                precision = ((TimeType) logicalType).getPrecision();
+                if (precision > 3) {
+                    throw new IllegalArgumentException(
+                            "Avro does not support TIME type with precision: "
+                                    + precision
+                                    + ", it only supports precision less than 3.");
+                }
+                // use int to represents Time, we only support millisecond when deserialization
+                Schema timeType =
+                        LogicalTypes.timeMillis().addToSchema(SchemaBuilder.builder().intType());
+                return isNullable ? nullableSchema(timeType) : timeType;
+            case DECIMAL:
+                DecimalType decimalLogicalType = (DecimalType) logicalType;
+                // store BigDecimal as byte[]
+                Schema decimalType =
+                        LogicalTypes.decimal(
+                                        decimalLogicalType.getPrecision(),
+                                        decimalLogicalType.getScale())
+                                .addToSchema(SchemaBuilder.builder().bytesType());
+                return isNullable ? nullableSchema(decimalType) : decimalType;
+            case ROW:
+                RowType rowType = (RowType) logicalType;
+                List<String> fieldNames = rowType.getFieldNames();
+                // we have to make sure the record name is different in a Schema
+                SchemaBuilder.FieldAssembler<Schema> builder =
+                        SchemaBuilder.builder().record(rowName).fields();
+                for (int i = 0; i < rowType.getFieldCount(); i++) {
+                    String fieldName = fieldNames.get(i);
+                    LogicalType fieldType = rowType.getTypeAt(i);
+                    SchemaBuilder.GenericDefault<Schema> fieldBuilder =
+                            builder.name(fieldName)
+                                    .type(convertToSchema(fieldType, rowName + "_" + fieldName));
 
-					if (fieldType.isNullable()) {
-						builder = fieldBuilder.withDefault(null);
-					} else {
-						builder = fieldBuilder.noDefault();
-					}
-				}
-				return builder.endRecord();
-			case MULTISET:
-			case MAP:
-				Schema mapType = SchemaBuilder
-					.builder()
-					.map()
-					.values(convertToSchema(extractValueTypeToAvroMap(logicalType), rowName));
-				return isNullable ? nullableSchema(mapType) : mapType;
-			case ARRAY:
-				ArrayType arrayLogicalType = (ArrayType) logicalType;
-				Schema arrayType = SchemaBuilder
-					.builder()
-					.array()
-					.items(convertToSchema(arrayLogicalType.getElementType(), rowName));
-				return isNullable ? nullableSchema(arrayType) : arrayType;
-			case RAW:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-			default:
-				throw new UnsupportedOperationException("Unsupported to derive Schema for type: " + logicalType);
-		}
-	}
+                    if (fieldType.isNullable()) {
+                        builder = fieldBuilder.withDefault(null);
+                    } else {
+                        builder = fieldBuilder.noDefault();
+                    }
+                }
+                return builder.endRecord();
+            case MULTISET:
+            case MAP:
+                Schema mapType =
+                        SchemaBuilder.builder()
+                                .map()
+                                .values(
+                                        convertToSchema(
+                                                extractValueTypeToAvroMap(logicalType), rowName));
+                return isNullable ? nullableSchema(mapType) : mapType;
+            case ARRAY:
+                ArrayType arrayLogicalType = (ArrayType) logicalType;
+                Schema arrayType =
+                        SchemaBuilder.builder()
+                                .array()
+                                .items(convertToSchema(arrayLogicalType.getElementType(), rowName));
+                return isNullable ? nullableSchema(arrayType) : arrayType;
+            case RAW:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            default:
+                throw new UnsupportedOperationException(
+                        "Unsupported to derive Schema for type: " + logicalType);
+        }
+    }
 
-	public static LogicalType extractValueTypeToAvroMap(LogicalType type) {
-		LogicalType keyType;
-		LogicalType valueType;
-		if (type instanceof MapType) {
-			MapType mapType = (MapType) type;
-			keyType = mapType.getKeyType();
-			valueType = mapType.getValueType();
-		} else {
-			MultisetType multisetType = (MultisetType) type;
-			keyType = multisetType.getElementType();
-			valueType = new IntType();
-		}
-		if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
-			throw new UnsupportedOperationException(
-					"Avro format doesn't support non-string as key type of map. " +
-							"The key type is: " + keyType.asSummaryString());
-		}
-		return valueType;
-	}
+    public static LogicalType extractValueTypeToAvroMap(LogicalType type) {
+        LogicalType keyType;
+        LogicalType valueType;
+        if (type instanceof MapType) {
+            MapType mapType = (MapType) type;
+            keyType = mapType.getKeyType();
+            valueType = mapType.getValueType();
+        } else {
+            MultisetType multisetType = (MultisetType) type;
+            keyType = multisetType.getElementType();
+            valueType = new IntType();
+        }
+        if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
+            throw new UnsupportedOperationException(
+                    "Avro format doesn't support non-string as key type of map. "
+                            + "The key type is: "
+                            + keyType.asSummaryString());
+        }
+        return valueType;
+    }
 
-	/** Returns schema with nullable true. */
-	private static Schema nullableSchema(Schema schema) {
-		return Schema.createUnion(SchemaBuilder.builder().nullType(), schema);
-	}
+    /** Returns schema with nullable true. */
+    private static Schema nullableSchema(Schema schema) {
+        return Schema.createUnion(SchemaBuilder.builder().nullType(), schema);
+    }
 }

@@ -28,32 +28,38 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_TBL_PROPS;
 
-/**
- * ALTER DDL to change properties of a Hive table.
- */
+/** ALTER DDL to change properties of a Hive table. */
 public class SqlAlterHiveTableProps extends SqlAlterHiveTable {
 
-	private final SqlNodeList origProps;
+    private final SqlNodeList origProps;
 
-	public SqlAlterHiveTableProps(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList)
-			throws ParseException {
-		super(CHANGE_TBL_PROPS, pos, tableName, null, HiveDDLUtils.checkReservedTableProperties(propertyList));
-		HiveDDLUtils.unescapeProperties(propertyList);
-		// remove the last property which is the ALTER_TABLE_OP
-		this.origProps = new SqlNodeList(propertyList.getList().subList(0, propertyList.size() - 1),
-				propertyList.getParserPosition());
-	}
+    public SqlAlterHiveTableProps(
+            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList)
+            throws ParseException {
+        super(
+                CHANGE_TBL_PROPS,
+                pos,
+                tableName,
+                null,
+                HiveDDLUtils.checkReservedTableProperties(propertyList));
+        HiveDDLUtils.unescapeProperties(propertyList);
+        // remove the last property which is the ALTER_TABLE_OP
+        this.origProps =
+                new SqlNodeList(
+                        propertyList.getList().subList(0, propertyList.size() - 1),
+                        propertyList.getParserPosition());
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET TBLPROPERTIES");
-		SqlWriter.Frame withFrame = writer.startList("(", ")");
-		for (SqlNode property : origProps) {
-			printIndent(writer);
-			property.unparse(writer, leftPrec, rightPrec);
-		}
-		writer.newlineAndIndent();
-		writer.endList(withFrame);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("SET TBLPROPERTIES");
+        SqlWriter.Frame withFrame = writer.startList("(", ")");
+        for (SqlNode property : origProps) {
+            printIndent(writer);
+            property.unparse(writer, leftPrec, rightPrec);
+        }
+        writer.newlineAndIndent();
+        writer.endList(withFrame);
+    }
 }

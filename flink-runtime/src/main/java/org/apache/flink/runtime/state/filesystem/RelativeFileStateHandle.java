@@ -21,53 +21,50 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
-
 /**
- * A {@link StreamStateHandle} for state that was written to a file stream.
- * The differences between {@link FileStateHandle} and {@link RelativeFileStateHandle} is that
- * {@link RelativeFileStateHandle} contains relativePath for the given handle.
+ * A {@link StreamStateHandle} for state that was written to a file stream. The differences between
+ * {@link FileStateHandle} and {@link RelativeFileStateHandle} is that {@link
+ * RelativeFileStateHandle} contains relativePath for the given handle.
  */
 public class RelativeFileStateHandle extends FileStateHandle {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final String relativePath;
+    private final String relativePath;
 
-	public RelativeFileStateHandle(
-			Path path,
-			String relativePath,
-			long stateSize) {
-		super(path, stateSize);
-		this.relativePath = relativePath;
-	}
+    public RelativeFileStateHandle(Path path, String relativePath, long stateSize) {
+        super(path, stateSize);
+        this.relativePath = relativePath;
+    }
 
-	public String getRelativePath() {
-		return relativePath;
-	}
+    public String getRelativePath() {
+        return relativePath;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public boolean equals(Object o) {
-		if (o == this) {
-			return true;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
 
-		if (!(o instanceof RelativeFileStateHandle)) {
-			return false;
-		}
+        if (!(o instanceof RelativeFileStateHandle)) {
+            return false;
+        }
 
-		RelativeFileStateHandle other = (RelativeFileStateHandle) o;
-		return super.equals(o) && relativePath.equals(other.relativePath);
-	}
+        RelativeFileStateHandle other = (RelativeFileStateHandle) o;
+        return super.equals(o) && relativePath.equals(other.relativePath);
+    }
 
-	@Override
-	public int hashCode() {
-		return 17 * super.hashCode() + relativePath.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return 17 * super.hashCode() + relativePath.hashCode();
+    }
 
-	@Override
-	public String toString() {
-		return String.format("RelativeFileStateHandle State: %s, %s [%d bytes]", getFilePath(), relativePath, getStateSize());
-	}
+    @Override
+    public String toString() {
+        return String.format(
+                "RelativeFileStateHandle State: %s, %s [%d bytes]",
+                getFilePath(), relativePath, getStateSize());
+    }
 }
-

@@ -28,28 +28,26 @@ import java.util.Map;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link AvroKeyValueSinkWriter}.
- */
+/** Tests for {@link AvroKeyValueSinkWriter}. */
 public class AvroKeyValueSinkWriterTest {
 
-	@Test
-	public void testDuplicate() {
-		Map<String, String> properties = new HashMap<>();
-		Schema keySchema = Schema.create(Schema.Type.STRING);
-		Schema valueSchema = Schema.create(Schema.Type.STRING);
-		properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_KEY_SCHEMA, keySchema.toString());
-		properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_VALUE_SCHEMA, valueSchema.toString());
-		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS, String.valueOf(true));
-		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS_CODEC, DataFileConstants.SNAPPY_CODEC);
+    @Test
+    public void testDuplicate() {
+        Map<String, String> properties = new HashMap<>();
+        Schema keySchema = Schema.create(Schema.Type.STRING);
+        Schema valueSchema = Schema.create(Schema.Type.STRING);
+        properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_KEY_SCHEMA, keySchema.toString());
+        properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_VALUE_SCHEMA, valueSchema.toString());
+        properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS, String.valueOf(true));
+        properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS_CODEC, DataFileConstants.SNAPPY_CODEC);
 
-		AvroKeyValueSinkWriter<String, String> writer = new AvroKeyValueSinkWriter(properties);
-		writer.setSyncOnFlush(true);
-		AvroKeyValueSinkWriter<String, String> other = writer.duplicate();
+        AvroKeyValueSinkWriter<String, String> writer = new AvroKeyValueSinkWriter(properties);
+        writer.setSyncOnFlush(true);
+        AvroKeyValueSinkWriter<String, String> other = writer.duplicate();
 
-		assertTrue(StreamWriterBaseComparator.equals(writer, other));
+        assertTrue(StreamWriterBaseComparator.equals(writer, other));
 
-		writer.setSyncOnFlush(false);
-		assertFalse(StreamWriterBaseComparator.equals(writer, other));
-	}
+        writer.setSyncOnFlush(false);
+        assertFalse(StreamWriterBaseComparator.equals(writer, other));
+    }
 }

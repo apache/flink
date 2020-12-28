@@ -27,21 +27,21 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-/**
- * Base class of tests for all kinds of DeduplicateFunction.
- */
+/** Base class of tests for all kinds of DeduplicateFunction. */
 abstract class DeduplicateFunctionTestBase {
 
-	Time minTime = Time.milliseconds(10);
-	RowDataTypeInfo inputRowType = new RowDataTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(),
-			new IntType());
+    Time minTime = Time.milliseconds(10);
+    RowDataTypeInfo inputRowType =
+            new RowDataTypeInfo(
+                    new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new IntType());
 
-	int rowKeyIdx = 1;
-	BinaryRowDataKeySelector rowKeySelector = new BinaryRowDataKeySelector(new int[] { rowKeyIdx },
-			inputRowType.getLogicalTypes());
+    int rowKeyIdx = 1;
+    BinaryRowDataKeySelector rowKeySelector =
+            new BinaryRowDataKeySelector(new int[] {rowKeyIdx}, inputRowType.getLogicalTypes());
 
-	RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(
-			inputRowType.getFieldTypes(),
-			new GenericRowRecordSortComparator(rowKeyIdx, inputRowType.getLogicalTypes()[rowKeyIdx]));
-
+    RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(
+                    inputRowType.getFieldTypes(),
+                    new GenericRowRecordSortComparator(
+                            rowKeyIdx, inputRowType.getLogicalTypes()[rowKeyIdx]));
 }

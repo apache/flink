@@ -34,95 +34,96 @@ import java.util.Collections;
  */
 public abstract class AbstractPythonScalarFunctionRunnerTest<IN> {
 
-	protected AbstractPythonScalarFunctionRunner<IN> createSingleUDFRunner() throws Exception {
-		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
-			new PythonFunctionInfo(
-				DummyPythonFunction.INSTANCE,
-				new Integer[]{0})
-		};
+    protected AbstractPythonScalarFunctionRunner<IN> createSingleUDFRunner() throws Exception {
+        PythonFunctionInfo[] pythonFunctionInfos =
+                new PythonFunctionInfo[] {
+                    new PythonFunctionInfo(DummyPythonFunction.INSTANCE, new Integer[] {0})
+                };
 
-		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
-		return createPythonScalarFunctionRunner(pythonFunctionInfos, rowType, rowType);
-	}
+        RowType rowType =
+                new RowType(
+                        Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
+        return createPythonScalarFunctionRunner(pythonFunctionInfos, rowType, rowType);
+    }
 
-	protected AbstractPythonScalarFunctionRunner<IN> createMultipleUDFRunner() throws Exception {
-		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
-			new PythonFunctionInfo(
-				DummyPythonFunction.INSTANCE,
-				new Integer[]{0, 1}),
-			new PythonFunctionInfo(
-				DummyPythonFunction.INSTANCE,
-				new Integer[]{0, 2})
-		};
+    protected AbstractPythonScalarFunctionRunner<IN> createMultipleUDFRunner() throws Exception {
+        PythonFunctionInfo[] pythonFunctionInfos =
+                new PythonFunctionInfo[] {
+                    new PythonFunctionInfo(DummyPythonFunction.INSTANCE, new Integer[] {0, 1}),
+                    new PythonFunctionInfo(DummyPythonFunction.INSTANCE, new Integer[] {0, 2})
+                };
 
-		RowType inputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new BigIntType()),
-			new RowType.RowField("f2", new BigIntType()),
-			new RowType.RowField("f3", new BigIntType())));
-		RowType outputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new BigIntType()),
-			new RowType.RowField("f2", new BigIntType())));
-		return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
-	}
+        RowType inputType =
+                new RowType(
+                        Arrays.asList(
+                                new RowType.RowField("f1", new BigIntType()),
+                                new RowType.RowField("f2", new BigIntType()),
+                                new RowType.RowField("f3", new BigIntType())));
+        RowType outputType =
+                new RowType(
+                        Arrays.asList(
+                                new RowType.RowField("f1", new BigIntType()),
+                                new RowType.RowField("f2", new BigIntType())));
+        return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
+    }
 
-	protected AbstractPythonScalarFunctionRunner<IN> createChainedUDFRunner() throws Exception {
-		PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[] {
-			new PythonFunctionInfo(
-				DummyPythonFunction.INSTANCE,
-				new Integer[]{0, 1}),
-			new PythonFunctionInfo(
-				DummyPythonFunction.INSTANCE,
-				new Object[]{
-					0,
-					new PythonFunctionInfo(
-						DummyPythonFunction.INSTANCE,
-						new Integer[]{1, 2})
-				}),
-			new PythonFunctionInfo(
-				DummyPythonFunction.INSTANCE,
-				new Object[]{
-					new PythonFunctionInfo(
-						DummyPythonFunction.INSTANCE,
-						new Integer[]{1, 3}),
-					new PythonFunctionInfo(
-						DummyPythonFunction.INSTANCE,
-						new Integer[]{3, 4})
-				})
-		};
+    protected AbstractPythonScalarFunctionRunner<IN> createChainedUDFRunner() throws Exception {
+        PythonFunctionInfo[] pythonFunctionInfos =
+                new PythonFunctionInfo[] {
+                    new PythonFunctionInfo(DummyPythonFunction.INSTANCE, new Integer[] {0, 1}),
+                    new PythonFunctionInfo(
+                            DummyPythonFunction.INSTANCE,
+                            new Object[] {
+                                0,
+                                new PythonFunctionInfo(
+                                        DummyPythonFunction.INSTANCE, new Integer[] {1, 2})
+                            }),
+                    new PythonFunctionInfo(
+                            DummyPythonFunction.INSTANCE,
+                            new Object[] {
+                                new PythonFunctionInfo(
+                                        DummyPythonFunction.INSTANCE, new Integer[] {1, 3}),
+                                new PythonFunctionInfo(
+                                        DummyPythonFunction.INSTANCE, new Integer[] {3, 4})
+                            })
+                };
 
-		RowType inputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new BigIntType()),
-			new RowType.RowField("f2", new BigIntType()),
-			new RowType.RowField("f3", new BigIntType()),
-			new RowType.RowField("f4", new BigIntType()),
-			new RowType.RowField("f5", new BigIntType())));
-		RowType outputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new BigIntType()),
-			new RowType.RowField("f2", new BigIntType()),
-			new RowType.RowField("f3", new BigIntType())));
-		return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
-	}
+        RowType inputType =
+                new RowType(
+                        Arrays.asList(
+                                new RowType.RowField("f1", new BigIntType()),
+                                new RowType.RowField("f2", new BigIntType()),
+                                new RowType.RowField("f3", new BigIntType()),
+                                new RowType.RowField("f4", new BigIntType()),
+                                new RowType.RowField("f5", new BigIntType())));
+        RowType outputType =
+                new RowType(
+                        Arrays.asList(
+                                new RowType.RowField("f1", new BigIntType()),
+                                new RowType.RowField("f2", new BigIntType()),
+                                new RowType.RowField("f3", new BigIntType())));
+        return createPythonScalarFunctionRunner(pythonFunctionInfos, inputType, outputType);
+    }
 
-	public abstract AbstractPythonScalarFunctionRunner<IN> createPythonScalarFunctionRunner(
-		PythonFunctionInfo[] pythonFunctionInfos, RowType inputType, RowType outputType) throws Exception;
+    public abstract AbstractPythonScalarFunctionRunner<IN> createPythonScalarFunctionRunner(
+            PythonFunctionInfo[] pythonFunctionInfos, RowType inputType, RowType outputType)
+            throws Exception;
 
-	/**
-	 * Dummy PythonFunction.
-	 */
-	public static class DummyPythonFunction implements PythonFunction {
+    /** Dummy PythonFunction. */
+    public static class DummyPythonFunction implements PythonFunction {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		public static final PythonFunction INSTANCE = new DummyPythonFunction();
+        public static final PythonFunction INSTANCE = new DummyPythonFunction();
 
-		@Override
-		public byte[] getSerializedPythonFunction() {
-			return new byte[0];
-		}
+        @Override
+        public byte[] getSerializedPythonFunction() {
+            return new byte[0];
+        }
 
-		@Override
-		public PythonEnv getPythonEnv() {
-			return new PythonEnv(PythonEnv.ExecType.PROCESS);
-		}
-	}
+        @Override
+        public PythonEnv getPythonEnv() {
+            return new PythonEnv(PythonEnv.ExecType.PROCESS);
+        }
+    }
 }

@@ -22,31 +22,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tests that the {@link JobExceptionsInfo} with no root exception can be marshalled and unmarshalled.
+ * Tests that the {@link JobExceptionsInfo} with no root exception can be marshalled and
+ * unmarshalled.
  */
-public class JobExceptionsInfoNoRootTest extends RestResponseMarshallingTestBase<JobExceptionsInfo> {
-	@Override
-	protected Class<JobExceptionsInfo> getTestResponseClass() {
-		return JobExceptionsInfo.class;
-	}
+public class JobExceptionsInfoNoRootTest
+        extends RestResponseMarshallingTestBase<JobExceptionsInfo> {
+    @Override
+    protected Class<JobExceptionsInfo> getTestResponseClass() {
+        return JobExceptionsInfo.class;
+    }
 
-	@Override
-	protected JobExceptionsInfo getTestResponseInstance() throws Exception {
-		List<JobExceptionsInfo.ExecutionExceptionInfo> executionTaskExceptionInfoList = new ArrayList<>();
-		executionTaskExceptionInfoList.add(new JobExceptionsInfo.ExecutionExceptionInfo(
-			"exception1",
-			"task1",
-			"location1",
-			System.currentTimeMillis()));
-		executionTaskExceptionInfoList.add(new JobExceptionsInfo.ExecutionExceptionInfo(
-			"exception2",
-			"task2",
-			"location2",
-			System.currentTimeMillis()));
-		return new JobExceptionsInfo(
-			null,
-			null,
-			executionTaskExceptionInfoList,
-			false);
-	}
+    @Override
+    protected JobExceptionsInfo getTestResponseInstance() throws Exception {
+        List<JobExceptionsInfo.ExecutionExceptionInfo> executionTaskExceptionInfoList =
+                new ArrayList<>();
+        executionTaskExceptionInfoList.add(
+                new JobExceptionsInfo.ExecutionExceptionInfo(
+                        "exception1", "task1", "location1", System.currentTimeMillis()));
+        executionTaskExceptionInfoList.add(
+                new JobExceptionsInfo.ExecutionExceptionInfo(
+                        "exception2", "task2", "location2", System.currentTimeMillis()));
+        return new JobExceptionsInfo(null, null, executionTaskExceptionInfoList, false);
+    }
 }

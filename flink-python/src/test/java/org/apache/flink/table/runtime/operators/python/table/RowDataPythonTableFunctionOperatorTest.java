@@ -41,78 +41,75 @@ import java.util.Map;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
-/**
- * Tests for {@link RowDataPythonTableFunctionOperator}.
- */
+/** Tests for {@link RowDataPythonTableFunctionOperator}. */
 public class RowDataPythonTableFunctionOperatorTest
-	extends PythonTableFunctionOperatorTestBase<RowData, RowData, RowData> {
+        extends PythonTableFunctionOperatorTestBase<RowData, RowData, RowData> {
 
-	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new TypeInformation[]{
-		Types.STRING,
-		Types.STRING,
-		Types.LONG,
-		Types.LONG
-	});
+    private final RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(
+                    new TypeInformation[] {Types.STRING, Types.STRING, Types.LONG, Types.LONG});
 
-	@Override
-	public RowData newRow(boolean accumulateMsg, Object... fields) {
-		if (accumulateMsg) {
-			return row(fields);
-		} else {
-			RowData row = row(fields);
-			row.setRowKind(RowKind.DELETE);
-			return row;
-		}
-	}
+    @Override
+    public RowData newRow(boolean accumulateMsg, Object... fields) {
+        if (accumulateMsg) {
+            return row(fields);
+        } else {
+            RowData row = row(fields);
+            row.setRowKind(RowKind.DELETE);
+            return row;
+        }
+    }
 
-	@Override
-	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
-		assertor.assertOutputEquals(message, expected, actual);
-	}
+    @Override
+    public void assertOutputEquals(
+            String message, Collection<Object> expected, Collection<Object> actual) {
+        assertor.assertOutputEquals(message, expected, actual);
+    }
 
-	@Override
-	public AbstractPythonTableFunctionOperator<RowData, RowData, RowData> getTestOperator(
-		Configuration config,
-		PythonFunctionInfo tableFunction,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		JoinRelType joinRelType) {
-		return new RowDataPassThroughPythonTableFunctionOperator(
-			config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
-	}
+    @Override
+    public AbstractPythonTableFunctionOperator<RowData, RowData, RowData> getTestOperator(
+            Configuration config,
+            PythonFunctionInfo tableFunction,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            JoinRelType joinRelType) {
+        return new RowDataPassThroughPythonTableFunctionOperator(
+                config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
+    }
 
-	private static class RowDataPassThroughPythonTableFunctionOperator extends RowDataPythonTableFunctionOperator {
+    private static class RowDataPassThroughPythonTableFunctionOperator
+            extends RowDataPythonTableFunctionOperator {
 
-		RowDataPassThroughPythonTableFunctionOperator(
-			Configuration config,
-			PythonFunctionInfo tableFunction,
-			RowType inputType,
-			RowType outputType,
-			int[] udfInputOffsets,
-			JoinRelType joinRelType) {
-			super(config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
-		}
+        RowDataPassThroughPythonTableFunctionOperator(
+                Configuration config,
+                PythonFunctionInfo tableFunction,
+                RowType inputType,
+                RowType outputType,
+                int[] udfInputOffsets,
+                JoinRelType joinRelType) {
+            super(config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
+        }
 
-		@Override
-		public PythonFunctionRunner<RowData> createPythonFunctionRunner(
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager,
-			Map<String, String> jobOptions) {
-			return new PassThroughPythonTableFunctionRunner<RowData>(resultReceiver) {
-				@Override
-				public RowData copy(RowData element) {
-					RowData row = binaryrow(element.getLong(0));
-					row.setRowKind(element.getRowKind());
-					return row;
-				}
+        @Override
+        public PythonFunctionRunner<RowData> createPythonFunctionRunner(
+                FnDataReceiver<byte[]> resultReceiver,
+                PythonEnvironmentManager pythonEnvironmentManager,
+                Map<String, String> jobOptions) {
+            return new PassThroughPythonTableFunctionRunner<RowData>(resultReceiver) {
+                @Override
+                public RowData copy(RowData element) {
+                    RowData row = binaryrow(element.getLong(0));
+                    row.setRowKind(element.getRowKind());
+                    return row;
+                }
 
-				@Override
-				@SuppressWarnings("unchecked")
-				public TypeSerializer<RowData> getInputTypeSerializer() {
-					return PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
-				}
-			};
-		}
-	}
+                @Override
+                @SuppressWarnings("unchecked")
+                public TypeSerializer<RowData> getInputTypeSerializer() {
+                    return PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
+                }
+            };
+        }
+    }
 }

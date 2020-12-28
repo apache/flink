@@ -27,34 +27,37 @@ import java.time.ZoneId;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link DateTimeBucketer}.
- */
+/** Tests for {@link DateTimeBucketer}. */
 public class DateTimeBucketerTest {
-	private static final long TEST_TIME_IN_MILLIS = 1533363082011L;
-	private static final Path TEST_PATH = new Path("test");
+    private static final long TEST_TIME_IN_MILLIS = 1533363082011L;
+    private static final Path TEST_PATH = new Path("test");
 
-	private static final Clock mockedClock = new MockedClock();
+    private static final Clock mockedClock = new MockedClock();
 
-	@Test
-	public void testGetBucketPathWithSpecifiedTimezone() {
-		DateTimeBucketer bucketer = new DateTimeBucketer(ZoneId.of("America/Los_Angeles"));
+    @Test
+    public void testGetBucketPathWithSpecifiedTimezone() {
+        DateTimeBucketer bucketer = new DateTimeBucketer(ZoneId.of("America/Los_Angeles"));
 
-		assertEquals(new Path("test/2018-08-03--23"), bucketer.getBucketPath(mockedClock, TEST_PATH, null));
-	}
+        assertEquals(
+                new Path("test/2018-08-03--23"),
+                bucketer.getBucketPath(mockedClock, TEST_PATH, null));
+    }
 
-	@Test
-	public void testGetBucketPathWithSpecifiedFormatString() {
-		DateTimeBucketer bucketer = new DateTimeBucketer("yyyy-MM-dd-HH", ZoneId.of("America/Los_Angeles"));
+    @Test
+    public void testGetBucketPathWithSpecifiedFormatString() {
+        DateTimeBucketer bucketer =
+                new DateTimeBucketer("yyyy-MM-dd-HH", ZoneId.of("America/Los_Angeles"));
 
-		assertEquals(new Path("test/2018-08-03-23"), bucketer.getBucketPath(mockedClock, TEST_PATH, null));
-	}
+        assertEquals(
+                new Path("test/2018-08-03-23"),
+                bucketer.getBucketPath(mockedClock, TEST_PATH, null));
+    }
 
-	private static class MockedClock implements Clock {
+    private static class MockedClock implements Clock {
 
-		@Override
-		public long currentTimeMillis() {
-			return TEST_TIME_IN_MILLIS;
-		}
-	}
+        @Override
+        public long currentTimeMillis() {
+            return TEST_TIME_IN_MILLIS;
+        }
+    }
 }

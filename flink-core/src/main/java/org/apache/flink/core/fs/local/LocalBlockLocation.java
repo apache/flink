@@ -23,38 +23,36 @@ import org.apache.flink.core.fs.BlockLocation;
 
 import java.io.IOException;
 
-/**
- * Implementation of the {@link BlockLocation} interface for a local file system.
- */
+/** Implementation of the {@link BlockLocation} interface for a local file system. */
 @Internal
 public class LocalBlockLocation implements BlockLocation {
 
-	private final long length;
+    private final long length;
 
-	private final String[] hosts;
+    private final String[] hosts;
 
-	public LocalBlockLocation(final String host, final long length) {
-		this.hosts = new String[] { host };
-		this.length = length;
-	}
+    public LocalBlockLocation(final String host, final long length) {
+        this.hosts = new String[] {host};
+        this.length = length;
+    }
 
-	@Override
-	public String[] getHosts() throws IOException {
-		return this.hosts;
-	}
+    @Override
+    public String[] getHosts() throws IOException {
+        return this.hosts;
+    }
 
-	@Override
-	public long getLength() {
-		return this.length;
-	}
+    @Override
+    public long getLength() {
+        return this.length;
+    }
 
-	@Override
-	public long getOffset() {
-		return 0;
-	}
+    @Override
+    public long getOffset() {
+        return 0;
+    }
 
-	@Override
-	public int compareTo(final BlockLocation o) {
-		return 0;
-	}
+    @Override
+    public int compareTo(final BlockLocation o) {
+        return 0;
+    }
 }

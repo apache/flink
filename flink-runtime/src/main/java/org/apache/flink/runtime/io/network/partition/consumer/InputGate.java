@@ -49,9 +49,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * +-----+              +---------------------+              +--------+
  * }</pre>
  *
- * <p>When deploying such a program in parallel, the intermediate result will be partitioned over its
- * producing parallel subtasks; each of these partitions is furthermore partitioned into one or more
- * subpartitions.
+ * <p>When deploying such a program in parallel, the intermediate result will be partitioned over
+ * its producing parallel subtasks; each of these partitions is furthermore partitioned into one or
+ * more subpartitions.
  *
  * <pre>{@code
  *                            Intermediate result
@@ -78,88 +78,86 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>, AutoCloseable {
 
-	protected final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
+    protected final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
-	public abstract int getNumberOfInputChannels();
+    public abstract int getNumberOfInputChannels();
 
-	public abstract boolean isFinished();
+    public abstract boolean isFinished();
 
-	/**
-	 * Blocking call waiting for next {@link BufferOrEvent}.
-	 *
-	 * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before getting next one.
-	 *
-	 * @return {@code Optional.empty()} if {@link #isFinished()} returns true.
-	 */
-	public abstract Optional<BufferOrEvent> getNext() throws IOException, InterruptedException;
+    /**
+     * Blocking call waiting for next {@link BufferOrEvent}.
+     *
+     * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before
+     * getting next one.
+     *
+     * @return {@code Optional.empty()} if {@link #isFinished()} returns true.
+     */
+    public abstract Optional<BufferOrEvent> getNext() throws IOException, InterruptedException;
 
-	/**
-	 * Poll the {@link BufferOrEvent}.
-	 *
-	 * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before polling next one.
-	 *
-	 * @return {@code Optional.empty()} if there is no data to return or if {@link #isFinished()} returns true.
-	 */
-	public abstract Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException;
+    /**
+     * Poll the {@link BufferOrEvent}.
+     *
+     * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before
+     * polling next one.
+     *
+     * @return {@code Optional.empty()} if there is no data to return or if {@link #isFinished()}
+     *     returns true.
+     */
+    public abstract Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException;
 
-	public abstract void sendTaskEvent(TaskEvent event) throws IOException;
+    public abstract void sendTaskEvent(TaskEvent event) throws IOException;
 
-	/**
-	 * @return a future that is completed if there are more records available. If there are more
-	 * records available immediately, {@link #AVAILABLE} should be returned. Previously returned
-	 * not completed futures should become completed once there are more records available.
-	 */
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return availabilityHelper.getAvailableFuture();
-	}
+    /**
+     * @return a future that is completed if there are more records available. If there are more
+     *     records available immediately, {@link #AVAILABLE} should be returned. Previously returned
+     *     not completed futures should become completed once there are more records available.
+     */
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return availabilityHelper.getAvailableFuture();
+    }
 
-	public abstract void resumeConsumption(int channelIndex) throws IOException;
+    public abstract void resumeConsumption(int channelIndex) throws IOException;
 
-	/**
-	 * Returns the channel of this gate.
-	 */
-	public abstract InputChannel getChannel(int channelIndex);
+    /** Returns the channel of this gate. */
+    public abstract InputChannel getChannel(int channelIndex);
 
-	/**
-	 * Returns the channel infos of this gate.
-	 */
-	public List<InputChannelInfo> getChannelInfos() {
-		return IntStream.range(0, getNumberOfInputChannels())
-			.mapToObj(index -> getChannel(index).getChannelInfo())
-			.collect(Collectors.toList());
-	}
+    /** Returns the channel infos of this gate. */
+    public List<InputChannelInfo> getChannelInfos() {
+        return IntStream.range(0, getNumberOfInputChannels())
+                .mapToObj(index -> getChannel(index).getChannelInfo())
+                .collect(Collectors.toList());
+    }
 
-	/**
-	 * Simple pojo for INPUT, DATA and moreAvailable.
-	 */
-	protected static class InputWithData<INPUT, DATA> {
-		protected final INPUT input;
-		protected final DATA data;
-		protected final boolean moreAvailable;
+    /** Simple pojo for INPUT, DATA and moreAvailable. */
+    protected static class InputWithData<INPUT, DATA> {
+        protected final INPUT input;
+        protected final DATA data;
+        protected final boolean moreAvailable;
 
-		InputWithData(INPUT input, DATA data, boolean moreAvailable) {
-			this.input = checkNotNull(input);
-			this.data = checkNotNull(data);
-			this.moreAvailable = moreAvailable;
-		}
-	}
+        InputWithData(INPUT input, DATA data, boolean moreAvailable) {
+            this.input = checkNotNull(input);
+            this.data = checkNotNull(data);
+            this.moreAvailable = moreAvailable;
+        }
+    }
 
-	/**
-	 * Setup gate, potentially heavy-weight, blocking operation comparing to just creation.
-	 */
-	public abstract void setup() throws IOException;
+    /** Setup gate, potentially heavy-weight, blocking operation comparing to just creation. */
+    public abstract void setup() throws IOException;
 
-	/**
-	 * Reads the previous unaligned checkpoint states before requesting partition data.
-	 *
-	 * @param executor the dedicated executor for performing this action for all the internal channels.
-	 * @param reader the dedicated reader for unspilling the respective channel state from snapshots.
-	 * @return the future indicates whether the recovered states have already been drained or not.
-	 */
-	public abstract CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) throws IOException;
+    /**
+     * Reads the previous unaligned checkpoint states before requesting partition data.
+     *
+     * @param executor the dedicated executor for performing this action for all the internal
+     *     channels.
+     * @param reader the dedicated reader for unspilling the respective channel state from
+     *     snapshots.
+     * @return the future indicates whether the recovered states have already been drained or not.
+     */
+    public abstract CompletableFuture<?> readRecoveredState(
+            ExecutorService executor, ChannelStateReader reader) throws IOException;
 
-	public abstract void requestPartitions() throws IOException;
+    public abstract void requestPartitions() throws IOException;
 
-	public abstract void registerBufferReceivedListener(BufferReceivedListener listener);
+    public abstract void registerBufferReceivedListener(BufferReceivedListener listener);
 }

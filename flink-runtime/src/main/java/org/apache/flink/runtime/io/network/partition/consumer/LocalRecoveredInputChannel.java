@@ -27,39 +27,46 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An input channel reads recovered state from previous unaligned checkpoint snapshots
- * via {@link ChannelStateReader} and then converts into {@link LocalInputChannel} finally.
+ * An input channel reads recovered state from previous unaligned checkpoint snapshots via {@link
+ * ChannelStateReader} and then converts into {@link LocalInputChannel} finally.
  */
 public class LocalRecoveredInputChannel extends RecoveredInputChannel {
-	private final ResultPartitionManager partitionManager;
-	private final TaskEventPublisher taskEventPublisher;
+    private final ResultPartitionManager partitionManager;
+    private final TaskEventPublisher taskEventPublisher;
 
-	LocalRecoveredInputChannel(
-			SingleInputGate inputGate,
-			int channelIndex,
-			ResultPartitionID partitionId,
-			ResultPartitionManager partitionManager,
-			TaskEventPublisher taskEventPublisher,
-			int initialBackOff,
-			int maxBackoff,
-			InputChannelMetrics metrics) {
-		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInLocalCounter(), metrics.getNumBuffersInLocalCounter());
+    LocalRecoveredInputChannel(
+            SingleInputGate inputGate,
+            int channelIndex,
+            ResultPartitionID partitionId,
+            ResultPartitionManager partitionManager,
+            TaskEventPublisher taskEventPublisher,
+            int initialBackOff,
+            int maxBackoff,
+            InputChannelMetrics metrics) {
+        super(
+                inputGate,
+                channelIndex,
+                partitionId,
+                initialBackOff,
+                maxBackoff,
+                metrics.getNumBytesInLocalCounter(),
+                metrics.getNumBuffersInLocalCounter());
 
-		this.partitionManager = checkNotNull(partitionManager);
-		this.taskEventPublisher = checkNotNull(taskEventPublisher);
-	}
+        this.partitionManager = checkNotNull(partitionManager);
+        this.taskEventPublisher = checkNotNull(taskEventPublisher);
+    }
 
-	@Override
-	public InputChannel toInputChannel() {
-		return new LocalInputChannel(
-			inputGate,
-			getChannelIndex(),
-			partitionId,
-			partitionManager,
-			taskEventPublisher,
-			initialBackoff,
-			maxBackoff,
-			numBytesIn,
-			numBytesIn);
-	}
+    @Override
+    public InputChannel toInputChannel() {
+        return new LocalInputChannel(
+                inputGate,
+                getChannelIndex(),
+                partitionId,
+                partitionManager,
+                taskEventPublisher,
+                initialBackoff,
+                maxBackoff,
+                numBytesIn,
+                numBytesIn);
+    }
 }

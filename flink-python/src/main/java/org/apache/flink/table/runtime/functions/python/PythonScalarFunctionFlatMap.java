@@ -39,44 +39,45 @@ import java.io.IOException;
 @Internal
 public class PythonScalarFunctionFlatMap extends AbstractPythonScalarFunctionFlatMap {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public PythonScalarFunctionFlatMap(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-	}
+    public PythonScalarFunctionFlatMap(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+    }
 
-	@Override
-	public PythonFunctionRunner<Row> createPythonFunctionRunner() throws IOException {
-		FnDataReceiver<byte[]> userDefinedFunctionResultReceiver = input -> {
-			// handover to queue, do not block the result receiver thread
-			userDefinedFunctionResultQueue.put(input);
-		};
+    @Override
+    public PythonFunctionRunner<Row> createPythonFunctionRunner() throws IOException {
+        FnDataReceiver<byte[]> userDefinedFunctionResultReceiver =
+                input -> {
+                    // handover to queue, do not block the result receiver thread
+                    userDefinedFunctionResultQueue.put(input);
+                };
 
-		return new PythonScalarFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			userDefinedFunctionResultReceiver,
-			scalarFunctions,
-			createPythonEnvironmentManager(),
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			jobOptions,
-			getFlinkMetricContainer());
-	}
+        return new PythonScalarFunctionRunner(
+                getRuntimeContext().getTaskName(),
+                userDefinedFunctionResultReceiver,
+                scalarFunctions,
+                createPythonEnvironmentManager(),
+                userDefinedFunctionInputType,
+                userDefinedFunctionOutputType,
+                jobOptions,
+                getFlinkMetricContainer());
+    }
 
-	@Override
-	public void emitResults() throws IOException {
-		byte[] rawUdfResult;
-		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			Row input = forwardedInputQueue.poll();
-			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
-			Row udfResult = userDefinedFunctionTypeSerializer.deserialize(baisWrapper);
-			this.resultCollector.collect(Row.join(input, udfResult));
-		}
-	}
+    @Override
+    public void emitResults() throws IOException {
+        byte[] rawUdfResult;
+        while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
+            Row input = forwardedInputQueue.poll();
+            bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
+            Row udfResult = userDefinedFunctionTypeSerializer.deserialize(baisWrapper);
+            this.resultCollector.collect(Row.join(input, udfResult));
+        }
+    }
 }

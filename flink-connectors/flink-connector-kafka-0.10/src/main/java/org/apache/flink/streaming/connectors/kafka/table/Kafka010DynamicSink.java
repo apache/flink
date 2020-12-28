@@ -31,51 +31,41 @@ import org.apache.flink.table.types.DataType;
 import java.util.Optional;
 import java.util.Properties;
 
-/**
- * Kafka 0.10 table sink for writing data into Kafka.
- */
+/** Kafka 0.10 table sink for writing data into Kafka. */
 @Internal
 public class Kafka010DynamicSink extends KafkaDynamicSinkBase {
 
-	public Kafka010DynamicSink(
-			DataType consumedDataType,
-			String topic,
-			Properties properties,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
-		super(
-			consumedDataType,
-			topic,
-			properties,
-			partitioner,
-			encodingFormat);
-	}
+    public Kafka010DynamicSink(
+            DataType consumedDataType,
+            String topic,
+            Properties properties,
+            Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+            EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+        super(consumedDataType, topic, properties, partitioner, encodingFormat);
+    }
 
-	@Override
-	protected FlinkKafkaProducerBase<RowData> createKafkaProducer(
-			String topic,
-			Properties properties,
-			SerializationSchema<RowData> serializationSchema,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner) {
-		return new FlinkKafkaProducer010<>(
-			topic,
-			serializationSchema,
-			properties,
-			partitioner.orElse(null));
-	}
+    @Override
+    protected FlinkKafkaProducerBase<RowData> createKafkaProducer(
+            String topic,
+            Properties properties,
+            SerializationSchema<RowData> serializationSchema,
+            Optional<FlinkKafkaPartitioner<RowData>> partitioner) {
+        return new FlinkKafkaProducer010<>(
+                topic, serializationSchema, properties, partitioner.orElse(null));
+    }
 
-	@Override
-	public DynamicTableSink copy() {
-		return new Kafka010DynamicSink(
-				this.consumedDataType,
-				this.topic,
-				this.properties,
-				this.partitioner,
-				this.encodingFormat);
-	}
+    @Override
+    public DynamicTableSink copy() {
+        return new Kafka010DynamicSink(
+                this.consumedDataType,
+                this.topic,
+                this.properties,
+                this.partitioner,
+                this.encodingFormat);
+    }
 
-	@Override
-	public String asSummaryString() {
-		return "Kafka 0.10 table sink";
-	}
+    @Override
+    public String asSummaryString() {
+        return "Kafka 0.10 table sink";
+    }
 }

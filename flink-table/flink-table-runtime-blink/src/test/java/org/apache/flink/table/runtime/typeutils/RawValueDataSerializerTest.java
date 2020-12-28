@@ -24,43 +24,44 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.utils.RawValueDataAsserter;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
-/**
- * A test for the {@link RawValueDataSerializer}.
- */
+/** A test for the {@link RawValueDataSerializer}. */
 public class RawValueDataSerializerTest extends SerializerTestBase<RawValueData<String>> {
-	public RawValueDataSerializerTest() {
-		super(new DeeplyEqualsChecker()
-			.withCustomCheck(
-				(o, o2) -> o instanceof RawValueData && o2 instanceof RawValueData,
-				(o, o2, checker) -> RawValueDataAsserter.equivalent(
-					(RawValueData) o2,
-					new RawValueDataSerializer<>(StringSerializer.INSTANCE)).matches(o)
-			));
-	}
+    public RawValueDataSerializerTest() {
+        super(
+                new DeeplyEqualsChecker()
+                        .withCustomCheck(
+                                (o, o2) -> o instanceof RawValueData && o2 instanceof RawValueData,
+                                (o, o2, checker) ->
+                                        RawValueDataAsserter.equivalent(
+                                                        (RawValueData) o2,
+                                                        new RawValueDataSerializer<>(
+                                                                StringSerializer.INSTANCE))
+                                                .matches(o)));
+    }
 
-	@Override
-	protected RawValueDataSerializer<String> createSerializer() {
-		return new RawValueDataSerializer<>(StringSerializer.INSTANCE);
-	}
+    @Override
+    protected RawValueDataSerializer<String> createSerializer() {
+        return new RawValueDataSerializer<>(StringSerializer.INSTANCE);
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<RawValueData<String>> getTypeClass() {
-		return (Class) RawValueData.class;
-	}
+    @Override
+    protected Class<RawValueData<String>> getTypeClass() {
+        return (Class) RawValueData.class;
+    }
 
-	@Override
-	protected RawValueData[] getTestData() {
-		return new RawValueData[] {
-				RawValueData.fromObject("1"),
-				RawValueData.fromObject("2"),
-				RawValueData.fromObject("3"),
-				RawValueData.fromObject("4"),
-				RawValueData.fromObject("5")
-		};
-	}
+    @Override
+    protected RawValueData[] getTestData() {
+        return new RawValueData[] {
+            RawValueData.fromObject("1"),
+            RawValueData.fromObject("2"),
+            RawValueData.fromObject("3"),
+            RawValueData.fromObject("4"),
+            RawValueData.fromObject("5")
+        };
+    }
 }

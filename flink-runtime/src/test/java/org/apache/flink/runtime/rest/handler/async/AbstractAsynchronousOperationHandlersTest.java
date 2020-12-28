@@ -60,320 +60,367 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link AbstractAsynchronousOperationHandlers}.
- */
+/** Tests for the {@link AbstractAsynchronousOperationHandlers}. */
 public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
-	private static final Time TIMEOUT = Time.seconds(10L);
-
-	private TestingAsynchronousOperationHandlers testingAsynchronousOperationHandlers;
-
-	private TestingAsynchronousOperationHandlers.TestingTriggerHandler testingTriggerHandler;
-
-	private TestingAsynchronousOperationHandlers.TestingStatusHandler testingStatusHandler;
-
-	@Before
-	public void setup() {
-		testingAsynchronousOperationHandlers = new TestingAsynchronousOperationHandlers();
-
-		testingTriggerHandler = testingAsynchronousOperationHandlers.new TestingTriggerHandler(
-			() -> null,
-			TIMEOUT,
-			Collections.emptyMap(),
-			TestingTriggerMessageHeaders.INSTANCE);
-
-		testingStatusHandler = testingAsynchronousOperationHandlers.new TestingStatusHandler(
-			() -> null,
-			TIMEOUT,
-			Collections.emptyMap(),
-			TestingStatusMessageHeaders.INSTANCE);
-	}
-
-	/**
-	 * Tests the triggering and successful completion of an asynchronous operation.
-	 */
-	@Test
-	public void testOperationCompletion() throws Exception {
-		final CompletableFuture<String> savepointFuture = new CompletableFuture<>();
-		final TestingRestfulGateway testingRestfulGateway = new TestingRestfulGateway.Builder()
-			.setTriggerSavepointFunction((JobID jobId, String directory) -> savepointFuture)
-			.build();
-
-		// trigger the operation
-		final TriggerId triggerId = testingTriggerHandler.handleRequest(
-			triggerOperationRequest(),
-			testingRestfulGateway).get().getTriggerId();
-
-		AsynchronousOperationResult<OperationResult> operationResult = testingStatusHandler.handleRequest(
-			statusOperationRequest(triggerId),
-			testingRestfulGateway).get();
-
-		assertThat(operationResult.queueStatus().getId(), is(QueueStatus.inProgress().getId()));
-
-		// complete the operation
-		final String savepointPath = "foobar";
-		savepointFuture.complete(savepointPath);
-
-		operationResult = testingStatusHandler.handleRequest(
-			statusOperationRequest(triggerId),
-			testingRestfulGateway).get();
-
-		assertThat(operationResult.queueStatus().getId(), is(QueueStatus.completed().getId()));
-
-		assertThat(operationResult.resource().value, is(savepointPath));
-	}
-
-	/**
-	 * Tests the triggering and exceptional completion of an asynchronous operation.
-	 */
-	@Test
-	public void testOperationFailure() throws Exception {
-		final FlinkException testException = new FlinkException("Test exception");
-		final TestingRestfulGateway testingRestfulGateway = new TestingRestfulGateway.Builder()
-			.setTriggerSavepointFunction((JobID jobId, String directory) -> FutureUtils.completedExceptionally(testException))
-			.build();
-
-		// trigger the operation
-		final TriggerId triggerId = testingTriggerHandler.handleRequest(
-			triggerOperationRequest(),
-			testingRestfulGateway).get().getTriggerId();
-
-		AsynchronousOperationResult<OperationResult> operationResult = testingStatusHandler.handleRequest(
-			statusOperationRequest(triggerId),
-			testingRestfulGateway).get();
-
-		assertThat(operationResult.queueStatus().getId(), is(QueueStatus.completed().getId()));
-
-		final OperationResult resource = operationResult.resource();
-		assertThat(resource.throwable, is(testException));
-	}
-
-	/**
-	 * Tests that an querying an unknown trigger id will return an exceptionally completed
-	 * future.
-	 */
-	@Test
-	public void testUnknownTriggerId() throws Exception {
-		final TestingRestfulGateway testingRestfulGateway = new TestingRestfulGateway.Builder().build();
-
-		try {
-			testingStatusHandler.handleRequest(
-				statusOperationRequest(new TriggerId()),
-				testingRestfulGateway).get();
-
-			fail("This should have failed with a RestHandlerException.");
-		} catch (ExecutionException ee) {
-			final Optional<RestHandlerException> optionalRestHandlerException = ExceptionUtils.findThrowable(ee, RestHandlerException.class);
-
-			assertThat(optionalRestHandlerException.isPresent(), is(true));
-
-			final RestHandlerException restHandlerException = optionalRestHandlerException.get();
-
-			assertThat(restHandlerException.getMessage(), containsString("Operation not found"));
-			assertThat(restHandlerException.getHttpResponseStatus(), is(HttpResponseStatus.NOT_FOUND));
-		}
-	}
-
-	/**
-	 * Tests that the future returned by {@link AbstractAsynchronousOperationHandlers.StatusHandler#closeAsync()}
-	 * completes when the result of the asynchronous operation is served.
-	 */
-	@Test
-	public void testCloseShouldFinishOnFirstServedResult() throws Exception {
-		final CompletableFuture<String> savepointFuture = new CompletableFuture<>();
-		final TestingRestfulGateway testingRestfulGateway = new TestingRestfulGateway.Builder()
-			.setTriggerSavepointFunction((JobID jobId, String directory) -> savepointFuture)
-			.build();
-
-		final TriggerId triggerId = testingTriggerHandler.handleRequest(
-			triggerOperationRequest(),
-			testingRestfulGateway).get().getTriggerId();
-		final CompletableFuture<Void> closeFuture = testingStatusHandler.closeAsync();
-
-		testingStatusHandler.handleRequest(statusOperationRequest(triggerId), testingRestfulGateway).get();
-
-		assertThat(closeFuture.isDone(), is(false));
-
-		savepointFuture.complete("foobar");
-		testingStatusHandler.handleRequest(statusOperationRequest(triggerId), testingRestfulGateway).get();
-
-		assertThat(closeFuture.isDone(), is(true));
-	}
-
-	private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> triggerOperationRequest() throws HandlerRequestException {
-		return new HandlerRequest<>(EmptyRequestBody.getInstance(), EmptyMessageParameters.getInstance());
-	}
-
-	private static HandlerRequest<EmptyRequestBody, TriggerMessageParameters> statusOperationRequest(TriggerId triggerId) throws HandlerRequestException {
-		return new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			new TriggerMessageParameters(),
-			Collections.singletonMap(TriggerIdPathParameter.KEY, triggerId.toString()),
-			Collections.emptyMap());
-	}
-
-	private static final class TestOperationKey extends OperationKey {
-
-		protected TestOperationKey(TriggerId triggerId) {
-			super(triggerId);
-		}
-	}
-
-	private static final class TriggerMessageParameters extends MessageParameters {
-
-		private final TriggerIdPathParameter triggerIdPathParameter = new TriggerIdPathParameter();
-
-		@Override
-		public Collection<MessagePathParameter<?>> getPathParameters() {
-			return Collections.singleton(triggerIdPathParameter);
-		}
-
-		@Override
-		public Collection<MessageQueryParameter<?>> getQueryParameters() {
-			return Collections.emptyList();
-		}
-	}
-
-	private static final class OperationResult {
-		@Nullable
-		private final Throwable throwable;
-
-		@Nullable
-		private final String value;
-
-		OperationResult(@Nullable String value, @Nullable Throwable throwable) {
-			this.value = value;
-			this.throwable = throwable;
-		}
-	}
-
-	private static final class TestingTriggerMessageHeaders extends AsynchronousOperationTriggerMessageHeaders<EmptyRequestBody, EmptyMessageParameters> {
-
-		static final TestingTriggerMessageHeaders INSTANCE = new TestingTriggerMessageHeaders();
-
-		private TestingTriggerMessageHeaders() {}
-
-		@Override
-		public HttpResponseStatus getResponseStatusCode() {
-			return HttpResponseStatus.OK;
-		}
-
-		@Override
-		public String getDescription() {
-			return "";
-		}
-
-		@Override
-		protected String getAsyncOperationDescription() {
-			return "";
-		}
-
-		@Override
-		public Class<EmptyRequestBody> getRequestClass() {
-			return EmptyRequestBody.class;
-		}
-
-		@Override
-		public EmptyMessageParameters getUnresolvedMessageParameters() {
-			return EmptyMessageParameters.getInstance();
-		}
-
-		@Override
-		public HttpMethodWrapper getHttpMethod() {
-			return HttpMethodWrapper.POST;
-		}
-
-		@Override
-		public String getTargetRestEndpointURL() {
-			return "barfoo";
-		}
-	}
-
-	private static final class TestingStatusMessageHeaders extends AsynchronousOperationStatusMessageHeaders<OperationResult, TriggerMessageParameters> {
-
-		private static final TestingStatusMessageHeaders INSTANCE = new TestingStatusMessageHeaders();
-
-		private TestingStatusMessageHeaders() {}
-
-		@Override
-		public Class<OperationResult> getValueClass() {
-			return OperationResult.class;
-		}
-
-		@Override
-		public HttpResponseStatus getResponseStatusCode() {
-			return HttpResponseStatus.OK;
-		}
-
-		@Override
-		public Class<EmptyRequestBody> getRequestClass() {
-			return EmptyRequestBody.class;
-		}
-
-		@Override
-		public TriggerMessageParameters getUnresolvedMessageParameters() {
-			return new TriggerMessageParameters();
-		}
-
-		@Override
-		public HttpMethodWrapper getHttpMethod() {
-			return HttpMethodWrapper.GET;
-		}
-
-		@Override
-		public String getTargetRestEndpointURL() {
-			return "foobar";
-		}
-
-		@Override
-		public String getDescription() {
-			return "";
-		}
-	}
-
-	private static final class TestingAsynchronousOperationHandlers extends AbstractAsynchronousOperationHandlers<TestOperationKey, String> {
-
-		class TestingTriggerHandler extends TriggerHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {
-
-			protected TestingTriggerHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, TriggerResponse, EmptyMessageParameters> messageHeaders) {
-				super(leaderRetriever, timeout, responseHeaders, messageHeaders);
-			}
-
-			@Override
-			protected CompletableFuture<String> triggerOperation(HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, RestfulGateway gateway) throws RestHandlerException {
-				return gateway.triggerSavepoint(new JobID(), null, false, timeout);
-			}
-
-			@Override
-			protected TestOperationKey createOperationKey(HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request) {
-				return new TestOperationKey(new TriggerId());
-			}
-		}
-
-		class TestingStatusHandler extends StatusHandler<RestfulGateway, OperationResult, TriggerMessageParameters> {
-
-			protected TestingStatusHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<OperationResult>, TriggerMessageParameters> messageHeaders) {
-				super(leaderRetriever, timeout, responseHeaders, messageHeaders);
-			}
-
-			@Override
-			protected TestOperationKey getOperationKey(HandlerRequest<EmptyRequestBody, TriggerMessageParameters> request) {
-				final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
-
-				return new TestOperationKey(triggerId);
-			}
-
-			@Override
-			protected OperationResult exceptionalOperationResultResponse(Throwable throwable) {
-				return new OperationResult(null, throwable);
-			}
-
-			@Override
-			protected OperationResult operationResultResponse(String operationResult) {
-				return new OperationResult(operationResult, null);
-			}
-		}
-	}
-
+    private static final Time TIMEOUT = Time.seconds(10L);
+
+    private TestingAsynchronousOperationHandlers testingAsynchronousOperationHandlers;
+
+    private TestingAsynchronousOperationHandlers.TestingTriggerHandler testingTriggerHandler;
+
+    private TestingAsynchronousOperationHandlers.TestingStatusHandler testingStatusHandler;
+
+    @Before
+    public void setup() {
+        testingAsynchronousOperationHandlers = new TestingAsynchronousOperationHandlers();
+
+        testingTriggerHandler =
+                testingAsynchronousOperationHandlers
+                .new TestingTriggerHandler(
+                        () -> null,
+                        TIMEOUT,
+                        Collections.emptyMap(),
+                        TestingTriggerMessageHeaders.INSTANCE);
+
+        testingStatusHandler =
+                testingAsynchronousOperationHandlers
+                .new TestingStatusHandler(
+                        () -> null,
+                        TIMEOUT,
+                        Collections.emptyMap(),
+                        TestingStatusMessageHeaders.INSTANCE);
+    }
+
+    /** Tests the triggering and successful completion of an asynchronous operation. */
+    @Test
+    public void testOperationCompletion() throws Exception {
+        final CompletableFuture<String> savepointFuture = new CompletableFuture<>();
+        final TestingRestfulGateway testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setTriggerSavepointFunction(
+                                (JobID jobId, String directory) -> savepointFuture)
+                        .build();
+
+        // trigger the operation
+        final TriggerId triggerId =
+                testingTriggerHandler
+                        .handleRequest(triggerOperationRequest(), testingRestfulGateway)
+                        .get()
+                        .getTriggerId();
+
+        AsynchronousOperationResult<OperationResult> operationResult =
+                testingStatusHandler
+                        .handleRequest(statusOperationRequest(triggerId), testingRestfulGateway)
+                        .get();
+
+        assertThat(operationResult.queueStatus().getId(), is(QueueStatus.inProgress().getId()));
+
+        // complete the operation
+        final String savepointPath = "foobar";
+        savepointFuture.complete(savepointPath);
+
+        operationResult =
+                testingStatusHandler
+                        .handleRequest(statusOperationRequest(triggerId), testingRestfulGateway)
+                        .get();
+
+        assertThat(operationResult.queueStatus().getId(), is(QueueStatus.completed().getId()));
+
+        assertThat(operationResult.resource().value, is(savepointPath));
+    }
+
+    /** Tests the triggering and exceptional completion of an asynchronous operation. */
+    @Test
+    public void testOperationFailure() throws Exception {
+        final FlinkException testException = new FlinkException("Test exception");
+        final TestingRestfulGateway testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setTriggerSavepointFunction(
+                                (JobID jobId, String directory) ->
+                                        FutureUtils.completedExceptionally(testException))
+                        .build();
+
+        // trigger the operation
+        final TriggerId triggerId =
+                testingTriggerHandler
+                        .handleRequest(triggerOperationRequest(), testingRestfulGateway)
+                        .get()
+                        .getTriggerId();
+
+        AsynchronousOperationResult<OperationResult> operationResult =
+                testingStatusHandler
+                        .handleRequest(statusOperationRequest(triggerId), testingRestfulGateway)
+                        .get();
+
+        assertThat(operationResult.queueStatus().getId(), is(QueueStatus.completed().getId()));
+
+        final OperationResult resource = operationResult.resource();
+        assertThat(resource.throwable, is(testException));
+    }
+
+    /**
+     * Tests that an querying an unknown trigger id will return an exceptionally completed future.
+     */
+    @Test
+    public void testUnknownTriggerId() throws Exception {
+        final TestingRestfulGateway testingRestfulGateway =
+                new TestingRestfulGateway.Builder().build();
+
+        try {
+            testingStatusHandler
+                    .handleRequest(statusOperationRequest(new TriggerId()), testingRestfulGateway)
+                    .get();
+
+            fail("This should have failed with a RestHandlerException.");
+        } catch (ExecutionException ee) {
+            final Optional<RestHandlerException> optionalRestHandlerException =
+                    ExceptionUtils.findThrowable(ee, RestHandlerException.class);
+
+            assertThat(optionalRestHandlerException.isPresent(), is(true));
+
+            final RestHandlerException restHandlerException = optionalRestHandlerException.get();
+
+            assertThat(restHandlerException.getMessage(), containsString("Operation not found"));
+            assertThat(
+                    restHandlerException.getHttpResponseStatus(), is(HttpResponseStatus.NOT_FOUND));
+        }
+    }
+
+    /**
+     * Tests that the future returned by {@link
+     * AbstractAsynchronousOperationHandlers.StatusHandler#closeAsync()} completes when the result
+     * of the asynchronous operation is served.
+     */
+    @Test
+    public void testCloseShouldFinishOnFirstServedResult() throws Exception {
+        final CompletableFuture<String> savepointFuture = new CompletableFuture<>();
+        final TestingRestfulGateway testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setTriggerSavepointFunction(
+                                (JobID jobId, String directory) -> savepointFuture)
+                        .build();
+
+        final TriggerId triggerId =
+                testingTriggerHandler
+                        .handleRequest(triggerOperationRequest(), testingRestfulGateway)
+                        .get()
+                        .getTriggerId();
+        final CompletableFuture<Void> closeFuture = testingStatusHandler.closeAsync();
+
+        testingStatusHandler
+                .handleRequest(statusOperationRequest(triggerId), testingRestfulGateway)
+                .get();
+
+        assertThat(closeFuture.isDone(), is(false));
+
+        savepointFuture.complete("foobar");
+        testingStatusHandler
+                .handleRequest(statusOperationRequest(triggerId), testingRestfulGateway)
+                .get();
+
+        assertThat(closeFuture.isDone(), is(true));
+    }
+
+    private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters>
+            triggerOperationRequest() throws HandlerRequestException {
+        return new HandlerRequest<>(
+                EmptyRequestBody.getInstance(), EmptyMessageParameters.getInstance());
+    }
+
+    private static HandlerRequest<EmptyRequestBody, TriggerMessageParameters>
+            statusOperationRequest(TriggerId triggerId) throws HandlerRequestException {
+        return new HandlerRequest<>(
+                EmptyRequestBody.getInstance(),
+                new TriggerMessageParameters(),
+                Collections.singletonMap(TriggerIdPathParameter.KEY, triggerId.toString()),
+                Collections.emptyMap());
+    }
+
+    private static final class TestOperationKey extends OperationKey {
+
+        protected TestOperationKey(TriggerId triggerId) {
+            super(triggerId);
+        }
+    }
+
+    private static final class TriggerMessageParameters extends MessageParameters {
+
+        private final TriggerIdPathParameter triggerIdPathParameter = new TriggerIdPathParameter();
+
+        @Override
+        public Collection<MessagePathParameter<?>> getPathParameters() {
+            return Collections.singleton(triggerIdPathParameter);
+        }
+
+        @Override
+        public Collection<MessageQueryParameter<?>> getQueryParameters() {
+            return Collections.emptyList();
+        }
+    }
+
+    private static final class OperationResult {
+        @Nullable private final Throwable throwable;
+
+        @Nullable private final String value;
+
+        OperationResult(@Nullable String value, @Nullable Throwable throwable) {
+            this.value = value;
+            this.throwable = throwable;
+        }
+    }
+
+    private static final class TestingTriggerMessageHeaders
+            extends AsynchronousOperationTriggerMessageHeaders<
+                    EmptyRequestBody, EmptyMessageParameters> {
+
+        static final TestingTriggerMessageHeaders INSTANCE = new TestingTriggerMessageHeaders();
+
+        private TestingTriggerMessageHeaders() {}
+
+        @Override
+        public HttpResponseStatus getResponseStatusCode() {
+            return HttpResponseStatus.OK;
+        }
+
+        @Override
+        public String getDescription() {
+            return "";
+        }
+
+        @Override
+        protected String getAsyncOperationDescription() {
+            return "";
+        }
+
+        @Override
+        public Class<EmptyRequestBody> getRequestClass() {
+            return EmptyRequestBody.class;
+        }
+
+        @Override
+        public EmptyMessageParameters getUnresolvedMessageParameters() {
+            return EmptyMessageParameters.getInstance();
+        }
+
+        @Override
+        public HttpMethodWrapper getHttpMethod() {
+            return HttpMethodWrapper.POST;
+        }
+
+        @Override
+        public String getTargetRestEndpointURL() {
+            return "barfoo";
+        }
+    }
+
+    private static final class TestingStatusMessageHeaders
+            extends AsynchronousOperationStatusMessageHeaders<
+                    OperationResult, TriggerMessageParameters> {
+
+        private static final TestingStatusMessageHeaders INSTANCE =
+                new TestingStatusMessageHeaders();
+
+        private TestingStatusMessageHeaders() {}
+
+        @Override
+        public Class<OperationResult> getValueClass() {
+            return OperationResult.class;
+        }
+
+        @Override
+        public HttpResponseStatus getResponseStatusCode() {
+            return HttpResponseStatus.OK;
+        }
+
+        @Override
+        public Class<EmptyRequestBody> getRequestClass() {
+            return EmptyRequestBody.class;
+        }
+
+        @Override
+        public TriggerMessageParameters getUnresolvedMessageParameters() {
+            return new TriggerMessageParameters();
+        }
+
+        @Override
+        public HttpMethodWrapper getHttpMethod() {
+            return HttpMethodWrapper.GET;
+        }
+
+        @Override
+        public String getTargetRestEndpointURL() {
+            return "foobar";
+        }
+
+        @Override
+        public String getDescription() {
+            return "";
+        }
+    }
+
+    private static final class TestingAsynchronousOperationHandlers
+            extends AbstractAsynchronousOperationHandlers<TestOperationKey, String> {
+
+        class TestingTriggerHandler
+                extends TriggerHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {
+
+            protected TestingTriggerHandler(
+                    GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+                    Time timeout,
+                    Map<String, String> responseHeaders,
+                    MessageHeaders<EmptyRequestBody, TriggerResponse, EmptyMessageParameters>
+                            messageHeaders) {
+                super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+            }
+
+            @Override
+            protected CompletableFuture<String> triggerOperation(
+                    HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+                    RestfulGateway gateway)
+                    throws RestHandlerException {
+                return gateway.triggerSavepoint(new JobID(), null, false, timeout);
+            }
+
+            @Override
+            protected TestOperationKey createOperationKey(
+                    HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request) {
+                return new TestOperationKey(new TriggerId());
+            }
+        }
+
+        class TestingStatusHandler
+                extends StatusHandler<RestfulGateway, OperationResult, TriggerMessageParameters> {
+
+            protected TestingStatusHandler(
+                    GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+                    Time timeout,
+                    Map<String, String> responseHeaders,
+                    MessageHeaders<
+                                    EmptyRequestBody,
+                                    AsynchronousOperationResult<OperationResult>,
+                                    TriggerMessageParameters>
+                            messageHeaders) {
+                super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+            }
+
+            @Override
+            protected TestOperationKey getOperationKey(
+                    HandlerRequest<EmptyRequestBody, TriggerMessageParameters> request) {
+                final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
+
+                return new TestOperationKey(triggerId);
+            }
+
+            @Override
+            protected OperationResult exceptionalOperationResultResponse(Throwable throwable) {
+                return new OperationResult(null, throwable);
+            }
+
+            @Override
+            protected OperationResult operationResultResponse(String operationResult) {
+                return new OperationResult(operationResult, null);
+            }
+        }
+    }
 }

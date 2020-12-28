@@ -46,144 +46,150 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link SingleRecordWriter} and {@link MultipleRecordWriters}.
- */
+/** Tests for the {@link SingleRecordWriter} and {@link MultipleRecordWriters}. */
 public class RecordWriterDelegateTest extends TestLogger {
 
-	private static final int numberOfBuffers = 10;
+    private static final int numberOfBuffers = 10;
 
-	private static final int memorySegmentSize = 128;
+    private static final int memorySegmentSize = 128;
 
-	private static final int numberOfSegmentsToRequest = 2;
+    private static final int numberOfSegmentsToRequest = 2;
 
-	private NetworkBufferPool globalPool;
+    private NetworkBufferPool globalPool;
 
-	@Before
-	public void setup() {
-		globalPool = new NetworkBufferPool(numberOfBuffers, memorySegmentSize, numberOfSegmentsToRequest);
-	}
+    @Before
+    public void setup() {
+        globalPool =
+                new NetworkBufferPool(
+                        numberOfBuffers, memorySegmentSize, numberOfSegmentsToRequest);
+    }
 
-	@After
-	public void teardown() {
-		globalPool.destroyAllBufferPools();
-		globalPool.destroy();
-	}
+    @After
+    public void teardown() {
+        globalPool.destroyAllBufferPools();
+        globalPool.destroy();
+    }
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testSingleRecordWriterAvailability() throws Exception {
-		final RecordWriter recordWriter = createRecordWriter(globalPool);
-		final RecordWriterDelegate writerDelegate = new SingleRecordWriter(recordWriter);
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testSingleRecordWriterAvailability() throws Exception {
+        final RecordWriter recordWriter = createRecordWriter(globalPool);
+        final RecordWriterDelegate writerDelegate = new SingleRecordWriter(recordWriter);
 
-		assertEquals(recordWriter, writerDelegate.getRecordWriter(0));
-		verifyAvailability(writerDelegate);
-	}
+        assertEquals(recordWriter, writerDelegate.getRecordWriter(0));
+        verifyAvailability(writerDelegate);
+    }
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testMultipleRecordWritersAvailability() throws Exception {
-		// setup
-		final int numRecordWriters = 2;
-		final List<RecordWriter> recordWriters = new ArrayList<>(numRecordWriters);
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMultipleRecordWritersAvailability() throws Exception {
+        // setup
+        final int numRecordWriters = 2;
+        final List<RecordWriter> recordWriters = new ArrayList<>(numRecordWriters);
 
-		for (int i = 0; i < numRecordWriters; i++) {
-			recordWriters.add(createRecordWriter(globalPool));
-		}
+        for (int i = 0; i < numRecordWriters; i++) {
+            recordWriters.add(createRecordWriter(globalPool));
+        }
 
-		RecordWriterDelegate writerDelegate = new MultipleRecordWriters(recordWriters);
-		for (int i = 0; i < numRecordWriters; i++) {
-			assertEquals(recordWriters.get(i), writerDelegate.getRecordWriter(i));
-		}
+        RecordWriterDelegate writerDelegate = new MultipleRecordWriters(recordWriters);
+        for (int i = 0; i < numRecordWriters; i++) {
+            assertEquals(recordWriters.get(i), writerDelegate.getRecordWriter(i));
+        }
 
-		verifyAvailability(writerDelegate);
-	}
+        verifyAvailability(writerDelegate);
+    }
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testSingleRecordWriterBroadcastEvent() throws Exception {
-		// setup
-		final ArrayDeque<BufferConsumer>[] queues = new ArrayDeque[] { new ArrayDeque(), new ArrayDeque() };
-		final RecordWriter recordWriter = createRecordWriter(queues);
-		final RecordWriterDelegate writerDelegate = new SingleRecordWriter(recordWriter);
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testSingleRecordWriterBroadcastEvent() throws Exception {
+        // setup
+        final ArrayDeque<BufferConsumer>[] queues =
+                new ArrayDeque[] {new ArrayDeque(), new ArrayDeque()};
+        final RecordWriter recordWriter = createRecordWriter(queues);
+        final RecordWriterDelegate writerDelegate = new SingleRecordWriter(recordWriter);
 
-		verifyBroadcastEvent(writerDelegate, queues, 1);
-	}
+        verifyBroadcastEvent(writerDelegate, queues, 1);
+    }
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testMultipleRecordWritersBroadcastEvent() throws Exception {
-		// setup
-		final int numRecordWriters = 2;
-		final List<RecordWriter> recordWriters = new ArrayList<>(numRecordWriters);
-		final ArrayDeque<BufferConsumer>[] queues = new ArrayDeque[] { new ArrayDeque(), new ArrayDeque() };
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMultipleRecordWritersBroadcastEvent() throws Exception {
+        // setup
+        final int numRecordWriters = 2;
+        final List<RecordWriter> recordWriters = new ArrayList<>(numRecordWriters);
+        final ArrayDeque<BufferConsumer>[] queues =
+                new ArrayDeque[] {new ArrayDeque(), new ArrayDeque()};
 
-		for (int i = 0; i < numRecordWriters; i++) {
-			recordWriters.add(createRecordWriter(queues));
-		}
-		final RecordWriterDelegate writerDelegate = new MultipleRecordWriters(recordWriters);
+        for (int i = 0; i < numRecordWriters; i++) {
+            recordWriters.add(createRecordWriter(queues));
+        }
+        final RecordWriterDelegate writerDelegate = new MultipleRecordWriters(recordWriters);
 
-		verifyBroadcastEvent(writerDelegate, queues, numRecordWriters);
-	}
+        verifyBroadcastEvent(writerDelegate, queues, numRecordWriters);
+    }
 
-	private RecordWriter createRecordWriter(NetworkBufferPool globalPool) throws Exception {
-		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
-		final ResultPartitionWriter partition = new ResultPartitionBuilder()
-			.setBufferPoolFactory(p -> localPool)
-			.build();
-		partition.setup();
+    private RecordWriter createRecordWriter(NetworkBufferPool globalPool) throws Exception {
+        final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
+        final ResultPartitionWriter partition =
+                new ResultPartitionBuilder().setBufferPoolFactory(p -> localPool).build();
+        partition.setup();
 
-		return new RecordWriterBuilder().build(partition);
-	}
+        return new RecordWriterBuilder().build(partition);
+    }
 
-	private RecordWriter createRecordWriter(ArrayDeque<BufferConsumer>[] queues) {
-		final ResultPartitionWriter partition = new RecordWriterTest.CollectingPartitionWriter(
-			queues,
-			new TestPooledBufferProvider(1));
+    private RecordWriter createRecordWriter(ArrayDeque<BufferConsumer>[] queues) {
+        final ResultPartitionWriter partition =
+                new RecordWriterTest.CollectingPartitionWriter(
+                        queues, new TestPooledBufferProvider(1));
 
-		return new RecordWriterBuilder().build(partition);
-	}
+        return new RecordWriterBuilder().build(partition);
+    }
 
-	private void verifyAvailability(RecordWriterDelegate writerDelegate) throws Exception {
-		// writer is available at the beginning
-		assertTrue(writerDelegate.isAvailable());
-		assertTrue(writerDelegate.getAvailableFuture().isDone());
+    private void verifyAvailability(RecordWriterDelegate writerDelegate) throws Exception {
+        // writer is available at the beginning
+        assertTrue(writerDelegate.isAvailable());
+        assertTrue(writerDelegate.getAvailableFuture().isDone());
 
-		// request one buffer from the local pool to make it unavailable
-		RecordWriter recordWriter = writerDelegate.getRecordWriter(0);
-		final BufferBuilder bufferBuilder = checkNotNull(recordWriter.getBufferBuilder(0));
-		assertFalse(writerDelegate.isAvailable());
-		CompletableFuture future = writerDelegate.getAvailableFuture();
-		assertFalse(future.isDone());
+        // request one buffer from the local pool to make it unavailable
+        RecordWriter recordWriter = writerDelegate.getRecordWriter(0);
+        final BufferBuilder bufferBuilder = checkNotNull(recordWriter.getBufferBuilder(0));
+        assertFalse(writerDelegate.isAvailable());
+        CompletableFuture future = writerDelegate.getAvailableFuture();
+        assertFalse(future.isDone());
 
-		// recycle the buffer to make the local pool available again
-		BufferBuilderTestUtils.fillBufferBuilder(bufferBuilder, 1).finish();
-		ResultSubpartitionView readView = recordWriter.getTargetPartition().getSubpartition(0).createReadView(new NoOpBufferAvailablityListener());
-		Buffer buffer = readView.getNextBuffer().buffer();
+        // recycle the buffer to make the local pool available again
+        BufferBuilderTestUtils.fillBufferBuilder(bufferBuilder, 1).finish();
+        ResultSubpartitionView readView =
+                recordWriter
+                        .getTargetPartition()
+                        .getSubpartition(0)
+                        .createReadView(new NoOpBufferAvailablityListener());
+        Buffer buffer = readView.getNextBuffer().buffer();
 
-		buffer.recycleBuffer();
-		assertTrue(future.isDone());
-		assertTrue(writerDelegate.isAvailable());
-		assertTrue(writerDelegate.getAvailableFuture().isDone());
-	}
+        buffer.recycleBuffer();
+        assertTrue(future.isDone());
+        assertTrue(writerDelegate.isAvailable());
+        assertTrue(writerDelegate.getAvailableFuture().isDone());
+    }
 
-	private void verifyBroadcastEvent(
-			RecordWriterDelegate writerDelegate,
-			ArrayDeque<BufferConsumer>[] queues,
-			int numRecordWriters) throws Exception {
+    private void verifyBroadcastEvent(
+            RecordWriterDelegate writerDelegate,
+            ArrayDeque<BufferConsumer>[] queues,
+            int numRecordWriters)
+            throws Exception {
 
-		final CancelCheckpointMarker message = new CancelCheckpointMarker(1);
-		writerDelegate.broadcastEvent(message);
+        final CancelCheckpointMarker message = new CancelCheckpointMarker(1);
+        writerDelegate.broadcastEvent(message);
 
-		// verify the added messages in all the queues
-		for (int i = 0; i < queues.length; i++) {
-			assertEquals(numRecordWriters, queues[i].size());
+        // verify the added messages in all the queues
+        for (int i = 0; i < queues.length; i++) {
+            assertEquals(numRecordWriters, queues[i].size());
 
-			for (int j = 0; j < numRecordWriters; j++) {
-				BufferOrEvent boe = RecordWriterTest.parseBuffer(queues[i].remove(), i);
-				assertTrue(boe.isEvent());
-				assertEquals(message, boe.getEvent());
-			}
-		}
-	}
+            for (int j = 0; j < numRecordWriters; j++) {
+                BufferOrEvent boe = RecordWriterTest.parseBuffer(queues[i].remove(), i);
+                assertTrue(boe.isEvent());
+                assertEquals(message, boe.getEvent());
+            }
+        }
+    }
 }

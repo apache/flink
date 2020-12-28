@@ -23,20 +23,17 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.data.RowData;
 
 /**
- * Provider of a {@link SinkFunction} instance as a runtime implementation for {@link DynamicTableSink}.
+ * Provider of a {@link SinkFunction} instance as a runtime implementation for {@link
+ * DynamicTableSink}.
  */
 @PublicEvolving
 public interface SinkFunctionProvider extends DynamicTableSink.SinkRuntimeProvider {
 
-	/**
-	 * Helper method for creating a static provider.
-	 */
-	static SinkFunctionProvider of(SinkFunction<RowData> sinkFunction) {
-		return () -> sinkFunction;
-	}
+    /** Helper method for creating a static provider. */
+    static SinkFunctionProvider of(SinkFunction<RowData> sinkFunction) {
+        return () -> sinkFunction;
+    }
 
-	/**
-	 * Creates a {@link SinkFunction} instance.
-	 */
-	SinkFunction<RowData> createSinkFunction();
+    /** Creates a {@link SinkFunction} instance. */
+    SinkFunction<RowData> createSinkFunction();
 }

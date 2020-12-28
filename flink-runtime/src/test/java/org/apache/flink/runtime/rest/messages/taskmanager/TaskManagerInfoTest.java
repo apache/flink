@@ -26,37 +26,32 @@ import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import java.util.Random;
 import java.util.UUID;
 
-/**
- * Test for (un)marshalling of the {@link TaskManagerInfo}.
- */
+/** Test for (un)marshalling of the {@link TaskManagerInfo}. */
 public class TaskManagerInfoTest extends RestResponseMarshallingTestBase<TaskManagerInfo> {
 
-	private static final Random random = new Random();
+    private static final Random random = new Random();
 
-	@Override
-	protected Class<TaskManagerInfo> getTestResponseClass() {
-		return TaskManagerInfo.class;
-	}
+    @Override
+    protected Class<TaskManagerInfo> getTestResponseClass() {
+        return TaskManagerInfo.class;
+    }
 
-	@Override
-	protected TaskManagerInfo getTestResponseInstance() throws Exception {
-		return createRandomTaskManagerInfo();
-	}
+    @Override
+    protected TaskManagerInfo getTestResponseInstance() throws Exception {
+        return createRandomTaskManagerInfo();
+    }
 
-	static TaskManagerInfo createRandomTaskManagerInfo() {
-		return new TaskManagerInfo(
-			ResourceID.generate(),
-			UUID.randomUUID().toString(),
-			random.nextInt(),
-			random.nextLong(),
-			random.nextInt(),
-			random.nextInt(),
-			ResourceProfile.ZERO,
-			ResourceProfile.ZERO,
-			new HardwareDescription(
-				random.nextInt(),
-				random.nextLong(),
-				random.nextLong(),
-				random.nextLong()));
-	}
+    static TaskManagerInfo createRandomTaskManagerInfo() {
+        return new TaskManagerInfo(
+                ResourceID.generate(),
+                UUID.randomUUID().toString(),
+                random.nextInt(),
+                random.nextLong(),
+                random.nextInt(),
+                random.nextInt(),
+                ResourceProfile.ZERO,
+                ResourceProfile.ZERO,
+                new HardwareDescription(
+                        random.nextInt(), random.nextLong(), random.nextLong(), random.nextLong()));
+    }
 }

@@ -28,53 +28,54 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link AverageClusteringCoefficient}.
- */
+/** Tests for {@link AverageClusteringCoefficient}. */
 public class AverageClusteringCoefficientTest extends AsmTestBase {
 
-	/**
-	 * Validate a test result.
-	 *
-	 * @param graph input graph
-	 * @param vertexCount result vertex count
-	 * @param averageClusteringCoefficient result average clustering coefficient
-	 * @param <T> graph ID type
-	 * @throws Exception on error
-	 */
-	private static <T extends Comparable<T> & CopyableValue<T>> void validate(
-			Graph<T, NullValue, NullValue> graph, long vertexCount, double averageClusteringCoefficient) throws Exception {
-		Result result = new AverageClusteringCoefficient<T, NullValue, NullValue>()
-			.run(graph)
-			.execute();
+    /**
+     * Validate a test result.
+     *
+     * @param graph input graph
+     * @param vertexCount result vertex count
+     * @param averageClusteringCoefficient result average clustering coefficient
+     * @param <T> graph ID type
+     * @throws Exception on error
+     */
+    private static <T extends Comparable<T> & CopyableValue<T>> void validate(
+            Graph<T, NullValue, NullValue> graph,
+            long vertexCount,
+            double averageClusteringCoefficient)
+            throws Exception {
+        Result result =
+                new AverageClusteringCoefficient<T, NullValue, NullValue>().run(graph).execute();
 
-		assertEquals(vertexCount, result.getNumberOfVertices());
-		assertEquals(averageClusteringCoefficient, result.getAverageClusteringCoefficient(), ACCURACY);
-	}
+        assertEquals(vertexCount, result.getNumberOfVertices());
+        assertEquals(
+                averageClusteringCoefficient, result.getAverageClusteringCoefficient(), ACCURACY);
+    }
 
-	@Test
-	public void testWithSimpleGraph() throws Exception {
-		// see results in LocalClusteringCoefficientTest.testSimpleGraph
-		validate(undirectedSimpleGraph, 6, (1.0 / 1 + 2.0 / 3 + 2.0 / 3 + 1.0 / 6) / 6);
-	}
+    @Test
+    public void testWithSimpleGraph() throws Exception {
+        // see results in LocalClusteringCoefficientTest.testSimpleGraph
+        validate(undirectedSimpleGraph, 6, (1.0 / 1 + 2.0 / 3 + 2.0 / 3 + 1.0 / 6) / 6);
+    }
 
-	@Test
-	public void testWithCompleteGraph() throws Exception {
-		validate(completeGraph, completeGraphVertexCount, 1.0);
-	}
+    @Test
+    public void testWithCompleteGraph() throws Exception {
+        validate(completeGraph, completeGraphVertexCount, 1.0);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithVertices() throws Exception {
-		validate(emptyGraphWithVertices, emptyGraphVertexCount, 0);
-	}
+    @Test
+    public void testWithEmptyGraphWithVertices() throws Exception {
+        validate(emptyGraphWithVertices, emptyGraphVertexCount, 0);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithoutVertices() throws Exception {
-		validate(emptyGraphWithoutVertices, 0, Double.NaN);
-	}
+    @Test
+    public void testWithEmptyGraphWithoutVertices() throws Exception {
+        validate(emptyGraphWithoutVertices, 0, Double.NaN);
+    }
 
-	@Test
-	public void testWithRMatGraph() throws Exception {
-		validate(undirectedRMatGraph(10, 16), 902, 0.421730);
-	}
+    @Test
+    public void testWithRMatGraph() throws Exception {
+        validate(undirectedRMatGraph(10, 16), 902, 0.421730);
+    }
 }

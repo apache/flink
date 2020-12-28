@@ -36,72 +36,70 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 @Internal
 public abstract class HiveScalarFunction<UDFType> extends ScalarFunction implements HiveFunction {
 
-	protected final HiveFunctionWrapper<UDFType> hiveFunctionWrapper;
+    protected final HiveFunctionWrapper<UDFType> hiveFunctionWrapper;
 
-	protected Object[] constantArguments;
-	protected DataType[] argTypes;
+    protected Object[] constantArguments;
+    protected DataType[] argTypes;
 
-	protected transient UDFType function;
-	protected transient ObjectInspector returnInspector;
+    protected transient UDFType function;
+    protected transient ObjectInspector returnInspector;
 
-	private transient boolean isArgsSingleArray;
+    private transient boolean isArgsSingleArray;
 
-	HiveScalarFunction(HiveFunctionWrapper<UDFType> hiveFunctionWrapper) {
-		this.hiveFunctionWrapper = hiveFunctionWrapper;
-	}
+    HiveScalarFunction(HiveFunctionWrapper<UDFType> hiveFunctionWrapper) {
+        this.hiveFunctionWrapper = hiveFunctionWrapper;
+    }
 
-	@Override
-	public void setArgumentTypesAndConstants(Object[] constantArguments, DataType[] argTypes) {
-		this.constantArguments = constantArguments;
-		this.argTypes = argTypes;
-	}
+    @Override
+    public void setArgumentTypesAndConstants(Object[] constantArguments, DataType[] argTypes) {
+        this.constantArguments = constantArguments;
+        this.argTypes = argTypes;
+    }
 
-	@Override
-	public boolean isDeterministic() {
-		try {
-			org.apache.hadoop.hive.ql.udf.UDFType udfType =
-				hiveFunctionWrapper.getUDFClass()
-					.getAnnotation(org.apache.hadoop.hive.ql.udf.UDFType.class);
+    @Override
+    public boolean isDeterministic() {
+        try {
+            org.apache.hadoop.hive.ql.udf.UDFType udfType =
+                    hiveFunctionWrapper
+                            .getUDFClass()
+                            .getAnnotation(org.apache.hadoop.hive.ql.udf.UDFType.class);
 
-			return udfType != null && udfType.deterministic() && !udfType.stateful();
-		} catch (ClassNotFoundException e) {
-			throw new FlinkHiveUDFException(e);
-		}
-	}
+            return udfType != null && udfType.deterministic() && !udfType.stateful();
+        } catch (ClassNotFoundException e) {
+            throw new FlinkHiveUDFException(e);
+        }
+    }
 
-	@Override
-	public TypeInformation getResultType(Class[] signature) {
-		return TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(
-			getHiveResultType(this.constantArguments, this.argTypes));
-	}
+    @Override
+    public TypeInformation getResultType(Class[] signature) {
+        return TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(
+                getHiveResultType(this.constantArguments, this.argTypes));
+    }
 
-	@Override
-	public void open(FunctionContext context) {
-		openInternal();
+    @Override
+    public void open(FunctionContext context) {
+        openInternal();
 
-		isArgsSingleArray = HiveFunctionUtil.isSingleBoxedArray(argTypes);
-	}
+        isArgsSingleArray = HiveFunctionUtil.isSingleBoxedArray(argTypes);
+    }
 
-	/**
-	 * See {@link ScalarFunction#open(FunctionContext)}.
-	 */
-	protected abstract void openInternal();
+    /** See {@link ScalarFunction#open(FunctionContext)}. */
+    protected abstract void openInternal();
 
-	public Object eval(Object... args) {
+    public Object eval(Object... args) {
 
-		// When the parameter is (Integer, Array[Double]), Flink calls udf.eval(Integer, Array[Double]), which is not a problem.
-		// But when the parameter is an single array, Flink calls udf.eval(Array[Double]),
-		// at this point java's var-args will cast Array[Double] to Array[Object] and let it be
-		// Object... args, So we need wrap it.
-		if (isArgsSingleArray) {
-			args = new Object[] {args};
-		}
+        // When the parameter is (Integer, Array[Double]), Flink calls udf.eval(Integer,
+        // Array[Double]), which is not a problem.
+        // But when the parameter is an single array, Flink calls udf.eval(Array[Double]),
+        // at this point java's var-args will cast Array[Double] to Array[Object] and let it be
+        // Object... args, So we need wrap it.
+        if (isArgsSingleArray) {
+            args = new Object[] {args};
+        }
 
-		return evalInternal(args);
-	}
+        return evalInternal(args);
+    }
 
-	/**
-	 * Evaluation logical, args will be wrapped when is a single array.
-	 */
-	protected abstract Object evalInternal(Object[] args);
+    /** Evaluation logical, args will be wrapped when is a single array. */
+    protected abstract Object evalInternal(Object[] args);
 }

@@ -46,462 +46,447 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- */
+/** */
 public class BytesHashMapTest {
 
-	private static final long RANDOM_SEED = 76518743207143L;
-	private static final int PAGE_SIZE = 32 * 1024;
-	private static final int NUM_ENTRIES = 10000;
-	private static final int NUM_REWRITES = 10;
+    private static final long RANDOM_SEED = 76518743207143L;
+    private static final int PAGE_SIZE = 32 * 1024;
+    private static final int NUM_ENTRIES = 10000;
+    private static final int NUM_REWRITES = 10;
 
-	private final LogicalType[] keyTypes;
-	private final LogicalType[] valueTypes;
-	private final BinaryRowData defaultValue;
-	private final BinaryRowDataSerializer keySerializer;
-	private final BinaryRowDataSerializer valueSerializer;
+    private final LogicalType[] keyTypes;
+    private final LogicalType[] valueTypes;
+    private final BinaryRowData defaultValue;
+    private final BinaryRowDataSerializer keySerializer;
+    private final BinaryRowDataSerializer valueSerializer;
 
-	public BytesHashMapTest() {
+    public BytesHashMapTest() {
 
-		this.keyTypes = new LogicalType[] {
-				new IntType(),
-				new VarCharType(VarCharType.MAX_LENGTH),
-				new DoubleType(),
-				new BigIntType(),
-				new BooleanType(),
-				new FloatType(),
-				new SmallIntType()
-		};
-		this.valueTypes = new LogicalType[] {
-				new DoubleType(),
-				new BigIntType(),
-				new BooleanType(),
-				new FloatType(),
-				new SmallIntType()
-		};
+        this.keyTypes =
+                new LogicalType[] {
+                    new IntType(),
+                    new VarCharType(VarCharType.MAX_LENGTH),
+                    new DoubleType(),
+                    new BigIntType(),
+                    new BooleanType(),
+                    new FloatType(),
+                    new SmallIntType()
+                };
+        this.valueTypes =
+                new LogicalType[] {
+                    new DoubleType(),
+                    new BigIntType(),
+                    new BooleanType(),
+                    new FloatType(),
+                    new SmallIntType()
+                };
 
-		this.keySerializer = new BinaryRowDataSerializer(keyTypes.length);
-		this.valueSerializer = new BinaryRowDataSerializer(valueTypes.length);
-		this.defaultValue = valueSerializer.createInstance();
-		int valueSize = defaultValue.getFixedLengthPartSize();
-		this.defaultValue.pointTo(MemorySegmentFactory.wrap(new byte[valueSize]), 0, valueSize);
-	}
+        this.keySerializer = new BinaryRowDataSerializer(keyTypes.length);
+        this.valueSerializer = new BinaryRowDataSerializer(valueTypes.length);
+        this.defaultValue = valueSerializer.createInstance();
+        int valueSize = defaultValue.getFixedLengthPartSize();
+        this.defaultValue.pointTo(MemorySegmentFactory.wrap(new byte[valueSize]), 0, valueSize);
+    }
 
-	@Test
-	public void testHashSetMode() throws IOException {
-		final int numMemSegments = needNumMemSegments(
-				NUM_ENTRIES,
-				rowLength(RowType.of(valueTypes)),
-				rowLength(RowType.of(keyTypes)),
-				PAGE_SIZE);
-		int memorySize = numMemSegments * PAGE_SIZE;
-		MemoryManager memoryManager = MemoryManagerBuilder
-			.newBuilder()
-			.setMemorySize(numMemSegments * PAGE_SIZE)
-			.build();
+    @Test
+    public void testHashSetMode() throws IOException {
+        final int numMemSegments =
+                needNumMemSegments(
+                        NUM_ENTRIES,
+                        rowLength(RowType.of(valueTypes)),
+                        rowLength(RowType.of(keyTypes)),
+                        PAGE_SIZE);
+        int memorySize = numMemSegments * PAGE_SIZE;
+        MemoryManager memoryManager =
+                MemoryManagerBuilder.newBuilder().setMemorySize(numMemSegments * PAGE_SIZE).build();
 
-		BytesHashMap table = new BytesHashMap(this, memoryManager,
-				memorySize, keyTypes, new LogicalType[]{});
-		Assert.assertTrue(table.isHashSetMode());
+        BytesHashMap table =
+                new BytesHashMap(this, memoryManager, memorySize, keyTypes, new LogicalType[] {});
+        Assert.assertTrue(table.isHashSetMode());
 
-		final Random rnd = new Random(RANDOM_SEED);
-		BinaryRowData[] keys = getRandomizedInput(NUM_ENTRIES, rnd, true);
-		verifyKeyInsert(keys, table);
-		verifyKeyPresent(keys, table);
-		table.free();
-	}
+        final Random rnd = new Random(RANDOM_SEED);
+        BinaryRowData[] keys = getRandomizedInput(NUM_ENTRIES, rnd, true);
+        verifyKeyInsert(keys, table);
+        verifyKeyPresent(keys, table);
+        table.free();
+    }
 
-	@Test
-	public void testBuildAndRetrieve() throws Exception {
+    @Test
+    public void testBuildAndRetrieve() throws Exception {
 
-		final int numMemSegments = needNumMemSegments(
-				NUM_ENTRIES,
-				rowLength(RowType.of(valueTypes)),
-				rowLength(RowType.of(keyTypes)),
-				PAGE_SIZE);
-		int memorySize = numMemSegments * PAGE_SIZE;
-		MemoryManager memoryManager = MemoryManagerBuilder
-			.newBuilder()
-			.setMemorySize(memorySize)
-			.build();
+        final int numMemSegments =
+                needNumMemSegments(
+                        NUM_ENTRIES,
+                        rowLength(RowType.of(valueTypes)),
+                        rowLength(RowType.of(keyTypes)),
+                        PAGE_SIZE);
+        int memorySize = numMemSegments * PAGE_SIZE;
+        MemoryManager memoryManager =
+                MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
 
-		BytesHashMap table = new BytesHashMap(this, memoryManager,
-				memorySize, keyTypes, valueTypes);
+        BytesHashMap table =
+                new BytesHashMap(this, memoryManager, memorySize, keyTypes, valueTypes);
 
-		final Random rnd = new Random(RANDOM_SEED);
-		BinaryRowData[] rows = getRandomizedInput(NUM_ENTRIES, rnd, true);
-		List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
-		verifyInsert(rows, expected, table);
-		verifyRetrieve(table, rows, expected);
-		table.free();
-	}
+        final Random rnd = new Random(RANDOM_SEED);
+        BinaryRowData[] rows = getRandomizedInput(NUM_ENTRIES, rnd, true);
+        List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
+        verifyInsert(rows, expected, table);
+        verifyRetrieve(table, rows, expected);
+        table.free();
+    }
 
-	@Test
-	public void testBuildAndUpdate() throws Exception {
-		final Random rnd = new Random(RANDOM_SEED);
-		final BinaryRowData[] rows = getRandomizedInput(NUM_ENTRIES, rnd, true);
-		final int numMemSegments = needNumMemSegments(
-				NUM_ENTRIES,
-				rowLength(RowType.of(valueTypes)),
-				rowLength(RowType.of(keyTypes)),
-				PAGE_SIZE);
-		int memorySize = numMemSegments * PAGE_SIZE;
+    @Test
+    public void testBuildAndUpdate() throws Exception {
+        final Random rnd = new Random(RANDOM_SEED);
+        final BinaryRowData[] rows = getRandomizedInput(NUM_ENTRIES, rnd, true);
+        final int numMemSegments =
+                needNumMemSegments(
+                        NUM_ENTRIES,
+                        rowLength(RowType.of(valueTypes)),
+                        rowLength(RowType.of(keyTypes)),
+                        PAGE_SIZE);
+        int memorySize = numMemSegments * PAGE_SIZE;
 
-		MemoryManager memoryManager = MemoryManagerBuilder
-			.newBuilder()
-			.setMemorySize(memorySize)
-			.build();
+        MemoryManager memoryManager =
+                MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
 
-		BytesHashMap table = new BytesHashMap(this, memoryManager,
-				memorySize, keyTypes, valueTypes);
+        BytesHashMap table =
+                new BytesHashMap(this, memoryManager, memorySize, keyTypes, valueTypes);
 
-		List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
-		verifyInsertAndUpdate(rnd, rows, expected, table);
-		verifyRetrieve(table, rows, expected);
-		table.free();
-	}
+        List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
+        verifyInsertAndUpdate(rnd, rows, expected, table);
+        verifyRetrieve(table, rows, expected);
+        table.free();
+    }
 
-	@Test
-	public void testRest() throws Exception {
-		final Random rnd = new Random(RANDOM_SEED);
-		final BinaryRowData[] rows = getRandomizedInput(NUM_ENTRIES, rnd, true);
+    @Test
+    public void testRest() throws Exception {
+        final Random rnd = new Random(RANDOM_SEED);
+        final BinaryRowData[] rows = getRandomizedInput(NUM_ENTRIES, rnd, true);
 
-		final int numMemSegments = needNumMemSegments(
-				NUM_ENTRIES,
-				rowLength(RowType.of(valueTypes)),
-				rowLength(RowType.of(keyTypes)),
-				PAGE_SIZE);
+        final int numMemSegments =
+                needNumMemSegments(
+                        NUM_ENTRIES,
+                        rowLength(RowType.of(valueTypes)),
+                        rowLength(RowType.of(keyTypes)),
+                        PAGE_SIZE);
 
-		int memorySize = numMemSegments * PAGE_SIZE;
+        int memorySize = numMemSegments * PAGE_SIZE;
 
-		MemoryManager memoryManager = MemoryManagerBuilder
-			.newBuilder()
-			.setMemorySize(memorySize)
-			.build();
+        MemoryManager memoryManager =
+                MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
 
-		BytesHashMap table = new BytesHashMap(this, memoryManager,
-				memorySize, keyTypes, valueTypes);
+        BytesHashMap table =
+                new BytesHashMap(this, memoryManager, memorySize, keyTypes, valueTypes);
 
-		List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
-		verifyInsertAndUpdate(rnd, rows, expected, table);
-		verifyRetrieve(table, rows, expected);
+        List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
+        verifyInsertAndUpdate(rnd, rows, expected, table);
+        verifyRetrieve(table, rows, expected);
 
-		table.reset();
-		Assert.assertEquals(0, table.getNumElements());
-		Assert.assertTrue(table.getRecordAreaMemorySegments().size() == 1);
+        table.reset();
+        Assert.assertEquals(0, table.getNumElements());
+        Assert.assertTrue(table.getRecordAreaMemorySegments().size() == 1);
 
-		expected.clear();
-		verifyInsertAndUpdate(rnd, rows, expected, table);
-		verifyRetrieve(table, rows, expected);
-		table.free();
-	}
+        expected.clear();
+        verifyInsertAndUpdate(rnd, rows, expected, table);
+        verifyRetrieve(table, rows, expected);
+        table.free();
+    }
 
-	@Test
-	public void testResetAndOutput() throws Exception {
-		final Random rnd = new Random(RANDOM_SEED);
-		final int reservedMemSegments = 32;
+    @Test
+    public void testResetAndOutput() throws Exception {
+        final Random rnd = new Random(RANDOM_SEED);
+        final int reservedMemSegments = 32;
 
-		int minMemorySize = reservedMemSegments * PAGE_SIZE;
+        int minMemorySize = reservedMemSegments * PAGE_SIZE;
 
-		MemoryManager memoryManager = MemoryManagerBuilder
-			.newBuilder()
-			.setMemorySize(minMemorySize)
-			.build();
-		BytesHashMap table = new BytesHashMap(this, memoryManager,
-				minMemorySize, keyTypes, valueTypes, true);
+        MemoryManager memoryManager =
+                MemoryManagerBuilder.newBuilder().setMemorySize(minMemorySize).build();
+        BytesHashMap table =
+                new BytesHashMap(this, memoryManager, minMemorySize, keyTypes, valueTypes, true);
 
-		BinaryRowData[] rows = getRandomizedInput(NUM_ENTRIES, rnd, true);
+        BinaryRowData[] rows = getRandomizedInput(NUM_ENTRIES, rnd, true);
 
-		List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
-		List<BinaryRowData> actualValues = new ArrayList<>(NUM_ENTRIES);
-		List<BinaryRowData> actualKeys = new ArrayList<>(NUM_ENTRIES);
-		for (int i = 0; i < NUM_ENTRIES; i++) {
-			BinaryRowData groupKey = rows[i];
-			// look up and insert
-			BytesHashMap.LookupInfo info = table.lookup(groupKey);
-			Assert.assertFalse(info.isFound());
-			try {
-				BinaryRowData entry =
-						table.append(info, defaultValue);
-				Assert.assertNotNull(entry);
-				// mock multiple updates
-				for (int j = 0; j < NUM_REWRITES; j++) {
-					updateOutputBuffer(entry, rnd);
-				}
-				expected.add(entry.copy());
-			} catch (Exception e) {
-				ArrayList<MemorySegment> segments = table.getRecordAreaMemorySegments();
-				RandomAccessInputView inView = new RandomAccessInputView(segments, segments.get(0).size());
-				BinaryRowData reuseKey = this.keySerializer.createInstance();
-				BinaryRowData reuseValue = this.valueSerializer.createInstance();
-				BytesHashMap.Entry reuse = new BytesHashMap.Entry(reuseKey, reuseValue);
-				for (int index = 0; index < table.getNumElements(); index++) {
-					reuseKey = keySerializer.mapFromPages(reuseKey, inView);
-					reuseValue = valueSerializer.mapFromPages(reuseValue, inView);
-					actualKeys.add(reuse.getKey().copy());
-					actualValues.add(reuse.getValue().copy());
-				}
-				table.reset();
-				// retry
-				info = table.lookup(groupKey);
-				BinaryRowData entry = table.append(info, defaultValue);
-				Assert.assertNotNull(entry);
-				// mock multiple updates
-				for (int j = 0; j < NUM_REWRITES; j++) {
-					updateOutputBuffer(entry, rnd);
-				}
-				expected.add(entry.copy());
-			}
-		}
-		MutableObjectIterator<BytesHashMap.Entry> iter = table.getEntryIterator();
-		BinaryRowData reuseKey = this.keySerializer.createInstance();
-		BinaryRowData reuseValue = this.valueSerializer.createInstance();
-		BytesHashMap.Entry reuse = new BytesHashMap.Entry(reuseKey, reuseValue);
+        List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
+        List<BinaryRowData> actualValues = new ArrayList<>(NUM_ENTRIES);
+        List<BinaryRowData> actualKeys = new ArrayList<>(NUM_ENTRIES);
+        for (int i = 0; i < NUM_ENTRIES; i++) {
+            BinaryRowData groupKey = rows[i];
+            // look up and insert
+            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            Assert.assertFalse(info.isFound());
+            try {
+                BinaryRowData entry = table.append(info, defaultValue);
+                Assert.assertNotNull(entry);
+                // mock multiple updates
+                for (int j = 0; j < NUM_REWRITES; j++) {
+                    updateOutputBuffer(entry, rnd);
+                }
+                expected.add(entry.copy());
+            } catch (Exception e) {
+                ArrayList<MemorySegment> segments = table.getRecordAreaMemorySegments();
+                RandomAccessInputView inView =
+                        new RandomAccessInputView(segments, segments.get(0).size());
+                BinaryRowData reuseKey = this.keySerializer.createInstance();
+                BinaryRowData reuseValue = this.valueSerializer.createInstance();
+                BytesHashMap.Entry reuse = new BytesHashMap.Entry(reuseKey, reuseValue);
+                for (int index = 0; index < table.getNumElements(); index++) {
+                    reuseKey = keySerializer.mapFromPages(reuseKey, inView);
+                    reuseValue = valueSerializer.mapFromPages(reuseValue, inView);
+                    actualKeys.add(reuse.getKey().copy());
+                    actualValues.add(reuse.getValue().copy());
+                }
+                table.reset();
+                // retry
+                info = table.lookup(groupKey);
+                BinaryRowData entry = table.append(info, defaultValue);
+                Assert.assertNotNull(entry);
+                // mock multiple updates
+                for (int j = 0; j < NUM_REWRITES; j++) {
+                    updateOutputBuffer(entry, rnd);
+                }
+                expected.add(entry.copy());
+            }
+        }
+        MutableObjectIterator<BytesHashMap.Entry> iter = table.getEntryIterator();
+        BinaryRowData reuseKey = this.keySerializer.createInstance();
+        BinaryRowData reuseValue = this.valueSerializer.createInstance();
+        BytesHashMap.Entry reuse = new BytesHashMap.Entry(reuseKey, reuseValue);
 
-		while ((reuse = iter.next(reuse)) != null) {
-			actualKeys.add(reuse.getKey().copy());
-			actualValues.add(reuse.getValue().copy());
-		}
-		Assert.assertEquals(NUM_ENTRIES, expected.size());
-		Assert.assertEquals(NUM_ENTRIES, actualKeys.size());
-		Assert.assertEquals(NUM_ENTRIES, actualValues.size());
-		Assert.assertEquals(expected, actualValues);
-		table.free();
-	}
+        while ((reuse = iter.next(reuse)) != null) {
+            actualKeys.add(reuse.getKey().copy());
+            actualValues.add(reuse.getValue().copy());
+        }
+        Assert.assertEquals(NUM_ENTRIES, expected.size());
+        Assert.assertEquals(NUM_ENTRIES, actualKeys.size());
+        Assert.assertEquals(NUM_ENTRIES, actualValues.size());
+        Assert.assertEquals(expected, actualValues);
+        table.free();
+    }
 
-	@Test
-	public void testSingleKeyMultipleOps() throws Exception {
-		final int numMemSegments = needNumMemSegments(
-				NUM_ENTRIES,
-				rowLength(RowType.of(valueTypes)),
-				rowLength(RowType.of(keyTypes)),
-				PAGE_SIZE);
+    @Test
+    public void testSingleKeyMultipleOps() throws Exception {
+        final int numMemSegments =
+                needNumMemSegments(
+                        NUM_ENTRIES,
+                        rowLength(RowType.of(valueTypes)),
+                        rowLength(RowType.of(keyTypes)),
+                        PAGE_SIZE);
 
-		int memorySize = numMemSegments * PAGE_SIZE;
-		MemoryManager memoryManager = MemoryManagerBuilder
-			.newBuilder()
-			.setMemorySize(memorySize)
-			.build();
-		BytesHashMap table = new BytesHashMap(this, memoryManager,
-				memorySize, keyTypes, valueTypes);
-		final Random rnd = new Random(RANDOM_SEED);
-		BinaryRowData row = getNullableGroupkeyInput(rnd);
-		for (int i = 0; i < 3; i++) {
-			BytesHashMap.LookupInfo info = table.lookup(row);
-			Assert.assertFalse(info.isFound());
-		}
+        int memorySize = numMemSegments * PAGE_SIZE;
+        MemoryManager memoryManager =
+                MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
+        BytesHashMap table =
+                new BytesHashMap(this, memoryManager, memorySize, keyTypes, valueTypes);
+        final Random rnd = new Random(RANDOM_SEED);
+        BinaryRowData row = getNullableGroupkeyInput(rnd);
+        for (int i = 0; i < 3; i++) {
+            BytesHashMap.LookupInfo info = table.lookup(row);
+            Assert.assertFalse(info.isFound());
+        }
 
-		for (int i = 0; i < 3; i++) {
-			BytesHashMap.LookupInfo info = table.lookup(row);
-			BinaryRowData entry = info.getValue();
-			if (i == 0) {
-				Assert.assertFalse(info.isFound());
-				entry = table.append(info, defaultValue);
-			} else {
-				Assert.assertTrue(info.isFound());
-			}
-			Assert.assertNotNull(entry);
-		}
-		table.free();
-	}
+        for (int i = 0; i < 3; i++) {
+            BytesHashMap.LookupInfo info = table.lookup(row);
+            BinaryRowData entry = info.getValue();
+            if (i == 0) {
+                Assert.assertFalse(info.isFound());
+                entry = table.append(info, defaultValue);
+            } else {
+                Assert.assertTrue(info.isFound());
+            }
+            Assert.assertNotNull(entry);
+        }
+        table.free();
+    }
 
-	// ----------------------------------------------
-	/**
-	 * It will be codegened when in HashAggExec
-	 * using rnd to mock update/initExprs resultTerm.
-	 */
-	private void updateOutputBuffer(BinaryRowData reuse, Random rnd) {
-		long longVal = rnd.nextLong();
-		double doubleVal = rnd.nextDouble();
-		boolean boolVal = longVal % 2 == 0;
-		reuse.setDouble(2, doubleVal);
-		reuse.setLong(3, longVal);
-		reuse.setBoolean(4, boolVal);
-	}
+    // ----------------------------------------------
+    /** It will be codegened when in HashAggExec using rnd to mock update/initExprs resultTerm. */
+    private void updateOutputBuffer(BinaryRowData reuse, Random rnd) {
+        long longVal = rnd.nextLong();
+        double doubleVal = rnd.nextDouble();
+        boolean boolVal = longVal % 2 == 0;
+        reuse.setDouble(2, doubleVal);
+        reuse.setLong(3, longVal);
+        reuse.setBoolean(4, boolVal);
+    }
 
-	// ----------------------- Utilities  -----------------------
+    // ----------------------- Utilities  -----------------------
 
-	private void verifyRetrieve(
-			BytesHashMap table,
-			BinaryRowData[] keys,
-			List<BinaryRowData> expected) throws IOException {
-		Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
-		for (int i = 0; i < NUM_ENTRIES; i++) {
-			BinaryRowData groupKey = keys[i];
-			// look up and retrieve
-			BytesHashMap.LookupInfo info = table.lookup(groupKey);
-			Assert.assertTrue(info.isFound());
-			Assert.assertNotNull(info.getValue());
-			Assert.assertEquals(expected.get(i), info.getValue());
-		}
-	}
+    private void verifyRetrieve(
+            BytesHashMap table, BinaryRowData[] keys, List<BinaryRowData> expected)
+            throws IOException {
+        Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
+        for (int i = 0; i < NUM_ENTRIES; i++) {
+            BinaryRowData groupKey = keys[i];
+            // look up and retrieve
+            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            Assert.assertTrue(info.isFound());
+            Assert.assertNotNull(info.getValue());
+            Assert.assertEquals(expected.get(i), info.getValue());
+        }
+    }
 
-	private void verifyInsert(
-			BinaryRowData[] keys,
-			List<BinaryRowData> inserted,
-			BytesHashMap table) throws IOException {
-		for (int i = 0; i < NUM_ENTRIES; i++) {
-			BinaryRowData groupKey = keys[i];
-			// look up and insert
-			BytesHashMap.LookupInfo info = table.lookup(groupKey);
-			Assert.assertFalse(info.isFound());
-			BinaryRowData entry  = table.append(info, defaultValue);
-			Assert.assertNotNull(entry);
-			Assert.assertEquals(entry, defaultValue);
-			inserted.add(entry.copy());
-		}
-		Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
-	}
+    private void verifyInsert(
+            BinaryRowData[] keys, List<BinaryRowData> inserted, BytesHashMap table)
+            throws IOException {
+        for (int i = 0; i < NUM_ENTRIES; i++) {
+            BinaryRowData groupKey = keys[i];
+            // look up and insert
+            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            Assert.assertFalse(info.isFound());
+            BinaryRowData entry = table.append(info, defaultValue);
+            Assert.assertNotNull(entry);
+            Assert.assertEquals(entry, defaultValue);
+            inserted.add(entry.copy());
+        }
+        Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
+    }
 
-	private void verifyInsertAndUpdate(
-			Random rnd,
-			BinaryRowData[] keys,
-			List<BinaryRowData> inserted,
-			BytesHashMap table) throws IOException {
-		for (int i = 0; i < NUM_ENTRIES; i++) {
-			BinaryRowData groupKey = keys[i];
-			// look up and insert
-			BytesHashMap.LookupInfo info = table.lookup(groupKey);
-			Assert.assertFalse(info.isFound());
-			BinaryRowData entry  = table.append(info, defaultValue);
-			Assert.assertNotNull(entry);
-			// mock multiple updates
-			for (int j = 0; j < NUM_REWRITES; j++) {
-				updateOutputBuffer(entry, rnd);
-			}
-			inserted.add(entry.copy());
-		}
-		Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
-	}
+    private void verifyInsertAndUpdate(
+            Random rnd, BinaryRowData[] keys, List<BinaryRowData> inserted, BytesHashMap table)
+            throws IOException {
+        for (int i = 0; i < NUM_ENTRIES; i++) {
+            BinaryRowData groupKey = keys[i];
+            // look up and insert
+            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            Assert.assertFalse(info.isFound());
+            BinaryRowData entry = table.append(info, defaultValue);
+            Assert.assertNotNull(entry);
+            // mock multiple updates
+            for (int j = 0; j < NUM_REWRITES; j++) {
+                updateOutputBuffer(entry, rnd);
+            }
+            inserted.add(entry.copy());
+        }
+        Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
+    }
 
-	private void verifyKeyPresent(BinaryRowData[] keys, BytesHashMap table) throws IOException {
-		Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
-		BinaryRowData present = new BinaryRowData(0);
-		present.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
-		for (int i = 0; i < NUM_ENTRIES; i++) {
-			BinaryRowData groupKey = keys[i];
-			// look up and retrieve
-			BytesHashMap.LookupInfo info = table.lookup(groupKey);
-			Assert.assertTrue(info.isFound());
-			Assert.assertNotNull(info.getValue());
-			Assert.assertEquals(present, info.getValue());
-		}
-	}
+    private void verifyKeyPresent(BinaryRowData[] keys, BytesHashMap table) throws IOException {
+        Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
+        BinaryRowData present = new BinaryRowData(0);
+        present.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
+        for (int i = 0; i < NUM_ENTRIES; i++) {
+            BinaryRowData groupKey = keys[i];
+            // look up and retrieve
+            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            Assert.assertTrue(info.isFound());
+            Assert.assertNotNull(info.getValue());
+            Assert.assertEquals(present, info.getValue());
+        }
+    }
 
-	private void verifyKeyInsert(BinaryRowData[] keys, BytesHashMap table) throws IOException {
-		BinaryRowData present = new BinaryRowData(0);
-		present.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
-		for (int i = 0; i < NUM_ENTRIES; i++) {
-			BinaryRowData groupKey = keys[i];
-			// look up and insert
-			BytesHashMap.LookupInfo info = table.lookup(groupKey);
-			Assert.assertFalse(info.isFound());
-			BinaryRowData entry  = table.append(info, defaultValue);
-			Assert.assertNotNull(entry);
-			Assert.assertEquals(entry, present);
-		}
-		Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
-	}
+    private void verifyKeyInsert(BinaryRowData[] keys, BytesHashMap table) throws IOException {
+        BinaryRowData present = new BinaryRowData(0);
+        present.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
+        for (int i = 0; i < NUM_ENTRIES; i++) {
+            BinaryRowData groupKey = keys[i];
+            // look up and insert
+            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            Assert.assertFalse(info.isFound());
+            BinaryRowData entry = table.append(info, defaultValue);
+            Assert.assertNotNull(entry);
+            Assert.assertEquals(entry, present);
+        }
+        Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
+    }
 
-	// ----------------------------------------------
+    // ----------------------------------------------
 
-	private List<MemorySegment> getMemory(int numSegments, int segmentSize) {
-		ArrayList<MemorySegment> list = new ArrayList<>(numSegments);
-		for (int i = 0; i < numSegments; i++) {
-			list.add(MemorySegmentFactory.allocateUnpooledSegment(segmentSize));
-		}
-		return list;
-	}
+    private List<MemorySegment> getMemory(int numSegments, int segmentSize) {
+        ArrayList<MemorySegment> list = new ArrayList<>(numSegments);
+        for (int i = 0; i < numSegments; i++) {
+            list.add(MemorySegmentFactory.allocateUnpooledSegment(segmentSize));
+        }
+        return list;
+    }
 
-	private int needNumMemSegments(int numEntries, int valLen, int keyLen, int pageSize) {
-		return 2 * (valLen + keyLen + 1024 * 3 + 4 + 8 + 8) * numEntries / pageSize;
-	}
+    private int needNumMemSegments(int numEntries, int valLen, int keyLen, int pageSize) {
+        return 2 * (valLen + keyLen + 1024 * 3 + 4 + 8 + 8) * numEntries / pageSize;
+    }
 
-	// ----------------------------------------------
+    // ----------------------------------------------
 
-	private BinaryRowData[] getRandomizedInput(int num, Random rnd, boolean nullable) {
-		BinaryRowData[] lists = new BinaryRowData[num];
-		for (int i = 0; i < num; i++) {
-			Integer intVal = rnd.nextInt(Integer.MAX_VALUE);
-			Long longVal = -rnd.nextLong();
-			Boolean boolVal = longVal % 2 == 0;
-			String strVal = nullable && boolVal ? null : getString(intVal, intVal % 1024) + i;
-			Double doubleVal = rnd.nextDouble();
-			Short shotVal = intVal.shortValue();
-			Float floatVal = nullable && boolVal ? null : rnd.nextFloat();
-			lists[i] = createRow(intVal, strVal, doubleVal, longVal, boolVal, floatVal, shotVal);
-		}
-		return lists;
-	}
+    private BinaryRowData[] getRandomizedInput(int num, Random rnd, boolean nullable) {
+        BinaryRowData[] lists = new BinaryRowData[num];
+        for (int i = 0; i < num; i++) {
+            Integer intVal = rnd.nextInt(Integer.MAX_VALUE);
+            Long longVal = -rnd.nextLong();
+            Boolean boolVal = longVal % 2 == 0;
+            String strVal = nullable && boolVal ? null : getString(intVal, intVal % 1024) + i;
+            Double doubleVal = rnd.nextDouble();
+            Short shotVal = intVal.shortValue();
+            Float floatVal = nullable && boolVal ? null : rnd.nextFloat();
+            lists[i] = createRow(intVal, strVal, doubleVal, longVal, boolVal, floatVal, shotVal);
+        }
+        return lists;
+    }
 
-	private BinaryRowData getNullableGroupkeyInput(Random rnd) {
-		Integer intVal = -rnd.nextInt(Integer.MAX_VALUE);
-		Long longVal = rnd.nextLong();
-		Boolean boolVal = intVal % 2 == 0;
-		Double doubleVal = rnd.nextDouble();
-		Short shotVal = intVal.shortValue();
-		Float floatVal = rnd.nextFloat();
-		return createRow(intVal, null, doubleVal, longVal, boolVal, floatVal, shotVal);
-	}
+    private BinaryRowData getNullableGroupkeyInput(Random rnd) {
+        Integer intVal = -rnd.nextInt(Integer.MAX_VALUE);
+        Long longVal = rnd.nextLong();
+        Boolean boolVal = intVal % 2 == 0;
+        Double doubleVal = rnd.nextDouble();
+        Short shotVal = intVal.shortValue();
+        Float floatVal = rnd.nextFloat();
+        return createRow(intVal, null, doubleVal, longVal, boolVal, floatVal, shotVal);
+    }
 
-	private BinaryRowData createRow(
-			Integer f0, String f1,
-			Double f2, Long f3, Boolean f4, Float f5, Short f6) {
+    private BinaryRowData createRow(
+            Integer f0, String f1, Double f2, Long f3, Boolean f4, Float f5, Short f6) {
 
-		BinaryRowData row = new BinaryRowData(7);
-		BinaryRowWriter writer = new BinaryRowWriter(row);
+        BinaryRowData row = new BinaryRowData(7);
+        BinaryRowWriter writer = new BinaryRowWriter(row);
 
-		// int, string, double, long, boolean
-		if (f0 == null) {
-			writer.setNullAt(0);
-		} else {
-			writer.writeInt(0, f0);
-		}
-		if (f1 == null) {
-			writer.setNullAt(1);
-		} else {
-			writer.writeString(1, StringData.fromString(f1));
-		}
-		if (f2 == null) {
-			writer.setNullAt(2);
-		} else {
-			writer.writeDouble(2, f2);
-		}
-		if (f3 == null) {
-			writer.setNullAt(3);
-		} else {
-			writer.writeLong(3, f3);
-		}
-		if (f4 == null) {
-			writer.setNullAt(4);
-		} else {
-			writer.writeBoolean(4, f4);
-		}
-		if (f5 == null) {
-			writer.setNullAt(5);
-		} else {
-			writer.writeFloat(5, f5);
-		}
-		if (f6 == null) {
-			writer.setNullAt(6);
-		} else {
-			writer.writeShort(6, f6);
-		}
-		writer.complete();
-		return row;
-	}
+        // int, string, double, long, boolean
+        if (f0 == null) {
+            writer.setNullAt(0);
+        } else {
+            writer.writeInt(0, f0);
+        }
+        if (f1 == null) {
+            writer.setNullAt(1);
+        } else {
+            writer.writeString(1, StringData.fromString(f1));
+        }
+        if (f2 == null) {
+            writer.setNullAt(2);
+        } else {
+            writer.writeDouble(2, f2);
+        }
+        if (f3 == null) {
+            writer.setNullAt(3);
+        } else {
+            writer.writeLong(3, f3);
+        }
+        if (f4 == null) {
+            writer.setNullAt(4);
+        } else {
+            writer.writeBoolean(4, f4);
+        }
+        if (f5 == null) {
+            writer.setNullAt(5);
+        } else {
+            writer.writeFloat(5, f5);
+        }
+        if (f6 == null) {
+            writer.setNullAt(6);
+        } else {
+            writer.writeShort(6, f6);
+        }
+        writer.complete();
+        return row;
+    }
 
-	private String getString(int count, int length) {
-		StringBuilder builder = new StringBuilder();
-		for (int i = 0; i < length; i++) {
-			builder.append(count);
-		}
-		return builder.toString();
-	}
+    private String getString(int count, int length) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            builder.append(count);
+        }
+        return builder.toString();
+    }
 
-	private int rowLength(RowType tpe) {
-		return BinaryRowData.calculateFixPartSizeInBytes(tpe.getFieldCount())
-				+ BytesHashMap.getVariableLength(tpe.getChildren().toArray(new LogicalType[0]));
-	}
-
+    private int rowLength(RowType tpe) {
+        return BinaryRowData.calculateFixPartSizeInBytes(tpe.getFieldCount())
+                + BytesHashMap.getVariableLength(tpe.getChildren().toArray(new LogicalType[0]));
+    }
 }

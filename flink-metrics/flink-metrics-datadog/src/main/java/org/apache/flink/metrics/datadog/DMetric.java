@@ -24,61 +24,60 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInc
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Abstract metric of Datadog for serialization.
- */
+/** Abstract metric of Datadog for serialization. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public abstract class DMetric {
 
-	/**
-	 * Names of metric/type/tags field and their getters must not be changed
-	 * since they are mapped to json objects in a Datadog-defined format.
-	 */
-	private final String metric; // Metric name
-	private final MetricType type;
-	private final String host;
-	private final List<String> tags;
-	private final Clock clock;
+    /**
+     * Names of metric/type/tags field and their getters must not be changed since they are mapped
+     * to json objects in a Datadog-defined format.
+     */
+    private final String metric; // Metric name
 
-	public DMetric(MetricType metricType, String metric, String host, List<String> tags, Clock clock) {
-		this.type = metricType;
-		this.metric = metric;
-		this.host = host;
-		this.tags = tags;
-		this.clock = clock;
-	}
+    private final MetricType type;
+    private final String host;
+    private final List<String> tags;
+    private final Clock clock;
 
-	public MetricType getType() {
-		return type;
-	}
+    public DMetric(
+            MetricType metricType, String metric, String host, List<String> tags, Clock clock) {
+        this.type = metricType;
+        this.metric = metric;
+        this.host = host;
+        this.tags = tags;
+        this.clock = clock;
+    }
 
-	public String getMetric() {
-		return metric;
-	}
+    public MetricType getType() {
+        return type;
+    }
 
-	public String getHost() {
-		return host;
-	}
+    public String getMetric() {
+        return metric;
+    }
 
-	public List<String> getTags() {
-		return tags;
-	}
+    public String getHost() {
+        return host;
+    }
 
-	public List<List<Number>> getPoints() {
-		// One single data point
-		List<Number> point = new ArrayList<>();
-		point.add(clock.getUnixEpochTimestamp());
-		point.add(getMetricValue());
+    public List<String> getTags() {
+        return tags;
+    }
 
-		List<List<Number>> points = new ArrayList<>();
-		points.add(point);
+    public List<List<Number>> getPoints() {
+        // One single data point
+        List<Number> point = new ArrayList<>();
+        point.add(clock.getUnixEpochTimestamp());
+        point.add(getMetricValue());
 
-		return points;
-	}
+        List<List<Number>> points = new ArrayList<>();
+        points.add(point);
 
-	@JsonIgnore
-	public abstract Number getMetricValue();
+        return points;
+    }
 
-	public void ackReport() {
-	}
+    @JsonIgnore
+    public abstract Number getMetricValue();
+
+    public void ackReport() {}
 }

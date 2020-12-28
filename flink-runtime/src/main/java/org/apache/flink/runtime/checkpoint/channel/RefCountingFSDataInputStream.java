@@ -35,95 +35,101 @@ import static org.apache.flink.util.Preconditions.checkState;
 @NotThreadSafe
 class RefCountingFSDataInputStream extends FSDataInputStream {
 
-	private enum State {NEW, OPENED, CLOSED}
+    private enum State {
+        NEW,
+        OPENED,
+        CLOSED
+    }
 
-	private final SupplierWithException<FSDataInputStream, IOException> streamSupplier;
-	private FSDataInputStream stream;
-	private final ChannelStateSerializer serializer;
-	private int refCount = 0;
-	private State state = State.NEW;
+    private final SupplierWithException<FSDataInputStream, IOException> streamSupplier;
+    private FSDataInputStream stream;
+    private final ChannelStateSerializer serializer;
+    private int refCount = 0;
+    private State state = State.NEW;
 
-	private RefCountingFSDataInputStream(
-			SupplierWithException<FSDataInputStream, IOException> streamSupplier,
-			ChannelStateSerializer serializer) {
-		this.streamSupplier = checkNotNull(streamSupplier);
-		this.serializer = checkNotNull(serializer);
-	}
+    private RefCountingFSDataInputStream(
+            SupplierWithException<FSDataInputStream, IOException> streamSupplier,
+            ChannelStateSerializer serializer) {
+        this.streamSupplier = checkNotNull(streamSupplier);
+        this.serializer = checkNotNull(serializer);
+    }
 
-	void incRef() {
-		checkNotClosed();
-		refCount++;
-	}
+    void incRef() {
+        checkNotClosed();
+        refCount++;
+    }
 
-	void decRef() throws IOException {
-		checkNotClosed();
-		refCount--;
-		if (refCount == 0) {
-			close();
-		}
-	}
+    void decRef() throws IOException {
+        checkNotClosed();
+        refCount--;
+        if (refCount == 0) {
+            close();
+        }
+    }
 
-	@Override
-	public int read() throws IOException {
-		ensureOpen();
-		return stream.read();
-	}
+    @Override
+    public int read() throws IOException {
+        ensureOpen();
+        return stream.read();
+    }
 
-	@Override
-	public void seek(long pos) throws IOException {
-		ensureOpen();
-		stream.seek(pos);
-	}
+    @Override
+    public void seek(long pos) throws IOException {
+        ensureOpen();
+        stream.seek(pos);
+    }
 
-	@Override
-	public long getPos() throws IOException {
-		ensureOpen();
-		return stream.getPos();
-	}
+    @Override
+    public long getPos() throws IOException {
+        ensureOpen();
+        return stream.getPos();
+    }
 
-	public void close() throws IOException {
-		state = State.CLOSED;
-		if (stream != null) {
-			stream.close();
-			stream = null;
-		}
-	}
+    public void close() throws IOException {
+        state = State.CLOSED;
+        if (stream != null) {
+            stream.close();
+            stream = null;
+        }
+    }
 
-	private void ensureOpen() throws IOException {
-		checkNotClosed();
-		if (state == State.NEW) {
-			stream = Preconditions.checkNotNull(streamSupplier.get());
-			serializer.readHeader(stream);
-			state = State.OPENED;
-		}
-	}
+    private void ensureOpen() throws IOException {
+        checkNotClosed();
+        if (state == State.NEW) {
+            stream = Preconditions.checkNotNull(streamSupplier.get());
+            serializer.readHeader(stream);
+            state = State.OPENED;
+        }
+    }
 
-	private void checkNotClosed() {
-		checkState(state != State.CLOSED, "stream is closed");
-	}
+    private void checkNotClosed() {
+        checkState(state != State.CLOSED, "stream is closed");
+    }
 
-	@NotThreadSafe
-	static class RefCountingFSDataInputStreamFactory {
-		private final Map<StreamStateHandle, RefCountingFSDataInputStream> streams = new HashMap<>(); // not clearing: expecting short life
-		private final ChannelStateSerializer serializer;
+    @NotThreadSafe
+    static class RefCountingFSDataInputStreamFactory {
+        private final Map<StreamStateHandle, RefCountingFSDataInputStream> streams =
+                new HashMap<>(); // not clearing: expecting short life
+        private final ChannelStateSerializer serializer;
 
-		RefCountingFSDataInputStreamFactory(ChannelStateSerializer serializer) {
-			this.serializer = checkNotNull(serializer);
-		}
+        RefCountingFSDataInputStreamFactory(ChannelStateSerializer serializer) {
+            this.serializer = checkNotNull(serializer);
+        }
 
-		<T> RefCountingFSDataInputStream getOrCreate(AbstractChannelStateHandle<T> handle) {
-			StreamStateHandle streamStateHandle = handle.getDelegate();
-			RefCountingFSDataInputStream stream = streams.get(streamStateHandle);
-			if (stream == null) {
-				stream = new RefCountingFSDataInputStream(streamStateHandle::openInputStream, serializer);
-				streams.put(streamStateHandle, stream);
-			}
-			return stream;
-		}
+        <T> RefCountingFSDataInputStream getOrCreate(AbstractChannelStateHandle<T> handle) {
+            StreamStateHandle streamStateHandle = handle.getDelegate();
+            RefCountingFSDataInputStream stream = streams.get(streamStateHandle);
+            if (stream == null) {
+                stream =
+                        new RefCountingFSDataInputStream(
+                                streamStateHandle::openInputStream, serializer);
+                streams.put(streamStateHandle, stream);
+            }
+            return stream;
+        }
 
-		ChannelStateSerializer getSerializer() {
-			return serializer;
-		}
-	}
-
+        ChannelStateSerializer getSerializer() {
+            return serializer;
+        }
+    }
 }

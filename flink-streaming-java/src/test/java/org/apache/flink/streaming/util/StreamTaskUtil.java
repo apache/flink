@@ -24,17 +24,17 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.fail;
 
-/**
- * Utils for working with StreamTask.
- */
+/** Utils for working with StreamTask. */
 public class StreamTaskUtil {
 
-	public static void waitTaskIsRunning(StreamTask<?, ?> task, CompletableFuture<Void> taskInvocation) throws InterruptedException {
-		while (!task.isRunning()) {
-			if (taskInvocation.isDone()) {
-				fail("Task has stopped");
-			}
-			Thread.sleep(10L);
-		}
-	}
+    public static void waitTaskIsRunning(
+            StreamTask<?, ?> task, CompletableFuture<Void> taskInvocation)
+            throws InterruptedException {
+        while (!task.isRunning()) {
+            if (taskInvocation.isDone()) {
+                fail("Task has stopped");
+            }
+            Thread.sleep(10L);
+        }
+    }
 }

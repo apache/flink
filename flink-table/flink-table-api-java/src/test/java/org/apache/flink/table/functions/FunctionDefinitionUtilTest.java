@@ -26,170 +26,151 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for {@link FunctionDefinitionUtil}.
- */
+/** Test for {@link FunctionDefinitionUtil}. */
 public class FunctionDefinitionUtilTest {
-	@Test
-	public void testScalarFunction() {
-		FunctionDefinition fd = FunctionDefinitionUtil.createFunctionDefinition(
-			"test",
-				TestScalarFunction.class.getName()
-		);
+    @Test
+    public void testScalarFunction() {
+        FunctionDefinition fd =
+                FunctionDefinitionUtil.createFunctionDefinition(
+                        "test", TestScalarFunction.class.getName());
 
-		assertTrue(fd instanceof TestScalarFunction);
-	}
+        assertTrue(fd instanceof TestScalarFunction);
+    }
 
-	@Test
-	public void testTableFunction() {
-		FunctionDefinition fd1 = FunctionDefinitionUtil.createFunctionDefinition(
-			"test",
-			TestTableFunction.class.getName()
-		);
+    @Test
+    public void testTableFunction() {
+        FunctionDefinition fd1 =
+                FunctionDefinitionUtil.createFunctionDefinition(
+                        "test", TestTableFunction.class.getName());
 
-		assertTrue(fd1 instanceof TestTableFunction);
+        assertTrue(fd1 instanceof TestTableFunction);
 
-		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
-				"test",
-				TestTableFunctionWithoutResultType.class.getName()
-		);
+        FunctionDefinition fd2 =
+                FunctionDefinitionUtil.createFunctionDefinition(
+                        "test", TestTableFunctionWithoutResultType.class.getName());
 
-		assertTrue(fd2 instanceof TestTableFunctionWithoutResultType);
-	}
+        assertTrue(fd2 instanceof TestTableFunctionWithoutResultType);
+    }
 
-	@Test
-	public void testAggregateFunction() {
-		FunctionDefinition fd1 = FunctionDefinitionUtil.createFunctionDefinition(
-			"test",
-			TestAggFunction.class.getName()
-		);
+    @Test
+    public void testAggregateFunction() {
+        FunctionDefinition fd1 =
+                FunctionDefinitionUtil.createFunctionDefinition(
+                        "test", TestAggFunction.class.getName());
 
-		// TODO aggregate functions still use marker interface
-		assertTrue(((AggregateFunctionDefinition) fd1).getAggregateFunction() instanceof TestAggFunction);
+        // TODO aggregate functions still use marker interface
+        assertTrue(
+                ((AggregateFunctionDefinition) fd1).getAggregateFunction()
+                        instanceof TestAggFunction);
 
-		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
-				"test",
-				TestAggFunctionWithoutResultType.class.getName()
-		);
+        FunctionDefinition fd2 =
+                FunctionDefinitionUtil.createFunctionDefinition(
+                        "test", TestAggFunctionWithoutResultType.class.getName());
 
-		assertTrue(((AggregateFunctionDefinition) fd2).getAggregateFunction()
-				instanceof TestAggFunctionWithoutResultType);
-		assertEquals(((AggregateFunctionDefinition) fd2).getResultTypeInfo(), Types.LONG);
-		assertEquals(((AggregateFunctionDefinition) fd2).getAccumulatorTypeInfo(), Types.STRING);
+        assertTrue(
+                ((AggregateFunctionDefinition) fd2).getAggregateFunction()
+                        instanceof TestAggFunctionWithoutResultType);
+        assertEquals(((AggregateFunctionDefinition) fd2).getResultTypeInfo(), Types.LONG);
+        assertEquals(((AggregateFunctionDefinition) fd2).getAccumulatorTypeInfo(), Types.STRING);
+    }
 
-	}
+    @Test
+    public void testTableAggregateFunction() {
+        FunctionDefinition fd1 =
+                FunctionDefinitionUtil.createFunctionDefinition(
+                        "test", TestTableAggFunction.class.getName());
 
-	@Test
-	public void testTableAggregateFunction() {
-		FunctionDefinition fd1 = FunctionDefinitionUtil.createFunctionDefinition(
-			"test",
-			TestTableAggFunction.class.getName()
-		);
+        // TODO table aggregate functions still use marker interface
+        assertTrue(
+                ((TableAggregateFunctionDefinition) fd1).getTableAggregateFunction()
+                        instanceof TestTableAggFunction);
 
-		// TODO table aggregate functions still use marker interface
-		assertTrue(((TableAggregateFunctionDefinition) fd1).getTableAggregateFunction() instanceof TestTableAggFunction);
+        FunctionDefinition fd2 =
+                FunctionDefinitionUtil.createFunctionDefinition(
+                        "test", TestTableAggFunctionWithoutResultType.class.getName());
 
-		FunctionDefinition fd2 = FunctionDefinitionUtil.createFunctionDefinition(
-				"test",
-				TestTableAggFunctionWithoutResultType.class.getName()
-		);
+        assertTrue(
+                ((TableAggregateFunctionDefinition) fd2).getTableAggregateFunction()
+                        instanceof TestTableAggFunctionWithoutResultType);
+        assertEquals(((TableAggregateFunctionDefinition) fd2).getResultTypeInfo(), Types.LONG);
+        assertEquals(
+                ((TableAggregateFunctionDefinition) fd2).getAccumulatorTypeInfo(), Types.STRING);
+    }
 
-		assertTrue(((TableAggregateFunctionDefinition) fd2).getTableAggregateFunction()
-				instanceof TestTableAggFunctionWithoutResultType);
-		assertEquals(((TableAggregateFunctionDefinition) fd2).getResultTypeInfo(), Types.LONG);
-		assertEquals(((TableAggregateFunctionDefinition) fd2).getAccumulatorTypeInfo(), Types.STRING);
-	}
+    /** Test function. */
+    public static class TestScalarFunction extends ScalarFunction {}
 
-	/**
-	 * Test function.
-	 */
-	public static class TestScalarFunction extends ScalarFunction {
+    /** Test function. */
+    public static class TestTableFunction extends TableFunction {
+        @Override
+        public TypeInformation getResultType() {
+            return TypeInformation.of(Object.class);
+        }
+    }
 
-	}
+    /** Test function. */
+    public static class TestTableFunctionWithoutResultType extends TableFunction<String> {}
 
-	/**
-	 * Test function.
-	 */
-	public static class TestTableFunction extends TableFunction {
-		@Override
-		public TypeInformation getResultType() {
-			return TypeInformation.of(Object.class);
-		}
-	}
+    /** Test function. */
+    public static class TestAggFunction extends AggregateFunction {
+        @Override
+        public Object createAccumulator() {
+            return null;
+        }
 
-	/**
-	 * Test function.
-	 */
-	public static class TestTableFunctionWithoutResultType extends TableFunction<String> {
-	}
+        @Override
+        public TypeInformation getResultType() {
+            return TypeInformation.of(Object.class);
+        }
 
-	/**
-	 * Test function.
-	 */
-	public static class TestAggFunction extends AggregateFunction {
-		@Override
-		public Object createAccumulator() {
-			return null;
-		}
+        @Override
+        public TypeInformation getAccumulatorType() {
+            return TypeInformation.of(Object.class);
+        }
 
-		@Override
-		public TypeInformation getResultType() {
-			return TypeInformation.of(Object.class);
-		}
+        @Override
+        public Object getValue(Object accumulator) {
+            return null;
+        }
+    }
 
-		@Override
-		public TypeInformation getAccumulatorType() {
-			return TypeInformation.of(Object.class);
-		}
+    /** Test function. */
+    public static class TestAggFunctionWithoutResultType extends AggregateFunction<Long, String> {
+        @Override
+        public String createAccumulator() {
+            return null;
+        }
 
-		@Override
-		public Object getValue(Object accumulator) {
-			return null;
-		}
-	}
+        @Override
+        public Long getValue(String accumulator) {
+            return null;
+        }
+    }
 
-	/**
-	 * Test function.
-	 */
-	public static class TestAggFunctionWithoutResultType extends AggregateFunction<Long, String> {
-		@Override
-		public String createAccumulator() {
-			return null;
-		}
+    /** Test function. */
+    public static class TestTableAggFunction extends TableAggregateFunction {
+        @Override
+        public Object createAccumulator() {
+            return null;
+        }
 
-		@Override
-		public Long getValue(String accumulator) {
-			return null;
-		}
-	}
+        @Override
+        public TypeInformation getResultType() {
+            return TypeInformation.of(Object.class);
+        }
 
-	/**
-	 * Test function.
-	 */
-	public static class TestTableAggFunction extends TableAggregateFunction {
-		@Override
-		public Object createAccumulator() {
-			return null;
-		}
+        @Override
+        public TypeInformation getAccumulatorType() {
+            return TypeInformation.of(Object.class);
+        }
+    }
 
-		@Override
-		public TypeInformation getResultType() {
-			return TypeInformation.of(Object.class);
-		}
-
-		@Override
-		public TypeInformation getAccumulatorType() {
-			return TypeInformation.of(Object.class);
-		}
-	}
-
-	/**
-	 * Test function.
-	 */
-	public static class TestTableAggFunctionWithoutResultType extends TableAggregateFunction<Long, String> {
-		@Override
-		public String createAccumulator() {
-			return null;
-		}
-	}
+    /** Test function. */
+    public static class TestTableAggFunctionWithoutResultType
+            extends TableAggregateFunction<Long, String> {
+        @Override
+        public String createAccumulator() {
+            return null;
+        }
+    }
 }

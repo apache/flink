@@ -26,95 +26,95 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * Record serializer which serializes the complete record to an intermediate
- * data serialization buffer and copies this buffer to target buffers
- * one-by-one using {@link #copyToBufferBuilder(BufferBuilder)}.
+ * Record serializer which serializes the complete record to an intermediate data serialization
+ * buffer and copies this buffer to target buffers one-by-one using {@link
+ * #copyToBufferBuilder(BufferBuilder)}.
  *
  * @param <T> The type of the records that are serialized.
  */
 public class SpanningRecordSerializer<T extends IOReadableWritable> implements RecordSerializer<T> {
 
-	/** Flag to enable/disable checks, if buffer not set/full or pending serialization. */
-	private static final boolean CHECKED = false;
+    /** Flag to enable/disable checks, if buffer not set/full or pending serialization. */
+    private static final boolean CHECKED = false;
 
-	/** Intermediate data serialization. */
-	private final DataOutputSerializer serializationBuffer;
+    /** Intermediate data serialization. */
+    private final DataOutputSerializer serializationBuffer;
 
-	/** Intermediate buffer for data serialization (wrapped from {@link #serializationBuffer}). */
-	private ByteBuffer dataBuffer;
+    /** Intermediate buffer for data serialization (wrapped from {@link #serializationBuffer}). */
+    private ByteBuffer dataBuffer;
 
-	public SpanningRecordSerializer() {
-		serializationBuffer = new DataOutputSerializer(128);
+    public SpanningRecordSerializer() {
+        serializationBuffer = new DataOutputSerializer(128);
 
-		// ensure initial state with hasRemaining false (for correct continueWritingWithNextBufferBuilder logic)
-		dataBuffer = serializationBuffer.wrapAsByteBuffer();
-	}
+        // ensure initial state with hasRemaining false (for correct
+        // continueWritingWithNextBufferBuilder logic)
+        dataBuffer = serializationBuffer.wrapAsByteBuffer();
+    }
 
-	/**
-	 * Serializes the complete record to an intermediate data serialization buffer.
-	 *
-	 * @param record the record to serialize
-	 */
-	@Override
-	public void serializeRecord(T record) throws IOException {
-		if (CHECKED) {
-			if (dataBuffer.hasRemaining()) {
-				throw new IllegalStateException("Pending serialization of previous record.");
-			}
-		}
+    /**
+     * Serializes the complete record to an intermediate data serialization buffer.
+     *
+     * @param record the record to serialize
+     */
+    @Override
+    public void serializeRecord(T record) throws IOException {
+        if (CHECKED) {
+            if (dataBuffer.hasRemaining()) {
+                throw new IllegalStateException("Pending serialization of previous record.");
+            }
+        }
 
-		serializationBuffer.clear();
-		// the initial capacity of the serialization buffer should be no less than 4
-		serializationBuffer.skipBytesToWrite(4);
+        serializationBuffer.clear();
+        // the initial capacity of the serialization buffer should be no less than 4
+        serializationBuffer.skipBytesToWrite(4);
 
-		// write data and length
-		record.write(serializationBuffer);
+        // write data and length
+        record.write(serializationBuffer);
 
-		int len = serializationBuffer.length() - 4;
-		serializationBuffer.setPosition(0);
-		serializationBuffer.writeInt(len);
-		serializationBuffer.skipBytesToWrite(len);
+        int len = serializationBuffer.length() - 4;
+        serializationBuffer.setPosition(0);
+        serializationBuffer.writeInt(len);
+        serializationBuffer.skipBytesToWrite(len);
 
-		dataBuffer = serializationBuffer.wrapAsByteBuffer();
-	}
+        dataBuffer = serializationBuffer.wrapAsByteBuffer();
+    }
 
-	/**
-	 * Copies an intermediate data serialization buffer into the target BufferBuilder.
-	 *
-	 * @param targetBuffer the target BufferBuilder to copy to
-	 * @return how much information was written to the target buffer and
-	 *         whether this buffer is full
-	 */
-	@Override
-	public SerializationResult copyToBufferBuilder(BufferBuilder targetBuffer) {
-		targetBuffer.append(dataBuffer);
-		targetBuffer.commit();
+    /**
+     * Copies an intermediate data serialization buffer into the target BufferBuilder.
+     *
+     * @param targetBuffer the target BufferBuilder to copy to
+     * @return how much information was written to the target buffer and whether this buffer is full
+     */
+    @Override
+    public SerializationResult copyToBufferBuilder(BufferBuilder targetBuffer) {
+        targetBuffer.append(dataBuffer);
+        targetBuffer.commit();
 
-		return getSerializationResult(targetBuffer);
-	}
+        return getSerializationResult(targetBuffer);
+    }
 
-	private SerializationResult getSerializationResult(BufferBuilder targetBuffer) {
-		if (dataBuffer.hasRemaining()) {
-			return SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL;
-		}
-		return !targetBuffer.isFull()
-			? SerializationResult.FULL_RECORD
-			: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
-	}
+    private SerializationResult getSerializationResult(BufferBuilder targetBuffer) {
+        if (dataBuffer.hasRemaining()) {
+            return SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL;
+        }
+        return !targetBuffer.isFull()
+                ? SerializationResult.FULL_RECORD
+                : SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
+    }
 
-	@Override
-	public void reset() {
-		dataBuffer.position(0);
-	}
+    @Override
+    public void reset() {
+        dataBuffer.position(0);
+    }
 
-	@Override
-	public void prune() {
-		serializationBuffer.pruneBuffer();
-		dataBuffer = serializationBuffer.wrapAsByteBuffer();
-	}
+    @Override
+    public void prune() {
+        serializationBuffer.pruneBuffer();
+        dataBuffer = serializationBuffer.wrapAsByteBuffer();
+    }
 
-	@Override
-	public boolean hasSerializedData() {
-		return dataBuffer.hasRemaining();
-	}
+    @Override
+    public boolean hasSerializedData() {
+        return dataBuffer.hasRemaining();
+    }
 }

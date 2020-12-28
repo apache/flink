@@ -24,26 +24,26 @@ import org.apache.flink.core.fs.Path;
 import java.io.IOException;
 import java.io.Serializable;
 
-/**
- * A factory able to create {@link Bucket buckets} for the {@link StreamingFileSink}.
- */
+/** A factory able to create {@link Bucket buckets} for the {@link StreamingFileSink}. */
 @Internal
 public interface BucketFactory<IN, BucketID> extends Serializable {
 
-	Bucket<IN, BucketID> getNewBucket(
-			final int subtaskIndex,
-			final BucketID bucketId,
-			final Path bucketPath,
-			final long initialPartCounter,
-			final BucketWriter<IN, BucketID> bucketWriter,
-			final RollingPolicy<IN, BucketID> rollingPolicy,
-			final OutputFileConfig outputFileConfig) throws IOException;
+    Bucket<IN, BucketID> getNewBucket(
+            final int subtaskIndex,
+            final BucketID bucketId,
+            final Path bucketPath,
+            final long initialPartCounter,
+            final BucketWriter<IN, BucketID> bucketWriter,
+            final RollingPolicy<IN, BucketID> rollingPolicy,
+            final OutputFileConfig outputFileConfig)
+            throws IOException;
 
-	Bucket<IN, BucketID> restoreBucket(
-			final int subtaskIndex,
-			final long initialPartCounter,
-			final BucketWriter<IN, BucketID> bucketWriter,
-			final RollingPolicy<IN, BucketID> rollingPolicy,
-			final BucketState<BucketID> bucketState,
-			final OutputFileConfig outputFileConfig) throws IOException;
+    Bucket<IN, BucketID> restoreBucket(
+            final int subtaskIndex,
+            final long initialPartCounter,
+            final BucketWriter<IN, BucketID> bucketWriter,
+            final RollingPolicy<IN, BucketID> rollingPolicy,
+            final BucketState<BucketID> bucketState,
+            final OutputFileConfig outputFileConfig)
+            throws IOException;
 }

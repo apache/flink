@@ -26,43 +26,41 @@ import akka.actor.ActorSystem;
 
 import java.util.concurrent.Executor;
 
-/**
- * Service factory interface for Mesos.
- */
+/** Service factory interface for Mesos. */
 public interface MesosServices {
 
-	/**
-	 * Creates a {@link MesosWorkerStore} which is used to persist mesos worker in high availability
-	 * mode.
-	 *
-	 * @param configuration to be used
-	 * @param executor to run asynchronous tasks
-	 * @return a mesos worker store
-	 * @throws Exception if the mesos worker store could not be created
-	 */
-	MesosWorkerStore createMesosWorkerStore(
-		Configuration configuration,
-		Executor executor) throws Exception;
+    /**
+     * Creates a {@link MesosWorkerStore} which is used to persist mesos worker in high availability
+     * mode.
+     *
+     * @param configuration to be used
+     * @param executor to run asynchronous tasks
+     * @return a mesos worker store
+     * @throws Exception if the mesos worker store could not be created
+     */
+    MesosWorkerStore createMesosWorkerStore(Configuration configuration, Executor executor)
+            throws Exception;
 
-	/**
-	 * Gets a local {@link ActorSystem} which is used for child actors within
-	 * {@link org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager}.
-	 *
-	 * @return a reference to an actor system.
-	 */
-	ActorSystem getLocalActorSystem();
+    /**
+     * Gets a local {@link ActorSystem} which is used for child actors within {@link
+     * org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager}.
+     *
+     * @return a reference to an actor system.
+     */
+    ActorSystem getLocalActorSystem();
 
-	/**
-	 * Gets the artifact server with which to serve essential resources to task managers.
-	 * @return a reference to an artifact server.
-	 */
-	MesosArtifactServer getArtifactServer();
+    /**
+     * Gets the artifact server with which to serve essential resources to task managers.
+     *
+     * @return a reference to an artifact server.
+     */
+    MesosArtifactServer getArtifactServer();
 
-	/**
-	 * Closes all state maintained by the mesos services implementation.
-	 *
-	 * @param cleanup is true if a cleanup shall be performed
-	 * @throws Exception if the closing operation failed
-	 */
-	void close(boolean cleanup) throws Exception;
+    /**
+     * Closes all state maintained by the mesos services implementation.
+     *
+     * @param cleanup is true if a cleanup shall be performed
+     * @throws Exception if the closing operation failed
+     */
+    void close(boolean cleanup) throws Exception;
 }

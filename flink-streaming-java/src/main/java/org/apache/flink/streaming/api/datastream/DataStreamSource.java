@@ -36,54 +36,55 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 @Public
 public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 
-	boolean isParallel;
+    boolean isParallel;
 
-	/**
-	 * The constructor used to create legacy sources.
-	 */
-	public DataStreamSource(
-			StreamExecutionEnvironment environment,
-			TypeInformation<T> outTypeInfo,
-			StreamSource<T, ?> operator,
-			boolean isParallel,
-			String sourceName) {
-		super(environment, new LegacySourceTransformation<>(sourceName, operator, outTypeInfo, environment.getParallelism()));
+    /** The constructor used to create legacy sources. */
+    public DataStreamSource(
+            StreamExecutionEnvironment environment,
+            TypeInformation<T> outTypeInfo,
+            StreamSource<T, ?> operator,
+            boolean isParallel,
+            String sourceName) {
+        super(
+                environment,
+                new LegacySourceTransformation<>(
+                        sourceName, operator, outTypeInfo, environment.getParallelism()));
 
-		this.isParallel = isParallel;
-		if (!isParallel) {
-			setParallelism(1);
-		}
-	}
+        this.isParallel = isParallel;
+        if (!isParallel) {
+            setParallelism(1);
+        }
+    }
 
-	/**
-	 * Constructor for "deep" sources that manually set up (one or more) custom configured complex operators.
-	 */
-	public DataStreamSource(SingleOutputStreamOperator<T> operator) {
-		super(operator.environment, operator.getTransformation());
-		this.isParallel = true;
-	}
+    /**
+     * Constructor for "deep" sources that manually set up (one or more) custom configured complex
+     * operators.
+     */
+    public DataStreamSource(SingleOutputStreamOperator<T> operator) {
+        super(operator.environment, operator.getTransformation());
+        this.isParallel = true;
+    }
 
-	/**
-	 * Constructor for new Sources (FLIP-27).
-	 */
-	public DataStreamSource(
-			StreamExecutionEnvironment environment,
-			Source<T, ?, ?> source,
-			WatermarkStrategy<T> timestampsAndWatermarks,
-			TypeInformation<T> outTypeInfo,
-			String sourceName) {
-		super(environment,
-				new SourceTransformation<>(
-						sourceName,
-						new SourceOperatorFactory<>(source, timestampsAndWatermarks),
-						outTypeInfo,
-						environment.getParallelism()));
-	}
+    /** Constructor for new Sources (FLIP-27). */
+    public DataStreamSource(
+            StreamExecutionEnvironment environment,
+            Source<T, ?, ?> source,
+            WatermarkStrategy<T> timestampsAndWatermarks,
+            TypeInformation<T> outTypeInfo,
+            String sourceName) {
+        super(
+                environment,
+                new SourceTransformation<>(
+                        sourceName,
+                        new SourceOperatorFactory<>(source, timestampsAndWatermarks),
+                        outTypeInfo,
+                        environment.getParallelism()));
+    }
 
-	@Override
-	public DataStreamSource<T> setParallelism(int parallelism) {
-		OperatorValidationUtils.validateParallelism(parallelism, isParallel);
-		super.setParallelism(parallelism);
-		return this;
-	}
+    @Override
+    public DataStreamSource<T> setParallelism(int parallelism) {
+        OperatorValidationUtils.validateParallelism(parallelism, isParallel);
+        super.setParallelism(parallelism);
+        return this;
+    }
 }

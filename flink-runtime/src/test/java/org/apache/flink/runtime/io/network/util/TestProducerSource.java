@@ -24,28 +24,28 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public interface TestProducerSource {
 
-	/**
-	 * Returns the next buffer or event instance.
-	 *
-	 * <p> The channel index specifies the subpartition add the data to.
-	 */
-	BufferConsumerAndChannel getNextBufferConsumer() throws Exception;
+    /**
+     * Returns the next buffer or event instance.
+     *
+     * <p>The channel index specifies the subpartition add the data to.
+     */
+    BufferConsumerAndChannel getNextBufferConsumer() throws Exception;
 
-	class BufferConsumerAndChannel {
-		private final BufferConsumer bufferConsumer;
-		private final int targetChannel;
+    class BufferConsumerAndChannel {
+        private final BufferConsumer bufferConsumer;
+        private final int targetChannel;
 
-		public BufferConsumerAndChannel(BufferConsumer bufferConsumer, int targetChannel) {
-			this.bufferConsumer = checkNotNull(bufferConsumer);
-			this.targetChannel = targetChannel;
-		}
+        public BufferConsumerAndChannel(BufferConsumer bufferConsumer, int targetChannel) {
+            this.bufferConsumer = checkNotNull(bufferConsumer);
+            this.targetChannel = targetChannel;
+        }
 
-		public BufferConsumer getBufferConsumer() {
-			return bufferConsumer;
-		}
+        public BufferConsumer getBufferConsumer() {
+            return bufferConsumer;
+        }
 
-		public int getTargetChannel() {
-			return targetChannel;
-		}
-	}
+        public int getTargetChannel() {
+            return targetChannel;
+        }
+    }
 }

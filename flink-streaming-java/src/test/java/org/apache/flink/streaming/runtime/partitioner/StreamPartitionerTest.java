@@ -26,30 +26,28 @@ import org.junit.Before;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for different {@link StreamPartitioner} implementations.
- */
+/** Tests for different {@link StreamPartitioner} implementations. */
 public abstract class StreamPartitionerTest extends TestLogger {
 
-	protected final StreamPartitioner<Tuple> streamPartitioner = createPartitioner();
-	protected final StreamRecord<Tuple> streamRecord = new StreamRecord<>(null);
-	protected final SerializationDelegate<StreamRecord<Tuple>> serializationDelegate =
-		new SerializationDelegate<>(null);
+    protected final StreamPartitioner<Tuple> streamPartitioner = createPartitioner();
+    protected final StreamRecord<Tuple> streamRecord = new StreamRecord<>(null);
+    protected final SerializationDelegate<StreamRecord<Tuple>> serializationDelegate =
+            new SerializationDelegate<>(null);
 
-	abstract StreamPartitioner<Tuple> createPartitioner();
+    abstract StreamPartitioner<Tuple> createPartitioner();
 
-	@Before
-	public void setup() {
-		serializationDelegate.setInstance(streamRecord);
-	}
+    @Before
+    public void setup() {
+        serializationDelegate.setInstance(streamRecord);
+    }
 
-	protected void assertSelectedChannel(int expectedChannel) {
-		int actualResult = streamPartitioner.selectChannel(serializationDelegate);
-		assertEquals(expectedChannel, actualResult);
-	}
+    protected void assertSelectedChannel(int expectedChannel) {
+        int actualResult = streamPartitioner.selectChannel(serializationDelegate);
+        assertEquals(expectedChannel, actualResult);
+    }
 
-	protected void assertSelectedChannelWithSetup(int expectedChannel, int numberOfChannels) {
-		streamPartitioner.setup(numberOfChannels);
-		assertSelectedChannel(expectedChannel);
-	}
+    protected void assertSelectedChannelWithSetup(int expectedChannel, int numberOfChannels) {
+        streamPartitioner.setup(numberOfChannels);
+        assertSelectedChannel(expectedChannel);
+    }
 }

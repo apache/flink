@@ -26,19 +26,20 @@ import org.apache.flink.configuration.Configuration;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A test {@link ClusterClientServiceLoader} that returns always a {@link DummyClusterClientFactory}.
+ * A test {@link ClusterClientServiceLoader} that returns always a {@link
+ * DummyClusterClientFactory}.
  */
 public class DummyClusterClientServiceLoader<ClusterID> implements ClusterClientServiceLoader {
 
-	private final ClusterClient<ClusterID> clusterClient;
+    private final ClusterClient<ClusterID> clusterClient;
 
-	public DummyClusterClientServiceLoader(final ClusterClient<ClusterID> clusterClient) {
-		this.clusterClient = checkNotNull(clusterClient);
-	}
+    public DummyClusterClientServiceLoader(final ClusterClient<ClusterID> clusterClient) {
+        this.clusterClient = checkNotNull(clusterClient);
+    }
 
-	@Override
-	public <C> ClusterClientFactory<C> getClusterClientFactory(final Configuration configuration) {
-		checkNotNull(configuration);
-		return new DummyClusterClientFactory<>(clusterClient);
-	}
+    @Override
+    public <C> ClusterClientFactory<C> getClusterClientFactory(final Configuration configuration) {
+        checkNotNull(configuration);
+        return new DummyClusterClientFactory<>(clusterClient);
+    }
 }

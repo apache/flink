@@ -22,14 +22,12 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 
 import java.util.Collections;
 
-/**
- * {@link OutputSelector} mapping integers to "even" and "odd" streams.
- */
+/** {@link OutputSelector} mapping integers to "even" and "odd" streams. */
 public class EvenOddOutputSelector implements OutputSelector<Integer> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public Iterable<String> select(Integer value) {
-		return value % 2 == 0 ? Collections.singleton("even") : Collections.singleton("odd");
-	}
+    @Override
+    public Iterable<String> select(Integer value) {
+        return value % 2 == 0 ? Collections.singleton("even") : Collections.singleton("odd");
+    }
 }

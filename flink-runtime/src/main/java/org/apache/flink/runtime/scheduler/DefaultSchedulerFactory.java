@@ -44,78 +44,81 @@ import org.slf4j.Logger;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
-/**
- * Factory for {@link DefaultScheduler}.
- */
+/** Factory for {@link DefaultScheduler}. */
 public class DefaultSchedulerFactory implements SchedulerNGFactory {
 
-	@Override
-	public SchedulerNG createInstance(
-			final Logger log,
-			final JobGraph jobGraph,
-			final BackPressureStatsTracker backPressureStatsTracker,
-			final Executor ioExecutor,
-			final Configuration jobMasterConfiguration,
-			final SlotProvider slotProvider,
-			final ScheduledExecutorService futureExecutor,
-			final ClassLoader userCodeLoader,
-			final CheckpointRecoveryFactory checkpointRecoveryFactory,
-			final Time rpcTimeout,
-			final BlobWriter blobWriter,
-			final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-			final Time slotRequestTimeout,
-			final ShuffleMaster<?> shuffleMaster,
-			final JobMasterPartitionTracker partitionTracker) throws Exception {
+    @Override
+    public SchedulerNG createInstance(
+            final Logger log,
+            final JobGraph jobGraph,
+            final BackPressureStatsTracker backPressureStatsTracker,
+            final Executor ioExecutor,
+            final Configuration jobMasterConfiguration,
+            final SlotProvider slotProvider,
+            final ScheduledExecutorService futureExecutor,
+            final ClassLoader userCodeLoader,
+            final CheckpointRecoveryFactory checkpointRecoveryFactory,
+            final Time rpcTimeout,
+            final BlobWriter blobWriter,
+            final JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            final Time slotRequestTimeout,
+            final ShuffleMaster<?> shuffleMaster,
+            final JobMasterPartitionTracker partitionTracker)
+            throws Exception {
 
-		final SchedulingStrategyFactory schedulingStrategyFactory = createSchedulingStrategyFactory(jobGraph.getScheduleMode());
-		final RestartBackoffTimeStrategy restartBackoffTimeStrategy = RestartBackoffTimeStrategyFactoryLoader
-			.createRestartBackoffTimeStrategyFactory(
-				jobGraph
-					.getSerializedExecutionConfig()
-					.deserializeValue(userCodeLoader)
-					.getRestartStrategy(),
-				jobMasterConfiguration,
-				jobGraph.isCheckpointingEnabled())
-			.create();
-		log.info("Using restart back off time strategy {} for {} ({}).", restartBackoffTimeStrategy, jobGraph.getName(), jobGraph.getJobID());
+        final SchedulingStrategyFactory schedulingStrategyFactory =
+                createSchedulingStrategyFactory(jobGraph.getScheduleMode());
+        final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
+                RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
+                                jobGraph.getSerializedExecutionConfig()
+                                        .deserializeValue(userCodeLoader)
+                                        .getRestartStrategy(),
+                                jobMasterConfiguration,
+                                jobGraph.isCheckpointingEnabled())
+                        .create();
+        log.info(
+                "Using restart back off time strategy {} for {} ({}).",
+                restartBackoffTimeStrategy,
+                jobGraph.getName(),
+                jobGraph.getJobID());
 
-		final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
-			jobGraph.getScheduleMode(),
-			slotProvider,
-			slotRequestTimeout);
+        final SlotProviderStrategy slotProviderStrategy =
+                SlotProviderStrategy.from(
+                        jobGraph.getScheduleMode(), slotProvider, slotRequestTimeout);
 
-		return new DefaultScheduler(
-			log,
-			jobGraph,
-			backPressureStatsTracker,
-			ioExecutor,
-			jobMasterConfiguration,
-			futureExecutor,
-			new ScheduledExecutorServiceAdapter(futureExecutor),
-			userCodeLoader,
-			checkpointRecoveryFactory,
-			rpcTimeout,
-			blobWriter,
-			jobManagerJobMetricGroup,
-			shuffleMaster,
-			partitionTracker,
-			schedulingStrategyFactory,
-			FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(jobMasterConfiguration),
-			restartBackoffTimeStrategy,
-			new DefaultExecutionVertexOperations(),
-			new ExecutionVertexVersioner(),
-			new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy));
-	}
+        return new DefaultScheduler(
+                log,
+                jobGraph,
+                backPressureStatsTracker,
+                ioExecutor,
+                jobMasterConfiguration,
+                futureExecutor,
+                new ScheduledExecutorServiceAdapter(futureExecutor),
+                userCodeLoader,
+                checkpointRecoveryFactory,
+                rpcTimeout,
+                blobWriter,
+                jobManagerJobMetricGroup,
+                shuffleMaster,
+                partitionTracker,
+                schedulingStrategyFactory,
+                FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(jobMasterConfiguration),
+                restartBackoffTimeStrategy,
+                new DefaultExecutionVertexOperations(),
+                new ExecutionVertexVersioner(),
+                new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy));
+    }
 
-	static SchedulingStrategyFactory createSchedulingStrategyFactory(final ScheduleMode scheduleMode) {
-		switch (scheduleMode) {
-			case EAGER:
-				return new EagerSchedulingStrategy.Factory();
-			case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
-			case LAZY_FROM_SOURCES:
-				return new LazyFromSourcesSchedulingStrategy.Factory();
-			default:
-				throw new IllegalStateException("Unsupported schedule mode " + scheduleMode);
-		}
-	}
+    static SchedulingStrategyFactory createSchedulingStrategyFactory(
+            final ScheduleMode scheduleMode) {
+        switch (scheduleMode) {
+            case EAGER:
+                return new EagerSchedulingStrategy.Factory();
+            case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
+            case LAZY_FROM_SOURCES:
+                return new LazyFromSourcesSchedulingStrategy.Factory();
+            default:
+                throw new IllegalStateException("Unsupported schedule mode " + scheduleMode);
+        }
+    }
 }

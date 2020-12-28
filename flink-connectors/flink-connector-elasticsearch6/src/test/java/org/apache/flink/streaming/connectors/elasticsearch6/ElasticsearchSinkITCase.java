@@ -34,82 +34,88 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * IT cases for the {@link ElasticsearchSink}.
- */
-public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighLevelClient, HttpHost> {
+/** IT cases for the {@link ElasticsearchSink}. */
+public class ElasticsearchSinkITCase
+        extends ElasticsearchSinkTestBase<RestHighLevelClient, HttpHost> {
 
-	@Before
-	public void ensureClusterIsUp() throws IOException {
-		RestClientBuilder builder = RestClient.builder(HttpHost.create("http://127.0.0.1:9200"));
-		RestHighLevelClient client = new RestHighLevelClient(builder);
-		if (!client.ping()) {
-			throw new RuntimeException("Cannot ping cluster!");
-		}
-		System.out.println("Ping succesful.");
-	}
+    @Before
+    public void ensureClusterIsUp() throws IOException {
+        RestClientBuilder builder = RestClient.builder(HttpHost.create("http://127.0.0.1:9200"));
+        RestHighLevelClient client = new RestHighLevelClient(builder);
+        if (!client.ping()) {
+            throw new RuntimeException("Cannot ping cluster!");
+        }
+        System.out.println("Ping succesful.");
+    }
 
-	@Test
-	public void testElasticsearchSink() throws Exception {
-		runElasticsearchSinkTest();
-	}
+    @Test
+    public void testElasticsearchSink() throws Exception {
+        runElasticsearchSinkTest();
+    }
 
-	@Test
-	public void testElasticsearchSinkWithSmile() throws Exception {
-		runElasticsearchSinkSmileTest();
-	}
+    @Test
+    public void testElasticsearchSinkWithSmile() throws Exception {
+        runElasticsearchSinkSmileTest();
+    }
 
-	@Test
-	public void testNullAddresses() throws Exception {
-		runNullAddressesTest();
-	}
+    @Test
+    public void testNullAddresses() throws Exception {
+        runNullAddressesTest();
+    }
 
-	@Test
-	public void testEmptyAddresses() throws Exception {
-		runEmptyAddressesTest();
-	}
+    @Test
+    public void testEmptyAddresses() throws Exception {
+        runEmptyAddressesTest();
+    }
 
-	@Test
-	public void testInvalidElasticsearchCluster() throws Exception{
-		runInvalidElasticsearchClusterTest();
-	}
+    @Test
+    public void testInvalidElasticsearchCluster() throws Exception {
+        runInvalidElasticsearchClusterTest();
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSink(
-			int bulkFlushMaxActions,
-			String clusterName,
-			List<HttpHost> httpHosts,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient>
+            createElasticsearchSink(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    List<HttpHost> httpHosts,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 
-		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
-		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
+        ElasticsearchSink.Builder<Tuple2<Integer, String>> builder =
+                new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
+        builder.setBulkFlushMaxActions(bulkFlushMaxActions);
 
-		return builder.build();
-	}
+        return builder.build();
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForEmbeddedNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient>
+            createElasticsearchSinkForEmbeddedNode(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction)
+                    throws Exception {
 
-		return createElasticsearchSinkForNode(
-				bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
-	}
+        return createElasticsearchSinkForNode(
+                bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
-			String ipAddress) throws Exception {
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient>
+            createElasticsearchSinkForNode(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+                    String ipAddress)
+                    throws Exception {
 
-		ArrayList<HttpHost> httpHosts = new ArrayList<>();
-		httpHosts.add(new HttpHost(ipAddress, 9200, "http"));
+        ArrayList<HttpHost> httpHosts = new ArrayList<>();
+        httpHosts.add(new HttpHost(ipAddress, 9200, "http"));
 
-		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
-		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
+        ElasticsearchSink.Builder<Tuple2<Integer, String>> builder =
+                new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
+        builder.setBulkFlushMaxActions(bulkFlushMaxActions);
 
-		return builder.build();
-	}
+        return builder.build();
+    }
 }

@@ -29,50 +29,51 @@ import org.junit.Test;
 import java.util.Collections;
 
 /**
- * Tests that verify correct behavior when applying split/getSideOutput operations on one {@link DataStream}.
+ * Tests that verify correct behavior when applying split/getSideOutput operations on one {@link
+ * DataStream}.
  */
 public class SplitSideOutputTest {
 
-	private static final OutputTag<String> outputTag = new OutputTag<String>("outputTag") {};
+    private static final OutputTag<String> outputTag = new OutputTag<String>("outputTag") {};
 
-	@Test
-	public void testSideOutputAfterSelectIsForbidden() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testSideOutputAfterSelectIsForbidden() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		SingleOutputStreamOperator<String> processInput = env.fromElements("foo")
-			.process(new DummyProcessFunction());
+        SingleOutputStreamOperator<String> processInput =
+                env.fromElements("foo").process(new DummyProcessFunction());
 
-		processInput.split(Collections::singleton);
+        processInput.split(Collections::singleton);
 
-		try {
-			processInput.getSideOutput(outputTag);
-			Assert.fail("Should have failed early with an exception.");
-		} catch (UnsupportedOperationException expected){
-			// expected
-		}
-	}
+        try {
+            processInput.getSideOutput(outputTag);
+            Assert.fail("Should have failed early with an exception.");
+        } catch (UnsupportedOperationException expected) {
+            // expected
+        }
+    }
 
-	@Test
-	public void testSelectAfterSideOutputIsForbidden() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testSelectAfterSideOutputIsForbidden() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		SingleOutputStreamOperator<String> processInput = env.fromElements("foo")
-			.process(new DummyProcessFunction());
+        SingleOutputStreamOperator<String> processInput =
+                env.fromElements("foo").process(new DummyProcessFunction());
 
-		processInput.getSideOutput(outputTag);
+        processInput.getSideOutput(outputTag);
 
-		try {
-			processInput.split(Collections::singleton);
-			Assert.fail("Should have failed early with an exception.");
-		} catch (UnsupportedOperationException expected){
-			// expected
-		}
-	}
+        try {
+            processInput.split(Collections::singleton);
+            Assert.fail("Should have failed early with an exception.");
+        } catch (UnsupportedOperationException expected) {
+            // expected
+        }
+    }
 
-	private static final class DummyProcessFunction extends ProcessFunction<String, String> {
+    private static final class DummyProcessFunction extends ProcessFunction<String, String> {
 
-		@Override
-		public void processElement(String value, Context ctx, Collector<String> out) throws Exception {
-		}
-	}
+        @Override
+        public void processElement(String value, Context ctx, Collector<String> out)
+                throws Exception {}
+    }
 }

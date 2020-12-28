@@ -21,19 +21,15 @@ import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 
 import java.util.Properties;
 
-/**
- * General test utils.
- */
+/** General test utils. */
 public class TestUtils {
-	/**
-	 * Get standard Kinesis-related config properties.
-	 */
-	public static Properties getStandardProperties() {
-		Properties config = new Properties();
-		config.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		config.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+    /** Get standard Kinesis-related config properties. */
+    public static Properties getStandardProperties() {
+        Properties config = new Properties();
+        config.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+        config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+        config.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
-		return config;
-	}
+        return config;
+    }
 }

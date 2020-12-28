@@ -47,114 +47,125 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for JAR file manifest parsing.
- */
+/** Tests for JAR file manifest parsing. */
 public class JarManifestParserTest extends TestLogger {
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Test
-	public void testFindEntryClassNoEntry() throws IOException {
-		File jarFile = createJarFileWithManifest(ImmutableMap.of());
+    @Test
+    public void testFindEntryClassNoEntry() throws IOException {
+        File jarFile = createJarFileWithManifest(ImmutableMap.of());
 
-		Optional<String> entry = JarManifestParser.findEntryClass(jarFile);
+        Optional<String> entry = JarManifestParser.findEntryClass(jarFile);
 
-		assertFalse(entry.isPresent());
-	}
+        assertFalse(entry.isPresent());
+    }
 
-	@Test
-	public void testFindEntryClassAssemblerClass() throws IOException {
-		File jarFile = createJarFileWithManifest(ImmutableMap.of(
-			PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS, "AssemblerClass"));
+    @Test
+    public void testFindEntryClassAssemblerClass() throws IOException {
+        File jarFile =
+                createJarFileWithManifest(
+                        ImmutableMap.of(
+                                PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS,
+                                "AssemblerClass"));
 
-		Optional<String> entry = JarManifestParser.findEntryClass(jarFile);
+        Optional<String> entry = JarManifestParser.findEntryClass(jarFile);
 
-		assertTrue(entry.isPresent());
-		assertThat(entry.get(), is(equalTo("AssemblerClass")));
-	}
+        assertTrue(entry.isPresent());
+        assertThat(entry.get(), is(equalTo("AssemblerClass")));
+    }
 
-	@Test
-	public void testFindEntryClassMainClass() throws IOException {
-		File jarFile = createJarFileWithManifest(ImmutableMap.of(
-			PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS, "MainClass"));
+    @Test
+    public void testFindEntryClassMainClass() throws IOException {
+        File jarFile =
+                createJarFileWithManifest(
+                        ImmutableMap.of(
+                                PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS, "MainClass"));
 
-		Optional<String> entry = JarManifestParser.findEntryClass(jarFile);
+        Optional<String> entry = JarManifestParser.findEntryClass(jarFile);
 
-		assertTrue(entry.isPresent());
-		assertThat(entry.get(), is(equalTo("MainClass")));
-	}
+        assertTrue(entry.isPresent());
+        assertThat(entry.get(), is(equalTo("MainClass")));
+    }
 
-	@Test
-	public void testFindEntryClassAssemblerClassAndMainClass() throws IOException {
-		// We want the assembler class entry to have precedence over main class
-		File jarFile = createJarFileWithManifest(ImmutableMap.of(
-			PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS, "AssemblerClass",
-			PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS, "MainClass"));
+    @Test
+    public void testFindEntryClassAssemblerClassAndMainClass() throws IOException {
+        // We want the assembler class entry to have precedence over main class
+        File jarFile =
+                createJarFileWithManifest(
+                        ImmutableMap.of(
+                                PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS,
+                                        "AssemblerClass",
+                                PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS, "MainClass"));
 
-		Optional<String> entry = JarManifestParser.findEntryClass(jarFile);
+        Optional<String> entry = JarManifestParser.findEntryClass(jarFile);
 
-		assertTrue(entry.isPresent());
-		assertThat(entry.get(), is(equalTo("AssemblerClass")));
-	}
+        assertTrue(entry.isPresent());
+        assertThat(entry.get(), is(equalTo("AssemblerClass")));
+    }
 
-	@Test
-	public void testFindEntryClassWithTestJobJar() throws IOException {
-		File jarFile = TestJob.getTestJobJar();
+    @Test
+    public void testFindEntryClassWithTestJobJar() throws IOException {
+        File jarFile = TestJob.getTestJobJar();
 
-		Optional<String> entryClass = JarManifestParser.findEntryClass(jarFile);
+        Optional<String> entryClass = JarManifestParser.findEntryClass(jarFile);
 
-		assertTrue(entryClass.isPresent());
-		assertThat(entryClass.get(), is(equalTo(TestJob.class.getCanonicalName())));
-	}
+        assertTrue(entryClass.isPresent());
+        assertThat(entryClass.get(), is(equalTo(TestJob.class.getCanonicalName())));
+    }
 
-	@Test(expected = NoSuchElementException.class)
-	public void testFindOnlyEntryClassEmptyArgument() throws IOException {
-		JarManifestParser.findOnlyEntryClass(Collections.emptyList());
-	}
+    @Test(expected = NoSuchElementException.class)
+    public void testFindOnlyEntryClassEmptyArgument() throws IOException {
+        JarManifestParser.findOnlyEntryClass(Collections.emptyList());
+    }
 
-	@Test(expected = NoSuchElementException.class)
-	public void testFindOnlyEntryClassSingleJarWithNoManifest() throws IOException {
-		File jarWithNoManifest = createJarFileWithManifest(ImmutableMap.of());
-		JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarWithNoManifest));
-	}
+    @Test(expected = NoSuchElementException.class)
+    public void testFindOnlyEntryClassSingleJarWithNoManifest() throws IOException {
+        File jarWithNoManifest = createJarFileWithManifest(ImmutableMap.of());
+        JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarWithNoManifest));
+    }
 
-	@Test
-	public void testFindOnlyEntryClassSingleJar() throws IOException {
-		File jarFile = TestJob.getTestJobJar();
+    @Test
+    public void testFindOnlyEntryClassSingleJar() throws IOException {
+        File jarFile = TestJob.getTestJobJar();
 
-		JarManifestParser.JarFileWithEntryClass jarFileWithEntryClass = JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarFile));
+        JarManifestParser.JarFileWithEntryClass jarFileWithEntryClass =
+                JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarFile));
 
-		assertThat(jarFileWithEntryClass.getEntryClass(), is(equalTo(TestJob.class.getCanonicalName())));
-	}
+        assertThat(
+                jarFileWithEntryClass.getEntryClass(),
+                is(equalTo(TestJob.class.getCanonicalName())));
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testFindOnlyEntryClassMultipleJarsWithMultipleManifestEntries() throws IOException {
-		File jarFile = TestJob.getTestJobJar();
+    @Test(expected = IllegalArgumentException.class)
+    public void testFindOnlyEntryClassMultipleJarsWithMultipleManifestEntries() throws IOException {
+        File jarFile = TestJob.getTestJobJar();
 
-		JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarFile, jarFile, jarFile));
-	}
+        JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarFile, jarFile, jarFile));
+    }
 
-	@Test
-	public void testFindOnlyEntryClassMultipleJarsWithSingleManifestEntry() throws IOException {
-		File jarWithNoManifest = createJarFileWithManifest(ImmutableMap.of());
-		File jarFile = TestJob.getTestJobJar();
+    @Test
+    public void testFindOnlyEntryClassMultipleJarsWithSingleManifestEntry() throws IOException {
+        File jarWithNoManifest = createJarFileWithManifest(ImmutableMap.of());
+        File jarFile = TestJob.getTestJobJar();
 
-		JarManifestParser.JarFileWithEntryClass jarFileWithEntryClass = JarManifestParser
-			.findOnlyEntryClass(ImmutableList.of(jarWithNoManifest, jarFile));
+        JarManifestParser.JarFileWithEntryClass jarFileWithEntryClass =
+                JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarWithNoManifest, jarFile));
 
-		assertThat(jarFileWithEntryClass.getEntryClass(), is(equalTo(TestJob.class.getCanonicalName())));
-	}
+        assertThat(
+                jarFileWithEntryClass.getEntryClass(),
+                is(equalTo(TestJob.class.getCanonicalName())));
+    }
 
-	private File createJarFileWithManifest(Map<String, String> manifest) throws IOException {
-		final File jarFile = temporaryFolder.newFile();
-		try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(jarFile)));
-				PrintWriter pw = new PrintWriter(zos)) {
-			zos.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
-			manifest.forEach((key, value) -> pw.println(String.format("%s: %s", key, value)));
-		}
-		return jarFile;
-	}
-
+    private File createJarFileWithManifest(Map<String, String> manifest) throws IOException {
+        final File jarFile = temporaryFolder.newFile();
+        try (ZipOutputStream zos =
+                        new ZipOutputStream(
+                                new BufferedOutputStream(new FileOutputStream(jarFile)));
+                PrintWriter pw = new PrintWriter(zos)) {
+            zos.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
+            manifest.forEach((key, value) -> pw.println(String.format("%s: %s", key, value)));
+        }
+        return jarFile;
+    }
 }

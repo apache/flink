@@ -34,50 +34,49 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for the file system initialization of the Bucketing sink.
  *
- * <p>NOTE: These tests can probably go away once the bucketing sink has been
- * migrated to properly use Flink's file system abstraction.
+ * <p>NOTE: These tests can probably go away once the bucketing sink has been migrated to properly
+ * use Flink's file system abstraction.
  */
 public class BucketingSinkFsInitTest {
 
-	@Rule
-	public final TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	// to properly mimic what happens in the runtime task, we need to make sure that
-	// the file system safety net is in place
+    // to properly mimic what happens in the runtime task, we need to make sure that
+    // the file system safety net is in place
 
-	@Before
-	public void activateSafetyNet() {
-		FileSystemSafetyNet.initializeSafetyNetForThread();
-	}
+    @Before
+    public void activateSafetyNet() {
+        FileSystemSafetyNet.initializeSafetyNetForThread();
+    }
 
-	@After
-	public void deactivateSafetyNet() {
-		FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
-	}
+    @After
+    public void deactivateSafetyNet() {
+        FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void testInitForLocalFileSystem() throws Exception {
-		final Path path = new Path(tempFolder.newFolder().toURI());
-		FileSystem fs = BucketingSink.createHadoopFileSystem(path, null);
+    @Test
+    public void testInitForLocalFileSystem() throws Exception {
+        final Path path = new Path(tempFolder.newFolder().toURI());
+        FileSystem fs = BucketingSink.createHadoopFileSystem(path, null);
 
-		assertEquals("file", fs.getUri().getScheme());
-	}
+        assertEquals("file", fs.getUri().getScheme());
+    }
 
-	@Test
-	public void testInitForHadoopFileSystem() throws Exception {
-		final Path path = new Path("hdfs://localhost:51234/some/path/");
-		FileSystem fs = BucketingSink.createHadoopFileSystem(path, null);
+    @Test
+    public void testInitForHadoopFileSystem() throws Exception {
+        final Path path = new Path("hdfs://localhost:51234/some/path/");
+        FileSystem fs = BucketingSink.createHadoopFileSystem(path, null);
 
-		assertEquals("hdfs", fs.getUri().getScheme());
-	}
+        assertEquals("hdfs", fs.getUri().getScheme());
+    }
 
-	@Test(expected = UnsupportedFileSystemSchemeException.class)
-	public void testInitForUnsupportedFileSystem() throws Exception {
-		final Path path = new Path("nofs://localhost:51234/some/path/");
-		BucketingSink.createHadoopFileSystem(path, null);
-	}
+    @Test(expected = UnsupportedFileSystemSchemeException.class)
+    public void testInitForUnsupportedFileSystem() throws Exception {
+        final Path path = new Path("nofs://localhost:51234/some/path/");
+        BucketingSink.createHadoopFileSystem(path, null);
+    }
 }

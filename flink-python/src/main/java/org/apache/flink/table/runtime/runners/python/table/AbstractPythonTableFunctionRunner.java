@@ -43,79 +43,85 @@ import java.util.Map;
  * @param <IN> Type of the input elements.
  */
 @Internal
-public abstract class AbstractPythonTableFunctionRunner<IN> extends AbstractPythonStatelessFunctionRunner<IN> {
+public abstract class AbstractPythonTableFunctionRunner<IN>
+        extends AbstractPythonStatelessFunctionRunner<IN> {
 
-	private static final String TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1";
-	private static final String TABLE_FUNCTION_URN = "flink:transform:table_function:v1";
+    private static final String TABLE_FUNCTION_SCHEMA_CODER_URN =
+            "flink:coder:schema:table_function:v1";
+    private static final String TABLE_FUNCTION_URN = "flink:transform:table_function:v1";
 
-	private final PythonFunctionInfo tableFunction;
+    private final PythonFunctionInfo tableFunction;
 
-	/**
-	 * The TypeSerializer for input elements.
-	 */
-	private transient TypeSerializer<IN> inputTypeSerializer;
+    /** The TypeSerializer for input elements. */
+    private transient TypeSerializer<IN> inputTypeSerializer;
 
-	public AbstractPythonTableFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo tableFunction,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, environmentManager, inputType, outputType, TABLE_FUNCTION_URN, jobOptions, flinkMetricContainer);
-		this.tableFunction = Preconditions.checkNotNull(tableFunction);
-	}
+    public AbstractPythonTableFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonFunctionInfo tableFunction,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                resultReceiver,
+                environmentManager,
+                inputType,
+                outputType,
+                TABLE_FUNCTION_URN,
+                jobOptions,
+                flinkMetricContainer);
+        this.tableFunction = Preconditions.checkNotNull(tableFunction);
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		inputTypeSerializer = getInputTypeSerializer();
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        inputTypeSerializer = getInputTypeSerializer();
+    }
 
-	/**
-	 * Gets the proto representation of the Python user-defined functions to be executed.
-	 */
-	@VisibleForTesting
-	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
-		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
-		builder.addUdfs(getUserDefinedFunctionProto(tableFunction));
-		builder.setMetricEnabled(flinkMetricContainer != null);
-		return builder.build();
-	}
+    /** Gets the proto representation of the Python user-defined functions to be executed. */
+    @VisibleForTesting
+    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
+        FlinkFnApi.UserDefinedFunctions.Builder builder =
+                FlinkFnApi.UserDefinedFunctions.newBuilder();
+        builder.addUdfs(getUserDefinedFunctionProto(tableFunction));
+        builder.setMetricEnabled(flinkMetricContainer != null);
+        return builder.build();
+    }
 
-	@Override
-	public void processElement(IN element) {
-		try {
-			baos.reset();
-			inputTypeSerializer.serialize(element, baosWrapper);
-			mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(baos.toByteArray()));
-		} catch (Throwable t) {
-			throw new RuntimeException("Failed to process element when sending data to Python SDK harness.", t);
-		}
-	}
+    @Override
+    public void processElement(IN element) {
+        try {
+            baos.reset();
+            inputTypeSerializer.serialize(element, baosWrapper);
+            mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(baos.toByteArray()));
+        } catch (Throwable t) {
+            throw new RuntimeException(
+                    "Failed to process element when sending data to Python SDK harness.", t);
+        }
+    }
 
-	@Override
-	public OutputReceiverFactory createOutputReceiverFactory() {
-		return new OutputReceiverFactory() {
+    @Override
+    public OutputReceiverFactory createOutputReceiverFactory() {
+        return new OutputReceiverFactory() {
 
-			// the input value type is always byte array
-			@SuppressWarnings("unchecked")
-			@Override
-			public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
-				return input -> resultReceiver.accept(input.getValue());
-			}
-		};
-	}
+            // the input value type is always byte array
+            @SuppressWarnings("unchecked")
+            @Override
+            public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
+                return input -> resultReceiver.accept(input.getValue());
+            }
+        };
+    }
 
-	/**
-	 * Returns the TypeSerializer for input elements.
-	 */
-	public abstract TypeSerializer<IN> getInputTypeSerializer();
+    /** Returns the TypeSerializer for input elements. */
+    public abstract TypeSerializer<IN> getInputTypeSerializer();
 
-	@Override
-	public String getInputOutputCoderUrn() {
-		return TABLE_FUNCTION_SCHEMA_CODER_URN;
-	}
+    @Override
+    public String getInputOutputCoderUrn() {
+        return TABLE_FUNCTION_SCHEMA_CODER_URN;
+    }
 }

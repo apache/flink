@@ -26,16 +26,19 @@ import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMem
  * Describe the specifics of different resource dimensions of the JobManager process.
  *
  * <p>A JobManager's memory consists of the following components:
+ *
  * <ul>
- *     <li>JVM Heap Memory</li>
- *     <li>Off-heap Memory</li>
- *     <li>JVM Metaspace</li>
- *     <li>JVM Overhead</li>
+ *   <li>JVM Heap Memory
+ *   <li>Off-heap Memory
+ *   <li>JVM Metaspace
+ *   <li>JVM Overhead
  * </ul>
- * We use Total Process Memory to refer to all the memory components, while Total Flink Memory refering to all
- * the components except JVM Metaspace and JVM Overhead.
+ *
+ * We use Total Process Memory to refer to all the memory components, while Total Flink Memory
+ * refering to all the components except JVM Metaspace and JVM Overhead.
  *
  * <p>The relationships of JobManager memory components are shown below.
+ *
  * <pre>
  *               ┌ ─ ─ Total Process Memory  ─ ─ ┐
  *                ┌ ─ ─ Total Flink Memory  ─ ─ ┐
@@ -56,18 +59,27 @@ import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMem
  * </pre>
  */
 public class JobManagerProcessSpec extends CommonProcessMemorySpec<JobManagerFlinkMemory> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	JobManagerProcessSpec(JobManagerFlinkMemory flinkMemory, JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
-		super(flinkMemory, jvmMetaspaceAndOverhead);
-	}
+    JobManagerProcessSpec(
+            JobManagerFlinkMemory flinkMemory, JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
+        super(flinkMemory, jvmMetaspaceAndOverhead);
+    }
 
-	@Override
-	public String toString() {
-		return "JobManagerProcessSpec {" +
-			"jvmHeapSize=" + getJvmHeapMemorySize().toHumanReadableString() + ", " +
-			"offHeapSize=" + getJvmDirectMemorySize().toHumanReadableString() + ", " +
-			"jvmMetaspaceSize=" + getJvmMetaspaceSize().toHumanReadableString() + ", " +
-			"jvmOverheadSize=" + getJvmOverheadSize().toHumanReadableString() + '}';
-	}
+    @Override
+    public String toString() {
+        return "JobManagerProcessSpec {"
+                + "jvmHeapSize="
+                + getJvmHeapMemorySize().toHumanReadableString()
+                + ", "
+                + "offHeapSize="
+                + getJvmDirectMemorySize().toHumanReadableString()
+                + ", "
+                + "jvmMetaspaceSize="
+                + getJvmMetaspaceSize().toHumanReadableString()
+                + ", "
+                + "jvmOverheadSize="
+                + getJvmOverheadSize().toHumanReadableString()
+                + '}';
+    }
 }

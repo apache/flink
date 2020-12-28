@@ -24,21 +24,22 @@ import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.api.misc.param.WithParams;
 
 /**
- * An interface for classes with a parameter specifying the names of the columns to be retained in the output table.
+ * An interface for classes with a parameter specifying the names of the columns to be retained in
+ * the output table.
  */
-public interface HasReservedCols<T> extends WithParams <T> {
+public interface HasReservedCols<T> extends WithParams<T> {
 
-	ParamInfo <String[]> RESERVED_COLS = ParamInfoFactory
-		.createParamInfo("reservedCols", String[].class)
-		.setDescription("Names of the columns to be retained in the output table")
-		.setHasDefaultValue(null)
-		.build();
+    ParamInfo<String[]> RESERVED_COLS =
+            ParamInfoFactory.createParamInfo("reservedCols", String[].class)
+                    .setDescription("Names of the columns to be retained in the output table")
+                    .setHasDefaultValue(null)
+                    .build();
 
-	default String[] getReservedCols() {
-		return get(RESERVED_COLS);
-	}
+    default String[] getReservedCols() {
+        return get(RESERVED_COLS);
+    }
 
-	default T setReservedCols(String... value) {
-		return set(RESERVED_COLS, value);
-	}
+    default T setReservedCols(String... value) {
+        return set(RESERVED_COLS, value);
+    }
 }

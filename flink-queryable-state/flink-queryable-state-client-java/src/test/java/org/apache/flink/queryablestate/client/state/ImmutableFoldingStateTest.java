@@ -32,63 +32,55 @@ import java.io.ByteArrayOutputStream;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests the {@link ImmutableFoldingState}.
- */
+/** Tests the {@link ImmutableFoldingState}. */
 public class ImmutableFoldingStateTest {
 
-	private final FoldingStateDescriptor<Long, String> foldingStateDesc =
-			new FoldingStateDescriptor<>(
-					"test",
-					"0",
-					new SumFold(),
-					StringSerializer.INSTANCE);
+    private final FoldingStateDescriptor<Long, String> foldingStateDesc =
+            new FoldingStateDescriptor<>("test", "0", new SumFold(), StringSerializer.INSTANCE);
 
-	private FoldingState<Long, String> foldingState;
+    private FoldingState<Long, String> foldingState;
 
-	@Before
-	public void setUp() throws Exception {
-		if (!foldingStateDesc.isSerializerInitialized()) {
-			foldingStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
-		}
+    @Before
+    public void setUp() throws Exception {
+        if (!foldingStateDesc.isSerializerInitialized()) {
+            foldingStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
+        }
 
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		StringSerializer.INSTANCE.serialize("42", new DataOutputViewStreamWrapper(out));
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        StringSerializer.INSTANCE.serialize("42", new DataOutputViewStreamWrapper(out));
 
-		foldingState = ImmutableFoldingState.createState(
-				foldingStateDesc,
-				out.toByteArray()
-		);
-	}
+        foldingState = ImmutableFoldingState.createState(foldingStateDesc, out.toByteArray());
+    }
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void testUpdate() throws Exception {
-		String value = foldingState.get();
-		assertEquals("42", value);
+    @Test(expected = UnsupportedOperationException.class)
+    public void testUpdate() throws Exception {
+        String value = foldingState.get();
+        assertEquals("42", value);
 
-		foldingState.add(54L);
-	}
+        foldingState.add(54L);
+    }
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void testClear() throws Exception {
-		String value = foldingState.get();
-		assertEquals("42", value);
+    @Test(expected = UnsupportedOperationException.class)
+    public void testClear() throws Exception {
+        String value = foldingState.get();
+        assertEquals("42", value);
 
-		foldingState.clear();
-	}
+        foldingState.clear();
+    }
 
-	/**
-	 * Test {@link FoldFunction} concatenating the already stored string with the long passed as argument.
-	 */
-	private static class SumFold implements FoldFunction<Long, String> {
+    /**
+     * Test {@link FoldFunction} concatenating the already stored string with the long passed as
+     * argument.
+     */
+    private static class SumFold implements FoldFunction<Long, String> {
 
-		private static final long serialVersionUID = -6249227626701264599L;
+        private static final long serialVersionUID = -6249227626701264599L;
 
-		@Override
-		public String fold(String accumulator, Long value) throws Exception {
-			long acc = Long.valueOf(accumulator);
-			acc += value;
-			return Long.toString(acc);
-		}
-	}
+        @Override
+        public String fold(String accumulator, Long value) throws Exception {
+            long acc = Long.valueOf(accumulator);
+            acc += value;
+            return Long.toString(acc);
+        }
+    }
 }

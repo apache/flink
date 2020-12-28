@@ -45,97 +45,106 @@ import java.util.concurrent.CompletionException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link JobClient} with the ability to also submit jobs which
- * uses directly the {@link DispatcherGateway}.
+ * A {@link JobClient} with the ability to also submit jobs which uses directly the {@link
+ * DispatcherGateway}.
  */
 @Internal
 public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway {
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	private final DispatcherGateway dispatcherGateway;
+    private final DispatcherGateway dispatcherGateway;
 
-	private final ScheduledExecutor retryExecutor;
+    private final ScheduledExecutor retryExecutor;
 
-	private final Time timeout;
+    private final Time timeout;
 
-	public EmbeddedJobClient(
-			final JobID jobId,
-			final DispatcherGateway dispatcherGateway,
-			final ScheduledExecutor retryExecutor,
-			final Time rpcTimeout) {
-		this.jobId = checkNotNull(jobId);
-		this.dispatcherGateway = checkNotNull(dispatcherGateway);
-		this.retryExecutor = checkNotNull(retryExecutor);
-		this.timeout = checkNotNull(rpcTimeout);
-	}
+    public EmbeddedJobClient(
+            final JobID jobId,
+            final DispatcherGateway dispatcherGateway,
+            final ScheduledExecutor retryExecutor,
+            final Time rpcTimeout) {
+        this.jobId = checkNotNull(jobId);
+        this.dispatcherGateway = checkNotNull(dispatcherGateway);
+        this.retryExecutor = checkNotNull(retryExecutor);
+        this.timeout = checkNotNull(rpcTimeout);
+    }
 
-	@Override
-	public JobID getJobID() {
-		return jobId;
-	}
+    @Override
+    public JobID getJobID() {
+        return jobId;
+    }
 
-	@Override
-	public CompletableFuture<JobStatus> getJobStatus() {
-		return dispatcherGateway.requestJobStatus(jobId, timeout);
-	}
+    @Override
+    public CompletableFuture<JobStatus> getJobStatus() {
+        return dispatcherGateway.requestJobStatus(jobId, timeout);
+    }
 
-	@Override
-	public CompletableFuture<Void> cancel() {
-		return dispatcherGateway
-				.cancelJob(jobId, timeout)
-				.thenApply(ignores -> null);
-	}
+    @Override
+    public CompletableFuture<Void> cancel() {
+        return dispatcherGateway.cancelJob(jobId, timeout).thenApply(ignores -> null);
+    }
 
-	@Override
-	public CompletableFuture<String> stopWithSavepoint(final boolean advanceToEndOfEventTime, @Nullable final String savepointDirectory) {
-		return dispatcherGateway.stopWithSavepoint(jobId, savepointDirectory, advanceToEndOfEventTime, timeout);
-	}
+    @Override
+    public CompletableFuture<String> stopWithSavepoint(
+            final boolean advanceToEndOfEventTime, @Nullable final String savepointDirectory) {
+        return dispatcherGateway.stopWithSavepoint(
+                jobId, savepointDirectory, advanceToEndOfEventTime, timeout);
+    }
 
-	@Override
-	public CompletableFuture<String> triggerSavepoint(@Nullable final String savepointDirectory) {
-		return dispatcherGateway.triggerSavepoint(jobId, savepointDirectory, false, timeout);
-	}
+    @Override
+    public CompletableFuture<String> triggerSavepoint(@Nullable final String savepointDirectory) {
+        return dispatcherGateway.triggerSavepoint(jobId, savepointDirectory, false, timeout);
+    }
 
-	@Override
-	public CompletableFuture<Map<String, Object>> getAccumulators(final ClassLoader classLoader) {
-		checkNotNull(classLoader);
+    @Override
+    public CompletableFuture<Map<String, Object>> getAccumulators(final ClassLoader classLoader) {
+        checkNotNull(classLoader);
 
-		return dispatcherGateway.requestJob(jobId, timeout)
-				.thenApply(ArchivedExecutionGraph::getAccumulatorsSerialized)
-				.thenApply(accumulators -> {
-					try {
-						return AccumulatorHelper.deserializeAndUnwrapAccumulators(accumulators, classLoader);
-					} catch (Exception e) {
-						throw new CompletionException("Cannot deserialize and unwrap accumulators properly.", e);
-					}
-				});
-	}
+        return dispatcherGateway
+                .requestJob(jobId, timeout)
+                .thenApply(ArchivedExecutionGraph::getAccumulatorsSerialized)
+                .thenApply(
+                        accumulators -> {
+                            try {
+                                return AccumulatorHelper.deserializeAndUnwrapAccumulators(
+                                        accumulators, classLoader);
+                            } catch (Exception e) {
+                                throw new CompletionException(
+                                        "Cannot deserialize and unwrap accumulators properly.", e);
+                            }
+                        });
+    }
 
-	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader) {
-		checkNotNull(userClassloader);
+    @Override
+    public CompletableFuture<JobExecutionResult> getJobExecutionResult(
+            final ClassLoader userClassloader) {
+        checkNotNull(userClassloader);
 
-		final Time retryPeriod = Time.milliseconds(100L);
-		return JobStatusPollingUtils.getJobResult(dispatcherGateway, jobId, retryExecutor, timeout, retryPeriod)
-				.thenApply((jobResult) -> {
-					try {
-						return jobResult.toJobExecutionResult(userClassloader);
-					} catch (Throwable t) {
-						throw new CompletionException(
-								UnsuccessfulExecutionException.fromJobResult(jobResult, userClassloader));
-					}
-				});
-	}
+        final Time retryPeriod = Time.milliseconds(100L);
+        return JobStatusPollingUtils.getJobResult(
+                        dispatcherGateway, jobId, retryExecutor, timeout, retryPeriod)
+                .thenApply(
+                        (jobResult) -> {
+                            try {
+                                return jobResult.toJobExecutionResult(userClassloader);
+                            } catch (Throwable t) {
+                                throw new CompletionException(
+                                        UnsuccessfulExecutionException.fromJobResult(
+                                                jobResult, userClassloader));
+                            }
+                        });
+    }
 
-	@Override
-	public CompletableFuture<CoordinationResponse> sendCoordinationRequest(OperatorID operatorId, CoordinationRequest request) {
-		try {
-			SerializedValue<CoordinationRequest> serializedRequest = new SerializedValue<>(request);
-			return dispatcherGateway.deliverCoordinationRequestToCoordinator(
-				jobId, operatorId, serializedRequest, timeout);
-		} catch (IOException e) {
-			return FutureUtils.completedExceptionally(e);
-		}
-	}
+    @Override
+    public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
+            OperatorID operatorId, CoordinationRequest request) {
+        try {
+            SerializedValue<CoordinationRequest> serializedRequest = new SerializedValue<>(request);
+            return dispatcherGateway.deliverCoordinationRequestToCoordinator(
+                    jobId, operatorId, serializedRequest, timeout);
+        } catch (IOException e) {
+            return FutureUtils.completedExceptionally(e);
+        }
+    }
 }

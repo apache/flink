@@ -37,80 +37,80 @@ import org.rocksdb.ColumnFamilyHandle;
  * @param <N> The type of the namespace.
  * @param <T> The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
- *
  * @deprecated will be removed in a future version
  */
 @Deprecated
-class RocksDBFoldingState<K, N, T, ACC>
-	extends AbstractRocksDBAppendingState<K, N, T, ACC, ACC>
-	implements InternalFoldingState<K, N, T, ACC> {
+class RocksDBFoldingState<K, N, T, ACC> extends AbstractRocksDBAppendingState<K, N, T, ACC, ACC>
+        implements InternalFoldingState<K, N, T, ACC> {
 
-	/** User-specified fold function. */
-	private final FoldFunction<T, ACC> foldFunction;
+    /** User-specified fold function. */
+    private final FoldFunction<T, ACC> foldFunction;
 
-	/**
-	 * Creates a new {@code RocksDBFoldingState}.
-	 *
-	 * @param columnFamily The RocksDB column family that this state is associated to.
-	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param valueSerializer The serializer for the state.
-	 * @param defaultValue The default value for the state.
-	 * @param foldFunction The fold function used for folding state.
-	 * @param backend The backend for which this state is bind to.
-	 */
-	private RocksDBFoldingState(
-		ColumnFamilyHandle columnFamily,
-		TypeSerializer<N> namespaceSerializer,
-		TypeSerializer<ACC> valueSerializer,
-		ACC defaultValue,
-		FoldFunction<T, ACC> foldFunction,
-		RocksDBKeyedStateBackend<K> backend) {
+    /**
+     * Creates a new {@code RocksDBFoldingState}.
+     *
+     * @param columnFamily The RocksDB column family that this state is associated to.
+     * @param namespaceSerializer The serializer for the namespace.
+     * @param valueSerializer The serializer for the state.
+     * @param defaultValue The default value for the state.
+     * @param foldFunction The fold function used for folding state.
+     * @param backend The backend for which this state is bind to.
+     */
+    private RocksDBFoldingState(
+            ColumnFamilyHandle columnFamily,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<ACC> valueSerializer,
+            ACC defaultValue,
+            FoldFunction<T, ACC> foldFunction,
+            RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
+        super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
 
-		this.foldFunction = foldFunction;
-	}
+        this.foldFunction = foldFunction;
+    }
 
-	@Override
-	public TypeSerializer<K> getKeySerializer() {
-		return backend.getKeySerializer();
-	}
+    @Override
+    public TypeSerializer<K> getKeySerializer() {
+        return backend.getKeySerializer();
+    }
 
-	@Override
-	public TypeSerializer<N> getNamespaceSerializer() {
-		return namespaceSerializer;
-	}
+    @Override
+    public TypeSerializer<N> getNamespaceSerializer() {
+        return namespaceSerializer;
+    }
 
-	@Override
-	public TypeSerializer<ACC> getValueSerializer() {
-		return valueSerializer;
-	}
+    @Override
+    public TypeSerializer<ACC> getValueSerializer() {
+        return valueSerializer;
+    }
 
-	@Override
-	public ACC get() {
-		return getInternal();
-	}
+    @Override
+    public ACC get() {
+        return getInternal();
+    }
 
-	@Override
-	public void add(T value) throws Exception {
-		byte[] key = getKeyBytes();
-		ACC accumulator = getInternal(key);
-		accumulator = accumulator == null ? getDefaultValue() : accumulator;
-		accumulator = foldFunction.fold(accumulator, value);
-		updateInternal(key, accumulator);
-	}
+    @Override
+    public void add(T value) throws Exception {
+        byte[] key = getKeyBytes();
+        ACC accumulator = getInternal(key);
+        accumulator = accumulator == null ? getDefaultValue() : accumulator;
+        accumulator = foldFunction.fold(accumulator, value);
+        updateInternal(key, accumulator);
+    }
 
-	@SuppressWarnings("unchecked")
-	static <K, N, SV, S extends State, IS extends S> IS create(
-		StateDescriptor<S, SV> stateDesc,
-		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult,
-		RocksDBKeyedStateBackend<K> backend) {
-		return (IS) new RocksDBFoldingState<>(
-			registerResult.f0,
-			registerResult.f1.getNamespaceSerializer(),
-			registerResult.f1.getStateSerializer(),
-			stateDesc.getDefaultValue(),
-			((FoldingStateDescriptor<?, SV>) stateDesc).getFoldFunction(),
-			backend);
-	}
+    @SuppressWarnings("unchecked")
+    static <K, N, SV, S extends State, IS extends S> IS create(
+            StateDescriptor<S, SV> stateDesc,
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    registerResult,
+            RocksDBKeyedStateBackend<K> backend) {
+        return (IS)
+                new RocksDBFoldingState<>(
+                        registerResult.f0,
+                        registerResult.f1.getNamespaceSerializer(),
+                        registerResult.f1.getStateSerializer(),
+                        stateDesc.getDefaultValue(),
+                        ((FoldingStateDescriptor<?, SV>) stateDesc).getFoldFunction(),
+                        backend);
+    }
 }

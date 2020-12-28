@@ -34,25 +34,33 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import java.util.Map;
 
 /**
- * A {@link PythonFunctionRunner} used to execute Python {@link TableFunction}.
- * It takes {@link RowData} as the input and outputs a byte array.
+ * A {@link PythonFunctionRunner} used to execute Python {@link TableFunction}. It takes {@link
+ * RowData} as the input and outputs a byte array.
  */
 @Internal
 public class RowDataPythonTableFunctionRunner extends AbstractPythonTableFunctionRunner<RowData> {
-	public RowDataPythonTableFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo tableFunction,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, tableFunction, environmentManager, inputType, outputType, jobOptions, flinkMetricContainer);
-	}
+    public RowDataPythonTableFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonFunctionInfo tableFunction,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                resultReceiver,
+                tableFunction,
+                environmentManager,
+                inputType,
+                outputType,
+                jobOptions,
+                flinkMetricContainer);
+    }
 
-	@Override
-	public RowDataSerializer getInputTypeSerializer() {
-		return (RowDataSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());
-	}
+    @Override
+    public RowDataSerializer getInputTypeSerializer() {
+        return (RowDataSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());
+    }
 }

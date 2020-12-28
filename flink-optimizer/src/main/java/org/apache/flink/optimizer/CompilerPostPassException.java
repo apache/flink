@@ -19,44 +19,42 @@
 package org.apache.flink.optimizer;
 
 /**
- * An exception that is thrown by the Optimizer when encountering
- * a problem during the optimizer post pass. This is a dedicated exception
- * because it is thrown by user-specified optimizer extensions.
+ * An exception that is thrown by the Optimizer when encountering a problem during the optimizer
+ * post pass. This is a dedicated exception because it is thrown by user-specified optimizer
+ * extensions.
  */
 public class CompilerPostPassException extends CompilerException {
 
-	private static final long serialVersionUID = -322650826288034623L;
+    private static final long serialVersionUID = -322650826288034623L;
 
-	/**
-	 * Creates a post pass exception with no message and no cause.
-	 */
-	public CompilerPostPassException() {}
+    /** Creates a post pass exception with no message and no cause. */
+    public CompilerPostPassException() {}
 
-	/**
-	 * Creates a post pass exception with the given message and no cause.
-	 * 
-	 * @param message The message for the exception.
-	 */
-	public CompilerPostPassException(String message) {
-		super(message);
-	}
+    /**
+     * Creates a post pass exception with the given message and no cause.
+     *
+     * @param message The message for the exception.
+     */
+    public CompilerPostPassException(String message) {
+        super(message);
+    }
 
-	/**
-	 * Creates a post pass exception with the given cause and no message.
-	 * 
-	 * @param cause The <tt>Throwable</tt> that caused this exception.
-	 */
-	public CompilerPostPassException(Throwable cause) {
-		super(cause);
-	}
+    /**
+     * Creates a post pass exception with the given cause and no message.
+     *
+     * @param cause The <tt>Throwable</tt> that caused this exception.
+     */
+    public CompilerPostPassException(Throwable cause) {
+        super(cause);
+    }
 
-	/**
-	 * Creates a post pass exception with the given message and cause.
-	 * 
-	 * @param message The message for the exception.
-	 * @param cause The <tt>Throwable</tt> that caused this exception.
-	 */
-	public CompilerPostPassException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    /**
+     * Creates a post pass exception with the given message and cause.
+     *
+     * @param message The message for the exception.
+     * @param cause The <tt>Throwable</tt> that caused this exception.
+     */
+    public CompilerPostPassException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

@@ -20,23 +20,21 @@ package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link BasicArrayTypeInfo}.
- */
+/** Test for {@link BasicArrayTypeInfo}. */
 public class BasicArrayTypeInfoTest extends TypeInformationTestBase<BasicArrayTypeInfo<?, ?>> {
 
-	@Override
-	protected BasicArrayTypeInfo<?, ?>[] getTestData() {
-		return new BasicArrayTypeInfo<?, ?>[] {
-			BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO,
-			BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO,
-			BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO,
-			BasicArrayTypeInfo.SHORT_ARRAY_TYPE_INFO,
-			BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO,
-			BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO,
-			BasicArrayTypeInfo.FLOAT_ARRAY_TYPE_INFO,
-			BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO,
-			BasicArrayTypeInfo.CHAR_ARRAY_TYPE_INFO
-		};
-	}
+    @Override
+    protected BasicArrayTypeInfo<?, ?>[] getTestData() {
+        return new BasicArrayTypeInfo<?, ?>[] {
+            BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO,
+            BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO,
+            BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO,
+            BasicArrayTypeInfo.SHORT_ARRAY_TYPE_INFO,
+            BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO,
+            BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO,
+            BasicArrayTypeInfo.FLOAT_ARRAY_TYPE_INFO,
+            BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO,
+            BasicArrayTypeInfo.CHAR_ARRAY_TYPE_INFO
+        };
+    }
 }

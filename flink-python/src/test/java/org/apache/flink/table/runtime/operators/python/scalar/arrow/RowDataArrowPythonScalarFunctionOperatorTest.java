@@ -48,90 +48,87 @@ import java.util.Map;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
-/**
- * Tests for {@link RowDataArrowPythonScalarFunctionOperator}.
- */
+/** Tests for {@link RowDataArrowPythonScalarFunctionOperator}. */
 public class RowDataArrowPythonScalarFunctionOperatorTest
-		extends PythonScalarFunctionOperatorTestBase<RowData, RowData, RowData> {
+        extends PythonScalarFunctionOperatorTestBase<RowData, RowData, RowData> {
 
-	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new TypeInformation[]{
-		Types.STRING,
-		Types.STRING,
-		Types.LONG
-	});
+    private final RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(
+                    new TypeInformation[] {Types.STRING, Types.STRING, Types.LONG});
 
-	@Override
-	public AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> getTestOperator(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		return new PassThroughRowDataArrowPythonScalarFunctionOperator(
-			config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-	}
+    @Override
+    public AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> getTestOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        return new PassThroughRowDataArrowPythonScalarFunctionOperator(
+                config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+    }
 
-	@Override
-	public RowData newRow(boolean accumulateMsg, Object... fields) {
-		if (accumulateMsg) {
-			return row(fields);
-		} else {
-			RowData row = row(fields);
-			row.setRowKind(RowKind.DELETE);
-			return row;
-		}
-	}
+    @Override
+    public RowData newRow(boolean accumulateMsg, Object... fields) {
+        if (accumulateMsg) {
+            return row(fields);
+        } else {
+            RowData row = row(fields);
+            row.setRowKind(RowKind.DELETE);
+            return row;
+        }
+    }
 
-	@Override
-	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
-		assertor.assertOutputEquals(message, expected, actual);
-	}
+    @Override
+    public void assertOutputEquals(
+            String message, Collection<Object> expected, Collection<Object> actual) {
+        assertor.assertOutputEquals(message, expected, actual);
+    }
 
-	@Override
-	public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
-		return StreamTableEnvironment.create(
-			env,
-			EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build());
-	}
+    @Override
+    public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
+        return StreamTableEnvironment.create(
+                env, EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build());
+    }
 
-	@Override
-	public TypeSerializer<RowData> getOutputTypeSerializer(RowType rowType) {
-		return new RowDataSerializer(new ExecutionConfig(), rowType);
-	}
+    @Override
+    public TypeSerializer<RowData> getOutputTypeSerializer(RowType rowType) {
+        return new RowDataSerializer(new ExecutionConfig(), rowType);
+    }
 
-	private static class PassThroughRowDataArrowPythonScalarFunctionOperator extends RowDataArrowPythonScalarFunctionOperator {
+    private static class PassThroughRowDataArrowPythonScalarFunctionOperator
+            extends RowDataArrowPythonScalarFunctionOperator {
 
-		PassThroughRowDataArrowPythonScalarFunctionOperator(
-			Configuration config,
-			PythonFunctionInfo[] scalarFunctions,
-			RowType inputType,
-			RowType outputType,
-			int[] udfInputOffsets,
-			int[] forwardedFields) {
-			super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-		}
+        PassThroughRowDataArrowPythonScalarFunctionOperator(
+                Configuration config,
+                PythonFunctionInfo[] scalarFunctions,
+                RowType inputType,
+                RowType outputType,
+                int[] udfInputOffsets,
+                int[] forwardedFields) {
+            super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+        }
 
-		@Override
-		public PythonFunctionRunner<RowData> createPythonFunctionRunner(
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager,
-			Map<String, String> jobOptions) {
-			return new PassThroughArrowPythonScalarFunctionRunner<RowData>(
-				getRuntimeContext().getTaskName(),
-				resultReceiver,
-				scalarFunctions,
-				PythonTestUtils.createTestEnvironmentManager(),
-				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType,
-				getPythonConfig().getMaxArrowBatchSize(),
-				jobOptions,
-				PythonTestUtils.createMockFlinkMetricContainer()) {
-				@Override
-				public ArrowWriter<RowData> createArrowWriter() {
-					return ArrowUtils.createRowDataArrowWriter(root, getInputType());
-				}
-			};
-		}
-	}
+        @Override
+        public PythonFunctionRunner<RowData> createPythonFunctionRunner(
+                FnDataReceiver<byte[]> resultReceiver,
+                PythonEnvironmentManager pythonEnvironmentManager,
+                Map<String, String> jobOptions) {
+            return new PassThroughArrowPythonScalarFunctionRunner<RowData>(
+                    getRuntimeContext().getTaskName(),
+                    resultReceiver,
+                    scalarFunctions,
+                    PythonTestUtils.createTestEnvironmentManager(),
+                    userDefinedFunctionInputType,
+                    userDefinedFunctionOutputType,
+                    getPythonConfig().getMaxArrowBatchSize(),
+                    jobOptions,
+                    PythonTestUtils.createMockFlinkMetricContainer()) {
+                @Override
+                public ArrowWriter<RowData> createArrowWriter() {
+                    return ArrowUtils.createRowDataArrowWriter(root, getInputType());
+                }
+            };
+        }
+    }
 }

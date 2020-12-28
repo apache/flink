@@ -28,48 +28,51 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 
-/**
- * Watcher for pods in Kubernetes.
- */
+/** Watcher for pods in Kubernetes. */
 public class KubernetesPodsWatcher implements Watcher<Pod> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KubernetesPodsWatcher.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KubernetesPodsWatcher.class);
 
-	private final FlinkKubeClient.PodCallbackHandler podsCallbackHandler;
+    private final FlinkKubeClient.PodCallbackHandler podsCallbackHandler;
 
-	public KubernetesPodsWatcher(FlinkKubeClient.PodCallbackHandler callbackHandler) {
-		this.podsCallbackHandler = callbackHandler;
-	}
+    public KubernetesPodsWatcher(FlinkKubeClient.PodCallbackHandler callbackHandler) {
+        this.podsCallbackHandler = callbackHandler;
+    }
 
-	@Override
-	public void eventReceived(Action action, Pod pod) {
-		LOG.debug("Received {} event for pod {}, details: {}", action, pod.getMetadata().getName(), pod.getStatus());
-		switch (action) {
-			case ADDED:
-				podsCallbackHandler.onAdded(Collections.singletonList(new KubernetesPod(pod)));
-				break;
-			case MODIFIED:
-				podsCallbackHandler.onModified(Collections.singletonList(new KubernetesPod(pod)));
-				break;
-			case ERROR:
-				podsCallbackHandler.onError(Collections.singletonList(new KubernetesPod(pod)));
-				break;
-			case DELETED:
-				podsCallbackHandler.onDeleted(Collections.singletonList(new KubernetesPod(pod)));
-				break;
-			default:
-				LOG.debug("Ignore handling {} event for pod {}", action, pod.getMetadata().getName());
-				break;
-		}
-	}
+    @Override
+    public void eventReceived(Action action, Pod pod) {
+        LOG.debug(
+                "Received {} event for pod {}, details: {}",
+                action,
+                pod.getMetadata().getName(),
+                pod.getStatus());
+        switch (action) {
+            case ADDED:
+                podsCallbackHandler.onAdded(Collections.singletonList(new KubernetesPod(pod)));
+                break;
+            case MODIFIED:
+                podsCallbackHandler.onModified(Collections.singletonList(new KubernetesPod(pod)));
+                break;
+            case ERROR:
+                podsCallbackHandler.onError(Collections.singletonList(new KubernetesPod(pod)));
+                break;
+            case DELETED:
+                podsCallbackHandler.onDeleted(Collections.singletonList(new KubernetesPod(pod)));
+                break;
+            default:
+                LOG.debug(
+                        "Ignore handling {} event for pod {}", action, pod.getMetadata().getName());
+                break;
+        }
+    }
 
-	@Override
-	public void onClose(KubernetesClientException cause) {
-		// null means the watcher is closed by expected.
-		if (cause == null) {
-			LOG.info("The pods watcher is closing.");
-		} else {
-			podsCallbackHandler.handleFatalError(cause);
-		}
-	}
+    @Override
+    public void onClose(KubernetesClientException cause) {
+        // null means the watcher is closed by expected.
+        if (cause == null) {
+            LOG.info("The pods watcher is closing.");
+        } else {
+            podsCallbackHandler.handleFatalError(cause);
+        }
+    }
 }

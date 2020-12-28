@@ -39,66 +39,73 @@ import java.util.Map;
  * @param <IN> Type of the input elements.
  */
 @Internal
-public abstract class AbstractGeneralPythonScalarFunctionRunner<IN> extends AbstractPythonScalarFunctionRunner<IN> {
+public abstract class AbstractGeneralPythonScalarFunctionRunner<IN>
+        extends AbstractPythonScalarFunctionRunner<IN> {
 
-	private static final String SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1";
+    private static final String SCALAR_FUNCTION_SCHEMA_CODER_URN =
+            "flink:coder:schema:scalar_function:v1";
 
-	/**
-	 * The TypeSerializer for input elements.
-	 */
-	private transient TypeSerializer<IN> inputTypeSerializer;
+    /** The TypeSerializer for input elements. */
+    private transient TypeSerializer<IN> inputTypeSerializer;
 
-	public AbstractGeneralPythonScalarFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, flinkMetricContainer);
-	}
+    public AbstractGeneralPythonScalarFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonFunctionInfo[] scalarFunctions,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                resultReceiver,
+                scalarFunctions,
+                environmentManager,
+                inputType,
+                outputType,
+                jobOptions,
+                flinkMetricContainer);
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		inputTypeSerializer = getInputTypeSerializer();
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        inputTypeSerializer = getInputTypeSerializer();
+    }
 
-	@Override
-	public void processElement(IN element) {
-		try {
-			baos.reset();
-			inputTypeSerializer.serialize(element, baosWrapper);
-			// TODO: support to use ValueOnlyWindowedValueCoder for better performance.
-			// Currently, FullWindowedValueCoder has to be used in Beam's portability framework.
-			mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(baos.toByteArray()));
-		} catch (Throwable t) {
-			throw new RuntimeException("Failed to process element when sending data to Python SDK harness.", t);
-		}
-	}
+    @Override
+    public void processElement(IN element) {
+        try {
+            baos.reset();
+            inputTypeSerializer.serialize(element, baosWrapper);
+            // TODO: support to use ValueOnlyWindowedValueCoder for better performance.
+            // Currently, FullWindowedValueCoder has to be used in Beam's portability framework.
+            mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(baos.toByteArray()));
+        } catch (Throwable t) {
+            throw new RuntimeException(
+                    "Failed to process element when sending data to Python SDK harness.", t);
+        }
+    }
 
-	@Override
-	public OutputReceiverFactory createOutputReceiverFactory() {
-		return new OutputReceiverFactory() {
+    @Override
+    public OutputReceiverFactory createOutputReceiverFactory() {
+        return new OutputReceiverFactory() {
 
-			// the input value type is always byte array
-			@SuppressWarnings("unchecked")
-			@Override
-			public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
-				return input -> resultReceiver.accept(input.getValue());
-			}
-		};
-	}
+            // the input value type is always byte array
+            @SuppressWarnings("unchecked")
+            @Override
+            public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
+                return input -> resultReceiver.accept(input.getValue());
+            }
+        };
+    }
 
-	@Override
-	public String getInputOutputCoderUrn() {
-		return SCALAR_FUNCTION_SCHEMA_CODER_URN;
-	}
+    @Override
+    public String getInputOutputCoderUrn() {
+        return SCALAR_FUNCTION_SCHEMA_CODER_URN;
+    }
 
-	/**
-	 * Returns the TypeSerializer for input elements.
-	 */
-	public abstract TypeSerializer<IN> getInputTypeSerializer();
+    /** Returns the TypeSerializer for input elements. */
+    public abstract TypeSerializer<IN> getInputTypeSerializer();
 }

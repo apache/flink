@@ -23,38 +23,37 @@ import java.util.HashSet;
 import java.util.Objects;
 
 /**
- * A ClassLoader that filters out certain classes (by name) and throws a ClassNotFoundException
- * when they should be loaded.
+ * A ClassLoader that filters out certain classes (by name) and throws a ClassNotFoundException when
+ * they should be loaded.
  *
- * <p>This utility is useful when trying to eliminate certain classes from a class loader
- * force loading them through another class loader.
+ * <p>This utility is useful when trying to eliminate certain classes from a class loader force
+ * loading them through another class loader.
  */
 public class FilteredClassLoader extends ClassLoader {
 
-	/** The set of class names for the filtered classes. */
-	private final HashSet<String> filteredClassNames;
+    /** The set of class names for the filtered classes. */
+    private final HashSet<String> filteredClassNames;
 
-	/**
-	 * Creates a new filtered classloader.
-	 *
-	 * @param delegate The class loader that is filtered by this classloader.
-	 * @param filteredClassNames The class names to filter out.
-	 */
-	public FilteredClassLoader(ClassLoader delegate, String... filteredClassNames) {
-		super(Objects.requireNonNull(delegate));
+    /**
+     * Creates a new filtered classloader.
+     *
+     * @param delegate The class loader that is filtered by this classloader.
+     * @param filteredClassNames The class names to filter out.
+     */
+    public FilteredClassLoader(ClassLoader delegate, String... filteredClassNames) {
+        super(Objects.requireNonNull(delegate));
 
-		this.filteredClassNames = new HashSet<>(Arrays.asList(filteredClassNames));
-	}
+        this.filteredClassNames = new HashSet<>(Arrays.asList(filteredClassNames));
+    }
 
-	@Override
-	protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-		synchronized (this) {
-			if (filteredClassNames.contains(name)) {
-				throw new ClassNotFoundException(name);
-			}
-			else {
-				return super.loadClass(name, resolve);
-			}
-		}
-	}
+    @Override
+    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        synchronized (this) {
+            if (filteredClassNames.contains(name)) {
+                throw new ClassNotFoundException(name);
+            } else {
+                return super.loadClass(name, resolve);
+            }
+        }
+    }
 }

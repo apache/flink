@@ -28,59 +28,59 @@ import org.apache.flink.streaming.runtime.tasks.ExceptionInChainedOperatorExcept
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An adapter that exposes a {@link WatermarkOutput} based on a {@link PushingAsyncDataInput.DataOutput}.
+ * An adapter that exposes a {@link WatermarkOutput} based on a {@link
+ * PushingAsyncDataInput.DataOutput}.
  */
 @Internal
 public final class WatermarkToDataOutput implements WatermarkOutput {
 
-	private final PushingAsyncDataInput.DataOutput<?> output;
-	private long maxWatermarkSoFar;
-	private boolean isIdle;
+    private final PushingAsyncDataInput.DataOutput<?> output;
+    private long maxWatermarkSoFar;
+    private boolean isIdle;
 
-	/**
-	 * Creates a new WatermarkOutput against the given DataOutput.
-	 */
-	public WatermarkToDataOutput(PushingAsyncDataInput.DataOutput<?> output) {
-		this.output = checkNotNull(output);
-		this.maxWatermarkSoFar = Long.MIN_VALUE;
-	}
+    /** Creates a new WatermarkOutput against the given DataOutput. */
+    public WatermarkToDataOutput(PushingAsyncDataInput.DataOutput<?> output) {
+        this.output = checkNotNull(output);
+        this.maxWatermarkSoFar = Long.MIN_VALUE;
+    }
 
-	@Override
-	public void emitWatermark(Watermark watermark) {
-		final long newWatermark = watermark.getTimestamp();
-		if (newWatermark <= maxWatermarkSoFar) {
-			return;
-		}
+    @Override
+    public void emitWatermark(Watermark watermark) {
+        final long newWatermark = watermark.getTimestamp();
+        if (newWatermark <= maxWatermarkSoFar) {
+            return;
+        }
 
-		maxWatermarkSoFar = newWatermark;
+        maxWatermarkSoFar = newWatermark;
 
-		try {
-			if (isIdle) {
-				output.emitStreamStatus(StreamStatus.ACTIVE);
-				isIdle = false;
-			}
+        try {
+            if (isIdle) {
+                output.emitStreamStatus(StreamStatus.ACTIVE);
+                isIdle = false;
+            }
 
-			output.emitWatermark(new org.apache.flink.streaming.api.watermark.Watermark(newWatermark));
-		} catch (ExceptionInChainedOperatorException e) {
-			throw e;
-		} catch (Exception e) {
-			throw new ExceptionInChainedOperatorException(e);
-		}
-	}
+            output.emitWatermark(
+                    new org.apache.flink.streaming.api.watermark.Watermark(newWatermark));
+        } catch (ExceptionInChainedOperatorException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
+        }
+    }
 
-	@Override
-	public void markIdle() {
-		if (isIdle) {
-			return;
-		}
+    @Override
+    public void markIdle() {
+        if (isIdle) {
+            return;
+        }
 
-		try {
-			output.emitStreamStatus(StreamStatus.IDLE);
-			isIdle = true;
-		} catch (ExceptionInChainedOperatorException e) {
-			throw e;
-		} catch (Exception e) {
-			throw new ExceptionInChainedOperatorException(e);
-		}
-	}
+        try {
+            output.emitStreamStatus(StreamStatus.IDLE);
+            isIdle = true;
+        } catch (ExceptionInChainedOperatorException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
+        }
+    }
 }

@@ -20,25 +20,24 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.junit.BeforeClass;
 
-/**
- * IT cases for the {@link FlinkKafkaProducer011}.
- */
+/** IT cases for the {@link FlinkKafkaProducer011}. */
 @SuppressWarnings("serial")
 public class Kafka011ProducerAtLeastOnceITCase extends KafkaProducerTestBase {
 
-	@BeforeClass
-	public static void prepare() throws Exception {
-		KafkaProducerTestBase.prepare();
-		((KafkaTestEnvironmentImpl) kafkaServer).setProducerSemantic(FlinkKafkaProducer011.Semantic.AT_LEAST_ONCE);
-	}
+    @BeforeClass
+    public static void prepare() throws Exception {
+        KafkaProducerTestBase.prepare();
+        ((KafkaTestEnvironmentImpl) kafkaServer)
+                .setProducerSemantic(FlinkKafkaProducer011.Semantic.AT_LEAST_ONCE);
+    }
 
-	@Override
-	public void testExactlyOnceRegularSink() throws Exception {
-		// disable test for at least once semantic
-	}
+    @Override
+    public void testExactlyOnceRegularSink() throws Exception {
+        // disable test for at least once semantic
+    }
 
-	@Override
-	public void testExactlyOnceCustomOperator() throws Exception {
-		// disable test for at least once semantic
-	}
+    @Override
+    public void testExactlyOnceCustomOperator() throws Exception {
+        // disable test for at least once semantic
+    }
 }

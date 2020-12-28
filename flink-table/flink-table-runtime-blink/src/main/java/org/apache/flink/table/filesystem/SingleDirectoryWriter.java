@@ -34,43 +34,46 @@ import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionP
 @Internal
 public class SingleDirectoryWriter<T> implements PartitionWriter<T> {
 
-	private final Context<T> context;
-	private final PartitionTempFileManager manager;
-	private final PartitionComputer<T> computer;
-	private final LinkedHashMap<String, String> staticPartitions;
+    private final Context<T> context;
+    private final PartitionTempFileManager manager;
+    private final PartitionComputer<T> computer;
+    private final LinkedHashMap<String, String> staticPartitions;
 
-	private OutputFormat<T> format;
+    private OutputFormat<T> format;
 
-	public SingleDirectoryWriter(
-			Context<T> context,
-			PartitionTempFileManager manager,
-			PartitionComputer<T> computer,
-			LinkedHashMap<String, String> staticPartitions) {
-		this.context = context;
-		this.manager = manager;
-		this.computer = computer;
-		this.staticPartitions = staticPartitions;
-	}
+    public SingleDirectoryWriter(
+            Context<T> context,
+            PartitionTempFileManager manager,
+            PartitionComputer<T> computer,
+            LinkedHashMap<String, String> staticPartitions) {
+        this.context = context;
+        this.manager = manager;
+        this.computer = computer;
+        this.staticPartitions = staticPartitions;
+    }
 
-	private void createFormat() throws IOException {
-		this.format = context.createNewOutputFormat(staticPartitions.size() == 0 ?
-				manager.createPartitionDir() :
-				manager.createPartitionDir(generatePartitionPath(staticPartitions)));
-	}
+    private void createFormat() throws IOException {
+        this.format =
+                context.createNewOutputFormat(
+                        staticPartitions.size() == 0
+                                ? manager.createPartitionDir()
+                                : manager.createPartitionDir(
+                                        generatePartitionPath(staticPartitions)));
+    }
 
-	@Override
-	public void write(T in) throws Exception {
-		if (format == null) {
-			createFormat();
-		}
-		format.writeRecord(computer.projectColumnsToWrite(in));
-	}
+    @Override
+    public void write(T in) throws Exception {
+        if (format == null) {
+            createFormat();
+        }
+        format.writeRecord(computer.projectColumnsToWrite(in));
+    }
 
-	@Override
-	public void close() throws Exception {
-		if (format != null) {
-			format.close();
-			format = null;
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        if (format != null) {
+            format.close();
+            format = null;
+        }
+    }
 }

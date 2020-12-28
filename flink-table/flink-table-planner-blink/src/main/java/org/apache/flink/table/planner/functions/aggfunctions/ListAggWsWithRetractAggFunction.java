@@ -36,148 +36,153 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * built-in listAggWs with retraction aggregate function.
- */
+/** built-in listAggWs with retraction aggregate function. */
 public final class ListAggWsWithRetractAggFunction
-	extends AggregateFunction<StringData, ListAggWsWithRetractAggFunction.ListAggWsWithRetractAccumulator> {
+        extends AggregateFunction<
+                StringData, ListAggWsWithRetractAggFunction.ListAggWsWithRetractAccumulator> {
 
-	private static final long serialVersionUID = -8627988150350160473L;
+    private static final long serialVersionUID = -8627988150350160473L;
 
-	/**
-	 * The initial accumulator for concat with retraction aggregate function.
-	 */
-	public static class ListAggWsWithRetractAccumulator {
-		public ListView<StringData> list = new ListView<>(StringDataTypeInfo.INSTANCE);
-		public ListView<StringData> retractList = new ListView<>(StringDataTypeInfo.INSTANCE);
-		public StringData delimiter = StringData.fromString(",");
+    /** The initial accumulator for concat with retraction aggregate function. */
+    public static class ListAggWsWithRetractAccumulator {
+        public ListView<StringData> list = new ListView<>(StringDataTypeInfo.INSTANCE);
+        public ListView<StringData> retractList = new ListView<>(StringDataTypeInfo.INSTANCE);
+        public StringData delimiter = StringData.fromString(",");
 
-		@VisibleForTesting
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			ListAggWsWithRetractAccumulator that = (ListAggWsWithRetractAccumulator) o;
-			return Objects.equals(list, that.list) &&
-				Objects.equals(retractList, that.retractList) &&
-				Objects.equals(delimiter, that.delimiter);
-		}
-	}
+        @VisibleForTesting
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ListAggWsWithRetractAccumulator that = (ListAggWsWithRetractAccumulator) o;
+            return Objects.equals(list, that.list)
+                    && Objects.equals(retractList, that.retractList)
+                    && Objects.equals(delimiter, that.delimiter);
+        }
+    }
 
-	@Override
-	public TypeInformation<StringData> getResultType() {
-		return StringDataTypeInfo.INSTANCE;
-	}
+    @Override
+    public TypeInformation<StringData> getResultType() {
+        return StringDataTypeInfo.INSTANCE;
+    }
 
-	@Override
-	public TypeInformation<ListAggWsWithRetractAccumulator> getAccumulatorType() {
-		try {
-			Class<ListAggWsWithRetractAccumulator> clazz = ListAggWsWithRetractAccumulator.class;
-			List<PojoField> pojoFields = new ArrayList<>();
-			pojoFields.add(new PojoField(
-				clazz.getDeclaredField("list"),
-				new ListViewTypeInfo<>(StringDataTypeInfo.INSTANCE)));
-			pojoFields.add(new PojoField(
-				clazz.getDeclaredField("retractList"),
-				new ListViewTypeInfo<>(StringDataTypeInfo.INSTANCE)));
-			pojoFields.add(new PojoField(
-				clazz.getDeclaredField("delimiter"),
-				StringDataTypeInfo.INSTANCE));
-			return new PojoTypeInfo<>(clazz, pojoFields);
-		} catch (NoSuchFieldException e) {
-			throw new WrappingRuntimeException(e);
-		}
-	}
+    @Override
+    public TypeInformation<ListAggWsWithRetractAccumulator> getAccumulatorType() {
+        try {
+            Class<ListAggWsWithRetractAccumulator> clazz = ListAggWsWithRetractAccumulator.class;
+            List<PojoField> pojoFields = new ArrayList<>();
+            pojoFields.add(
+                    new PojoField(
+                            clazz.getDeclaredField("list"),
+                            new ListViewTypeInfo<>(StringDataTypeInfo.INSTANCE)));
+            pojoFields.add(
+                    new PojoField(
+                            clazz.getDeclaredField("retractList"),
+                            new ListViewTypeInfo<>(StringDataTypeInfo.INSTANCE)));
+            pojoFields.add(
+                    new PojoField(
+                            clazz.getDeclaredField("delimiter"), StringDataTypeInfo.INSTANCE));
+            return new PojoTypeInfo<>(clazz, pojoFields);
+        } catch (NoSuchFieldException e) {
+            throw new WrappingRuntimeException(e);
+        }
+    }
 
-	@Override
-	public ListAggWsWithRetractAccumulator createAccumulator() {
-		return new ListAggWsWithRetractAccumulator();
-	}
+    @Override
+    public ListAggWsWithRetractAccumulator createAccumulator() {
+        return new ListAggWsWithRetractAccumulator();
+    }
 
-	public void accumulate(ListAggWsWithRetractAccumulator acc, StringData value, StringData lineDelimiter) throws Exception {
-		// ignore null value
-		if (value != null) {
-			acc.delimiter = lineDelimiter;
-			acc.list.add(value);
-		}
-	}
+    public void accumulate(
+            ListAggWsWithRetractAccumulator acc, StringData value, StringData lineDelimiter)
+            throws Exception {
+        // ignore null value
+        if (value != null) {
+            acc.delimiter = lineDelimiter;
+            acc.list.add(value);
+        }
+    }
 
-	public void retract(ListAggWsWithRetractAccumulator acc, StringData value, StringData lineDelimiter) throws Exception {
-		if (value != null) {
-			acc.delimiter = lineDelimiter;
-			if (!acc.list.remove(value)) {
-				acc.retractList.add(value);
-			}
-		}
-	}
+    public void retract(
+            ListAggWsWithRetractAccumulator acc, StringData value, StringData lineDelimiter)
+            throws Exception {
+        if (value != null) {
+            acc.delimiter = lineDelimiter;
+            if (!acc.list.remove(value)) {
+                acc.retractList.add(value);
+            }
+        }
+    }
 
-	public void merge(ListAggWsWithRetractAccumulator acc, Iterable<ListAggWsWithRetractAccumulator> its) throws Exception {
-		for (ListAggWsWithRetractAccumulator otherAcc : its) {
-			if (!otherAcc.list.get().iterator().hasNext()
-				&& !otherAcc.retractList.get().iterator().hasNext()) {
-				// otherAcc is empty, skip it
-				continue;
-			}
+    public void merge(
+            ListAggWsWithRetractAccumulator acc, Iterable<ListAggWsWithRetractAccumulator> its)
+            throws Exception {
+        for (ListAggWsWithRetractAccumulator otherAcc : its) {
+            if (!otherAcc.list.get().iterator().hasNext()
+                    && !otherAcc.retractList.get().iterator().hasNext()) {
+                // otherAcc is empty, skip it
+                continue;
+            }
 
-			acc.delimiter = otherAcc.delimiter;
-			// merge list of acc and other
-			List<StringData> buffer = new ArrayList<>();
-			for (StringData binaryString : acc.list.get()) {
-				buffer.add(binaryString);
-			}
-			for (StringData binaryString : otherAcc.list.get()) {
-				buffer.add(binaryString);
-			}
-			// merge retract list of acc and other
-			List<StringData> retractBuffer = new ArrayList<>();
-			for (StringData binaryString : acc.retractList.get()) {
-				retractBuffer.add(binaryString);
-			}
-			for (StringData binaryString : otherAcc.retractList.get()) {
-				retractBuffer.add(binaryString);
-			}
+            acc.delimiter = otherAcc.delimiter;
+            // merge list of acc and other
+            List<StringData> buffer = new ArrayList<>();
+            for (StringData binaryString : acc.list.get()) {
+                buffer.add(binaryString);
+            }
+            for (StringData binaryString : otherAcc.list.get()) {
+                buffer.add(binaryString);
+            }
+            // merge retract list of acc and other
+            List<StringData> retractBuffer = new ArrayList<>();
+            for (StringData binaryString : acc.retractList.get()) {
+                retractBuffer.add(binaryString);
+            }
+            for (StringData binaryString : otherAcc.retractList.get()) {
+                retractBuffer.add(binaryString);
+            }
 
-			// merge list & retract list
-			List<StringData> newRetractBuffer = new ArrayList<>();
-			for (StringData binaryString : retractBuffer) {
-				if (!buffer.remove(binaryString)) {
-					newRetractBuffer.add(binaryString);
-				}
-			}
+            // merge list & retract list
+            List<StringData> newRetractBuffer = new ArrayList<>();
+            for (StringData binaryString : retractBuffer) {
+                if (!buffer.remove(binaryString)) {
+                    newRetractBuffer.add(binaryString);
+                }
+            }
 
-			// update to acc
-			acc.list.clear();
-			acc.list.addAll(buffer);
-			acc.retractList.clear();
-			acc.retractList.addAll(newRetractBuffer);
-		}
-	}
+            // update to acc
+            acc.list.clear();
+            acc.list.addAll(buffer);
+            acc.retractList.clear();
+            acc.retractList.addAll(newRetractBuffer);
+        }
+    }
 
-	@SuppressWarnings({"rawtypes", "unchecked"})
-	@Override
-	public StringData getValue(ListAggWsWithRetractAccumulator acc) {
-		try {
-			// we removed the element type to make the compile pass,
-			// the element must be BinaryStringData because it's the only implementation.
-			Iterable accList = acc.list.get();
-			if (accList == null || !accList.iterator().hasNext()) {
-				// return null when the list is empty
-				return null;
-			} else {
-				return BinaryStringDataUtil.concatWs((BinaryStringData) acc.delimiter, accList);
-			}
-		} catch (Exception e) {
-			throw new FlinkRuntimeException(e);
-		}
-	}
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    @Override
+    public StringData getValue(ListAggWsWithRetractAccumulator acc) {
+        try {
+            // we removed the element type to make the compile pass,
+            // the element must be BinaryStringData because it's the only implementation.
+            Iterable accList = acc.list.get();
+            if (accList == null || !accList.iterator().hasNext()) {
+                // return null when the list is empty
+                return null;
+            } else {
+                return BinaryStringDataUtil.concatWs((BinaryStringData) acc.delimiter, accList);
+            }
+        } catch (Exception e) {
+            throw new FlinkRuntimeException(e);
+        }
+    }
 
-	public void resetAccumulator(ListAggWsWithRetractAccumulator acc) {
-		acc.delimiter = StringData.fromString(",");
-		acc.list.clear();
-		acc.retractList.clear();
-	}
+    public void resetAccumulator(ListAggWsWithRetractAccumulator acc) {
+        acc.delimiter = StringData.fromString(",");
+        acc.list.clear();
+        acc.retractList.clear();
+    }
 }

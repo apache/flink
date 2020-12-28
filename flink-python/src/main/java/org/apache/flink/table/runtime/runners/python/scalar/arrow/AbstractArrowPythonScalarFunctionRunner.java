@@ -45,139 +45,135 @@ import java.util.Map;
  * @param <IN> Type of the input elements.
  */
 @Internal
-public abstract class AbstractArrowPythonScalarFunctionRunner<IN> extends AbstractPythonScalarFunctionRunner<IN> {
+public abstract class AbstractArrowPythonScalarFunctionRunner<IN>
+        extends AbstractPythonScalarFunctionRunner<IN> {
 
-	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1";
+    private static final String SCHEMA_ARROW_CODER_URN =
+            "flink:coder:schema:scalar_function:arrow:v1";
 
-	static {
-		ArrowUtils.checkArrowUsable();
-	}
+    static {
+        ArrowUtils.checkArrowUsable();
+    }
 
-	/**
-	 * Max number of elements to include in an arrow batch.
-	 */
-	private final int maxArrowBatchSize;
+    /** Max number of elements to include in an arrow batch. */
+    private final int maxArrowBatchSize;
 
-	/**
-	 * Container that holds a set of vectors for the input elements
-	 * to be sent to the Python worker.
-	 */
-	protected transient VectorSchemaRoot root;
+    /**
+     * Container that holds a set of vectors for the input elements to be sent to the Python worker.
+     */
+    protected transient VectorSchemaRoot root;
 
-	/**
-	 * Allocator which is used by {@link #root} for byte buffer allocation.
-	 */
-	private transient BufferAllocator allocator;
+    /** Allocator which is used by {@link #root} for byte buffer allocation. */
+    private transient BufferAllocator allocator;
 
-	/**
-	 * Writer which is responsible for serialize the input elements to arrow format.
-	 */
-	@VisibleForTesting
-	transient ArrowWriter<IN> arrowWriter;
+    /** Writer which is responsible for serialize the input elements to arrow format. */
+    @VisibleForTesting transient ArrowWriter<IN> arrowWriter;
 
-	/**
-	 * Writer which is responsible for convert the arrow format data into byte array.
-	 */
-	private transient ArrowStreamWriter arrowStreamWriter;
+    /** Writer which is responsible for convert the arrow format data into byte array. */
+    private transient ArrowStreamWriter arrowStreamWriter;
 
-	/**
-	 * The current number of elements to be included in an arrow batch.
-	 */
-	private transient int currentBatchCount;
+    /** The current number of elements to be included in an arrow batch. */
+    private transient int currentBatchCount;
 
-	public AbstractArrowPythonScalarFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		int maxArrowBatchSize,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, flinkMetricContainer);
-		this.maxArrowBatchSize = maxArrowBatchSize;
-	}
+    public AbstractArrowPythonScalarFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonFunctionInfo[] scalarFunctions,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            int maxArrowBatchSize,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                resultReceiver,
+                scalarFunctions,
+                environmentManager,
+                inputType,
+                outputType,
+                jobOptions,
+                flinkMetricContainer);
+        this.maxArrowBatchSize = maxArrowBatchSize;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		allocator = ArrowUtils.getRootAllocator().newChildAllocator("writer", 0, Long.MAX_VALUE);
-		root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(getInputType()), allocator);
-		arrowWriter = createArrowWriter();
-		arrowStreamWriter = new ArrowStreamWriter(root, null, baos);
-		arrowStreamWriter.start();
-		currentBatchCount = 0;
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        allocator = ArrowUtils.getRootAllocator().newChildAllocator("writer", 0, Long.MAX_VALUE);
+        root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(getInputType()), allocator);
+        arrowWriter = createArrowWriter();
+        arrowStreamWriter = new ArrowStreamWriter(root, null, baos);
+        arrowStreamWriter.start();
+        currentBatchCount = 0;
+    }
 
-	@Override
-	public void close() throws Exception {
-		try {
-			super.close();
-			arrowStreamWriter.end();
-		} finally {
-			root.close();
-			allocator.close();
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        try {
+            super.close();
+            arrowStreamWriter.end();
+        } finally {
+            root.close();
+            allocator.close();
+        }
+    }
 
-	@Override
-	public void processElement(IN element) {
-		try {
-			arrowWriter.write(element);
+    @Override
+    public void processElement(IN element) {
+        try {
+            arrowWriter.write(element);
 
-			currentBatchCount++;
-			if (currentBatchCount >= maxArrowBatchSize) {
-				finishCurrentBatch();
-			}
-		} catch (Throwable t) {
-			throw new RuntimeException("Failed to process element.", t);
-		}
-	}
+            currentBatchCount++;
+            if (currentBatchCount >= maxArrowBatchSize) {
+                finishCurrentBatch();
+            }
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to process element.", t);
+        }
+    }
 
-	@Override
-	public void finishBundle() throws Exception {
-		finishCurrentBatch();
-		super.finishBundle();
-	}
+    @Override
+    public void finishBundle() throws Exception {
+        finishCurrentBatch();
+        super.finishBundle();
+    }
 
-	@Override
-	public OutputReceiverFactory createOutputReceiverFactory() {
-		return new OutputReceiverFactory() {
+    @Override
+    public OutputReceiverFactory createOutputReceiverFactory() {
+        return new OutputReceiverFactory() {
 
-			// the input value type is always byte array
-			@SuppressWarnings("unchecked")
-			@Override
-			public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
-				return input -> resultReceiver.accept(input.getValue());
-			}
-		};
-	}
+            // the input value type is always byte array
+            @SuppressWarnings("unchecked")
+            @Override
+            public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
+                return input -> resultReceiver.accept(input.getValue());
+            }
+        };
+    }
 
-	@Override
-	public String getInputOutputCoderUrn() {
-		return SCHEMA_ARROW_CODER_URN;
-	}
+    @Override
+    public String getInputOutputCoderUrn() {
+        return SCHEMA_ARROW_CODER_URN;
+    }
 
-	/**
-	 * Creates an {@link ArrowWriter}.
-	 */
-	public abstract ArrowWriter<IN> createArrowWriter();
+    /** Creates an {@link ArrowWriter}. */
+    public abstract ArrowWriter<IN> createArrowWriter();
 
-	/**
-	 * Forces to finish the processing of the current batch of elements.
-	 * It will serialize the batch of elements into one arrow batch.
-	 */
-	private void finishCurrentBatch() throws Exception {
-		if (currentBatchCount > 0) {
-			arrowWriter.finish();
-			// the batch of elements sent out as one row should be serialized into one arrow batch
-			arrowStreamWriter.writeBatch();
-			arrowWriter.reset();
+    /**
+     * Forces to finish the processing of the current batch of elements. It will serialize the batch
+     * of elements into one arrow batch.
+     */
+    private void finishCurrentBatch() throws Exception {
+        if (currentBatchCount > 0) {
+            arrowWriter.finish();
+            // the batch of elements sent out as one row should be serialized into one arrow batch
+            arrowStreamWriter.writeBatch();
+            arrowWriter.reset();
 
-			mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(baos.toByteArray()));
-			baos.reset();
-		}
-		currentBatchCount = 0;
-	}
+            mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(baos.toByteArray()));
+            baos.reset();
+        }
+        currentBatchCount = 0;
+    }
 }

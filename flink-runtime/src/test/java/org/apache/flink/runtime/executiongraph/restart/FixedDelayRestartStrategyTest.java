@@ -31,62 +31,60 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Unit test for the {@link FixedDelayRestartStrategy}.
- */
+/** Unit test for the {@link FixedDelayRestartStrategy}. */
 public class FixedDelayRestartStrategyTest {
 
-	public final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
+    public final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
 
-	public final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
+    public final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
 
-	@After
-	public void shutdownExecutor() {
-		executorService.shutdownNow();
-	}
+    @After
+    public void shutdownExecutor() {
+        executorService.shutdownNow();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void testNumberOfRestarts() throws Exception {
-		final int numberRestarts = 10;
+    @Test
+    public void testNumberOfRestarts() throws Exception {
+        final int numberRestarts = 10;
 
-		final FixedDelayRestartStrategy strategy =
-				new FixedDelayRestartStrategy(numberRestarts, 0L);
+        final FixedDelayRestartStrategy strategy =
+                new FixedDelayRestartStrategy(numberRestarts, 0L);
 
-		for (int restartsLeft = numberRestarts; restartsLeft > 0; --restartsLeft) {
-			// two calls to 'canRestart()' to make sure this is not used to maintain the counter
-			assertTrue(strategy.canRestart());
-			assertTrue(strategy.canRestart());
+        for (int restartsLeft = numberRestarts; restartsLeft > 0; --restartsLeft) {
+            // two calls to 'canRestart()' to make sure this is not used to maintain the counter
+            assertTrue(strategy.canRestart());
+            assertTrue(strategy.canRestart());
 
-			strategy.restart(new NoOpRestarter(), executor);
-		}
+            strategy.restart(new NoOpRestarter(), executor);
+        }
 
-		assertFalse(strategy.canRestart());
-	}
+        assertFalse(strategy.canRestart());
+    }
 
-	@Test
-	public void testDelay() throws Exception {
-		final long restartDelay = 10;
-		final int numberRestarts = 10;
+    @Test
+    public void testDelay() throws Exception {
+        final long restartDelay = 10;
+        final int numberRestarts = 10;
 
-		final FixedDelayRestartStrategy strategy =
-				new FixedDelayRestartStrategy(numberRestarts, restartDelay);
+        final FixedDelayRestartStrategy strategy =
+                new FixedDelayRestartStrategy(numberRestarts, restartDelay);
 
-		for (int restartsLeft = numberRestarts; restartsLeft > 0; --restartsLeft) {
-			assertTrue(strategy.canRestart());
+        for (int restartsLeft = numberRestarts; restartsLeft > 0; --restartsLeft) {
+            assertTrue(strategy.canRestart());
 
-			final OneShotLatch sync = new OneShotLatch();
-			final RestartCallback restarter = new LatchedRestarter(sync);
+            final OneShotLatch sync = new OneShotLatch();
+            final RestartCallback restarter = new LatchedRestarter(sync);
 
-			final long time = System.nanoTime();
-			strategy.restart(restarter, executor);
-			sync.await();
+            final long time = System.nanoTime();
+            strategy.restart(restarter, executor);
+            sync.await();
 
-			final long elapsed = System.nanoTime() - time;
-			assertTrue("Not enough delay", elapsed >= restartDelay * 1_000_000);
-		}
+            final long elapsed = System.nanoTime() - time;
+            assertTrue("Not enough delay", elapsed >= restartDelay * 1_000_000);
+        }
 
-		assertFalse(strategy.canRestart());
-	}
+        assertFalse(strategy.canRestart());
+    }
 }

@@ -52,67 +52,69 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the JobMaster scheduler interaction.
- */
+/** Tests for the JobMaster scheduler interaction. */
 public class JobMasterSchedulerTest extends TestLogger {
 
-	@ClassRule
-	public static final TestingRpcServiceResource TESTING_RPC_SERVICE_RESOURCE = new TestingRpcServiceResource();
+    @ClassRule
+    public static final TestingRpcServiceResource TESTING_RPC_SERVICE_RESOURCE =
+            new TestingRpcServiceResource();
 
-	private final Duration testingTimeout = Duration.ofSeconds(10L);
+    private final Duration testingTimeout = Duration.ofSeconds(10L);
 
+    /** Tests that we fail fatally if we cannot start the scheduling. See FLINK-20382. */
+    @Test
+    public void testIfStartSchedulingFailsJobMasterFailsFatally() throws Exception {
+        final SystemExitTrackingSecurityManager trackingSecurityManager =
+                new SystemExitTrackingSecurityManager();
+        System.setSecurityManager(trackingSecurityManager);
 
-	/**
-	 * Tests that we fail fatally if we cannot start the scheduling. See FLINK-20382.
-	 */
-	@Test
-	public void testIfStartSchedulingFailsJobMasterFailsFatally() throws Exception {
-		final SystemExitTrackingSecurityManager trackingSecurityManager = new SystemExitTrackingSecurityManager();
-		System.setSecurityManager(trackingSecurityManager);
+        final SchedulerNGFactory schedulerFactory = new FailingSchedulerFactory();
+        final JobMaster jobMaster =
+                new JobMasterBuilder(
+                                new JobGraph(), TESTING_RPC_SERVICE_RESOURCE.getTestingRpcService())
+                        .withSchedulerNGFactory(schedulerFactory)
+                        .createJobMaster();
 
-		final SchedulerNGFactory schedulerFactory = new FailingSchedulerFactory();
-		final JobMaster jobMaster = new JobMasterBuilder(new JobGraph(), TESTING_RPC_SERVICE_RESOURCE
-			.getTestingRpcService())
-			.withSchedulerNGFactory(schedulerFactory)
-			.createJobMaster();
+        final CompletableFuture<Acknowledge> startFuture = jobMaster.start(JobMasterId.generate());
 
-		final CompletableFuture<Acknowledge> startFuture = jobMaster.start(JobMasterId.generate());
+        try {
+            startFuture.join();
 
-		try {
-			startFuture.join();
+            assertThat(
+                    trackingSecurityManager.getSystemExitFuture().join(),
+                    is(FatalExitExceptionHandler.EXIT_CODE));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, Time.milliseconds(testingTimeout.toMillis()));
+            System.setSecurityManager(null);
+        }
+    }
 
-			assertThat(trackingSecurityManager.getSystemExitFuture().join(), is(FatalExitExceptionHandler.EXIT_CODE));
-		} finally {
-			RpcUtils.terminateRpcEndpoint(jobMaster, Time.milliseconds(testingTimeout.toMillis()));
-			System.setSecurityManager(null);
-		}
-	}
+    private static final class FailingSchedulerFactory implements SchedulerNGFactory {
 
-	private static final class FailingSchedulerFactory implements SchedulerNGFactory {
-
-		@Override
-		public SchedulerNG createInstance(
-				Logger log,
-				JobGraph jobGraph,
-				BackPressureStatsTracker backPressureStatsTracker,
-				Executor ioExecutor,
-				Configuration jobMasterConfiguration,
-				SlotProvider slotProvider,
-				ScheduledExecutorService futureExecutor,
-				ClassLoader userCodeLoader,
-				CheckpointRecoveryFactory checkpointRecoveryFactory,
-				Time rpcTimeout,
-				BlobWriter blobWriter,
-				JobManagerJobMetricGroup jobManagerJobMetricGroup,
-				Time slotRequestTimeout,
-				ShuffleMaster<?> shuffleMaster,
-				JobMasterPartitionTracker partitionTracker) throws Exception {
-			return TestingSchedulerNG.newBuilder()
-				.setStartSchedulingRunnable(() -> {
-					throw new FlinkRuntimeException("Could not start scheduling.");
-				})
-				.build();
-		}
-	}
+        @Override
+        public SchedulerNG createInstance(
+                Logger log,
+                JobGraph jobGraph,
+                BackPressureStatsTracker backPressureStatsTracker,
+                Executor ioExecutor,
+                Configuration jobMasterConfiguration,
+                SlotProvider slotProvider,
+                ScheduledExecutorService futureExecutor,
+                ClassLoader userCodeLoader,
+                CheckpointRecoveryFactory checkpointRecoveryFactory,
+                Time rpcTimeout,
+                BlobWriter blobWriter,
+                JobManagerJobMetricGroup jobManagerJobMetricGroup,
+                Time slotRequestTimeout,
+                ShuffleMaster<?> shuffleMaster,
+                JobMasterPartitionTracker partitionTracker)
+                throws Exception {
+            return TestingSchedulerNG.newBuilder()
+                    .setStartSchedulingRunnable(
+                            () -> {
+                                throw new FlinkRuntimeException("Could not start scheduling.");
+                            })
+                    .build();
+        }
+    }
 }

@@ -23,33 +23,35 @@ import org.apache.flink.api.common.functions.MapFunction;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * {@link MapFunction} that verifies that he partitioning is identical.
- */
+/** {@link MapFunction} that verifies that he partitioning is identical. */
 public class PartitionValidatingMapper implements MapFunction<Integer, Integer> {
 
-	private static final long serialVersionUID = 1088381231244959088L;
+    private static final long serialVersionUID = 1088381231244959088L;
 
-	/* the partitions from which this function received data */
-	private final Set<Integer> myPartitions = new HashSet<>();
+    /* the partitions from which this function received data */
+    private final Set<Integer> myPartitions = new HashSet<>();
 
-	private final int numPartitions;
-	private final int maxPartitions;
+    private final int numPartitions;
+    private final int maxPartitions;
 
-	public PartitionValidatingMapper(int numPartitions, int maxPartitions) {
-		this.numPartitions = numPartitions;
-		this.maxPartitions = maxPartitions;
-	}
+    public PartitionValidatingMapper(int numPartitions, int maxPartitions) {
+        this.numPartitions = numPartitions;
+        this.maxPartitions = maxPartitions;
+    }
 
-	@Override
-	public Integer map(Integer value) throws Exception {
-		// validate that the partitioning is identical
-		int partition = value % numPartitions;
-		myPartitions.add(partition);
-		if (myPartitions.size() > maxPartitions) {
-			throw new Exception("Error: Elements from too many different partitions: " + myPartitions
-					+ ". Expect elements only from " + maxPartitions + " partitions");
-		}
-		return value;
-	}
+    @Override
+    public Integer map(Integer value) throws Exception {
+        // validate that the partitioning is identical
+        int partition = value % numPartitions;
+        myPartitions.add(partition);
+        if (myPartitions.size() > maxPartitions) {
+            throw new Exception(
+                    "Error: Elements from too many different partitions: "
+                            + myPartitions
+                            + ". Expect elements only from "
+                            + maxPartitions
+                            + " partitions");
+        }
+        return value;
+    }
 }

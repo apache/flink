@@ -37,63 +37,62 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A table factory implementation for Hive catalog.
- */
-public class HiveTableFactory
-		implements TableSourceFactory<RowData>, TableSinkFactory {
+/** A table factory implementation for Hive catalog. */
+public class HiveTableFactory implements TableSourceFactory<RowData>, TableSinkFactory {
 
-	private final HiveConf hiveConf;
+    private final HiveConf hiveConf;
 
-	public HiveTableFactory(HiveConf hiveConf) {
-		this.hiveConf = checkNotNull(hiveConf, "hiveConf cannot be null");
-	}
+    public HiveTableFactory(HiveConf hiveConf) {
+        this.hiveConf = checkNotNull(hiveConf, "hiveConf cannot be null");
+    }
 
-	@Override
-	public Map<String, String> requiredContext() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public List<String> supportedProperties() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public TableSource<RowData> createTableSource(TableSourceFactory.Context context) {
-		CatalogTable table = checkNotNull(context.getTable());
-		Preconditions.checkArgument(table instanceof CatalogTableImpl);
+    @Override
+    public TableSource<RowData> createTableSource(TableSourceFactory.Context context) {
+        CatalogTable table = checkNotNull(context.getTable());
+        Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
-		boolean isGeneric = Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
+        boolean isGeneric =
+                Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
-		if (!isGeneric) {
-			return new HiveTableSource(
-					new JobConf(hiveConf),
-					context.getConfiguration(),
-					context.getObjectIdentifier().toObjectPath(),
-					table);
-		} else {
-			return TableFactoryUtil.findAndCreateTableSource(context);
-		}
-	}
+        if (!isGeneric) {
+            return new HiveTableSource(
+                    new JobConf(hiveConf),
+                    context.getConfiguration(),
+                    context.getObjectIdentifier().toObjectPath(),
+                    table);
+        } else {
+            return TableFactoryUtil.findAndCreateTableSource(context);
+        }
+    }
 
-	@Override
-	public TableSink createTableSink(TableSinkFactory.Context context) {
-		CatalogTable table = checkNotNull(context.getTable());
-		Preconditions.checkArgument(table instanceof CatalogTableImpl);
+    @Override
+    public TableSink createTableSink(TableSinkFactory.Context context) {
+        CatalogTable table = checkNotNull(context.getTable());
+        Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
-		boolean isGeneric = Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
+        boolean isGeneric =
+                Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
-		if (!isGeneric) {
-			return new HiveTableSink(
-					context.getConfiguration().get(
-							HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
-					context.isBounded(),
-					new JobConf(hiveConf),
-					context.getObjectIdentifier(),
-					table);
-		} else {
-			return TableFactoryUtil.findAndCreateTableSink(context);
-		}
-	}
+        if (!isGeneric) {
+            return new HiveTableSink(
+                    context.getConfiguration()
+                            .get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
+                    context.isBounded(),
+                    new JobConf(hiveConf),
+                    context.getObjectIdentifier(),
+                    table);
+        } else {
+            return TableFactoryUtil.findAndCreateTableSink(context);
+        }
+    }
 }

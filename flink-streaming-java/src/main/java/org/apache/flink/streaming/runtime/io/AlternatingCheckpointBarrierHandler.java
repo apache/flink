@@ -34,100 +34,106 @@ import static java.lang.String.format;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED;
 
 class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
-	private final CheckpointBarrierAligner alignedHandler;
-	private final CheckpointBarrierUnaligner unalignedHandler;
-	private CheckpointBarrierHandler activeHandler;
-	private long lastSeenBarrierId;
+    private final CheckpointBarrierAligner alignedHandler;
+    private final CheckpointBarrierUnaligner unalignedHandler;
+    private CheckpointBarrierHandler activeHandler;
+    private long lastSeenBarrierId;
 
-	AlternatingCheckpointBarrierHandler(CheckpointBarrierAligner alignedHandler, CheckpointBarrierUnaligner unalignedHandler, AbstractInvokable invokable) {
-		super(invokable);
-		this.activeHandler = this.alignedHandler = alignedHandler;
-		this.unalignedHandler = unalignedHandler;
-	}
+    AlternatingCheckpointBarrierHandler(
+            CheckpointBarrierAligner alignedHandler,
+            CheckpointBarrierUnaligner unalignedHandler,
+            AbstractInvokable invokable) {
+        super(invokable);
+        this.activeHandler = this.alignedHandler = alignedHandler;
+        this.unalignedHandler = unalignedHandler;
+    }
 
-	@Override
-	public void releaseBlocksAndResetBarriers() throws IOException {
-		activeHandler.releaseBlocksAndResetBarriers();
-	}
+    @Override
+    public void releaseBlocksAndResetBarriers() throws IOException {
+        activeHandler.releaseBlocksAndResetBarriers();
+    }
 
-	@Override
-	public boolean isBlocked(InputChannelInfo channelInfo) {
-		return activeHandler.isBlocked(channelInfo);
-	}
+    @Override
+    public boolean isBlocked(InputChannelInfo channelInfo) {
+        return activeHandler.isBlocked(channelInfo);
+    }
 
-	@Override
-	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws Exception {
-		if (receivedBarrier.getId() < lastSeenBarrierId) {
-			return;
-		}
+    @Override
+    public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo)
+            throws Exception {
+        if (receivedBarrier.getId() < lastSeenBarrierId) {
+            return;
+        }
 
-		lastSeenBarrierId = receivedBarrier.getId();
-		CheckpointBarrierHandler previousHandler = activeHandler;
-		activeHandler = receivedBarrier.isCheckpoint() ? unalignedHandler : alignedHandler;
-		if (previousHandler != activeHandler) {
-			previousHandler.abortPendingCheckpoint(
-				lastSeenBarrierId,
-				new CheckpointException(format("checkpoint subsumed by %d", lastSeenBarrierId), CHECKPOINT_DECLINED_SUBSUMED));
-		}
+        lastSeenBarrierId = receivedBarrier.getId();
+        CheckpointBarrierHandler previousHandler = activeHandler;
+        activeHandler = receivedBarrier.isCheckpoint() ? unalignedHandler : alignedHandler;
+        if (previousHandler != activeHandler) {
+            previousHandler.abortPendingCheckpoint(
+                    lastSeenBarrierId,
+                    new CheckpointException(
+                            format("checkpoint subsumed by %d", lastSeenBarrierId),
+                            CHECKPOINT_DECLINED_SUBSUMED));
+        }
 
-		activeHandler.processBarrier(receivedBarrier, channelInfo);
-	}
+        activeHandler.processBarrier(receivedBarrier, channelInfo);
+    }
 
-	@Override
-	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
-		activeHandler.processCancellationBarrier(cancelBarrier);
-	}
+    @Override
+    public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
+        activeHandler.processCancellationBarrier(cancelBarrier);
+    }
 
-	@Override
-	public void processEndOfPartition() throws Exception {
-		alignedHandler.processEndOfPartition();
-		unalignedHandler.processEndOfPartition();
-	}
+    @Override
+    public void processEndOfPartition() throws Exception {
+        alignedHandler.processEndOfPartition();
+        unalignedHandler.processEndOfPartition();
+    }
 
-	@Override
-	public long getLatestCheckpointId() {
-		return activeHandler.getLatestCheckpointId();
-	}
+    @Override
+    public long getLatestCheckpointId() {
+        return activeHandler.getLatestCheckpointId();
+    }
 
-	@Override
-	public long getAlignmentDurationNanos() {
-		return activeHandler.getAlignmentDurationNanos();
-	}
+    @Override
+    public long getAlignmentDurationNanos() {
+        return activeHandler.getAlignmentDurationNanos();
+    }
 
-	@Override
-	public long getCheckpointStartDelayNanos() {
-		return activeHandler.getCheckpointStartDelayNanos();
-	}
+    @Override
+    public long getCheckpointStartDelayNanos() {
+        return activeHandler.getCheckpointStartDelayNanos();
+    }
 
-	@Override
-	public boolean hasInflightData(long checkpointId, InputChannelInfo channelInfo) {
-		// should only be called for unaligned checkpoint
-		return unalignedHandler.hasInflightData(checkpointId, channelInfo);
-	}
+    @Override
+    public boolean hasInflightData(long checkpointId, InputChannelInfo channelInfo) {
+        // should only be called for unaligned checkpoint
+        return unalignedHandler.hasInflightData(checkpointId, channelInfo);
+    }
 
-	@Override
-	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
-		// should only be called for unaligned checkpoint
-		return unalignedHandler.getAllBarriersReceivedFuture(checkpointId);
-	}
+    @Override
+    public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
+        // should only be called for unaligned checkpoint
+        return unalignedHandler.getAllBarriersReceivedFuture(checkpointId);
+    }
 
-	@Override
-	public Optional<BufferReceivedListener> getBufferReceivedListener() {
-		// should only be used for handling unaligned checkpoints
-		return unalignedHandler.getBufferReceivedListener();
-	}
+    @Override
+    public Optional<BufferReceivedListener> getBufferReceivedListener() {
+        // should only be used for handling unaligned checkpoints
+        return unalignedHandler.getBufferReceivedListener();
+    }
 
-	@Override
-	protected boolean isCheckpointPending() {
-		return activeHandler.isCheckpointPending();
-	}
+    @Override
+    protected boolean isCheckpointPending() {
+        return activeHandler.isCheckpointPending();
+    }
 
-	@Override
-	public void close() throws IOException {
-		try (Closer closer = Closer.create()) {
-			closer.register(alignedHandler);
-			closer.register(unalignedHandler);
-			closer.register(super::close);
-		}
-	}
+    @Override
+    public void close() throws IOException {
+        try (Closer closer = Closer.create()) {
+            closer.register(alignedHandler);
+            closer.register(unalignedHandler);
+            closer.register(super::close);
+        }
+    }
 }

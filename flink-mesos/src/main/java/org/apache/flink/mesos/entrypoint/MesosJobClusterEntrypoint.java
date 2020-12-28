@@ -45,89 +45,89 @@ import org.apache.commons.cli.PosixParser;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Entry point for Mesos per-job clusters.
- */
+/** Entry point for Mesos per-job clusters. */
 public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 
-	// ------------------------------------------------------------------------
-	//  Command-line options
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Command-line options
+    // ------------------------------------------------------------------------
 
-	private static final Options ALL_OPTIONS;
+    private static final Options ALL_OPTIONS;
 
-	static {
-		ALL_OPTIONS =
-			new Options()
-				.addOption(BootstrapTools.newDynamicPropertiesOption());
-	}
+    static {
+        ALL_OPTIONS = new Options().addOption(BootstrapTools.newDynamicPropertiesOption());
+    }
 
-	private MesosConfiguration schedulerConfiguration;
+    private MesosConfiguration schedulerConfiguration;
 
-	private MesosServices mesosServices;
+    private MesosServices mesosServices;
 
-	public MesosJobClusterEntrypoint(Configuration config) {
-		super(config);
-	}
+    public MesosJobClusterEntrypoint(Configuration config) {
+        super(config);
+    }
 
-	@Override
-	protected void initializeServices(Configuration config, PluginManager pluginManager) throws Exception {
-		super.initializeServices(config, pluginManager);
+    @Override
+    protected void initializeServices(Configuration config, PluginManager pluginManager)
+            throws Exception {
+        super.initializeServices(config, pluginManager);
 
-		final String hostname = config.getString(JobManagerOptions.ADDRESS);
+        final String hostname = config.getString(JobManagerOptions.ADDRESS);
 
-		// Mesos configuration
-		schedulerConfiguration = MesosUtils.createMesosSchedulerConfiguration(config, hostname);
+        // Mesos configuration
+        schedulerConfiguration = MesosUtils.createMesosSchedulerConfiguration(config, hostname);
 
-		// services
-		mesosServices = MesosServicesUtils.createMesosServices(config, hostname);
-	}
+        // services
+        mesosServices = MesosServicesUtils.createMesosServices(config, hostname);
+    }
 
-	@Override
-	protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
-		final CompletableFuture<Void> serviceShutDownFuture = super.stopClusterServices(cleanupHaData);
+    @Override
+    protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
+        final CompletableFuture<Void> serviceShutDownFuture =
+                super.stopClusterServices(cleanupHaData);
 
-		return FutureUtils.runAfterwards(
-			serviceShutDownFuture,
-			() -> {
-				if (mesosServices != null) {
-					mesosServices.close(cleanupHaData);
-				}
-			});
-	}
+        return FutureUtils.runAfterwards(
+                serviceShutDownFuture,
+                () -> {
+                    if (mesosServices != null) {
+                        mesosServices.close(cleanupHaData);
+                    }
+                });
+    }
 
-	@Override
-	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
-		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
-			new MesosResourceManagerFactory(
-				mesosServices,
-				schedulerConfiguration),
-			FileJobGraphRetriever.createFrom(configuration, ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null)));
-	}
+    @Override
+    protected DefaultDispatcherResourceManagerComponentFactory
+            createDispatcherResourceManagerComponentFactory(Configuration configuration)
+                    throws IOException {
+        return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
+                new MesosResourceManagerFactory(mesosServices, schedulerConfiguration),
+                FileJobGraphRetriever.createFrom(
+                        configuration,
+                        ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null)));
+    }
 
-	public static void main(String[] args) {
-		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, MesosJobClusterEntrypoint.class.getSimpleName(), args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
+    public static void main(String[] args) {
+        // startup checks and logging
+        EnvironmentInformation.logEnvironmentInfo(
+                LOG, MesosJobClusterEntrypoint.class.getSimpleName(), args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		// load configuration incl. dynamic properties
-		CommandLineParser parser = new PosixParser();
-		CommandLine cmd;
-		try {
-			cmd = parser.parse(ALL_OPTIONS, args);
-		}
-		catch (Exception e){
-			LOG.error("Could not parse the command-line options.", e);
-			System.exit(STARTUP_FAILURE_RETURN_CODE);
-			return;
-		}
+        // load configuration incl. dynamic properties
+        CommandLineParser parser = new PosixParser();
+        CommandLine cmd;
+        try {
+            cmd = parser.parse(ALL_OPTIONS, args);
+        } catch (Exception e) {
+            LOG.error("Could not parse the command-line options.", e);
+            System.exit(STARTUP_FAILURE_RETURN_CODE);
+            return;
+        }
 
-		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
-		Configuration configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
+        Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
+        Configuration configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
 
-		MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration);
+        MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration);
 
-		ClusterEntrypoint.runClusterEntrypoint(clusterEntrypoint);
-	}
+        ClusterEntrypoint.runClusterEntrypoint(clusterEntrypoint);
+    }
 }

@@ -35,41 +35,44 @@ import javax.annotation.Nullable;
 /**
  * Resource manager factory which creates active {@link ResourceManager} implementations.
  *
- * <p>The default implementation will call {@link #createActiveResourceManagerConfiguration}
- * to create a new configuration which is configured with active resource manager relevant
+ * <p>The default implementation will call {@link #createActiveResourceManagerConfiguration} to
+ * create a new configuration which is configured with active resource manager relevant
  * configuration options.
  *
  * @param <T> type of the {@link ResourceIDRetrievable}
  */
-public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievable> extends ResourceManagerFactory<T> {
+public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievable>
+        extends ResourceManagerFactory<T> {
 
-	@Override
-	public ResourceManager<T> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			MetricRegistry metricRegistry,
-			String hostname) throws Exception {
-		return super.createResourceManager(
-			createActiveResourceManagerConfiguration(configuration),
-			resourceId,
-			rpcService,
-			highAvailabilityServices,
-			heartbeatServices,
-			fatalErrorHandler,
-			clusterInformation,
-			webInterfaceUrl,
-			metricRegistry,
-			hostname);
-	}
+    @Override
+    public ResourceManager<T> createResourceManager(
+            Configuration configuration,
+            ResourceID resourceId,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            FatalErrorHandler fatalErrorHandler,
+            ClusterInformation clusterInformation,
+            @Nullable String webInterfaceUrl,
+            MetricRegistry metricRegistry,
+            String hostname)
+            throws Exception {
+        return super.createResourceManager(
+                createActiveResourceManagerConfiguration(configuration),
+                resourceId,
+                rpcService,
+                highAvailabilityServices,
+                heartbeatServices,
+                fatalErrorHandler,
+                clusterInformation,
+                webInterfaceUrl,
+                metricRegistry,
+                hostname);
+    }
 
-	private Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
-		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-			originalConfiguration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
-	}
+    private Configuration createActiveResourceManagerConfiguration(
+            Configuration originalConfiguration) {
+        return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+                originalConfiguration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+    }
 }

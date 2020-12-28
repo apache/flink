@@ -24,24 +24,27 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import java.io.IOException;
 
 /**
- * Interface of listener for notifying the received data buffer or checkpoint barrier
- * from network channel.
+ * Interface of listener for notifying the received data buffer or checkpoint barrier from network
+ * channel.
  */
 public interface BufferReceivedListener {
 
-	/**
-	 * Called whenever an {@link org.apache.flink.runtime.io.network.partition.consumer.InputChannel} receives a
-	 * non-barrier buffer.
-	 *
-	 * <p>The listener is responsible for copying the buffer if it needs to outlive the invocation. It is guaranteed
-	 * that no parallel processing of the buffer happens until this callback returns.
-	 */
-	void notifyBufferReceived(Buffer buffer, InputChannelInfo channelInfo) throws IOException;
+    /**
+     * Called whenever an {@link
+     * org.apache.flink.runtime.io.network.partition.consumer.InputChannel} receives a non-barrier
+     * buffer.
+     *
+     * <p>The listener is responsible for copying the buffer if it needs to outlive the invocation.
+     * It is guaranteed that no parallel processing of the buffer happens until this callback
+     * returns.
+     */
+    void notifyBufferReceived(Buffer buffer, InputChannelInfo channelInfo) throws IOException;
 
-	/**
-	 * Invoked when an {@link org.apache.flink.runtime.io.network.partition.consumer.InputChannel} receives a
-	 * buffer with a {@link CheckpointBarrier}. It is guaranteed that no parallel processing of the buffer happens
-	 * until this callback returns.
-	 */
-	void notifyBarrierReceived(CheckpointBarrier barrier, InputChannelInfo channelInfo) throws IOException;
+    /**
+     * Invoked when an {@link org.apache.flink.runtime.io.network.partition.consumer.InputChannel}
+     * receives a buffer with a {@link CheckpointBarrier}. It is guaranteed that no parallel
+     * processing of the buffer happens until this callback returns.
+     */
+    void notifyBarrierReceived(CheckpointBarrier barrier, InputChannelInfo channelInfo)
+            throws IOException;
 }

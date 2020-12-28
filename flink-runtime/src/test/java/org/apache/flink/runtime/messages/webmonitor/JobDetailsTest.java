@@ -31,33 +31,30 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the {@link JobDetails}.
- */
+/** Tests for the {@link JobDetails}. */
 public class JobDetailsTest extends TestLogger {
 
-	/**
-	 * Tests that we can marshal and unmarshal JobDetails instances.
-	 */
-	@Test
-	public void testJobDetailsMarshalling() throws JsonProcessingException {
-		final JobDetails expected = new JobDetails(
-			new JobID(),
-			"foobar",
-			1L,
-			10L,
-			9L,
-			JobStatus.RUNNING,
-			8L,
-			new int[]{1, 3, 3, 7, 4, 2, 7, 3, 3},
-			42);
+    /** Tests that we can marshal and unmarshal JobDetails instances. */
+    @Test
+    public void testJobDetailsMarshalling() throws JsonProcessingException {
+        final JobDetails expected =
+                new JobDetails(
+                        new JobID(),
+                        "foobar",
+                        1L,
+                        10L,
+                        9L,
+                        JobStatus.RUNNING,
+                        8L,
+                        new int[] {1, 3, 3, 7, 4, 2, 7, 3, 3},
+                        42);
 
-		final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
+        final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
 
-		final JsonNode marshalled = objectMapper.valueToTree(expected);
+        final JsonNode marshalled = objectMapper.valueToTree(expected);
 
-		final JobDetails unmarshalled = objectMapper.treeToValue(marshalled, JobDetails.class);
+        final JobDetails unmarshalled = objectMapper.treeToValue(marshalled, JobDetails.class);
 
-		assertEquals(expected, unmarshalled);
-	}
+        assertEquals(expected, unmarshalled);
+    }
 }

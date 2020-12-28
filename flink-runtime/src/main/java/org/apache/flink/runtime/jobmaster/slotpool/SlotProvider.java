@@ -33,73 +33,66 @@ import java.util.concurrent.CompletableFuture;
  * The slot provider is responsible for preparing slots for ready-to-run tasks.
  *
  * <p>It supports two allocating modes:
+ *
  * <ul>
- *     <li>Immediate allocating: A request for a task slot immediately gets satisfied, we can call
- *         {@link CompletableFuture#getNow(Object)} to get the allocated slot.</li>
- *     <li>Queued allocating: A request for a task slot is queued and returns a future that will be
- *         fulfilled as soon as a slot becomes available.</li>
+ *   <li>Immediate allocating: A request for a task slot immediately gets satisfied, we can call
+ *       {@link CompletableFuture#getNow(Object)} to get the allocated slot.
+ *   <li>Queued allocating: A request for a task slot is queued and returns a future that will be
+ *       fulfilled as soon as a slot becomes available.
  * </ul>
  */
 public interface SlotProvider {
 
-	/**
-	 * Allocating slot with specific requirement.
-	 *
-	 * @param slotRequestId identifying the slot request
-	 * @param scheduledUnit The task to allocate the slot for
-	 * @param slotProfile profile of the requested slot
-	 * @param allocationTimeout after which the allocation fails with a timeout exception
-	 * @return The future of the allocation
-	 */
-	CompletableFuture<LogicalSlot> allocateSlot(
-		SlotRequestId slotRequestId,
-		ScheduledUnit scheduledUnit,
-		SlotProfile slotProfile,
-		Time allocationTimeout);
+    /**
+     * Allocating slot with specific requirement.
+     *
+     * @param slotRequestId identifying the slot request
+     * @param scheduledUnit The task to allocate the slot for
+     * @param slotProfile profile of the requested slot
+     * @param allocationTimeout after which the allocation fails with a timeout exception
+     * @return The future of the allocation
+     */
+    CompletableFuture<LogicalSlot> allocateSlot(
+            SlotRequestId slotRequestId,
+            ScheduledUnit scheduledUnit,
+            SlotProfile slotProfile,
+            Time allocationTimeout);
 
-	/**
-	 * Allocating batch slot with specific requirement.
-	 *
-	 * @param slotRequestId identifying the slot request
-	 * @param scheduledUnit The task to allocate the slot for
-	 * @param slotProfile profile of the requested slot
-	 * @return The future of the allocation
-	 */
-	default CompletableFuture<LogicalSlot> allocateBatchSlot(
-		SlotRequestId slotRequestId,
-		ScheduledUnit scheduledUnit,
-		SlotProfile slotProfile) {
-		throw new UnsupportedOperationException("Not properly implemented.");
-	}
+    /**
+     * Allocating batch slot with specific requirement.
+     *
+     * @param slotRequestId identifying the slot request
+     * @param scheduledUnit The task to allocate the slot for
+     * @param slotProfile profile of the requested slot
+     * @return The future of the allocation
+     */
+    default CompletableFuture<LogicalSlot> allocateBatchSlot(
+            SlotRequestId slotRequestId, ScheduledUnit scheduledUnit, SlotProfile slotProfile) {
+        throw new UnsupportedOperationException("Not properly implemented.");
+    }
 
-	/**
-	 * Allocating slot with specific requirement.
-	 *
-	 * @param scheduledUnit The task to allocate the slot for
-	 * @param slotProfile profile of the requested slot
-	 * @param allocationTimeout after which the allocation fails with a timeout exception
-	 * @return The future of the allocation
-	 */
-	default CompletableFuture<LogicalSlot> allocateSlot(
-		ScheduledUnit scheduledUnit,
-		SlotProfile slotProfile,
-		Time allocationTimeout) {
-		return allocateSlot(
-			new SlotRequestId(),
-			scheduledUnit,
-			slotProfile,
-			allocationTimeout);
-	}
+    /**
+     * Allocating slot with specific requirement.
+     *
+     * @param scheduledUnit The task to allocate the slot for
+     * @param slotProfile profile of the requested slot
+     * @param allocationTimeout after which the allocation fails with a timeout exception
+     * @return The future of the allocation
+     */
+    default CompletableFuture<LogicalSlot> allocateSlot(
+            ScheduledUnit scheduledUnit, SlotProfile slotProfile, Time allocationTimeout) {
+        return allocateSlot(new SlotRequestId(), scheduledUnit, slotProfile, allocationTimeout);
+    }
 
-	/**
-	 * Cancels the slot request with the given {@link SlotRequestId} and {@link SlotSharingGroupId}.
-	 *
-	 * @param slotRequestId identifying the slot request to cancel
-	 * @param slotSharingGroupId identifying the slot request to cancel
-	 * @param cause of the cancellation
-	 */
-	void cancelSlotRequest(
-		SlotRequestId slotRequestId,
-		@Nullable SlotSharingGroupId slotSharingGroupId,
-		Throwable cause);
+    /**
+     * Cancels the slot request with the given {@link SlotRequestId} and {@link SlotSharingGroupId}.
+     *
+     * @param slotRequestId identifying the slot request to cancel
+     * @param slotSharingGroupId identifying the slot request to cancel
+     * @param cause of the cancellation
+     */
+    void cancelSlotRequest(
+            SlotRequestId slotRequestId,
+            @Nullable SlotSharingGroupId slotSharingGroupId,
+            Throwable cause);
 }

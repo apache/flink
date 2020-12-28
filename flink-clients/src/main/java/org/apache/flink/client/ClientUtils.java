@@ -46,113 +46,110 @@ import java.util.concurrent.ExecutionException;
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Utility functions for Flink client.
- */
+/** Utility functions for Flink client. */
 public enum ClientUtils {
-	;
+    ;
 
-	private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
 
-	public static ClassLoader buildUserCodeClassLoader(
-			List<URL> jars,
-			List<URL> classpaths,
-			ClassLoader parent,
-			Configuration configuration) {
-		URL[] urls = new URL[jars.size() + classpaths.size()];
-		for (int i = 0; i < jars.size(); i++) {
-			urls[i] = jars.get(i);
-		}
-		for (int i = 0; i < classpaths.size(); i++) {
-			urls[i + jars.size()] = classpaths.get(i);
-		}
-		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration);
-		final String classLoaderResolveOrder =
-			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
-		FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
-			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
-		return FlinkUserCodeClassLoaders.create(resolveOrder, urls, parent, alwaysParentFirstLoaderPatterns, NOOP_EXCEPTION_HANDLER);
-	}
+    public static ClassLoader buildUserCodeClassLoader(
+            List<URL> jars, List<URL> classpaths, ClassLoader parent, Configuration configuration) {
+        URL[] urls = new URL[jars.size() + classpaths.size()];
+        for (int i = 0; i < jars.size(); i++) {
+            urls[i] = jars.get(i);
+        }
+        for (int i = 0; i < classpaths.size(); i++) {
+            urls[i + jars.size()] = classpaths.get(i);
+        }
+        final String[] alwaysParentFirstLoaderPatterns =
+                CoreOptions.getParentFirstLoaderPatterns(configuration);
+        final String classLoaderResolveOrder =
+                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+        FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
+                FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
+        return FlinkUserCodeClassLoaders.create(
+                resolveOrder,
+                urls,
+                parent,
+                alwaysParentFirstLoaderPatterns,
+                NOOP_EXCEPTION_HANDLER);
+    }
 
-	public static JobExecutionResult submitJob(
-			ClusterClient<?> client,
-			JobGraph jobGraph) throws ProgramInvocationException {
-		checkNotNull(client);
-		checkNotNull(jobGraph);
-		try {
-			return client
-				.submitJob(jobGraph)
-				.thenApply(DetachedJobExecutionResult::new)
-				.get();
-		} catch (InterruptedException | ExecutionException e) {
-			ExceptionUtils.checkInterrupted(e);
-			throw new ProgramInvocationException("Could not run job in detached mode.", jobGraph.getJobID(), e);
-		}
-	}
+    public static JobExecutionResult submitJob(ClusterClient<?> client, JobGraph jobGraph)
+            throws ProgramInvocationException {
+        checkNotNull(client);
+        checkNotNull(jobGraph);
+        try {
+            return client.submitJob(jobGraph).thenApply(DetachedJobExecutionResult::new).get();
+        } catch (InterruptedException | ExecutionException e) {
+            ExceptionUtils.checkInterrupted(e);
+            throw new ProgramInvocationException(
+                    "Could not run job in detached mode.", jobGraph.getJobID(), e);
+        }
+    }
 
-	public static JobExecutionResult submitJobAndWaitForResult(
-			ClusterClient<?> client,
-			JobGraph jobGraph,
-			ClassLoader classLoader) throws ProgramInvocationException {
-		checkNotNull(client);
-		checkNotNull(jobGraph);
-		checkNotNull(classLoader);
+    public static JobExecutionResult submitJobAndWaitForResult(
+            ClusterClient<?> client, JobGraph jobGraph, ClassLoader classLoader)
+            throws ProgramInvocationException {
+        checkNotNull(client);
+        checkNotNull(jobGraph);
+        checkNotNull(classLoader);
 
-		JobResult jobResult;
+        JobResult jobResult;
 
-		try {
-			jobResult = client
-				.submitJob(jobGraph)
-				.thenCompose(client::requestJobResult)
-				.get();
-		} catch (InterruptedException | ExecutionException e) {
-			ExceptionUtils.checkInterrupted(e);
-			throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
-		}
+        try {
+            jobResult = client.submitJob(jobGraph).thenCompose(client::requestJobResult).get();
+        } catch (InterruptedException | ExecutionException e) {
+            ExceptionUtils.checkInterrupted(e);
+            throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
+        }
 
-		try {
-			return jobResult.toJobExecutionResult(classLoader);
-		} catch (JobExecutionException | IOException | ClassNotFoundException e) {
-			throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
-		}
-	}
+        try {
+            return jobResult.toJobExecutionResult(classLoader);
+        } catch (JobExecutionException | IOException | ClassNotFoundException e) {
+            throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
+        }
+    }
 
-	public static void executeProgram(
-			PipelineExecutorServiceLoader executorServiceLoader,
-			Configuration configuration,
-			PackagedProgram program,
-			boolean enforceSingleJobExecution,
-			boolean suppressSysout) throws ProgramInvocationException {
-		checkNotNull(executorServiceLoader);
-		final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
-		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-		try {
-			Thread.currentThread().setContextClassLoader(userCodeClassLoader);
+    public static void executeProgram(
+            PipelineExecutorServiceLoader executorServiceLoader,
+            Configuration configuration,
+            PackagedProgram program,
+            boolean enforceSingleJobExecution,
+            boolean suppressSysout)
+            throws ProgramInvocationException {
+        checkNotNull(executorServiceLoader);
+        final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
+        final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(userCodeClassLoader);
 
-			LOG.info("Starting program (detached: {})", !configuration.getBoolean(DeploymentOptions.ATTACHED));
+            LOG.info(
+                    "Starting program (detached: {})",
+                    !configuration.getBoolean(DeploymentOptions.ATTACHED));
 
-			ContextEnvironment.setAsContext(
-				executorServiceLoader,
-				configuration,
-				userCodeClassLoader,
-				enforceSingleJobExecution,
-				suppressSysout);
+            ContextEnvironment.setAsContext(
+                    executorServiceLoader,
+                    configuration,
+                    userCodeClassLoader,
+                    enforceSingleJobExecution,
+                    suppressSysout);
 
-			StreamContextEnvironment.setAsContext(
-				executorServiceLoader,
-				configuration,
-				userCodeClassLoader,
-				enforceSingleJobExecution,
-				suppressSysout);
+            StreamContextEnvironment.setAsContext(
+                    executorServiceLoader,
+                    configuration,
+                    userCodeClassLoader,
+                    enforceSingleJobExecution,
+                    suppressSysout);
 
-			try {
-				program.invokeInteractiveModeForExecution();
-			} finally {
-				ContextEnvironment.unsetAsContext();
-				StreamContextEnvironment.unsetAsContext();
-			}
-		} finally {
-			Thread.currentThread().setContextClassLoader(contextClassLoader);
-		}
-	}
+            try {
+                program.invokeInteractiveModeForExecution();
+            } finally {
+                ContextEnvironment.unsetAsContext();
+                StreamContextEnvironment.unsetAsContext();
+            }
+        } finally {
+            Thread.currentThread().setContextClassLoader(contextClassLoader);
+        }
+    }
 }

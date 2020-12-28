@@ -34,47 +34,47 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link CompletedOperationCache}.
- */
+/** Tests for {@link CompletedOperationCache}. */
 public class CompletedOperationCacheTest extends TestLogger {
 
-	private static final OperationKey TEST_OPERATION_KEY = new OperationKey(new TriggerId());
+    private static final OperationKey TEST_OPERATION_KEY = new OperationKey(new TriggerId());
 
-	private static final CompletableFuture<String> TEST_OPERATION_RESULT = CompletableFuture.completedFuture("foo");
+    private static final CompletableFuture<String> TEST_OPERATION_RESULT =
+            CompletableFuture.completedFuture("foo");
 
-	private ManualTicker manualTicker;
+    private ManualTicker manualTicker;
 
-	private CompletedOperationCache<OperationKey, String> completedOperationCache;
+    private CompletedOperationCache<OperationKey, String> completedOperationCache;
 
-	@Before
-	public void setUp() {
-		manualTicker = new ManualTicker();
-		completedOperationCache = new CompletedOperationCache<>(manualTicker);
-	}
+    @Before
+    public void setUp() {
+        manualTicker = new ManualTicker();
+        completedOperationCache = new CompletedOperationCache<>(manualTicker);
+    }
 
-	@Test
-	public void testShouldFinishClosingCacheIfAllResultsAreEvicted() {
-		completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
-		final CompletableFuture<Void> closeCacheFuture = completedOperationCache.closeAsync();
-		assertThat(closeCacheFuture.isDone(), is(false));
+    @Test
+    public void testShouldFinishClosingCacheIfAllResultsAreEvicted() {
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+        final CompletableFuture<Void> closeCacheFuture = completedOperationCache.closeAsync();
+        assertThat(closeCacheFuture.isDone(), is(false));
 
-		manualTicker.advanceTime(300, TimeUnit.SECONDS);
-		completedOperationCache.cleanUp();
+        manualTicker.advanceTime(300, TimeUnit.SECONDS);
+        completedOperationCache.cleanUp();
 
-		assertThat(closeCacheFuture.isDone(), is(true));
-	}
+        assertThat(closeCacheFuture.isDone(), is(true));
+    }
 
-	@Test
-	public void testShouldFinishClosingCacheIfAllResultsAccessed() throws Exception {
-		completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
-		final CompletableFuture<Void> closeCacheFuture = completedOperationCache.closeAsync();
-		assertThat(closeCacheFuture.isDone(), is(false));
+    @Test
+    public void testShouldFinishClosingCacheIfAllResultsAccessed() throws Exception {
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+        final CompletableFuture<Void> closeCacheFuture = completedOperationCache.closeAsync();
+        assertThat(closeCacheFuture.isDone(), is(false));
 
-		final Either<Throwable, String> operationResultOrError = completedOperationCache.get(TEST_OPERATION_KEY);
+        final Either<Throwable, String> operationResultOrError =
+                completedOperationCache.get(TEST_OPERATION_KEY);
 
-		assertThat(operationResultOrError, is(notNullValue()));
-		assertThat(operationResultOrError.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
-		assertThat(closeCacheFuture.isDone(), is(true));
-	}
+        assertThat(operationResultOrError, is(notNullValue()));
+        assertThat(operationResultOrError.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
+        assertThat(closeCacheFuture.isDone(), is(true));
+    }
 }

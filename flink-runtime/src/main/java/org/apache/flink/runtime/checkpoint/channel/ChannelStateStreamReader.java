@@ -37,75 +37,81 @@ import static org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.Rea
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult.NO_MORE_DATA;
 
 /**
- * Reads the state of a single channel pointed by {@link org.apache.flink.runtime.state.AbstractChannelStateHandle AbstractChannelStateHandle}.
- * Once all data is read, this class can't be used anymore.
- * Uses {@link RefCountingFSDataInputStream} internally.
+ * Reads the state of a single channel pointed by {@link
+ * org.apache.flink.runtime.state.AbstractChannelStateHandle AbstractChannelStateHandle}. Once all
+ * data is read, this class can't be used anymore. Uses {@link RefCountingFSDataInputStream}
+ * internally.
  */
 @NotThreadSafe
 class ChannelStateStreamReader implements Closeable {
 
-	private final RefCountingFSDataInputStream stream;
-	private final ChannelStateSerializer serializer;
-	private final Queue<Long> offsets;
-	private int remainingBytes = -1;
-	private boolean closed = false;
+    private final RefCountingFSDataInputStream stream;
+    private final ChannelStateSerializer serializer;
+    private final Queue<Long> offsets;
+    private int remainingBytes = -1;
+    private boolean closed = false;
 
-	ChannelStateStreamReader(AbstractChannelStateHandle<?> handle, RefCountingFSDataInputStreamFactory streamFactory) {
-		this(streamFactory.getOrCreate(handle), handle.getOffsets(), streamFactory.getSerializer());
-	}
+    ChannelStateStreamReader(
+            AbstractChannelStateHandle<?> handle,
+            RefCountingFSDataInputStreamFactory streamFactory) {
+        this(streamFactory.getOrCreate(handle), handle.getOffsets(), streamFactory.getSerializer());
+    }
 
-	private ChannelStateStreamReader(RefCountingFSDataInputStream stream, List<Long> offsets, ChannelStateSerializer serializer) {
-		this.stream = stream;
-		this.stream.incRef();
-		this.serializer = serializer;
-		this.offsets = new LinkedList<>(offsets);
-	}
+    private ChannelStateStreamReader(
+            RefCountingFSDataInputStream stream,
+            List<Long> offsets,
+            ChannelStateSerializer serializer) {
+        this.stream = stream;
+        this.stream.incRef();
+        this.serializer = serializer;
+        this.offsets = new LinkedList<>(offsets);
+    }
 
-	ReadResult readInto(Buffer buffer) throws IOException {
-		return readInto(wrap(buffer));
-	}
+    ReadResult readInto(Buffer buffer) throws IOException {
+        return readInto(wrap(buffer));
+    }
 
-	ReadResult readInto(BufferBuilder bufferBuilder) throws IOException {
-		return readInto(wrap(bufferBuilder));
-	}
+    ReadResult readInto(BufferBuilder bufferBuilder) throws IOException {
+        return readInto(wrap(bufferBuilder));
+    }
 
-	private ReadResult readInto(ChannelStateByteBuffer buffer) throws IOException {
-		Preconditions.checkState(!closed, "reader is closed");
-		readWhilePossible(buffer);
-		if (haveMoreData()) {
-			return HAS_MORE_DATA;
-		} else {
-			closed = true;
-			stream.decRef();
-			return NO_MORE_DATA;
-		}
-	}
+    private ReadResult readInto(ChannelStateByteBuffer buffer) throws IOException {
+        Preconditions.checkState(!closed, "reader is closed");
+        readWhilePossible(buffer);
+        if (haveMoreData()) {
+            return HAS_MORE_DATA;
+        } else {
+            closed = true;
+            stream.decRef();
+            return NO_MORE_DATA;
+        }
+    }
 
-	private void readWhilePossible(ChannelStateByteBuffer buffer) throws IOException {
-		while (haveMoreData() && buffer.isWritable()) {
-			if (remainingBytes <= 0) {
-				advanceOffset();
-			}
-			int bytesRead = serializer.readData(stream, buffer, remainingBytes);
-			remainingBytes -= bytesRead;
-		}
-	}
+    private void readWhilePossible(ChannelStateByteBuffer buffer) throws IOException {
+        while (haveMoreData() && buffer.isWritable()) {
+            if (remainingBytes <= 0) {
+                advanceOffset();
+            }
+            int bytesRead = serializer.readData(stream, buffer, remainingBytes);
+            remainingBytes -= bytesRead;
+        }
+    }
 
-	private boolean haveMoreData() {
-		return remainingBytes > 0 || !offsets.isEmpty();
-	}
+    private boolean haveMoreData() {
+        return remainingBytes > 0 || !offsets.isEmpty();
+    }
 
-	@SuppressWarnings("ConstantConditions")
-	private void advanceOffset() throws IOException {
-		stream.seek(offsets.poll());
-		remainingBytes = serializer.readLength(stream);
-	}
+    @SuppressWarnings("ConstantConditions")
+    private void advanceOffset() throws IOException {
+        stream.seek(offsets.poll());
+        remainingBytes = serializer.readLength(stream);
+    }
 
-	@Override
-	public void close() throws IOException {
-		if (!closed) {
-			closed = true;
-			stream.close();
-		}
-	}
+    @Override
+    public void close() throws IOException {
+        if (!closed) {
+            closed = true;
+            stream.close();
+        }
+    }
 }

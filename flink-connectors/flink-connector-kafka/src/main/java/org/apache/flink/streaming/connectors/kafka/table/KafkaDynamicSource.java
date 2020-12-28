@@ -32,64 +32,62 @@ import org.apache.flink.table.types.DataType;
 import java.util.Map;
 import java.util.Properties;
 
-/**
- * Kafka {@link org.apache.flink.table.connector.source.DynamicTableSource}.
- */
+/** Kafka {@link org.apache.flink.table.connector.source.DynamicTableSource}. */
 @Internal
 public class KafkaDynamicSource extends KafkaDynamicSourceBase {
 
-	/**
-	 * Creates a generic Kafka {@link StreamTableSource}.
-	 *
-	 * @param outputDataType         Source output data type
-	 * @param topic                  Kafka topic to consume
-	 * @param properties             Properties for the Kafka consumer
-	 * @param decodingFormat         Decoding format for decoding records from Kafka
-	 * @param startupMode            Startup mode for the contained consumer
-	 * @param specificStartupOffsets Specific startup offsets; only relevant when startup
-	 *                               mode is {@link StartupMode#SPECIFIC_OFFSETS}
-	 */
-	public KafkaDynamicSource(
-			DataType outputDataType,
-			String topic,
-			Properties properties,
-			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
-			StartupMode startupMode,
-			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestampMillis) {
+    /**
+     * Creates a generic Kafka {@link StreamTableSource}.
+     *
+     * @param outputDataType Source output data type
+     * @param topic Kafka topic to consume
+     * @param properties Properties for the Kafka consumer
+     * @param decodingFormat Decoding format for decoding records from Kafka
+     * @param startupMode Startup mode for the contained consumer
+     * @param specificStartupOffsets Specific startup offsets; only relevant when startup mode is
+     *     {@link StartupMode#SPECIFIC_OFFSETS}
+     */
+    public KafkaDynamicSource(
+            DataType outputDataType,
+            String topic,
+            Properties properties,
+            DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
+            StartupMode startupMode,
+            Map<KafkaTopicPartition, Long> specificStartupOffsets,
+            long startupTimestampMillis) {
 
-		super(
-			outputDataType,
-			topic,
-			properties,
-			decodingFormat,
-			startupMode,
-			specificStartupOffsets,
-			startupTimestampMillis);
-	}
+        super(
+                outputDataType,
+                topic,
+                properties,
+                decodingFormat,
+                startupMode,
+                specificStartupOffsets,
+                startupTimestampMillis);
+    }
 
-	@Override
-	protected FlinkKafkaConsumerBase<RowData> createKafkaConsumer(
-			String topic,
-			Properties properties,
-			DeserializationSchema<RowData> deserializationSchema) {
-		return new FlinkKafkaConsumer<>(topic, deserializationSchema, properties);
-	}
+    @Override
+    protected FlinkKafkaConsumerBase<RowData> createKafkaConsumer(
+            String topic,
+            Properties properties,
+            DeserializationSchema<RowData> deserializationSchema) {
+        return new FlinkKafkaConsumer<>(topic, deserializationSchema, properties);
+    }
 
-	@Override
-	public DynamicTableSource copy() {
-		return new KafkaDynamicSource(
-				this.outputDataType,
-				this.topic,
-				this.properties,
-				this.decodingFormat,
-				this.startupMode,
-				this.specificStartupOffsets,
-				this.startupTimestampMillis);
-	}
+    @Override
+    public DynamicTableSource copy() {
+        return new KafkaDynamicSource(
+                this.outputDataType,
+                this.topic,
+                this.properties,
+                this.decodingFormat,
+                this.startupMode,
+                this.specificStartupOffsets,
+                this.startupTimestampMillis);
+    }
 
-	@Override
-	public String asSummaryString() {
-		return "Kafka";
-	}
+    @Override
+    public String asSummaryString() {
+        return "Kafka";
+    }
 }

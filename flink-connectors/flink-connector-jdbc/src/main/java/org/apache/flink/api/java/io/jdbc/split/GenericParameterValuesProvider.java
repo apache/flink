@@ -24,20 +24,21 @@ import org.apache.flink.connector.jdbc.split.JdbcGenericParameterValuesProvider;
 import java.io.Serializable;
 
 /**
- * This splits generator actually does nothing but wrapping the query parameters
- * computed by the user before creating the {@link JDBCInputFormat} instance.
+ * This splits generator actually does nothing but wrapping the query parameters computed by the
+ * user before creating the {@link JDBCInputFormat} instance.
  *
  * @deprecated Please use {@link JdbcGenericParameterValuesProvider}.
  */
 @Deprecated
-public class GenericParameterValuesProvider extends JdbcGenericParameterValuesProvider implements ParameterValuesProvider {
+public class GenericParameterValuesProvider extends JdbcGenericParameterValuesProvider
+        implements ParameterValuesProvider {
 
-	public GenericParameterValuesProvider(Serializable[][] parameters) {
-		super(parameters);
-	}
+    public GenericParameterValuesProvider(Serializable[][] parameters) {
+        super(parameters);
+    }
 
-	@Override
-	public Serializable[][] getParameterValues() {
-		return super.getParameterValues();
-	}
+    @Override
+    public Serializable[][] getParameterValues() {
+        return super.getParameterValues();
+    }
 }

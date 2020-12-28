@@ -33,56 +33,59 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/**
- * Tests for the {@link DualKeyLinkedMap}.
- */
+/** Tests for the {@link DualKeyLinkedMap}. */
 public class DualKeyLinkedMapTest extends TestLogger {
 
-	@Test
-	public void testKeySets() {
-		final Random random = new Random();
-		final int capacity = 10;
-		final Set<Tuple2<Integer, Integer>> keys = new HashSet<>(capacity);
+    @Test
+    public void testKeySets() {
+        final Random random = new Random();
+        final int capacity = 10;
+        final Set<Tuple2<Integer, Integer>> keys = new HashSet<>(capacity);
 
-		for (int i = 0; i < capacity; i++) {
-			int keyA = random.nextInt();
-			int keyB = random.nextInt();
-			keys.add(Tuple2.of(keyA, keyB));
-		}
+        for (int i = 0; i < capacity; i++) {
+            int keyA = random.nextInt();
+            int keyB = random.nextInt();
+            keys.add(Tuple2.of(keyA, keyB));
+        }
 
-		final DualKeyLinkedMap<Integer, Integer, String> dualKeyMap = new DualKeyLinkedMap<>(capacity);
+        final DualKeyLinkedMap<Integer, Integer, String> dualKeyMap =
+                new DualKeyLinkedMap<>(capacity);
 
-		for (Tuple2<Integer, Integer> key : keys) {
-			dualKeyMap.put(key.f0, key.f1, "foobar");
-		}
+        for (Tuple2<Integer, Integer> key : keys) {
+            dualKeyMap.put(key.f0, key.f1, "foobar");
+        }
 
-		assertThat(dualKeyMap.keySetA(), Matchers.equalTo(keys.stream().map(t -> t.f0).collect(Collectors.toSet())));
-		assertThat(dualKeyMap.keySetB(), Matchers.equalTo(keys.stream().map(t -> t.f1).collect(Collectors.toSet())));
-	}
+        assertThat(
+                dualKeyMap.keySetA(),
+                Matchers.equalTo(keys.stream().map(t -> t.f0).collect(Collectors.toSet())));
+        assertThat(
+                dualKeyMap.keySetB(),
+                Matchers.equalTo(keys.stream().map(t -> t.f1).collect(Collectors.toSet())));
+    }
 
-	@Test
-	public void ensuresOneToOneMappingBetweenKeysSamePrimaryKey() {
-		final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+    @Test
+    public void ensuresOneToOneMappingBetweenKeysSamePrimaryKey() {
+        final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
 
-		final String secondValue = "barfoo";
-		map.put(1, 1, "foobar");
-		map.put(1, 2, secondValue);
+        final String secondValue = "barfoo";
+        map.put(1, 1, "foobar");
+        map.put(1, 2, secondValue);
 
-		assertThat(map.getKeyB(1), nullValue());
-		assertThat(map.getKeyA(1), is(secondValue));
-		assertThat(map.getKeyB(2), is(secondValue));
-	}
+        assertThat(map.getKeyB(1), nullValue());
+        assertThat(map.getKeyA(1), is(secondValue));
+        assertThat(map.getKeyB(2), is(secondValue));
+    }
 
-	@Test
-	public void ensuresOneToOneMappingBetweenKeysSameSecondaryKey() {
-		final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+    @Test
+    public void ensuresOneToOneMappingBetweenKeysSameSecondaryKey() {
+        final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
 
-		final String secondValue = "barfoo";
-		map.put(1, 1, "foobar");
-		map.put(2, 1, secondValue);
+        final String secondValue = "barfoo";
+        map.put(1, 1, "foobar");
+        map.put(2, 1, secondValue);
 
-		assertThat(map.getKeyA(1), nullValue());
-		assertThat(map.getKeyB(1), is(secondValue));
-		assertThat(map.getKeyA(2), is(secondValue));
-	}
+        assertThat(map.getKeyA(1), nullValue());
+        assertThat(map.getKeyB(1), is(secondValue));
+        assertThat(map.getKeyA(2), is(secondValue));
+    }
 }

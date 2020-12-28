@@ -35,61 +35,82 @@ import java.util.Map;
 import static org.apache.flink.table.runtime.utils.PythonTestUtils.createMockJobBundleFactory;
 
 /**
- * An Arrow Python ScalarFunction runner that just return the input elements as the execution results.
+ * An Arrow Python ScalarFunction runner that just return the input elements as the execution
+ * results.
  *
  * @param <IN> Type of the input elements.
  */
-public abstract class PassThroughArrowPythonScalarFunctionRunner<IN> extends AbstractArrowPythonScalarFunctionRunner<IN> {
+public abstract class PassThroughArrowPythonScalarFunctionRunner<IN>
+        extends AbstractArrowPythonScalarFunctionRunner<IN> {
 
-	private final JobBundleFactory jobBundleFactory;
-	private final List<byte[]> bufferedInputs;
+    private final JobBundleFactory jobBundleFactory;
+    private final List<byte[]> bufferedInputs;
 
-	public PassThroughArrowPythonScalarFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		int maxArrowBatchSize,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		this(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, maxArrowBatchSize, jobOptions, createMockJobBundleFactory(), flinkMetricContainer);
-	}
+    public PassThroughArrowPythonScalarFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonFunctionInfo[] scalarFunctions,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            int maxArrowBatchSize,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer) {
+        this(
+                taskName,
+                resultReceiver,
+                scalarFunctions,
+                environmentManager,
+                inputType,
+                outputType,
+                maxArrowBatchSize,
+                jobOptions,
+                createMockJobBundleFactory(),
+                flinkMetricContainer);
+    }
 
-	public PassThroughArrowPythonScalarFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		int maxArrowBatchSize,
-		Map<String, String> jobOptions,
-		JobBundleFactory jobBundleFactory,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, maxArrowBatchSize, jobOptions, flinkMetricContainer);
-		this.jobBundleFactory = jobBundleFactory;
-		this.bufferedInputs = new ArrayList<>();
-	}
+    public PassThroughArrowPythonScalarFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonFunctionInfo[] scalarFunctions,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            int maxArrowBatchSize,
+            Map<String, String> jobOptions,
+            JobBundleFactory jobBundleFactory,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                resultReceiver,
+                scalarFunctions,
+                environmentManager,
+                inputType,
+                outputType,
+                maxArrowBatchSize,
+                jobOptions,
+                flinkMetricContainer);
+        this.jobBundleFactory = jobBundleFactory;
+        this.bufferedInputs = new ArrayList<>();
+    }
 
-	@Override
-	public void startBundle() {
-		super.startBundle();
-		this.mainInputReceiver = input -> bufferedInputs.add(input.getValue());
-	}
+    @Override
+    public void startBundle() {
+        super.startBundle();
+        this.mainInputReceiver = input -> bufferedInputs.add(input.getValue());
+    }
 
-	@Override
-	public void finishBundle() throws Exception {
-		super.finishBundle();
-		for (byte[] input : bufferedInputs) {
-			resultReceiver.accept(input);
-		}
-		bufferedInputs.clear();
-	}
+    @Override
+    public void finishBundle() throws Exception {
+        super.finishBundle();
+        for (byte[] input : bufferedInputs) {
+            resultReceiver.accept(input);
+        }
+        bufferedInputs.clear();
+    }
 
-	@Override
-	public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
-		return jobBundleFactory;
-	}
+    @Override
+    public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
+        return jobBundleFactory;
+    }
 }

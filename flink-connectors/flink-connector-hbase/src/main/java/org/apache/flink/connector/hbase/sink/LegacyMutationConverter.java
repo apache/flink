@@ -25,31 +25,29 @@ import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hbase.client.Mutation;
 
-/**
- * Legacy implementation for {@link org.apache.flink.connector.hbase.source.HBaseTableSource}.
- */
+/** Legacy implementation for {@link org.apache.flink.connector.hbase.source.HBaseTableSource}. */
 public class LegacyMutationConverter implements HBaseMutationConverter<Tuple2<Boolean, Row>> {
-	private static final long serialVersionUID = 7358222494016900667L;
+    private static final long serialVersionUID = 7358222494016900667L;
 
-	private final HBaseTableSchema schema;
+    private final HBaseTableSchema schema;
 
-	private transient HBaseReadWriteHelper helper;
+    private transient HBaseReadWriteHelper helper;
 
-	public LegacyMutationConverter(HBaseTableSchema schema) {
-		this.schema = schema;
-	}
+    public LegacyMutationConverter(HBaseTableSchema schema) {
+        this.schema = schema;
+    }
 
-	@Override
-	public void open() {
-		this.helper = new HBaseReadWriteHelper(schema);
-	}
+    @Override
+    public void open() {
+        this.helper = new HBaseReadWriteHelper(schema);
+    }
 
-	@Override
-	public Mutation convertToMutation(Tuple2<Boolean, Row> record) {
-		if (record.f0) {
-			return helper.createPutMutation(record.f1);
-		} else {
-			return helper.createDeleteMutation(record.f1);
-		}
-	}
+    @Override
+    public Mutation convertToMutation(Tuple2<Boolean, Row> record) {
+        if (record.f0) {
+            return helper.createPutMutation(record.f1);
+        } else {
+            return helper.createDeleteMutation(record.f1);
+        }
+    }
 }

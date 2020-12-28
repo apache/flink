@@ -47,118 +47,125 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link DataTypeUtils}.
- */
+/** Tests for {@link DataTypeUtils}. */
 public class DataTypeUtilsTest {
 
-	@Test
-	public void testIsInternalClass() {
-		assertTrue(DataTypeUtils.isInternal(DataTypes.INT()));
-		assertTrue(DataTypeUtils.isInternal(DataTypes.INT().notNull().bridgedTo(int.class)));
-		assertTrue(DataTypeUtils.isInternal(DataTypes.ROW().bridgedTo(RowData.class)));
-		assertFalse(DataTypeUtils.isInternal(DataTypes.ROW()));
-	}
+    @Test
+    public void testIsInternalClass() {
+        assertTrue(DataTypeUtils.isInternal(DataTypes.INT()));
+        assertTrue(DataTypeUtils.isInternal(DataTypes.INT().notNull().bridgedTo(int.class)));
+        assertTrue(DataTypeUtils.isInternal(DataTypes.ROW().bridgedTo(RowData.class)));
+        assertFalse(DataTypeUtils.isInternal(DataTypes.ROW()));
+    }
 
-	@Test
-	public void testExpandRowType() {
-		DataType dataType = ROW(
-			FIELD("f0", INT()),
-			FIELD("f1", STRING()),
-			FIELD("f2", TIMESTAMP(5).bridgedTo(Timestamp.class)),
-			FIELD("f3", TIMESTAMP(3)));
-		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
+    @Test
+    public void testExpandRowType() {
+        DataType dataType =
+                ROW(
+                        FIELD("f0", INT()),
+                        FIELD("f1", STRING()),
+                        FIELD("f2", TIMESTAMP(5).bridgedTo(Timestamp.class)),
+                        FIELD("f3", TIMESTAMP(3)));
+        TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
 
-		assertThat(
-			schema,
-			equalTo(
-				TableSchema.builder()
-					.field("f0", INT())
-					.field("f1", STRING())
-					.field("f2", TIMESTAMP(5).bridgedTo(Timestamp.class))
-					.field("f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class))
-					.build()));
-	}
+        assertThat(
+                schema,
+                equalTo(
+                        TableSchema.builder()
+                                .field("f0", INT())
+                                .field("f1", STRING())
+                                .field("f2", TIMESTAMP(5).bridgedTo(Timestamp.class))
+                                .field("f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class))
+                                .build()));
+    }
 
-	@Test
-	public void testExpandLegacyCompositeType() {
-		DataType dataType = TypeConversions.fromLegacyInfoToDataType(new TupleTypeInfo<>(
-			Types.STRING,
-			Types.INT,
-			Types.SQL_TIMESTAMP));
-		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
+    @Test
+    public void testExpandLegacyCompositeType() {
+        DataType dataType =
+                TypeConversions.fromLegacyInfoToDataType(
+                        new TupleTypeInfo<>(Types.STRING, Types.INT, Types.SQL_TIMESTAMP));
+        TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
 
-		assertThat(
-			schema,
-			equalTo(
-				TableSchema.builder()
-					.field("f0", STRING())
-					.field("f1", INT())
-					.field("f2", TIMESTAMP(3).bridgedTo(Timestamp.class))
-					.build()));
-	}
+        assertThat(
+                schema,
+                equalTo(
+                        TableSchema.builder()
+                                .field("f0", STRING())
+                                .field("f1", INT())
+                                .field("f2", TIMESTAMP(3).bridgedTo(Timestamp.class))
+                                .build()));
+    }
 
-	@Test
-	public void testExpandStructuredType() {
-		StructuredType logicalType = StructuredType.newBuilder(ObjectIdentifier.of("catalog", "database", "type"))
-			.attributes(Arrays.asList(
-				new StructuredType.StructuredAttribute("f0", DataTypes.INT().getLogicalType()),
-				new StructuredType.StructuredAttribute("f1", DataTypes.STRING().getLogicalType()),
-				new StructuredType.StructuredAttribute("f2", DataTypes.TIMESTAMP(5).getLogicalType()),
-				new StructuredType.StructuredAttribute("f3", DataTypes.TIMESTAMP(3).getLogicalType())
-			))
-			.build();
+    @Test
+    public void testExpandStructuredType() {
+        StructuredType logicalType =
+                StructuredType.newBuilder(ObjectIdentifier.of("catalog", "database", "type"))
+                        .attributes(
+                                Arrays.asList(
+                                        new StructuredType.StructuredAttribute(
+                                                "f0", DataTypes.INT().getLogicalType()),
+                                        new StructuredType.StructuredAttribute(
+                                                "f1", DataTypes.STRING().getLogicalType()),
+                                        new StructuredType.StructuredAttribute(
+                                                "f2", DataTypes.TIMESTAMP(5).getLogicalType()),
+                                        new StructuredType.StructuredAttribute(
+                                                "f3", DataTypes.TIMESTAMP(3).getLogicalType())))
+                        .build();
 
-		List<DataType> dataTypes = Arrays.asList(
-			DataTypes.INT(),
-			DataTypes.STRING(),
-			DataTypes.TIMESTAMP(5).bridgedTo(Timestamp.class),
-			DataTypes.TIMESTAMP(3));
-		FieldsDataType dataType = new FieldsDataType(logicalType, dataTypes);
+        List<DataType> dataTypes =
+                Arrays.asList(
+                        DataTypes.INT(),
+                        DataTypes.STRING(),
+                        DataTypes.TIMESTAMP(5).bridgedTo(Timestamp.class),
+                        DataTypes.TIMESTAMP(3));
+        FieldsDataType dataType = new FieldsDataType(logicalType, dataTypes);
 
-		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
+        TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
 
-		assertThat(
-			schema,
-			equalTo(
-				TableSchema.builder()
-					.field("f0", INT())
-					.field("f1", STRING())
-					.field("f2", TIMESTAMP(5).bridgedTo(Timestamp.class))
-					.field("f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class))
-					.build()));
-	}
+        assertThat(
+                schema,
+                equalTo(
+                        TableSchema.builder()
+                                .field("f0", INT())
+                                .field("f1", STRING())
+                                .field("f2", TIMESTAMP(5).bridgedTo(Timestamp.class))
+                                .field("f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class))
+                                .build()));
+    }
 
-	@Test
-	public void testExpandDistinctType() {
-		FieldsDataType dataType = (FieldsDataType) ROW(
-			FIELD("f0", INT()),
-			FIELD("f1", STRING()),
-			FIELD("f2", TIMESTAMP(5).bridgedTo(Timestamp.class)),
-			FIELD("f3", TIMESTAMP(3)));
+    @Test
+    public void testExpandDistinctType() {
+        FieldsDataType dataType =
+                (FieldsDataType)
+                        ROW(
+                                FIELD("f0", INT()),
+                                FIELD("f1", STRING()),
+                                FIELD("f2", TIMESTAMP(5).bridgedTo(Timestamp.class)),
+                                FIELD("f3", TIMESTAMP(3)));
 
-		LogicalType originalLogicalType = dataType.getLogicalType();
-		DistinctType distinctLogicalType = DistinctType.newBuilder(
-			ObjectIdentifier.of("catalog", "database", "type"),
-			originalLogicalType)
-			.build();
-		DataType distinctDataType = new FieldsDataType(distinctLogicalType, dataType.getChildren());
+        LogicalType originalLogicalType = dataType.getLogicalType();
+        DistinctType distinctLogicalType =
+                DistinctType.newBuilder(
+                                ObjectIdentifier.of("catalog", "database", "type"),
+                                originalLogicalType)
+                        .build();
+        DataType distinctDataType = new FieldsDataType(distinctLogicalType, dataType.getChildren());
 
-		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(distinctDataType);
+        TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(distinctDataType);
 
-		assertThat(
-			schema,
-			equalTo(
-				TableSchema.builder()
-					.field("f0", INT())
-					.field("f1", STRING())
-					.field("f2", TIMESTAMP(5).bridgedTo(Timestamp.class))
-					.field("f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class))
-					.build()));
-	}
+        assertThat(
+                schema,
+                equalTo(
+                        TableSchema.builder()
+                                .field("f0", INT())
+                                .field("f1", STRING())
+                                .field("f2", TIMESTAMP(5).bridgedTo(Timestamp.class))
+                                .field("f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class))
+                                .build()));
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testExpandThrowExceptionOnAtomicType() {
-		DataTypeUtils.expandCompositeTypeToSchema(DataTypes.TIMESTAMP());
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testExpandThrowExceptionOnAtomicType() {
+        DataTypeUtils.expandCompositeTypeToSchema(DataTypes.TIMESTAMP());
+    }
 }

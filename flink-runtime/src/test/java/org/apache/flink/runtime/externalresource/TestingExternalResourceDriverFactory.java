@@ -22,13 +22,11 @@ import org.apache.flink.api.common.externalresource.ExternalResourceDriver;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory;
 import org.apache.flink.configuration.Configuration;
 
-/**
- * Implementation of {@link ExternalResourceDriverFactory} for testing purpose.
- */
+/** Implementation of {@link ExternalResourceDriverFactory} for testing purpose. */
 public class TestingExternalResourceDriverFactory implements ExternalResourceDriverFactory {
 
-	@Override
-	public ExternalResourceDriver createExternalResourceDriver(Configuration config) {
-		return new TestingExternalResourceDriver();
-	}
+    @Override
+    public ExternalResourceDriver createExternalResourceDriver(Configuration config) {
+        return new TestingExternalResourceDriver();
+    }
 }

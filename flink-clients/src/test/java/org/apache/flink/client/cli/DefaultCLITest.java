@@ -40,75 +40,76 @@ import java.net.URL;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link DefaultCLI}.
- */
+/** Tests for the {@link DefaultCLI}. */
 public class DefaultCLITest extends CliFrontendTestBase {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	/**
-	 * Tests that the configuration is properly passed via the DefaultCLI to the
-	 * created ClusterDescriptor.
-	 */
-	@Test
-	public void testConfigurationPassing() throws Exception {
-		final Configuration configuration = getConfiguration();
+    /**
+     * Tests that the configuration is properly passed via the DefaultCLI to the created
+     * ClusterDescriptor.
+     */
+    @Test
+    public void testConfigurationPassing() throws Exception {
+        final Configuration configuration = getConfiguration();
 
-		final String localhost = "localhost";
-		final int port = 1234;
+        final String localhost = "localhost";
+        final int port = 1234;
 
-		configuration.setString(RestOptions.ADDRESS, localhost);
-		configuration.setInteger(RestOptions.PORT, port);
+        configuration.setString(RestOptions.ADDRESS, localhost);
+        configuration.setInteger(RestOptions.PORT, port);
 
-		final AbstractCustomCommandLine defaultCLI = getCli(configuration);
+        final AbstractCustomCommandLine defaultCLI = getCli(configuration);
 
-		final String[] args = {};
+        final String[] args = {};
 
-		final CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
-		final ClusterClient<?> clusterClient = getClusterClient(defaultCLI, commandLine);
+        final CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+        final ClusterClient<?> clusterClient = getClusterClient(defaultCLI, commandLine);
 
-		final URL webInterfaceUrl = new URL(clusterClient.getWebInterfaceURL());
+        final URL webInterfaceUrl = new URL(clusterClient.getWebInterfaceURL());
 
-		assertThat(webInterfaceUrl.getHost(), Matchers.equalTo(localhost));
-		assertThat(webInterfaceUrl.getPort(), Matchers.equalTo(port));
-	}
+        assertThat(webInterfaceUrl.getHost(), Matchers.equalTo(localhost));
+        assertThat(webInterfaceUrl.getPort(), Matchers.equalTo(port));
+    }
 
-	/**
-	 * Tests that command line options override the configuration settings.
-	 */
-	@Test
-	public void testManualConfigurationOverride() throws Exception {
-		final String localhost = "localhost";
-		final int port = 1234;
-		final Configuration configuration = getConfiguration();
+    /** Tests that command line options override the configuration settings. */
+    @Test
+    public void testManualConfigurationOverride() throws Exception {
+        final String localhost = "localhost";
+        final int port = 1234;
+        final Configuration configuration = getConfiguration();
 
-		configuration.setString(JobManagerOptions.ADDRESS, localhost);
-		configuration.setInteger(JobManagerOptions.PORT, port);
+        configuration.setString(JobManagerOptions.ADDRESS, localhost);
+        configuration.setInteger(JobManagerOptions.PORT, port);
 
-		final AbstractCustomCommandLine defaultCLI = getCli(configuration);
+        final AbstractCustomCommandLine defaultCLI = getCli(configuration);
 
-		final String manualHostname = "123.123.123.123";
-		final int manualPort = 4321;
-		final String[] args = {"-m", manualHostname + ':' + manualPort};
+        final String manualHostname = "123.123.123.123";
+        final int manualPort = 4321;
+        final String[] args = {"-m", manualHostname + ':' + manualPort};
 
-		final CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
-		final ClusterClient<?> clusterClient = getClusterClient(defaultCLI, commandLine);
+        final CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+        final ClusterClient<?> clusterClient = getClusterClient(defaultCLI, commandLine);
 
-		final URL webInterfaceUrl = new URL(clusterClient.getWebInterfaceURL());
+        final URL webInterfaceUrl = new URL(clusterClient.getWebInterfaceURL());
 
-		assertThat(webInterfaceUrl.getHost(), Matchers.equalTo(manualHostname));
-		assertThat(webInterfaceUrl.getPort(), Matchers.equalTo(manualPort));
-	}
+        assertThat(webInterfaceUrl.getHost(), Matchers.equalTo(manualHostname));
+        assertThat(webInterfaceUrl.getPort(), Matchers.equalTo(manualPort));
+    }
 
-	private ClusterClient<?> getClusterClient(AbstractCustomCommandLine defaultCLI, CommandLine commandLine) throws FlinkException {
-		final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
-		final Configuration executorConfig = defaultCLI.applyCommandLineOptionsToConfiguration(commandLine);
-		final ClusterClientFactory<StandaloneClusterId> clusterFactory = serviceLoader.getClusterClientFactory(executorConfig);
-		checkState(clusterFactory != null);
+    private ClusterClient<?> getClusterClient(
+            AbstractCustomCommandLine defaultCLI, CommandLine commandLine) throws FlinkException {
+        final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
+        final Configuration executorConfig =
+                defaultCLI.applyCommandLineOptionsToConfiguration(commandLine);
+        final ClusterClientFactory<StandaloneClusterId> clusterFactory =
+                serviceLoader.getClusterClientFactory(executorConfig);
+        checkState(clusterFactory != null);
 
-		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor = clusterFactory.createClusterDescriptor(executorConfig);
-		return clusterDescriptor.retrieve(clusterFactory.getClusterId(executorConfig)).getClusterClient();
-	}
+        final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
+                clusterFactory.createClusterDescriptor(executorConfig);
+        return clusterDescriptor
+                .retrieve(clusterFactory.getClusterId(executorConfig))
+                .getClusterClient();
+    }
 }

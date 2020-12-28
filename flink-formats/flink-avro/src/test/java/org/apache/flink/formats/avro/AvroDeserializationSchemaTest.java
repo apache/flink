@@ -30,33 +30,30 @@ import java.util.Random;
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link AvroDeserializationSchema}.
- */
+/** Tests for {@link AvroDeserializationSchema}. */
 public class AvroDeserializationSchemaTest {
 
-	private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
+    private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
 
-	@Test
-	public void testGenericRecord() throws Exception {
-		DeserializationSchema<GenericRecord> deserializationSchema =
-			AvroDeserializationSchema.forGeneric(
-				address.getSchema()
-			);
+    @Test
+    public void testGenericRecord() throws Exception {
+        DeserializationSchema<GenericRecord> deserializationSchema =
+                AvroDeserializationSchema.forGeneric(address.getSchema());
 
-		byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
-		GenericRecord genericRecord = deserializationSchema.deserialize(encodedAddress);
-		assertEquals(address.getCity(), genericRecord.get("city").toString());
-		assertEquals(address.getNum(), genericRecord.get("num"));
-		assertEquals(address.getState(), genericRecord.get("state").toString());
-	}
+        byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
+        GenericRecord genericRecord = deserializationSchema.deserialize(encodedAddress);
+        assertEquals(address.getCity(), genericRecord.get("city").toString());
+        assertEquals(address.getNum(), genericRecord.get("num"));
+        assertEquals(address.getState(), genericRecord.get("state").toString());
+    }
 
-	@Test
-	public void testSpecificRecord() throws Exception {
-		DeserializationSchema<Address> deserializer = AvroDeserializationSchema.forSpecific(Address.class);
+    @Test
+    public void testSpecificRecord() throws Exception {
+        DeserializationSchema<Address> deserializer =
+                AvroDeserializationSchema.forSpecific(Address.class);
 
-		byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
-		Address deserializedAddress = deserializer.deserialize(encodedAddress);
-		assertEquals(address, deserializedAddress);
-	}
+        byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
+        Address deserializedAddress = deserializer.deserialize(encodedAddress);
+        assertEquals(address, deserializedAddress);
+    }
 }

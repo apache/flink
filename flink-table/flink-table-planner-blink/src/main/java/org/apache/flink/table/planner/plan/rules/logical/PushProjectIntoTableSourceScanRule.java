@@ -38,82 +38,93 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Planner rule that pushes a {@link LogicalProject} into a {@link LogicalTableScan}
- * which wraps a {@link SupportsProjectionPushDown} dynamic table source.
+ * Planner rule that pushes a {@link LogicalProject} into a {@link LogicalTableScan} which wraps a
+ * {@link SupportsProjectionPushDown} dynamic table source.
  *
- * <p>NOTES: This rule does not support nested fields push down now,
- * instead it will push the top-level column down just like non-nested fields.
+ * <p>NOTES: This rule does not support nested fields push down now, instead it will push the
+ * top-level column down just like non-nested fields.
  */
 public class PushProjectIntoTableSourceScanRule extends RelOptRule {
-	public static final PushProjectIntoTableSourceScanRule INSTANCE = new PushProjectIntoTableSourceScanRule();
+    public static final PushProjectIntoTableSourceScanRule INSTANCE =
+            new PushProjectIntoTableSourceScanRule();
 
-	public PushProjectIntoTableSourceScanRule() {
-		super(operand(LogicalProject.class,
-				operand(LogicalTableScan.class, none())),
-				"PushProjectIntoTableSourceScanRule");
-	}
+    public PushProjectIntoTableSourceScanRule() {
+        super(
+                operand(LogicalProject.class, operand(LogicalTableScan.class, none())),
+                "PushProjectIntoTableSourceScanRule");
+    }
 
-	@Override
-	public boolean matches(RelOptRuleCall call) {
-		LogicalTableScan scan = call.rel(1);
-		TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-		if (tableSourceTable == null || !(tableSourceTable.tableSource() instanceof SupportsProjectionPushDown)) {
-			return false;
-		}
-		SupportsProjectionPushDown pushDownSource = (SupportsProjectionPushDown) tableSourceTable.tableSource();
-		if (pushDownSource.supportsNestedProjection()) {
-			throw new TableException("Nested projection push down is unsupported now. \n" +
-					"Please disable nested projection (SupportsProjectionPushDown#supportsNestedProjection returns false), " +
-					"planner will push down the top-level columns.");
-		} else {
-			return true;
-		}
-	}
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        LogicalTableScan scan = call.rel(1);
+        TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
+        if (tableSourceTable == null
+                || !(tableSourceTable.tableSource() instanceof SupportsProjectionPushDown)) {
+            return false;
+        }
+        SupportsProjectionPushDown pushDownSource =
+                (SupportsProjectionPushDown) tableSourceTable.tableSource();
+        if (pushDownSource.supportsNestedProjection()) {
+            throw new TableException(
+                    "Nested projection push down is unsupported now. \n"
+                            + "Please disable nested projection (SupportsProjectionPushDown#supportsNestedProjection returns false), "
+                            + "planner will push down the top-level columns.");
+        } else {
+            return true;
+        }
+    }
 
-	@Override
-	public void onMatch(RelOptRuleCall call) {
-		LogicalProject project = call.rel(0);
-		LogicalTableScan scan = call.rel(1);
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+        LogicalProject project = call.rel(0);
+        LogicalTableScan scan = call.rel(1);
 
-		int[] usedFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
-		// if no fields can be projected, we keep the original plan.
-		if (scan.getRowType().getFieldCount() == usedFields.length) {
-			return;
-		}
+        int[] usedFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
+        // if no fields can be projected, we keep the original plan.
+        if (scan.getRowType().getFieldCount() == usedFields.length) {
+            return;
+        }
 
-		TableSourceTable oldTableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-		DynamicTableSource newTableSource = oldTableSourceTable.tableSource().copy();
+        TableSourceTable oldTableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
+        DynamicTableSource newTableSource = oldTableSourceTable.tableSource().copy();
 
-		int[][] projectedFields = new int[usedFields.length][];
-		List<String> fieldNames = new ArrayList<>();
-		for (int i = 0; i < usedFields.length; ++i) {
-			int usedField = usedFields[i];
-			projectedFields[i] = new int[] { usedField };
-			fieldNames.add(scan.getRowType().getFieldNames().get(usedField));
-		}
-		((SupportsProjectionPushDown) newTableSource).applyProjection(projectedFields);
-		FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) oldTableSourceTable.getRelOptSchema().getTypeFactory();
-		RelDataType newRowType = flinkTypeFactory.projectStructType(oldTableSourceTable.getRowType(), usedFields);
+        int[][] projectedFields = new int[usedFields.length][];
+        List<String> fieldNames = new ArrayList<>();
+        for (int i = 0; i < usedFields.length; ++i) {
+            int usedField = usedFields[i];
+            projectedFields[i] = new int[] {usedField};
+            fieldNames.add(scan.getRowType().getFieldNames().get(usedField));
+        }
+        ((SupportsProjectionPushDown) newTableSource).applyProjection(projectedFields);
+        FlinkTypeFactory flinkTypeFactory =
+                (FlinkTypeFactory) oldTableSourceTable.getRelOptSchema().getTypeFactory();
+        RelDataType newRowType =
+                flinkTypeFactory.projectStructType(oldTableSourceTable.getRowType(), usedFields);
 
-		// project push down does not change the statistic, we can reuse origin statistic
-		TableSourceTable newTableSourceTable = oldTableSourceTable.copy(
-				newTableSource, newRowType, new String[] { ("project=[" + String.join(", ", fieldNames) + "]") });
+        // project push down does not change the statistic, we can reuse origin statistic
+        TableSourceTable newTableSourceTable =
+                oldTableSourceTable.copy(
+                        newTableSource,
+                        newRowType,
+                        new String[] {("project=[" + String.join(", ", fieldNames) + "]")});
 
-		LogicalTableScan newScan = new LogicalTableScan(
-				scan.getCluster(), scan.getTraitSet(), scan.getHints(), newTableSourceTable);
-		// rewrite input field in projections
-		List<RexNode> newProjects = RexNodeRewriter.rewriteWithNewFieldInput(project.getProjects(), usedFields);
-		LogicalProject newProject = project.copy(
-				project.getTraitSet(),
-				newScan,
-				newProjects,
-				project.getRowType());
+        LogicalTableScan newScan =
+                new LogicalTableScan(
+                        scan.getCluster(),
+                        scan.getTraitSet(),
+                        scan.getHints(),
+                        newTableSourceTable);
+        // rewrite input field in projections
+        List<RexNode> newProjects =
+                RexNodeRewriter.rewriteWithNewFieldInput(project.getProjects(), usedFields);
+        LogicalProject newProject =
+                project.copy(project.getTraitSet(), newScan, newProjects, project.getRowType());
 
-		if (ProjectRemoveRule.isTrivial(newProject)) {
-			// drop project if the transformed program merely returns its input
-			call.transformTo(newScan);
-		} else {
-			call.transformTo(newProject);
-		}
-	}
+        if (ProjectRemoveRule.isTrivial(newProject)) {
+            // drop project if the transformed program merely returns its input
+            call.transformTo(newScan);
+        } else {
+            call.transformTo(newProject);
+        }
+    }
 }

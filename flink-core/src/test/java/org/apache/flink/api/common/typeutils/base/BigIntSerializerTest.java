@@ -18,38 +18,42 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.math.BigInteger;
-import java.util.Random;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * A test for the {@link BigIntSerializer}.
- */
+import java.math.BigInteger;
+import java.util.Random;
+
+/** A test for the {@link BigIntSerializer}. */
 public class BigIntSerializerTest extends SerializerTestBase<BigInteger> {
 
-	@Override
-	protected TypeSerializer<BigInteger> createSerializer() {
-		return new BigIntSerializer();
-	}
+    @Override
+    protected TypeSerializer<BigInteger> createSerializer() {
+        return new BigIntSerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<BigInteger> getTypeClass() {
-		return BigInteger.class;
-	}
+    @Override
+    protected Class<BigInteger> getTypeClass() {
+        return BigInteger.class;
+    }
 
-	@Override
-	protected BigInteger[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
+    @Override
+    protected BigInteger[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
 
-		return new BigInteger[] {
-			BigInteger.ZERO, BigInteger.ONE, BigInteger.TEN,
-			new BigInteger(1000, rnd), new BigInteger("8745979691234123413478523984729447"),
-			BigInteger.valueOf(-1), BigInteger.valueOf(-10000)};
-	}
+        return new BigInteger[] {
+            BigInteger.ZERO,
+            BigInteger.ONE,
+            BigInteger.TEN,
+            new BigInteger(1000, rnd),
+            new BigInteger("8745979691234123413478523984729447"),
+            BigInteger.valueOf(-1),
+            BigInteger.valueOf(-10000)
+        };
+    }
 }

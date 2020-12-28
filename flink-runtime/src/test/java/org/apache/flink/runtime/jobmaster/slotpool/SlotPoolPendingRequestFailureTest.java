@@ -52,134 +52,151 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the failing of pending slot requests at the {@link SlotPool}.
- */
+/** Tests for the failing of pending slot requests at the {@link SlotPool}. */
 public class SlotPoolPendingRequestFailureTest extends TestLogger {
 
-	private static final JobID jobId = new JobID();
+    private static final JobID jobId = new JobID();
 
-	private static final ComponentMainThreadExecutor mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
-	public static final Time TIMEOUT = Time.seconds(10L);
+    private static final ComponentMainThreadExecutor mainThreadExecutor =
+            ComponentMainThreadExecutorServiceAdapter.forMainThread();
+    public static final Time TIMEOUT = Time.seconds(10L);
 
-	private TestingResourceManagerGateway resourceManagerGateway;
+    private TestingResourceManagerGateway resourceManagerGateway;
 
-	@Before
-	public void setup() {
-		resourceManagerGateway = new TestingResourceManagerGateway();
-	}
+    @Before
+    public void setup() {
+        resourceManagerGateway = new TestingResourceManagerGateway();
+    }
 
-	/**
-	 * Tests that failing an allocation fails the pending slot request.
-	 */
-	@Test
-	public void testFailingAllocationFailsPendingSlotRequests() throws Exception {
-		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
-		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
+    /** Tests that failing an allocation fails the pending slot request. */
+    @Test
+    public void testFailingAllocationFailsPendingSlotRequests() throws Exception {
+        final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+        resourceManagerGateway.setRequestSlotConsumer(
+                slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
-		try (SlotPoolImpl slotPool = setUpSlotPool()) {
+        try (SlotPoolImpl slotPool = setUpSlotPool()) {
 
-			final CompletableFuture<PhysicalSlot> slotFuture = requestNewAllocatedSlot(slotPool, new SlotRequestId());
+            final CompletableFuture<PhysicalSlot> slotFuture =
+                    requestNewAllocatedSlot(slotPool, new SlotRequestId());
 
-			final AllocationID allocationId = allocationIdFuture.get();
+            final AllocationID allocationId = allocationIdFuture.get();
 
-			assertThat(slotFuture.isDone(), is(false));
+            assertThat(slotFuture.isDone(), is(false));
 
-			final FlinkException cause = new FlinkException("Fail pending slot request failure.");
-			final Optional<ResourceID> responseFuture = slotPool.failAllocation(allocationId, cause);
+            final FlinkException cause = new FlinkException("Fail pending slot request failure.");
+            final Optional<ResourceID> responseFuture =
+                    slotPool.failAllocation(allocationId, cause);
 
-			assertThat(responseFuture.isPresent(), is(false));
+            assertThat(responseFuture.isPresent(), is(false));
 
-			try {
-				slotFuture.get();
-				fail("Expected a slot allocation failure.");
-			} catch (ExecutionException ee) {
-				assertThat(ExceptionUtils.stripExecutionException(ee), equalTo(cause));
-			}
-		}
-	}
+            try {
+                slotFuture.get();
+                fail("Expected a slot allocation failure.");
+            } catch (ExecutionException ee) {
+                assertThat(ExceptionUtils.stripExecutionException(ee), equalTo(cause));
+            }
+        }
+    }
 
-	/**
-	 * Tests that a failing resource manager request fails a pending slot request and cancels the slot
-	 * request at the RM (e.g. due to a TimeoutException).
-	 *
-	 * <p>See FLINK-7870
-	 */
-	@Test
-	public void testFailingResourceManagerRequestFailsPendingSlotRequestAndCancelsRMRequest() throws Exception {
+    /**
+     * Tests that a failing resource manager request fails a pending slot request and cancels the
+     * slot request at the RM (e.g. due to a TimeoutException).
+     *
+     * <p>See FLINK-7870
+     */
+    @Test
+    public void testFailingResourceManagerRequestFailsPendingSlotRequestAndCancelsRMRequest()
+            throws Exception {
 
-		try (SlotPoolImpl slotPool = setUpSlotPool()) {
-			final CompletableFuture<Acknowledge> requestSlotFuture = new CompletableFuture<>();
-			final CompletableFuture<AllocationID> cancelSlotFuture = new CompletableFuture<>();
-			final CompletableFuture<AllocationID> requestSlotFutureAllocationId = new CompletableFuture<>();
-			resourceManagerGateway.setRequestSlotFuture(requestSlotFuture);
-			resourceManagerGateway.setRequestSlotConsumer(slotRequest -> requestSlotFutureAllocationId.complete(slotRequest.getAllocationId()));
-			resourceManagerGateway.setCancelSlotConsumer(cancelSlotFuture::complete);
+        try (SlotPoolImpl slotPool = setUpSlotPool()) {
+            final CompletableFuture<Acknowledge> requestSlotFuture = new CompletableFuture<>();
+            final CompletableFuture<AllocationID> cancelSlotFuture = new CompletableFuture<>();
+            final CompletableFuture<AllocationID> requestSlotFutureAllocationId =
+                    new CompletableFuture<>();
+            resourceManagerGateway.setRequestSlotFuture(requestSlotFuture);
+            resourceManagerGateway.setRequestSlotConsumer(
+                    slotRequest ->
+                            requestSlotFutureAllocationId.complete(slotRequest.getAllocationId()));
+            resourceManagerGateway.setCancelSlotConsumer(cancelSlotFuture::complete);
 
-			final CompletableFuture<PhysicalSlot> slotFuture = requestNewAllocatedSlot(slotPool, new SlotRequestId());
+            final CompletableFuture<PhysicalSlot> slotFuture =
+                    requestNewAllocatedSlot(slotPool, new SlotRequestId());
 
-			requestSlotFuture.completeExceptionally(new FlinkException("Testing exception."));
+            requestSlotFuture.completeExceptionally(new FlinkException("Testing exception."));
 
-			try {
-				slotFuture.get();
-				fail("The slot future should not have been completed properly.");
-			} catch (Exception ignored) {
-				// expected
-			}
+            try {
+                slotFuture.get();
+                fail("The slot future should not have been completed properly.");
+            } catch (Exception ignored) {
+                // expected
+            }
 
-			// check that a failure triggered the slot request cancellation
-			// with the correct allocation id
-			assertEquals(requestSlotFutureAllocationId.get(), cancelSlotFuture.get());
-		}
-	}
+            // check that a failure triggered the slot request cancellation
+            // with the correct allocation id
+            assertEquals(requestSlotFutureAllocationId.get(), cancelSlotFuture.get());
+        }
+    }
 
-	/**
-	 * Tests that a pending slot request is failed with a timeout.
-	 */
-	@Test
-	public void testPendingSlotRequestTimeout() throws Exception {
-		final ScheduledExecutorService singleThreadExecutor = Executors.newSingleThreadScheduledExecutor();
-		final ComponentMainThreadExecutor componentMainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(singleThreadExecutor);
+    /** Tests that a pending slot request is failed with a timeout. */
+    @Test
+    public void testPendingSlotRequestTimeout() throws Exception {
+        final ScheduledExecutorService singleThreadExecutor =
+                Executors.newSingleThreadScheduledExecutor();
+        final ComponentMainThreadExecutor componentMainThreadExecutor =
+                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                        singleThreadExecutor);
 
-		final SlotPoolImpl slotPool = setUpSlotPool(componentMainThreadExecutor);
+        final SlotPoolImpl slotPool = setUpSlotPool(componentMainThreadExecutor);
 
-		try {
-			final Time timeout = Time.milliseconds(5L);
+        try {
+            final Time timeout = Time.milliseconds(5L);
 
-			final CompletableFuture<PhysicalSlot> slotFuture = CompletableFuture
-				.supplyAsync(() -> requestNewAllocatedSlot(slotPool, new SlotRequestId(), timeout), componentMainThreadExecutor)
-				.thenCompose(Function.identity());
+            final CompletableFuture<PhysicalSlot> slotFuture =
+                    CompletableFuture.supplyAsync(
+                                    () ->
+                                            requestNewAllocatedSlot(
+                                                    slotPool, new SlotRequestId(), timeout),
+                                    componentMainThreadExecutor)
+                            .thenCompose(Function.identity());
 
-			try {
-				slotFuture.get();
-				fail("Expected that the future completes with a TimeoutException.");
-			} catch (ExecutionException ee) {
-				assertThat(ExceptionUtils.stripExecutionException(ee), instanceOf(TimeoutException.class));
-			}
-		} finally {
-			CompletableFuture.runAsync(ThrowingRunnable.unchecked(slotPool::close), componentMainThreadExecutor).get();
-			singleThreadExecutor.shutdownNow();
-		}
-	}
+            try {
+                slotFuture.get();
+                fail("Expected that the future completes with a TimeoutException.");
+            } catch (ExecutionException ee) {
+                assertThat(
+                        ExceptionUtils.stripExecutionException(ee),
+                        instanceOf(TimeoutException.class));
+            }
+        } finally {
+            CompletableFuture.runAsync(
+                            ThrowingRunnable.unchecked(slotPool::close),
+                            componentMainThreadExecutor)
+                    .get();
+            singleThreadExecutor.shutdownNow();
+        }
+    }
 
-	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(SlotPoolImpl slotPool, SlotRequestId slotRequestId) {
-		return requestNewAllocatedSlot(slotPool, slotRequestId, TIMEOUT);
-	}
+    private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
+            SlotPoolImpl slotPool, SlotRequestId slotRequestId) {
+        return requestNewAllocatedSlot(slotPool, slotRequestId, TIMEOUT);
+    }
 
-	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(SlotPoolImpl slotPool, SlotRequestId slotRequestId, Time timeout) {
-		return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
-	}
+    private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
+            SlotPoolImpl slotPool, SlotRequestId slotRequestId, Time timeout) {
+        return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
+    }
 
-	private SlotPoolImpl setUpSlotPool() throws Exception {
-		return setUpSlotPool(mainThreadExecutor);
-	}
+    private SlotPoolImpl setUpSlotPool() throws Exception {
+        return setUpSlotPool(mainThreadExecutor);
+    }
 
-	private SlotPoolImpl setUpSlotPool(ComponentMainThreadExecutor componentMainThreadExecutor) throws Exception {
-		final SlotPoolImpl slotPool = new TestingSlotPoolImpl(jobId);
-		slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
-		slotPool.connectToResourceManager(resourceManagerGateway);
+    private SlotPoolImpl setUpSlotPool(ComponentMainThreadExecutor componentMainThreadExecutor)
+            throws Exception {
+        final SlotPoolImpl slotPool = new TestingSlotPoolImpl(jobId);
+        slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
+        slotPool.connectToResourceManager(resourceManagerGateway);
 
-		return slotPool;
-	}
-
+        return slotPool;
+    }
 }

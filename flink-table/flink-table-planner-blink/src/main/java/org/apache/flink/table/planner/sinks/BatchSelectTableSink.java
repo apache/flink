@@ -25,18 +25,15 @@ import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.types.Row;
 
-
-/**
- * A {@link SelectTableSink} for batch select job.
- */
+/** A {@link SelectTableSink} for batch select job. */
 public class BatchSelectTableSink extends SelectTableSinkBase implements StreamTableSink<Row> {
 
-	public BatchSelectTableSink(TableSchema tableSchema) {
-		super(tableSchema);
-	}
+    public BatchSelectTableSink(TableSchema tableSchema) {
+        super(tableSchema);
+    }
 
-	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-		return super.consumeDataStream(dataStream);
-	}
+    @Override
+    public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
+        return super.consumeDataStream(dataStream);
+    }
 }

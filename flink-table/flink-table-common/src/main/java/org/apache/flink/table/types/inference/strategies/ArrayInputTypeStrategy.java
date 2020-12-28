@@ -36,40 +36,41 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@link InputTypeStrategy} specific for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#ARRAY}.
+ * {@link InputTypeStrategy} specific for {@link
+ * org.apache.flink.table.functions.BuiltInFunctionDefinitions#ARRAY}.
  *
  * <p>It expects at least one argument. All the arguments must have a common super type.
  */
 @Internal
 public class ArrayInputTypeStrategy implements InputTypeStrategy {
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.from(1);
-	}
+    @Override
+    public ArgumentCount getArgumentCount() {
+        return ConstantArgumentCount.from(1);
+    }
 
-	@Override
-	public Optional<List<DataType>> inferInputTypes(
-		CallContext callContext,
-		boolean throwOnFailure) {
-		List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-		if (argumentDataTypes.size() == 0) {
-			return Optional.empty();
-		}
+    @Override
+    public Optional<List<DataType>> inferInputTypes(
+            CallContext callContext, boolean throwOnFailure) {
+        List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+        if (argumentDataTypes.size() == 0) {
+            return Optional.empty();
+        }
 
-		Optional<LogicalType> commonType = LogicalTypeGeneralization.findCommonType(
-			argumentDataTypes
-				.stream()
-				.map(DataType::getLogicalType)
-				.collect(Collectors.toList())
-		);
+        Optional<LogicalType> commonType =
+                LogicalTypeGeneralization.findCommonType(
+                        argumentDataTypes.stream()
+                                .map(DataType::getLogicalType)
+                                .collect(Collectors.toList()));
 
-		return commonType.map(type -> Collections.nCopies(
-			argumentDataTypes.size(),
-			TypeConversions.fromLogicalToDataType(type)));
-	}
+        return commonType.map(
+                type ->
+                        Collections.nCopies(
+                                argumentDataTypes.size(),
+                                TypeConversions.fromLogicalToDataType(type)));
+    }
 
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Signature.Argument.of("*")));
-	}
+    @Override
+    public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+        return Collections.singletonList(Signature.of(Signature.Argument.of("*")));
+    }
 }

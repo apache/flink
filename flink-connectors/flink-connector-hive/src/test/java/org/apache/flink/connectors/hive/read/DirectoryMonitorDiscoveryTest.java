@@ -33,58 +33,76 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-/**
- * Test for {@link DirectoryMonitorDiscovery}.
- */
+/** Test for {@link DirectoryMonitorDiscovery}. */
 public class DirectoryMonitorDiscoveryTest {
 
-	private static FileStatus status(String time) {
-		return new FileStatus(0L, false, 0, 0L, Timestamp.valueOf(time).getTime(), 0L, null, null, null, new Path("/tmp/dummy"));
-	}
+    private static FileStatus status(String time) {
+        return new FileStatus(
+                0L,
+                false,
+                0,
+                0L,
+                Timestamp.valueOf(time).getTime(),
+                0L,
+                null,
+                null,
+                null,
+                new Path("/tmp/dummy"));
+    }
 
-	@Test
-	public void testUTC() {
-		long previousTimestamp = TimestampData.fromTimestamp(Timestamp.valueOf("2020-05-06 12:22:00")).getMillisecond();
-		FileStatus[] statuses = new FileStatus[] {
-				status("2020-05-06 12:20:00"),
-				status("2020-05-06 12:21:00"),
-				status("2020-05-06 12:22:00"),
-				status("2020-05-06 12:23:00"),
-				status("2020-05-06 12:24:00")};
-		List<Tuple2<List<String>, Long>> parts = DirectoryMonitorDiscovery.suitablePartitions(
-				new PartitionDiscovery.Context() {
+    @Test
+    public void testUTC() {
+        long previousTimestamp =
+                TimestampData.fromTimestamp(Timestamp.valueOf("2020-05-06 12:22:00"))
+                        .getMillisecond();
+        FileStatus[] statuses =
+                new FileStatus[] {
+                    status("2020-05-06 12:20:00"),
+                    status("2020-05-06 12:21:00"),
+                    status("2020-05-06 12:22:00"),
+                    status("2020-05-06 12:23:00"),
+                    status("2020-05-06 12:24:00")
+                };
+        List<Tuple2<List<String>, Long>> parts =
+                DirectoryMonitorDiscovery.suitablePartitions(
+                        new PartitionDiscovery.Context() {
 
-					@Override
-					public List<String> partitionKeys() {
-						return null;
-					}
+                            @Override
+                            public List<String> partitionKeys() {
+                                return null;
+                            }
 
-					@Override
-					public Optional<Partition> getPartition(List<String> partValues) {
-						return Optional.empty();
-					}
+                            @Override
+                            public Optional<Partition> getPartition(List<String> partValues) {
+                                return Optional.empty();
+                            }
 
-					@Override
-					public FileSystem fileSystem() {
-						return null;
-					}
+                            @Override
+                            public FileSystem fileSystem() {
+                                return null;
+                            }
 
-					@Override
-					public Path tableLocation() {
-						return null;
-					}
+                            @Override
+                            public Path tableLocation() {
+                                return null;
+                            }
 
-					@Override
-					public long extractTimestamp(List<String> partKeys, List<String> partValues,
-							Supplier<Long> fileTime) {
-						return fileTime.get();
-					}
-				},
-				previousTimestamp,
-				statuses);
-		Assert.assertEquals(3, parts.size());
-		Assert.assertEquals("2020-05-06T12:22", TimestampData.fromEpochMillis(parts.get(0).f1).toString());
-		Assert.assertEquals("2020-05-06T12:23", TimestampData.fromEpochMillis(parts.get(1).f1).toString());
-		Assert.assertEquals("2020-05-06T12:24", TimestampData.fromEpochMillis(parts.get(2).f1).toString());
-	}
+                            @Override
+                            public long extractTimestamp(
+                                    List<String> partKeys,
+                                    List<String> partValues,
+                                    Supplier<Long> fileTime) {
+                                return fileTime.get();
+                            }
+                        },
+                        previousTimestamp,
+                        statuses);
+        Assert.assertEquals(3, parts.size());
+        Assert.assertEquals(
+                "2020-05-06T12:22", TimestampData.fromEpochMillis(parts.get(0).f1).toString());
+        Assert.assertEquals(
+                "2020-05-06T12:23", TimestampData.fromEpochMillis(parts.get(1).f1).toString());
+        Assert.assertEquals(
+                "2020-05-06T12:24", TimestampData.fromEpochMillis(parts.get(2).f1).toString());
+    }
 }

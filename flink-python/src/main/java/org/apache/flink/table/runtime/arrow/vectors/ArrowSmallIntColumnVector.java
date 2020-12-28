@@ -24,25 +24,23 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.SmallIntVector;
 
-/**
- * Arrow column vector for Int.
- */
+/** Arrow column vector for Int. */
 @Internal
 public final class ArrowSmallIntColumnVector implements ShortColumnVector {
 
-	private final SmallIntVector smallIntVector;
+    private final SmallIntVector smallIntVector;
 
-	public ArrowSmallIntColumnVector(SmallIntVector smallIntVector) {
-		this.smallIntVector = Preconditions.checkNotNull(smallIntVector);
-	}
+    public ArrowSmallIntColumnVector(SmallIntVector smallIntVector) {
+        this.smallIntVector = Preconditions.checkNotNull(smallIntVector);
+    }
 
-	@Override
-	public short getShort(int i) {
-		return smallIntVector.get(i);
-	}
+    @Override
+    public short getShort(int i) {
+        return smallIntVector.get(i);
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return smallIntVector.isNull(i);
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return smallIntVector.isNull(i);
+    }
 }

@@ -40,73 +40,88 @@ import java.util.stream.IntStream;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-/**
- * Testing utility functions for the {@link SlotPool}.
- */
+/** Testing utility functions for the {@link SlotPool}. */
 public class SlotPoolUtils {
 
-	private SlotPoolUtils() {
-		throw new UnsupportedOperationException("Cannot instantiate this class.");
-	}
+    private SlotPoolUtils() {
+        throw new UnsupportedOperationException("Cannot instantiate this class.");
+    }
 
-	public static CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
-		SlotPool slotPool,
-		ComponentMainThreadExecutor mainThreadExecutor,
-		ResourceProfile resourceProfile) {
-		return CompletableFuture
-			.supplyAsync(() -> slotPool.requestNewAllocatedBatchSlot(new SlotRequestId(), resourceProfile), mainThreadExecutor)
-			.thenCompose(Function.identity());
-	}
+    public static CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
+            SlotPool slotPool,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            ResourceProfile resourceProfile) {
+        return CompletableFuture.supplyAsync(
+                        () ->
+                                slotPool.requestNewAllocatedBatchSlot(
+                                        new SlotRequestId(), resourceProfile),
+                        mainThreadExecutor)
+                .thenCompose(Function.identity());
+    }
 
-	public static ResourceID offerSlots(
-			SlotPoolImpl slotPool,
-			ComponentMainThreadExecutor mainThreadExecutor,
-			List<ResourceProfile> resourceProfiles) {
-		return offerSlots(
-			slotPool,
-			mainThreadExecutor,
-			resourceProfiles,
-			new SimpleAckingTaskManagerGateway());
-	}
+    public static ResourceID offerSlots(
+            SlotPoolImpl slotPool,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            List<ResourceProfile> resourceProfiles) {
+        return offerSlots(
+                slotPool,
+                mainThreadExecutor,
+                resourceProfiles,
+                new SimpleAckingTaskManagerGateway());
+    }
 
-	public static ResourceID offerSlots(
-			SlotPoolImpl slotPool,
-			ComponentMainThreadExecutor mainThreadExecutor,
-			List<ResourceProfile> resourceProfiles,
-			TaskManagerGateway taskManagerGateway) {
-		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-		CompletableFuture.runAsync(
-			() -> {
-				slotPool.registerTaskManager(taskManagerLocation.getResourceID());
+    public static ResourceID offerSlots(
+            SlotPoolImpl slotPool,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            List<ResourceProfile> resourceProfiles,
+            TaskManagerGateway taskManagerGateway) {
+        final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+        CompletableFuture.runAsync(
+                        () -> {
+                            slotPool.registerTaskManager(taskManagerLocation.getResourceID());
 
-				final Collection<SlotOffer> slotOffers = IntStream
-					.range(0, resourceProfiles.size())
-					.mapToObj(i -> new SlotOffer(new AllocationID(), i, resourceProfiles.get(i)))
-					.collect(Collectors.toList());
+                            final Collection<SlotOffer> slotOffers =
+                                    IntStream.range(0, resourceProfiles.size())
+                                            .mapToObj(
+                                                    i ->
+                                                            new SlotOffer(
+                                                                    new AllocationID(),
+                                                                    i,
+                                                                    resourceProfiles.get(i)))
+                                            .collect(Collectors.toList());
 
-				final Collection<SlotOffer> acceptedOffers = slotPool.offerSlots(
-					taskManagerLocation,
-					taskManagerGateway,
-					slotOffers);
+                            final Collection<SlotOffer> acceptedOffers =
+                                    slotPool.offerSlots(
+                                            taskManagerLocation, taskManagerGateway, slotOffers);
 
-				assertThat(acceptedOffers, is(slotOffers));
-			},
-			mainThreadExecutor
-		).join();
+                            assertThat(acceptedOffers, is(slotOffers));
+                        },
+                        mainThreadExecutor)
+                .join();
 
-		return taskManagerLocation.getResourceID();
-	}
+        return taskManagerLocation.getResourceID();
+    }
 
-	public static void failAllocation(SlotPoolImpl slotPool, ComponentMainThreadExecutor mainThreadExecutor, AllocationID allocationId, Exception exception) {
-		CompletableFuture.runAsync(
-			() -> slotPool.failAllocation(allocationId, exception),
-			mainThreadExecutor).join();
-	}
+    public static void failAllocation(
+            SlotPoolImpl slotPool,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            AllocationID allocationId,
+            Exception exception) {
+        CompletableFuture.runAsync(
+                        () -> slotPool.failAllocation(allocationId, exception), mainThreadExecutor)
+                .join();
+    }
 
-	public static void releaseTaskManager(SlotPoolImpl slotPool, ComponentMainThreadExecutor mainThreadExecutor, ResourceID taskManagerResourceId) {
-		CompletableFuture.runAsync(
-			() -> slotPool.releaseTaskManager(taskManagerResourceId, new FlinkException("Let's get rid of the offered slot.")),
-			mainThreadExecutor
-		).join();
-	}
+    public static void releaseTaskManager(
+            SlotPoolImpl slotPool,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            ResourceID taskManagerResourceId) {
+        CompletableFuture.runAsync(
+                        () ->
+                                slotPool.releaseTaskManager(
+                                        taskManagerResourceId,
+                                        new FlinkException("Let's get rid of the offered slot.")),
+                        mainThreadExecutor)
+                .join();
+    }
 }

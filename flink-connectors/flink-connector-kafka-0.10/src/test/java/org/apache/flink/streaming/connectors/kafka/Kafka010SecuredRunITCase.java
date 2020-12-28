@@ -27,37 +27,34 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Kafka Secure Connection (kerberos) IT test case.
- */
+/** Kafka Secure Connection (kerberos) IT test case. */
 @Category(FailsOnJava11.class)
 public class Kafka010SecuredRunITCase extends KafkaConsumerTestBase {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(Kafka010SecuredRunITCase.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(Kafka010SecuredRunITCase.class);
 
-	@BeforeClass
-	public static void prepare() throws Exception {
-		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    Starting Kafka010SecuredRunITCase ");
-		LOG.info("-------------------------------------------------------------------------");
+    @BeforeClass
+    public static void prepare() throws Exception {
+        LOG.info("-------------------------------------------------------------------------");
+        LOG.info("    Starting Kafka010SecuredRunITCase ");
+        LOG.info("-------------------------------------------------------------------------");
 
-		SecureTestEnvironment.prepare(tempFolder);
-		SecureTestEnvironment.populateFlinkSecureConfigurations(getFlinkConfiguration());
+        SecureTestEnvironment.prepare(tempFolder);
+        SecureTestEnvironment.populateFlinkSecureConfigurations(getFlinkConfiguration());
 
-		startClusters(true, false);
-	}
+        startClusters(true, false);
+    }
 
-	@AfterClass
-	public static void shutDownServices() throws Exception {
-		shutdownClusters();
-		SecureTestEnvironment.cleanup();
-	}
+    @AfterClass
+    public static void shutDownServices() throws Exception {
+        shutdownClusters();
+        SecureTestEnvironment.cleanup();
+    }
 
-	//timeout interval is large since in Travis, ZK connection timeout occurs frequently
-	//The timeout for the test case is 2 times timeout of ZK connection
-	@Test(timeout = 600000)
-	public void testMultipleTopics() throws Exception {
-		runProduceConsumeMultipleTopics(true);
-	}
-
+    // timeout interval is large since in Travis, ZK connection timeout occurs frequently
+    // The timeout for the test case is 2 times timeout of ZK connection
+    @Test(timeout = 600000)
+    public void testMultipleTopics() throws Exception {
+        runProduceConsumeMultipleTopics(true);
+    }
 }

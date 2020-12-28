@@ -21,26 +21,29 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 
 /**
- * Simple {@link CheckpointRecoveryFactory} which is initialized with a
- * {@link CompletedCheckpointStore} and a {@link CheckpointIDCounter}.
+ * Simple {@link CheckpointRecoveryFactory} which is initialized with a {@link
+ * CompletedCheckpointStore} and a {@link CheckpointIDCounter}.
  */
 public class TestingCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
 
-	private final CompletedCheckpointStore store;
-	private final CheckpointIDCounter counter;
+    private final CompletedCheckpointStore store;
+    private final CheckpointIDCounter counter;
 
-	public TestingCheckpointRecoveryFactory(CompletedCheckpointStore store, CheckpointIDCounter counter) {
-		this.store = store;
-		this.counter = counter;
-	}
+    public TestingCheckpointRecoveryFactory(
+            CompletedCheckpointStore store, CheckpointIDCounter counter) {
+        this.store = store;
+        this.counter = counter;
+    }
 
-	@Override
-	public CompletedCheckpointStore createCheckpointStore(JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) throws Exception {
-		return store;
-	}
+    @Override
+    public CompletedCheckpointStore createCheckpointStore(
+            JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
+            throws Exception {
+        return store;
+    }
 
-	@Override
-	public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) throws Exception {
-		return counter;
-	}
+    @Override
+    public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) throws Exception {
+        return counter;
+    }
 }

@@ -45,94 +45,93 @@ import static org.apache.flink.table.types.inference.strategies.StrategyUtils.fi
 @Internal
 public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
 
-	private final LogicalTypeFamily expectedFamily;
+    private final LogicalTypeFamily expectedFamily;
 
-	private final @Nullable Boolean expectedNullability;
+    private final @Nullable Boolean expectedNullability;
 
-	private static final Map<LogicalTypeFamily, LogicalTypeRoot> familyToRoot = new HashMap<>();
-	static {
-		// "fallback" root for a NULL literals,
-		// they receive the smallest precision possible for having little impact when finding a common type.
-		familyToRoot.put(LogicalTypeFamily.NUMERIC, LogicalTypeRoot.TINYINT);
-		familyToRoot.put(LogicalTypeFamily.EXACT_NUMERIC, LogicalTypeRoot.TINYINT);
-		familyToRoot.put(LogicalTypeFamily.CHARACTER_STRING, LogicalTypeRoot.VARCHAR);
-		familyToRoot.put(LogicalTypeFamily.BINARY_STRING, LogicalTypeRoot.VARBINARY);
-		familyToRoot.put(LogicalTypeFamily.APPROXIMATE_NUMERIC, LogicalTypeRoot.DOUBLE);
-		familyToRoot.put(LogicalTypeFamily.TIMESTAMP, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE);
-		familyToRoot.put(LogicalTypeFamily.TIME, LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE);
-	}
+    private static final Map<LogicalTypeFamily, LogicalTypeRoot> familyToRoot = new HashMap<>();
 
-	public FamilyArgumentTypeStrategy(LogicalTypeFamily expectedFamily, @Nullable Boolean expectedNullability) {
-		Preconditions.checkArgument(
-			familyToRoot.containsKey(expectedFamily),
-			"Unsupported family for argument type strategy.");
-		this.expectedFamily = expectedFamily;
-		this.expectedNullability = expectedNullability;
-	}
+    static {
+        // "fallback" root for a NULL literals,
+        // they receive the smallest precision possible for having little impact when finding a
+        // common type.
+        familyToRoot.put(LogicalTypeFamily.NUMERIC, LogicalTypeRoot.TINYINT);
+        familyToRoot.put(LogicalTypeFamily.EXACT_NUMERIC, LogicalTypeRoot.TINYINT);
+        familyToRoot.put(LogicalTypeFamily.CHARACTER_STRING, LogicalTypeRoot.VARCHAR);
+        familyToRoot.put(LogicalTypeFamily.BINARY_STRING, LogicalTypeRoot.VARBINARY);
+        familyToRoot.put(LogicalTypeFamily.APPROXIMATE_NUMERIC, LogicalTypeRoot.DOUBLE);
+        familyToRoot.put(LogicalTypeFamily.TIMESTAMP, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE);
+        familyToRoot.put(LogicalTypeFamily.TIME, LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE);
+    }
 
-	@Override
-	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
-		final DataType actualDataType = callContext.getArgumentDataTypes().get(argumentPos);
-		final LogicalType actualType = actualDataType.getLogicalType();
+    public FamilyArgumentTypeStrategy(
+            LogicalTypeFamily expectedFamily, @Nullable Boolean expectedNullability) {
+        Preconditions.checkArgument(
+                familyToRoot.containsKey(expectedFamily),
+                "Unsupported family for argument type strategy.");
+        this.expectedFamily = expectedFamily;
+        this.expectedNullability = expectedNullability;
+    }
 
-		if (Objects.equals(expectedNullability, Boolean.FALSE) && actualType.isNullable()) {
-			if (throwOnFailure) {
-				throw callContext.newValidationError(
-					"Unsupported argument type. Expected nullable type of family '%s' but actual type was '%s'.",
-					expectedFamily,
-					actualType);
-			}
-			return Optional.empty();
-		}
+    @Override
+    public Optional<DataType> inferArgumentType(
+            CallContext callContext, int argumentPos, boolean throwOnFailure) {
+        final DataType actualDataType = callContext.getArgumentDataTypes().get(argumentPos);
+        final LogicalType actualType = actualDataType.getLogicalType();
 
-		// type is part of the family
-		if (actualType.getTypeRoot().getFamilies().contains(expectedFamily)) {
-			return Optional.of(actualDataType);
-		}
+        if (Objects.equals(expectedNullability, Boolean.FALSE) && actualType.isNullable()) {
+            if (throwOnFailure) {
+                throw callContext.newValidationError(
+                        "Unsupported argument type. Expected nullable type of family '%s' but actual type was '%s'.",
+                        expectedFamily, actualType);
+            }
+            return Optional.empty();
+        }
 
-		// find a type for the family
-		final LogicalTypeRoot expectedRoot = familyToRoot.get(expectedFamily);
-		final Optional<DataType> inferredDataType = findDataType(
-			callContext,
-			false,
-			actualDataType,
-			expectedRoot,
-			expectedNullability);
-		if (!inferredDataType.isPresent() && throwOnFailure) {
-			throw callContext.newValidationError(
-					"Unsupported argument type. Expected type of family '%s' but actual type was '%s'.",
-					expectedFamily,
-					actualType);
-		}
-		return inferredDataType;
-	}
+        // type is part of the family
+        if (actualType.getTypeRoot().getFamilies().contains(expectedFamily)) {
+            return Optional.of(actualDataType);
+        }
 
-	@Override
-	public Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		// "< ... >" to indicate that this is not a type
-		if (Objects.equals(expectedNullability, Boolean.TRUE)) {
-			return Signature.Argument.of("<" + expectedFamily + " NULL>");
-		} else if (Objects.equals(expectedNullability, Boolean.FALSE)) {
-			return Signature.Argument.of("<" + expectedFamily + " NOT NULL>");
-		}
-		return Signature.Argument.of("<" + expectedFamily + ">");
-	}
+        // find a type for the family
+        final LogicalTypeRoot expectedRoot = familyToRoot.get(expectedFamily);
+        final Optional<DataType> inferredDataType =
+                findDataType(callContext, false, actualDataType, expectedRoot, expectedNullability);
+        if (!inferredDataType.isPresent() && throwOnFailure) {
+            throw callContext.newValidationError(
+                    "Unsupported argument type. Expected type of family '%s' but actual type was '%s'.",
+                    expectedFamily, actualType);
+        }
+        return inferredDataType;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		FamilyArgumentTypeStrategy that = (FamilyArgumentTypeStrategy) o;
-		return expectedFamily == that.expectedFamily &&
-			Objects.equals(expectedNullability, that.expectedNullability);
-	}
+    @Override
+    public Signature.Argument getExpectedArgument(
+            FunctionDefinition functionDefinition, int argumentPos) {
+        // "< ... >" to indicate that this is not a type
+        if (Objects.equals(expectedNullability, Boolean.TRUE)) {
+            return Signature.Argument.of("<" + expectedFamily + " NULL>");
+        } else if (Objects.equals(expectedNullability, Boolean.FALSE)) {
+            return Signature.Argument.of("<" + expectedFamily + " NOT NULL>");
+        }
+        return Signature.Argument.of("<" + expectedFamily + ">");
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(expectedFamily, expectedNullability);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        FamilyArgumentTypeStrategy that = (FamilyArgumentTypeStrategy) o;
+        return expectedFamily == that.expectedFamily
+                && Objects.equals(expectedNullability, that.expectedNullability);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(expectedFamily, expectedNullability);
+    }
 }

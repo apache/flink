@@ -22,56 +22,55 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
 import java.io.IOException;
 
-/**
- * Reads channel state saved during checkpoint/savepoint.
- */
+/** Reads channel state saved during checkpoint/savepoint. */
 @Internal
 public interface ChannelStateReader extends AutoCloseable {
 
-	/**
-	 * Status of reading result.
-	 */
-	enum ReadResult { HAS_MORE_DATA, NO_MORE_DATA }
+    /** Status of reading result. */
+    enum ReadResult {
+        HAS_MORE_DATA,
+        NO_MORE_DATA
+    }
 
-	/**
-	 * Return whether there are any channel states to be read.
-	 */
-	boolean hasChannelStates();
+    /** Return whether there are any channel states to be read. */
+    boolean hasChannelStates();
 
-	/**
-	 * Put data into the supplied buffer to be injected into
-	 * {@link org.apache.flink.runtime.io.network.partition.consumer.InputChannel InputChannel}.
-	 */
-	ReadResult readInputData(InputChannelInfo info, Buffer buffer) throws IOException;
+    /**
+     * Put data into the supplied buffer to be injected into {@link
+     * org.apache.flink.runtime.io.network.partition.consumer.InputChannel InputChannel}.
+     */
+    ReadResult readInputData(InputChannelInfo info, Buffer buffer) throws IOException;
 
-	/**
-	 * Put data into the supplied buffer to be injected into
-	 * {@link org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition}.
-	 */
-	ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder) throws IOException;
+    /**
+     * Put data into the supplied buffer to be injected into {@link
+     * org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition}.
+     */
+    ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder)
+            throws IOException;
 
-	@Override
-	void close() throws Exception;
+    @Override
+    void close() throws Exception;
 
-	ChannelStateReader NO_OP = new ChannelStateReader() {
+    ChannelStateReader NO_OP =
+            new ChannelStateReader() {
 
-		@Override
-		public boolean hasChannelStates() {
-			return false;
-		}
+                @Override
+                public boolean hasChannelStates() {
+                    return false;
+                }
 
-		@Override
-		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) {
-			return ReadResult.NO_MORE_DATA;
-		}
+                @Override
+                public ReadResult readInputData(InputChannelInfo info, Buffer buffer) {
+                    return ReadResult.NO_MORE_DATA;
+                }
 
-		@Override
-		public ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder) {
-			return ReadResult.NO_MORE_DATA;
-		}
+                @Override
+                public ReadResult readOutputData(
+                        ResultSubpartitionInfo info, BufferBuilder bufferBuilder) {
+                    return ReadResult.NO_MORE_DATA;
+                }
 
-		@Override
-		public void close() {
-		}
-	};
+                @Override
+                public void close() {}
+            };
 }

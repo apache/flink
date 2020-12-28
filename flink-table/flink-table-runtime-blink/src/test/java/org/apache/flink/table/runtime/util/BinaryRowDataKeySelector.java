@@ -29,52 +29,50 @@ import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 
-/**
- * A utility class which extracts key from RowData.
- */
+/** A utility class which extracts key from RowData. */
 public class BinaryRowDataKeySelector implements RowDataKeySelector {
 
-	private static final long serialVersionUID = -2327761762415377059L;
+    private static final long serialVersionUID = -2327761762415377059L;
 
-	private final int[] keyFields;
-	private final LogicalType[] inputFieldTypes;
-	private final LogicalType[] keyFieldTypes;
-	private final TypeSerializer[] keySers;
+    private final int[] keyFields;
+    private final LogicalType[] inputFieldTypes;
+    private final LogicalType[] keyFieldTypes;
+    private final TypeSerializer[] keySers;
 
-	public BinaryRowDataKeySelector(int[] keyFields, LogicalType[] inputFieldTypes) {
-		this.keyFields = keyFields;
-		this.inputFieldTypes = inputFieldTypes;
-		this.keyFieldTypes = new LogicalType[keyFields.length];
-		this.keySers = new TypeSerializer[keyFields.length];
-		ExecutionConfig conf = new ExecutionConfig();
-		for (int i = 0; i < keyFields.length; ++i) {
-			keyFieldTypes[i] = inputFieldTypes[keyFields[i]];
-			keySers[i] = InternalSerializers.create(keyFieldTypes[i], conf);
-		}
-	}
+    public BinaryRowDataKeySelector(int[] keyFields, LogicalType[] inputFieldTypes) {
+        this.keyFields = keyFields;
+        this.inputFieldTypes = inputFieldTypes;
+        this.keyFieldTypes = new LogicalType[keyFields.length];
+        this.keySers = new TypeSerializer[keyFields.length];
+        ExecutionConfig conf = new ExecutionConfig();
+        for (int i = 0; i < keyFields.length; ++i) {
+            keyFieldTypes[i] = inputFieldTypes[keyFields[i]];
+            keySers[i] = InternalSerializers.create(keyFieldTypes[i], conf);
+        }
+    }
 
-	@Override
-	public RowData getKey(RowData value) throws Exception {
-		BinaryRowData ret = new BinaryRowData(keyFields.length);
-		BinaryRowWriter writer = new BinaryRowWriter(ret);
-		for (int i = 0; i < keyFields.length; i++) {
-			if (value.isNullAt(i)) {
-				writer.setNullAt(i);
-			} else {
-				BinaryWriter.write(
-						writer,
-						i,
-						RowData.get(value, keyFields[i], inputFieldTypes[keyFields[i]]),
-						inputFieldTypes[keyFields[i]],
-						keySers[i]);
-			}
-		}
-		writer.complete();
-		return ret;
-	}
+    @Override
+    public RowData getKey(RowData value) throws Exception {
+        BinaryRowData ret = new BinaryRowData(keyFields.length);
+        BinaryRowWriter writer = new BinaryRowWriter(ret);
+        for (int i = 0; i < keyFields.length; i++) {
+            if (value.isNullAt(i)) {
+                writer.setNullAt(i);
+            } else {
+                BinaryWriter.write(
+                        writer,
+                        i,
+                        RowData.get(value, keyFields[i], inputFieldTypes[keyFields[i]]),
+                        inputFieldTypes[keyFields[i]],
+                        keySers[i]);
+            }
+        }
+        writer.complete();
+        return ret;
+    }
 
-	@Override
-	public RowDataTypeInfo getProducedType() {
-		return new RowDataTypeInfo(keyFieldTypes);
-	}
+    @Override
+    public RowDataTypeInfo getProducedType() {
+        return new RowDataTypeInfo(keyFieldTypes);
+    }
 }

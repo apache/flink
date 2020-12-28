@@ -30,41 +30,39 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * Testing implementation of the {@link ResourceActions}.
- */
+/** Testing implementation of the {@link ResourceActions}. */
 public class TestingResourceActions implements ResourceActions {
 
-	@Nonnull
-	private final BiConsumer<InstanceID, Exception> releaseResourceConsumer;
+    @Nonnull private final BiConsumer<InstanceID, Exception> releaseResourceConsumer;
 
-	@Nonnull
-	private final Function<WorkerResourceSpec, Boolean> allocateResourceFunction;
+    @Nonnull private final Function<WorkerResourceSpec, Boolean> allocateResourceFunction;
 
-	@Nonnull
-	private final Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer;
+    @Nonnull
+    private final Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer;
 
-	public TestingResourceActions(
-			@Nonnull BiConsumer<InstanceID, Exception> releaseResourceConsumer,
-			@Nonnull Function<WorkerResourceSpec, Boolean> allocateResourceFunction,
-			@Nonnull Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
-		this.releaseResourceConsumer = releaseResourceConsumer;
-		this.allocateResourceFunction = allocateResourceFunction;
-		this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
-	}
+    public TestingResourceActions(
+            @Nonnull BiConsumer<InstanceID, Exception> releaseResourceConsumer,
+            @Nonnull Function<WorkerResourceSpec, Boolean> allocateResourceFunction,
+            @Nonnull
+                    Consumer<Tuple3<JobID, AllocationID, Exception>>
+                            notifyAllocationFailureConsumer) {
+        this.releaseResourceConsumer = releaseResourceConsumer;
+        this.allocateResourceFunction = allocateResourceFunction;
+        this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
+    }
 
-	@Override
-	public void releaseResource(InstanceID instanceId, Exception cause) {
-		releaseResourceConsumer.accept(instanceId, cause);
-	}
+    @Override
+    public void releaseResource(InstanceID instanceId, Exception cause) {
+        releaseResourceConsumer.accept(instanceId, cause);
+    }
 
-	@Override
-	public boolean allocateResource(WorkerResourceSpec workerResourceSpec){
-		return allocateResourceFunction.apply(workerResourceSpec);
-	}
+    @Override
+    public boolean allocateResource(WorkerResourceSpec workerResourceSpec) {
+        return allocateResourceFunction.apply(workerResourceSpec);
+    }
 
-	@Override
-	public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
-		notifyAllocationFailureConsumer.accept(Tuple3.of(jobId, allocationId, cause));
-	}
+    @Override
+    public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
+        notifyAllocationFailureConsumer.accept(Tuple3.of(jobId, allocationId, cause));
+    }
 }

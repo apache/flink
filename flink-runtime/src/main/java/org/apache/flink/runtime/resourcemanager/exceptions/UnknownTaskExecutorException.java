@@ -21,13 +21,11 @@ package org.apache.flink.runtime.resourcemanager.exceptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 
-/**
- * Exception denoting that a requested {@link TaskExecutor} could not be found.
- */
+/** Exception denoting that a requested {@link TaskExecutor} could not be found. */
 public class UnknownTaskExecutorException extends ResourceManagerException {
-	private static final long serialVersionUID = -950571714195353733L;
+    private static final long serialVersionUID = -950571714195353733L;
 
-	public UnknownTaskExecutorException(ResourceID taskExecutorId) {
-		super("No TaskExecutor registered under " + taskExecutorId + '.');
-	}
+    public UnknownTaskExecutorException(ResourceID taskExecutorId) {
+        super("No TaskExecutor registered under " + taskExecutorId + '.');
+    }
 }

@@ -44,88 +44,114 @@ import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleto
 import static org.junit.Assert.fail;
 
 /**
- * Simple test for
- * {@link org.apache.flink.runtime.checkpoint.StateAssignmentOperation#channelStateNonRescalingRepartitioner channelStateNonRescalingRepartitioner}.
- * It checks whether partitioner fails or not using property-based approach.
+ * Simple test for {@link
+ * org.apache.flink.runtime.checkpoint.StateAssignmentOperation#channelStateNonRescalingRepartitioner
+ * channelStateNonRescalingRepartitioner}. It checks whether partitioner fails or not using
+ * property-based approach.
  */
 @RunWith(Parameterized.class)
 public class ChannelStateNoRescalingPartitionerTest {
 
-	@Parameters(name = "oldParallelism: {0}, newParallelism: {1}, offsetSize: {2}")
-	public static Collection<Object[]> parameters() {
-		List<Object[]> params = new ArrayList<>();
-		int[] parLevels = {1, 2};
-		int[] offsetSizes = {0, 1, 2};
-		final List<Function<OperatorSubtaskState, ?>> extractors = Arrays.asList(
-			OperatorSubtaskState::getInputChannelState,
-			OperatorSubtaskState::getResultSubpartitionState
-		);
-		// generate all possible combinations of the above parameters
-		for (int oldParallelism : parLevels) {
-			for (int newParallelism : parLevels) {
-				for (int offsetSize : offsetSizes) {
-					for (Function<OperatorSubtaskState, ?> stateExtractor : extractors) {
-						params.add(new Object[]{oldParallelism, newParallelism, offsetSize, stateExtractor});
-					}
-				}
-			}
-		}
-		return params;
-	}
+    @Parameters(name = "oldParallelism: {0}, newParallelism: {1}, offsetSize: {2}")
+    public static Collection<Object[]> parameters() {
+        List<Object[]> params = new ArrayList<>();
+        int[] parLevels = {1, 2};
+        int[] offsetSizes = {0, 1, 2};
+        final List<Function<OperatorSubtaskState, ?>> extractors =
+                Arrays.asList(
+                        OperatorSubtaskState::getInputChannelState,
+                        OperatorSubtaskState::getResultSubpartitionState);
+        // generate all possible combinations of the above parameters
+        for (int oldParallelism : parLevels) {
+            for (int newParallelism : parLevels) {
+                for (int offsetSize : offsetSizes) {
+                    for (Function<OperatorSubtaskState, ?> stateExtractor : extractors) {
+                        params.add(
+                                new Object[] {
+                                    oldParallelism, newParallelism, offsetSize, stateExtractor
+                                });
+                    }
+                }
+            }
+        }
+        return params;
+    }
 
-	private static final OperatorID OPERATOR_ID = new OperatorID();
+    private static final OperatorID OPERATOR_ID = new OperatorID();
 
-	private final int oldParallelism;
-	private final int newParallelism;
-	private final int offsetsSize;
-	private final Function<OperatorSubtaskState, ? extends StateObjectCollection<?>> extractState;
+    private final int oldParallelism;
+    private final int newParallelism;
+    private final int offsetsSize;
+    private final Function<OperatorSubtaskState, ? extends StateObjectCollection<?>> extractState;
 
-	public ChannelStateNoRescalingPartitionerTest(int oldParallelism, int newParallelism, int offsetsSize, Function<OperatorSubtaskState, ? extends StateObjectCollection<?>> extractState) {
-		this.oldParallelism = oldParallelism;
-		this.newParallelism = newParallelism;
-		this.offsetsSize = offsetsSize;
-		this.extractState = extractState;
-	}
+    public ChannelStateNoRescalingPartitionerTest(
+            int oldParallelism,
+            int newParallelism,
+            int offsetsSize,
+            Function<OperatorSubtaskState, ? extends StateObjectCollection<?>> extractState) {
+        this.oldParallelism = oldParallelism;
+        this.newParallelism = newParallelism;
+        this.offsetsSize = offsetsSize;
+        this.extractState = extractState;
+    }
 
-	@Test
-	public <T extends AbstractChannelStateHandle<?>> void testNoRescaling() {
-		OperatorState state = new OperatorState(OPERATOR_ID, oldParallelism, oldParallelism);
-		state.putState(0, new OperatorSubtaskState(
-			empty(),
-			empty(),
-			empty(),
-			empty(),
-			singleton(new InputChannelStateHandle(new InputChannelInfo(0, 0), new EmptyStreamStateHandle(), getOffset())),
-			singleton(new ResultSubpartitionStateHandle(new ResultSubpartitionInfo(0, 0), new EmptyStreamStateHandle(), getOffset()))));
-		try {
-			// noinspection unchecked
-			StateAssignmentOperation.reDistributePartitionableStates(
-				singletonList(state),
-				newParallelism,
-				singletonList(OperatorIDPair.generatedIDOnly(OPERATOR_ID)),
-				(Function<OperatorSubtaskState, StateObjectCollection<T>>) this.extractState,
-				channelStateNonRescalingRepartitioner("test"));
-		} catch (IllegalArgumentException e) {
-			if (!shouldFail()) {
-				throw e;
-			} else {
-				return;
-			}
-		}
-		if (shouldFail()) {
-			fail("expected to fail for: oldParallelism=" + oldParallelism + ", newParallelism=" + newParallelism + ", offsetsSize=" + offsetsSize + ", extractState=" + extractState);
-		}
-	}
+    @Test
+    public <T extends AbstractChannelStateHandle<?>> void testNoRescaling() {
+        OperatorState state = new OperatorState(OPERATOR_ID, oldParallelism, oldParallelism);
+        state.putState(
+                0,
+                new OperatorSubtaskState(
+                        empty(),
+                        empty(),
+                        empty(),
+                        empty(),
+                        singleton(
+                                new InputChannelStateHandle(
+                                        new InputChannelInfo(0, 0),
+                                        new EmptyStreamStateHandle(),
+                                        getOffset())),
+                        singleton(
+                                new ResultSubpartitionStateHandle(
+                                        new ResultSubpartitionInfo(0, 0),
+                                        new EmptyStreamStateHandle(),
+                                        getOffset()))));
+        try {
+            // noinspection unchecked
+            StateAssignmentOperation.reDistributePartitionableStates(
+                    singletonList(state),
+                    newParallelism,
+                    singletonList(OperatorIDPair.generatedIDOnly(OPERATOR_ID)),
+                    (Function<OperatorSubtaskState, StateObjectCollection<T>>) this.extractState,
+                    channelStateNonRescalingRepartitioner("test"));
+        } catch (IllegalArgumentException e) {
+            if (!shouldFail()) {
+                throw e;
+            } else {
+                return;
+            }
+        }
+        if (shouldFail()) {
+            fail(
+                    "expected to fail for: oldParallelism="
+                            + oldParallelism
+                            + ", newParallelism="
+                            + newParallelism
+                            + ", offsetsSize="
+                            + offsetsSize
+                            + ", extractState="
+                            + extractState);
+        }
+    }
 
-	private boolean shouldFail() {
-		return oldParallelism != newParallelism && offsetsSize > 0;
-	}
+    private boolean shouldFail() {
+        return oldParallelism != newParallelism && offsetsSize > 0;
+    }
 
-	private List<Long> getOffset() {
-		List<Long> offsets = new ArrayList<>(offsetsSize);
-		for (int i = 0; i < offsetsSize; i++) {
-			offsets.add(0L);
-		}
-		return offsets;
-	}
+    private List<Long> getOffset() {
+        List<Long> offsets = new ArrayList<>(offsetsSize);
+        for (int i = 0; i < offsetsSize; i++) {
+            offsets.add(0L);
+        }
+        return offsets;
+    }
 }

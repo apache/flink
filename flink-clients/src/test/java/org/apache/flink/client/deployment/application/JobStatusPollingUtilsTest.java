@@ -41,129 +41,140 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests the {@link JobStatusPollingUtils}.
- */
+/** Tests the {@link JobStatusPollingUtils}. */
 public class JobStatusPollingUtilsTest {
 
-	@Test
-	public void testPolling() {
-		final int maxAttemptCounter = 3;
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+    @Test
+    public void testPolling() {
+        final int maxAttemptCounter = 3;
+        final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        try {
+            final ScheduledExecutor scheduledExecutor =
+                    new ScheduledExecutorServiceAdapter(executor);
 
-			final CallCountingJobStatusSupplier jobStatusSupplier = new CallCountingJobStatusSupplier(maxAttemptCounter);
+            final CallCountingJobStatusSupplier jobStatusSupplier =
+                    new CallCountingJobStatusSupplier(maxAttemptCounter);
 
-			final CompletableFuture<JobResult> result = JobStatusPollingUtils.pollJobResultAsync(
-					jobStatusSupplier,
-					() -> CompletableFuture.completedFuture(createSuccessfulJobResult(new JobID(0, 0))),
-					scheduledExecutor,
-					10
-			);
+            final CompletableFuture<JobResult> result =
+                    JobStatusPollingUtils.pollJobResultAsync(
+                            jobStatusSupplier,
+                            () ->
+                                    CompletableFuture.completedFuture(
+                                            createSuccessfulJobResult(new JobID(0, 0))),
+                            scheduledExecutor,
+                            10);
 
-			result.join();
+            result.join();
 
-			assertThat(jobStatusSupplier.getAttemptCounter(), is(equalTo(maxAttemptCounter)));
+            assertThat(jobStatusSupplier.getAttemptCounter(), is(equalTo(maxAttemptCounter)));
 
-		} finally {
-			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
-		}
-	}
+        } finally {
+            ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
+        }
+    }
 
-	@Test
-	public void testHappyPath() throws ExecutionException, InterruptedException {
-		final int maxAttemptCounter = 1;
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+    @Test
+    public void testHappyPath() throws ExecutionException, InterruptedException {
+        final int maxAttemptCounter = 1;
+        final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        try {
+            final ScheduledExecutor scheduledExecutor =
+                    new ScheduledExecutorServiceAdapter(executor);
 
-			final CallCountingJobStatusSupplier jobStatusSupplier = new CallCountingJobStatusSupplier(maxAttemptCounter);
+            final CallCountingJobStatusSupplier jobStatusSupplier =
+                    new CallCountingJobStatusSupplier(maxAttemptCounter);
 
-			final CompletableFuture<JobResult> result = JobStatusPollingUtils.pollJobResultAsync(
-					jobStatusSupplier,
-					() -> CompletableFuture.completedFuture(createSuccessfulJobResult(new JobID(0, 0))),
-					scheduledExecutor,
-					10
-			);
+            final CompletableFuture<JobResult> result =
+                    JobStatusPollingUtils.pollJobResultAsync(
+                            jobStatusSupplier,
+                            () ->
+                                    CompletableFuture.completedFuture(
+                                            createSuccessfulJobResult(new JobID(0, 0))),
+                            scheduledExecutor,
+                            10);
 
-			result.join();
+            result.join();
 
-			assertThat(jobStatusSupplier.getAttemptCounter(), is(equalTo(maxAttemptCounter)));
-			assertTrue(result.isDone() && result.get().isSuccess());
+            assertThat(jobStatusSupplier.getAttemptCounter(), is(equalTo(maxAttemptCounter)));
+            assertTrue(result.isDone() && result.get().isSuccess());
 
-		} finally {
-			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
-		}
-	}
+        } finally {
+            ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
+        }
+    }
 
-	@Test
-	public void testFailedJobResult() throws ExecutionException, InterruptedException {
-		final int maxAttemptCounter = 1;
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+    @Test
+    public void testFailedJobResult() throws ExecutionException, InterruptedException {
+        final int maxAttemptCounter = 1;
+        final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        try {
+            final ScheduledExecutor scheduledExecutor =
+                    new ScheduledExecutorServiceAdapter(executor);
 
-			final CallCountingJobStatusSupplier jobStatusSupplier = new CallCountingJobStatusSupplier(maxAttemptCounter);
+            final CallCountingJobStatusSupplier jobStatusSupplier =
+                    new CallCountingJobStatusSupplier(maxAttemptCounter);
 
-			final CompletableFuture<JobResult> result = JobStatusPollingUtils.pollJobResultAsync(
-					jobStatusSupplier,
-					() -> CompletableFuture.completedFuture(createFailedJobResult(new JobID(0, 0))),
-					scheduledExecutor,
-					10
-			);
+            final CompletableFuture<JobResult> result =
+                    JobStatusPollingUtils.pollJobResultAsync(
+                            jobStatusSupplier,
+                            () ->
+                                    CompletableFuture.completedFuture(
+                                            createFailedJobResult(new JobID(0, 0))),
+                            scheduledExecutor,
+                            10);
 
-			result.join();
+            result.join();
 
-			assertThat(jobStatusSupplier.getAttemptCounter(), is(equalTo(maxAttemptCounter)));
-			assertTrue(result.isDone() && result.get().getSerializedThrowable().isPresent());
+            assertThat(jobStatusSupplier.getAttemptCounter(), is(equalTo(maxAttemptCounter)));
+            assertTrue(result.isDone() && result.get().getSerializedThrowable().isPresent());
 
-		} finally {
-			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
-		}
-	}
+        } finally {
+            ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, executor);
+        }
+    }
 
-	/**
-	 * A {@link JobStatus} {@link Supplier supplier} that waits
-	 * until {@code maxAttempts} before it returns that the job was done.
-	 */
-	private static final class CallCountingJobStatusSupplier implements Supplier<CompletableFuture<JobStatus>> {
+    /**
+     * A {@link JobStatus} {@link Supplier supplier} that waits until {@code maxAttempts} before it
+     * returns that the job was done.
+     */
+    private static final class CallCountingJobStatusSupplier
+            implements Supplier<CompletableFuture<JobStatus>> {
 
-		private final int maxAttempts;
+        private final int maxAttempts;
 
-		private int attemptCounter;
+        private int attemptCounter;
 
-		public CallCountingJobStatusSupplier(int maxAttempts) {
-			this.maxAttempts = maxAttempts;
-		}
+        public CallCountingJobStatusSupplier(int maxAttempts) {
+            this.maxAttempts = maxAttempts;
+        }
 
-		public int getAttemptCounter() {
-			return attemptCounter;
-		}
+        public int getAttemptCounter() {
+            return attemptCounter;
+        }
 
-		@Override
-		public CompletableFuture<JobStatus> get() {
-			if (++attemptCounter < maxAttempts) {
-				return CompletableFuture.completedFuture(JobStatus.RUNNING);
-			}
-			return CompletableFuture.completedFuture(JobStatus.FINISHED);
-		}
-	}
+        @Override
+        public CompletableFuture<JobStatus> get() {
+            if (++attemptCounter < maxAttempts) {
+                return CompletableFuture.completedFuture(JobStatus.RUNNING);
+            }
+            return CompletableFuture.completedFuture(JobStatus.FINISHED);
+        }
+    }
 
-	private static JobResult createFailedJobResult(final JobID jobId) {
-		return new JobResult.Builder()
-				.jobId(jobId)
-				.netRuntime(2L)
-				.applicationStatus(ApplicationStatus.FAILED)
-				.serializedThrowable(new SerializedThrowable(new Exception("bla bla bla")))
-				.build();
-	}
+    private static JobResult createFailedJobResult(final JobID jobId) {
+        return new JobResult.Builder()
+                .jobId(jobId)
+                .netRuntime(2L)
+                .applicationStatus(ApplicationStatus.FAILED)
+                .serializedThrowable(new SerializedThrowable(new Exception("bla bla bla")))
+                .build();
+    }
 
-	private static JobResult createSuccessfulJobResult(final JobID jobId) {
-		return new JobResult.Builder()
-				.jobId(jobId)
-				.netRuntime(2L)
-				.applicationStatus(ApplicationStatus.SUCCEEDED)
-				.build();
-	}
+    private static JobResult createSuccessfulJobResult(final JobID jobId) {
+        return new JobResult.Builder()
+                .jobId(jobId)
+                .netRuntime(2L)
+                .applicationStatus(ApplicationStatus.SUCCEEDED)
+                .build();
+    }
 }

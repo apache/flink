@@ -41,75 +41,76 @@ import java.util.List;
 
 import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
 
-/**
- * An {@link ApplicationClusterEntryPoint} for Kubernetes.
- */
+/** An {@link ApplicationClusterEntryPoint} for Kubernetes. */
 @Internal
 public final class KubernetesApplicationClusterEntrypoint extends ApplicationClusterEntryPoint {
 
-	private KubernetesApplicationClusterEntrypoint(
-			final Configuration configuration,
-			final PackagedProgram program) {
-		super(configuration, program, KubernetesResourceManagerFactory.getInstance());
-	}
+    private KubernetesApplicationClusterEntrypoint(
+            final Configuration configuration, final PackagedProgram program) {
+        super(configuration, program, KubernetesResourceManagerFactory.getInstance());
+    }
 
-	public static void main(final String[] args) {
-		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, KubernetesApplicationClusterEntrypoint.class.getSimpleName(), args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
+    public static void main(final String[] args) {
+        // startup checks and logging
+        EnvironmentInformation.logEnvironmentInfo(
+                LOG, KubernetesApplicationClusterEntrypoint.class.getSimpleName(), args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		final Configuration configuration = KubernetesEntrypointUtils.loadConfiguration();
+        final Configuration configuration = KubernetesEntrypointUtils.loadConfiguration();
 
-		PackagedProgram program = null;
-		try {
-			program = getPackagedProgram(configuration);
-		} catch (Exception e) {
-			LOG.error("Could not create application program.", e);
-			System.exit(1);
-		}
+        PackagedProgram program = null;
+        try {
+            program = getPackagedProgram(configuration);
+        } catch (Exception e) {
+            LOG.error("Could not create application program.", e);
+            System.exit(1);
+        }
 
-		try {
-			configureExecution(configuration, program);
-		} catch (Exception e) {
-			LOG.error("Could not apply application configuration.", e);
-			System.exit(1);
-		}
+        try {
+            configureExecution(configuration, program);
+        } catch (Exception e) {
+            LOG.error("Could not apply application configuration.", e);
+            System.exit(1);
+        }
 
-		final KubernetesApplicationClusterEntrypoint kubernetesApplicationClusterEntrypoint =
-			new KubernetesApplicationClusterEntrypoint(configuration, program);
+        final KubernetesApplicationClusterEntrypoint kubernetesApplicationClusterEntrypoint =
+                new KubernetesApplicationClusterEntrypoint(configuration, program);
 
-		ClusterEntrypoint.runClusterEntrypoint(kubernetesApplicationClusterEntrypoint);
-	}
+        ClusterEntrypoint.runClusterEntrypoint(kubernetesApplicationClusterEntrypoint);
+    }
 
-	private static PackagedProgram getPackagedProgram(final Configuration configuration) throws IOException, FlinkException {
+    private static PackagedProgram getPackagedProgram(final Configuration configuration)
+            throws IOException, FlinkException {
 
-		final ApplicationConfiguration applicationConfiguration =
-			ApplicationConfiguration.fromConfiguration(configuration);
+        final ApplicationConfiguration applicationConfiguration =
+                ApplicationConfiguration.fromConfiguration(configuration);
 
-		final PackagedProgramRetriever programRetriever = getPackagedProgramRetriever(
-			configuration,
-			applicationConfiguration.getProgramArguments(),
-			applicationConfiguration.getApplicationClassName());
-		return programRetriever.getPackagedProgram();
-	}
+        final PackagedProgramRetriever programRetriever =
+                getPackagedProgramRetriever(
+                        configuration,
+                        applicationConfiguration.getProgramArguments(),
+                        applicationConfiguration.getApplicationClassName());
+        return programRetriever.getPackagedProgram();
+    }
 
-	private static PackagedProgramRetriever getPackagedProgramRetriever(
-			final Configuration configuration,
-			final String[] programArguments,
-			@Nullable final String jobClassName) throws IOException {
+    private static PackagedProgramRetriever getPackagedProgramRetriever(
+            final Configuration configuration,
+            final String[] programArguments,
+            @Nullable final String jobClassName)
+            throws IOException {
 
-		final List<File> pipelineJars = KubernetesUtils.checkJarFileForApplicationMode(configuration);
-		Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+        final List<File> pipelineJars =
+                KubernetesUtils.checkJarFileForApplicationMode(configuration);
+        Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
 
-		final File userLibDir = tryFindUserLibDirectory().orElse(null);
+        final File userLibDir = tryFindUserLibDirectory().orElse(null);
 
-		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-			ClassPathPackagedProgramRetriever
-				.newBuilder(programArguments)
-				.setUserLibDirectory(userLibDir)
-				.setJarFile(pipelineJars.get(0))
-				.setJobClassName(jobClassName);
-		return retrieverBuilder.build();
-	}
+        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
+                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
+                        .setUserLibDirectory(userLibDir)
+                        .setJarFile(pipelineJars.get(0))
+                        .setJobClassName(jobClassName);
+        return retrieverBuilder.build();
+    }
 }

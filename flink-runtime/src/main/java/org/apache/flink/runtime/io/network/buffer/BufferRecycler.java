@@ -20,16 +20,13 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 
-/**
- * Interface for recycling {@link MemorySegment}s.
- */
+/** Interface for recycling {@link MemorySegment}s. */
 public interface BufferRecycler {
 
-	/**
-	 * Recycles the {@link MemorySegment} to its original {@link BufferPool}
-	 * instance.
-	 *
-	 * @param memorySegment The memory segment to be recycled.
-	 */
-	void recycle(MemorySegment memorySegment);
+    /**
+     * Recycles the {@link MemorySegment} to its original {@link BufferPool} instance.
+     *
+     * @param memorySegment The memory segment to be recycled.
+     */
+    void recycle(MemorySegment memorySegment);
 }

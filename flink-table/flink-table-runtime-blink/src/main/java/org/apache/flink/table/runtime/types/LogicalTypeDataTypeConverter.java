@@ -26,22 +26,17 @@ import org.apache.flink.table.types.utils.TypeConversions;
 /**
  * Converter between {@link DataType} and {@link LogicalType}.
  *
- * <p>This class is for:
- * 1.Source, Sink.
- * 2.UDF, UDTF, UDAF.
- * 3.TableEnv.
+ * <p>This class is for: 1.Source, Sink. 2.UDF, UDTF, UDAF. 3.TableEnv.
  */
 @Deprecated
 public class LogicalTypeDataTypeConverter {
 
-	public static DataType fromLogicalTypeToDataType(LogicalType logicalType) {
-		return TypeConversions.fromLogicalToDataType(logicalType);
-	}
+    public static DataType fromLogicalTypeToDataType(LogicalType logicalType) {
+        return TypeConversions.fromLogicalToDataType(logicalType);
+    }
 
-	/**
-	 * It convert {@link LegacyTypeInformationType} to planner types.
-	 */
-	public static LogicalType fromDataTypeToLogicalType(DataType dataType) {
-		return PlannerTypeUtils.removeLegacyTypes(dataType.getLogicalType());
-	}
+    /** It convert {@link LegacyTypeInformationType} to planner types. */
+    public static LogicalType fromDataTypeToLogicalType(DataType dataType) {
+        return PlannerTypeUtils.removeLegacyTypes(dataType.getLogicalType());
+    }
 }

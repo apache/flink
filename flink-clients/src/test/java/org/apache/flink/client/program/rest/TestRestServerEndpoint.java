@@ -31,40 +31,40 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Utility {@link RestServerEndpoint} for setting up a rest server with a given set of handlers.
- */
+/** Utility {@link RestServerEndpoint} for setting up a rest server with a given set of handlers. */
 class TestRestServerEndpoint extends RestServerEndpoint {
 
-	private final AbstractRestHandler<?, ?, ?, ?>[] abstractRestHandlers;
+    private final AbstractRestHandler<?, ?, ?, ?>[] abstractRestHandlers;
 
-	TestRestServerEndpoint(
-			final RestServerEndpointConfiguration configuration,
-			final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws IOException {
-		super(configuration);
-		this.abstractRestHandlers = abstractRestHandlers;
-	}
+    TestRestServerEndpoint(
+            final RestServerEndpointConfiguration configuration,
+            final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers)
+            throws IOException {
+        super(configuration);
+        this.abstractRestHandlers = abstractRestHandlers;
+    }
 
-	@Override
-	protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
-		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>(abstractRestHandlers.length);
-		for (final AbstractRestHandler abstractRestHandler : abstractRestHandlers) {
-			handlers.add(Tuple2.of(
-				abstractRestHandler.getMessageHeaders(),
-				abstractRestHandler));
-		}
-		return handlers;
-	}
+    @Override
+    protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
+            final CompletableFuture<String> localAddressFuture) {
+        final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers =
+                new ArrayList<>(abstractRestHandlers.length);
+        for (final AbstractRestHandler abstractRestHandler : abstractRestHandlers) {
+            handlers.add(Tuple2.of(abstractRestHandler.getMessageHeaders(), abstractRestHandler));
+        }
+        return handlers;
+    }
 
-	@Override
-	protected void startInternal() {
-	}
+    @Override
+    protected void startInternal() {}
 
-	static TestRestServerEndpoint createAndStartRestServerEndpoint(
-			final RestServerEndpointConfiguration restServerEndpointConfiguration,
-			final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws Exception {
-		final TestRestServerEndpoint testRestServerEndpoint = new TestRestServerEndpoint(restServerEndpointConfiguration, abstractRestHandlers);
-		testRestServerEndpoint.start();
-		return testRestServerEndpoint;
-	}
+    static TestRestServerEndpoint createAndStartRestServerEndpoint(
+            final RestServerEndpointConfiguration restServerEndpointConfiguration,
+            final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers)
+            throws Exception {
+        final TestRestServerEndpoint testRestServerEndpoint =
+                new TestRestServerEndpoint(restServerEndpointConfiguration, abstractRestHandlers);
+        testRestServerEndpoint.start();
+        return testRestServerEndpoint;
+    }
 }

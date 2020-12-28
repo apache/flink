@@ -32,6 +32,4 @@ import org.apache.flink.table.api.TableException;
  * @param <T> Type of {@link DataStream} that this {@link TableSink} expects and supports.
  */
 @PublicEvolving
-public interface AppendStreamTableSink<T> extends StreamTableSink<T> {
-
-}
+public interface AppendStreamTableSink<T> extends StreamTableSink<T> {}

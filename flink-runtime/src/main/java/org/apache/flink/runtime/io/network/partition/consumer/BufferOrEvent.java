@@ -31,86 +31,87 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class BufferOrEvent {
 
-	private final Buffer buffer;
+    private final Buffer buffer;
 
-	private final AbstractEvent event;
+    private final AbstractEvent event;
 
-	/**
-	 * Indicate availability of further instances for the union input gate.
-	 * This is not needed outside of the input gate unioning logic and cannot
-	 * be set outside of the consumer package.
-	 */
-	private boolean moreAvailable;
+    /**
+     * Indicate availability of further instances for the union input gate. This is not needed
+     * outside of the input gate unioning logic and cannot be set outside of the consumer package.
+     */
+    private boolean moreAvailable;
 
-	private InputChannelInfo channelInfo;
+    private InputChannelInfo channelInfo;
 
-	private final int size;
+    private final int size;
 
-	public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo, boolean moreAvailable) {
-		this.buffer = checkNotNull(buffer);
-		this.event = null;
-		this.channelInfo = channelInfo;
-		this.moreAvailable = moreAvailable;
-		this.size = buffer.getSize();
-	}
+    public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo, boolean moreAvailable) {
+        this.buffer = checkNotNull(buffer);
+        this.event = null;
+        this.channelInfo = channelInfo;
+        this.moreAvailable = moreAvailable;
+        this.size = buffer.getSize();
+    }
 
-	public BufferOrEvent(AbstractEvent event, InputChannelInfo channelInfo, boolean moreAvailable, int size) {
-		this.buffer = null;
-		this.event = checkNotNull(event);
-		this.channelInfo = channelInfo;
-		this.moreAvailable = moreAvailable;
-		this.size = size;
-	}
+    public BufferOrEvent(
+            AbstractEvent event, InputChannelInfo channelInfo, boolean moreAvailable, int size) {
+        this.buffer = null;
+        this.event = checkNotNull(event);
+        this.channelInfo = channelInfo;
+        this.moreAvailable = moreAvailable;
+        this.size = size;
+    }
 
-	@VisibleForTesting
-	public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo) {
-		this(buffer, channelInfo, true);
-	}
+    @VisibleForTesting
+    public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo) {
+        this(buffer, channelInfo, true);
+    }
 
-	@VisibleForTesting
-	public BufferOrEvent(AbstractEvent event, InputChannelInfo channelInfo) {
-		this(event, channelInfo, true, 0);
-	}
+    @VisibleForTesting
+    public BufferOrEvent(AbstractEvent event, InputChannelInfo channelInfo) {
+        this(event, channelInfo, true, 0);
+    }
 
-	public boolean isBuffer() {
-		return buffer != null;
-	}
+    public boolean isBuffer() {
+        return buffer != null;
+    }
 
-	public boolean isEvent() {
-		return event != null;
-	}
+    public boolean isEvent() {
+        return event != null;
+    }
 
-	public Buffer getBuffer() {
-		return buffer;
-	}
+    public Buffer getBuffer() {
+        return buffer;
+    }
 
-	public AbstractEvent getEvent() {
-		return event;
-	}
+    public AbstractEvent getEvent() {
+        return event;
+    }
 
-	public InputChannelInfo getChannelInfo() {
-		return channelInfo;
-	}
+    public InputChannelInfo getChannelInfo() {
+        return channelInfo;
+    }
 
-	public void setChannelInfo(InputChannelInfo channelInfo) {
-		this.channelInfo = channelInfo;
-	}
+    public void setChannelInfo(InputChannelInfo channelInfo) {
+        this.channelInfo = channelInfo;
+    }
 
-	public boolean moreAvailable() {
-		return moreAvailable;
-	}
+    public boolean moreAvailable() {
+        return moreAvailable;
+    }
 
-	@Override
-	public String toString() {
-		return String.format("BufferOrEvent [%s, channelInfo = %d, size = %d]",
-				isBuffer() ? buffer : event, channelInfo, size);
-	}
+    @Override
+    public String toString() {
+        return String.format(
+                "BufferOrEvent [%s, channelInfo = %d, size = %d]",
+                isBuffer() ? buffer : event, channelInfo, size);
+    }
 
-	public void setMoreAvailable(boolean moreAvailable) {
-		this.moreAvailable = moreAvailable;
-	}
+    public void setMoreAvailable(boolean moreAvailable) {
+        this.moreAvailable = moreAvailable;
+    }
 
-	public int getSize() {
-		return size;
-	}
+    public int getSize() {
+        return size;
+    }
 }

@@ -51,217 +51,226 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * Avro format factory for file system.
- */
+/** Avro format factory for file system. */
 public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 
-	public static final String IDENTIFIER = "avro";
-	public static final ConfigOption<String> AVRO_OUTPUT_CODEC = ConfigOptions.key("codec")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("The compression codec for avro");
+    public static final String IDENTIFIER = "avro";
+    public static final ConfigOption<String> AVRO_OUTPUT_CODEC =
+            ConfigOptions.key("codec")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("The compression codec for avro");
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(AVRO_OUTPUT_CODEC);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(AVRO_OUTPUT_CODEC);
+        return options;
+    }
 
-	@Override
-	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		String[] fieldNames = context.getSchema().getFieldNames();
-		List<String> projectFields = Arrays.stream(context.getProjectFields())
-			.mapToObj(idx -> fieldNames[idx])
-			.collect(Collectors.toList());
-		List<String> csvFields = Arrays.stream(fieldNames)
-			.filter(field -> !context.getPartitionKeys().contains(field))
-			.collect(Collectors.toList());
+    @Override
+    public InputFormat<RowData, ?> createReader(ReaderContext context) {
+        String[] fieldNames = context.getSchema().getFieldNames();
+        List<String> projectFields =
+                Arrays.stream(context.getProjectFields())
+                        .mapToObj(idx -> fieldNames[idx])
+                        .collect(Collectors.toList());
+        List<String> csvFields =
+                Arrays.stream(fieldNames)
+                        .filter(field -> !context.getPartitionKeys().contains(field))
+                        .collect(Collectors.toList());
 
-		int[] selectFieldToProjectField = context.getFormatProjectFields().stream()
-			.mapToInt(projectFields::indexOf)
-			.toArray();
-		int[] selectFieldToFormatField = context.getFormatProjectFields().stream()
-			.mapToInt(csvFields::indexOf)
-			.toArray();
+        int[] selectFieldToProjectField =
+                context.getFormatProjectFields().stream()
+                        .mapToInt(projectFields::indexOf)
+                        .toArray();
+        int[] selectFieldToFormatField =
+                context.getFormatProjectFields().stream().mapToInt(csvFields::indexOf).toArray();
 
-		//noinspection unchecked
-		return new RowDataAvroInputFormat(
-				context.getPaths(),
-				context.getFormatRowType(),
-				context.getSchema().getFieldDataTypes(),
-				context.getSchema().getFieldNames(),
-				context.getProjectFields(),
-				context.getPartitionKeys(),
-				context.getDefaultPartName(),
-				context.getPushedDownLimit(),
-				selectFieldToProjectField,
-				selectFieldToFormatField);
-	}
+        //noinspection unchecked
+        return new RowDataAvroInputFormat(
+                context.getPaths(),
+                context.getFormatRowType(),
+                context.getSchema().getFieldDataTypes(),
+                context.getSchema().getFieldNames(),
+                context.getProjectFields(),
+                context.getPartitionKeys(),
+                context.getDefaultPartName(),
+                context.getPushedDownLimit(),
+                selectFieldToProjectField,
+                selectFieldToFormatField);
+    }
 
-	@Override
-	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		return Optional.empty();
-	}
+    @Override
+    public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
+        return Optional.empty();
+    }
 
-	@Override
-	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
-		return Optional.of(new RowDataAvroWriterFactory(
-				context.getFormatRowType(),
-				context.getFormatOptions().get(AVRO_OUTPUT_CODEC)));
-	}
+    @Override
+    public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
+        return Optional.of(
+                new RowDataAvroWriterFactory(
+                        context.getFormatRowType(),
+                        context.getFormatOptions().get(AVRO_OUTPUT_CODEC)));
+    }
 
-	/**
-	 * InputFormat that reads avro record into {@link RowData}.
-	 *
-	 * <p>This extends {@link AvroInputFormat}, but {@link RowData} is not a avro record,
-	 * so now we remove generic information.
-	 * TODO {@link AvroInputFormat} support type conversion.
-	 */
-	private static class RowDataAvroInputFormat extends AvroInputFormat {
+    /**
+     * InputFormat that reads avro record into {@link RowData}.
+     *
+     * <p>This extends {@link AvroInputFormat}, but {@link RowData} is not a avro record, so now we
+     * remove generic information. TODO {@link AvroInputFormat} support type conversion.
+     */
+    private static class RowDataAvroInputFormat extends AvroInputFormat {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final DataType[] fieldTypes;
-		private final String[] fieldNames;
-		private final int[] selectFields;
-		private final List<String> partitionKeys;
-		private final String defaultPartValue;
-		private final long limit;
-		private final int[] selectFieldToProjectField;
-		private final int[] selectFieldToFormatField;
-		private final RowType formatRowType;
+        private final DataType[] fieldTypes;
+        private final String[] fieldNames;
+        private final int[] selectFields;
+        private final List<String> partitionKeys;
+        private final String defaultPartValue;
+        private final long limit;
+        private final int[] selectFieldToProjectField;
+        private final int[] selectFieldToFormatField;
+        private final RowType formatRowType;
 
-		private transient long emitted;
-		// reuse object for per record
-		private transient GenericRowData rowData;
-		private transient IndexedRecord record;
-		private transient AvroRowDataDeserializationSchema.DeserializationRuntimeConverter converter;
+        private transient long emitted;
+        // reuse object for per record
+        private transient GenericRowData rowData;
+        private transient IndexedRecord record;
+        private transient AvroRowDataDeserializationSchema.DeserializationRuntimeConverter
+                converter;
 
-		public RowDataAvroInputFormat(
-				Path[] filePaths,
-				RowType formatRowType,
-				DataType[] fieldTypes,
-				String[] fieldNames,
-				int[] selectFields,
-				List<String> partitionKeys,
-				String defaultPartValue,
-				long limit,
-				int[] selectFieldToProjectField,
-				int[] selectFieldToFormatField) {
-			super(filePaths[0], GenericRecord.class);
-			super.setFilePaths(filePaths);
-			this.formatRowType = formatRowType;
-			this.fieldTypes = fieldTypes;
-			this.fieldNames = fieldNames;
-			this.partitionKeys = partitionKeys;
-			this.defaultPartValue = defaultPartValue;
-			this.selectFields = selectFields;
-			this.limit = limit;
-			this.emitted = 0;
-			this.selectFieldToProjectField = selectFieldToProjectField;
-			this.selectFieldToFormatField = selectFieldToFormatField;
-		}
+        public RowDataAvroInputFormat(
+                Path[] filePaths,
+                RowType formatRowType,
+                DataType[] fieldTypes,
+                String[] fieldNames,
+                int[] selectFields,
+                List<String> partitionKeys,
+                String defaultPartValue,
+                long limit,
+                int[] selectFieldToProjectField,
+                int[] selectFieldToFormatField) {
+            super(filePaths[0], GenericRecord.class);
+            super.setFilePaths(filePaths);
+            this.formatRowType = formatRowType;
+            this.fieldTypes = fieldTypes;
+            this.fieldNames = fieldNames;
+            this.partitionKeys = partitionKeys;
+            this.defaultPartValue = defaultPartValue;
+            this.selectFields = selectFields;
+            this.limit = limit;
+            this.emitted = 0;
+            this.selectFieldToProjectField = selectFieldToProjectField;
+            this.selectFieldToFormatField = selectFieldToFormatField;
+        }
 
-		@Override
-		public void open(FileInputSplit split) throws IOException {
-			super.open(split);
-			Schema schema = AvroSchemaConverter.convertToSchema(formatRowType);
-			record = new GenericData.Record(schema);
-			rowData = PartitionPathUtils.fillPartitionValueForRecord(
-					fieldNames,
-					fieldTypes,
-					selectFields,
-					partitionKeys,
-					currentSplit.getPath(),
-					defaultPartValue);
-			this.converter = AvroRowDataDeserializationSchema.createRowConverter(formatRowType);
-		}
+        @Override
+        public void open(FileInputSplit split) throws IOException {
+            super.open(split);
+            Schema schema = AvroSchemaConverter.convertToSchema(formatRowType);
+            record = new GenericData.Record(schema);
+            rowData =
+                    PartitionPathUtils.fillPartitionValueForRecord(
+                            fieldNames,
+                            fieldTypes,
+                            selectFields,
+                            partitionKeys,
+                            currentSplit.getPath(),
+                            defaultPartValue);
+            this.converter = AvroRowDataDeserializationSchema.createRowConverter(formatRowType);
+        }
 
-		@Override
-		public boolean reachedEnd() throws IOException {
-			return emitted >= limit || super.reachedEnd();
-		}
+        @Override
+        public boolean reachedEnd() throws IOException {
+            return emitted >= limit || super.reachedEnd();
+        }
 
-		@Override
-		public Object nextRecord(Object reuse) throws IOException {
-			@SuppressWarnings("unchecked")
-			IndexedRecord r = (IndexedRecord) super.nextRecord(record);
-			if (r == null) {
-				return null;
-			}
-			GenericRowData row = (GenericRowData) converter.convert(r);
+        @Override
+        public Object nextRecord(Object reuse) throws IOException {
+            @SuppressWarnings("unchecked")
+            IndexedRecord r = (IndexedRecord) super.nextRecord(record);
+            if (r == null) {
+                return null;
+            }
+            GenericRowData row = (GenericRowData) converter.convert(r);
 
-			for (int i = 0; i < selectFieldToFormatField.length; i++) {
-				rowData.setField(selectFieldToProjectField[i],
-						row.getField(selectFieldToFormatField[i]));
-			}
-			emitted++;
-			return rowData;
-		}
-	}
+            for (int i = 0; i < selectFieldToFormatField.length; i++) {
+                rowData.setField(
+                        selectFieldToProjectField[i], row.getField(selectFieldToFormatField[i]));
+            }
+            emitted++;
+            return rowData;
+        }
+    }
 
-	/**
-	 * A {@link BulkWriter.Factory} to convert {@link RowData} to {@link GenericRecord} and
-	 * wrap {@link AvroWriterFactory}.
-	 */
-	private static class RowDataAvroWriterFactory implements BulkWriter.Factory<RowData> {
+    /**
+     * A {@link BulkWriter.Factory} to convert {@link RowData} to {@link GenericRecord} and wrap
+     * {@link AvroWriterFactory}.
+     */
+    private static class RowDataAvroWriterFactory implements BulkWriter.Factory<RowData> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final AvroWriterFactory<GenericRecord> factory;
-		private final RowType rowType;
+        private final AvroWriterFactory<GenericRecord> factory;
+        private final RowType rowType;
 
-		private RowDataAvroWriterFactory(RowType rowType, String codec) {
-			this.rowType = rowType;
-			this.factory = new AvroWriterFactory<>((AvroBuilder<GenericRecord>) out -> {
-				Schema schema = AvroSchemaConverter.convertToSchema(rowType);
-				DatumWriter<GenericRecord> datumWriter = new GenericDatumWriter<>(schema);
-				DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(datumWriter);
+        private RowDataAvroWriterFactory(RowType rowType, String codec) {
+            this.rowType = rowType;
+            this.factory =
+                    new AvroWriterFactory<>(
+                            (AvroBuilder<GenericRecord>)
+                                    out -> {
+                                        Schema schema =
+                                                AvroSchemaConverter.convertToSchema(rowType);
+                                        DatumWriter<GenericRecord> datumWriter =
+                                                new GenericDatumWriter<>(schema);
+                                        DataFileWriter<GenericRecord> dataFileWriter =
+                                                new DataFileWriter<>(datumWriter);
 
-				if (codec != null) {
-					dataFileWriter.setCodec(CodecFactory.fromString(codec));
-				}
-				dataFileWriter.create(schema, out);
-				return dataFileWriter;
-			});
-		}
+                                        if (codec != null) {
+                                            dataFileWriter.setCodec(CodecFactory.fromString(codec));
+                                        }
+                                        dataFileWriter.create(schema, out);
+                                        return dataFileWriter;
+                                    });
+        }
 
-		@Override
-		public BulkWriter<RowData> create(FSDataOutputStream out) throws IOException {
-			BulkWriter<GenericRecord> writer = factory.create(out);
-			AvroRowDataSerializationSchema.SerializationRuntimeConverter converter =
-					AvroRowDataSerializationSchema.createRowConverter(rowType);
-			Schema schema = AvroSchemaConverter.convertToSchema(rowType);
-			return new BulkWriter<RowData>() {
+        @Override
+        public BulkWriter<RowData> create(FSDataOutputStream out) throws IOException {
+            BulkWriter<GenericRecord> writer = factory.create(out);
+            AvroRowDataSerializationSchema.SerializationRuntimeConverter converter =
+                    AvroRowDataSerializationSchema.createRowConverter(rowType);
+            Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+            return new BulkWriter<RowData>() {
 
-				@Override
-				public void addElement(RowData element) throws IOException {
-					GenericRecord record = (GenericRecord) converter.convert(schema, element);
-					writer.addElement(record);
-				}
+                @Override
+                public void addElement(RowData element) throws IOException {
+                    GenericRecord record = (GenericRecord) converter.convert(schema, element);
+                    writer.addElement(record);
+                }
 
-				@Override
-				public void flush() throws IOException {
-					writer.flush();
-				}
+                @Override
+                public void flush() throws IOException {
+                    writer.flush();
+                }
 
-				@Override
-				public void finish() throws IOException {
-					writer.finish();
-				}
-			};
-		}
-	}
+                @Override
+                public void finish() throws IOException {
+                    writer.finish();
+                }
+            };
+        }
+    }
 }

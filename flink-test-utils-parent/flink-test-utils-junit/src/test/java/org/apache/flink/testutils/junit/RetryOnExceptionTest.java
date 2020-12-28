@@ -24,62 +24,59 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the RetryOnException annotation.
- */
+/** Tests for the RetryOnException annotation. */
 public class RetryOnExceptionTest {
 
-	@Rule
-	public RetryRule retryRule = new RetryRule();
+    @Rule public RetryRule retryRule = new RetryRule();
 
-	private static final int NUMBER_OF_RUNS = 3;
+    private static final int NUMBER_OF_RUNS = 3;
 
-	private static int runsForSuccessfulTest = 0;
+    private static int runsForSuccessfulTest = 0;
 
-	private static int runsForTestWithMatchingException = 0;
+    private static int runsForTestWithMatchingException = 0;
 
-	private static int runsForTestWithSubclassException = 0;
+    private static int runsForTestWithSubclassException = 0;
 
-	private static int runsForPassAfterOneFailure = 0;
+    private static int runsForPassAfterOneFailure = 0;
 
-	@AfterClass
-	public static void verify() {
-		assertEquals(NUMBER_OF_RUNS + 1, runsForTestWithMatchingException);
-		assertEquals(NUMBER_OF_RUNS + 1, runsForTestWithSubclassException);
-		assertEquals(1, runsForSuccessfulTest);
-		assertEquals(2, runsForPassAfterOneFailure);
-	}
+    @AfterClass
+    public static void verify() {
+        assertEquals(NUMBER_OF_RUNS + 1, runsForTestWithMatchingException);
+        assertEquals(NUMBER_OF_RUNS + 1, runsForTestWithSubclassException);
+        assertEquals(1, runsForSuccessfulTest);
+        assertEquals(2, runsForPassAfterOneFailure);
+    }
 
-	@Test
-	@RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-	public void testSuccessfulTest() {
-		runsForSuccessfulTest++;
-	}
+    @Test
+    @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
+    public void testSuccessfulTest() {
+        runsForSuccessfulTest++;
+    }
 
-	@Test
-	@RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-	public void testMatchingException() {
-		runsForTestWithMatchingException++;
-		if (runsForTestWithMatchingException <= NUMBER_OF_RUNS) {
-			throw new IllegalArgumentException();
-		}
-	}
+    @Test
+    @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
+    public void testMatchingException() {
+        runsForTestWithMatchingException++;
+        if (runsForTestWithMatchingException <= NUMBER_OF_RUNS) {
+            throw new IllegalArgumentException();
+        }
+    }
 
-	@Test
-	@RetryOnException(times = NUMBER_OF_RUNS, exception = RuntimeException.class)
-	public void testSubclassException() {
-		runsForTestWithSubclassException++;
-		if (runsForTestWithSubclassException <= NUMBER_OF_RUNS) {
-			throw new IllegalArgumentException();
-		}
-	}
+    @Test
+    @RetryOnException(times = NUMBER_OF_RUNS, exception = RuntimeException.class)
+    public void testSubclassException() {
+        runsForTestWithSubclassException++;
+        if (runsForTestWithSubclassException <= NUMBER_OF_RUNS) {
+            throw new IllegalArgumentException();
+        }
+    }
 
-	@Test
-	@RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-	public void testPassAfterOneFailure() {
-		runsForPassAfterOneFailure++;
-		if (runsForPassAfterOneFailure == 1) {
-			throw new IllegalArgumentException();
-		}
-	}
+    @Test
+    @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
+    public void testPassAfterOneFailure() {
+        runsForPassAfterOneFailure++;
+        if (runsForPassAfterOneFailure == 1) {
+            throw new IllegalArgumentException();
+        }
+    }
 }

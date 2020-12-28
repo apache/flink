@@ -27,50 +27,52 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-/**
- * Simple JDBC connection provider.
- */
+/** Simple JDBC connection provider. */
 public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Serializable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SimpleJdbcConnectionProvider.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SimpleJdbcConnectionProvider.class);
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final JdbcConnectionOptions jdbcOptions;
+    private final JdbcConnectionOptions jdbcOptions;
 
-	private transient volatile Connection connection;
+    private transient volatile Connection connection;
 
-	public SimpleJdbcConnectionProvider(JdbcConnectionOptions jdbcOptions) {
-		this.jdbcOptions = jdbcOptions;
-	}
+    public SimpleJdbcConnectionProvider(JdbcConnectionOptions jdbcOptions) {
+        this.jdbcOptions = jdbcOptions;
+    }
 
-	@Override
-	public Connection getConnection() throws SQLException, ClassNotFoundException {
-		if (connection == null) {
-			synchronized (this) {
-				if (connection == null) {
-					Class.forName(jdbcOptions.getDriverName());
-					if (jdbcOptions.getUsername().isPresent()) {
-						connection = DriverManager.getConnection(jdbcOptions.getDbURL(), jdbcOptions.getUsername().get(), jdbcOptions.getPassword().orElse(null));
-					} else {
-						connection = DriverManager.getConnection(jdbcOptions.getDbURL());
-					}
-				}
-			}
-		}
-		return connection;
-	}
+    @Override
+    public Connection getConnection() throws SQLException, ClassNotFoundException {
+        if (connection == null) {
+            synchronized (this) {
+                if (connection == null) {
+                    Class.forName(jdbcOptions.getDriverName());
+                    if (jdbcOptions.getUsername().isPresent()) {
+                        connection =
+                                DriverManager.getConnection(
+                                        jdbcOptions.getDbURL(),
+                                        jdbcOptions.getUsername().get(),
+                                        jdbcOptions.getPassword().orElse(null));
+                    } else {
+                        connection = DriverManager.getConnection(jdbcOptions.getDbURL());
+                    }
+                }
+            }
+        }
+        return connection;
+    }
 
-	@Override
-	public Connection reestablishConnection() throws SQLException, ClassNotFoundException {
-		try {
-			connection.close();
-		} catch (SQLException e) {
-			LOG.info("JDBC connection close failed.", e);
-		} finally {
-			connection = null;
-		}
-		connection = getConnection();
-		return connection;
-	}
+    @Override
+    public Connection reestablishConnection() throws SQLException, ClassNotFoundException {
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            LOG.info("JDBC connection close failed.", e);
+        } finally {
+            connection = null;
+        }
+        connection = getConnection();
+        return connection;
+    }
 }

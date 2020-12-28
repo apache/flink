@@ -35,56 +35,54 @@ import java.util.Map;
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processFirstRow;
 import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
-/**
- * This function is used to get the first row for every key partition in miniBatch mode.
- */
+/** This function is used to get the first row for every key partition in miniBatch mode. */
 public class MiniBatchDeduplicateKeepFirstRowFunction
-		extends MapBundleFunction<RowData, RowData, RowData, RowData> {
+        extends MapBundleFunction<RowData, RowData, RowData, RowData> {
 
-	private static final long serialVersionUID = -7994602893547654994L;
+    private static final long serialVersionUID = -7994602893547654994L;
 
-	private final TypeSerializer<RowData> typeSerializer;
-	private final long minRetentionTime;
-	// state stores a boolean flag to indicate whether key appears before.
-	private ValueState<Boolean> state;
+    private final TypeSerializer<RowData> typeSerializer;
+    private final long minRetentionTime;
+    // state stores a boolean flag to indicate whether key appears before.
+    private ValueState<Boolean> state;
 
-	public MiniBatchDeduplicateKeepFirstRowFunction(
-			TypeSerializer<RowData> typeSerializer,
-			long minRetentionTime) {
-		this.minRetentionTime = minRetentionTime;
-		this.typeSerializer = typeSerializer;
-	}
+    public MiniBatchDeduplicateKeepFirstRowFunction(
+            TypeSerializer<RowData> typeSerializer, long minRetentionTime) {
+        this.minRetentionTime = minRetentionTime;
+        this.typeSerializer = typeSerializer;
+    }
 
-	@Override
-	public void open(ExecutionContext ctx) throws Exception {
-		super.open(ctx);
-		ValueStateDescriptor<Boolean> stateDesc = new ValueStateDescriptor<>("existsState", Types.BOOLEAN);
-		StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
-		if (ttlConfig.isEnabled()) {
-			stateDesc.enableTimeToLive(ttlConfig);
-		}
-		state = ctx.getRuntimeContext().getState(stateDesc);
-	}
+    @Override
+    public void open(ExecutionContext ctx) throws Exception {
+        super.open(ctx);
+        ValueStateDescriptor<Boolean> stateDesc =
+                new ValueStateDescriptor<>("existsState", Types.BOOLEAN);
+        StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
+        if (ttlConfig.isEnabled()) {
+            stateDesc.enableTimeToLive(ttlConfig);
+        }
+        state = ctx.getRuntimeContext().getState(stateDesc);
+    }
 
-	@Override
-	public RowData addInput(@Nullable RowData value, RowData input) {
-		if (value == null) {
-			// put the input into buffer
-			return typeSerializer.copy(input);
-		} else {
-			// the input is not first row, ignore it
-			return value;
-		}
-	}
+    @Override
+    public RowData addInput(@Nullable RowData value, RowData input) {
+        if (value == null) {
+            // put the input into buffer
+            return typeSerializer.copy(input);
+        } else {
+            // the input is not first row, ignore it
+            return value;
+        }
+    }
 
-	@Override
-	public void finishBundle(
-			Map<RowData, RowData> buffer, Collector<RowData> out) throws Exception {
-		for (Map.Entry<RowData, RowData> entry : buffer.entrySet()) {
-			RowData currentKey = entry.getKey();
-			RowData currentRow = entry.getValue();
-			ctx.setCurrentKey(currentKey);
-			processFirstRow(currentRow, state, out);
-		}
-	}
+    @Override
+    public void finishBundle(Map<RowData, RowData> buffer, Collector<RowData> out)
+            throws Exception {
+        for (Map.Entry<RowData, RowData> entry : buffer.entrySet()) {
+            RowData currentKey = entry.getKey();
+            RowData currentRow = entry.getValue();
+            ctx.setCurrentKey(currentKey);
+            processFirstRow(currentRow, state, out);
+        }
+    }
 }

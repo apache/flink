@@ -27,29 +27,29 @@ import org.apache.flink.runtime.state.internal.InternalFoldingState;
 
 /** In memory mock internal folding state. */
 @SuppressWarnings("deprecation")
-class MockInternalFoldingState<K, N, T, ACC>
-	extends MockInternalKvState<K, N, ACC> implements InternalFoldingState<K, N, T, ACC> {
-	private final FoldFunction<T, ACC> foldFunction;
+class MockInternalFoldingState<K, N, T, ACC> extends MockInternalKvState<K, N, ACC>
+        implements InternalFoldingState<K, N, T, ACC> {
+    private final FoldFunction<T, ACC> foldFunction;
 
-	private MockInternalFoldingState(FoldFunction<T, ACC> foldFunction) {
-		this.foldFunction = foldFunction;
-	}
+    private MockInternalFoldingState(FoldFunction<T, ACC> foldFunction) {
+        this.foldFunction = foldFunction;
+    }
 
-	@Override
-	public ACC get() {
-		return getInternal();
-	}
+    @Override
+    public ACC get() {
+        return getInternal();
+    }
 
-	@Override
-	public void add(T value) throws Exception {
-		updateInternal(foldFunction.fold(get(), value));
-	}
+    @Override
+    public void add(T value) throws Exception {
+        updateInternal(foldFunction.fold(get(), value));
+    }
 
-	@SuppressWarnings({"unchecked", "unused"})
-	static <T, N, ACC, S extends State, IS extends S> IS createState(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, ACC> stateDesc) {
-		FoldingStateDescriptor<T, ACC> foldingStateDesc = (FoldingStateDescriptor<T, ACC>) stateDesc;
-		return (IS) new MockInternalFoldingState<>(foldingStateDesc.getFoldFunction());
-	}
+    @SuppressWarnings({"unchecked", "unused"})
+    static <T, N, ACC, S extends State, IS extends S> IS createState(
+            TypeSerializer<N> namespaceSerializer, StateDescriptor<S, ACC> stateDesc) {
+        FoldingStateDescriptor<T, ACC> foldingStateDesc =
+                (FoldingStateDescriptor<T, ACC>) stateDesc;
+        return (IS) new MockInternalFoldingState<>(foldingStateDesc.getFoldFunction());
+    }
 }

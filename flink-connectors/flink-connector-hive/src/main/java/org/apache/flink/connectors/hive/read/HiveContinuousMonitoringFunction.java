@@ -64,296 +64,315 @@ import java.util.function.Supplier;
 import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toMills;
 
 /**
- * This is the single (non-parallel) monitoring task which takes a {@link HiveTableInputFormat},
- * it is responsible for:
+ * This is the single (non-parallel) monitoring task which takes a {@link HiveTableInputFormat}, it
+ * is responsible for:
  *
  * <ol>
- *     <li>Monitoring partitions of hive meta store.</li>
- *     <li>Deciding which partitions should be further read and processed.</li>
- *     <li>Creating the {@link HiveTableInputSplit splits} corresponding to those partitions.</li>
- *     <li>Assigning them to downstream tasks for further processing.</li>
+ *   <li>Monitoring partitions of hive meta store.
+ *   <li>Deciding which partitions should be further read and processed.
+ *   <li>Creating the {@link HiveTableInputSplit splits} corresponding to those partitions.
+ *   <li>Assigning them to downstream tasks for further processing.
  * </ol>
  *
  * <p>The splits to be read are forwarded to the downstream {@link ContinuousFileReaderOperator}
  * which can have parallelism greater than one.
  *
- * <p><b>IMPORTANT NOTE: </b> Splits are forwarded downstream for reading in ascending partition time order,
- * based on the partition time of the partitions they belong to.
+ * <p><b>IMPORTANT NOTE: </b> Splits are forwarded downstream for reading in ascending partition
+ * time order, based on the partition time of the partitions they belong to.
  */
-public class HiveContinuousMonitoringFunction
-		extends RichSourceFunction<TimestampedHiveInputSplit>
-		implements CheckpointedFunction {
+public class HiveContinuousMonitoringFunction extends RichSourceFunction<TimestampedHiveInputSplit>
+        implements CheckpointedFunction {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(HiveContinuousMonitoringFunction.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(HiveContinuousMonitoringFunction.class);
 
-	/** The parallelism of the downstream readers. */
-	private final int readerParallelism;
+    /** The parallelism of the downstream readers. */
+    private final int readerParallelism;
 
-	/** The interval between consecutive path scans. */
-	private final long interval;
+    /** The interval between consecutive path scans. */
+    private final long interval;
 
-	private final HiveShim hiveShim;
+    private final HiveShim hiveShim;
 
-	private final JobConfWrapper conf;
+    private final JobConfWrapper conf;
 
-	private final ObjectPath tablePath;
+    private final ObjectPath tablePath;
 
-	private final List<String> partitionKeys;
+    private final List<String> partitionKeys;
 
-	private final String[] fieldNames;
+    private final String[] fieldNames;
 
-	private final DataType[] fieldTypes;
+    private final DataType[] fieldTypes;
 
-	// consumer variables
-	private final ConsumeOrder consumeOrder;
-	private final String consumeOffset;
+    // consumer variables
+    private final ConsumeOrder consumeOrder;
+    private final String consumeOffset;
 
-	// extractor variables
-	private final String extractorKind;
-	private final String extractorClass;
-	private final String extractorPattern;
+    // extractor variables
+    private final String extractorKind;
+    private final String extractorClass;
+    private final String extractorPattern;
 
-	private volatile boolean isRunning = true;
+    private volatile boolean isRunning = true;
 
-	/** The maximum partition read time seen so far. */
-	private volatile long currentReadTime;
+    /** The maximum partition read time seen so far. */
+    private volatile long currentReadTime;
 
-	private transient PartitionDiscovery.Context context;
+    private transient PartitionDiscovery.Context context;
 
-	private transient PartitionDiscovery fetcher;
+    private transient PartitionDiscovery fetcher;
 
-	private transient Object checkpointLock;
+    private transient Object checkpointLock;
 
-	private transient ListState<Long> currReadTimeState;
+    private transient ListState<Long> currReadTimeState;
 
-	private transient ListState<List<List<String>>> distinctPartsState;
+    private transient ListState<List<List<String>>> distinctPartsState;
 
-	private transient IMetaStoreClient client;
+    private transient IMetaStoreClient client;
 
-	private transient Properties tableProps;
+    private transient Properties tableProps;
 
-	private transient String defaultPartitionName;
+    private transient String defaultPartitionName;
 
-	private transient Set<List<String>> distinctPartitions;
+    private transient Set<List<String>> distinctPartitions;
 
-	public HiveContinuousMonitoringFunction(
-			HiveShim hiveShim,
-			JobConf conf,
-			ObjectPath tablePath,
-			CatalogTable catalogTable,
-			int readerParallelism,
-			ConsumeOrder consumeOrder,
-			String consumeOffset,
-			String extractorKind,
-			String extractorClass,
-			String extractorPattern,
-			long interval) {
-		this.hiveShim = hiveShim;
-		this.conf = new JobConfWrapper(conf);
-		this.tablePath = tablePath;
-		this.partitionKeys = catalogTable.getPartitionKeys();
-		this.fieldNames = catalogTable.getSchema().getFieldNames();
-		this.fieldTypes = catalogTable.getSchema().getFieldDataTypes();
-		this.consumeOrder = consumeOrder;
-		this.extractorKind = extractorKind;
-		this.extractorClass = extractorClass;
-		this.extractorPattern = extractorPattern;
-		this.consumeOffset = consumeOffset;
+    public HiveContinuousMonitoringFunction(
+            HiveShim hiveShim,
+            JobConf conf,
+            ObjectPath tablePath,
+            CatalogTable catalogTable,
+            int readerParallelism,
+            ConsumeOrder consumeOrder,
+            String consumeOffset,
+            String extractorKind,
+            String extractorClass,
+            String extractorPattern,
+            long interval) {
+        this.hiveShim = hiveShim;
+        this.conf = new JobConfWrapper(conf);
+        this.tablePath = tablePath;
+        this.partitionKeys = catalogTable.getPartitionKeys();
+        this.fieldNames = catalogTable.getSchema().getFieldNames();
+        this.fieldTypes = catalogTable.getSchema().getFieldDataTypes();
+        this.consumeOrder = consumeOrder;
+        this.extractorKind = extractorKind;
+        this.extractorClass = extractorClass;
+        this.extractorPattern = extractorPattern;
+        this.consumeOffset = consumeOffset;
 
-		this.interval = interval;
-		this.readerParallelism = Math.max(readerParallelism, 1);
-		this.currentReadTime = 0;
-	}
+        this.interval = interval;
+        this.readerParallelism = Math.max(readerParallelism, 1);
+        this.currentReadTime = 0;
+    }
 
-	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
-		this.currReadTimeState = context.getOperatorStateStore().getListState(
-			new ListStateDescriptor<>(
-				"current-read-time-state",
-				LongSerializer.INSTANCE
-			)
-		);
-		this.distinctPartsState = context.getOperatorStateStore().getListState(
-			new ListStateDescriptor<>(
-				"distinct-partitions-state",
-				new ListSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE))
-			)
-		);
+    @Override
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+        this.currReadTimeState =
+                context.getOperatorStateStore()
+                        .getListState(
+                                new ListStateDescriptor<>(
+                                        "current-read-time-state", LongSerializer.INSTANCE));
+        this.distinctPartsState =
+                context.getOperatorStateStore()
+                        .getListState(
+                                new ListStateDescriptor<>(
+                                        "distinct-partitions-state",
+                                        new ListSerializer<>(
+                                                new ListSerializer<>(StringSerializer.INSTANCE))));
 
-		this.client = this.hiveShim.getHiveMetastoreClient(new HiveConf(conf.conf(), HiveConf.class));
+        this.client =
+                this.hiveShim.getHiveMetastoreClient(new HiveConf(conf.conf(), HiveConf.class));
 
-		Table hiveTable = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
-		this.tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable);
-		this.defaultPartitionName = conf.conf().get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
-				HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
+        Table hiveTable = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
+        this.tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable);
+        this.defaultPartitionName =
+                conf.conf()
+                        .get(
+                                HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
+                                HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
 
-		PartitionTimeExtractor extractor = PartitionTimeExtractor.create(
-				getRuntimeContext().getUserCodeClassLoader(),
-				extractorKind,
-				extractorClass,
-				extractorPattern);
+        PartitionTimeExtractor extractor =
+                PartitionTimeExtractor.create(
+                        getRuntimeContext().getUserCodeClassLoader(),
+                        extractorKind,
+                        extractorClass,
+                        extractorPattern);
 
-		this.fetcher = new DirectoryMonitorDiscovery();
+        this.fetcher = new DirectoryMonitorDiscovery();
 
-		Path location = new Path(hiveTable.getSd().getLocation());
-		FileSystem fs = location.getFileSystem(conf.conf());
-		this.context = new PartitionDiscovery.Context() {
+        Path location = new Path(hiveTable.getSd().getLocation());
+        FileSystem fs = location.getFileSystem(conf.conf());
+        this.context =
+                new PartitionDiscovery.Context() {
 
-			@Override
-			public List<String> partitionKeys() {
-				return partitionKeys;
-			}
+                    @Override
+                    public List<String> partitionKeys() {
+                        return partitionKeys;
+                    }
 
-			@Override
-			public Optional<Partition> getPartition(List<String> partValues) throws TException {
-				try {
-					return Optional.of(client.getPartition(
-							tablePath.getDatabaseName(),
-							tablePath.getObjectName(),
-							partValues));
-				} catch (NoSuchObjectException e) {
-					return Optional.empty();
-				}
-			}
+                    @Override
+                    public Optional<Partition> getPartition(List<String> partValues)
+                            throws TException {
+                        try {
+                            return Optional.of(
+                                    client.getPartition(
+                                            tablePath.getDatabaseName(),
+                                            tablePath.getObjectName(),
+                                            partValues));
+                        } catch (NoSuchObjectException e) {
+                            return Optional.empty();
+                        }
+                    }
 
-			@Override
-			public FileSystem fileSystem() {
-				return fs;
-			}
+                    @Override
+                    public FileSystem fileSystem() {
+                        return fs;
+                    }
 
-			@Override
-			public Path tableLocation() {
-				return new Path(hiveTable.getSd().getLocation());
-			}
+                    @Override
+                    public Path tableLocation() {
+                        return new Path(hiveTable.getSd().getLocation());
+                    }
 
-			@Override
-			public long extractTimestamp(
-					List<String> partKeys,
-					List<String> partValues,
-					Supplier<Long> fileTime) {
-				switch (consumeOrder) {
-					case CREATE_TIME_ORDER:
-						return fileTime.get();
-					case PARTITION_TIME_ORDER:
-						return toMills(extractor.extract(partKeys, partValues));
-					default:
-						throw new UnsupportedOperationException(
-								"Unsupported consumer order: " + consumeOrder);
-				}
-			}
-		};
+                    @Override
+                    public long extractTimestamp(
+                            List<String> partKeys,
+                            List<String> partValues,
+                            Supplier<Long> fileTime) {
+                        switch (consumeOrder) {
+                            case CREATE_TIME_ORDER:
+                                return fileTime.get();
+                            case PARTITION_TIME_ORDER:
+                                return toMills(extractor.extract(partKeys, partValues));
+                            default:
+                                throw new UnsupportedOperationException(
+                                        "Unsupported consumer order: " + consumeOrder);
+                        }
+                    }
+                };
 
-		this.distinctPartitions = new HashSet<>();
-		if (context.isRestored()) {
-			LOG.info("Restoring state for the {}.", getClass().getSimpleName());
-			this.currentReadTime = this.currReadTimeState.get().iterator().next();
-			this.distinctPartitions.addAll(this.distinctPartsState.get().iterator().next());
-		} else {
-			LOG.info("No state to restore for the {}.", getClass().getSimpleName());
-			this.currentReadTime = toMills(consumeOffset);
-		}
-	}
+        this.distinctPartitions = new HashSet<>();
+        if (context.isRestored()) {
+            LOG.info("Restoring state for the {}.", getClass().getSimpleName());
+            this.currentReadTime = this.currReadTimeState.get().iterator().next();
+            this.distinctPartitions.addAll(this.distinctPartsState.get().iterator().next());
+        } else {
+            LOG.info("No state to restore for the {}.", getClass().getSimpleName());
+            this.currentReadTime = toMills(consumeOffset);
+        }
+    }
 
-	@Override
-	public void run(SourceContext<TimestampedHiveInputSplit> context) throws Exception {
-		checkpointLock = context.getCheckpointLock();
-		while (isRunning) {
-			synchronized (checkpointLock) {
-				monitorAndForwardSplits(context);
-			}
-			Thread.sleep(interval);
-		}
-	}
+    @Override
+    public void run(SourceContext<TimestampedHiveInputSplit> context) throws Exception {
+        checkpointLock = context.getCheckpointLock();
+        while (isRunning) {
+            synchronized (checkpointLock) {
+                monitorAndForwardSplits(context);
+            }
+            Thread.sleep(interval);
+        }
+    }
 
-	private void monitorAndForwardSplits(
-			SourceContext<TimestampedHiveInputSplit> context) throws Exception {
-		assert (Thread.holdsLock(checkpointLock));
+    private void monitorAndForwardSplits(SourceContext<TimestampedHiveInputSplit> context)
+            throws Exception {
+        assert (Thread.holdsLock(checkpointLock));
 
-		List<Tuple2<Partition, Long>> partitions = fetcher.fetchPartitions(this.context, currentReadTime);
+        List<Tuple2<Partition, Long>> partitions =
+                fetcher.fetchPartitions(this.context, currentReadTime);
 
-		if (partitions.isEmpty()) {
-			return;
-		}
+        if (partitions.isEmpty()) {
+            return;
+        }
 
-		partitions.sort((o1, o2) -> (int) (o1.f1 - o2.f1));
+        partitions.sort((o1, o2) -> (int) (o1.f1 - o2.f1));
 
-		long maxTimestamp = Long.MIN_VALUE;
-		Set<List<String>> nextDistinctParts = new HashSet<>();
-		for (Tuple2<Partition, Long> tuple2 : partitions) {
-			Partition partition = tuple2.f0;
-			List<String> partSpec = partition.getValues();
-			if (!this.distinctPartitions.contains(partSpec)) {
-				this.distinctPartitions.add(partSpec);
-				long timestamp = tuple2.f1;
-				if (timestamp > currentReadTime) {
-					nextDistinctParts.add(partSpec);
-				}
-				if (timestamp > maxTimestamp) {
-					maxTimestamp = timestamp;
-				}
-				LOG.info("Found new partition {} of table {}, forwarding splits to downstream readers",
-						partSpec, tablePath.getFullName());
-				HiveTableInputSplit[] splits = HiveTableInputFormat.createInputSplits(
-						this.readerParallelism,
-						Collections.singletonList(toHiveTablePartition(partition)),
-						this.conf.conf());
-				for (HiveTableInputSplit split : splits) {
-					context.collect(new TimestampedHiveInputSplit(timestamp, split));
-				}
-			}
-		}
+        long maxTimestamp = Long.MIN_VALUE;
+        Set<List<String>> nextDistinctParts = new HashSet<>();
+        for (Tuple2<Partition, Long> tuple2 : partitions) {
+            Partition partition = tuple2.f0;
+            List<String> partSpec = partition.getValues();
+            if (!this.distinctPartitions.contains(partSpec)) {
+                this.distinctPartitions.add(partSpec);
+                long timestamp = tuple2.f1;
+                if (timestamp > currentReadTime) {
+                    nextDistinctParts.add(partSpec);
+                }
+                if (timestamp > maxTimestamp) {
+                    maxTimestamp = timestamp;
+                }
+                LOG.info(
+                        "Found new partition {} of table {}, forwarding splits to downstream readers",
+                        partSpec,
+                        tablePath.getFullName());
+                HiveTableInputSplit[] splits =
+                        HiveTableInputFormat.createInputSplits(
+                                this.readerParallelism,
+                                Collections.singletonList(toHiveTablePartition(partition)),
+                                this.conf.conf());
+                for (HiveTableInputSplit split : splits) {
+                    context.collect(new TimestampedHiveInputSplit(timestamp, split));
+                }
+            }
+        }
 
-		if (maxTimestamp > currentReadTime) {
-			currentReadTime = maxTimestamp;
-			distinctPartitions.clear();
-			distinctPartitions.addAll(nextDistinctParts);
-		}
-	}
+        if (maxTimestamp > currentReadTime) {
+            currentReadTime = maxTimestamp;
+            distinctPartitions.clear();
+            distinctPartitions.addAll(nextDistinctParts);
+        }
+    }
 
-	private HiveTablePartition toHiveTablePartition(Partition p) {
-		return HiveTableSource.toHiveTablePartition(
-				partitionKeys, fieldNames, fieldTypes, hiveShim, tableProps, defaultPartitionName, p);
-	}
+    private HiveTablePartition toHiveTablePartition(Partition p) {
+        return HiveTableSource.toHiveTablePartition(
+                partitionKeys,
+                fieldNames,
+                fieldTypes,
+                hiveShim,
+                tableProps,
+                defaultPartitionName,
+                p);
+    }
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		Preconditions.checkState(this.currReadTimeState != null,
-				"The " + getClass().getSimpleName() + " state has not been properly initialized.");
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        Preconditions.checkState(
+                this.currReadTimeState != null,
+                "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-		this.currReadTimeState.clear();
-		this.currReadTimeState.add(this.currentReadTime);
+        this.currReadTimeState.clear();
+        this.currReadTimeState.add(this.currentReadTime);
 
-		this.distinctPartsState.clear();
-		this.distinctPartsState.add(new ArrayList<>(this.distinctPartitions));
+        this.distinctPartsState.clear();
+        this.distinctPartsState.add(new ArrayList<>(this.distinctPartitions));
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} checkpointed {}.", getClass().getSimpleName(), currentReadTime);
-		}
-	}
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("{} checkpointed {}.", getClass().getSimpleName(), currentReadTime);
+        }
+    }
 
-	@Override
-	public void close() {
-		cancel();
-	}
+    @Override
+    public void close() {
+        cancel();
+    }
 
-	@Override
-	public void cancel() {
-		// this is to cover the case where cancel() is called before the run()
-		if (checkpointLock != null) {
-			synchronized (checkpointLock) {
-				currentReadTime = Long.MAX_VALUE;
-				isRunning = false;
-			}
-		} else {
-			currentReadTime = Long.MAX_VALUE;
-			isRunning = false;
-		}
+    @Override
+    public void cancel() {
+        // this is to cover the case where cancel() is called before the run()
+        if (checkpointLock != null) {
+            synchronized (checkpointLock) {
+                currentReadTime = Long.MAX_VALUE;
+                isRunning = false;
+            }
+        } else {
+            currentReadTime = Long.MAX_VALUE;
+            isRunning = false;
+        }
 
-		if (this.client != null) {
-			this.client.close();
-			this.client = null;
-		}
-	}
+        if (this.client != null) {
+            this.client.close();
+            this.client = null;
+        }
+    }
 }

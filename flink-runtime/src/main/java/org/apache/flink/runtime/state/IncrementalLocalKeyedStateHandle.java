@@ -27,122 +27,121 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * State handle for local copies of {@link IncrementalRemoteKeyedStateHandle}. Consists of a {@link DirectoryStateHandle} that
- * represents the directory of the native RocksDB snapshot, the key groups, and a stream state handle for Flink's state
- * meta data file.
+ * State handle for local copies of {@link IncrementalRemoteKeyedStateHandle}. Consists of a {@link
+ * DirectoryStateHandle} that represents the directory of the native RocksDB snapshot, the key
+ * groups, and a stream state handle for Flink's state meta data file.
  */
-public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle implements IncrementalKeyedStateHandle {
+public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
+        implements IncrementalKeyedStateHandle {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** Id of the checkpoint that created this state handle. */
-	@Nonnegative
-	private final long checkpointId;
+    /** Id of the checkpoint that created this state handle. */
+    @Nonnegative private final long checkpointId;
 
-	/** UUID to identify the backend which created this state handle. */
-	@Nonnull
-	private final UUID backendIdentifier;
+    /** UUID to identify the backend which created this state handle. */
+    @Nonnull private final UUID backendIdentifier;
 
-	/** Handle to Flink's state meta data. */
-	@Nonnull
-	private final StreamStateHandle metaDataState;
+    /** Handle to Flink's state meta data. */
+    @Nonnull private final StreamStateHandle metaDataState;
 
-	/** Set with the ids of all shared state handles created by the checkpoint. */
-	@Nonnull
-	private final Set<StateHandleID> sharedStateHandleIDs;
+    /** Set with the ids of all shared state handles created by the checkpoint. */
+    @Nonnull private final Set<StateHandleID> sharedStateHandleIDs;
 
-	public IncrementalLocalKeyedStateHandle(
-		@Nonnull UUID backendIdentifier,
-		@Nonnegative long checkpointId,
-		@Nonnull DirectoryStateHandle directoryStateHandle,
-		@Nonnull KeyGroupRange keyGroupRange,
-		@Nonnull StreamStateHandle metaDataState,
-		@Nonnull Set<StateHandleID> sharedStateHandleIDs) {
+    public IncrementalLocalKeyedStateHandle(
+            @Nonnull UUID backendIdentifier,
+            @Nonnegative long checkpointId,
+            @Nonnull DirectoryStateHandle directoryStateHandle,
+            @Nonnull KeyGroupRange keyGroupRange,
+            @Nonnull StreamStateHandle metaDataState,
+            @Nonnull Set<StateHandleID> sharedStateHandleIDs) {
 
-		super(directoryStateHandle, keyGroupRange);
-		this.backendIdentifier = backendIdentifier;
-		this.checkpointId = checkpointId;
-		this.metaDataState = metaDataState;
-		this.sharedStateHandleIDs = sharedStateHandleIDs;
-	}
+        super(directoryStateHandle, keyGroupRange);
+        this.backendIdentifier = backendIdentifier;
+        this.checkpointId = checkpointId;
+        this.metaDataState = metaDataState;
+        this.sharedStateHandleIDs = sharedStateHandleIDs;
+    }
 
-	@Nonnull
-	public StreamStateHandle getMetaDataState() {
-		return metaDataState;
-	}
+    @Nonnull
+    public StreamStateHandle getMetaDataState() {
+        return metaDataState;
+    }
 
-	@Override
-	public long getCheckpointId() {
-		return checkpointId;
-	}
+    @Override
+    public long getCheckpointId() {
+        return checkpointId;
+    }
 
-	@Override
-	@Nonnull
-	public UUID getBackendIdentifier() {
-		return backendIdentifier;
-	}
+    @Override
+    @Nonnull
+    public UUID getBackendIdentifier() {
+        return backendIdentifier;
+    }
 
-	@Override
-	@Nonnull
-	public Set<StateHandleID> getSharedStateHandleIDs() {
-		return sharedStateHandleIDs;
-	}
+    @Override
+    @Nonnull
+    public Set<StateHandleID> getSharedStateHandleIDs() {
+        return sharedStateHandleIDs;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
 
-		IncrementalLocalKeyedStateHandle that = (IncrementalLocalKeyedStateHandle) o;
+        IncrementalLocalKeyedStateHandle that = (IncrementalLocalKeyedStateHandle) o;
 
-		return getMetaDataState().equals(that.getMetaDataState());
-	}
+        return getMetaDataState().equals(that.getMetaDataState());
+    }
 
-	@Override
-	public void discardState() throws Exception {
+    @Override
+    public void discardState() throws Exception {
 
-		Exception collectedEx = null;
+        Exception collectedEx = null;
 
-		try {
-			super.discardState();
-		} catch (Exception e) {
-			collectedEx = e;
-		}
+        try {
+            super.discardState();
+        } catch (Exception e) {
+            collectedEx = e;
+        }
 
-		try {
-			metaDataState.discardState();
-		} catch (Exception e) {
-			collectedEx = ExceptionUtils.firstOrSuppressed(e, collectedEx);
-		}
+        try {
+            metaDataState.discardState();
+        } catch (Exception e) {
+            collectedEx = ExceptionUtils.firstOrSuppressed(e, collectedEx);
+        }
 
-		if (collectedEx != null) {
-			throw collectedEx;
-		}
-	}
+        if (collectedEx != null) {
+            throw collectedEx;
+        }
+    }
 
-	@Override
-	public long getStateSize() {
-		return super.getStateSize() + metaDataState.getStateSize();
-	}
+    @Override
+    public long getStateSize() {
+        return super.getStateSize() + metaDataState.getStateSize();
+    }
 
-	@Override
-	public int hashCode() {
-		int result = super.hashCode();
-		result = 31 * result + getMetaDataState().hashCode();
-		return result;
-	}
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + getMetaDataState().hashCode();
+        return result;
+    }
 
-	@Override
-	public String toString() {
-		return "IncrementalLocalKeyedStateHandle{" +
-			"metaDataState=" + metaDataState +
-			"} " + super.toString();
-	}
+    @Override
+    public String toString() {
+        return "IncrementalLocalKeyedStateHandle{"
+                + "metaDataState="
+                + metaDataState
+                + "} "
+                + super.toString();
+    }
 }

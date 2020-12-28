@@ -32,12 +32,13 @@ import java.util.concurrent.CompletableFuture;
  */
 @Internal
 public interface StreamInputProcessor extends AvailabilityProvider, Closeable {
-	/**
-	 * @return input status to estimate whether more records can be processed immediately or not.
-	 * If there are no more records available at the moment and the caller should check finished
-	 * state and/or {@link #getAvailableFuture()}.
-	 */
-	InputStatus processInput() throws Exception;
+    /**
+     * @return input status to estimate whether more records can be processed immediately or not. If
+     *     there are no more records available at the moment and the caller should check finished
+     *     state and/or {@link #getAvailableFuture()}.
+     */
+    InputStatus processInput() throws Exception;
 
-	CompletableFuture<Void> prepareSnapshot(ChannelStateWriter channelStateWriter, long checkpointId) throws IOException;
+    CompletableFuture<Void> prepareSnapshot(
+            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException;
 }

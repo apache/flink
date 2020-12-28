@@ -43,105 +43,106 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for {@link HiveCatalog} created by {@link HiveCatalogFactory}.
- */
+/** Test for {@link HiveCatalog} created by {@link HiveCatalogFactory}. */
 public class HiveCatalogFactoryTest extends TestLogger {
 
-	private static final URL CONF_DIR = Thread.currentThread().getContextClassLoader().getResource("test-catalog-factory-conf");
+    private static final URL CONF_DIR =
+            Thread.currentThread().getContextClassLoader().getResource("test-catalog-factory-conf");
 
-	@Rule
-	public final TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	@Test
-	public void test() {
-		final String catalogName = "mycatalog";
+    @Test
+    public void test() {
+        final String catalogName = "mycatalog";
 
-		final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, null);
+        final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, null);
 
-		final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
-		catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
+        final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
+        catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
 
-		final Map<String, String> properties = catalogDescriptor.toProperties();
+        final Map<String, String> properties = catalogDescriptor.toProperties();
 
-		final Catalog actualCatalog = TableFactoryService.find(CatalogFactory.class, properties)
-			.createCatalog(catalogName, properties);
+        final Catalog actualCatalog =
+                TableFactoryService.find(CatalogFactory.class, properties)
+                        .createCatalog(catalogName, properties);
 
-		checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
-	}
+        checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
+    }
 
-	@Test
-	public void testLoadHadoopConfigFromEnv() throws IOException {
-		Map<String, String> customProps = new HashMap<>();
-		String k1 = "what is connector?";
-		String v1 = "Hive";
-		final String catalogName = "HiveCatalog";
+    @Test
+    public void testLoadHadoopConfigFromEnv() throws IOException {
+        Map<String, String> customProps = new HashMap<>();
+        String k1 = "what is connector?";
+        String v1 = "Hive";
+        final String catalogName = "HiveCatalog";
 
-		// set HADOOP_CONF_DIR env
-		final File hadoopConfDir = tempFolder.newFolder();
-		final File hdfsSiteFile = new File(hadoopConfDir, "hdfs-site.xml");
-		writeProperty(hdfsSiteFile, k1, v1);
-		customProps.put(k1, v1);
+        // set HADOOP_CONF_DIR env
+        final File hadoopConfDir = tempFolder.newFolder();
+        final File hdfsSiteFile = new File(hadoopConfDir, "hdfs-site.xml");
+        writeProperty(hdfsSiteFile, k1, v1);
+        customProps.put(k1, v1);
 
-		// add mapred-site file
-		final File mapredSiteFile = new File(hadoopConfDir, "mapred-site.xml");
-		k1 = "mapred.site.config.key";
-		v1 = "mapred.site.config.val";
-		writeProperty(mapredSiteFile, k1, v1);
-		customProps.put(k1, v1);
+        // add mapred-site file
+        final File mapredSiteFile = new File(hadoopConfDir, "mapred-site.xml");
+        k1 = "mapred.site.config.key";
+        v1 = "mapred.site.config.val";
+        writeProperty(mapredSiteFile, k1, v1);
+        customProps.put(k1, v1);
 
-		final Map<String, String> originalEnv = System.getenv();
-		final Map<String, String> newEnv = new HashMap<>(originalEnv);
-		newEnv.put("HADOOP_CONF_DIR", hadoopConfDir.getAbsolutePath());
-		newEnv.remove("HADOOP_HOME");
-		CommonTestUtils.setEnv(newEnv);
+        final Map<String, String> originalEnv = System.getenv();
+        final Map<String, String> newEnv = new HashMap<>(originalEnv);
+        newEnv.put("HADOOP_CONF_DIR", hadoopConfDir.getAbsolutePath());
+        newEnv.remove("HADOOP_HOME");
+        CommonTestUtils.setEnv(newEnv);
 
-		// create HiveCatalog use the Hadoop Configuration
-		final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
-		catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
-		final Map<String, String> properties = catalogDescriptor.toProperties();
-		final HiveConf hiveConf;
-		try {
-			final HiveCatalog hiveCatalog = (HiveCatalog) TableFactoryService.find(CatalogFactory.class, properties)
-					.createCatalog(catalogName, properties);
-			hiveConf = hiveCatalog.getHiveConf();
-		} finally {
-			// set the Env back
-			CommonTestUtils.setEnv(originalEnv);
-		}
-		// validate the result
-		for (String key : customProps.keySet()) {
-			assertEquals(customProps.get(key), hiveConf.get(key, null));
-		}
-	}
+        // create HiveCatalog use the Hadoop Configuration
+        final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
+        catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
+        final Map<String, String> properties = catalogDescriptor.toProperties();
+        final HiveConf hiveConf;
+        try {
+            final HiveCatalog hiveCatalog =
+                    (HiveCatalog)
+                            TableFactoryService.find(CatalogFactory.class, properties)
+                                    .createCatalog(catalogName, properties);
+            hiveConf = hiveCatalog.getHiveConf();
+        } finally {
+            // set the Env back
+            CommonTestUtils.setEnv(originalEnv);
+        }
+        // validate the result
+        for (String key : customProps.keySet()) {
+            assertEquals(customProps.get(key), hiveConf.get(key, null));
+        }
+    }
 
-	@Test
-	public void testDisallowEmbedded() {
-		expectedException.expect(IllegalArgumentException.class);
-		final Map<String, String> properties = new HiveCatalogDescriptor().toProperties();
+    @Test
+    public void testDisallowEmbedded() {
+        expectedException.expect(IllegalArgumentException.class);
+        final Map<String, String> properties = new HiveCatalogDescriptor().toProperties();
 
-		TableFactoryService.find(CatalogFactory.class, properties).createCatalog("my_catalog", properties);
-	}
+        TableFactoryService.find(CatalogFactory.class, properties)
+                .createCatalog("my_catalog", properties);
+    }
 
-	private static void checkEquals(HiveCatalog c1, HiveCatalog c2) {
-		// Only assert a few selected properties for now
-		assertEquals(c1.getName(), c2.getName());
-		assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
-	}
+    private static void checkEquals(HiveCatalog c1, HiveCatalog c2) {
+        // Only assert a few selected properties for now
+        assertEquals(c1.getName(), c2.getName());
+        assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
+    }
 
-	private static void writeProperty(File file, String key, String value) throws IOException {
-		try (PrintStream out = new PrintStream(new FileOutputStream(file))) {
-			out.println("<?xml version=\"1.0\"?>");
-			out.println("<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>");
-			out.println("<configuration>");
-			out.println("\t<property>");
-			out.println("\t\t<name>" + key + "</name>");
-			out.println("\t\t<value>" + value + "</value>");
-			out.println("\t</property>");
-			out.println("</configuration>");
-		}
-	}
+    private static void writeProperty(File file, String key, String value) throws IOException {
+        try (PrintStream out = new PrintStream(new FileOutputStream(file))) {
+            out.println("<?xml version=\"1.0\"?>");
+            out.println("<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>");
+            out.println("<configuration>");
+            out.println("\t<property>");
+            out.println("\t\t<name>" + key + "</name>");
+            out.println("\t\t<value>" + value + "</value>");
+            out.println("\t</property>");
+            out.println("</configuration>");
+        }
+    }
 }

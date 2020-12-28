@@ -35,78 +35,78 @@ import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * General tests for the {@link AbstractKubernetesParameters}.
- */
+/** General tests for the {@link AbstractKubernetesParameters}. */
 public class AbstractKubernetesParametersTest extends TestLogger {
 
-	private final Configuration flinkConfig = new Configuration();
-	private final TestingKubernetesParameters testingKubernetesParameters = new TestingKubernetesParameters(flinkConfig);
+    private final Configuration flinkConfig = new Configuration();
+    private final TestingKubernetesParameters testingKubernetesParameters =
+            new TestingKubernetesParameters(flinkConfig);
 
-	@Test
-	public void testClusterIdMustNotBeBlank() {
-		flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, "  ");
-		assertThrows(
-			"must not be blank",
-			IllegalArgumentException.class,
-			testingKubernetesParameters::getClusterId
-		);
-	}
+    @Test
+    public void testClusterIdMustNotBeBlank() {
+        flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, "  ");
+        assertThrows(
+                "must not be blank",
+                IllegalArgumentException.class,
+                testingKubernetesParameters::getClusterId);
+    }
 
-	@Test
-	public void testClusterIdLengthLimitation() {
-		final String stringWithIllegalLength =
-			StringUtils.generateRandomAlphanumericString(new Random(), Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID + 1);
-		flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, stringWithIllegalLength);
-		assertThrows(
-			"must be no more than " + Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID + " characters",
-			IllegalArgumentException.class,
-			testingKubernetesParameters::getClusterId
-		);
-	}
+    @Test
+    public void testClusterIdLengthLimitation() {
+        final String stringWithIllegalLength =
+                StringUtils.generateRandomAlphanumericString(
+                        new Random(), Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID + 1);
+        flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, stringWithIllegalLength);
+        assertThrows(
+                "must be no more than "
+                        + Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID
+                        + " characters",
+                IllegalArgumentException.class,
+                testingKubernetesParameters::getClusterId);
+    }
 
-	@Test
-	public void getConfigDirectory() {
-		final String confDir = "/path/of/flink-conf";
-		flinkConfig.set(DeploymentOptionsInternal.CONF_DIR, confDir);
-		assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDir));
-	}
+    @Test
+    public void getConfigDirectory() {
+        final String confDir = "/path/of/flink-conf";
+        flinkConfig.set(DeploymentOptionsInternal.CONF_DIR, confDir);
+        assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDir));
+    }
 
-	@Test
-	public void getConfigDirectoryFallbackToPodConfDir() {
-		final String confDirInPod = flinkConfig.get(KubernetesConfigOptions.FLINK_CONF_DIR);
-		assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDirInPod));
-	}
+    @Test
+    public void getConfigDirectoryFallbackToPodConfDir() {
+        final String confDirInPod = flinkConfig.get(KubernetesConfigOptions.FLINK_CONF_DIR);
+        assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDirInPod));
+    }
 
-	private class TestingKubernetesParameters extends AbstractKubernetesParameters {
+    private class TestingKubernetesParameters extends AbstractKubernetesParameters {
 
-		public TestingKubernetesParameters(Configuration flinkConfig) {
-			super(flinkConfig);
-		}
+        public TestingKubernetesParameters(Configuration flinkConfig) {
+            super(flinkConfig);
+        }
 
-		@Override
-		public Map<String, String> getLabels() {
-			throw new UnsupportedOperationException("NOT supported");
-		}
+        @Override
+        public Map<String, String> getLabels() {
+            throw new UnsupportedOperationException("NOT supported");
+        }
 
-		@Override
-		public Map<String, String> getNodeSelector() {
-			throw new UnsupportedOperationException("NOT supported");
-		}
+        @Override
+        public Map<String, String> getNodeSelector() {
+            throw new UnsupportedOperationException("NOT supported");
+        }
 
-		@Override
-		public Map<String, String> getEnvironments() {
-			throw new UnsupportedOperationException("NOT supported");
-		}
+        @Override
+        public Map<String, String> getEnvironments() {
+            throw new UnsupportedOperationException("NOT supported");
+        }
 
-		@Override
-		public Map<String, String> getAnnotations() {
-			throw new UnsupportedOperationException("NOT supported");
-		}
+        @Override
+        public Map<String, String> getAnnotations() {
+            throw new UnsupportedOperationException("NOT supported");
+        }
 
-		@Override
-		public List<Map<String, String>> getTolerations() {
-			throw new UnsupportedOperationException("NOT supported");
-		}
-	}
+        @Override
+        public List<Map<String, String>> getTolerations() {
+            throw new UnsupportedOperationException("NOT supported");
+        }
+    }
 }

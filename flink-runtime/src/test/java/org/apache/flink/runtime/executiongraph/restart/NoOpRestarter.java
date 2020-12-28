@@ -18,11 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
-/**
- * A testing RestartCallback that does nothing. 
- */
+/** A testing RestartCallback that does nothing. */
 class NoOpRestarter implements RestartCallback {
 
-	@Override
-	public void triggerFullRecovery() {}
+    @Override
+    public void triggerFullRecovery() {}
 }

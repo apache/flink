@@ -38,50 +38,54 @@ import java.util.UUID;
 /**
  * A {@link SelectTableSink} for streaming select job.
  *
- * <p><strong>NOTES:</strong> Currently, only insert changes is supported.
- * Once FLINK-16998 is finished, all kinds of changes will be supported.
+ * <p><strong>NOTES:</strong> Currently, only insert changes is supported. Once FLINK-16998 is
+ * finished, all kinds of changes will be supported.
  */
 public class StreamSelectTableSink implements AppendStreamTableSink<Row>, SelectTableSink {
 
-	private final TableSchema tableSchema;
-	private final CollectSinkOperatorFactory<Row> factory;
-	private final CollectResultIterator<Row> iterator;
+    private final TableSchema tableSchema;
+    private final CollectSinkOperatorFactory<Row> factory;
+    private final CollectResultIterator<Row> iterator;
 
-	public StreamSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
+    public StreamSelectTableSink(TableSchema tableSchema) {
+        this.tableSchema =
+                SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
 
-		TypeSerializer<Row> typeSerializer = this.tableSchema.toRowType().createSerializer(new ExecutionConfig());
-		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
+        TypeSerializer<Row> typeSerializer =
+                this.tableSchema.toRowType().createSerializer(new ExecutionConfig());
+        String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
 
-		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
-		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
-		this.iterator = new CollectResultIterator<>(operator.getOperatorIdFuture(), typeSerializer, accumulatorName);
-	}
+        this.factory = new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
+        CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
+        this.iterator =
+                new CollectResultIterator<>(
+                        operator.getOperatorIdFuture(), typeSerializer, accumulatorName);
+    }
 
-	@Override
-	public DataType getConsumedDataType() {
-		return tableSchema.toRowDataType();
-	}
+    @Override
+    public DataType getConsumedDataType() {
+        return tableSchema.toRowDataType();
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 
-	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-		CollectStreamSink<Row> sink = new CollectStreamSink<>(dataStream, factory);
-		dataStream.getExecutionEnvironment().addOperator(sink.getTransformation());
-		return sink.name("Streaming select table sink");
-	}
+    @Override
+    public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
+        CollectStreamSink<Row> sink = new CollectStreamSink<>(dataStream, factory);
+        dataStream.getExecutionEnvironment().addOperator(sink.getTransformation());
+        return sink.name("Streaming select table sink");
+    }
 
-	@Override
-	public void setJobClient(JobClient jobClient) {
-		iterator.setJobClient(jobClient);
-	}
+    @Override
+    public void setJobClient(JobClient jobClient) {
+        iterator.setJobClient(jobClient);
+    }
 
-	@Override
-	public CloseableIterator<Row> getResultIterator() {
-		return iterator;
-	}
+    @Override
+    public CloseableIterator<Row> getResultIterator() {
+        return iterator;
+    }
 }

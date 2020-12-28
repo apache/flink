@@ -31,57 +31,67 @@ import javax.annotation.Nonnull;
 import java.util.List;
 
 @SuppressWarnings("deprecation")
-class TtlFoldingStateVerifier extends AbstractTtlStateVerifier<
-	FoldingStateDescriptor<Integer, Long>, FoldingState<Integer, Long>, Long, Integer, Long> {
-	private static final long INIT_VAL = 5L;
+class TtlFoldingStateVerifier
+        extends AbstractTtlStateVerifier<
+                FoldingStateDescriptor<Integer, Long>,
+                FoldingState<Integer, Long>,
+                Long,
+                Integer,
+                Long> {
+    private static final long INIT_VAL = 5L;
 
-	TtlFoldingStateVerifier() {
-		super(new FoldingStateDescriptor<>(
-			TtlFoldingStateVerifier.class.getSimpleName(), INIT_VAL, (v, acc) -> acc + v, LongSerializer.INSTANCE));
-	}
+    TtlFoldingStateVerifier() {
+        super(
+                new FoldingStateDescriptor<>(
+                        TtlFoldingStateVerifier.class.getSimpleName(),
+                        INIT_VAL,
+                        (v, acc) -> acc + v,
+                        LongSerializer.INSTANCE));
+    }
 
-	@Override
-	@Nonnull
-	State createState(@Nonnull FunctionInitializationContext context) {
-		return context.getKeyedStateStore().getFoldingState(stateDesc);
-	}
+    @Override
+    @Nonnull
+    State createState(@Nonnull FunctionInitializationContext context) {
+        return context.getKeyedStateStore().getFoldingState(stateDesc);
+    }
 
-	@Override
-	@Nonnull
-	public TypeSerializer<Integer> getUpdateSerializer() {
-		return IntSerializer.INSTANCE;
-	}
+    @Override
+    @Nonnull
+    public TypeSerializer<Integer> getUpdateSerializer() {
+        return IntSerializer.INSTANCE;
+    }
 
-	@Override
-	@Nonnull
-	public Integer generateRandomUpdate() {
-		return RANDOM.nextInt(100);
-	}
+    @Override
+    @Nonnull
+    public Integer generateRandomUpdate() {
+        return RANDOM.nextInt(100);
+    }
 
-	@Override
-	Long getInternal(@Nonnull FoldingState<Integer, Long> state) throws Exception {
-		return state.get();
-	}
+    @Override
+    Long getInternal(@Nonnull FoldingState<Integer, Long> state) throws Exception {
+        return state.get();
+    }
 
-	@Override
-	void updateInternal(@Nonnull FoldingState<Integer, Long> state, Integer update) throws Exception {
-		state.add(update);
-	}
+    @Override
+    void updateInternal(@Nonnull FoldingState<Integer, Long> state, Integer update)
+            throws Exception {
+        state.add(update);
+    }
 
-	@Override
-	Long expected(@Nonnull List<ValueWithTs<Integer>> updates, long currentTimestamp) {
-		if (updates.isEmpty()) {
-			return null;
-		}
-		long acc = INIT_VAL;
-		long lastTs = updates.get(0).getTimestamp();
-		for (ValueWithTs<Integer> update : updates) {
-			if (expired(lastTs, update.getTimestamp())) {
-				acc = INIT_VAL;
-			}
-			acc += update.getValue();
-			lastTs = update.getTimestamp();
-		}
-		return expired(lastTs, currentTimestamp) ? null : acc;
-	}
+    @Override
+    Long expected(@Nonnull List<ValueWithTs<Integer>> updates, long currentTimestamp) {
+        if (updates.isEmpty()) {
+            return null;
+        }
+        long acc = INIT_VAL;
+        long lastTs = updates.get(0).getTimestamp();
+        for (ValueWithTs<Integer> update : updates) {
+            if (expired(lastTs, update.getTimestamp())) {
+                acc = INIT_VAL;
+            }
+            acc += update.getValue();
+            lastTs = update.getTimestamp();
+        }
+        return expired(lastTs, currentTimestamp) ? null : acc;
+    }
 }

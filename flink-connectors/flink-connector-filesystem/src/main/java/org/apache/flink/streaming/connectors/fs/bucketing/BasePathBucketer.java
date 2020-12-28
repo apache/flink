@@ -23,20 +23,20 @@ import org.apache.flink.streaming.connectors.fs.Clock;
 import org.apache.hadoop.fs.Path;
 
 /**
- * A {@link Bucketer} that does not perform any
- * bucketing of files. All files are written to the base path.
+ * A {@link Bucketer} that does not perform any bucketing of files. All files are written to the
+ * base path.
  */
 @Deprecated
 public class BasePathBucketer<T> implements Bucketer<T> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public Path getBucketPath(Clock clock, Path basePath, T element) {
-		return basePath;
-	}
+    @Override
+    public Path getBucketPath(Clock clock, Path basePath, T element) {
+        return basePath;
+    }
 
-	@Override
-	public String toString() {
-		return "BasePathBucketer";
-	}
+    @Override
+    public String toString() {
+        return "BasePathBucketer";
+    }
 }

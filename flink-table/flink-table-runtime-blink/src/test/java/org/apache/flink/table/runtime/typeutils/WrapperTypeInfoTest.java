@@ -25,23 +25,17 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 import java.time.DayOfWeek;
 
-/**
- * Test for {@link WrapperTypeInfo}.
- */
+/** Test for {@link WrapperTypeInfo}. */
 public class WrapperTypeInfoTest extends TypeInformationTestBase<WrapperTypeInfo<?>> {
 
-	@Override
-	protected WrapperTypeInfo<?>[] getTestData() {
-		return new WrapperTypeInfo<?>[] {
-				new WrapperTypeInfo<>(
-					Object.class,
-					new KryoSerializer<>(Object.class, new ExecutionConfig())),
-				new WrapperTypeInfo<>(
-					DayOfWeek.class,
-					new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig())),
-				new WrapperTypeInfo<>(
-					Integer.class,
-					IntSerializer.INSTANCE)
-		};
-	}
+    @Override
+    protected WrapperTypeInfo<?>[] getTestData() {
+        return new WrapperTypeInfo<?>[] {
+            new WrapperTypeInfo<>(
+                    Object.class, new KryoSerializer<>(Object.class, new ExecutionConfig())),
+            new WrapperTypeInfo<>(
+                    DayOfWeek.class, new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig())),
+            new WrapperTypeInfo<>(Integer.class, IntSerializer.INSTANCE)
+        };
+    }
 }

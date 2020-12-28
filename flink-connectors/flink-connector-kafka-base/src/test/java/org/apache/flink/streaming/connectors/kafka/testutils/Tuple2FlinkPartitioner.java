@@ -22,24 +22,29 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 
 /**
- * Special partitioner that uses the first field of a 2-tuple as the partition,
- * and that expects a specific number of partitions.
+ * Special partitioner that uses the first field of a 2-tuple as the partition, and that expects a
+ * specific number of partitions.
  */
 public class Tuple2FlinkPartitioner extends FlinkKafkaPartitioner<Tuple2<Integer, Integer>> {
-	private static final long serialVersionUID = -3589898230375281549L;
+    private static final long serialVersionUID = -3589898230375281549L;
 
-	private final int expectedPartitions;
+    private final int expectedPartitions;
 
-	public Tuple2FlinkPartitioner(int expectedPartitions) {
-		this.expectedPartitions = expectedPartitions;
-	}
+    public Tuple2FlinkPartitioner(int expectedPartitions) {
+        this.expectedPartitions = expectedPartitions;
+    }
 
-	@Override
-	public int partition(Tuple2<Integer, Integer> next, byte[] key, byte[] value, String targetTopic, int[] partitions) {
-		if (partitions.length != expectedPartitions) {
-			throw new IllegalArgumentException("Expected " + expectedPartitions + " partitions");
-		}
+    @Override
+    public int partition(
+            Tuple2<Integer, Integer> next,
+            byte[] key,
+            byte[] value,
+            String targetTopic,
+            int[] partitions) {
+        if (partitions.length != expectedPartitions) {
+            throw new IllegalArgumentException("Expected " + expectedPartitions + " partitions");
+        }
 
-		return next.f0;
-	}
+        return next.f0;
+    }
 }

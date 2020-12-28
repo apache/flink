@@ -30,8 +30,9 @@ import org.apache.flink.table.types.DataType;
 @PublicEvolving
 public interface DecodingFormat<I> extends Format {
 
-	/**
-	 * Creates runtime decoder implementation that is configured to produce data of the given data type.
-	 */
-	I createRuntimeDecoder(DynamicTableSource.Context context, DataType producedDataType);
+    /**
+     * Creates runtime decoder implementation that is configured to produce data of the given data
+     * type.
+     */
+    I createRuntimeDecoder(DynamicTableSource.Context context, DataType producedDataType);
 }

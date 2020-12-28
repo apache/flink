@@ -39,94 +39,92 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Tests for {@link CollectResultIterator}.
- */
+/** Tests for {@link CollectResultIterator}. */
 public class CollectResultIteratorTest extends TestLogger {
 
-	private static final OperatorID TEST_OPERATOR_ID = new OperatorID();
-	private static final JobID TEST_JOB_ID = new JobID();
-	private static final String ACCUMULATOR_NAME = "accumulatorName";
+    private static final OperatorID TEST_OPERATOR_ID = new OperatorID();
+    private static final JobID TEST_JOB_ID = new JobID();
+    private static final String ACCUMULATOR_NAME = "accumulatorName";
 
-	@Test
-	public void testIteratorWithCheckpointAndFailure() throws Exception {
-		// run this random test multiple times
-		for (int testCount = 1000; testCount > 0; testCount--) {
-			List<Integer> expected = new ArrayList<>();
-			for (int i = 0; i < 200; i++) {
-				expected.add(i);
-			}
+    @Test
+    public void testIteratorWithCheckpointAndFailure() throws Exception {
+        // run this random test multiple times
+        for (int testCount = 1000; testCount > 0; testCount--) {
+            List<Integer> expected = new ArrayList<>();
+            for (int i = 0; i < 200; i++) {
+                expected.add(i);
+            }
 
-			CollectResultIterator<Integer> iterator = createIteratorAndJobClient(expected, IntSerializer.INSTANCE).f0;
+            CollectResultIterator<Integer> iterator =
+                    createIteratorAndJobClient(expected, IntSerializer.INSTANCE).f0;
 
-			List<Integer> actual = new ArrayList<>();
-			while (iterator.hasNext()) {
-				actual.add(iterator.next());
-			}
-			Assert.assertEquals(expected.size(), actual.size());
+            List<Integer> actual = new ArrayList<>();
+            while (iterator.hasNext()) {
+                actual.add(iterator.next());
+            }
+            Assert.assertEquals(expected.size(), actual.size());
 
-			Collections.sort(expected);
-			Collections.sort(actual);
-			Assert.assertArrayEquals(expected.toArray(new Integer[0]), actual.toArray(new Integer[0]));
+            Collections.sort(expected);
+            Collections.sort(actual);
+            Assert.assertArrayEquals(
+                    expected.toArray(new Integer[0]), actual.toArray(new Integer[0]));
 
-			iterator.close();
-		}
-	}
+            iterator.close();
+        }
+    }
 
-	@Test
-	public void testEarlyClose() throws Exception {
-		List<Integer> expected = new ArrayList<>();
-		for (int i = 0; i < 200; i++) {
-			expected.add(i);
-		}
+    @Test
+    public void testEarlyClose() throws Exception {
+        List<Integer> expected = new ArrayList<>();
+        for (int i = 0; i < 200; i++) {
+            expected.add(i);
+        }
 
-		Tuple2<CollectResultIterator<Integer>, JobClient> tuple2 =
-			createIteratorAndJobClient(expected, IntSerializer.INSTANCE);
-		CollectResultIterator<Integer> iterator = tuple2.f0;
-		JobClient jobClient = tuple2.f1;
+        Tuple2<CollectResultIterator<Integer>, JobClient> tuple2 =
+                createIteratorAndJobClient(expected, IntSerializer.INSTANCE);
+        CollectResultIterator<Integer> iterator = tuple2.f0;
+        JobClient jobClient = tuple2.f1;
 
-		for (int i = 0; i < 100; i++) {
-			Assert.assertTrue(iterator.hasNext());
-			Assert.assertNotNull(iterator.next());
-		}
-		Assert.assertTrue(iterator.hasNext());
-		iterator.close();
+        for (int i = 0; i < 100; i++) {
+            Assert.assertTrue(iterator.hasNext());
+            Assert.assertNotNull(iterator.next());
+        }
+        Assert.assertTrue(iterator.hasNext());
+        iterator.close();
 
-		Assert.assertEquals(JobStatus.CANCELED, jobClient.getJobStatus().get());
-	}
+        Assert.assertEquals(JobStatus.CANCELED, jobClient.getJobStatus().get());
+    }
 
-	private Tuple2<CollectResultIterator<Integer>, JobClient> createIteratorAndJobClient(
-			List<Integer> expected,
-			TypeSerializer<Integer> serializer) {
-		CollectResultIterator<Integer> iterator = new CollectResultIterator<>(
-			CompletableFuture.completedFuture(TEST_OPERATOR_ID),
-			serializer,
-			ACCUMULATOR_NAME,
-			0);
+    private Tuple2<CollectResultIterator<Integer>, JobClient> createIteratorAndJobClient(
+            List<Integer> expected, TypeSerializer<Integer> serializer) {
+        CollectResultIterator<Integer> iterator =
+                new CollectResultIterator<>(
+                        CompletableFuture.completedFuture(TEST_OPERATOR_ID),
+                        serializer,
+                        ACCUMULATOR_NAME,
+                        0);
 
-		TestCoordinationRequestHandler<Integer> handler = new TestCoordinationRequestHandler<>(
-			expected, serializer, ACCUMULATOR_NAME);
+        TestCoordinationRequestHandler<Integer> handler =
+                new TestCoordinationRequestHandler<>(expected, serializer, ACCUMULATOR_NAME);
 
-		TestJobClient.JobInfoProvider infoProvider = new TestJobClient.JobInfoProvider() {
+        TestJobClient.JobInfoProvider infoProvider =
+                new TestJobClient.JobInfoProvider() {
 
-			@Override
-			public boolean isJobFinished() {
-				return handler.isClosed();
-			}
+                    @Override
+                    public boolean isJobFinished() {
+                        return handler.isClosed();
+                    }
 
-			@Override
-			public Map<String, OptionalFailure<Object>> getAccumulatorResults() {
-				return handler.getAccumulatorResults();
-			}
-		};
+                    @Override
+                    public Map<String, OptionalFailure<Object>> getAccumulatorResults() {
+                        return handler.getAccumulatorResults();
+                    }
+                };
 
-		TestJobClient jobClient = new TestJobClient(
-			TEST_JOB_ID,
-			TEST_OPERATOR_ID,
-			handler,
-			infoProvider);
-		iterator.setJobClient(jobClient);
+        TestJobClient jobClient =
+                new TestJobClient(TEST_JOB_ID, TEST_OPERATOR_ID, handler, infoProvider);
+        iterator.setJobClient(jobClient);
 
-		return Tuple2.of(iterator, jobClient);
-	}
+        return Tuple2.of(iterator, jobClient);
+    }
 }

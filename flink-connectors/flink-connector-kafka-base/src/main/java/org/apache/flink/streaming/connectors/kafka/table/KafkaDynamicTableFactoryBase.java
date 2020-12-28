@@ -56,117 +56,115 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.get
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.validateTableOptions;
 
 /**
- * Factory for creating configured instances of
- * {@link KafkaDynamicSourceBase} and {@link KafkaDynamicSinkBase}.
+ * Factory for creating configured instances of {@link KafkaDynamicSourceBase} and {@link
+ * KafkaDynamicSinkBase}.
  */
-public abstract class KafkaDynamicTableFactoryBase implements
-		DynamicTableSourceFactory,
-		DynamicTableSinkFactory {
+public abstract class KafkaDynamicTableFactoryBase
+        implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-	@Override
-	public DynamicTableSource createDynamicTableSource(Context context) {
-		FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
-		ReadableConfig tableOptions = helper.getOptions();
+        ReadableConfig tableOptions = helper.getOptions();
 
-		String topic = tableOptions.get(TOPIC);
-		DecodingFormat<DeserializationSchema<RowData>> decodingFormat = helper.discoverDecodingFormat(
-				DeserializationFormatFactory.class,
-				FactoryUtil.FORMAT);
-		// Validate the option data type.
-		helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
-		// Validate the option values.
-		validateTableOptions(tableOptions);
+        String topic = tableOptions.get(TOPIC);
+        DecodingFormat<DeserializationSchema<RowData>> decodingFormat =
+                helper.discoverDecodingFormat(
+                        DeserializationFormatFactory.class, FactoryUtil.FORMAT);
+        // Validate the option data type.
+        helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
+        // Validate the option values.
+        validateTableOptions(tableOptions);
 
-		DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
-		final KafkaOptions.StartupOptions startupOptions = getStartupOptions(tableOptions, topic);
-		return createKafkaTableSource(
-				producedDataType,
-				topic,
-				getKafkaProperties(context.getCatalogTable().getOptions()),
-				decodingFormat,
-				startupOptions.startupMode,
-				startupOptions.specificOffsets,
-				startupOptions.startupTimestampMillis);
-	}
+        DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+        final KafkaOptions.StartupOptions startupOptions = getStartupOptions(tableOptions, topic);
+        return createKafkaTableSource(
+                producedDataType,
+                topic,
+                getKafkaProperties(context.getCatalogTable().getOptions()),
+                decodingFormat,
+                startupOptions.startupMode,
+                startupOptions.specificOffsets,
+                startupOptions.startupTimestampMillis);
+    }
 
-	@Override
-	public DynamicTableSink createDynamicTableSink(Context context) {
-		FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+    @Override
+    public DynamicTableSink createDynamicTableSink(Context context) {
+        FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
-		ReadableConfig tableOptions = helper.getOptions();
+        ReadableConfig tableOptions = helper.getOptions();
 
-		String topic = tableOptions.get(TOPIC);
-		EncodingFormat<SerializationSchema<RowData>> encodingFormat = helper.discoverEncodingFormat(
-				SerializationFormatFactory.class,
-				FactoryUtil.FORMAT);
-		// Validate the option data type.
-		helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
-		// Validate the option values.
-		validateTableOptions(tableOptions);
+        String topic = tableOptions.get(TOPIC);
+        EncodingFormat<SerializationSchema<RowData>> encodingFormat =
+                helper.discoverEncodingFormat(SerializationFormatFactory.class, FactoryUtil.FORMAT);
+        // Validate the option data type.
+        helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
+        // Validate the option values.
+        validateTableOptions(tableOptions);
 
-		DataType consumedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
-		return createKafkaTableSink(
-				consumedDataType,
-				topic,
-				getKafkaProperties(context.getCatalogTable().getOptions()),
-				getFlinkKafkaPartitioner(tableOptions, context.getClassLoader()),
-				encodingFormat);
-	}
+        DataType consumedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+        return createKafkaTableSink(
+                consumedDataType,
+                topic,
+                getKafkaProperties(context.getCatalogTable().getOptions()),
+                getFlinkKafkaPartitioner(tableOptions, context.getClassLoader()),
+                encodingFormat);
+    }
 
-	/**
-	 * Constructs the version-specific Kafka table source.
-	 *
-	 * @param producedDataType       Source produced data type
-	 * @param topic                  Kafka topic to consume
-	 * @param properties             Properties for the Kafka consumer
-	 * @param decodingFormat         Decoding format for decoding records from Kafka
-	 * @param startupMode            Startup mode for the contained consumer
-	 * @param specificStartupOffsets Specific startup offsets; only relevant when startup
-	 *                               mode is {@link StartupMode#SPECIFIC_OFFSETS}
-	 */
-	protected abstract KafkaDynamicSourceBase createKafkaTableSource(
-			DataType producedDataType,
-			String topic,
-			Properties properties,
-			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
-			StartupMode startupMode,
-			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestampMillis);
+    /**
+     * Constructs the version-specific Kafka table source.
+     *
+     * @param producedDataType Source produced data type
+     * @param topic Kafka topic to consume
+     * @param properties Properties for the Kafka consumer
+     * @param decodingFormat Decoding format for decoding records from Kafka
+     * @param startupMode Startup mode for the contained consumer
+     * @param specificStartupOffsets Specific startup offsets; only relevant when startup mode is
+     *     {@link StartupMode#SPECIFIC_OFFSETS}
+     */
+    protected abstract KafkaDynamicSourceBase createKafkaTableSource(
+            DataType producedDataType,
+            String topic,
+            Properties properties,
+            DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
+            StartupMode startupMode,
+            Map<KafkaTopicPartition, Long> specificStartupOffsets,
+            long startupTimestampMillis);
 
-	/**
-	 * Constructs the version-specific Kafka table sink.
-	 *
-	 * @param consumedDataType Sink consumed data type
-	 * @param topic            Kafka topic to consume
-	 * @param properties       Properties for the Kafka consumer
-	 * @param partitioner      Partitioner to select Kafka partition for each item
-	 * @param encodingFormat   Encoding format for encoding records to Kafka
-	 */
-	protected abstract KafkaDynamicSinkBase createKafkaTableSink(
-			DataType consumedDataType,
-			String topic,
-			Properties properties,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat);
+    /**
+     * Constructs the version-specific Kafka table sink.
+     *
+     * @param consumedDataType Sink consumed data type
+     * @param topic Kafka topic to consume
+     * @param properties Properties for the Kafka consumer
+     * @param partitioner Partitioner to select Kafka partition for each item
+     * @param encodingFormat Encoding format for encoding records to Kafka
+     */
+    protected abstract KafkaDynamicSinkBase createKafkaTableSink(
+            DataType consumedDataType,
+            String topic,
+            Properties properties,
+            Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+            EncodingFormat<SerializationSchema<RowData>> encodingFormat);
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(TOPIC);
-		options.add(FactoryUtil.FORMAT);
-		options.add(PROPS_BOOTSTRAP_SERVERS);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(TOPIC);
+        options.add(FactoryUtil.FORMAT);
+        options.add(PROPS_BOOTSTRAP_SERVERS);
+        return options;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(PROPS_GROUP_ID);
-		options.add(SCAN_STARTUP_MODE);
-		options.add(SCAN_STARTUP_SPECIFIC_OFFSETS);
-		options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
-		options.add(SINK_PARTITIONER);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(PROPS_GROUP_ID);
+        options.add(SCAN_STARTUP_MODE);
+        options.add(SCAN_STARTUP_SPECIFIC_OFFSETS);
+        options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
+        options.add(SINK_PARTITIONER);
+        return options;
+    }
 }

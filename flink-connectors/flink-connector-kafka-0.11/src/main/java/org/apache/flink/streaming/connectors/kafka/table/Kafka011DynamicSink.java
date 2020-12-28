@@ -31,51 +31,40 @@ import org.apache.flink.table.types.DataType;
 import java.util.Optional;
 import java.util.Properties;
 
-/**
- * Kafka 0.11 table sink for writing data into Kafka.
- */
+/** Kafka 0.11 table sink for writing data into Kafka. */
 @Internal
 public class Kafka011DynamicSink extends KafkaDynamicSinkBase {
 
-	public Kafka011DynamicSink(
-			DataType consumedDataType,
-			String topic,
-			Properties properties,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
-		super(
-				consumedDataType,
-				topic,
-				properties,
-				partitioner,
-				encodingFormat);
-	}
+    public Kafka011DynamicSink(
+            DataType consumedDataType,
+            String topic,
+            Properties properties,
+            Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+            EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+        super(consumedDataType, topic, properties, partitioner, encodingFormat);
+    }
 
-	@Override
-	protected SinkFunction<RowData> createKafkaProducer(
-			String topic,
-			Properties properties,
-			SerializationSchema<RowData> serializationSchema,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner) {
-		return new FlinkKafkaProducer011<>(
-				topic,
-				serializationSchema,
-				properties,
-				partitioner);
-	}
+    @Override
+    protected SinkFunction<RowData> createKafkaProducer(
+            String topic,
+            Properties properties,
+            SerializationSchema<RowData> serializationSchema,
+            Optional<FlinkKafkaPartitioner<RowData>> partitioner) {
+        return new FlinkKafkaProducer011<>(topic, serializationSchema, properties, partitioner);
+    }
 
-	@Override
-	public DynamicTableSink copy() {
-		return new Kafka011DynamicSink(
-				this.consumedDataType,
-				this.topic,
-				this.properties,
-				this.partitioner,
-				this.encodingFormat);
-	}
+    @Override
+    public DynamicTableSink copy() {
+        return new Kafka011DynamicSink(
+                this.consumedDataType,
+                this.topic,
+                this.properties,
+                this.partitioner,
+                this.encodingFormat);
+    }
 
-	@Override
-	public String asSummaryString() {
-		return "Kafka 0.11 table sink";
-	}
+    @Override
+    public String asSummaryString() {
+        return "Kafka 0.11 table sink";
+    }
 }

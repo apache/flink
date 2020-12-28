@@ -38,56 +38,52 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Test for {@link Kafka010TableSource} and {@link Kafka010TableSink} created
- * by {@link Kafka010TableSourceSinkFactory}.
+ * Test for {@link Kafka010TableSource} and {@link Kafka010TableSink} created by {@link
+ * Kafka010TableSourceSinkFactory}.
  */
 public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTestBase {
-	@Override
-	protected String factoryIdentifier() {
-		return Kafka010DynamicTableFactory.IDENTIFIER;
-	}
+    @Override
+    protected String factoryIdentifier() {
+        return Kafka010DynamicTableFactory.IDENTIFIER;
+    }
 
-	@Override
-	protected Class<?> getExpectedConsumerClass() {
-		return FlinkKafkaConsumer010.class;
-	}
+    @Override
+    protected Class<?> getExpectedConsumerClass() {
+        return FlinkKafkaConsumer010.class;
+    }
 
-	@Override
-	protected Class<?> getExpectedProducerClass() {
-		return FlinkKafkaProducer010.class;
-	}
+    @Override
+    protected Class<?> getExpectedProducerClass() {
+        return FlinkKafkaProducer010.class;
+    }
 
-	@Override
-	protected KafkaDynamicSourceBase getExpectedScanSource(
-			DataType producedDataType,
-			String topic,
-			Properties properties,
-			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
-			StartupMode startupMode,
-			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestamp) {
-		return new Kafka010DynamicSource(
-				producedDataType,
-				topic,
-				properties,
-				decodingFormat,
-				startupMode,
-				specificStartupOffsets,
-				startupTimestamp);
-	}
+    @Override
+    protected KafkaDynamicSourceBase getExpectedScanSource(
+            DataType producedDataType,
+            String topic,
+            Properties properties,
+            DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
+            StartupMode startupMode,
+            Map<KafkaTopicPartition, Long> specificStartupOffsets,
+            long startupTimestamp) {
+        return new Kafka010DynamicSource(
+                producedDataType,
+                topic,
+                properties,
+                decodingFormat,
+                startupMode,
+                specificStartupOffsets,
+                startupTimestamp);
+    }
 
-	@Override
-	protected KafkaDynamicSinkBase getExpectedSink(
-			DataType consumedDataType,
-			String topic,
-			Properties properties,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
-		return new Kafka010DynamicSink(
-				consumedDataType,
-				topic,
-				properties,
-				partitioner,
-				encodingFormat);
-	}
+    @Override
+    protected KafkaDynamicSinkBase getExpectedSink(
+            DataType consumedDataType,
+            String topic,
+            Properties properties,
+            Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+            EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+        return new Kafka010DynamicSink(
+                consumedDataType, topic, properties, partitioner, encodingFormat);
+    }
 }

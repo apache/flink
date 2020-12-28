@@ -39,75 +39,88 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link StreamTask} for executing a {@link MultipleInputStreamOperator} and supporting
- * the {@link MultipleInputStreamOperator} to select input for reading.
+ * A {@link StreamTask} for executing a {@link MultipleInputStreamOperator} and supporting the
+ * {@link MultipleInputStreamOperator} to select input for reading.
  */
 @Internal
-public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputStreamOperator<OUT>> {
-	public MultipleInputStreamTask(Environment env) throws Exception {
-		super(env);
-	}
+public class MultipleInputStreamTask<OUT>
+        extends StreamTask<OUT, MultipleInputStreamOperator<OUT>> {
+    public MultipleInputStreamTask(Environment env) throws Exception {
+        super(env);
+    }
 
-	@Override
-	public void init() throws Exception {
-		StreamConfig configuration = getConfiguration();
-		ClassLoader userClassLoader = getUserCodeClassLoader();
+    @Override
+    public void init() throws Exception {
+        StreamConfig configuration = getConfiguration();
+        ClassLoader userClassLoader = getUserCodeClassLoader();
 
-		TypeSerializer<?>[] inputDeserializers = configuration.getTypeSerializersIn(userClassLoader);
+        TypeSerializer<?>[] inputDeserializers =
+                configuration.getTypeSerializersIn(userClassLoader);
 
-		ArrayList<IndexedInputGate>[] inputLists = new ArrayList[inputDeserializers.length];
-		WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputDeserializers.length];
+        ArrayList<IndexedInputGate>[] inputLists = new ArrayList[inputDeserializers.length];
+        WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputDeserializers.length];
 
-		for (int i = 0; i < inputDeserializers.length; i++) {
-			inputLists[i] = new ArrayList<>();
-			watermarkGauges[i] = new WatermarkGauge();
-			headOperator.getMetricGroup().gauge(MetricNames.currentInputWatermarkName(i + 1), watermarkGauges[i]);
-		}
+        for (int i = 0; i < inputDeserializers.length; i++) {
+            inputLists[i] = new ArrayList<>();
+            watermarkGauges[i] = new WatermarkGauge();
+            headOperator
+                    .getMetricGroup()
+                    .gauge(MetricNames.currentInputWatermarkName(i + 1), watermarkGauges[i]);
+        }
 
-		MinWatermarkGauge minInputWatermarkGauge = new MinWatermarkGauge(watermarkGauges);
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
+        MinWatermarkGauge minInputWatermarkGauge = new MinWatermarkGauge(watermarkGauges);
+        headOperator
+                .getMetricGroup()
+                .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
 
-		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
-		int numberOfInputs = configuration.getNumberOfInputs();
+        List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
+        int numberOfInputs = configuration.getNumberOfInputs();
 
-		for (int i = 0; i < numberOfInputs; i++) {
-			int inputType = inEdges.get(i).getTypeNumber();
-			IndexedInputGate reader = getEnvironment().getInputGate(i);
-			inputLists[inputType - 1].add(reader);
-		}
+        for (int i = 0; i < numberOfInputs; i++) {
+            int inputType = inEdges.get(i).getTypeNumber();
+            IndexedInputGate reader = getEnvironment().getInputGate(i);
+            inputLists[inputType - 1].add(reader);
+        }
 
-		createInputProcessor(inputLists, inputDeserializers, watermarkGauges);
+        createInputProcessor(inputLists, inputDeserializers, watermarkGauges);
 
-		// wrap watermark gauge since registered metrics must be unique
-		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
-	}
+        // wrap watermark gauge since registered metrics must be unique
+        getEnvironment()
+                .getMetricGroup()
+                .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
+    }
 
-	protected void createInputProcessor(
-			List<IndexedInputGate>[] inputGates,
-			TypeSerializer<?>[] inputDeserializers,
-			WatermarkGauge[] inputWatermarkGauges) {
-		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
-			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null,
-			inputGates.length);
+    protected void createInputProcessor(
+            List<IndexedInputGate>[] inputGates,
+            TypeSerializer<?>[] inputDeserializers,
+            WatermarkGauge[] inputWatermarkGauges) {
+        MultipleInputSelectionHandler selectionHandler =
+                new MultipleInputSelectionHandler(
+                        headOperator instanceof InputSelectable
+                                ? (InputSelectable) headOperator
+                                : null,
+                        inputGates.length);
 
-		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
-			this,
-			getConfiguration(),
-			getCheckpointCoordinator(),
-			getEnvironment().getMetricGroup().getIOMetricGroup(),
-			getTaskNameWithSubtaskAndId(),
-			inputGates);
-		checkState(checkpointedInputGates.length == inputGates.length);
+        CheckpointedInputGate[] checkpointedInputGates =
+                InputProcessorUtil.createCheckpointedMultipleInputGate(
+                        this,
+                        getConfiguration(),
+                        getCheckpointCoordinator(),
+                        getEnvironment().getMetricGroup().getIOMetricGroup(),
+                        getTaskNameWithSubtaskAndId(),
+                        inputGates);
+        checkState(checkpointedInputGates.length == inputGates.length);
 
-		inputProcessor = new StreamMultipleInputProcessor(
-			checkpointedInputGates,
-			inputDeserializers,
-			getEnvironment().getIOManager(),
-			getStreamStatusMaintainer(),
-			headOperator,
-			selectionHandler,
-			inputWatermarkGauges,
-			operatorChain,
-			setupNumRecordsInCounter(headOperator));
-	}
+        inputProcessor =
+                new StreamMultipleInputProcessor(
+                        checkpointedInputGates,
+                        inputDeserializers,
+                        getEnvironment().getIOManager(),
+                        getStreamStatusMaintainer(),
+                        headOperator,
+                        selectionHandler,
+                        inputWatermarkGauges,
+                        operatorChain,
+                        setupNumRecordsInCounter(headOperator));
+    }
 }

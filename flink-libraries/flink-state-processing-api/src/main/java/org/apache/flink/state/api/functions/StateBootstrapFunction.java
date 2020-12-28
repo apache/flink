@@ -28,30 +28,31 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
  * @param <IN> The type of the input.
  */
 @PublicEvolving
-public abstract class StateBootstrapFunction<IN> extends AbstractRichFunction implements CheckpointedFunction {
+public abstract class StateBootstrapFunction<IN> extends AbstractRichFunction
+        implements CheckpointedFunction {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Writes the given value to operator state. This function is called for every record.
-	 *
-	 * @param value The input record.
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the
-	 *     operation to fail and may trigger recovery.
-	 */
-	public abstract void processElement(IN value, Context ctx) throws Exception;
+    /**
+     * Writes the given value to operator state. This function is called for every record.
+     *
+     * @param value The input record.
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    public abstract void processElement(IN value, Context ctx) throws Exception;
 
-	/**
-	 * Context that {@link StateBootstrapFunction}'s can use for getting additional data about an input
-	 * record.
-	 *
-	 * <p>The context is only valid for the duration of a {@link
-	 * StateBootstrapFunction#processElement(Object, Context)} call. Do not store the context and use
-	 * afterwards!
-	 */
-	public interface Context {
+    /**
+     * Context that {@link StateBootstrapFunction}'s can use for getting additional data about an
+     * input record.
+     *
+     * <p>The context is only valid for the duration of a {@link
+     * StateBootstrapFunction#processElement(Object, Context)} call. Do not store the context and
+     * use afterwards!
+     */
+    public interface Context {
 
-		/** Returns the current processing time. */
-		long currentProcessingTime();
-	}
+        /** Returns the current processing time. */
+        long currentProcessingTime();
+    }
 }

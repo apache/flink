@@ -33,125 +33,124 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDERING;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_ASC;
 
-
-/**
- * Utility class for creating a valid {@link SortQueryOperation} operation.
- */
+/** Utility class for creating a valid {@link SortQueryOperation} operation. */
 @Internal
 final class SortOperationFactory {
 
-	private final boolean isStreamingMode;
+    private final boolean isStreamingMode;
 
-	SortOperationFactory(boolean isStreamingMode) {
-		this.isStreamingMode = isStreamingMode;
-	}
+    SortOperationFactory(boolean isStreamingMode) {
+        this.isStreamingMode = isStreamingMode;
+    }
 
-	/**
-	 * Creates a valid {@link SortQueryOperation} operation.
-	 *
-	 * <p><b>NOTE:</b> if the collation is not explicitly specified for any expression, it is wrapped in a
-	 * default ascending order
-	 *
-	 * @param orders expressions describing order,
-	 * @param child relational expression on top of which to apply the sort operation
-	 * @return valid sort operation
-	 */
-	QueryOperation createSort(
-			List<ResolvedExpression> orders,
-			QueryOperation child,
-			ExpressionResolver.PostResolverFactory postResolverFactory) {
-		failIfStreaming();
+    /**
+     * Creates a valid {@link SortQueryOperation} operation.
+     *
+     * <p><b>NOTE:</b> if the collation is not explicitly specified for any expression, it is
+     * wrapped in a default ascending order
+     *
+     * @param orders expressions describing order,
+     * @param child relational expression on top of which to apply the sort operation
+     * @return valid sort operation
+     */
+    QueryOperation createSort(
+            List<ResolvedExpression> orders,
+            QueryOperation child,
+            ExpressionResolver.PostResolverFactory postResolverFactory) {
+        failIfStreaming();
 
-		final OrderWrapper orderWrapper = new OrderWrapper(postResolverFactory);
+        final OrderWrapper orderWrapper = new OrderWrapper(postResolverFactory);
 
-		List<ResolvedExpression> convertedOrders = orders.stream()
-			.map(f -> f.accept(orderWrapper))
-			.collect(Collectors.toList());
-		return new SortQueryOperation(convertedOrders, child);
-	}
+        List<ResolvedExpression> convertedOrders =
+                orders.stream().map(f -> f.accept(orderWrapper)).collect(Collectors.toList());
+        return new SortQueryOperation(convertedOrders, child);
+    }
 
-	/**
-	 * Adds offset to the underlying {@link SortQueryOperation} if it is a valid one.
-	 *
-	 * @param offset offset to add
-	 * @param child should be {@link SortQueryOperation}
-	 * @return valid sort operation with applied offset
-	 */
-	QueryOperation createLimitWithOffset(int offset, QueryOperation child) {
-		SortQueryOperation previousSort = validateAndGetChildSort(child);
+    /**
+     * Adds offset to the underlying {@link SortQueryOperation} if it is a valid one.
+     *
+     * @param offset offset to add
+     * @param child should be {@link SortQueryOperation}
+     * @return valid sort operation with applied offset
+     */
+    QueryOperation createLimitWithOffset(int offset, QueryOperation child) {
+        SortQueryOperation previousSort = validateAndGetChildSort(child);
 
-		if (offset < 0) {
-			throw new ValidationException("Offset should be greater or equal 0");
-		}
+        if (offset < 0) {
+            throw new ValidationException("Offset should be greater or equal 0");
+        }
 
-		if (previousSort.getOffset() != -1) {
-			throw new ValidationException("OFFSET already defined");
-		}
+        if (previousSort.getOffset() != -1) {
+            throw new ValidationException("OFFSET already defined");
+        }
 
-		return new SortQueryOperation(previousSort.getOrder(), previousSort.getChild(), offset, -1);
-	}
+        return new SortQueryOperation(previousSort.getOrder(), previousSort.getChild(), offset, -1);
+    }
 
-	/**
-	 * Adds fetch to the underlying {@link SortQueryOperation} if it is a valid one.
-	 *
-	 * @param fetch fetch number to add
-	 * @param child should be {@link SortQueryOperation}
-	 * @return valid sort operation with applied fetch
-	 */
-	QueryOperation createLimitWithFetch(int fetch, QueryOperation child) {
-		SortQueryOperation previousSort = validateAndGetChildSort(child);
+    /**
+     * Adds fetch to the underlying {@link SortQueryOperation} if it is a valid one.
+     *
+     * @param fetch fetch number to add
+     * @param child should be {@link SortQueryOperation}
+     * @return valid sort operation with applied fetch
+     */
+    QueryOperation createLimitWithFetch(int fetch, QueryOperation child) {
+        SortQueryOperation previousSort = validateAndGetChildSort(child);
 
-		if (fetch < 0) {
-			throw new ValidationException("Fetch should be greater or equal 0");
-		}
+        if (fetch < 0) {
+            throw new ValidationException("Fetch should be greater or equal 0");
+        }
 
-		int offset = Math.max(previousSort.getOffset(), 0);
+        int offset = Math.max(previousSort.getOffset(), 0);
 
-		return new SortQueryOperation(previousSort.getOrder(), previousSort.getChild(), offset, fetch);
-	}
+        return new SortQueryOperation(
+                previousSort.getOrder(), previousSort.getChild(), offset, fetch);
+    }
 
-	private SortQueryOperation validateAndGetChildSort(QueryOperation child) {
-		failIfStreaming();
+    private SortQueryOperation validateAndGetChildSort(QueryOperation child) {
+        failIfStreaming();
 
-		if (!(child instanceof SortQueryOperation)) {
-			throw new ValidationException("A limit operation must be preceded by a sort operation.");
-		}
+        if (!(child instanceof SortQueryOperation)) {
+            throw new ValidationException(
+                    "A limit operation must be preceded by a sort operation.");
+        }
 
-		SortQueryOperation previousSort = (SortQueryOperation) child;
+        SortQueryOperation previousSort = (SortQueryOperation) child;
 
-		if ((previousSort).getFetch() != -1) {
-			throw new ValidationException("FETCH is already defined.");
-		}
+        if ((previousSort).getFetch() != -1) {
+            throw new ValidationException("FETCH is already defined.");
+        }
 
-		return previousSort;
-	}
+        return previousSort;
+    }
 
-	private void failIfStreaming() {
-		if (isStreamingMode) {
-			throw new ValidationException("A limit operation on unbounded tables is currently not supported.");
-		}
-	}
+    private void failIfStreaming() {
+        if (isStreamingMode) {
+            throw new ValidationException(
+                    "A limit operation on unbounded tables is currently not supported.");
+        }
+    }
 
-	private static class OrderWrapper extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
+    private static class OrderWrapper extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
 
-		private ExpressionResolver.PostResolverFactory postResolverFactory;
+        private ExpressionResolver.PostResolverFactory postResolverFactory;
 
-		OrderWrapper(ExpressionResolver.PostResolverFactory postResolverFactory) {
-			this.postResolverFactory = postResolverFactory;
-		}
+        OrderWrapper(ExpressionResolver.PostResolverFactory postResolverFactory) {
+            this.postResolverFactory = postResolverFactory;
+        }
 
-		@Override
-		public ResolvedExpression visit(CallExpression call) {
-			if (ORDERING.contains(call.getFunctionDefinition())) {
-				return call;
-			} else {
-				return defaultMethod(call);
-			}
-		}
+        @Override
+        public ResolvedExpression visit(CallExpression call) {
+            if (ORDERING.contains(call.getFunctionDefinition())) {
+                return call;
+            } else {
+                return defaultMethod(call);
+            }
+        }
 
-		@Override
-		protected ResolvedExpression defaultMethod(ResolvedExpression expression) {
-			return postResolverFactory.wrappingCall(ORDER_ASC, expression);
-		}
-	}
+        @Override
+        protected ResolvedExpression defaultMethod(ResolvedExpression expression) {
+            return postResolverFactory.wrappingCall(ORDER_ASC, expression);
+        }
+    }
 }

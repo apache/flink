@@ -30,81 +30,85 @@ import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.Test;
 
-/**
- * Test for {@link PushProjectIntoTableSourceScanRule}.
- */
-public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegacyTableSourceScanRuleTest {
+/** Test for {@link PushProjectIntoTableSourceScanRule}. */
+public class PushProjectIntoTableSourceScanRuleTest
+        extends PushProjectIntoLegacyTableSourceScanRuleTest {
 
-	@Override
-	public void setup() {
-		util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
-		CalciteConfig calciteConfig = TableConfigUtils.getCalciteConfig(util().tableEnv().getConfig());
-		calciteConfig.getBatchProgram().get().addLast(
-				"rules",
-				FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
-						.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
-						.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-						.add(RuleSets.ofList(PushProjectIntoTableSourceScanRule.INSTANCE))
-						.build()
-		);
+    @Override
+    public void setup() {
+        util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
+        CalciteConfig calciteConfig =
+                TableConfigUtils.getCalciteConfig(util().tableEnv().getConfig());
+        calciteConfig
+                .getBatchProgram()
+                .get()
+                .addLast(
+                        "rules",
+                        FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
+                                .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+                                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                                .add(RuleSets.ofList(PushProjectIntoTableSourceScanRule.INSTANCE))
+                                .build());
 
-		String ddl1 =
-				"CREATE TABLE MyTable (\n" +
-						"  a int,\n" +
-						"  b bigint,\n" +
-						"  c string\n" +
-						") WITH (\n" +
-						" 'connector' = 'values',\n" +
-						" 'bounded' = 'true'\n" +
-						")";
-		util().tableEnv().executeSql(ddl1);
+        String ddl1 =
+                "CREATE TABLE MyTable (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util().tableEnv().executeSql(ddl1);
 
-		String ddl2 =
-				"CREATE TABLE VirtualTable (\n" +
-						"  a int,\n" +
-						"  b bigint,\n" +
-						"  c string,\n" +
-						"  d as a + 1\n" +
-						") WITH (\n" +
-						" 'connector' = 'values',\n" +
-						" 'bounded' = 'true'\n" +
-						")";
-		util().tableEnv().executeSql(ddl2);
-	}
+        String ddl2 =
+                "CREATE TABLE VirtualTable (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  d as a + 1\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util().tableEnv().executeSql(ddl2);
+    }
 
-	@Override
-	public void testNestedProject() {
-		expectedException().expect(TableException.class);
-		expectedException().expectMessage("Nested projection push down is unsupported now.");
-		testNestedProject(true);
-	}
+    @Override
+    public void testNestedProject() {
+        expectedException().expect(TableException.class);
+        expectedException().expectMessage("Nested projection push down is unsupported now.");
+        testNestedProject(true);
+    }
 
-	@Test
-	public void testNestedProjectDisabled() {
-		testNestedProject(false);
-	}
+    @Test
+    public void testNestedProjectDisabled() {
+        testNestedProject(false);
+    }
 
-	private void testNestedProject(boolean nestedProjectionSupported) {
-		String ddl =
-				"CREATE TABLE NestedTable (\n" +
-						"  id int,\n" +
-						"  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n" +
-						"  nested row<name string, `value` int>,\n" +
-						"  name string\n" +
-						") WITH (\n" +
-						" 'connector' = 'values',\n" +
-						" 'nested-projection-supported' = '" + nestedProjectionSupported + "',\n" +
-						"  'bounded' = 'true'\n" +
-						")";
-		util().tableEnv().executeSql(ddl);
+    private void testNestedProject(boolean nestedProjectionSupported) {
+        String ddl =
+                "CREATE TABLE NestedTable (\n"
+                        + "  id int,\n"
+                        + "  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n"
+                        + "  nested row<name string, `value` int>,\n"
+                        + "  name string\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'nested-projection-supported' = '"
+                        + nestedProjectionSupported
+                        + "',\n"
+                        + "  'bounded' = 'true'\n"
+                        + ")";
+        util().tableEnv().executeSql(ddl);
 
-		String sqlQuery = "SELECT id,\n" +
-				"    deepNested.nested1.name AS nestedName,\n" +
-				"    nested.`value` AS nestedValue,\n" +
-				"    deepNested.nested2.flag AS nestedFlag,\n" +
-				"    deepNested.nested2.num AS nestedNum\n" +
-				"FROM NestedTable";
-		util().verifyPlan(sqlQuery);
-	}
-
+        String sqlQuery =
+                "SELECT id,\n"
+                        + "    deepNested.nested1.name AS nestedName,\n"
+                        + "    nested.`value` AS nestedValue,\n"
+                        + "    deepNested.nested2.flag AS nestedFlag,\n"
+                        + "    deepNested.nested2.num AS nestedNum\n"
+                        + "FROM NestedTable";
+        util().verifyPlan(sqlQuery);
+    }
 }

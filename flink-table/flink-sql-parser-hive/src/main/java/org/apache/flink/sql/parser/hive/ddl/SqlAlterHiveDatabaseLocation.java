@@ -29,31 +29,33 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase.DATABASE_LOCATION_URI;
 
-/**
- * ALTER Database location DDL for Hive dialect.
- */
+/** ALTER Database location DDL for Hive dialect. */
 public class SqlAlterHiveDatabaseLocation extends SqlAlterHiveDatabase {
 
-	private final SqlCharStringLiteral location;
+    private final SqlCharStringLiteral location;
 
-	public SqlAlterHiveDatabaseLocation(SqlParserPos pos, SqlIdentifier databaseName, SqlCharStringLiteral location) {
-		super(pos, databaseName, new SqlNodeList(pos));
-		getPropertyList().add(new SqlTableOption(
-				SqlLiteral.createCharString(DATABASE_LOCATION_URI, location.getParserPosition()),
-				location,
-				location.getParserPosition()));
-		this.location = location;
-	}
+    public SqlAlterHiveDatabaseLocation(
+            SqlParserPos pos, SqlIdentifier databaseName, SqlCharStringLiteral location) {
+        super(pos, databaseName, new SqlNodeList(pos));
+        getPropertyList()
+                .add(
+                        new SqlTableOption(
+                                SqlLiteral.createCharString(
+                                        DATABASE_LOCATION_URI, location.getParserPosition()),
+                                location,
+                                location.getParserPosition()));
+        this.location = location;
+    }
 
-	@Override
-	protected AlterHiveDatabaseOp getAlterOp() {
-		return AlterHiveDatabaseOp.CHANGE_LOCATION;
-	}
+    @Override
+    protected AlterHiveDatabaseOp getAlterOp() {
+        return AlterHiveDatabaseOp.CHANGE_LOCATION;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("LOCATION");
-		location.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("LOCATION");
+        location.unparse(writer, leftPrec, rightPrec);
+    }
 }

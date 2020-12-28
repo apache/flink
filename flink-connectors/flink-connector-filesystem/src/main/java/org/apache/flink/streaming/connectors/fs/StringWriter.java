@@ -28,94 +28,93 @@ import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 
 /**
- * A {@link Writer} that uses {@code toString()} on the input elements and writes them to
- * the output bucket file separated by newline.
+ * A {@link Writer} that uses {@code toString()} on the input elements and writes them to the output
+ * bucket file separated by newline.
  *
  * @param <T> The type of the elements that are being written by the sink.
  */
 @Deprecated
 public class StringWriter<T> extends StreamWriterBase<T> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private String charsetName;
+    private String charsetName;
 
-	private transient Charset charset;
+    private transient Charset charset;
 
-	private final String rowDelimiter;
+    private final String rowDelimiter;
 
-	private static final String DEFAULT_ROW_DELIMITER = "\n";
+    private static final String DEFAULT_ROW_DELIMITER = "\n";
 
-	private byte[] rowDelimiterBytes;
+    private byte[] rowDelimiterBytes;
 
-	/**
-	 * Creates a new {@code StringWriter} that uses {@code "UTF-8"} charset to convert
-	 * strings to bytes.
-	 */
-	public StringWriter() {
-		this("UTF-8", DEFAULT_ROW_DELIMITER);
-	}
+    /**
+     * Creates a new {@code StringWriter} that uses {@code "UTF-8"} charset to convert strings to
+     * bytes.
+     */
+    public StringWriter() {
+        this("UTF-8", DEFAULT_ROW_DELIMITER);
+    }
 
-	/**
-	 * Creates a new {@code StringWriter} that uses the given charset to convert
-	 * strings to bytes.
-	 *
-	 * @param charsetName Name of the charset to be used, must be valid input for {@code Charset.forName(charsetName)}
-	 */
-	public StringWriter(String charsetName) {
-		this(charsetName, DEFAULT_ROW_DELIMITER);
-	}
+    /**
+     * Creates a new {@code StringWriter} that uses the given charset to convert strings to bytes.
+     *
+     * @param charsetName Name of the charset to be used, must be valid input for {@code
+     *     Charset.forName(charsetName)}
+     */
+    public StringWriter(String charsetName) {
+        this(charsetName, DEFAULT_ROW_DELIMITER);
+    }
 
-	/**
-	 * Creates a new {@code StringWriter} that uses the given charset and row delimiter to convert
-	 * strings to bytes.
-	 *
-	 * @param charsetName Name of the charset to be used, must be valid input for {@code Charset.forName(charsetName)}
-	 * @param rowDelimiter Parameter that specifies which character to use for delimiting rows
-	 */
-	public StringWriter(String charsetName, String rowDelimiter) {
-		this.charsetName = charsetName;
-		this.rowDelimiter = rowDelimiter;
-	}
+    /**
+     * Creates a new {@code StringWriter} that uses the given charset and row delimiter to convert
+     * strings to bytes.
+     *
+     * @param charsetName Name of the charset to be used, must be valid input for {@code
+     *     Charset.forName(charsetName)}
+     * @param rowDelimiter Parameter that specifies which character to use for delimiting rows
+     */
+    public StringWriter(String charsetName, String rowDelimiter) {
+        this.charsetName = charsetName;
+        this.rowDelimiter = rowDelimiter;
+    }
 
-	protected StringWriter(StringWriter<T> other) {
-		super(other);
-		this.charsetName = other.charsetName;
-		this.rowDelimiter = other.rowDelimiter;
-	}
+    protected StringWriter(StringWriter<T> other) {
+        super(other);
+        this.charsetName = other.charsetName;
+        this.rowDelimiter = other.rowDelimiter;
+    }
 
-	@Override
-	public void open(FileSystem fs, Path path) throws IOException {
-		super.open(fs, path);
+    @Override
+    public void open(FileSystem fs, Path path) throws IOException {
+        super.open(fs, path);
 
-		try {
-			this.charset = Charset.forName(charsetName);
-			this.rowDelimiterBytes = rowDelimiter.getBytes(charset);
-		}
-		catch (IllegalCharsetNameException e) {
-			throw new IOException("The charset " + charsetName + " is not valid.", e);
-		}
-		catch (UnsupportedCharsetException e) {
-			throw new IOException("The charset " + charsetName + " is not supported.", e);
-		}
-	}
+        try {
+            this.charset = Charset.forName(charsetName);
+            this.rowDelimiterBytes = rowDelimiter.getBytes(charset);
+        } catch (IllegalCharsetNameException e) {
+            throw new IOException("The charset " + charsetName + " is not valid.", e);
+        } catch (UnsupportedCharsetException e) {
+            throw new IOException("The charset " + charsetName + " is not supported.", e);
+        }
+    }
 
-	@Override
-	public void write(T element) throws IOException {
-		FSDataOutputStream outputStream = getStream();
-		outputStream.write(element.toString().getBytes(charset));
-		outputStream.write(rowDelimiterBytes);
-	}
+    @Override
+    public void write(T element) throws IOException {
+        FSDataOutputStream outputStream = getStream();
+        outputStream.write(element.toString().getBytes(charset));
+        outputStream.write(rowDelimiterBytes);
+    }
 
-	@Override
-	public StringWriter<T> duplicate() {
-		return new StringWriter<>(this);
-	}
+    @Override
+    public StringWriter<T> duplicate() {
+        return new StringWriter<>(this);
+    }
 
-	String getCharsetName() {
-		return charsetName;
-	}
+    String getCharsetName() {
+        return charsetName;
+    }
 
-	public String getRowDelimiter() {
-		return rowDelimiter;
-	}
+    public String getRowDelimiter() {
+        return rowDelimiter;
+    }
 }

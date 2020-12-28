@@ -20,12 +20,8 @@ package org.apache.flink.contrib.streaming.state.restore;
 
 import org.apache.flink.runtime.state.RestoreOperation;
 
-/**
- * Interface for RocksDB restore.
- */
+/** Interface for RocksDB restore. */
 public interface RocksDBRestoreOperation extends RestoreOperation<RocksDBRestoreResult> {
-	/**
-	 * Restores state that was previously snapshot-ed from the provided state handles.
-	 */
-	RocksDBRestoreResult restore() throws Exception;
+    /** Restores state that was previously snapshot-ed from the provided state handles. */
+    RocksDBRestoreResult restore() throws Exception;
 }

@@ -28,83 +28,78 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Dummy behaviours of {@link ResultPartitionWriter} for test purpose.
- */
+/** Dummy behaviours of {@link ResultPartitionWriter} for test purpose. */
 public class MockResultPartitionWriter implements ResultPartitionWriter {
 
-	private final ResultPartitionID partitionId = new ResultPartitionID();
+    private final ResultPartitionID partitionId = new ResultPartitionID();
 
-	@Override
-	public void setup() {
-	}
+    @Override
+    public void setup() {}
 
-	@Override
-	public void readRecoveredState(ChannelStateReader stateReader) {
-	}
+    @Override
+    public void readRecoveredState(ChannelStateReader stateReader) {}
 
-	@Override
-	public ResultPartitionID getPartitionId() {
-		return partitionId;
-	}
+    @Override
+    public ResultPartitionID getPartitionId() {
+        return partitionId;
+    }
 
-	@Override
-	public int getNumberOfSubpartitions() {
-		return 1;
-	}
+    @Override
+    public int getNumberOfSubpartitions() {
+        return 1;
+    }
 
-	@Override
-	public int getNumTargetKeyGroups() {
-		return 1;
-	}
+    @Override
+    public int getNumTargetKeyGroups() {
+        return 1;
+    }
 
-	@Override
-	public final boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
-		return addBufferConsumer(bufferConsumer, subpartitionIndex, false);
-	}
+    @Override
+    public final boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex)
+            throws IOException {
+        return addBufferConsumer(bufferConsumer, subpartitionIndex, false);
+    }
 
-	@Override
-	public boolean addBufferConsumer(BufferConsumer bufferConsumer,	int targetChannel, boolean isPriorityEvent) throws IOException {
-		bufferConsumer.close();
-		return true;
-	}
+    @Override
+    public boolean addBufferConsumer(
+            BufferConsumer bufferConsumer, int targetChannel, boolean isPriorityEvent)
+            throws IOException {
+        bufferConsumer.close();
+        return true;
+    }
 
-	@Override
-	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public BufferBuilder getBufferBuilder(int targetChannel)
+            throws IOException, InterruptedException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public ResultSubpartition getSubpartition(int subpartitionIndex) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public ResultSubpartition getSubpartition(int subpartitionIndex) {
+        throw new UnsupportedOperationException();
+    }
 
-	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void flushAll() {
-	}
+    @Override
+    public void flushAll() {}
 
-	@Override
-	public void flush(int subpartitionIndex) {
-	}
+    @Override
+    public void flush(int subpartitionIndex) {}
 
-	@Override
-	public void fail(@Nullable Throwable throwable) {
-	}
+    @Override
+    public void fail(@Nullable Throwable throwable) {}
 
-	@Override
-	public void finish() {
-	}
+    @Override
+    public void finish() {}
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return AVAILABLE;
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return AVAILABLE;
+    }
 
-	@Override
-	public void close() {
-	}
+    @Override
+    public void close() {}
 }

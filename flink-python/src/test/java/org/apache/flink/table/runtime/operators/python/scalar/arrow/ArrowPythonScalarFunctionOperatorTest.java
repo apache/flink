@@ -42,72 +42,74 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Queue;
 
-/**
- * Tests for {@link ArrowPythonScalarFunctionOperator}.
- */
-public class ArrowPythonScalarFunctionOperatorTest extends PythonScalarFunctionOperatorTestBase<CRow, CRow, Row> {
+/** Tests for {@link ArrowPythonScalarFunctionOperator}. */
+public class ArrowPythonScalarFunctionOperatorTest
+        extends PythonScalarFunctionOperatorTestBase<CRow, CRow, Row> {
 
-	public AbstractPythonScalarFunctionOperator<CRow, CRow, Row> getTestOperator(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		return new PassThroughArrowPythonScalarFunctionOperator(
-			config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-	}
+    public AbstractPythonScalarFunctionOperator<CRow, CRow, Row> getTestOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        return new PassThroughArrowPythonScalarFunctionOperator(
+                config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+    }
 
-	public CRow newRow(boolean accumulateMsg, Object... fields) {
-		return new CRow(Row.of(fields), accumulateMsg);
-	}
+    public CRow newRow(boolean accumulateMsg, Object... fields) {
+        return new CRow(Row.of(fields), accumulateMsg);
+    }
 
-	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
-		TestHarnessUtil.assertOutputEquals(message, (Queue<Object>) expected, (Queue<Object>) actual);
-	}
+    public void assertOutputEquals(
+            String message, Collection<Object> expected, Collection<Object> actual) {
+        TestHarnessUtil.assertOutputEquals(
+                message, (Queue<Object>) expected, (Queue<Object>) actual);
+    }
 
-	public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
-		return StreamTableEnvironment.create(env);
-	}
+    public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
+        return StreamTableEnvironment.create(env);
+    }
 
-	@Override
-	public TypeSerializer<CRow> getOutputTypeSerializer(RowType dataType) {
-		// If set to null, PojoSerializer is used by default which works well here.
-		return null;
-	}
+    @Override
+    public TypeSerializer<CRow> getOutputTypeSerializer(RowType dataType) {
+        // If set to null, PojoSerializer is used by default which works well here.
+        return null;
+    }
 
-	private static class PassThroughArrowPythonScalarFunctionOperator extends ArrowPythonScalarFunctionOperator {
+    private static class PassThroughArrowPythonScalarFunctionOperator
+            extends ArrowPythonScalarFunctionOperator {
 
-		PassThroughArrowPythonScalarFunctionOperator(
-			Configuration config,
-			PythonFunctionInfo[] scalarFunctions,
-			RowType inputType,
-			RowType outputType,
-			int[] udfInputOffsets,
-			int[] forwardedFields) {
-			super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-		}
+        PassThroughArrowPythonScalarFunctionOperator(
+                Configuration config,
+                PythonFunctionInfo[] scalarFunctions,
+                RowType inputType,
+                RowType outputType,
+                int[] udfInputOffsets,
+                int[] forwardedFields) {
+            super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+        }
 
-		@Override
-		public PythonFunctionRunner<Row> createPythonFunctionRunner(
-				FnDataReceiver<byte[]> resultReceiver,
-				PythonEnvironmentManager pythonEnvironmentManager,
-				Map<String, String> jobOptions) {
-			return new PassThroughArrowPythonScalarFunctionRunner<Row>(
-				getRuntimeContext().getTaskName(),
-				resultReceiver,
-				scalarFunctions,
-				PythonTestUtils.createTestEnvironmentManager(),
-				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType,
-				getPythonConfig().getMaxArrowBatchSize(),
-				jobOptions,
-				PythonTestUtils.createMockFlinkMetricContainer()) {
-				@Override
-				public ArrowWriter<Row> createArrowWriter() {
-					return ArrowUtils.createRowArrowWriter(root, getInputType());
-				}
-			};
-		}
-	}
+        @Override
+        public PythonFunctionRunner<Row> createPythonFunctionRunner(
+                FnDataReceiver<byte[]> resultReceiver,
+                PythonEnvironmentManager pythonEnvironmentManager,
+                Map<String, String> jobOptions) {
+            return new PassThroughArrowPythonScalarFunctionRunner<Row>(
+                    getRuntimeContext().getTaskName(),
+                    resultReceiver,
+                    scalarFunctions,
+                    PythonTestUtils.createTestEnvironmentManager(),
+                    userDefinedFunctionInputType,
+                    userDefinedFunctionOutputType,
+                    getPythonConfig().getMaxArrowBatchSize(),
+                    jobOptions,
+                    PythonTestUtils.createMockFlinkMetricContainer()) {
+                @Override
+                public ArrowWriter<Row> createArrowWriter() {
+                    return ArrowUtils.createRowArrowWriter(root, getInputType());
+                }
+            };
+        }
+    }
 }

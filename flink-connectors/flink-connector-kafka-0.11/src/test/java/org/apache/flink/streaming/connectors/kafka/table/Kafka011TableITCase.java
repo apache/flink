@@ -20,18 +20,16 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.table.descriptors.KafkaValidator;
 
-/**
- * IT cases for Kafka 0.11 for Table API & SQL.
- */
+/** IT cases for Kafka 0.11 for Table API & SQL. */
 public class Kafka011TableITCase extends KafkaTableTestBase {
 
-	@Override
-	public String factoryIdentifier() {
-		return Kafka011DynamicTableFactory.IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return Kafka011DynamicTableFactory.IDENTIFIER;
+    }
 
-	@Override
-	public String kafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_011;
-	}
+    @Override
+    public String kafkaVersion() {
+        return KafkaValidator.CONNECTOR_VERSION_VALUE_011;
+    }
 }

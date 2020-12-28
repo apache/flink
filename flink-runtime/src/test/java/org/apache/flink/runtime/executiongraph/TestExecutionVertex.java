@@ -24,32 +24,29 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * An {@link ExecutionVertex} implementation for testing.
- */
+/** An {@link ExecutionVertex} implementation for testing. */
 public class TestExecutionVertex extends ExecutionVertex {
 
-	private Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures;
+    private Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures;
 
-	TestExecutionVertex(
-		ExecutionJobVertex jobVertex,
-		int subTaskIndex,
-		IntermediateResult[] producedDataSets,
-		Time timeout) {
+    TestExecutionVertex(
+            ExecutionJobVertex jobVertex,
+            int subTaskIndex,
+            IntermediateResult[] producedDataSets,
+            Time timeout) {
 
-		super(
-			jobVertex,
-			subTaskIndex,
-			producedDataSets,
-			timeout);
-	}
+        super(jobVertex, subTaskIndex, producedDataSets, timeout);
+    }
 
-	public void setPreferredLocationFutures(final Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures) {
-		this.preferredLocationFutures = preferredLocationFutures;
-	}
+    public void setPreferredLocationFutures(
+            final Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures) {
+        this.preferredLocationFutures = preferredLocationFutures;
+    }
 
-	@Override
-	public Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocations() {
-		return preferredLocationFutures != null ? preferredLocationFutures : super.getPreferredLocations();
-	}
+    @Override
+    public Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocations() {
+        return preferredLocationFutures != null
+                ? preferredLocationFutures
+                : super.getPreferredLocations();
+    }
 }

@@ -62,180 +62,228 @@ import static org.junit.Assert.assertEquals;
  */
 public class UnsignedTypeConversionITCase extends AbstractTestBase {
 
-	private static final String DEFAULT_DB_NAME = "test";
-	private static final String TABLE_NAME = "unsigned_test";
-	private static final String USER_TABLE = "user_table";
+    private static final String DEFAULT_DB_NAME = "test";
+    private static final String TABLE_NAME = "unsigned_test";
+    private static final String USER_TABLE = "user_table";
 
-	private StreamTableEnvironment tEnv;
-	private String dbUrl;
-	private Connection connection;
+    private StreamTableEnvironment tEnv;
+    private String dbUrl;
+    private Connection connection;
 
-	@ClassRule
-	public static MariaDB4jRule db4jRule = new MariaDB4jRule(
-		DBConfigurationBuilder.newBuilder().build(),
-		DEFAULT_DB_NAME,
-		null);
+    @ClassRule
+    public static MariaDB4jRule db4jRule =
+            new MariaDB4jRule(DBConfigurationBuilder.newBuilder().build(), DEFAULT_DB_NAME, null);
 
-	@Before
-	public void setUp() throws SQLException, ClassNotFoundException {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		tEnv = StreamTableEnvironment.create(env);
-		//dbUrl: jdbc:mysql://localhost:3306/test
-		dbUrl = db4jRule.getURL();
-		connection = DriverManager.getConnection(dbUrl);
-		createMysqlTable();
-		createFlinkTable();
-		prepareData();
-	}
+    @Before
+    public void setUp() throws SQLException, ClassNotFoundException {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        tEnv = StreamTableEnvironment.create(env);
+        // dbUrl: jdbc:mysql://localhost:3306/test
+        dbUrl = db4jRule.getURL();
+        connection = DriverManager.getConnection(dbUrl);
+        createMysqlTable();
+        createFlinkTable();
+        prepareData();
+    }
 
-	@Test
-	public void testUnsignedType() throws Exception {
-		// write data to db
-		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, "insert into jdbc_sink select" +
-			" tiny_c," +
-			" tiny_un_c," +
-			" small_c," +
-			" small_un_c ," +
-			" int_c," +
-			" int_un_c," +
-			" big_c ," +
-			" big_un_c from data");
+    @Test
+    public void testUnsignedType() throws Exception {
+        // write data to db
+        TableEnvUtil.execInsertSqlAndWaitResult(
+                tEnv,
+                "insert into jdbc_sink select"
+                        + " tiny_c,"
+                        + " tiny_un_c,"
+                        + " small_c,"
+                        + " small_un_c ,"
+                        + " int_c,"
+                        + " int_un_c,"
+                        + " big_c ,"
+                        + " big_un_c from data");
 
-		// read data from db using jdbc connection and compare
-		PreparedStatement query = connection.prepareStatement(String.format("select tiny_c, tiny_un_c, small_c, small_un_c," +
-			" int_c, int_un_c, big_c, big_un_c from %s", TABLE_NAME));
-		ResultSet resultSet = query.executeQuery();
-		while (resultSet.next()) {
-			assertEquals(Integer.valueOf(127), resultSet.getObject("tiny_c"));
-			assertEquals(Integer.valueOf(255), resultSet.getObject("tiny_un_c"));
-			assertEquals(Integer.valueOf(32767), resultSet.getObject("small_c"));
-			assertEquals(Integer.valueOf(65535), resultSet.getObject("small_un_c"));
-			assertEquals(Integer.valueOf(2147483647), resultSet.getObject("int_c"));
-			assertEquals(Long.valueOf(4294967295L), resultSet.getObject("int_un_c"));
-			assertEquals(Long.valueOf(9223372036854775807L), resultSet.getObject("big_c"));
-			assertEquals(new BigInteger("18446744073709551615"), resultSet.getObject("big_un_c"));
-		}
+        // read data from db using jdbc connection and compare
+        PreparedStatement query =
+                connection.prepareStatement(
+                        String.format(
+                                "select tiny_c, tiny_un_c, small_c, small_un_c,"
+                                        + " int_c, int_un_c, big_c, big_un_c from %s",
+                                TABLE_NAME));
+        ResultSet resultSet = query.executeQuery();
+        while (resultSet.next()) {
+            assertEquals(Integer.valueOf(127), resultSet.getObject("tiny_c"));
+            assertEquals(Integer.valueOf(255), resultSet.getObject("tiny_un_c"));
+            assertEquals(Integer.valueOf(32767), resultSet.getObject("small_c"));
+            assertEquals(Integer.valueOf(65535), resultSet.getObject("small_un_c"));
+            assertEquals(Integer.valueOf(2147483647), resultSet.getObject("int_c"));
+            assertEquals(Long.valueOf(4294967295L), resultSet.getObject("int_un_c"));
+            assertEquals(Long.valueOf(9223372036854775807L), resultSet.getObject("big_c"));
+            assertEquals(new BigInteger("18446744073709551615"), resultSet.getObject("big_un_c"));
+        }
 
-		// read data from db using flink and compare
-		Iterator<Row> collected = tEnv.executeSql("select tiny_c, tiny_un_c, small_c, small_un_c," +
-			" int_c, int_un_c, big_c, big_un_c from jdbc_source")
-			.collect();
-		List<String> result = Lists.newArrayList(collected).stream()
-			.map(Row::toString)
-			.sorted()
-			.collect(Collectors.toList());
-		List<String> expected = Collections.singletonList(
-			"127,255,32767,65535,2147483647,4294967295,9223372036854775807,18446744073709551615");
-		assertEquals(expected, result);
-	}
+        // read data from db using flink and compare
+        Iterator<Row> collected =
+                tEnv.executeSql(
+                                "select tiny_c, tiny_un_c, small_c, small_un_c,"
+                                        + " int_c, int_un_c, big_c, big_un_c from jdbc_source")
+                        .collect();
+        List<String> result =
+                Lists.newArrayList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        List<String> expected =
+                Collections.singletonList(
+                        "127,255,32767,65535,2147483647,4294967295,9223372036854775807,18446744073709551615");
+        assertEquals(expected, result);
+    }
 
-	private void createMysqlTable() throws SQLException {
-		try (Statement statement = connection.createStatement()) {
-			statement.executeUpdate("create table " + TABLE_NAME + " (" +
-				" tiny_c TINYINT," +
-				" tiny_un_c TINYINT UNSIGNED," +
-				" small_c SMALLINT," +
-				" small_un_c SMALLINT UNSIGNED," +
-				" int_c INTEGER ," +
-				" int_un_c INTEGER UNSIGNED," +
-				" big_c BIGINT," +
-				" big_un_c BIGINT UNSIGNED);");
-			statement.executeUpdate("CREATE TABLE " + USER_TABLE + " (" +
-				"user_id VARCHAR(20) NOT NULL," +
-				"user_name VARCHAR(20) NOT NULL," +
-				"email VARCHAR(255)," +
-				"balance DECIMAL(18,2)," +
-				"balance2 DECIMAL(18,2)," +
-				"PRIMARY KEY (user_id))");
-		}
-	}
+    private void createMysqlTable() throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "create table "
+                            + TABLE_NAME
+                            + " ("
+                            + " tiny_c TINYINT,"
+                            + " tiny_un_c TINYINT UNSIGNED,"
+                            + " small_c SMALLINT,"
+                            + " small_un_c SMALLINT UNSIGNED,"
+                            + " int_c INTEGER ,"
+                            + " int_un_c INTEGER UNSIGNED,"
+                            + " big_c BIGINT,"
+                            + " big_un_c BIGINT UNSIGNED);");
+            statement.executeUpdate(
+                    "CREATE TABLE "
+                            + USER_TABLE
+                            + " ("
+                            + "user_id VARCHAR(20) NOT NULL,"
+                            + "user_name VARCHAR(20) NOT NULL,"
+                            + "email VARCHAR(255),"
+                            + "balance DECIMAL(18,2),"
+                            + "balance2 DECIMAL(18,2),"
+                            + "PRIMARY KEY (user_id))");
+        }
+    }
 
-	private void createFlinkTable() {
-		String commonDDL = "create table %s (" +
-			"tiny_c TINYINT," +
-			"tiny_un_c SMALLINT," +
-			"small_c SMALLINT," +
-			"small_un_c INT," +
-			"int_c INT," +
-			"int_un_c BIGINT," +
-			"big_c BIGINT," +
-			"big_un_c DECIMAL(20, 0)) with(" +
-			" 'connector' = 'jdbc'," +
-			" 'url' = '" + dbUrl + "'," +
-			" 'table-name' = '" + TABLE_NAME + "'" +
-			")";
-		tEnv.executeSql(String.format(commonDDL, "jdbc_source"));
-		tEnv.executeSql(String.format(commonDDL, "jdbc_sink"));
-	}
+    private void createFlinkTable() {
+        String commonDDL =
+                "create table %s ("
+                        + "tiny_c TINYINT,"
+                        + "tiny_un_c SMALLINT,"
+                        + "small_c SMALLINT,"
+                        + "small_un_c INT,"
+                        + "int_c INT,"
+                        + "int_un_c BIGINT,"
+                        + "big_c BIGINT,"
+                        + "big_un_c DECIMAL(20, 0)) with("
+                        + " 'connector' = 'jdbc',"
+                        + " 'url' = '"
+                        + dbUrl
+                        + "',"
+                        + " 'table-name' = '"
+                        + TABLE_NAME
+                        + "'"
+                        + ")";
+        tEnv.executeSql(String.format(commonDDL, "jdbc_source"));
+        tEnv.executeSql(String.format(commonDDL, "jdbc_sink"));
+    }
 
-	private void prepareData() {
-		Table dataTable = tEnv.fromValues(
-			DataTypes.ROW(
-				DataTypes.FIELD("tiny_c", DataTypes.TINYINT().notNull()),
-				DataTypes.FIELD("tiny_un_c", DataTypes.SMALLINT().notNull()),
-				DataTypes.FIELD("small_c", DataTypes.SMALLINT().notNull()),
-				DataTypes.FIELD("small_un_c", DataTypes.INT().notNull()),
-				DataTypes.FIELD("int_c", DataTypes.INT().notNull()),
-				DataTypes.FIELD("int_un_c", DataTypes.BIGINT().notNull()),
-				DataTypes.FIELD("big_c", DataTypes.BIGINT().notNull()),
-				DataTypes.FIELD("big_un_c", DataTypes.DECIMAL(20, 0).notNull())),
-			row(
-				new Integer(127).byteValue(),
-				new Integer(255).shortValue(),
-				new Integer(32767).shortValue(),
-				Integer.valueOf(65535),
-				Integer.valueOf(2147483647),
-				Long.valueOf(4294967295L),
-				Long.valueOf(9223372036854775807L),
-				new BigDecimal(new BigInteger("18446744073709551615"), 0)));
-		tEnv.createTemporaryView("data", dataTable);
-	}
+    private void prepareData() {
+        Table dataTable =
+                tEnv.fromValues(
+                        DataTypes.ROW(
+                                DataTypes.FIELD("tiny_c", DataTypes.TINYINT().notNull()),
+                                DataTypes.FIELD("tiny_un_c", DataTypes.SMALLINT().notNull()),
+                                DataTypes.FIELD("small_c", DataTypes.SMALLINT().notNull()),
+                                DataTypes.FIELD("small_un_c", DataTypes.INT().notNull()),
+                                DataTypes.FIELD("int_c", DataTypes.INT().notNull()),
+                                DataTypes.FIELD("int_un_c", DataTypes.BIGINT().notNull()),
+                                DataTypes.FIELD("big_c", DataTypes.BIGINT().notNull()),
+                                DataTypes.FIELD("big_un_c", DataTypes.DECIMAL(20, 0).notNull())),
+                        row(
+                                new Integer(127).byteValue(),
+                                new Integer(255).shortValue(),
+                                new Integer(32767).shortValue(),
+                                Integer.valueOf(65535),
+                                Integer.valueOf(2147483647),
+                                Long.valueOf(4294967295L),
+                                Long.valueOf(9223372036854775807L),
+                                new BigDecimal(new BigInteger("18446744073709551615"), 0)));
+        tEnv.createTemporaryView("data", dataTable);
+    }
 
-	@Test
-	public void testReadingFromChangelogSource() throws SQLException {
-		TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
-		String dataId = TestValuesTableFactory.registerData(TestData.userChangelog());
-		tEnv.executeSql("CREATE TABLE user_logs (\n" +
-			"  user_id STRING,\n" +
-			"  user_name STRING,\n" +
-			"  email STRING,\n" +
-			"  balance DECIMAL(18,2),\n" +
-			"  balance2 AS balance * 2\n" +
-			") WITH (\n" +
-			" 'connector' = 'values',\n" +
-			" 'data-id' = '" + dataId + "',\n" +
-			" 'changelog-mode' = 'I,UA,UB,D'\n" +
-			")");
-		tEnv.executeSql("CREATE TABLE user_sink (\n" +
-			"  user_name STRING,\n" +
-			"  email STRING,\n" +
-			"  balance DECIMAL(18,2),\n" +
-			"  balance2 DECIMAL(18,2),\n" +
-			"  user_id STRING PRIMARY KEY NOT ENFORCED\n" +
-			") WITH (\n" +
-			"  'connector' = 'jdbc'," +
-			"  'url'='" + dbUrl + "'," +
-			"  'table-name' = '" + USER_TABLE + "'," +
-			"  'sink.buffer-flush.max-rows' = '2'," +
-			"  'sink.buffer-flush.interval' = '0'" + // disable async flush
-			")");
-		TableEnvUtil.execInsertSqlAndWaitResult(
-			tEnv,
-			"INSERT INTO user_sink " +
-				"SELECT user_name, email, balance, balance2, user_id FROM user_logs");
+    @Test
+    public void testReadingFromChangelogSource() throws SQLException {
+        TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+        String dataId = TestValuesTableFactory.registerData(TestData.userChangelog());
+        tEnv.executeSql(
+                "CREATE TABLE user_logs (\n"
+                        + "  user_id STRING,\n"
+                        + "  user_name STRING,\n"
+                        + "  email STRING,\n"
+                        + "  balance DECIMAL(18,2),\n"
+                        + "  balance2 AS balance * 2\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'data-id' = '"
+                        + dataId
+                        + "',\n"
+                        + " 'changelog-mode' = 'I,UA,UB,D'\n"
+                        + ")");
+        tEnv.executeSql(
+                "CREATE TABLE user_sink (\n"
+                        + "  user_name STRING,\n"
+                        + "  email STRING,\n"
+                        + "  balance DECIMAL(18,2),\n"
+                        + "  balance2 DECIMAL(18,2),\n"
+                        + "  user_id STRING PRIMARY KEY NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'jdbc',"
+                        + "  'url'='"
+                        + dbUrl
+                        + "',"
+                        + "  'table-name' = '"
+                        + USER_TABLE
+                        + "',"
+                        + "  'sink.buffer-flush.max-rows' = '2',"
+                        + "  'sink.buffer-flush.interval' = '0'"
+                        + // disable async flush
+                        ")");
+        TableEnvUtil.execInsertSqlAndWaitResult(
+                tEnv,
+                "INSERT INTO user_sink "
+                        + "SELECT user_name, email, balance, balance2, user_id FROM user_logs");
 
-		check(new Row[] {
-			Row.of("Tom", "tom123@gmail.com", new BigDecimal("8.10"), new BigDecimal("16.20"), "user1"),
-			Row.of("Bailey", "bailey@qq.com", new BigDecimal("9.99"), new BigDecimal("19.98"), "user3"),
-			Row.of("Tina", "tina@gmail.com", new BigDecimal("11.30"), new BigDecimal("22.60"), "user4")
-		}, dbUrl, USER_TABLE, new String[]{"user_name", "email", "balance", "balance2", "user_id"});
-	}
+        check(
+                new Row[] {
+                    Row.of(
+                            "Tom",
+                            "tom123@gmail.com",
+                            new BigDecimal("8.10"),
+                            new BigDecimal("16.20"),
+                            "user1"),
+                    Row.of(
+                            "Bailey",
+                            "bailey@qq.com",
+                            new BigDecimal("9.99"),
+                            new BigDecimal("19.98"),
+                            "user3"),
+                    Row.of(
+                            "Tina",
+                            "tina@gmail.com",
+                            new BigDecimal("11.30"),
+                            new BigDecimal("22.60"),
+                            "user4")
+                },
+                dbUrl,
+                USER_TABLE,
+                new String[] {"user_name", "email", "balance", "balance2", "user_id"});
+    }
 
-	@After
-	public void cleanup() throws Exception {
-		try (Statement statement = connection.createStatement()) {
-			statement.executeUpdate(String.format("drop table %s", TABLE_NAME));
-			statement.executeUpdate(String.format("drop table %s", USER_TABLE));
-		}
-	}
+    @After
+    public void cleanup() throws Exception {
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(String.format("drop table %s", TABLE_NAME));
+            statement.executeUpdate(String.format("drop table %s", USER_TABLE));
+        }
+    }
 }

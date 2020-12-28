@@ -27,41 +27,41 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Test data.
- */
+/** Test data. */
 public class JavaStreamTestData {
 
-	public static DataStream<Tuple3<Integer, Long, String>> getSmall3TupleDataSet(StreamExecutionEnvironment env) {
+    public static DataStream<Tuple3<Integer, Long, String>> getSmall3TupleDataSet(
+            StreamExecutionEnvironment env) {
 
-		List<Tuple3<Integer, Long, String>> data = new ArrayList<>();
-		data.add(new Tuple3<>(1, 1L, "Hi"));
-		data.add(new Tuple3<>(2, 2L, "Hello"));
-		data.add(new Tuple3<>(3, 2L, "Hello world"));
+        List<Tuple3<Integer, Long, String>> data = new ArrayList<>();
+        data.add(new Tuple3<>(1, 1L, "Hi"));
+        data.add(new Tuple3<>(2, 2L, "Hello"));
+        data.add(new Tuple3<>(3, 2L, "Hello world"));
 
-		Collections.shuffle(data);
+        Collections.shuffle(data);
 
-		return env.fromCollection(data);
-	}
+        return env.fromCollection(data);
+    }
 
-	public static DataStream<Tuple5<Integer, Long, Integer, String, Long>> get5TupleDataStream(StreamExecutionEnvironment env) {
+    public static DataStream<Tuple5<Integer, Long, Integer, String, Long>> get5TupleDataStream(
+            StreamExecutionEnvironment env) {
 
-		List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<>();
-		data.add(new Tuple5<>(1, 1L, 0, "Hallo", 1L));
-		data.add(new Tuple5<>(2, 2L, 1, "Hallo Welt", 2L));
-		data.add(new Tuple5<>(2, 3L, 2, "Hallo Welt wie", 1L));
-		data.add(new Tuple5<>(3, 4L, 3, "Hallo Welt wie gehts?", 2L));
-		data.add(new Tuple5<>(3, 5L, 4, "ABC", 2L));
-		data.add(new Tuple5<>(3, 6L, 5, "BCD", 3L));
-		data.add(new Tuple5<>(4, 7L, 6, "CDE", 2L));
-		data.add(new Tuple5<>(4, 8L, 7, "DEF", 1L));
-		data.add(new Tuple5<>(4, 9L, 8, "EFG", 1L));
-		data.add(new Tuple5<>(4, 10L, 9, "FGH", 2L));
-		data.add(new Tuple5<>(5, 11L, 10, "GHI", 1L));
-		data.add(new Tuple5<>(5, 12L, 11, "HIJ", 3L));
-		data.add(new Tuple5<>(5, 13L, 12, "IJK", 3L));
-		data.add(new Tuple5<>(5, 15L, 14, "KLM", 2L));
-		data.add(new Tuple5<>(5, 14L, 13, "JKL", 2L));
-		return env.fromCollection(data);
-	}
+        List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<>();
+        data.add(new Tuple5<>(1, 1L, 0, "Hallo", 1L));
+        data.add(new Tuple5<>(2, 2L, 1, "Hallo Welt", 2L));
+        data.add(new Tuple5<>(2, 3L, 2, "Hallo Welt wie", 1L));
+        data.add(new Tuple5<>(3, 4L, 3, "Hallo Welt wie gehts?", 2L));
+        data.add(new Tuple5<>(3, 5L, 4, "ABC", 2L));
+        data.add(new Tuple5<>(3, 6L, 5, "BCD", 3L));
+        data.add(new Tuple5<>(4, 7L, 6, "CDE", 2L));
+        data.add(new Tuple5<>(4, 8L, 7, "DEF", 1L));
+        data.add(new Tuple5<>(4, 9L, 8, "EFG", 1L));
+        data.add(new Tuple5<>(4, 10L, 9, "FGH", 2L));
+        data.add(new Tuple5<>(5, 11L, 10, "GHI", 1L));
+        data.add(new Tuple5<>(5, 12L, 11, "HIJ", 3L));
+        data.add(new Tuple5<>(5, 13L, 12, "IJK", 3L));
+        data.add(new Tuple5<>(5, 15L, 14, "KLM", 2L));
+        data.add(new Tuple5<>(5, 14L, 13, "JKL", 2L));
+        return env.fromCollection(data);
+    }
 }

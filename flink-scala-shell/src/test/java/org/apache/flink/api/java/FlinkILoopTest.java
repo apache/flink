@@ -31,41 +31,39 @@ import scala.Option;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Integration tests for {@link FlinkILoop}.
- */
+/** Integration tests for {@link FlinkILoop}. */
 public class FlinkILoopTest extends TestLogger {
 
-	@Test
-	public void testConfigurationForwarding() {
-		Configuration configuration = new Configuration();
-		configuration.setString("foobar", "foobar");
-		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
-		configuration.setInteger(JobManagerOptions.PORT, 6123);
+    @Test
+    public void testConfigurationForwarding() {
+        Configuration configuration = new Configuration();
+        configuration.setString("foobar", "foobar");
+        configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+        configuration.setInteger(JobManagerOptions.PORT, 6123);
 
-		FlinkILoop flinkILoop = new FlinkILoop(configuration, Option.<String[]>empty());
+        FlinkILoop flinkILoop = new FlinkILoop(configuration, Option.<String[]>empty());
 
-		ExecutionEnvironment env = flinkILoop.scalaBenv().getJavaEnv();
-		assertTrue(env instanceof ScalaShellEnvironment);
+        ExecutionEnvironment env = flinkILoop.scalaBenv().getJavaEnv();
+        assertTrue(env instanceof ScalaShellEnvironment);
 
-		Configuration forwardedConfiguration = env.getConfiguration();
-		assertEquals(configuration, forwardedConfiguration);
-	}
+        Configuration forwardedConfiguration = env.getConfiguration();
+        assertEquals(configuration, forwardedConfiguration);
+    }
 
-	@Test
-	public void testConfigurationForwardingStreamEnvironment() {
-		Configuration configuration = new Configuration();
-		configuration.setString("foobar", "foobar");
-		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
-		configuration.setInteger(JobManagerOptions.PORT, 6123);
+    @Test
+    public void testConfigurationForwardingStreamEnvironment() {
+        Configuration configuration = new Configuration();
+        configuration.setString("foobar", "foobar");
+        configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+        configuration.setInteger(JobManagerOptions.PORT, 6123);
 
-		FlinkILoop flinkILoop = new FlinkILoop(configuration, Option.<String[]>empty());
+        FlinkILoop flinkILoop = new FlinkILoop(configuration, Option.<String[]>empty());
 
-		StreamExecutionEnvironment streamEnv = flinkILoop.scalaSenv().getJavaEnv();
-		assertTrue(streamEnv instanceof ScalaShellStreamEnvironment);
+        StreamExecutionEnvironment streamEnv = flinkILoop.scalaSenv().getJavaEnv();
+        assertTrue(streamEnv instanceof ScalaShellStreamEnvironment);
 
-		ScalaShellStreamEnvironment remoteStreamEnv = (ScalaShellStreamEnvironment) streamEnv;
-		Configuration forwardedConfiguration = remoteStreamEnv.getClientConfiguration();
-		assertEquals(configuration, forwardedConfiguration);
-	}
+        ScalaShellStreamEnvironment remoteStreamEnv = (ScalaShellStreamEnvironment) streamEnv;
+        Configuration forwardedConfiguration = remoteStreamEnv.getClientConfiguration();
+        assertEquals(configuration, forwardedConfiguration);
+    }
 }

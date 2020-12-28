@@ -45,55 +45,59 @@ import javax.annotation.Nullable;
 /**
  * {@link ResourceManagerFactory} implementation which creates a {@link KubernetesResourceManager}.
  */
-public class KubernetesResourceManagerFactory extends ActiveResourceManagerFactory<KubernetesWorkerNode> {
+public class KubernetesResourceManagerFactory
+        extends ActiveResourceManagerFactory<KubernetesWorkerNode> {
 
-	private static final KubernetesResourceManagerFactory INSTANCE = new KubernetesResourceManagerFactory();
+    private static final KubernetesResourceManagerFactory INSTANCE =
+            new KubernetesResourceManagerFactory();
 
-	private static final Time POD_CREATION_RETRY_INTERVAL = Time.seconds(3L);
+    private static final Time POD_CREATION_RETRY_INTERVAL = Time.seconds(3L);
 
-	private KubernetesResourceManagerFactory() {}
+    private KubernetesResourceManagerFactory() {}
 
-	public static KubernetesResourceManagerFactory getInstance() {
-		return INSTANCE;
-	}
+    public static KubernetesResourceManagerFactory getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public ResourceManager<KubernetesWorkerNode> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			ResourceManagerRuntimeServices resourceManagerRuntimeServices) {
+    @Override
+    public ResourceManager<KubernetesWorkerNode> createResourceManager(
+            Configuration configuration,
+            ResourceID resourceId,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            FatalErrorHandler fatalErrorHandler,
+            ClusterInformation clusterInformation,
+            @Nullable String webInterfaceUrl,
+            ResourceManagerMetricGroup resourceManagerMetricGroup,
+            ResourceManagerRuntimeServices resourceManagerRuntimeServices) {
 
-		final KubernetesResourceManagerConfiguration kubernetesResourceManagerConfiguration =
-			new KubernetesResourceManagerConfiguration(
-				configuration.getString(KubernetesConfigOptions.CLUSTER_ID),
-				POD_CREATION_RETRY_INTERVAL);
+        final KubernetesResourceManagerConfiguration kubernetesResourceManagerConfiguration =
+                new KubernetesResourceManagerConfiguration(
+                        configuration.getString(KubernetesConfigOptions.CLUSTER_ID),
+                        POD_CREATION_RETRY_INTERVAL);
 
-		return new KubernetesResourceManager(
-			rpcService,
-			resourceId,
-			configuration,
-			highAvailabilityServices,
-			heartbeatServices,
-			resourceManagerRuntimeServices.getSlotManager(),
-			ResourceManagerPartitionTrackerImpl::new,
-			resourceManagerRuntimeServices.getJobLeaderIdService(),
-			clusterInformation,
-			fatalErrorHandler,
-			resourceManagerMetricGroup,
-			KubeClientFactory.fromConfiguration(configuration),
-			kubernetesResourceManagerConfiguration);
-	}
+        return new KubernetesResourceManager(
+                rpcService,
+                resourceId,
+                configuration,
+                highAvailabilityServices,
+                heartbeatServices,
+                resourceManagerRuntimeServices.getSlotManager(),
+                ResourceManagerPartitionTrackerImpl::new,
+                resourceManagerRuntimeServices.getJobLeaderIdService(),
+                clusterInformation,
+                fatalErrorHandler,
+                resourceManagerMetricGroup,
+                KubeClientFactory.fromConfiguration(configuration),
+                kubernetesResourceManagerConfiguration);
+    }
 
-	@Override
-	protected ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
-		Configuration configuration) throws ConfigurationException {
-		return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, KubernetesWorkerResourceSpecFactory.INSTANCE);
-	}
+    @Override
+    protected ResourceManagerRuntimeServicesConfiguration
+            createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
+                    throws ConfigurationException {
+        return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
+                configuration, KubernetesWorkerResourceSpecFactory.INSTANCE);
+    }
 }

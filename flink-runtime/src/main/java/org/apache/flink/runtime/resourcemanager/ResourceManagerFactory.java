@@ -40,62 +40,72 @@ import javax.annotation.Nullable;
  */
 public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
 
-	public ResourceManager<T> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			MetricRegistry metricRegistry,
-			String hostname) throws Exception {
+    public ResourceManager<T> createResourceManager(
+            Configuration configuration,
+            ResourceID resourceId,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            FatalErrorHandler fatalErrorHandler,
+            ClusterInformation clusterInformation,
+            @Nullable String webInterfaceUrl,
+            MetricRegistry metricRegistry,
+            String hostname)
+            throws Exception {
 
-		final ResourceManagerMetricGroup resourceManagerMetricGroup = ResourceManagerMetricGroup.create(metricRegistry, hostname);
-		final SlotManagerMetricGroup slotManagerMetricGroup = SlotManagerMetricGroup.create(metricRegistry, hostname);
+        final ResourceManagerMetricGroup resourceManagerMetricGroup =
+                ResourceManagerMetricGroup.create(metricRegistry, hostname);
+        final SlotManagerMetricGroup slotManagerMetricGroup =
+                SlotManagerMetricGroup.create(metricRegistry, hostname);
 
-		final ResourceManagerRuntimeServices resourceManagerRuntimeServices = createResourceManagerRuntimeServices(
-			configuration, rpcService, highAvailabilityServices, slotManagerMetricGroup);
+        final ResourceManagerRuntimeServices resourceManagerRuntimeServices =
+                createResourceManagerRuntimeServices(
+                        configuration,
+                        rpcService,
+                        highAvailabilityServices,
+                        slotManagerMetricGroup);
 
-		return createResourceManager(
-			configuration,
-			resourceId,
-			rpcService,
-			highAvailabilityServices,
-			heartbeatServices,
-			fatalErrorHandler,
-			clusterInformation,
-			webInterfaceUrl,
-			resourceManagerMetricGroup,
-			resourceManagerRuntimeServices);
-	}
+        return createResourceManager(
+                configuration,
+                resourceId,
+                rpcService,
+                highAvailabilityServices,
+                heartbeatServices,
+                fatalErrorHandler,
+                clusterInformation,
+                webInterfaceUrl,
+                resourceManagerMetricGroup,
+                resourceManagerRuntimeServices);
+    }
 
-	protected abstract ResourceManager<T> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			ResourceManagerRuntimeServices resourceManagerRuntimeServices) throws Exception;
+    protected abstract ResourceManager<T> createResourceManager(
+            Configuration configuration,
+            ResourceID resourceId,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            FatalErrorHandler fatalErrorHandler,
+            ClusterInformation clusterInformation,
+            @Nullable String webInterfaceUrl,
+            ResourceManagerMetricGroup resourceManagerMetricGroup,
+            ResourceManagerRuntimeServices resourceManagerRuntimeServices)
+            throws Exception;
 
-	private ResourceManagerRuntimeServices createResourceManagerRuntimeServices(
-			Configuration configuration,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			SlotManagerMetricGroup slotManagerMetricGroup) throws ConfigurationException {
+    private ResourceManagerRuntimeServices createResourceManagerRuntimeServices(
+            Configuration configuration,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            SlotManagerMetricGroup slotManagerMetricGroup)
+            throws ConfigurationException {
 
-		return ResourceManagerRuntimeServices.fromConfiguration(
-			createResourceManagerRuntimeServicesConfiguration(configuration),
-			highAvailabilityServices,
-			rpcService.getScheduledExecutor(),
-			slotManagerMetricGroup);
-	}
+        return ResourceManagerRuntimeServices.fromConfiguration(
+                createResourceManagerRuntimeServicesConfiguration(configuration),
+                highAvailabilityServices,
+                rpcService.getScheduledExecutor(),
+                slotManagerMetricGroup);
+    }
 
-	protected abstract ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
-			Configuration configuration) throws ConfigurationException;
+    protected abstract ResourceManagerRuntimeServicesConfiguration
+            createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
+                    throws ConfigurationException;
 }

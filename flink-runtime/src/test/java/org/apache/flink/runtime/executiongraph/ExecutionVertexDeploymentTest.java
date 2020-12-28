@@ -56,283 +56,328 @@ import static org.mockito.Mockito.when;
 
 public class ExecutionVertexDeploymentTest extends TestLogger {
 
-	private static final String ERROR_MESSAGE = "test_failure_error_message";
+    private static final String ERROR_MESSAGE = "test_failure_error_message";
 
-	@Test
-	public void testDeployCall() {
-		try {
-			final JobVertexID jid = new JobVertexID();
+    @Test
+    public void testDeployCall() {
+        try {
+            final JobVertexID jid = new JobVertexID();
 
-			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
+            final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
 
-			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
+            final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-				AkkaUtils.getDefaultTimeout());
+            final ExecutionVertex vertex =
+                    new ExecutionVertex(
+                            ejv, 0, new IntermediateResult[0], AkkaUtils.getDefaultTimeout());
 
-			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
-			vertex.deployToSlot(slot);
-			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
+            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            vertex.deployToSlot(slot);
+            assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
-			// no repeated scheduling
-			try {
-				vertex.deployToSlot(slot);
-				fail("Scheduled from wrong state");
-			} catch (IllegalStateException e) {
-				// as expected
-			}
+            // no repeated scheduling
+            try {
+                vertex.deployToSlot(slot);
+                fail("Scheduled from wrong state");
+            } catch (IllegalStateException e) {
+                // as expected
+            }
 
-			assertNull(vertex.getFailureCause());
+            assertNull(vertex.getFailureCause());
 
-			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testDeployWithSynchronousAnswer() {
-		try {
-			final JobVertexID jid = new JobVertexID();
+    @Test
+    public void testDeployWithSynchronousAnswer() {
+        try {
+            final JobVertexID jid = new JobVertexID();
 
-			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
+            final ExecutionJobVertex ejv =
+                    ExecutionGraphTestUtils.getExecutionJobVertex(
+                            jid, new DirectScheduledExecutorService());
 
-			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
+            final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-				AkkaUtils.getDefaultTimeout());
+            final ExecutionVertex vertex =
+                    new ExecutionVertex(
+                            ejv, 0, new IntermediateResult[0], AkkaUtils.getDefaultTimeout());
 
-			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
-			vertex.deployToSlot(slot);
+            vertex.deployToSlot(slot);
 
-			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
+            assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
-			// no repeated scheduling
-			try {
-				vertex.deployToSlot(slot);
-				fail("Scheduled from wrong state");
-			} catch (IllegalStateException e) {
-				// as expected
-			}
+            // no repeated scheduling
+            try {
+                vertex.deployToSlot(slot);
+                fail("Scheduled from wrong state");
+            } catch (IllegalStateException e) {
+                // as expected
+            }
 
-			assertNull(vertex.getFailureCause());
+            assertNull(vertex.getFailureCause());
 
-			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) == 0);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) == 0);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testDeployWithAsynchronousAnswer() {
-		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
+    @Test
+    public void testDeployWithAsynchronousAnswer() {
+        try {
+            final JobVertexID jid = new JobVertexID();
+            final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
 
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-				AkkaUtils.getDefaultTimeout());
+            final ExecutionVertex vertex =
+                    new ExecutionVertex(
+                            ejv, 0, new IntermediateResult[0], AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
+            final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
-			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
-			vertex.deployToSlot(slot);
+            vertex.deployToSlot(slot);
 
-			// no repeated scheduling
-			try {
-				vertex.deployToSlot(slot);
-				fail("Scheduled from wrong state");
-			} catch (IllegalStateException e) {
-				// as expected
-			}
+            // no repeated scheduling
+            try {
+                vertex.deployToSlot(slot);
+                fail("Scheduled from wrong state");
+            } catch (IllegalStateException e) {
+                // as expected
+            }
 
-			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
+            assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
-			// no repeated scheduling
-			try {
-				vertex.deployToSlot(slot);
-				fail("Scheduled from wrong state");
-			} catch (IllegalStateException e) {
-				// as expected
-			}
+            // no repeated scheduling
+            try {
+                vertex.deployToSlot(slot);
+                fail("Scheduled from wrong state");
+            } catch (IllegalStateException e) {
+                // as expected
+            }
 
-			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) == 0);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) == 0);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testDeployFailedSynchronous() {
-		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
+    @Test
+    public void testDeployFailedSynchronous() {
+        try {
+            final JobVertexID jid = new JobVertexID();
+            final ExecutionJobVertex ejv =
+                    ExecutionGraphTestUtils.getExecutionJobVertex(
+                            jid, new DirectScheduledExecutorService());
 
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-				AkkaUtils.getDefaultTimeout());
+            final ExecutionVertex vertex =
+                    new ExecutionVertex(
+                            ejv, 0, new IntermediateResult[0], AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new SubmitFailingSimpleAckingTaskManagerGateway()).createTestingLogicalSlot();
+            final LogicalSlot slot =
+                    new TestingLogicalSlotBuilder()
+                            .setTaskManagerGateway(
+                                    new SubmitFailingSimpleAckingTaskManagerGateway())
+                            .createTestingLogicalSlot();
 
-			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
-			vertex.deployToSlot(slot);
+            vertex.deployToSlot(slot);
 
-			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-			assertNotNull(vertex.getFailureCause());
-			assertTrue(vertex.getFailureCause().getMessage().contains(ERROR_MESSAGE));
+            assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
+            assertNotNull(vertex.getFailureCause());
+            assertTrue(vertex.getFailureCause().getMessage().contains(ERROR_MESSAGE));
 
-			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testDeployFailedAsynchronously() {
-		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-				AkkaUtils.getDefaultTimeout());
+    @Test
+    public void testDeployFailedAsynchronously() {
+        try {
+            final JobVertexID jid = new JobVertexID();
+            final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
+            final ExecutionVertex vertex =
+                    new ExecutionVertex(
+                            ejv, 0, new IntermediateResult[0], AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new SubmitFailingSimpleAckingTaskManagerGateway()).createTestingLogicalSlot();
+            final LogicalSlot slot =
+                    new TestingLogicalSlotBuilder()
+                            .setTaskManagerGateway(
+                                    new SubmitFailingSimpleAckingTaskManagerGateway())
+                            .createTestingLogicalSlot();
 
-			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
-			vertex.deployToSlot(slot);
+            vertex.deployToSlot(slot);
 
-			// wait until the state transition must be done
-			for (int i = 0; i < 100; i++) {
-				if (vertex.getExecutionState() == ExecutionState.FAILED && vertex.getFailureCause() != null) {
-					break;
-				} else {
-					Thread.sleep(10);
-				}
-			}
+            // wait until the state transition must be done
+            for (int i = 0; i < 100; i++) {
+                if (vertex.getExecutionState() == ExecutionState.FAILED
+                        && vertex.getFailureCause() != null) {
+                    break;
+                } else {
+                    Thread.sleep(10);
+                }
+            }
 
-			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-			assertNotNull(vertex.getFailureCause());
-			assertTrue(vertex.getFailureCause().getMessage().contains(ERROR_MESSAGE));
+            assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
+            assertNotNull(vertex.getFailureCause());
+            assertTrue(vertex.getFailureCause().getMessage().contains(ERROR_MESSAGE));
 
-			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testFailExternallyDuringDeploy() {
-		try {
-			final JobVertexID jid = new JobVertexID();
+    @Test
+    public void testFailExternallyDuringDeploy() {
+        try {
+            final JobVertexID jid = new JobVertexID();
 
-			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
+            final ExecutionJobVertex ejv =
+                    ExecutionGraphTestUtils.getExecutionJobVertex(
+                            jid, new DirectScheduledExecutorService());
 
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-				AkkaUtils.getDefaultTimeout());
+            final ExecutionVertex vertex =
+                    new ExecutionVertex(
+                            ejv, 0, new IntermediateResult[0], AkkaUtils.getDefaultTimeout());
 
-			TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new SubmitBlockingSimpleAckingTaskManagerGateway()).createTestingLogicalSlot();
+            TestingLogicalSlot testingLogicalSlot =
+                    new TestingLogicalSlotBuilder()
+                            .setTaskManagerGateway(
+                                    new SubmitBlockingSimpleAckingTaskManagerGateway())
+                            .createTestingLogicalSlot();
 
-			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
-			vertex.deployToSlot(testingLogicalSlot);
-			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
+            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            vertex.deployToSlot(testingLogicalSlot);
+            assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
-			Exception testError = new Exception("test error");
-			vertex.fail(testError);
+            Exception testError = new Exception("test error");
+            vertex.fail(testError);
 
-			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-			assertEquals(testError, vertex.getFailureCause());
+            assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
+            assertEquals(testError, vertex.getFailureCause());
 
-			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
+            assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	private static class SubmitFailingSimpleAckingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
-		@Override
-		public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-			CompletableFuture<Acknowledge> future = new CompletableFuture<>();
-			future.completeExceptionally(new Exception(ERROR_MESSAGE));
-			return future;
-		}
-	}
+    private static class SubmitFailingSimpleAckingTaskManagerGateway
+            extends SimpleAckingTaskManagerGateway {
+        @Override
+        public CompletableFuture<Acknowledge> submitTask(
+                TaskDeploymentDescriptor tdd, Time timeout) {
+            CompletableFuture<Acknowledge> future = new CompletableFuture<>();
+            future.completeExceptionally(new Exception(ERROR_MESSAGE));
+            return future;
+        }
+    }
 
-	private static class SubmitBlockingSimpleAckingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
-		@Override
-		public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-			return new CompletableFuture<>();
-		}
-	}
+    private static class SubmitBlockingSimpleAckingTaskManagerGateway
+            extends SimpleAckingTaskManagerGateway {
+        @Override
+        public CompletableFuture<Acknowledge> submitTask(
+                TaskDeploymentDescriptor tdd, Time timeout) {
+            return new CompletableFuture<>();
+        }
+    }
 
-	/**
-	 * Tests that the lazy scheduling flag is correctly forwarded to the produced partition descriptors.
-	 */
-	@Test
-	public void testTddProducedPartitionsLazyScheduling() throws Exception {
-		for (ScheduleMode scheduleMode: ScheduleMode.values()) {
-			ExecutionJobVertex jobVertex = ExecutionGraphTestUtils.getExecutionJobVertex(
-				new JobVertexID(),
-				new DirectScheduledExecutorService(),
-				scheduleMode);
+    /**
+     * Tests that the lazy scheduling flag is correctly forwarded to the produced partition
+     * descriptors.
+     */
+    @Test
+    public void testTddProducedPartitionsLazyScheduling() throws Exception {
+        for (ScheduleMode scheduleMode : ScheduleMode.values()) {
+            ExecutionJobVertex jobVertex =
+                    ExecutionGraphTestUtils.getExecutionJobVertex(
+                            new JobVertexID(), new DirectScheduledExecutorService(), scheduleMode);
 
-			IntermediateResult result =
-				new IntermediateResult(new IntermediateDataSetID(), jobVertex, 1, ResultPartitionType.PIPELINED);
+            IntermediateResult result =
+                    new IntermediateResult(
+                            new IntermediateDataSetID(),
+                            jobVertex,
+                            1,
+                            ResultPartitionType.PIPELINED);
 
-			ExecutionAttemptID attemptID = new ExecutionAttemptID();
-			ExecutionVertex vertex =
-				new ExecutionVertex(jobVertex, 0, new IntermediateResult[]{result}, Time.minutes(1));
-			TaskDeploymentDescriptorFactory tddFactory =
-				TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, 1);
+            ExecutionAttemptID attemptID = new ExecutionAttemptID();
+            ExecutionVertex vertex =
+                    new ExecutionVertex(
+                            jobVertex, 0, new IntermediateResult[] {result}, Time.minutes(1));
+            TaskDeploymentDescriptorFactory tddFactory =
+                    TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, 1);
 
-			ExecutionEdge mockEdge = createMockExecutionEdge(1);
+            ExecutionEdge mockEdge = createMockExecutionEdge(1);
 
-			result.getPartitions()[0].addConsumerGroup();
-			result.getPartitions()[0].addConsumer(mockEdge, 0);
+            result.getPartitions()[0].addConsumerGroup();
+            result.getPartitions()[0].addConsumer(mockEdge, 0);
 
-			TaskManagerLocation location =
-				new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 1);
+            TaskManagerLocation location =
+                    new TaskManagerLocation(
+                            ResourceID.generate(), InetAddress.getLoopbackAddress(), 1);
 
-			TaskDeploymentDescriptor tdd = tddFactory.createDeploymentDescriptor(
-				new AllocationID(),
-				0,
-				null,
-				Execution.registerProducedPartitions(vertex, location, attemptID, scheduleMode.allowLazyDeployment()).get().values());
+            TaskDeploymentDescriptor tdd =
+                    tddFactory.createDeploymentDescriptor(
+                            new AllocationID(),
+                            0,
+                            null,
+                            Execution.registerProducedPartitions(
+                                            vertex,
+                                            location,
+                                            attemptID,
+                                            scheduleMode.allowLazyDeployment())
+                                    .get()
+                                    .values());
 
-			Collection<ResultPartitionDeploymentDescriptor> producedPartitions = tdd.getProducedPartitions();
+            Collection<ResultPartitionDeploymentDescriptor> producedPartitions =
+                    tdd.getProducedPartitions();
 
-			assertEquals(1, producedPartitions.size());
-			ResultPartitionDeploymentDescriptor desc = producedPartitions.iterator().next();
-			assertEquals(scheduleMode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
-		}
-	}
+            assertEquals(1, producedPartitions.size());
+            ResultPartitionDeploymentDescriptor desc = producedPartitions.iterator().next();
+            assertEquals(
+                    scheduleMode.allowLazyDeployment(),
+                    desc.sendScheduleOrUpdateConsumersMessage());
+        }
+    }
 
-	private ExecutionEdge createMockExecutionEdge(int maxParallelism) {
-		ExecutionVertex targetVertex = mock(ExecutionVertex.class);
-		ExecutionJobVertex targetJobVertex = mock(ExecutionJobVertex.class);
+    private ExecutionEdge createMockExecutionEdge(int maxParallelism) {
+        ExecutionVertex targetVertex = mock(ExecutionVertex.class);
+        ExecutionJobVertex targetJobVertex = mock(ExecutionJobVertex.class);
 
-		when(targetVertex.getJobVertex()).thenReturn(targetJobVertex);
-		when(targetJobVertex.getMaxParallelism()).thenReturn(maxParallelism);
+        when(targetVertex.getJobVertex()).thenReturn(targetJobVertex);
+        when(targetJobVertex.getMaxParallelism()).thenReturn(maxParallelism);
 
-		ExecutionEdge edge = mock(ExecutionEdge.class);
-		when(edge.getTarget()).thenReturn(targetVertex);
-		return edge;
-	}
+        ExecutionEdge edge = mock(ExecutionEdge.class);
+        when(edge.getTarget()).thenReturn(targetVertex);
+        return edge;
+    }
 }

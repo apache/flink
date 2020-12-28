@@ -49,171 +49,185 @@ import static org.junit.Assert.fail;
 
 public class PartitionRequestClientFactoryTest {
 
-	private final static int SERVER_PORT = NetUtils.getAvailablePort();
+    private static final int SERVER_PORT = NetUtils.getAvailablePort();
 
-	// see https://issues.apache.org/jira/browse/FLINK-18821
-	@Test(expected = IOException.class)
-	public void testFailureReportedToSubsequentRequests() throws Exception {
-		PartitionRequestClientFactory factory = new PartitionRequestClientFactory(new FailingNettyClient());
-		try {
-			factory.createPartitionRequestClient(new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
-		} catch (IOException e) {
-			// expected
-		}
-		factory.createPartitionRequestClient(new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
-	}
+    // see https://issues.apache.org/jira/browse/FLINK-18821
+    @Test(expected = IOException.class)
+    public void testFailureReportedToSubsequentRequests() throws Exception {
+        PartitionRequestClientFactory factory =
+                new PartitionRequestClientFactory(new FailingNettyClient());
+        try {
+            factory.createPartitionRequestClient(
+                    new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
+        } catch (IOException e) {
+            // expected
+        }
+        factory.createPartitionRequestClient(
+                new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
+    }
 
-	@Test
-	@Ignore
-	public void testResourceReleaseAfterInterruptedConnect() throws Exception {
+    @Test
+    @Ignore
+    public void testResourceReleaseAfterInterruptedConnect() throws Exception {
 
-		// Latch to synchronize on the connect call.
-		final CountDownLatch syncOnConnect = new CountDownLatch(1);
+        // Latch to synchronize on the connect call.
+        final CountDownLatch syncOnConnect = new CountDownLatch(1);
 
-		final Tuple2<NettyServer, NettyClient> netty = createNettyServerAndClient(
-				new NettyProtocol(null, null) {
+        final Tuple2<NettyServer, NettyClient> netty =
+                createNettyServerAndClient(
+                        new NettyProtocol(null, null) {
 
-					@Override
-					public ChannelHandler[] getServerChannelHandlers() {
-						return new ChannelHandler[0];
-					}
+                            @Override
+                            public ChannelHandler[] getServerChannelHandlers() {
+                                return new ChannelHandler[0];
+                            }
 
-					@Override
-					public ChannelHandler[] getClientChannelHandlers() {
-						return new ChannelHandler[] {
-								new CountDownLatchOnConnectHandler(syncOnConnect)};
-					}
-				});
+                            @Override
+                            public ChannelHandler[] getClientChannelHandlers() {
+                                return new ChannelHandler[] {
+                                    new CountDownLatchOnConnectHandler(syncOnConnect)
+                                };
+                            }
+                        });
 
-		final NettyServer server = netty.f0;
-		final NettyClient client = netty.f1;
+        final NettyServer server = netty.f0;
+        final NettyClient client = netty.f1;
 
-		final UncaughtTestExceptionHandler exceptionHandler = new UncaughtTestExceptionHandler();
+        final UncaughtTestExceptionHandler exceptionHandler = new UncaughtTestExceptionHandler();
 
-		try {
-			final PartitionRequestClientFactory factory = new PartitionRequestClientFactory(client);
+        try {
+            final PartitionRequestClientFactory factory = new PartitionRequestClientFactory(client);
 
-			final Thread connect = new Thread(new Runnable() {
-				@Override
-				public void run() {
-					ConnectionID serverAddress = null;
+            final Thread connect =
+                    new Thread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    ConnectionID serverAddress = null;
 
-					try {
-						serverAddress = createServerConnectionID(0);
+                                    try {
+                                        serverAddress = createServerConnectionID(0);
 
-						// This triggers a connect
-						factory.createPartitionRequestClient(serverAddress);
-					}
-					catch (Throwable t) {
+                                        // This triggers a connect
+                                        factory.createPartitionRequestClient(serverAddress);
+                                    } catch (Throwable t) {
 
-						if (serverAddress != null) {
-							factory.closeOpenChannelConnections(serverAddress);
-							Thread.getDefaultUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), t);
-						} else {
-							t.printStackTrace();
-							fail("Could not create RemoteAddress for server.");
-						}
-					}
-				}
-			});
+                                        if (serverAddress != null) {
+                                            factory.closeOpenChannelConnections(serverAddress);
+                                            Thread.getDefaultUncaughtExceptionHandler()
+                                                    .uncaughtException(Thread.currentThread(), t);
+                                        } else {
+                                            t.printStackTrace();
+                                            fail("Could not create RemoteAddress for server.");
+                                        }
+                                    }
+                                }
+                            });
 
-			connect.setUncaughtExceptionHandler(exceptionHandler);
+            connect.setUncaughtExceptionHandler(exceptionHandler);
 
-			connect.start();
+            connect.start();
 
-			// Wait on the connect
-			syncOnConnect.await();
+            // Wait on the connect
+            syncOnConnect.await();
 
-			connect.interrupt();
-			connect.join();
+            connect.interrupt();
+            connect.join();
 
-			// Make sure that after a failed connect all resources are cleared.
-			assertEquals(0, factory.getNumberOfActiveClients());
+            // Make sure that after a failed connect all resources are cleared.
+            assertEquals(0, factory.getNumberOfActiveClients());
 
-			// Make sure that the interrupt exception is not swallowed
-			assertTrue(exceptionHandler.getErrors().size() > 0);
-		}
-		finally {
-			if (server != null) {
-				server.shutdown();
-			}
+            // Make sure that the interrupt exception is not swallowed
+            assertTrue(exceptionHandler.getErrors().size() > 0);
+        } finally {
+            if (server != null) {
+                server.shutdown();
+            }
 
-			if (client != null) {
-				client.shutdown();
-			}
-		}
-	}
+            if (client != null) {
+                client.shutdown();
+            }
+        }
+    }
 
-	private static class CountDownLatchOnConnectHandler extends ChannelOutboundHandlerAdapter {
+    private static class CountDownLatchOnConnectHandler extends ChannelOutboundHandlerAdapter {
 
-		private final CountDownLatch syncOnConnect;
+        private final CountDownLatch syncOnConnect;
 
-		public CountDownLatchOnConnectHandler(CountDownLatch syncOnConnect) {
-			this.syncOnConnect = syncOnConnect;
-		}
+        public CountDownLatchOnConnectHandler(CountDownLatch syncOnConnect) {
+            this.syncOnConnect = syncOnConnect;
+        }
 
-		@Override
-		public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) throws Exception {
-			syncOnConnect.countDown();
-		}
-	}
+        @Override
+        public void connect(
+                ChannelHandlerContext ctx,
+                SocketAddress remoteAddress,
+                SocketAddress localAddress,
+                ChannelPromise promise)
+                throws Exception {
+            syncOnConnect.countDown();
+        }
+    }
 
-	private static class UncaughtTestExceptionHandler implements UncaughtExceptionHandler {
+    private static class UncaughtTestExceptionHandler implements UncaughtExceptionHandler {
 
-		private final List<Throwable> errors = new ArrayList<Throwable>(1);
+        private final List<Throwable> errors = new ArrayList<Throwable>(1);
 
-		@Override
-		public void uncaughtException(Thread t, Throwable e) {
-			errors.add(e);
-		}
+        @Override
+        public void uncaughtException(Thread t, Throwable e) {
+            errors.add(e);
+        }
 
-		private List<Throwable> getErrors() {
-			return errors;
-		}
-	}
+        private List<Throwable> getErrors() {
+            return errors;
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static Tuple2<NettyServer, NettyClient> createNettyServerAndClient(NettyProtocol protocol) throws IOException {
-		final NettyConfig config = new NettyConfig(InetAddress.getLocalHost(), SERVER_PORT, 32 * 1024, 1, new Configuration());
+    private static Tuple2<NettyServer, NettyClient> createNettyServerAndClient(
+            NettyProtocol protocol) throws IOException {
+        final NettyConfig config =
+                new NettyConfig(
+                        InetAddress.getLocalHost(), SERVER_PORT, 32 * 1024, 1, new Configuration());
 
-		final NettyServer server = new NettyServer(config);
-		final NettyClient client = new NettyClient(config);
+        final NettyServer server = new NettyServer(config);
+        final NettyClient client = new NettyClient(config);
 
-		boolean success = false;
+        boolean success = false;
 
-		try {
-			NettyBufferPool bufferPool = new NettyBufferPool(1);
+        try {
+            NettyBufferPool bufferPool = new NettyBufferPool(1);
 
-			server.init(protocol, bufferPool);
-			client.init(protocol, bufferPool);
+            server.init(protocol, bufferPool);
+            client.init(protocol, bufferPool);
 
-			success = true;
-		}
-		finally {
-			if (!success) {
-				server.shutdown();
-				client.shutdown();
-			}
-		}
+            success = true;
+        } finally {
+            if (!success) {
+                server.shutdown();
+                client.shutdown();
+            }
+        }
 
-		return new Tuple2<NettyServer, NettyClient>(server, client);
-	}
+        return new Tuple2<NettyServer, NettyClient>(server, client);
+    }
 
-	private static ConnectionID createServerConnectionID(int connectionIndex) throws UnknownHostException {
-		return new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), SERVER_PORT), connectionIndex);
-	}
+    private static ConnectionID createServerConnectionID(int connectionIndex)
+            throws UnknownHostException {
+        return new ConnectionID(
+                new InetSocketAddress(InetAddress.getLocalHost(), SERVER_PORT), connectionIndex);
+    }
 
-	private static class FailingNettyClient extends NettyClient {
+    private static class FailingNettyClient extends NettyClient {
 
-		public FailingNettyClient() {
-			super(null);
-		}
+        public FailingNettyClient() {
+            super(null);
+        }
 
-		@Override
-		ChannelFuture connect(final InetSocketAddress serverSocketAddress) {
-			throw new ChannelException("Simulate connect failure");
-		}
-	}
-
+        @Override
+        ChannelFuture connect(final InetSocketAddress serverSocketAddress) {
+            throw new ChannelException("Simulate connect failure");
+        }
+    }
 }

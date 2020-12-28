@@ -21,21 +21,20 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * {@link State} interface for folding state. Elements can be added to the state, they will
- * be successively added to the initial value using a
- * {@link org.apache.flink.api.common.functions.FoldFunction}. The current state can be inspected.
+ * {@link State} interface for folding state. Elements can be added to the state, they will be
+ * successively added to the initial value using a {@link
+ * org.apache.flink.api.common.functions.FoldFunction}. The current state can be inspected.
  *
- * <p>The state is accessed and modified by user functions, and checkpointed consistently
- * by the system as part of the distributed snapshots.
+ * <p>The state is accessed and modified by user functions, and checkpointed consistently by the
+ * system as part of the distributed snapshots.
  *
  * <p>The state is only accessible by functions applied on a {@code KeyedStream}. The key is
- * automatically supplied by the system, so the function always sees the value mapped to the
- * key of the current element. That way, the system can handle stream and state partitioning
- * consistently together.
+ * automatically supplied by the system, so the function always sees the value mapped to the key of
+ * the current element. That way, the system can handle stream and state partitioning consistently
+ * together.
  *
  * @param <T> Type of the values folded into the state
  * @param <ACC> Type of the value in the state
- *
  * @deprecated will be removed in a future version in favor of {@link AggregatingState}
  */
 @PublicEvolving

@@ -41,336 +41,238 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Test case for built-in LastValue aggregate function.
- * This class tests `accumulate` method without order argument.
+ * Test case for built-in LastValue aggregate function. This class tests `accumulate` method without
+ * order argument.
  */
 @RunWith(Enclosed.class)
 public final class LastValueAggFunctionWithoutOrderTest {
 
-	// --------------------------------------------------------------------------------------------
-	// Test sets for a particular type being aggregated
-	//
-	// Actual tests are implemented in:
-	//  - AggFunctionTestBase
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Test sets for a particular type being aggregated
+    //
+    // Actual tests are implemented in:
+    //  - AggFunctionTestBase
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Test for ByteLastValueAggFunction.
-	 */
-	public static final class ByteLastValueAggFunctionWithoutOrderTest
-			extends NumberLastValueAggFunctionWithoutOrderTestBase<Byte> {
+    /** Test for ByteLastValueAggFunction. */
+    public static final class ByteLastValueAggFunctionWithoutOrderTest
+            extends NumberLastValueAggFunctionWithoutOrderTestBase<Byte> {
 
-		@Override
-		protected Byte getValue(String v) {
-			return Byte.valueOf(v);
-		}
+        @Override
+        protected Byte getValue(String v) {
+            return Byte.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Byte, GenericRowData> getAggregator() {
-			return new ByteLastValueAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Byte, GenericRowData> getAggregator() {
+            return new ByteLastValueAggFunction();
+        }
+    }
 
-	/**
-	 * Test for ShortLastValueAggFunction.
-	 */
-	public static final class ShortLastValueAggFunctionWithoutOrderTest
-			extends NumberLastValueAggFunctionWithoutOrderTestBase<Short> {
+    /** Test for ShortLastValueAggFunction. */
+    public static final class ShortLastValueAggFunctionWithoutOrderTest
+            extends NumberLastValueAggFunctionWithoutOrderTestBase<Short> {
 
-		@Override
-		protected Short getValue(String v) {
-			return Short.valueOf(v);
-		}
+        @Override
+        protected Short getValue(String v) {
+            return Short.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Short, GenericRowData> getAggregator() {
-			return new ShortLastValueAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Short, GenericRowData> getAggregator() {
+            return new ShortLastValueAggFunction();
+        }
+    }
 
-	/**
-	 * Test for IntLastValueAggFunction.
-	 */
-	public static final class IntLastValueAggFunctionWithoutOrderTest
-			extends NumberLastValueAggFunctionWithoutOrderTestBase<Integer> {
+    /** Test for IntLastValueAggFunction. */
+    public static final class IntLastValueAggFunctionWithoutOrderTest
+            extends NumberLastValueAggFunctionWithoutOrderTestBase<Integer> {
 
-		@Override
-		protected Integer getValue(String v) {
-			return Integer.valueOf(v);
-		}
+        @Override
+        protected Integer getValue(String v) {
+            return Integer.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Integer, GenericRowData> getAggregator() {
-			return new IntLastValueAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Integer, GenericRowData> getAggregator() {
+            return new IntLastValueAggFunction();
+        }
+    }
 
-	/**
-	 * Test for LongLastValueAggFunction.
-	 */
-	public static final class LongLastValueAggFunctionWithoutOrderTest
-			extends NumberLastValueAggFunctionWithoutOrderTestBase<Long> {
+    /** Test for LongLastValueAggFunction. */
+    public static final class LongLastValueAggFunctionWithoutOrderTest
+            extends NumberLastValueAggFunctionWithoutOrderTestBase<Long> {
 
-		@Override
-		protected Long getValue(String v) {
-			return Long.valueOf(v);
-		}
+        @Override
+        protected Long getValue(String v) {
+            return Long.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Long, GenericRowData> getAggregator() {
-			return new LongLastValueAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Long, GenericRowData> getAggregator() {
+            return new LongLastValueAggFunction();
+        }
+    }
 
-	/**
-	 * Test for FloatLastValueAggFunction.
-	 */
-	public static final class FloatLastValueAggFunctionWithoutOrderTest
-			extends NumberLastValueAggFunctionWithoutOrderTestBase<Float> {
+    /** Test for FloatLastValueAggFunction. */
+    public static final class FloatLastValueAggFunctionWithoutOrderTest
+            extends NumberLastValueAggFunctionWithoutOrderTestBase<Float> {
 
-		@Override
-		protected Float getValue(String v) {
-			return Float.valueOf(v);
-		}
+        @Override
+        protected Float getValue(String v) {
+            return Float.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Float, GenericRowData> getAggregator() {
-			return new FloatLastValueAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Float, GenericRowData> getAggregator() {
+            return new FloatLastValueAggFunction();
+        }
+    }
 
-	/**
-	 * Test for DoubleLastValueAggFunction.
-	 */
-	public static final class DoubleLastValueAggFunctionWithoutOrderTest
-			extends NumberLastValueAggFunctionWithoutOrderTestBase<Double> {
+    /** Test for DoubleLastValueAggFunction. */
+    public static final class DoubleLastValueAggFunctionWithoutOrderTest
+            extends NumberLastValueAggFunctionWithoutOrderTestBase<Double> {
 
-		@Override
-		protected Double getValue(String v) {
-			return Double.valueOf(v);
-		}
+        @Override
+        protected Double getValue(String v) {
+            return Double.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Double, GenericRowData> getAggregator() {
-			return new DoubleLastValueAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Double, GenericRowData> getAggregator() {
+            return new DoubleLastValueAggFunction();
+        }
+    }
 
-	/**
-	 * Test for BooleanLastValueAggFunction.
-	 */
-	public static final class BooleanLastValueAggFunctionWithoutOrderTest extends
-			LastValueAggFunctionWithoutOrderTestBase<Boolean> {
+    /** Test for BooleanLastValueAggFunction. */
+    public static final class BooleanLastValueAggFunctionWithoutOrderTest
+            extends LastValueAggFunctionWithoutOrderTestBase<Boolean> {
 
-		@Override
-		protected List<List<Boolean>> getInputValueSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							false,
-							false,
-							false
-					),
-					Arrays.asList(
-							true,
-							true,
-							true
-					),
-					Arrays.asList(
-							true,
-							false,
-							null,
-							true,
-							false,
-							true,
-							null
-					),
-					Arrays.asList(
-							null,
-							null,
-							null
-					),
-					Arrays.asList(
-							null,
-							true
-					));
-		}
+        @Override
+        protected List<List<Boolean>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(false, false, false),
+                    Arrays.asList(true, true, true),
+                    Arrays.asList(true, false, null, true, false, true, null),
+                    Arrays.asList(null, null, null),
+                    Arrays.asList(null, true));
+        }
 
-		@Override
-		protected List<Boolean> getExpectedResults() {
-			return Arrays.asList(
-					false,
-					true,
-					true,
-					null,
-					true
-			);
-		}
+        @Override
+        protected List<Boolean> getExpectedResults() {
+            return Arrays.asList(false, true, true, null, true);
+        }
 
-		@Override
-		protected AggregateFunction<Boolean, GenericRowData> getAggregator() {
-			return new BooleanLastValueAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Boolean, GenericRowData> getAggregator() {
+            return new BooleanLastValueAggFunction();
+        }
+    }
 
-	/**
-	 * Test for DecimalLastValueAggFunction.
-	 */
-	public static final class DecimalLastValueAggFunctionWithoutOrderTest extends
-			LastValueAggFunctionWithoutOrderTestBase<DecimalData> {
+    /** Test for DecimalLastValueAggFunction. */
+    public static final class DecimalLastValueAggFunctionWithoutOrderTest
+            extends LastValueAggFunctionWithoutOrderTestBase<DecimalData> {
 
-		private int precision = 20;
-		private int scale = 6;
+        private int precision = 20;
+        private int scale = 6;
 
-		@Override
-		protected List<List<DecimalData>> getInputValueSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							DecimalDataUtils.castFrom("1", precision, scale),
-							DecimalDataUtils.castFrom("1000.000001", precision, scale),
-							DecimalDataUtils.castFrom("-1", precision, scale),
-							DecimalDataUtils.castFrom("-999.998999", precision, scale),
-							null,
-							DecimalDataUtils.castFrom("0", precision, scale),
-							DecimalDataUtils.castFrom("-999.999", precision, scale),
-							null,
-							DecimalDataUtils.castFrom("999.999", precision, scale)
-					),
-					Arrays.asList(
-							null,
-							null,
-							null,
-							null,
-							null
-					),
-					Arrays.asList(
-							null,
-							DecimalDataUtils.castFrom("0", precision, scale)
-					)
-			);
-		}
+        @Override
+        protected List<List<DecimalData>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(
+                            DecimalDataUtils.castFrom("1", precision, scale),
+                            DecimalDataUtils.castFrom("1000.000001", precision, scale),
+                            DecimalDataUtils.castFrom("-1", precision, scale),
+                            DecimalDataUtils.castFrom("-999.998999", precision, scale),
+                            null,
+                            DecimalDataUtils.castFrom("0", precision, scale),
+                            DecimalDataUtils.castFrom("-999.999", precision, scale),
+                            null,
+                            DecimalDataUtils.castFrom("999.999", precision, scale)),
+                    Arrays.asList(null, null, null, null, null),
+                    Arrays.asList(null, DecimalDataUtils.castFrom("0", precision, scale)));
+        }
 
-		@Override
-		protected List<DecimalData> getExpectedResults() {
-			return Arrays.asList(
-					DecimalDataUtils.castFrom("999.999", precision, scale),
-					null,
-					DecimalDataUtils.castFrom("0", precision, scale)
-			);
-		}
+        @Override
+        protected List<DecimalData> getExpectedResults() {
+            return Arrays.asList(
+                    DecimalDataUtils.castFrom("999.999", precision, scale),
+                    null,
+                    DecimalDataUtils.castFrom("0", precision, scale));
+        }
 
-		@Override
-		protected AggregateFunction<DecimalData, GenericRowData> getAggregator() {
-			return new DecimalLastValueAggFunction(DecimalDataTypeInfo.of(precision, scale));
-		}
-	}
+        @Override
+        protected AggregateFunction<DecimalData, GenericRowData> getAggregator() {
+            return new DecimalLastValueAggFunction(DecimalDataTypeInfo.of(precision, scale));
+        }
+    }
 
-	/**
-	 * Test for StringLastValueAggFunction.
-	 */
-	public static final class StringLastValueAggFunctionWithoutOrderTest extends
-			LastValueAggFunctionWithoutOrderTestBase<StringData> {
+    /** Test for StringLastValueAggFunction. */
+    public static final class StringLastValueAggFunctionWithoutOrderTest
+            extends LastValueAggFunctionWithoutOrderTestBase<StringData> {
 
-		@Override
-		protected List<List<StringData>> getInputValueSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							StringData.fromString("abc"),
-							StringData.fromString("def"),
-							StringData.fromString("ghi"),
-							null,
-							StringData.fromString("jkl"),
-							null,
-							StringData.fromString("zzz")
-					),
-					Arrays.asList(
-							null,
-							null
-					),
-					Arrays.asList(
-							null,
-							StringData.fromString("a"),
-							null
-					),
-					Arrays.asList(
-							StringData.fromString("x"),
-							null,
-							StringData.fromString("e")
-					)
-			);
-		}
+        @Override
+        protected List<List<StringData>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(
+                            StringData.fromString("abc"),
+                            StringData.fromString("def"),
+                            StringData.fromString("ghi"),
+                            null,
+                            StringData.fromString("jkl"),
+                            null,
+                            StringData.fromString("zzz")),
+                    Arrays.asList(null, null),
+                    Arrays.asList(null, StringData.fromString("a"), null),
+                    Arrays.asList(StringData.fromString("x"), null, StringData.fromString("e")));
+        }
 
-		@Override
-		protected List<StringData> getExpectedResults() {
-			return Arrays.asList(
-					StringData.fromString("zzz"),
-					null,
-					StringData.fromString("a"),
-					StringData.fromString("e")
-			);
-		}
+        @Override
+        protected List<StringData> getExpectedResults() {
+            return Arrays.asList(
+                    StringData.fromString("zzz"),
+                    null,
+                    StringData.fromString("a"),
+                    StringData.fromString("e"));
+        }
 
-		@Override
-		protected AggregateFunction<StringData, GenericRowData> getAggregator() {
-			return new StringLastValueAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<StringData, GenericRowData> getAggregator() {
+            return new StringLastValueAggFunction();
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// This section contain base classes that provide common inputs and declare the accumulator
-	// class type for tests declared above.
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // This section contain base classes that provide common inputs and declare the accumulator
+    // class type for tests declared above.
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * The base test class for LastValueAggFunction without order.
-	 */
-	public abstract static class LastValueAggFunctionWithoutOrderTestBase<T>
-		extends AggFunctionTestBase<T, GenericRowData> {
+    /** The base test class for LastValueAggFunction without order. */
+    public abstract static class LastValueAggFunctionWithoutOrderTestBase<T>
+            extends AggFunctionTestBase<T, GenericRowData> {
 
-		@Override
-		protected Class<?> getAccClass() {
-			return GenericRowData.class;
-		}
-	}
+        @Override
+        protected Class<?> getAccClass() {
+            return GenericRowData.class;
+        }
+    }
 
-	/**
-	 * Test LastValueAggFunction for number type.
-	 */
-	public abstract static class NumberLastValueAggFunctionWithoutOrderTestBase<T>
-		extends LastValueAggFunctionWithoutOrderTestBase<T> {
-		protected abstract T getValue(String v);
+    /** Test LastValueAggFunction for number type. */
+    public abstract static class NumberLastValueAggFunctionWithoutOrderTestBase<T>
+            extends LastValueAggFunctionWithoutOrderTestBase<T> {
+        protected abstract T getValue(String v);
 
-		@Override
-		protected List<List<T>> getInputValueSets() {
-			return Arrays.asList(
-				Arrays.asList(
-					getValue("1"),
-					null,
-					getValue("-99"),
-					getValue("3"),
-					null
-				),
-				Arrays.asList(
-					null,
-					null,
-					null,
-					null
-				),
-				Arrays.asList(
-					null,
-					getValue("10"),
-					null,
-					getValue("3")
-				)
-			);
-		}
+        @Override
+        protected List<List<T>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(getValue("1"), null, getValue("-99"), getValue("3"), null),
+                    Arrays.asList(null, null, null, null),
+                    Arrays.asList(null, getValue("10"), null, getValue("3")));
+        }
 
-		@Override
-		protected List<T> getExpectedResults() {
-			return Arrays.asList(
-				getValue("3"),
-				null,
-				getValue("3")
-			);
-		}
-	}
+        @Override
+        protected List<T> getExpectedResults() {
+            return Arrays.asList(getValue("3"), null, getValue("3"));
+        }
+    }
 }

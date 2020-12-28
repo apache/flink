@@ -37,76 +37,82 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * {@link InputTypeStrategy} specific for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#MAP}.
+ * {@link InputTypeStrategy} specific for {@link
+ * org.apache.flink.table.functions.BuiltInFunctionDefinitions#MAP}.
  *
- * <p>It expects at least two arguments. There must be even number of arguments.
- * All the keys and values must have a common super type respectively.
+ * <p>It expects at least two arguments. There must be even number of arguments. All the keys and
+ * values must have a common super type respectively.
  */
 @Internal
 public class MapInputTypeStrategy implements InputTypeStrategy {
 
-	private static final ArgumentCount AT_LEAST_TWO_EVEN = new ArgumentCount() {
-		@Override
-		public boolean isValidCount(int count) {
-			return count % 2 == 0;
-		}
+    private static final ArgumentCount AT_LEAST_TWO_EVEN =
+            new ArgumentCount() {
+                @Override
+                public boolean isValidCount(int count) {
+                    return count % 2 == 0;
+                }
 
-		@Override
-		public Optional<Integer> getMinCount() {
-			return Optional.of(2);
-		}
+                @Override
+                public Optional<Integer> getMinCount() {
+                    return Optional.of(2);
+                }
 
-		@Override
-		public Optional<Integer> getMaxCount() {
-			return Optional.empty();
-		}
-	};
+                @Override
+                public Optional<Integer> getMaxCount() {
+                    return Optional.empty();
+                }
+            };
 
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return AT_LEAST_TWO_EVEN;
-	}
+    @Override
+    public ArgumentCount getArgumentCount() {
+        return AT_LEAST_TWO_EVEN;
+    }
 
-	@Override
-	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
-		List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-		if (argumentDataTypes.size() == 0) {
-			return Optional.empty();
-		}
+    @Override
+    public Optional<List<DataType>> inferInputTypes(
+            CallContext callContext, boolean throwOnFailure) {
+        List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+        if (argumentDataTypes.size() == 0) {
+            return Optional.empty();
+        }
 
-		List<LogicalType> keyTypes = new ArrayList<>();
-		List<LogicalType> valueTypes = new ArrayList<>();
+        List<LogicalType> keyTypes = new ArrayList<>();
+        List<LogicalType> valueTypes = new ArrayList<>();
 
-		for (int i = 0; i < argumentDataTypes.size(); i++) {
-			LogicalType logicalType = argumentDataTypes.get(i).getLogicalType();
-			if (i % 2 == 0) {
-				keyTypes.add(logicalType);
-			} else {
-				valueTypes.add(logicalType);
-			}
-		}
-		Optional<LogicalType> commonKeyType = LogicalTypeGeneralization.findCommonType(keyTypes);
-		Optional<LogicalType> commonValueType = LogicalTypeGeneralization.findCommonType(valueTypes);
+        for (int i = 0; i < argumentDataTypes.size(); i++) {
+            LogicalType logicalType = argumentDataTypes.get(i).getLogicalType();
+            if (i % 2 == 0) {
+                keyTypes.add(logicalType);
+            } else {
+                valueTypes.add(logicalType);
+            }
+        }
+        Optional<LogicalType> commonKeyType = LogicalTypeGeneralization.findCommonType(keyTypes);
+        Optional<LogicalType> commonValueType =
+                LogicalTypeGeneralization.findCommonType(valueTypes);
 
-		if (!commonKeyType.isPresent() || !commonValueType.isPresent()) {
-			return Optional.empty();
-		}
+        if (!commonKeyType.isPresent() || !commonValueType.isPresent()) {
+            return Optional.empty();
+        }
 
-		DataType keyType = TypeConversions.fromLogicalToDataType(commonKeyType.get());
-		DataType valueType = TypeConversions.fromLogicalToDataType(commonValueType.get());
-		return Optional.of(IntStream.range(0, argumentDataTypes.size())
-			.mapToObj(idx -> {
-				if (idx % 2 == 0) {
-					return keyType;
-				} else {
-					return valueType;
-				}
-			})
-			.collect(Collectors.toList()));
-	}
+        DataType keyType = TypeConversions.fromLogicalToDataType(commonKeyType.get());
+        DataType valueType = TypeConversions.fromLogicalToDataType(commonValueType.get());
+        return Optional.of(
+                IntStream.range(0, argumentDataTypes.size())
+                        .mapToObj(
+                                idx -> {
+                                    if (idx % 2 == 0) {
+                                        return keyType;
+                                    } else {
+                                        return valueType;
+                                    }
+                                })
+                        .collect(Collectors.toList()));
+    }
 
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Signature.Argument.of("*")));
-	}
+    @Override
+    public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+        return Collections.singletonList(Signature.of(Signature.Argument.of("*")));
+    }
 }

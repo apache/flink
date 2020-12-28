@@ -38,52 +38,49 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-/**
- * The entry point for running a TaskManager in a Mesos container.
- */
+/** The entry point for running a TaskManager in a Mesos container. */
 public class MesosTaskExecutorRunner {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MesosTaskExecutorRunner.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MesosTaskExecutorRunner.class);
 
-	private static final int INIT_ERROR_EXIT_CODE = 31;
+    private static final int INIT_ERROR_EXIT_CODE = 31;
 
-	private static final Options ALL_OPTIONS;
+    private static final Options ALL_OPTIONS;
 
-	static {
-		ALL_OPTIONS =
-			new Options()
-				.addOption(BootstrapTools.newDynamicPropertiesOption());
-	}
+    static {
+        ALL_OPTIONS = new Options().addOption(BootstrapTools.newDynamicPropertiesOption());
+    }
 
-	public static void main(String[] args) throws Exception {
-		EnvironmentInformation.logEnvironmentInfo(LOG, MesosTaskExecutorRunner.class.getSimpleName(), args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
+    public static void main(String[] args) throws Exception {
+        EnvironmentInformation.logEnvironmentInfo(
+                LOG, MesosTaskExecutorRunner.class.getSimpleName(), args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		// try to parse the command line arguments
-		CommandLineParser parser = new PosixParser();
-		CommandLine cmd = parser.parse(ALL_OPTIONS, args);
+        // try to parse the command line arguments
+        CommandLineParser parser = new PosixParser();
+        CommandLine cmd = parser.parse(ALL_OPTIONS, args);
 
-		final Configuration configuration;
-		try {
-			Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
-			LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
+        final Configuration configuration;
+        try {
+            Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
+            LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
 
-			configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
-		}
-		catch (Throwable t) {
-			LOG.error("Failed to load the TaskManager configuration and dynamic properties.", t);
-			System.exit(INIT_ERROR_EXIT_CODE);
-			return;
-		}
+            configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
+        } catch (Throwable t) {
+            LOG.error("Failed to load the TaskManager configuration and dynamic properties.", t);
+            System.exit(INIT_ERROR_EXIT_CODE);
+            return;
+        }
 
-		final Map<String, String> envs = System.getenv();
+        final Map<String, String> envs = System.getenv();
 
-		// Infer the resource identifier from the environment variable
-		String containerID = Preconditions.checkNotNull(envs.get(MesosConfigKeys.ENV_FLINK_CONTAINER_ID));
-		final ResourceID resourceId = new ResourceID(containerID);
-		LOG.info("ResourceID assigned for this container: {}", resourceId);
+        // Infer the resource identifier from the environment variable
+        String containerID =
+                Preconditions.checkNotNull(envs.get(MesosConfigKeys.ENV_FLINK_CONTAINER_ID));
+        final ResourceID resourceId = new ResourceID(containerID);
+        LOG.info("ResourceID assigned for this container: {}", resourceId);
 
-		TaskManagerRunner.runTaskManagerSecurely(configuration, resourceId);
-	}
+        TaskManagerRunner.runTaskManagerSecurely(configuration, resourceId);
+    }
 }

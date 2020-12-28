@@ -45,99 +45,111 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link PythonTableFunctionRunner}. These test that:
  *
- * <ul>T
- *     <li>The input data type and output data type are properly constructed</li>
- *     <li>The UDTF proto is properly constructed</li>
+ * <ul>
+ *   T
+ *   <li>The input data type and output data type are properly constructed
+ *   <li>The UDTF proto is properly constructed
  * </ul>
  */
 public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRunnerTest<Row> {
 
-	@Test
-	public void testInputOutputDataTypeConstructedProperlyForSingleUDTF() throws Exception {
-		final AbstractPythonTableFunctionRunner<Row> runner = createUDTFRunner();
+    @Test
+    public void testInputOutputDataTypeConstructedProperlyForSingleUDTF() throws Exception {
+        final AbstractPythonTableFunctionRunner<Row> runner = createUDTFRunner();
 
-		// check input TypeSerializer
-		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertTrue(inputTypeSerializer instanceof RowSerializer);
+        // check input TypeSerializer
+        TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+        assertTrue(inputTypeSerializer instanceof RowSerializer);
 
-		assertEquals(1, ((RowSerializer) inputTypeSerializer).getArity());
-	}
+        assertEquals(1, ((RowSerializer) inputTypeSerializer).getArity());
+    }
 
-	@Test
-	public void testUDFnProtoConstructedProperlyForSingleUTDF() throws Exception {
-		final AbstractPythonTableFunctionRunner<Row> runner = createUDTFRunner();
+    @Test
+    public void testUDFnProtoConstructedProperlyForSingleUTDF() throws Exception {
+        final AbstractPythonTableFunctionRunner<Row> runner = createUDTFRunner();
 
-		FlinkFnApi.UserDefinedFunctions udtfs = runner.getUserDefinedFunctionsProto();
-		assertEquals(1, udtfs.getUdfsCount());
+        FlinkFnApi.UserDefinedFunctions udtfs = runner.getUserDefinedFunctionsProto();
+        assertEquals(1, udtfs.getUdfsCount());
 
-		FlinkFnApi.UserDefinedFunction udtf = udtfs.getUdfs(0);
-		assertEquals(1, udtf.getInputsCount());
-		assertEquals(0, udtf.getInputs(0).getInputOffset());
-	}
+        FlinkFnApi.UserDefinedFunction udtf = udtfs.getUdfs(0);
+        assertEquals(1, udtf.getInputsCount());
+        assertEquals(0, udtf.getInputs(0).getInputOffset());
+    }
 
-	@Override
-	public AbstractPythonTableFunctionRunner<Row> createPythonTableFunctionRunner(
-		PythonFunctionInfo pythonFunctionInfo,
-		RowType inputType,
-		RowType outputType) throws Exception {
-		final FnDataReceiver<byte[]> dummyReceiver = input -> {
-			// ignore the execution results
-		};
+    @Override
+    public AbstractPythonTableFunctionRunner<Row> createPythonTableFunctionRunner(
+            PythonFunctionInfo pythonFunctionInfo, RowType inputType, RowType outputType)
+            throws Exception {
+        final FnDataReceiver<byte[]> dummyReceiver =
+                input -> {
+                    // ignore the execution results
+                };
 
-		final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
+        final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
 
-		return new PythonTableFunctionRunner(
-			"testPythonRunner",
-			dummyReceiver,
-			pythonFunctionInfo,
-			environmentManager,
-			inputType,
-			outputType,
-			Collections.emptyMap(),
-			PythonTestUtils.createMockFlinkMetricContainer());
-	}
+        return new PythonTableFunctionRunner(
+                "testPythonRunner",
+                dummyReceiver,
+                pythonFunctionInfo,
+                environmentManager,
+                inputType,
+                outputType,
+                Collections.emptyMap(),
+                PythonTestUtils.createMockFlinkMetricContainer());
+    }
 
-	private AbstractPythonTableFunctionRunner<Row> createUDTFRunner(
-		JobBundleFactory jobBundleFactory, FnDataReceiver<byte[]> receiver) throws IOException {
-		PythonFunctionInfo pythonFunctionInfo = new PythonFunctionInfo(
-			AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
-			new Integer[]{0});
+    private AbstractPythonTableFunctionRunner<Row> createUDTFRunner(
+            JobBundleFactory jobBundleFactory, FnDataReceiver<byte[]> receiver) throws IOException {
+        PythonFunctionInfo pythonFunctionInfo =
+                new PythonFunctionInfo(
+                        AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
+                        new Integer[] {0});
 
-		RowType rowType = new RowType(Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
+        RowType rowType =
+                new RowType(
+                        Collections.singletonList(new RowType.RowField("f1", new BigIntType())));
 
-		final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
+        final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
 
-		return new PythonTableFunctionRunnerTestHarness(
-			"testPythonRunner",
-			receiver,
-			pythonFunctionInfo,
-			environmentManager,
-			rowType,
-			rowType,
-			jobBundleFactory,
-			PythonTestUtils.createMockFlinkMetricContainer());
-	}
+        return new PythonTableFunctionRunnerTestHarness(
+                "testPythonRunner",
+                receiver,
+                pythonFunctionInfo,
+                environmentManager,
+                rowType,
+                rowType,
+                jobBundleFactory,
+                PythonTestUtils.createMockFlinkMetricContainer());
+    }
 
-	private static class PythonTableFunctionRunnerTestHarness extends PythonTableFunctionRunner {
+    private static class PythonTableFunctionRunnerTestHarness extends PythonTableFunctionRunner {
 
-		private final JobBundleFactory jobBundleFactory;
+        private final JobBundleFactory jobBundleFactory;
 
-		PythonTableFunctionRunnerTestHarness(
-			String taskName,
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonFunctionInfo tableFunction,
-			PythonEnvironmentManager environmentManager,
-			RowType inputType,
-			RowType outputType,
-			JobBundleFactory jobBundleFactory,
-			FlinkMetricContainer flinkMetricContainer) {
-			super(taskName, resultReceiver, tableFunction, environmentManager, inputType, outputType, Collections.emptyMap(), flinkMetricContainer);
-			this.jobBundleFactory = jobBundleFactory;
-		}
+        PythonTableFunctionRunnerTestHarness(
+                String taskName,
+                FnDataReceiver<byte[]> resultReceiver,
+                PythonFunctionInfo tableFunction,
+                PythonEnvironmentManager environmentManager,
+                RowType inputType,
+                RowType outputType,
+                JobBundleFactory jobBundleFactory,
+                FlinkMetricContainer flinkMetricContainer) {
+            super(
+                    taskName,
+                    resultReceiver,
+                    tableFunction,
+                    environmentManager,
+                    inputType,
+                    outputType,
+                    Collections.emptyMap(),
+                    flinkMetricContainer);
+            this.jobBundleFactory = jobBundleFactory;
+        }
 
-		@Override
-		public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) throws Exception {
-			return jobBundleFactory;
-		}
-	}
+        @Override
+        public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) throws Exception {
+            return jobBundleFactory;
+        }
+    }
 }

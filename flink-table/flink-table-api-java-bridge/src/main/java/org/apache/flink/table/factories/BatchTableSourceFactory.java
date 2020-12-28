@@ -33,19 +33,17 @@ import java.util.Map;
 @PublicEvolving
 public interface BatchTableSourceFactory<T> extends TableSourceFactory<T> {
 
-	/**
-	 * Creates and configures a {@link BatchTableSource} using the given properties.
-	 *
-	 * @param properties normalized properties describing a batch table source.
-	 * @return the configured batch table source.
-	 */
-	BatchTableSource<T> createBatchTableSource(Map<String, String> properties);
+    /**
+     * Creates and configures a {@link BatchTableSource} using the given properties.
+     *
+     * @param properties normalized properties describing a batch table source.
+     * @return the configured batch table source.
+     */
+    BatchTableSource<T> createBatchTableSource(Map<String, String> properties);
 
-	/**
-	 * Only create batch table source.
-	 */
-	@Override
-	default TableSource<T> createTableSource(Map<String, String> properties) {
-		return createBatchTableSource(properties);
-	}
+    /** Only create batch table source. */
+    @Override
+    default TableSource<T> createTableSource(Map<String, String> properties) {
+        return createBatchTableSource(properties);
+    }
 }

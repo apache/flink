@@ -30,41 +30,41 @@ import java.io.IOException;
 /**
  * A read-only {@link FoldingState} that does not allow for modifications.
  *
- * <p>This is the result returned when querying Flink's keyed state using the
- * {@link org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and
- * providing an {@link FoldingStateDescriptor}.
+ * <p>This is the result returned when querying Flink's keyed state using the {@link
+ * org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and providing
+ * an {@link FoldingStateDescriptor}.
  */
 @Deprecated
-public final class ImmutableFoldingState<IN, ACC> extends ImmutableState implements FoldingState<IN, ACC> {
+public final class ImmutableFoldingState<IN, ACC> extends ImmutableState
+        implements FoldingState<IN, ACC> {
 
-	private final ACC value;
+    private final ACC value;
 
-	private ImmutableFoldingState(ACC value) {
-		this.value = Preconditions.checkNotNull(value);
-	}
+    private ImmutableFoldingState(ACC value) {
+        this.value = Preconditions.checkNotNull(value);
+    }
 
-	@Override
-	public ACC get() {
-		return value;
-	}
+    @Override
+    public ACC get() {
+        return value;
+    }
 
-	@Override
-	public void add(Object newValue) {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
+    @Override
+    public void add(Object newValue) {
+        throw MODIFICATION_ATTEMPT_ERROR;
+    }
 
-	@Override
-	public void clear() {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
+    @Override
+    public void clear() {
+        throw MODIFICATION_ATTEMPT_ERROR;
+    }
 
-	@SuppressWarnings("unchecked")
-	public static <ACC, S extends State> S createState(
-		StateDescriptor<S, ACC> stateDescriptor,
-		byte[] serializedState) throws IOException {
-		final ACC state = KvStateSerializer.deserializeValue(
-			serializedState,
-			stateDescriptor.getSerializer());
-		return (S) new ImmutableFoldingState<>(state);
-	}
+    @SuppressWarnings("unchecked")
+    public static <ACC, S extends State> S createState(
+            StateDescriptor<S, ACC> stateDescriptor, byte[] serializedState) throws IOException {
+        final ACC state =
+                KvStateSerializer.deserializeValue(
+                        serializedState, stateDescriptor.getSerializer());
+        return (S) new ImmutableFoldingState<>(state);
+    }
 }

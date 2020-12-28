@@ -31,60 +31,60 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * This represents a Source. This does not actually transform anything since it has no inputs but
- * it is the root {@code Transformation} of any topology.
+ * This represents a Source. This does not actually transform anything since it has no inputs but it
+ * is the root {@code Transformation} of any topology.
  *
  * @param <T> The type of the elements that this source produces
  */
 @Internal
 public class LegacySourceTransformation<T> extends PhysicalTransformation<T> {
 
-	private final StreamOperatorFactory<T> operatorFactory;
+    private final StreamOperatorFactory<T> operatorFactory;
 
-	/**
-	 * Creates a new {@code LegacySourceTransformation} from the given operator.
-	 *
-	 * @param name The name of the {@code LegacySourceTransformation}, this will be shown in Visualizations and the Log
-	 * @param operator The {@code StreamSource} that is the operator of this Transformation
-	 * @param outputType The type of the elements produced by this {@code LegacySourceTransformation}
-	 * @param parallelism The parallelism of this {@code LegacySourceTransformation}
-	 */
-	public LegacySourceTransformation(
-			String name,
-			StreamSource<T, ?> operator,
-			TypeInformation<T> outputType,
-			int parallelism) {
-		this(name, SimpleOperatorFactory.of(operator), outputType, parallelism);
-	}
+    /**
+     * Creates a new {@code LegacySourceTransformation} from the given operator.
+     *
+     * @param name The name of the {@code LegacySourceTransformation}, this will be shown in
+     *     Visualizations and the Log
+     * @param operator The {@code StreamSource} that is the operator of this Transformation
+     * @param outputType The type of the elements produced by this {@code
+     *     LegacySourceTransformation}
+     * @param parallelism The parallelism of this {@code LegacySourceTransformation}
+     */
+    public LegacySourceTransformation(
+            String name,
+            StreamSource<T, ?> operator,
+            TypeInformation<T> outputType,
+            int parallelism) {
+        this(name, SimpleOperatorFactory.of(operator), outputType, parallelism);
+    }
 
-	public LegacySourceTransformation(
-			String name,
-			StreamOperatorFactory<T> operatorFactory,
-			TypeInformation<T> outputType,
-			int parallelism) {
-		super(name, outputType, parallelism);
-		this.operatorFactory = operatorFactory;
-	}
+    public LegacySourceTransformation(
+            String name,
+            StreamOperatorFactory<T> operatorFactory,
+            TypeInformation<T> outputType,
+            int parallelism) {
+        super(name, outputType, parallelism);
+        this.operatorFactory = operatorFactory;
+    }
 
-	@VisibleForTesting
-	public StreamSource<T, ?> getOperator() {
-		return (StreamSource<T, ?>) ((SimpleOperatorFactory) operatorFactory).getOperator();
-	}
+    @VisibleForTesting
+    public StreamSource<T, ?> getOperator() {
+        return (StreamSource<T, ?>) ((SimpleOperatorFactory) operatorFactory).getOperator();
+    }
 
-	/**
-	 * Returns the {@code StreamOperatorFactory} of this {@code LegacySourceTransformation}.
-	 */
-	public StreamOperatorFactory<T> getOperatorFactory() {
-		return operatorFactory;
-	}
+    /** Returns the {@code StreamOperatorFactory} of this {@code LegacySourceTransformation}. */
+    public StreamOperatorFactory<T> getOperatorFactory() {
+        return operatorFactory;
+    }
 
-	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
-		return Collections.singleton(this);
-	}
+    @Override
+    public Collection<Transformation<?>> getTransitivePredecessors() {
+        return Collections.singleton(this);
+    }
 
-	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		operatorFactory.setChainingStrategy(strategy);
-	}
+    @Override
+    public final void setChainingStrategy(ChainingStrategy strategy) {
+        operatorFactory.setChainingStrategy(strategy);
+    }
 }

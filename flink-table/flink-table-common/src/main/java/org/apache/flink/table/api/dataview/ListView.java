@@ -34,13 +34,13 @@ import java.util.Objects;
  * <p>A {@link ListView} can be backed by a Java ArrayList or a state backend, depending on the
  * context in which the aggregate function is used.
  *
- * <p>At runtime {@link ListView} will be replaced by a state ListView which is backed by a
- * {@link org.apache.flink.api.common.state.ListState} instead of {@link ArrayList} if it works
- * in streaming.
+ * <p>At runtime {@link ListView} will be replaced by a state ListView which is backed by a {@link
+ * org.apache.flink.api.common.state.ListState} instead of {@link ArrayList} if it works in
+ * streaming.
  *
  * <p>Example of an accumulator type with a {@link ListView} and an aggregate function that uses it:
- * <pre>{@code
  *
+ * <pre>{@code
  *  public class MyAccum {
  *    public ListView<String> list;
  *    public long count;
@@ -78,95 +78,90 @@ import java.util.Objects;
 @TypeInfo(ListViewTypeInfoFactory.class)
 @PublicEvolving
 public class ListView<T> implements DataView {
-	private static final long serialVersionUID = 5502298766901215388L;
+    private static final long serialVersionUID = 5502298766901215388L;
 
-	public transient TypeInformation<?> elementType;
-	public final List<T> list;
+    public transient TypeInformation<?> elementType;
+    public final List<T> list;
 
-	public ListView(TypeInformation<?> elementType, List<T> list) {
-		this.elementType = elementType;
-		this.list = list;
-	}
+    public ListView(TypeInformation<?> elementType, List<T> list) {
+        this.elementType = elementType;
+        this.list = list;
+    }
 
-	/**
-	 * Creates a list view for elements of the specified type.
-	 *
-	 * @param elementType The type of the list view elements.
-	 */
-	public ListView(TypeInformation<?> elementType) {
-		this(elementType, new ArrayList<>());
-	}
+    /**
+     * Creates a list view for elements of the specified type.
+     *
+     * @param elementType The type of the list view elements.
+     */
+    public ListView(TypeInformation<?> elementType) {
+        this(elementType, new ArrayList<>());
+    }
 
-	/**
-	 * Creates a list view.
-	 */
-	public ListView() {
-		this(null);
-	}
+    /** Creates a list view. */
+    public ListView() {
+        this(null);
+    }
 
-	/**
-	 * Returns an iterable of the list view.
-	 *
-	 * @throws Exception Thrown if the system cannot get data.
-	 * @return The iterable of the list.
-	 */
-	public Iterable<T> get() throws Exception {
-		return list;
-	}
+    /**
+     * Returns an iterable of the list view.
+     *
+     * @throws Exception Thrown if the system cannot get data.
+     * @return The iterable of the list.
+     */
+    public Iterable<T> get() throws Exception {
+        return list;
+    }
 
-	/**
-	 * Adds the given value to the list.
-	 *
-	 * @throws Exception Thrown if the system cannot add data.
-	 * @param value The element to be appended to this list view.
-	 */
-	public void add(T value) throws Exception {
-		list.add(value);
-	}
+    /**
+     * Adds the given value to the list.
+     *
+     * @throws Exception Thrown if the system cannot add data.
+     * @param value The element to be appended to this list view.
+     */
+    public void add(T value) throws Exception {
+        list.add(value);
+    }
 
-	/**
-	 * Adds all of the elements of the specified list to this list view.
-	 *
-	 * @throws Exception Thrown if the system cannot add all data.
-	 * @param list The list with the elements that will be stored in this list view.
-	 */
-	public void addAll(List<T> list) throws Exception {
-		this.list.addAll(list);
-	}
+    /**
+     * Adds all of the elements of the specified list to this list view.
+     *
+     * @throws Exception Thrown if the system cannot add all data.
+     * @param list The list with the elements that will be stored in this list view.
+     */
+    public void addAll(List<T> list) throws Exception {
+        this.list.addAll(list);
+    }
 
-	/**
-	 * Removes the given value from the list.
-	 *
-	 * @param value The element to be removed from this list view.
-	 */
-	public boolean remove(T value) throws Exception {
-		return list.remove(value);
-	}
+    /**
+     * Removes the given value from the list.
+     *
+     * @param value The element to be removed from this list view.
+     */
+    public boolean remove(T value) throws Exception {
+        return list.remove(value);
+    }
 
-	/**
-	 * Removes all of the elements from this list view.
-	 */
-	@Override
-	public void clear() {
-		list.clear();
-	}
+    /** Removes all of the elements from this list view. */
+    @Override
+    public void clear() {
+        list.clear();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ListView<?> listView = (ListView<?>) o;
-		return Objects.equals(elementType, listView.elementType) &&
-			Objects.equals(list, listView.list);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ListView<?> listView = (ListView<?>) o;
+        return Objects.equals(elementType, listView.elementType)
+                && Objects.equals(list, listView.list);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(elementType, list);
-	}
-
+    @Override
+    public int hashCode() {
+        return Objects.hash(elementType, list);
+    }
 }

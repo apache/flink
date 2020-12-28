@@ -27,34 +27,30 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Calls {@link SchedulerNG#updateTaskExecutionState(TaskExecutionState)} on task failure.
- * Calls {@link SchedulerNG#handleGlobalFailure(Throwable)} on global failures.
+ * Calls {@link SchedulerNG#updateTaskExecutionState(TaskExecutionState)} on task failure. Calls
+ * {@link SchedulerNG#handleGlobalFailure(Throwable)} on global failures.
  */
 class UpdateSchedulerNgOnInternalFailuresListener implements InternalFailuresListener {
 
-	private final SchedulerNG schedulerNg;
+    private final SchedulerNG schedulerNg;
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	public UpdateSchedulerNgOnInternalFailuresListener(
-		final SchedulerNG schedulerNg,
-		final JobID jobId) {
+    public UpdateSchedulerNgOnInternalFailuresListener(
+            final SchedulerNG schedulerNg, final JobID jobId) {
 
-		this.schedulerNg = checkNotNull(schedulerNg);
-		this.jobId = checkNotNull(jobId);
-	}
+        this.schedulerNg = checkNotNull(schedulerNg);
+        this.jobId = checkNotNull(jobId);
+    }
 
-	@Override
-	public void notifyTaskFailure(final ExecutionAttemptID attemptId, final Throwable t) {
-		schedulerNg.updateTaskExecutionState(new TaskExecutionState(
-			jobId,
-			attemptId,
-			ExecutionState.FAILED,
-			t));
-	}
+    @Override
+    public void notifyTaskFailure(final ExecutionAttemptID attemptId, final Throwable t) {
+        schedulerNg.updateTaskExecutionState(
+                new TaskExecutionState(jobId, attemptId, ExecutionState.FAILED, t));
+    }
 
-	@Override
-	public void notifyGlobalFailure(Throwable t) {
-		schedulerNg.handleGlobalFailure(t);
-	}
+    @Override
+    public void notifyGlobalFailure(Throwable t) {
+        schedulerNg.handleGlobalFailure(t);
+    }
 }

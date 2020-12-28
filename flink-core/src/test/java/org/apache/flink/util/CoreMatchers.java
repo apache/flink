@@ -24,53 +24,50 @@ import org.hamcrest.TypeSafeDiagnosingMatcher;
 
 import java.util.Optional;
 
-/**
- * Hamcrest matchers.
- */
+/** Hamcrest matchers. */
 public class CoreMatchers {
 
-	/**
-	 * Checks for a {@link Throwable} that matches by class and message.
-	 */
-	public static Matcher<Throwable> containsCause(Throwable failureCause) {
-		return new ContainsCauseMatcher(failureCause);
-	}
+    /** Checks for a {@link Throwable} that matches by class and message. */
+    public static Matcher<Throwable> containsCause(Throwable failureCause) {
+        return new ContainsCauseMatcher(failureCause);
+    }
 
-	private static class ContainsCauseMatcher extends TypeSafeDiagnosingMatcher<Throwable> {
+    private static class ContainsCauseMatcher extends TypeSafeDiagnosingMatcher<Throwable> {
 
-		private final Throwable failureCause;
+        private final Throwable failureCause;
 
-		private ContainsCauseMatcher(Throwable failureCause) {
-			this.failureCause = failureCause;
-		}
+        private ContainsCauseMatcher(Throwable failureCause) {
+            this.failureCause = failureCause;
+        }
 
-		@Override
-		protected boolean matchesSafely(Throwable throwable, Description description) {
-			final Optional<Throwable> optionalCause = ExceptionUtils.findThrowable(
-				throwable,
-				cause -> cause.getClass() == failureCause.getClass() &&
-					cause.getMessage().equals(failureCause.getMessage()));
+        @Override
+        protected boolean matchesSafely(Throwable throwable, Description description) {
+            final Optional<Throwable> optionalCause =
+                    ExceptionUtils.findThrowable(
+                            throwable,
+                            cause ->
+                                    cause.getClass() == failureCause.getClass()
+                                            && cause.getMessage()
+                                                    .equals(failureCause.getMessage()));
 
-			if (!optionalCause.isPresent()) {
-				description
-					.appendText("The throwable ")
-					.appendValue(throwable)
-					.appendText(" does not contain the expected failure cause ")
-					.appendValue(failureCause);
-			}
+            if (!optionalCause.isPresent()) {
+                description
+                        .appendText("The throwable ")
+                        .appendValue(throwable)
+                        .appendText(" does not contain the expected failure cause ")
+                        .appendValue(failureCause);
+            }
 
-			return optionalCause.isPresent();
-		}
+            return optionalCause.isPresent();
+        }
 
-		@Override
-		public void describeTo(Description description) {
-			description
-				.appendText("Expected failure cause is ")
-				.appendValue(failureCause);
-		}
-	}
+        @Override
+        public void describeTo(Description description) {
+            description.appendText("Expected failure cause is ").appendValue(failureCause);
+        }
+    }
 
-	private CoreMatchers() {
-		throw new UnsupportedOperationException("Cannot instantiate an instance of this class.");
-	}
+    private CoreMatchers() {
+        throw new UnsupportedOperationException("Cannot instantiate an instance of this class.");
+    }
 }

@@ -27,25 +27,30 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
-/**
- * A {@link FlinkResourceFactory} for the {@link LocalStandaloneFlinkResource}.
- */
+/** A {@link FlinkResourceFactory} for the {@link LocalStandaloneFlinkResource}. */
 public final class LocalStandaloneFlinkResourceFactory implements FlinkResourceFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResourceFactory.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(LocalStandaloneFlinkResourceFactory.class);
 
-	private static final ParameterProperty<Path> DISTRIBUTION_DIRECTORY = new ParameterProperty<>("distDir", Paths::get);
-	private static final ParameterProperty<Path> DISTRIBUTION_LOG_BACKUP_DIRECTORY = new ParameterProperty<>("logBackupDir", Paths::get);
+    private static final ParameterProperty<Path> DISTRIBUTION_DIRECTORY =
+            new ParameterProperty<>("distDir", Paths::get);
+    private static final ParameterProperty<Path> DISTRIBUTION_LOG_BACKUP_DIRECTORY =
+            new ParameterProperty<>("logBackupDir", Paths::get);
 
-	@Override
-	public FlinkResource create(FlinkResourceSetup setup) {
-		Optional<Path> distributionDirectory = DISTRIBUTION_DIRECTORY.get();
-		if (!distributionDirectory.isPresent()) {
-			throw new IllegalArgumentException("The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
-		}
-		Optional<Path> logBackupDirectory = DISTRIBUTION_LOG_BACKUP_DIRECTORY.get();
-		if (!logBackupDirectory.isPresent()) {
-			LOG.warn("Property {} not set, logs will not be backed up in case of test failures.", DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
-		}
-		return new LocalStandaloneFlinkResource(distributionDirectory.get(), logBackupDirectory.orElse(null), setup);
-	}
+    @Override
+    public FlinkResource create(FlinkResourceSetup setup) {
+        Optional<Path> distributionDirectory = DISTRIBUTION_DIRECTORY.get();
+        if (!distributionDirectory.isPresent()) {
+            throw new IllegalArgumentException(
+                    "The distDir property was not set. You can set it when running maven via -DdistDir=<path> .");
+        }
+        Optional<Path> logBackupDirectory = DISTRIBUTION_LOG_BACKUP_DIRECTORY.get();
+        if (!logBackupDirectory.isPresent()) {
+            LOG.warn(
+                    "Property {} not set, logs will not be backed up in case of test failures.",
+                    DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
+        }
+        return new LocalStandaloneFlinkResource(
+                distributionDirectory.get(), logBackupDirectory.orElse(null), setup);
+    }
 }

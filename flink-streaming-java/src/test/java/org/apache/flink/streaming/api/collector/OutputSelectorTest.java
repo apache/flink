@@ -28,36 +28,33 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link OutputSelector}.
- */
+/** Tests for {@link OutputSelector}. */
 public class OutputSelectorTest {
 
-	static final class MyOutputSelector implements OutputSelector<Tuple1<Integer>> {
+    static final class MyOutputSelector implements OutputSelector<Tuple1<Integer>> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public Iterable<String> select(Tuple1<Integer> tuple) {
+        @Override
+        public Iterable<String> select(Tuple1<Integer> tuple) {
 
-			String[] outputs = new String[tuple.f0];
+            String[] outputs = new String[tuple.f0];
 
-			for (Integer i = 0; i < tuple.f0; i++) {
-				outputs[i] = i.toString();
-			}
-			return Arrays.asList(outputs);
-		}
-	}
+            for (Integer i = 0; i < tuple.f0; i++) {
+                outputs[i] = i.toString();
+            }
+            return Arrays.asList(outputs);
+        }
+    }
 
-	@Test
-	public void testGetOutputs() {
-		OutputSelector<Tuple1<Integer>> selector = new MyOutputSelector();
-		List<String> expectedOutputs = new ArrayList<String>();
-		expectedOutputs.add("0");
-		expectedOutputs.add("1");
-		assertEquals(expectedOutputs, selector.select(new Tuple1<Integer>(2)));
-		expectedOutputs.add("2");
-		assertEquals(expectedOutputs, selector.select(new Tuple1<Integer>(3)));
-	}
-
+    @Test
+    public void testGetOutputs() {
+        OutputSelector<Tuple1<Integer>> selector = new MyOutputSelector();
+        List<String> expectedOutputs = new ArrayList<String>();
+        expectedOutputs.add("0");
+        expectedOutputs.add("1");
+        assertEquals(expectedOutputs, selector.select(new Tuple1<Integer>(2)));
+        expectedOutputs.add("2");
+        assertEquals(expectedOutputs, selector.select(new Tuple1<Integer>(3)));
+    }
 }

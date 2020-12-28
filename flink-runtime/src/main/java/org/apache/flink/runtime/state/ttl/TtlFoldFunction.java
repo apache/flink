@@ -26,25 +26,26 @@ import org.apache.flink.api.common.state.StateTtlConfig;
  *
  * @param <T> Type of the values folded into the state
  * @param <ACC> Type of the value in the state
- *
  * @deprecated use {@link TtlAggregateFunction} instead
  */
 @Deprecated
-class TtlFoldFunction<T, ACC>
-	extends AbstractTtlDecorator<FoldFunction<T, ACC>>
-	implements FoldFunction<T, TtlValue<ACC>> {
-	private final ACC defaultAccumulator;
+class TtlFoldFunction<T, ACC> extends AbstractTtlDecorator<FoldFunction<T, ACC>>
+        implements FoldFunction<T, TtlValue<ACC>> {
+    private final ACC defaultAccumulator;
 
-	TtlFoldFunction(
-		FoldFunction<T, ACC> original, StateTtlConfig config, TtlTimeProvider timeProvider, ACC defaultAccumulator) {
-		super(original, config, timeProvider);
-		this.defaultAccumulator = defaultAccumulator;
-	}
+    TtlFoldFunction(
+            FoldFunction<T, ACC> original,
+            StateTtlConfig config,
+            TtlTimeProvider timeProvider,
+            ACC defaultAccumulator) {
+        super(original, config, timeProvider);
+        this.defaultAccumulator = defaultAccumulator;
+    }
 
-	@Override
-	public TtlValue<ACC> fold(TtlValue<ACC> accumulator, T value) throws Exception {
-		ACC userAcc = getUnexpired(accumulator);
-		userAcc = userAcc == null ? defaultAccumulator : userAcc;
-		return wrapWithTs(original.fold(userAcc, value));
-	}
+    @Override
+    public TtlValue<ACC> fold(TtlValue<ACC> accumulator, T value) throws Exception {
+        ACC userAcc = getUnexpired(accumulator);
+        userAcc = userAcc == null ? defaultAccumulator : userAcc;
+        return wrapWithTs(original.fold(userAcc, value));
+    }
 }

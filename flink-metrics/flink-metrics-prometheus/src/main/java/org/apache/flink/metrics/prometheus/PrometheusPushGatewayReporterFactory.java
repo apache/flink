@@ -22,14 +22,13 @@ import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
 import java.util.Properties;
 
-/**
- * {@link MetricReporterFactory} for {@link PrometheusPushGatewayReporter}.
- */
-@InterceptInstantiationViaReflection(reporterClassName = "org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter")
+/** {@link MetricReporterFactory} for {@link PrometheusPushGatewayReporter}. */
+@InterceptInstantiationViaReflection(
+        reporterClassName = "org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter")
 public class PrometheusPushGatewayReporterFactory implements MetricReporterFactory {
 
-	@Override
-	public PrometheusPushGatewayReporter createMetricReporter(Properties properties) {
-		return new PrometheusPushGatewayReporter();
-	}
+    @Override
+    public PrometheusPushGatewayReporter createMetricReporter(Properties properties) {
+        return new PrometheusPushGatewayReporter();
+    }
 }

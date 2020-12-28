@@ -37,80 +37,95 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- * General test utilities.
- */
+/** General test utilities. */
 public enum TestUtils {
-	;
+    ;
 
-	/**
-	 * Searches for a jar matching the given regex in the given directory. This method is primarily intended to be used
-	 * for the initialization of static {@link Path} fields for jars that reside in the modules {@code target} directory.
-	 *
-	 * @param jarNameRegex      regex pattern to match against
-	 * @return Path pointing to the matching jar
-	 * @throws RuntimeException if none or multiple jars could be found
-	 */
-	public static Path getResourceJar(final String jarNameRegex) {
-		String moduleDirProp = System.getProperty("moduleDir");
-		Preconditions.checkNotNull(moduleDirProp, "The moduleDir property was not set, You can set it when running maven via -DmoduleDir=<path>");
+    /**
+     * Searches for a jar matching the given regex in the given directory. This method is primarily
+     * intended to be used for the initialization of static {@link Path} fields for jars that reside
+     * in the modules {@code target} directory.
+     *
+     * @param jarNameRegex regex pattern to match against
+     * @return Path pointing to the matching jar
+     * @throws RuntimeException if none or multiple jars could be found
+     */
+    public static Path getResourceJar(final String jarNameRegex) {
+        String moduleDirProp = System.getProperty("moduleDir");
+        Preconditions.checkNotNull(
+                moduleDirProp,
+                "The moduleDir property was not set, You can set it when running maven via -DmoduleDir=<path>");
 
-		try (Stream<Path> dependencyJars = Files.walk(Paths.get(moduleDirProp))) {
-			final List<Path> matchingJars = dependencyJars
-				.filter(jar -> Pattern.compile(jarNameRegex).matcher(jar.toAbsolutePath().toString()).find())
-				.collect(Collectors.toList());
-			switch (matchingJars.size()) {
-				case 0:
-					throw new RuntimeException(
-						new FileNotFoundException(
-							String.format("No jar could be found that matches the pattern %s.", jarNameRegex)
-						)
-					);
-				case 1:
-					return matchingJars.get(0);
-				default:
-					throw new RuntimeException(
-						new IOException(
-							String.format("Multiple jars were found matching the pattern %s. Matches=%s", jarNameRegex, matchingJars)
-						)
-					);
-			}
-		} catch (final IOException ioe) {
-			throw new RuntimeException("Could not search for resource jars.", ioe);
-		}
-	}
+        try (Stream<Path> dependencyJars = Files.walk(Paths.get(moduleDirProp))) {
+            final List<Path> matchingJars =
+                    dependencyJars
+                            .filter(
+                                    jar ->
+                                            Pattern.compile(jarNameRegex)
+                                                    .matcher(jar.toAbsolutePath().toString())
+                                                    .find())
+                            .collect(Collectors.toList());
+            switch (matchingJars.size()) {
+                case 0:
+                    throw new RuntimeException(
+                            new FileNotFoundException(
+                                    String.format(
+                                            "No jar could be found that matches the pattern %s.",
+                                            jarNameRegex)));
+                case 1:
+                    return matchingJars.get(0);
+                default:
+                    throw new RuntimeException(
+                            new IOException(
+                                    String.format(
+                                            "Multiple jars were found matching the pattern %s. Matches=%s",
+                                            jarNameRegex, matchingJars)));
+            }
+        } catch (final IOException ioe) {
+            throw new RuntimeException("Could not search for resource jars.", ioe);
+        }
+    }
 
-	/**
-	 * Copy all the files and sub-directories under source directory to destination directory recursively.
-	 *
-	 * @param source      directory or file path to copy from.
-	 * @param destination directory or file path to copy to.
-	 * @return Path of the destination directory.
-	 * @throws IOException if any IO error happen.
-	 */
-	public static Path copyDirectory(final Path source, final Path destination) throws IOException {
-		Files.walkFileTree(source, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes ignored)
-				throws IOException {
-				final Path targetDir = destination.resolve(source.relativize(dir));
-				try {
-					Files.copy(dir, targetDir, StandardCopyOption.COPY_ATTRIBUTES);
-				} catch (FileAlreadyExistsException e) {
-					if (!Files.isDirectory(targetDir)) {
-						throw e;
-					}
-				}
-				return FileVisitResult.CONTINUE;
-			}
+    /**
+     * Copy all the files and sub-directories under source directory to destination directory
+     * recursively.
+     *
+     * @param source directory or file path to copy from.
+     * @param destination directory or file path to copy to.
+     * @return Path of the destination directory.
+     * @throws IOException if any IO error happen.
+     */
+    public static Path copyDirectory(final Path source, final Path destination) throws IOException {
+        Files.walkFileTree(
+                source,
+                EnumSet.of(FileVisitOption.FOLLOW_LINKS),
+                Integer.MAX_VALUE,
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes ignored)
+                            throws IOException {
+                        final Path targetDir = destination.resolve(source.relativize(dir));
+                        try {
+                            Files.copy(dir, targetDir, StandardCopyOption.COPY_ATTRIBUTES);
+                        } catch (FileAlreadyExistsException e) {
+                            if (!Files.isDirectory(targetDir)) {
+                                throw e;
+                            }
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
 
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes ignored) throws IOException {
-				Files.copy(file, destination.resolve(source.relativize(file)), StandardCopyOption.COPY_ATTRIBUTES);
-				return FileVisitResult.CONTINUE;
-			}
-		});
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes ignored)
+                            throws IOException {
+                        Files.copy(
+                                file,
+                                destination.resolve(source.relativize(file)),
+                                StandardCopyOption.COPY_ATTRIBUTES);
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
 
-		return destination;
-	}
+        return destination;
+    }
 }

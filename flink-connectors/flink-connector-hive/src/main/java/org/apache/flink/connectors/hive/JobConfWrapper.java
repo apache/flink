@@ -28,35 +28,35 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-/**
- * Wrap {@link JobConf} to a serializable class.
- */
+/** Wrap {@link JobConf} to a serializable class. */
 public class JobConfWrapper implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private JobConf jobConf;
+    private JobConf jobConf;
 
-	public JobConfWrapper(JobConf jobConf) {
-		this.jobConf = jobConf;
-	}
+    public JobConfWrapper(JobConf jobConf) {
+        this.jobConf = jobConf;
+    }
 
-	public JobConf conf() {
-		return jobConf;
-	}
+    public JobConf conf() {
+        return jobConf;
+    }
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		jobConf.write(out);
-	}
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        jobConf.write(out);
+    }
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		if (jobConf == null) {
-			jobConf = new JobConf();
-		}
-		jobConf.readFields(in);
-		Credentials currentUserCreds = HadoopInputFormatCommonBase.getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
-		if (currentUserCreds != null) {
-			jobConf.getCredentials().addAll(currentUserCreds);
-		}
-	}
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        if (jobConf == null) {
+            jobConf = new JobConf();
+        }
+        jobConf.readFields(in);
+        Credentials currentUserCreds =
+                HadoopInputFormatCommonBase.getCredentialsFromUGI(
+                        UserGroupInformation.getCurrentUser());
+        if (currentUserCreds != null) {
+            jobConf.getCredentials().addAll(currentUserCreds);
+        }
+    }
 }

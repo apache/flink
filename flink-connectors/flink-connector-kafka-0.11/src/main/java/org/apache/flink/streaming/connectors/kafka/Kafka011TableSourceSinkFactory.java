@@ -33,60 +33,53 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
-/**
- * Factory for creating configured instances of {@link Kafka011TableSource}.
- */
+/** Factory for creating configured instances of {@link Kafka011TableSource}. */
 public class Kafka011TableSourceSinkFactory extends KafkaTableSourceSinkFactoryBase {
 
-	@Override
-	protected String kafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_011;
-	}
+    @Override
+    protected String kafkaVersion() {
+        return KafkaValidator.CONNECTOR_VERSION_VALUE_011;
+    }
 
-	@Override
-	protected boolean supportsKafkaTimestamps() {
-		return true;
-	}
+    @Override
+    protected boolean supportsKafkaTimestamps() {
+        return true;
+    }
 
-	@Override
-	protected KafkaTableSourceBase createKafkaTableSource(
-			TableSchema schema,
-			Optional<String> proctimeAttribute,
-			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
-			Map<String, String> fieldMapping,
-			String topic,
-			Properties properties,
-			DeserializationSchema<Row> deserializationSchema,
-			StartupMode startupMode,
-			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestampMillis) {
+    @Override
+    protected KafkaTableSourceBase createKafkaTableSource(
+            TableSchema schema,
+            Optional<String> proctimeAttribute,
+            List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
+            Map<String, String> fieldMapping,
+            String topic,
+            Properties properties,
+            DeserializationSchema<Row> deserializationSchema,
+            StartupMode startupMode,
+            Map<KafkaTopicPartition, Long> specificStartupOffsets,
+            long startupTimestampMillis) {
 
-		return new Kafka011TableSource(
-			schema,
-			proctimeAttribute,
-			rowtimeAttributeDescriptors,
-			Optional.of(fieldMapping),
-			topic,
-			properties,
-			deserializationSchema,
-			startupMode,
-			specificStartupOffsets,
-			startupTimestampMillis);
-	}
+        return new Kafka011TableSource(
+                schema,
+                proctimeAttribute,
+                rowtimeAttributeDescriptors,
+                Optional.of(fieldMapping),
+                topic,
+                properties,
+                deserializationSchema,
+                startupMode,
+                specificStartupOffsets,
+                startupTimestampMillis);
+    }
 
-	@Override
-	protected KafkaTableSinkBase createKafkaTableSink(
-			TableSchema schema,
-			String topic,
-			Properties properties,
-			Optional<FlinkKafkaPartitioner<Row>> partitioner,
-			SerializationSchema<Row> serializationSchema) {
+    @Override
+    protected KafkaTableSinkBase createKafkaTableSink(
+            TableSchema schema,
+            String topic,
+            Properties properties,
+            Optional<FlinkKafkaPartitioner<Row>> partitioner,
+            SerializationSchema<Row> serializationSchema) {
 
-		return new Kafka011TableSink(
-			schema,
-			topic,
-			properties,
-			partitioner,
-			serializationSchema);
-	}
+        return new Kafka011TableSink(schema, topic, properties, partitioner, serializationSchema);
+    }
 }

@@ -58,132 +58,121 @@ import static org.junit.Assert.fail;
  */
 public class TaskManagerRunnerStartupTest extends TestLogger {
 
-	private static final String LOCAL_HOST = "localhost";
+    private static final String LOCAL_HOST = "localhost";
 
-	@ClassRule
-	public static final TestingRpcServiceResource RPC_SERVICE_RESOURCE = new TestingRpcServiceResource();
+    @ClassRule
+    public static final TestingRpcServiceResource RPC_SERVICE_RESOURCE =
+            new TestingRpcServiceResource();
 
-	@Rule
-	public final TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
-	private final RpcService rpcService = RPC_SERVICE_RESOURCE.getTestingRpcService();
+    private final RpcService rpcService = RPC_SERVICE_RESOURCE.getTestingRpcService();
 
-	private TestingHighAvailabilityServices highAvailabilityServices;
+    private TestingHighAvailabilityServices highAvailabilityServices;
 
-	@Before
-	public void setupTest() {
-		highAvailabilityServices = new TestingHighAvailabilityServices();
-	}
+    @Before
+    public void setupTest() {
+        highAvailabilityServices = new TestingHighAvailabilityServices();
+    }
 
-	@After
-	public void tearDownTest() throws Exception {
-		highAvailabilityServices.closeAndCleanupAllData();
-		highAvailabilityServices = null;
-	}
+    @After
+    public void tearDownTest() throws Exception {
+        highAvailabilityServices.closeAndCleanupAllData();
+        highAvailabilityServices = null;
+    }
 
+    /**
+     * Tests that the TaskManagerRunner startup fails synchronously when the I/O directories are not
+     * writable.
+     */
+    @Test
+    public void testIODirectoryNotWritable() throws Exception {
+        File nonWritable = tempFolder.newFolder();
+        Assume.assumeTrue(
+                "Cannot create non-writable temporary file directory. Skipping test.",
+                nonWritable.setWritable(false, false));
 
-	/**
-	 * Tests that the TaskManagerRunner startup fails synchronously when the I/O
-	 * directories are not writable.
-	 */
-	@Test
-	public void testIODirectoryNotWritable() throws Exception {
-		File nonWritable = tempFolder.newFolder();
-		Assume.assumeTrue("Cannot create non-writable temporary file directory. Skipping test.",
-			nonWritable.setWritable(false, false));
+        try {
+            Configuration cfg = createFlinkConfiguration();
+            cfg.setString(CoreOptions.TMP_DIRS, nonWritable.getAbsolutePath());
 
-		try {
-			Configuration cfg = createFlinkConfiguration();
-			cfg.setString(CoreOptions.TMP_DIRS, nonWritable.getAbsolutePath());
+            try {
 
-			try {
+                startTaskManager(cfg, rpcService, highAvailabilityServices);
 
-				startTaskManager(
-					cfg,
-					rpcService,
-					highAvailabilityServices);
+                fail("Should fail synchronously with an IOException");
+            } catch (IOException e) {
+                // splendid!
+            }
+        } finally {
+            // noinspection ResultOfMethodCallIgnored
+            nonWritable.setWritable(true, false);
+            try {
+                FileUtils.deleteDirectory(nonWritable);
+            } catch (IOException e) {
+                // best effort
+            }
+        }
+    }
 
-				fail("Should fail synchronously with an IOException");
-			} catch (IOException e) {
-				// splendid!
-			}
-		} finally {
-			// noinspection ResultOfMethodCallIgnored
-			nonWritable.setWritable(true, false);
-			try {
-				FileUtils.deleteDirectory(nonWritable);
-			} catch (IOException e) {
-				// best effort
-			}
-		}
-	}
+    /**
+     * Tests that the TaskManagerRunner startup fails synchronously when the memory configuration is
+     * wrong.
+     */
+    @Test(expected = IllegalConfigurationException.class)
+    public void testMemoryConfigWrong() throws Exception {
+        Configuration cfg = createFlinkConfiguration();
 
-	/**
-	 * Tests that the TaskManagerRunner startup fails synchronously when the memory configuration is wrong.
-	 */
-	@Test(expected = IllegalConfigurationException.class)
-	public void testMemoryConfigWrong() throws Exception {
-		Configuration cfg = createFlinkConfiguration();
+        // something invalid
+        cfg.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
+        cfg.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("10m"));
+        startTaskManager(cfg, rpcService, highAvailabilityServices);
+    }
 
-		// something invalid
-		cfg.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
-		cfg.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("10m"));
-		startTaskManager(
-			cfg,
-			rpcService,
-			highAvailabilityServices);
-	}
+    /**
+     * Tests that the TaskManagerRunner startup fails if the network stack cannot be initialized.
+     */
+    @Test
+    public void testStartupWhenNetworkStackFailsToInitialize() throws Exception {
+        final ServerSocket blocker = new ServerSocket(0, 50, InetAddress.getByName(LOCAL_HOST));
 
-	/**
-	 * Tests that the TaskManagerRunner startup fails if the network stack cannot be initialized.
-	 */
-	@Test
-	public void testStartupWhenNetworkStackFailsToInitialize() throws Exception {
-		final ServerSocket blocker = new ServerSocket(0, 50, InetAddress.getByName(LOCAL_HOST));
+        try {
+            final Configuration cfg = createFlinkConfiguration();
+            cfg.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, blocker.getLocalPort());
+            cfg.setString(TaskManagerOptions.BIND_HOST, LOCAL_HOST);
 
-		try {
-			final Configuration cfg = createFlinkConfiguration();
-			cfg.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, blocker.getLocalPort());
-			cfg.setString(TaskManagerOptions.BIND_HOST, LOCAL_HOST);
+            startTaskManager(cfg, rpcService, highAvailabilityServices);
 
-			startTaskManager(
-				cfg,
-				rpcService,
-				highAvailabilityServices);
+            fail("Should throw IOException when the network stack cannot be initialized.");
+        } catch (IOException e) {
+            // ignored
+        } finally {
+            IOUtils.closeQuietly(blocker);
+        }
+    }
 
-			fail("Should throw IOException when the network stack cannot be initialized.");
-		} catch (IOException e) {
-			// ignored
-		} finally {
-			IOUtils.closeQuietly(blocker);
-		}
-	}
+    // -----------------------------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------------------------
+    private static Configuration createFlinkConfiguration() {
+        return TaskExecutorResourceUtils.adjustForLocalExecution(new Configuration());
+    }
 
-	private static Configuration createFlinkConfiguration() {
-		return TaskExecutorResourceUtils.adjustForLocalExecution(new Configuration());
-	}
+    private static void startTaskManager(
+            Configuration configuration,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices)
+            throws Exception {
 
-	private static void startTaskManager(
-		Configuration configuration,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices
-	) throws Exception {
-
-		TaskManagerRunner.startTaskManager(
-			configuration,
-			ResourceID.generate(),
-			rpcService,
-			highAvailabilityServices,
-			new TestingHeartbeatServices(),
-			NoOpMetricRegistry.INSTANCE,
-			new BlobCacheService(
-				configuration,
-				new VoidBlobStore(),
-				null),
-			false,
-			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
-			error -> {});
-	}
+        TaskManagerRunner.startTaskManager(
+                configuration,
+                ResourceID.generate(),
+                rpcService,
+                highAvailabilityServices,
+                new TestingHeartbeatServices(),
+                NoOpMetricRegistry.INSTANCE,
+                new BlobCacheService(configuration, new VoidBlobStore(), null),
+                false,
+                ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                error -> {});
+    }
 }

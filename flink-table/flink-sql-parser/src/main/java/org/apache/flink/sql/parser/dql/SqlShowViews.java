@@ -29,29 +29,28 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * SHOW VIEWS sql call.
- */
+/** SHOW VIEWS sql call. */
 public class SqlShowViews extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SHOW VIEWS", SqlKind.OTHER);
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("SHOW VIEWS", SqlKind.OTHER);
 
-	public SqlShowViews(SqlParserPos pos) {
-		super(pos);
-	}
+    public SqlShowViews(SqlParserPos pos) {
+        super(pos);
+    }
 
-	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
-	}
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		return Collections.EMPTY_LIST;
-	}
+    @Override
+    public List<SqlNode> getOperandList() {
+        return Collections.EMPTY_LIST;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("SHOW VIEWS");
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("SHOW VIEWS");
+    }
 }

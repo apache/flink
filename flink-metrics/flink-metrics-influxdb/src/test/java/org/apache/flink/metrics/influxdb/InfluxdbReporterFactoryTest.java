@@ -23,13 +23,11 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-/**
- * Tests for the {@link InfluxdbReporterFactory}.
- */
+/** Tests for the {@link InfluxdbReporterFactory}. */
 public class InfluxdbReporterFactoryTest extends TestLogger {
 
-	@Test
-	public void testMetricReporterSetupViaSPI() {
-		MetricReporterTestUtils.testMetricReporterSetupViaSPI(InfluxdbReporterFactory.class);
-	}
+    @Test
+    public void testMetricReporterSetupViaSPI() {
+        MetricReporterTestUtils.testMetricReporterSetupViaSPI(InfluxdbReporterFactory.class);
+    }
 }

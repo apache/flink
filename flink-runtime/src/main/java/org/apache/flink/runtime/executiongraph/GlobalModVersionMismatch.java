@@ -19,28 +19,28 @@
 package org.apache.flink.runtime.executiongraph;
 
 /**
- * An exception that indicates a mismatch between the expected global modification version
- * of the execution graph, and the actual modification version.
+ * An exception that indicates a mismatch between the expected global modification version of the
+ * execution graph, and the actual modification version.
  */
 public class GlobalModVersionMismatch extends Exception {
 
-	private static final long serialVersionUID = 6643688395797045098L;
+    private static final long serialVersionUID = 6643688395797045098L;
 
-	private final long expectedModVersion;
+    private final long expectedModVersion;
 
-	private final long actualModVersion;
+    private final long actualModVersion;
 
-	public GlobalModVersionMismatch(long expectedModVersion, long actualModVersion) {
-		super("expected=" + expectedModVersion + ", actual=" + actualModVersion);
-		this.expectedModVersion = expectedModVersion;
-		this.actualModVersion = actualModVersion;
-	}
+    public GlobalModVersionMismatch(long expectedModVersion, long actualModVersion) {
+        super("expected=" + expectedModVersion + ", actual=" + actualModVersion);
+        this.expectedModVersion = expectedModVersion;
+        this.actualModVersion = actualModVersion;
+    }
 
-	public long expectedModVersion() {
-		return expectedModVersion;
-	}
+    public long expectedModVersion() {
+        return expectedModVersion;
+    }
 
-	public long actualModVersion() {
-		return actualModVersion;
-	}
+    public long actualModVersion() {
+        return actualModVersion;
+    }
 }

@@ -45,122 +45,117 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 
-/**
- * Standard implementation of {@link SqlExprToRexConverter}.
- */
+/** Standard implementation of {@link SqlExprToRexConverter}. */
 public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
 
-	private static final String TEMPORARY_TABLE_NAME = "__temp_table__";
-	private static final String QUERY_FORMAT = "SELECT %s FROM " + TEMPORARY_TABLE_NAME;
+    private static final String TEMPORARY_TABLE_NAME = "__temp_table__";
+    private static final String QUERY_FORMAT = "SELECT %s FROM " + TEMPORARY_TABLE_NAME;
 
-	private final FlinkPlannerImpl planner;
+    private final FlinkPlannerImpl planner;
 
-	public SqlExprToRexConverterImpl(
-			FrameworkConfig config,
-			FlinkTypeFactory typeFactory,
-			RelOptCluster cluster,
-			RelDataType tableRowType) {
-		this.planner = new FlinkPlannerImpl(
-			config,
-			(isLenient) -> createSingleTableCatalogReader(isLenient, config, typeFactory, tableRowType),
-			typeFactory,
-			cluster
-		);
-	}
+    public SqlExprToRexConverterImpl(
+            FrameworkConfig config,
+            FlinkTypeFactory typeFactory,
+            RelOptCluster cluster,
+            RelDataType tableRowType) {
+        this.planner =
+                new FlinkPlannerImpl(
+                        config,
+                        (isLenient) ->
+                                createSingleTableCatalogReader(
+                                        isLenient, config, typeFactory, tableRowType),
+                        typeFactory,
+                        cluster);
+    }
 
-	@Override
-	public RexNode convertToRexNode(String expr) {
-		return convertToRexNodes(new String[]{expr})[0];
-	}
+    @Override
+    public RexNode convertToRexNode(String expr) {
+        return convertToRexNodes(new String[] {expr})[0];
+    }
 
-	@Override
-	public RexNode[] convertToRexNodes(String[] exprs) {
-		String query = String.format(QUERY_FORMAT, String.join(",", exprs));
-		SqlNode parsed = planner.parser().parse(query);
-		SqlNode validated = planner.validate(parsed);
-		RelNode rel = planner.rel(validated).rel;
-		// The plan should in the following tree
-		// LogicalProject
-		// +- TableScan
-		if (rel instanceof LogicalProject
-			&& rel.getInput(0) != null
-			&& rel.getInput(0) instanceof TableScan) {
-			return ((LogicalProject) rel).getProjects().toArray(new RexNode[0]);
-		} else {
-			throw new IllegalStateException("The root RelNode should be LogicalProject, but is " + rel.toString());
-		}
-	}
+    @Override
+    public RexNode[] convertToRexNodes(String[] exprs) {
+        String query = String.format(QUERY_FORMAT, String.join(",", exprs));
+        SqlNode parsed = planner.parser().parse(query);
+        SqlNode validated = planner.validate(parsed);
+        RelNode rel = planner.rel(validated).rel;
+        // The plan should in the following tree
+        // LogicalProject
+        // +- TableScan
+        if (rel instanceof LogicalProject
+                && rel.getInput(0) != null
+                && rel.getInput(0) instanceof TableScan) {
+            return ((LogicalProject) rel).getProjects().toArray(new RexNode[0]);
+        } else {
+            throw new IllegalStateException(
+                    "The root RelNode should be LogicalProject, but is " + rel.toString());
+        }
+    }
 
-	// ------------------------------------------------------------------------------------------
-	// Utilities
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
+    // Utilities
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * Creates a catalog reader that contains a single {@link Table} with temporary table name
-	 * and specified {@code rowType}.
-	 *
-	 * @param rowType     table row type
-	 * @return the {@link CalciteCatalogReader} instance
-	 */
-	private static CalciteCatalogReader createSingleTableCatalogReader(
-			boolean lenientCaseSensitivity,
-			FrameworkConfig config,
-			FlinkTypeFactory typeFactory,
-			RelDataType rowType) {
+    /**
+     * Creates a catalog reader that contains a single {@link Table} with temporary table name and
+     * specified {@code rowType}.
+     *
+     * @param rowType table row type
+     * @return the {@link CalciteCatalogReader} instance
+     */
+    private static CalciteCatalogReader createSingleTableCatalogReader(
+            boolean lenientCaseSensitivity,
+            FrameworkConfig config,
+            FlinkTypeFactory typeFactory,
+            RelDataType rowType) {
 
-		// connection properties
-		boolean caseSensitive = !lenientCaseSensitivity && config.getParserConfig().caseSensitive();
-		Properties properties = new Properties();
-		properties.put(
-			CalciteConnectionProperty.CASE_SENSITIVE.camelName(),
-			String.valueOf(caseSensitive));
-		CalciteConnectionConfig connectionConfig = new CalciteConnectionConfigImpl(properties);
+        // connection properties
+        boolean caseSensitive = !lenientCaseSensitivity && config.getParserConfig().caseSensitive();
+        Properties properties = new Properties();
+        properties.put(
+                CalciteConnectionProperty.CASE_SENSITIVE.camelName(),
+                String.valueOf(caseSensitive));
+        CalciteConnectionConfig connectionConfig = new CalciteConnectionConfigImpl(properties);
 
-		// prepare root schema
-		final RowTypeSpecifiedTable table = new RowTypeSpecifiedTable(rowType);
-		final Map<String, Table> tableMap = Collections.singletonMap(TEMPORARY_TABLE_NAME, table);
-		CalciteSchema schema = CalciteSchemaBuilder.asRootSchema(new TableSpecifiedSchema(tableMap));
+        // prepare root schema
+        final RowTypeSpecifiedTable table = new RowTypeSpecifiedTable(rowType);
+        final Map<String, Table> tableMap = Collections.singletonMap(TEMPORARY_TABLE_NAME, table);
+        CalciteSchema schema =
+                CalciteSchemaBuilder.asRootSchema(new TableSpecifiedSchema(tableMap));
 
-		return new FlinkCalciteCatalogReader(
-			schema,
-			new ArrayList<>(new ArrayList<>()),
-			typeFactory,
-			connectionConfig);
-	}
+        return new FlinkCalciteCatalogReader(
+                schema, new ArrayList<>(new ArrayList<>()), typeFactory, connectionConfig);
+    }
 
-	// ------------------------------------------------------------------------------------------
-	// Inner Class
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
+    // Inner Class
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * A {@link AbstractTable} that can specify the row type explicitly.
-	 */
-	private static class RowTypeSpecifiedTable extends AbstractTable {
-		private final RelDataType rowType;
+    /** A {@link AbstractTable} that can specify the row type explicitly. */
+    private static class RowTypeSpecifiedTable extends AbstractTable {
+        private final RelDataType rowType;
 
-		RowTypeSpecifiedTable(RelDataType rowType) {
-			this.rowType = Objects.requireNonNull(rowType);
-		}
+        RowTypeSpecifiedTable(RelDataType rowType) {
+            this.rowType = Objects.requireNonNull(rowType);
+        }
 
-		@Override
-		public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-			return this.rowType;
-		}
-	}
+        @Override
+        public RelDataType getRowType(RelDataTypeFactory typeFactory) {
+            return this.rowType;
+        }
+    }
 
-	/**
-	 * A {@link AbstractSchema} that can specify the table map explicitly.
-	 */
-	private static class TableSpecifiedSchema extends AbstractSchema {
-		private final Map<String, Table> tableMap;
+    /** A {@link AbstractSchema} that can specify the table map explicitly. */
+    private static class TableSpecifiedSchema extends AbstractSchema {
+        private final Map<String, Table> tableMap;
 
-		TableSpecifiedSchema(Map<String, Table> tableMap) {
-			this.tableMap = Objects.requireNonNull(tableMap);
-		}
+        TableSpecifiedSchema(Map<String, Table> tableMap) {
+            this.tableMap = Objects.requireNonNull(tableMap);
+        }
 
-		@Override
-		protected Map<String, Table> getTableMap() {
-			return tableMap;
-		}
-	}
+        @Override
+        protected Map<String, Table> getTableMap() {
+            return tableMap;
+        }
+    }
 }

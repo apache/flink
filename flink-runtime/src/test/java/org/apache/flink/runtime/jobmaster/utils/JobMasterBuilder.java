@@ -49,175 +49,187 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * A builder for the {@link JobMaster}.
- */
+/** A builder for the {@link JobMaster}. */
 public class JobMasterBuilder {
 
-	private static final long heartbeatInterval = 1000L;
-	private static final long heartbeatTimeout = 5_000_000L;
-	private static final HeartbeatServices DEFAULT_HEARTBEAT_SERVICES = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
+    private static final long heartbeatInterval = 1000L;
+    private static final long heartbeatTimeout = 5_000_000L;
+    private static final HeartbeatServices DEFAULT_HEARTBEAT_SERVICES =
+            new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
 
-	private Configuration configuration = new Configuration();
+    private Configuration configuration = new Configuration();
 
-	private final JobGraph jobGraph;
-	private final RpcService rpcService;
+    private final JobGraph jobGraph;
+    private final RpcService rpcService;
 
-	private HighAvailabilityServices highAvailabilityServices;
+    private HighAvailabilityServices highAvailabilityServices;
 
-	private JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+    private JobManagerSharedServices jobManagerSharedServices =
+            new TestingJobManagerSharedServicesBuilder().build();
 
-	private HeartbeatServices heartbeatServices = DEFAULT_HEARTBEAT_SERVICES;
+    private HeartbeatServices heartbeatServices = DEFAULT_HEARTBEAT_SERVICES;
 
-	private SlotPoolFactory slotPoolFactory = null;
+    private SlotPoolFactory slotPoolFactory = null;
 
-	private SchedulerFactory schedulerFactory = null;
+    private SchedulerFactory schedulerFactory = null;
 
-	private OnCompletionActions onCompletionActions = new TestingOnCompletionActions();
+    private OnCompletionActions onCompletionActions = new TestingOnCompletionActions();
 
-	private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+    private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
 
-	private PartitionTrackerFactory partitionTrackerFactory = NoOpJobMasterPartitionTracker.FACTORY;
+    private PartitionTrackerFactory partitionTrackerFactory = NoOpJobMasterPartitionTracker.FACTORY;
 
-	private ResourceID jmResourceId = ResourceID.generate();
+    private ResourceID jmResourceId = ResourceID.generate();
 
-	@Nullable
-	private SchedulerNGFactory schedulerNGFactory = null;
+    @Nullable private SchedulerNGFactory schedulerNGFactory = null;
 
-	private FatalErrorHandler fatalErrorHandler = error -> {
-	};
+    private FatalErrorHandler fatalErrorHandler = error -> {};
 
-	public JobMasterBuilder(JobGraph jobGraph, RpcService rpcService) {
-		TestingHighAvailabilityServices testingHighAvailabilityServices = new TestingHighAvailabilityServices();
-		testingHighAvailabilityServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
+    public JobMasterBuilder(JobGraph jobGraph, RpcService rpcService) {
+        TestingHighAvailabilityServices testingHighAvailabilityServices =
+                new TestingHighAvailabilityServices();
+        testingHighAvailabilityServices.setCheckpointRecoveryFactory(
+                new StandaloneCheckpointRecoveryFactory());
 
-		SettableLeaderRetrievalService rmLeaderRetrievalService = new SettableLeaderRetrievalService(
-			null,
-			null);
-		testingHighAvailabilityServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
+        SettableLeaderRetrievalService rmLeaderRetrievalService =
+                new SettableLeaderRetrievalService(null, null);
+        testingHighAvailabilityServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 
-		this.highAvailabilityServices = testingHighAvailabilityServices;
-		this.jobGraph = jobGraph;
-		this.rpcService = rpcService;
-	}
+        this.highAvailabilityServices = testingHighAvailabilityServices;
+        this.jobGraph = jobGraph;
+        this.rpcService = rpcService;
+    }
 
-	public JobMasterBuilder withConfiguration(Configuration configuration) {
-		this.configuration = configuration;
-		return this;
-	}
+    public JobMasterBuilder withConfiguration(Configuration configuration) {
+        this.configuration = configuration;
+        return this;
+    }
 
-	public JobMasterBuilder withHighAvailabilityServices(HighAvailabilityServices highAvailabilityServices) {
-		this.highAvailabilityServices = highAvailabilityServices;
-		return this;
-	}
+    public JobMasterBuilder withHighAvailabilityServices(
+            HighAvailabilityServices highAvailabilityServices) {
+        this.highAvailabilityServices = highAvailabilityServices;
+        return this;
+    }
 
-	public JobMasterBuilder withJobManagerSharedServices(JobManagerSharedServices jobManagerSharedServices) {
-		this.jobManagerSharedServices = jobManagerSharedServices;
-		return this;
-	}
+    public JobMasterBuilder withJobManagerSharedServices(
+            JobManagerSharedServices jobManagerSharedServices) {
+        this.jobManagerSharedServices = jobManagerSharedServices;
+        return this;
+    }
 
-	public JobMasterBuilder withHeartbeatServices(HeartbeatServices heartbeatServices) {
-		this.heartbeatServices = heartbeatServices;
-		return this;
-	}
+    public JobMasterBuilder withHeartbeatServices(HeartbeatServices heartbeatServices) {
+        this.heartbeatServices = heartbeatServices;
+        return this;
+    }
 
-	public JobMasterBuilder withSlotPoolFactory(SlotPoolFactory slotPoolFactory) {
-		this.slotPoolFactory = slotPoolFactory;
-		return this;
-	}
+    public JobMasterBuilder withSlotPoolFactory(SlotPoolFactory slotPoolFactory) {
+        this.slotPoolFactory = slotPoolFactory;
+        return this;
+    }
 
-	public JobMasterBuilder withFatalErrorHandler(FatalErrorHandler fatalErrorHandler) {
-		this.fatalErrorHandler = fatalErrorHandler;
-		return this;
-	}
+    public JobMasterBuilder withFatalErrorHandler(FatalErrorHandler fatalErrorHandler) {
+        this.fatalErrorHandler = fatalErrorHandler;
+        return this;
+    }
 
-	public JobMasterBuilder withSchedulerNGFactory(SchedulerFactory schedulerFactory) {
-		this.schedulerFactory = schedulerFactory;
-		return this;
-	}
+    public JobMasterBuilder withSchedulerNGFactory(SchedulerFactory schedulerFactory) {
+        this.schedulerFactory = schedulerFactory;
+        return this;
+    }
 
-	public JobMasterBuilder withOnCompletionActions(OnCompletionActions onCompletionActions) {
-		this.onCompletionActions = onCompletionActions;
-		return this;
-	}
+    public JobMasterBuilder withOnCompletionActions(OnCompletionActions onCompletionActions) {
+        this.onCompletionActions = onCompletionActions;
+        return this;
+    }
 
-	public JobMasterBuilder withResourceId(ResourceID resourceId) {
-		this.jmResourceId = resourceId;
-		return this;
-	}
+    public JobMasterBuilder withResourceId(ResourceID resourceId) {
+        this.jmResourceId = resourceId;
+        return this;
+    }
 
-	public JobMasterBuilder withShuffleMaster(ShuffleMaster<?> shuffleMaster) {
-		this.shuffleMaster = shuffleMaster;
-		return this;
-	}
+    public JobMasterBuilder withShuffleMaster(ShuffleMaster<?> shuffleMaster) {
+        this.shuffleMaster = shuffleMaster;
+        return this;
+    }
 
-	public JobMasterBuilder withPartitionTrackerFactory(PartitionTrackerFactory partitionTrackerFactory) {
-		this.partitionTrackerFactory = partitionTrackerFactory;
-		return this;
-	}
+    public JobMasterBuilder withPartitionTrackerFactory(
+            PartitionTrackerFactory partitionTrackerFactory) {
+        this.partitionTrackerFactory = partitionTrackerFactory;
+        return this;
+    }
 
-	public JobMasterBuilder withSchedulerNGFactory(SchedulerNGFactory schedulerFactory) {
-		this.schedulerNGFactory = schedulerFactory;
-		return this;
-	}
+    public JobMasterBuilder withSchedulerNGFactory(SchedulerNGFactory schedulerFactory) {
+        this.schedulerNGFactory = schedulerFactory;
+        return this;
+    }
 
-	public JobMaster createJobMaster() throws Exception {
-		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+    public JobMaster createJobMaster() throws Exception {
+        final JobMasterConfiguration jobMasterConfiguration =
+                JobMasterConfiguration.fromConfiguration(configuration);
 
-		return new JobMaster(
-			rpcService,
-			jobMasterConfiguration,
-			jmResourceId,
-			jobGraph,
-			highAvailabilityServices,
-			slotPoolFactory != null ? slotPoolFactory : DefaultSlotPoolFactory.fromConfiguration(configuration),
-			schedulerFactory != null ? schedulerFactory : DefaultSchedulerFactory.fromConfiguration(configuration),
-			jobManagerSharedServices,
-			heartbeatServices,
-			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
-			onCompletionActions,
-			fatalErrorHandler,
-			JobMasterBuilder.class.getClassLoader(),
-			schedulerNGFactory != null ? schedulerNGFactory : SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
-			shuffleMaster,
-			partitionTrackerFactory);
-	}
+        return new JobMaster(
+                rpcService,
+                jobMasterConfiguration,
+                jmResourceId,
+                jobGraph,
+                highAvailabilityServices,
+                slotPoolFactory != null
+                        ? slotPoolFactory
+                        : DefaultSlotPoolFactory.fromConfiguration(configuration),
+                schedulerFactory != null
+                        ? schedulerFactory
+                        : DefaultSchedulerFactory.fromConfiguration(configuration),
+                jobManagerSharedServices,
+                heartbeatServices,
+                UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
+                onCompletionActions,
+                fatalErrorHandler,
+                JobMasterBuilder.class.getClassLoader(),
+                schedulerNGFactory != null
+                        ? schedulerNGFactory
+                        : SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
+                shuffleMaster,
+                partitionTrackerFactory);
+    }
 
-	/**
-	 * Test {@link OnCompletionActions} implementation that exposes a {@link CompletableFuture} for every method which
-	 * is completed with the method argument once that method is called.
-	 */
-	public static final class TestingOnCompletionActions implements OnCompletionActions {
+    /**
+     * Test {@link OnCompletionActions} implementation that exposes a {@link CompletableFuture} for
+     * every method which is completed with the method argument once that method is called.
+     */
+    public static final class TestingOnCompletionActions implements OnCompletionActions {
 
-		private final CompletableFuture<ArchivedExecutionGraph> jobReachedGloballyTerminalStateFuture = new CompletableFuture<>();
-		private final CompletableFuture<Void> jobFinishedByOtherFuture = new CompletableFuture<>();
-		private final CompletableFuture<Throwable> jobMasterFailedFuture = new CompletableFuture<>();
+        private final CompletableFuture<ArchivedExecutionGraph>
+                jobReachedGloballyTerminalStateFuture = new CompletableFuture<>();
+        private final CompletableFuture<Void> jobFinishedByOtherFuture = new CompletableFuture<>();
+        private final CompletableFuture<Throwable> jobMasterFailedFuture =
+                new CompletableFuture<>();
 
-		@Override
-		public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
-			jobReachedGloballyTerminalStateFuture.complete(executionGraph);
-		}
+        @Override
+        public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
+            jobReachedGloballyTerminalStateFuture.complete(executionGraph);
+        }
 
-		@Override
-		public void jobFinishedByOther() {
-			jobFinishedByOtherFuture.complete(null);
-		}
+        @Override
+        public void jobFinishedByOther() {
+            jobFinishedByOtherFuture.complete(null);
+        }
 
-		@Override
-		public void jobMasterFailed(Throwable cause) {
-			jobMasterFailedFuture.complete(cause);
-		}
+        @Override
+        public void jobMasterFailed(Throwable cause) {
+            jobMasterFailedFuture.complete(cause);
+        }
 
-		public CompletableFuture<ArchivedExecutionGraph> getJobReachedGloballyTerminalStateFuture() {
-			return jobReachedGloballyTerminalStateFuture;
-		}
+        public CompletableFuture<ArchivedExecutionGraph>
+                getJobReachedGloballyTerminalStateFuture() {
+            return jobReachedGloballyTerminalStateFuture;
+        }
 
-		public CompletableFuture<ArchivedExecutionGraph> getJobFinishedByOtherFuture() {
-			return jobReachedGloballyTerminalStateFuture;
-		}
+        public CompletableFuture<ArchivedExecutionGraph> getJobFinishedByOtherFuture() {
+            return jobReachedGloballyTerminalStateFuture;
+        }
 
-		public CompletableFuture<ArchivedExecutionGraph> getJobMasterFailedFuture() {
-			return jobReachedGloballyTerminalStateFuture;
-		}
-	}
+        public CompletableFuture<ArchivedExecutionGraph> getJobMasterFailedFuture() {
+            return jobReachedGloballyTerminalStateFuture;
+        }
+    }
 }

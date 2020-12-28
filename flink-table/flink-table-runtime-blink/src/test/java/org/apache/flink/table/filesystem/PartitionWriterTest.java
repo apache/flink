@@ -36,145 +36,143 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Test for {@link PartitionWriter}s.
- */
+/** Test for {@link PartitionWriter}s. */
 public class PartitionWriterTest {
 
-	@ClassRule
-	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	private Map<String, List<Row>> records = new HashMap<>();
+    private Map<String, List<Row>> records = new HashMap<>();
 
-	private OutputFormatFactory<Row> factory = (OutputFormatFactory<Row>) path ->
-			new OutputFormat<Row>() {
-		@Override
-		public void configure(Configuration parameters) {
-		}
+    private OutputFormatFactory<Row> factory =
+            (OutputFormatFactory<Row>)
+                    path ->
+                            new OutputFormat<Row>() {
+                                @Override
+                                public void configure(Configuration parameters) {}
 
-		@Override
-		public void open(int taskNumber, int numTasks) {
-			records.put(getKey(), new ArrayList<>());
-		}
+                                @Override
+                                public void open(int taskNumber, int numTasks) {
+                                    records.put(getKey(), new ArrayList<>());
+                                }
 
-		private String getKey() {
-			Path parent = path.getParent();
-			return parent.getName().startsWith("task-") ?
-					parent.getParent().getName() :
-					parent.getParent().getParent().getName() + Path.SEPARATOR + parent.getName();
-		}
+                                private String getKey() {
+                                    Path parent = path.getParent();
+                                    return parent.getName().startsWith("task-")
+                                            ? parent.getParent().getName()
+                                            : parent.getParent().getParent().getName()
+                                                    + Path.SEPARATOR
+                                                    + parent.getName();
+                                }
 
-		@Override
-		public void writeRecord(Row record) {
-			records.get(getKey()).add(record);
-		}
+                                @Override
+                                public void writeRecord(Row record) {
+                                    records.get(getKey()).add(record);
+                                }
 
-		@Override
-		public void close() {
-		}
-	};
+                                @Override
+                                public void close() {}
+                            };
 
-	private final String basePath = TEMP_FOLDER.newFolder().getPath();
+    private final String basePath = TEMP_FOLDER.newFolder().getPath();
 
-	private final Context<Row> context = new Context<>(null, path -> factory.createOutputFormat(path));
+    private final Context<Row> context =
+            new Context<>(null, path -> factory.createOutputFormat(path));
 
-	private FileSystemFactory fsFactory = FileSystem::get;
+    private FileSystemFactory fsFactory = FileSystem::get;
 
-	private Path tmpPath = new Path(basePath);
+    private Path tmpPath = new Path(basePath);
 
-	private PartitionTempFileManager manager = new PartitionTempFileManager(
-			fsFactory, tmpPath, 0, 1);
+    private PartitionTempFileManager manager =
+            new PartitionTempFileManager(fsFactory, tmpPath, 0, 1);
 
-	private PartitionComputer<Row> computer = new PartitionComputer<Row>() {
+    private PartitionComputer<Row> computer =
+            new PartitionComputer<Row>() {
 
-		@Override
-		public LinkedHashMap<String, String> generatePartValues(Row in) {
-			LinkedHashMap<String, String> ret = new LinkedHashMap<>(1);
-			ret.put("p", in.getField(0).toString());
-			return ret;
-		}
+                @Override
+                public LinkedHashMap<String, String> generatePartValues(Row in) {
+                    LinkedHashMap<String, String> ret = new LinkedHashMap<>(1);
+                    ret.put("p", in.getField(0).toString());
+                    return ret;
+                }
 
-		@Override
-		public Row projectColumnsToWrite(Row in) {
-			return in;
-		}
-	};
+                @Override
+                public Row projectColumnsToWrite(Row in) {
+                    return in;
+                }
+            };
 
-	public PartitionWriterTest() throws Exception {
-	}
+    public PartitionWriterTest() throws Exception {}
 
-	@Test
-	public void testEmptySingleDirectoryWriter() throws Exception {
-		SingleDirectoryWriter<Row> writer = new SingleDirectoryWriter<>(
-				context, manager, computer, new LinkedHashMap<>());
-		writer.close();
-		Assert.assertTrue(records.isEmpty());
-	}
+    @Test
+    public void testEmptySingleDirectoryWriter() throws Exception {
+        SingleDirectoryWriter<Row> writer =
+                new SingleDirectoryWriter<>(context, manager, computer, new LinkedHashMap<>());
+        writer.close();
+        Assert.assertTrue(records.isEmpty());
+    }
 
-	@Test
-	public void testSingleDirectoryWriter() throws Exception {
-		SingleDirectoryWriter<Row> writer = new SingleDirectoryWriter<>(
-				context, manager, computer, new LinkedHashMap<>());
+    @Test
+    public void testSingleDirectoryWriter() throws Exception {
+        SingleDirectoryWriter<Row> writer =
+                new SingleDirectoryWriter<>(context, manager, computer, new LinkedHashMap<>());
 
-		writer.write(Row.of("p1", 1));
-		writer.write(Row.of("p1", 2));
-		writer.write(Row.of("p2", 2));
-		writer.close();
-		Assert.assertEquals("{cp-1=[p1,1, p1,2, p2,2]}", records.toString());
+        writer.write(Row.of("p1", 1));
+        writer.write(Row.of("p1", 2));
+        writer.write(Row.of("p2", 2));
+        writer.close();
+        Assert.assertEquals("{cp-1=[p1,1, p1,2, p2,2]}", records.toString());
 
-		manager = new PartitionTempFileManager(
-				fsFactory, tmpPath, 0, 2);
-		writer = new SingleDirectoryWriter<>(context, manager, computer, new LinkedHashMap<>());
-		writer.write(Row.of("p3", 3));
-		writer.write(Row.of("p5", 5));
-		writer.write(Row.of("p2", 2));
-		writer.close();
-		Assert.assertEquals("{cp-2=[p3,3, p5,5, p2,2], cp-1=[p1,1, p1,2, p2,2]}", records.toString());
-	}
+        manager = new PartitionTempFileManager(fsFactory, tmpPath, 0, 2);
+        writer = new SingleDirectoryWriter<>(context, manager, computer, new LinkedHashMap<>());
+        writer.write(Row.of("p3", 3));
+        writer.write(Row.of("p5", 5));
+        writer.write(Row.of("p2", 2));
+        writer.close();
+        Assert.assertEquals(
+                "{cp-2=[p3,3, p5,5, p2,2], cp-1=[p1,1, p1,2, p2,2]}", records.toString());
+    }
 
-	@Test
-	public void testGroupedPartitionWriter() throws Exception {
-		GroupedPartitionWriter<Row> writer = new GroupedPartitionWriter<>(
-				context, manager, computer);
+    @Test
+    public void testGroupedPartitionWriter() throws Exception {
+        GroupedPartitionWriter<Row> writer =
+                new GroupedPartitionWriter<>(context, manager, computer);
 
-		writer.write(Row.of("p1", 1));
-		writer.write(Row.of("p1", 2));
-		writer.write(Row.of("p2", 2));
-		writer.close();
-		Assert.assertEquals("{cp-1/p=p1=[p1,1, p1,2], cp-1/p=p2=[p2,2]}", records.toString());
+        writer.write(Row.of("p1", 1));
+        writer.write(Row.of("p1", 2));
+        writer.write(Row.of("p2", 2));
+        writer.close();
+        Assert.assertEquals("{cp-1/p=p1=[p1,1, p1,2], cp-1/p=p2=[p2,2]}", records.toString());
 
-		manager = new PartitionTempFileManager(
-				fsFactory, tmpPath, 0, 2);
-		writer = new GroupedPartitionWriter<>(context, manager, computer);
-		writer.write(Row.of("p3", 3));
-		writer.write(Row.of("p4", 5));
-		writer.write(Row.of("p5", 2));
-		writer.close();
-		Assert.assertEquals(
-				"{cp-2/p=p5=[p5,2], cp-2/p=p4=[p4,5], cp-2/p=p3=[p3,3], cp-1/p=p1=[p1,1, p1,2], cp-1/p=p2=[p2,2]}",
-				records.toString());
-	}
+        manager = new PartitionTempFileManager(fsFactory, tmpPath, 0, 2);
+        writer = new GroupedPartitionWriter<>(context, manager, computer);
+        writer.write(Row.of("p3", 3));
+        writer.write(Row.of("p4", 5));
+        writer.write(Row.of("p5", 2));
+        writer.close();
+        Assert.assertEquals(
+                "{cp-2/p=p5=[p5,2], cp-2/p=p4=[p4,5], cp-2/p=p3=[p3,3], cp-1/p=p1=[p1,1, p1,2], cp-1/p=p2=[p2,2]}",
+                records.toString());
+    }
 
-	@Test
-	public void testDynamicPartitionWriter() throws Exception {
-		DynamicPartitionWriter<Row> writer = new DynamicPartitionWriter<>(
-				context, manager, computer);
+    @Test
+    public void testDynamicPartitionWriter() throws Exception {
+        DynamicPartitionWriter<Row> writer =
+                new DynamicPartitionWriter<>(context, manager, computer);
 
-		writer.write(Row.of("p1", 1));
-		writer.write(Row.of("p2", 2));
-		writer.write(Row.of("p1", 2));
-		writer.close();
-		Assert.assertEquals("{cp-1/p=p1=[p1,1, p1,2], cp-1/p=p2=[p2,2]}", records.toString());
+        writer.write(Row.of("p1", 1));
+        writer.write(Row.of("p2", 2));
+        writer.write(Row.of("p1", 2));
+        writer.close();
+        Assert.assertEquals("{cp-1/p=p1=[p1,1, p1,2], cp-1/p=p2=[p2,2]}", records.toString());
 
-		manager = new PartitionTempFileManager(
-				fsFactory, tmpPath, 0, 2);
-		writer = new DynamicPartitionWriter<>(context, manager, computer);
-		writer.write(Row.of("p4", 5));
-		writer.write(Row.of("p3", 3));
-		writer.write(Row.of("p5", 2));
-		writer.close();
-		Assert.assertEquals(
-				"{cp-2/p=p5=[p5,2], cp-2/p=p4=[p4,5], cp-2/p=p3=[p3,3], cp-1/p=p1=[p1,1, p1,2], cp-1/p=p2=[p2,2]}",
-				records.toString());
-	}
+        manager = new PartitionTempFileManager(fsFactory, tmpPath, 0, 2);
+        writer = new DynamicPartitionWriter<>(context, manager, computer);
+        writer.write(Row.of("p4", 5));
+        writer.write(Row.of("p3", 3));
+        writer.write(Row.of("p5", 2));
+        writer.close();
+        Assert.assertEquals(
+                "{cp-2/p=p5=[p5,2], cp-2/p=p4=[p4,5], cp-2/p=p3=[p3,3], cp-1/p=p1=[p1,1, p1,2], cp-1/p=p2=[p2,2]}",
+                records.toString());
+    }
 }

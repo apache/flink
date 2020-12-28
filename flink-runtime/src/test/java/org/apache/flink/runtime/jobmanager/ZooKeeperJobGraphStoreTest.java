@@ -42,70 +42,73 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link ZooKeeperJobGraphStore}.
- */
+/** Tests for the {@link ZooKeeperJobGraphStore}. */
 public class ZooKeeperJobGraphStoreTest extends TestLogger {
 
-	@Rule
-	public ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+    @Rule public ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
-	private Configuration configuration;
+    private Configuration configuration;
 
-	@Before
-	public void setup() {
-		configuration = new Configuration();
-		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
-	}
+    @Before
+    public void setup() {
+        configuration = new Configuration();
+        configuration.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+    }
 
-	/**
-	 * Tests that we fail with an exception if the job cannot be removed from the
-	 * ZooKeeperJobGraphStore.
-	 *
-	 * <p>Tests that a close ZooKeeperJobGraphStore no longer holds any locks.
-	 */
-	@Test
-	public void testJobGraphRemovalFailureAndLockRelease() throws Exception {
-		try (final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration)) {
-			final TestingRetrievableStateStorageHelper<JobGraph> stateStorage = new TestingRetrievableStateStorageHelper<>();
-			final ZooKeeperJobGraphStore submittedJobGraphStore = createSubmittedJobGraphStore(client, stateStorage);
-			submittedJobGraphStore.start(null);
-			final ZooKeeperJobGraphStore otherSubmittedJobGraphStore = createSubmittedJobGraphStore(client, stateStorage);
-			otherSubmittedJobGraphStore.start(null);
+    /**
+     * Tests that we fail with an exception if the job cannot be removed from the
+     * ZooKeeperJobGraphStore.
+     *
+     * <p>Tests that a close ZooKeeperJobGraphStore no longer holds any locks.
+     */
+    @Test
+    public void testJobGraphRemovalFailureAndLockRelease() throws Exception {
+        try (final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration)) {
+            final TestingRetrievableStateStorageHelper<JobGraph> stateStorage =
+                    new TestingRetrievableStateStorageHelper<>();
+            final ZooKeeperJobGraphStore submittedJobGraphStore =
+                    createSubmittedJobGraphStore(client, stateStorage);
+            submittedJobGraphStore.start(null);
+            final ZooKeeperJobGraphStore otherSubmittedJobGraphStore =
+                    createSubmittedJobGraphStore(client, stateStorage);
+            otherSubmittedJobGraphStore.start(null);
 
-			final JobGraph jobGraph = new JobGraph();
-			submittedJobGraphStore.putJobGraph(jobGraph);
+            final JobGraph jobGraph = new JobGraph();
+            submittedJobGraphStore.putJobGraph(jobGraph);
 
-			final JobGraph recoveredJobGraph = otherSubmittedJobGraphStore.recoverJobGraph(jobGraph.getJobID());
+            final JobGraph recoveredJobGraph =
+                    otherSubmittedJobGraphStore.recoverJobGraph(jobGraph.getJobID());
 
-			assertThat(recoveredJobGraph, is(notNullValue()));
+            assertThat(recoveredJobGraph, is(notNullValue()));
 
-			try {
-				otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobID());
-				fail("It should not be possible to remove the JobGraph since the first store still has a lock on it.");
-			} catch (Exception ignored) {
-				// expected
-			}
+            try {
+                otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobID());
+                fail(
+                        "It should not be possible to remove the JobGraph since the first store still has a lock on it.");
+            } catch (Exception ignored) {
+                // expected
+            }
 
-			submittedJobGraphStore.stop();
+            submittedJobGraphStore.stop();
 
-			// now we should be able to delete the job graph
-			otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobID());
+            // now we should be able to delete the job graph
+            otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobID());
 
-			assertThat(otherSubmittedJobGraphStore.recoverJobGraph(recoveredJobGraph.getJobID()), is(nullValue()));
+            assertThat(
+                    otherSubmittedJobGraphStore.recoverJobGraph(recoveredJobGraph.getJobID()),
+                    is(nullValue()));
 
-			otherSubmittedJobGraphStore.stop();
-		}
-	}
+            otherSubmittedJobGraphStore.stop();
+        }
+    }
 
-	@Nonnull
-	private ZooKeeperJobGraphStore createSubmittedJobGraphStore(
-		CuratorFramework client,
-		TestingRetrievableStateStorageHelper<JobGraph> stateStorage
-	) {
-		return new ZooKeeperJobGraphStore(
-			client.getNamespace(),
-			new ZooKeeperStateHandleStore<>(client, stateStorage),
-			new PathChildrenCache(client, "/", false));
-	}
+    @Nonnull
+    private ZooKeeperJobGraphStore createSubmittedJobGraphStore(
+            CuratorFramework client, TestingRetrievableStateStorageHelper<JobGraph> stateStorage) {
+        return new ZooKeeperJobGraphStore(
+                client.getNamespace(),
+                new ZooKeeperStateHandleStore<>(client, stateStorage),
+                new PathChildrenCache(client, "/", false));
+    }
 }

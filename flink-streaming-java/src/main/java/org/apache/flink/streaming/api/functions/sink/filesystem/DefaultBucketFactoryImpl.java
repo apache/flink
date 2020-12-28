@@ -23,49 +23,48 @@ import org.apache.flink.core.fs.Path;
 
 import java.io.IOException;
 
-/**
- * A factory returning {@link Bucket buckets}.
- */
+/** A factory returning {@link Bucket buckets}. */
 @Internal
 public class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, BucketID> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public Bucket<IN, BucketID> getNewBucket(
-			final int subtaskIndex,
-			final BucketID bucketId,
-			final Path bucketPath,
-			final long initialPartCounter,
-			final BucketWriter<IN, BucketID> bucketWriter,
-			final RollingPolicy<IN, BucketID> rollingPolicy,
-			final OutputFileConfig outputFileConfig) {
+    @Override
+    public Bucket<IN, BucketID> getNewBucket(
+            final int subtaskIndex,
+            final BucketID bucketId,
+            final Path bucketPath,
+            final long initialPartCounter,
+            final BucketWriter<IN, BucketID> bucketWriter,
+            final RollingPolicy<IN, BucketID> rollingPolicy,
+            final OutputFileConfig outputFileConfig) {
 
-		return Bucket.getNew(
-				subtaskIndex,
-				bucketId,
-				bucketPath,
-				initialPartCounter,
-				bucketWriter,
-				rollingPolicy,
-				outputFileConfig);
-	}
+        return Bucket.getNew(
+                subtaskIndex,
+                bucketId,
+                bucketPath,
+                initialPartCounter,
+                bucketWriter,
+                rollingPolicy,
+                outputFileConfig);
+    }
 
-	@Override
-	public Bucket<IN, BucketID> restoreBucket(
-			final int subtaskIndex,
-			final long initialPartCounter,
-			final BucketWriter<IN, BucketID> bucketWriter,
-			final RollingPolicy<IN, BucketID> rollingPolicy,
-			final BucketState<BucketID> bucketState,
-			final OutputFileConfig outputFileConfig) throws IOException {
+    @Override
+    public Bucket<IN, BucketID> restoreBucket(
+            final int subtaskIndex,
+            final long initialPartCounter,
+            final BucketWriter<IN, BucketID> bucketWriter,
+            final RollingPolicy<IN, BucketID> rollingPolicy,
+            final BucketState<BucketID> bucketState,
+            final OutputFileConfig outputFileConfig)
+            throws IOException {
 
-		return Bucket.restore(
-				subtaskIndex,
-				initialPartCounter,
-				bucketWriter,
-				rollingPolicy,
-				bucketState,
-				outputFileConfig);
-	}
+        return Bucket.restore(
+                subtaskIndex,
+                initialPartCounter,
+                bucketWriter,
+                rollingPolicy,
+                bucketState,
+                outputFileConfig);
+    }
 }

@@ -18,18 +18,16 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-/**
- * IT cases for the {@link FlinkKafkaProducer010}.
- */
+/** IT cases for the {@link FlinkKafkaProducer010}. */
 @SuppressWarnings("serial")
 public class Kafka010ProducerITCase extends KafkaProducerTestBase {
-	@Override
-	public void testExactlyOnceRegularSink() throws Exception {
-		// Kafka010 does not support exactly once semantic
-	}
+    @Override
+    public void testExactlyOnceRegularSink() throws Exception {
+        // Kafka010 does not support exactly once semantic
+    }
 
-	@Override
-	public void testExactlyOnceCustomOperator() throws Exception {
-		// Kafka010 does not support exactly once semantic
-	}
+    @Override
+    public void testExactlyOnceCustomOperator() throws Exception {
+        // Kafka010 does not support exactly once semantic
+    }
 }

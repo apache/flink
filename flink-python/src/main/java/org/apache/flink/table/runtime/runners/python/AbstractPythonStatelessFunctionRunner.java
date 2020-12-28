@@ -59,197 +59,207 @@ import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 /**
  * Abstract {@link PythonFunctionRunner} used to execute Python stateless functions..
  *
- * @param <IN>  Type of the input elements.
+ * @param <IN> Type of the input elements.
  */
 @Internal
-public abstract class AbstractPythonStatelessFunctionRunner<IN> extends AbstractPythonFunctionRunner<IN> {
+public abstract class AbstractPythonStatelessFunctionRunner<IN>
+        extends AbstractPythonFunctionRunner<IN> {
 
-	private static final String INPUT_ID = "input";
-	private static final String OUTPUT_ID = "output";
-	private static final String TRANSFORM_ID = "transform";
+    private static final String INPUT_ID = "input";
+    private static final String OUTPUT_ID = "output";
+    private static final String TRANSFORM_ID = "transform";
 
-	private static final String MAIN_INPUT_NAME = "input";
-	private static final String MAIN_OUTPUT_NAME = "output";
+    private static final String MAIN_INPUT_NAME = "input";
+    private static final String MAIN_OUTPUT_NAME = "output";
 
-	private static final String INPUT_CODER_ID = "input_coder";
-	private static final String OUTPUT_CODER_ID = "output_coder";
-	private static final String WINDOW_CODER_ID = "window_coder";
+    private static final String INPUT_CODER_ID = "input_coder";
+    private static final String OUTPUT_CODER_ID = "output_coder";
+    private static final String WINDOW_CODER_ID = "window_coder";
 
-	private static final String WINDOW_STRATEGY = "windowing_strategy";
+    private static final String WINDOW_STRATEGY = "windowing_strategy";
 
-	private final String functionUrn;
+    private final String functionUrn;
 
-	private final RowType inputType;
-	private final RowType outputType;
+    private final RowType inputType;
+    private final RowType outputType;
 
-	public AbstractPythonStatelessFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		String functionUrn,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, environmentManager, StateRequestHandler.unsupported(), jobOptions, flinkMetricContainer);
-		this.functionUrn = functionUrn;
-		this.inputType = Preconditions.checkNotNull(inputType);
-		this.outputType = Preconditions.checkNotNull(outputType);
-	}
+    public AbstractPythonStatelessFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            String functionUrn,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                resultReceiver,
+                environmentManager,
+                StateRequestHandler.unsupported(),
+                jobOptions,
+                flinkMetricContainer);
+        this.functionUrn = functionUrn;
+        this.inputType = Preconditions.checkNotNull(inputType);
+        this.outputType = Preconditions.checkNotNull(outputType);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public ExecutableStage createExecutableStage() throws Exception {
-		RunnerApi.Components components =
-			RunnerApi.Components.newBuilder()
-				.putPcollections(
-					INPUT_ID,
-					RunnerApi.PCollection.newBuilder()
-						.setWindowingStrategyId(WINDOW_STRATEGY)
-						.setCoderId(INPUT_CODER_ID)
-						.build())
-				.putPcollections(
-					OUTPUT_ID,
-					RunnerApi.PCollection.newBuilder()
-						.setWindowingStrategyId(WINDOW_STRATEGY)
-						.setCoderId(OUTPUT_CODER_ID)
-						.build())
-				.putTransforms(
-					TRANSFORM_ID,
-					RunnerApi.PTransform.newBuilder()
-						.setUniqueName(TRANSFORM_ID)
-						.setSpec(RunnerApi.FunctionSpec.newBuilder()
-							.setUrn(functionUrn)
-							.setPayload(
-								org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
-									getUserDefinedFunctionsProto().toByteArray()))
-							.build())
-						.putInputs(MAIN_INPUT_NAME, INPUT_ID)
-						.putOutputs(MAIN_OUTPUT_NAME, OUTPUT_ID)
-						.build())
-				.putWindowingStrategies(
-					WINDOW_STRATEGY,
-					RunnerApi.WindowingStrategy.newBuilder()
-						.setWindowCoderId(WINDOW_CODER_ID)
-						.build())
-				.putCoders(
-					INPUT_CODER_ID,
-					getInputCoderProto())
-				.putCoders(
-					OUTPUT_CODER_ID,
-					getOutputCoderProto())
-				.putCoders(
-					WINDOW_CODER_ID,
-					getWindowCoderProto())
-				.build();
+    @Override
+    @SuppressWarnings("unchecked")
+    public ExecutableStage createExecutableStage() throws Exception {
+        RunnerApi.Components components =
+                RunnerApi.Components.newBuilder()
+                        .putPcollections(
+                                INPUT_ID,
+                                RunnerApi.PCollection.newBuilder()
+                                        .setWindowingStrategyId(WINDOW_STRATEGY)
+                                        .setCoderId(INPUT_CODER_ID)
+                                        .build())
+                        .putPcollections(
+                                OUTPUT_ID,
+                                RunnerApi.PCollection.newBuilder()
+                                        .setWindowingStrategyId(WINDOW_STRATEGY)
+                                        .setCoderId(OUTPUT_CODER_ID)
+                                        .build())
+                        .putTransforms(
+                                TRANSFORM_ID,
+                                RunnerApi.PTransform.newBuilder()
+                                        .setUniqueName(TRANSFORM_ID)
+                                        .setSpec(
+                                                RunnerApi.FunctionSpec.newBuilder()
+                                                        .setUrn(functionUrn)
+                                                        .setPayload(
+                                                                org.apache.beam.vendor.grpc.v1p21p0
+                                                                        .com.google.protobuf
+                                                                        .ByteString.copyFrom(
+                                                                        getUserDefinedFunctionsProto()
+                                                                                .toByteArray()))
+                                                        .build())
+                                        .putInputs(MAIN_INPUT_NAME, INPUT_ID)
+                                        .putOutputs(MAIN_OUTPUT_NAME, OUTPUT_ID)
+                                        .build())
+                        .putWindowingStrategies(
+                                WINDOW_STRATEGY,
+                                RunnerApi.WindowingStrategy.newBuilder()
+                                        .setWindowCoderId(WINDOW_CODER_ID)
+                                        .build())
+                        .putCoders(INPUT_CODER_ID, getInputCoderProto())
+                        .putCoders(OUTPUT_CODER_ID, getOutputCoderProto())
+                        .putCoders(WINDOW_CODER_ID, getWindowCoderProto())
+                        .build();
 
-		PipelineNode.PCollectionNode input =
-			PipelineNode.pCollection(INPUT_ID, components.getPcollectionsOrThrow(INPUT_ID));
-		List<SideInputReference> sideInputs = Collections.EMPTY_LIST;
-		List<UserStateReference> userStates = Collections.EMPTY_LIST;
-		List<TimerReference> timers = Collections.EMPTY_LIST;
-		List<PipelineNode.PTransformNode> transforms =
-			Collections.singletonList(
-				PipelineNode.pTransform(TRANSFORM_ID, components.getTransformsOrThrow(TRANSFORM_ID)));
-		List<PipelineNode.PCollectionNode> outputs =
-			Collections.singletonList(
-				PipelineNode.pCollection(OUTPUT_ID, components.getPcollectionsOrThrow(OUTPUT_ID)));
-		return ImmutableExecutableStage.of(
-			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
-	}
+        PipelineNode.PCollectionNode input =
+                PipelineNode.pCollection(INPUT_ID, components.getPcollectionsOrThrow(INPUT_ID));
+        List<SideInputReference> sideInputs = Collections.EMPTY_LIST;
+        List<UserStateReference> userStates = Collections.EMPTY_LIST;
+        List<TimerReference> timers = Collections.EMPTY_LIST;
+        List<PipelineNode.PTransformNode> transforms =
+                Collections.singletonList(
+                        PipelineNode.pTransform(
+                                TRANSFORM_ID, components.getTransformsOrThrow(TRANSFORM_ID)));
+        List<PipelineNode.PCollectionNode> outputs =
+                Collections.singletonList(
+                        PipelineNode.pCollection(
+                                OUTPUT_ID, components.getPcollectionsOrThrow(OUTPUT_ID)));
+        return ImmutableExecutableStage.of(
+                components,
+                createPythonExecutionEnvironment(),
+                input,
+                sideInputs,
+                userStates,
+                timers,
+                transforms,
+                outputs,
+                createValueOnlyWireCoderSetting());
+    }
 
-	public FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
-		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
-		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
-		for (Object input : pythonFunctionInfo.getInputs()) {
-			FlinkFnApi.UserDefinedFunction.Input.Builder inputProto =
-				FlinkFnApi.UserDefinedFunction.Input.newBuilder();
-			if (input instanceof PythonFunctionInfo) {
-				inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
-			} else if (input instanceof Integer) {
-				inputProto.setInputOffset((Integer) input);
-			} else {
-				inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
-			}
-			builder.addInputs(inputProto);
-		}
-		return builder.build();
-	}
+    public FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(
+            PythonFunctionInfo pythonFunctionInfo) {
+        FlinkFnApi.UserDefinedFunction.Builder builder =
+                FlinkFnApi.UserDefinedFunction.newBuilder();
+        builder.setPayload(
+                ByteString.copyFrom(
+                        pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
+        for (Object input : pythonFunctionInfo.getInputs()) {
+            FlinkFnApi.UserDefinedFunction.Input.Builder inputProto =
+                    FlinkFnApi.UserDefinedFunction.Input.newBuilder();
+            if (input instanceof PythonFunctionInfo) {
+                inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
+            } else if (input instanceof Integer) {
+                inputProto.setInputOffset((Integer) input);
+            } else {
+                inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
+            }
+            builder.addInputs(inputProto);
+        }
+        return builder.build();
+    }
 
-	private RunnerApi.WireCoderSetting createValueOnlyWireCoderSetting() throws IOException {
-		WindowedValue<byte[]> value = WindowedValue.valueInGlobalWindow(new byte[0]);
-		Coder<? extends BoundedWindow> windowCoder = GlobalWindow.Coder.INSTANCE;
-		WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder =
-			WindowedValue.FullWindowedValueCoder.of(ByteArrayCoder.of(), windowCoder);
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		windowedValueCoder.encode(value, baos);
-		return RunnerApi.WireCoderSetting.newBuilder()
-			.setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
-			.setPayload(
-				org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(baos.toByteArray()))
-			.build();
-	}
+    private RunnerApi.WireCoderSetting createValueOnlyWireCoderSetting() throws IOException {
+        WindowedValue<byte[]> value = WindowedValue.valueInGlobalWindow(new byte[0]);
+        Coder<? extends BoundedWindow> windowCoder = GlobalWindow.Coder.INSTANCE;
+        WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder =
+                WindowedValue.FullWindowedValueCoder.of(ByteArrayCoder.of(), windowCoder);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        windowedValueCoder.encode(value, baos);
+        return RunnerApi.WireCoderSetting.newBuilder()
+                .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
+                .setPayload(
+                        org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
+                                baos.toByteArray()))
+                .build();
+    }
 
-	/**
-	 * Gets the logical type of the input elements of the Python user-defined functions.
-	 */
-	public RowType getInputType() {
-		return inputType;
-	}
+    /** Gets the logical type of the input elements of the Python user-defined functions. */
+    public RowType getInputType() {
+        return inputType;
+    }
 
-	/**
-	 * Gets the logical type of the execution results of the Python user-defined functions.
-	 */
-	public RowType getOutputType() {
-		return outputType;
-	}
+    /** Gets the logical type of the execution results of the Python user-defined functions. */
+    public RowType getOutputType() {
+        return outputType;
+    }
 
-	/**
-	 * Gets the proto representation of the input coder.
-	 */
-	private RunnerApi.Coder getInputCoderProto() {
-		return getRowCoderProto(inputType);
-	}
+    /** Gets the proto representation of the input coder. */
+    private RunnerApi.Coder getInputCoderProto() {
+        return getRowCoderProto(inputType);
+    }
 
-	/**
-	 * Gets the proto representation of the output coder.
-	 */
-	private RunnerApi.Coder getOutputCoderProto() {
-		return getRowCoderProto(outputType);
-	}
+    /** Gets the proto representation of the output coder. */
+    private RunnerApi.Coder getOutputCoderProto() {
+        return getRowCoderProto(outputType);
+    }
 
-	private RunnerApi.Coder getRowCoderProto(RowType rowType) {
-		return RunnerApi.Coder.newBuilder()
-			.setSpec(
-				RunnerApi.FunctionSpec.newBuilder()
-					.setUrn(getInputOutputCoderUrn())
-					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
-						toProtoType(rowType).getRowSchema().toByteArray()))
-					.build())
-			.build();
-	}
+    private RunnerApi.Coder getRowCoderProto(RowType rowType) {
+        return RunnerApi.Coder.newBuilder()
+                .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                                .setUrn(getInputOutputCoderUrn())
+                                .setPayload(
+                                        org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf
+                                                .ByteString.copyFrom(
+                                                toProtoType(rowType).getRowSchema().toByteArray()))
+                                .build())
+                .build();
+    }
 
-	private FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
-		return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
-	}
+    private FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
+        return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
+    }
 
-	public abstract String getInputOutputCoderUrn();
+    public abstract String getInputOutputCoderUrn();
 
-	/**
-	 * Gets the proto representation of the window coder.
-	 */
-	private RunnerApi.Coder getWindowCoderProto() {
-		return RunnerApi.Coder.newBuilder()
-			.setSpec(
-				RunnerApi.FunctionSpec.newBuilder()
-					.setUrn(ModelCoders.GLOBAL_WINDOW_CODER_URN)
-					.build())
-			.build();
-	}
+    /** Gets the proto representation of the window coder. */
+    private RunnerApi.Coder getWindowCoderProto() {
+        return RunnerApi.Coder.newBuilder()
+                .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                                .setUrn(ModelCoders.GLOBAL_WINDOW_CODER_URN)
+                                .build())
+                .build();
+    }
 
-	/**
-	 * Gets the proto representation of the Python user-defined functions to be executed.
-	 */
-	@VisibleForTesting
-	public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
+    /** Gets the proto representation of the Python user-defined functions to be executed. */
+    @VisibleForTesting
+    public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 }

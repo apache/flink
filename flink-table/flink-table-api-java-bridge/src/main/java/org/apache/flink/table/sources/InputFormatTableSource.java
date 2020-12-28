@@ -34,23 +34,20 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToL
 @Experimental
 public abstract class InputFormatTableSource<T> implements StreamTableSource<T> {
 
-	/**
-	 * Returns an {@link InputFormat} for reading the data of the table.
-	 */
-	public abstract InputFormat<T, ?> getInputFormat();
+    /** Returns an {@link InputFormat} for reading the data of the table. */
+    public abstract InputFormat<T, ?> getInputFormat();
 
-	/**
-	 * Always returns true which indicates this is a bounded source.
-	 */
-	@Override
-	public final boolean isBounded() {
-		return true;
-	}
+    /** Always returns true which indicates this is a bounded source. */
+    @Override
+    public final boolean isBounded() {
+        return true;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public final DataStream<T> getDataStream(StreamExecutionEnvironment execEnv) {
-		TypeInformation<T> typeInfo = (TypeInformation<T>) fromDataTypeToLegacyInfo(getProducedDataType());
-		return execEnv.createInput(getInputFormat(), typeInfo);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public final DataStream<T> getDataStream(StreamExecutionEnvironment execEnv) {
+        TypeInformation<T> typeInfo =
+                (TypeInformation<T>) fromDataTypeToLegacyInfo(getProducedDataType());
+        return execEnv.createInput(getInputFormat(), typeInfo);
+    }
 }

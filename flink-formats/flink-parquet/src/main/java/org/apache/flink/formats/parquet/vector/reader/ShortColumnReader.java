@@ -26,59 +26,57 @@ import org.apache.parquet.schema.PrimitiveType;
 
 import java.io.IOException;
 
-/**
- * Short {@link ColumnReader}. Using INT32 to store short, so just cast int to short.
- */
+/** Short {@link ColumnReader}. Using INT32 to store short, so just cast int to short. */
 public class ShortColumnReader extends AbstractColumnReader<WritableShortVector> {
 
-	public ShortColumnReader(
-			ColumnDescriptor descriptor,
-			PageReader pageReader) throws IOException {
-		super(descriptor, pageReader);
-		checkTypeName(PrimitiveType.PrimitiveTypeName.INT32);
-	}
+    public ShortColumnReader(ColumnDescriptor descriptor, PageReader pageReader)
+            throws IOException {
+        super(descriptor, pageReader);
+        checkTypeName(PrimitiveType.PrimitiveTypeName.INT32);
+    }
 
-	@Override
-	protected void readBatch(int rowId, int num, WritableShortVector column) {
-		int left = num;
-		while (left > 0) {
-			if (runLenDecoder.currentCount == 0) {
-				runLenDecoder.readNextGroup();
-			}
-			int n = Math.min(left, runLenDecoder.currentCount);
-			switch (runLenDecoder.mode) {
-				case RLE:
-					if (runLenDecoder.currentValue == maxDefLevel) {
-						for (int i = 0; i < n; i++) {
-							column.setShort(rowId + i, (short) readDataBuffer(4).getInt());
-						}
-					} else {
-						column.setNulls(rowId, n);
-					}
-					break;
-				case PACKED:
-					for (int i = 0; i < n; ++i) {
-						if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++] == maxDefLevel) {
-							column.setShort(rowId + i, (short) readDataBuffer(4).getInt());
-						} else {
-							column.setNullAt(rowId + i);
-						}
-					}
-					break;
-			}
-			rowId += n;
-			left -= n;
-			runLenDecoder.currentCount -= n;
-		}
-	}
+    @Override
+    protected void readBatch(int rowId, int num, WritableShortVector column) {
+        int left = num;
+        while (left > 0) {
+            if (runLenDecoder.currentCount == 0) {
+                runLenDecoder.readNextGroup();
+            }
+            int n = Math.min(left, runLenDecoder.currentCount);
+            switch (runLenDecoder.mode) {
+                case RLE:
+                    if (runLenDecoder.currentValue == maxDefLevel) {
+                        for (int i = 0; i < n; i++) {
+                            column.setShort(rowId + i, (short) readDataBuffer(4).getInt());
+                        }
+                    } else {
+                        column.setNulls(rowId, n);
+                    }
+                    break;
+                case PACKED:
+                    for (int i = 0; i < n; ++i) {
+                        if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++]
+                                == maxDefLevel) {
+                            column.setShort(rowId + i, (short) readDataBuffer(4).getInt());
+                        } else {
+                            column.setNullAt(rowId + i);
+                        }
+                    }
+                    break;
+            }
+            rowId += n;
+            left -= n;
+            runLenDecoder.currentCount -= n;
+        }
+    }
 
-	@Override
-	protected void readBatchFromDictionaryIds(int rowId, int num, WritableShortVector column,
-			WritableIntVector dictionaryIds) {
-		for (int i = rowId; i < rowId + num; ++i) {
-			if (!column.isNullAt(i)) {
-				column.setShort(i, (short) dictionary.decodeToInt(dictionaryIds.getInt(i)));
-			}
-		}
-	}
+    @Override
+    protected void readBatchFromDictionaryIds(
+            int rowId, int num, WritableShortVector column, WritableIntVector dictionaryIds) {
+        for (int i = rowId; i < rowId + num; ++i) {
+            if (!column.isNullAt(i)) {
+                column.setShort(i, (short) dictionary.decodeToInt(dictionaryIds.getInt(i)));
+            }
+        }
+    }
 }

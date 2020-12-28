@@ -28,38 +28,43 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * Builder for the {@link TestingResourceActions}.
- */
+/** Builder for the {@link TestingResourceActions}. */
 public class TestingResourceActionsBuilder {
-	private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
-	private Function<WorkerResourceSpec, Boolean> allocateResourceFunction = (ignored) -> true;
-	private Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer = (ignored) -> {};
+    private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
+    private Function<WorkerResourceSpec, Boolean> allocateResourceFunction = (ignored) -> true;
+    private Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer =
+            (ignored) -> {};
 
-	public TestingResourceActionsBuilder setReleaseResourceConsumer(BiConsumer<InstanceID, Exception> releaseResourceConsumer) {
-		this.releaseResourceConsumer = releaseResourceConsumer;
-		return this;
-	}
+    public TestingResourceActionsBuilder setReleaseResourceConsumer(
+            BiConsumer<InstanceID, Exception> releaseResourceConsumer) {
+        this.releaseResourceConsumer = releaseResourceConsumer;
+        return this;
+    }
 
-	public TestingResourceActionsBuilder setAllocateResourceFunction(Function<WorkerResourceSpec, Boolean> allocateResourceFunction) {
-		this.allocateResourceFunction = allocateResourceFunction;
-		return this;
-	}
+    public TestingResourceActionsBuilder setAllocateResourceFunction(
+            Function<WorkerResourceSpec, Boolean> allocateResourceFunction) {
+        this.allocateResourceFunction = allocateResourceFunction;
+        return this;
+    }
 
-	public TestingResourceActionsBuilder setAllocateResourceConsumer(Consumer<WorkerResourceSpec> allocateResourceConsumer) {
-		this.allocateResourceFunction = workerRequest -> {
-			allocateResourceConsumer.accept(workerRequest);
-			return true;
-		};
-		return this;
-	}
+    public TestingResourceActionsBuilder setAllocateResourceConsumer(
+            Consumer<WorkerResourceSpec> allocateResourceConsumer) {
+        this.allocateResourceFunction =
+                workerRequest -> {
+                    allocateResourceConsumer.accept(workerRequest);
+                    return true;
+                };
+        return this;
+    }
 
-	public TestingResourceActionsBuilder setNotifyAllocationFailureConsumer(Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
-		this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
-		return this;
-	}
+    public TestingResourceActionsBuilder setNotifyAllocationFailureConsumer(
+            Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
+        this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
+        return this;
+    }
 
-	public TestingResourceActions build() {
-		return new TestingResourceActions(releaseResourceConsumer, allocateResourceFunction, notifyAllocationFailureConsumer);
-	}
+    public TestingResourceActions build() {
+        return new TestingResourceActions(
+                releaseResourceConsumer, allocateResourceFunction, notifyAllocationFailureConsumer);
+    }
 }

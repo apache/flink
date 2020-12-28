@@ -16,48 +16,60 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
-
 
 public class QuotedStringParserTest extends ParserTestBase<String> {
 
     @Override
     public String[] getValidTestValues() {
         return new String[] {
-                "\"\\\"Hello World\\\"\"",
-                "\"abcdefgh\"", "\"i\"", "\"jklmno\"", "\"abc|de|fgh\"",
-                "\"abc&&&&def&&&&ghij\"", "\"i\"", "\"Hello9\"",
-                "abcdefgh", "i", "jklmno", "Hello9"
+            "\"\\\"Hello World\\\"\"",
+            "\"abcdefgh\"",
+            "\"i\"",
+            "\"jklmno\"",
+            "\"abc|de|fgh\"",
+            "\"abc&&&&def&&&&ghij\"",
+            "\"i\"",
+            "\"Hello9\"",
+            "abcdefgh",
+            "i",
+            "jklmno",
+            "Hello9"
         };
     }
 
     @Override
     public String[] getValidTestResults() {
         return new String[] {
-                "\\\"Hello World\\\"",
-                "abcdefgh", "i", "jklmno", "abc|de|fgh",
-                "abc&&&&def&&&&ghij", "i", "Hello9",
-                "abcdefgh", "i", "jklmno", "Hello9"
+            "\\\"Hello World\\\"",
+            "abcdefgh",
+            "i",
+            "jklmno",
+            "abc|de|fgh",
+            "abc&&&&def&&&&ghij",
+            "i",
+            "Hello9",
+            "abcdefgh",
+            "i",
+            "jklmno",
+            "Hello9"
         };
     }
 
     @Override
     public String[] getInvalidTestValues() {
-        return new String[] {
-                "\"abcd\"ef", "\"abcdef"
-        };
+        return new String[] {"\"abcd\"ef", "\"abcdef"};
     }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return true;
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return true;
+    }
 
     @Override
     public FieldParser<String> getParser() {
         StringParser p = new StringParser();
-        p.enableQuotedStringParsing((byte)'"');
+        p.enableQuotedStringParsing((byte) '"');
         return p;
     }
 

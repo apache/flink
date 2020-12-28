@@ -27,33 +27,32 @@ import java.io.Serializable;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Simple test for the {@link ErrorInfo}.
- */
+/** Simple test for the {@link ErrorInfo}. */
 public class ErrorInfoTest {
 
-	@Test
-	public void testSerializationWithExceptionOutsideClassLoader() throws Exception {
-		final ErrorInfo error = new ErrorInfo(new ExceptionWithCustomClassLoader(), System.currentTimeMillis());
-		final ErrorInfo copy = CommonTestUtils.createCopySerializable(error);
+    @Test
+    public void testSerializationWithExceptionOutsideClassLoader() throws Exception {
+        final ErrorInfo error =
+                new ErrorInfo(new ExceptionWithCustomClassLoader(), System.currentTimeMillis());
+        final ErrorInfo copy = CommonTestUtils.createCopySerializable(error);
 
-		assertEquals(error.getTimestamp(), copy.getTimestamp());
-		assertEquals(error.getExceptionAsString(), copy.getExceptionAsString());
-		assertEquals(error.getException().getMessage(), copy.getException().getMessage());
+        assertEquals(error.getTimestamp(), copy.getTimestamp());
+        assertEquals(error.getExceptionAsString(), copy.getExceptionAsString());
+        assertEquals(error.getException().getMessage(), copy.getException().getMessage());
+    }
 
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
+    private static final class ExceptionWithCustomClassLoader extends Exception {
 
-	private static final class ExceptionWithCustomClassLoader extends Exception {
+        private static final long serialVersionUID = 42L;
 
-		private static final long serialVersionUID = 42L;
+        @SuppressWarnings("unused")
+        private final Serializable outOfClassLoader =
+                ClassLoaderUtils.createSerializableObjectFromNewClassLoader().getObject();
 
-		@SuppressWarnings("unused")
-		private final Serializable outOfClassLoader = ClassLoaderUtils.createSerializableObjectFromNewClassLoader().getObject();
-
-		public ExceptionWithCustomClassLoader() {
-			super("tada");
-		}
-	}
+        public ExceptionWithCustomClassLoader() {
+            super("tada");
+        }
+    }
 }

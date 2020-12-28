@@ -24,25 +24,23 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.io.Serializable;
 
-/**
- * A special {@link ChannelSelector} for use in streaming programs.
- */
+/** A special {@link ChannelSelector} for use in streaming programs. */
 @Internal
-public abstract class StreamPartitioner<T> implements
-		ChannelSelector<SerializationDelegate<StreamRecord<T>>>, Serializable {
-	private static final long serialVersionUID = 1L;
+public abstract class StreamPartitioner<T>
+        implements ChannelSelector<SerializationDelegate<StreamRecord<T>>>, Serializable {
+    private static final long serialVersionUID = 1L;
 
-	protected int numberOfChannels;
+    protected int numberOfChannels;
 
-	@Override
-	public void setup(int numberOfChannels) {
-		this.numberOfChannels = numberOfChannels;
-	}
+    @Override
+    public void setup(int numberOfChannels) {
+        this.numberOfChannels = numberOfChannels;
+    }
 
-	@Override
-	public boolean isBroadcast() {
-		return false;
-	}
+    @Override
+    public boolean isBroadcast() {
+        return false;
+    }
 
-	public abstract StreamPartitioner<T> copy();
+    public abstract StreamPartitioner<T> copy();
 }

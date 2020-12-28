@@ -28,16 +28,16 @@ import java.util.List;
 import java.util.Map;
 
 class TestBufferReceivedListener implements BufferReceivedListener {
-	private final Map<InputChannelInfo, List<Buffer>> notifiedOnBuffers = new HashMap<>();
-	final Map<InputChannelInfo, List<CheckpointBarrier>> notifiedOnBarriers = new HashMap<>();
+    private final Map<InputChannelInfo, List<Buffer>> notifiedOnBuffers = new HashMap<>();
+    final Map<InputChannelInfo, List<CheckpointBarrier>> notifiedOnBarriers = new HashMap<>();
 
-	@Override
-	public void notifyBufferReceived(Buffer buffer, InputChannelInfo channelInfo) {
-		notifiedOnBuffers.computeIfAbsent(channelInfo, unused -> new ArrayList<>()).add(buffer);
-	}
+    @Override
+    public void notifyBufferReceived(Buffer buffer, InputChannelInfo channelInfo) {
+        notifiedOnBuffers.computeIfAbsent(channelInfo, unused -> new ArrayList<>()).add(buffer);
+    }
 
-	@Override
-	public void notifyBarrierReceived(CheckpointBarrier barrier, InputChannelInfo channelInfo) {
-		notifiedOnBarriers.computeIfAbsent(channelInfo, unused -> new ArrayList<>()).add(barrier);
-	}
+    @Override
+    public void notifyBarrierReceived(CheckpointBarrier barrier, InputChannelInfo channelInfo) {
+        notifiedOnBarriers.computeIfAbsent(channelInfo, unused -> new ArrayList<>()).add(barrier);
+    }
 }

@@ -35,51 +35,60 @@ import org.apache.hadoop.hbase.util.Bytes;
  * <p>To run the test first create the test table with hbase shell.
  *
  * <p>Use the following commands:
+ *
  * <ul>
- *     <li>create 'test-table', 'someCf'</li>
- *     <li>put 'test-table', '1', 'someCf:someQual', 'someString'</li>
- *     <li>put 'test-table', '2', 'someCf:someQual', 'anotherString'</li>
+ *   <li>create 'test-table', 'someCf'
+ *   <li>put 'test-table', '1', 'someCf:someQual', 'someString'
+ *   <li>put 'test-table', '2', 'someCf:someQual', 'anotherString'
  * </ul>
  *
  * <p>The test should return just the first entry.
- *
  */
 public class HBaseReadExample {
-	public static void main(String[] args) throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		@SuppressWarnings("serial")
-		DataSet<Tuple2<String, String>> hbaseDs = env.createInput(new HBaseInputFormat<Tuple2<String, String>>(HBaseConfiguration.create()) {
+    public static void main(String[] args) throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        @SuppressWarnings("serial")
+        DataSet<Tuple2<String, String>> hbaseDs =
+                env.createInput(
+                                new HBaseInputFormat<Tuple2<String, String>>(
+                                        HBaseConfiguration.create()) {
 
-				@Override
-				public String getTableName() {
-					return HBaseFlinkTestConstants.TEST_TABLE_NAME;
-				}
+                                    @Override
+                                    public String getTableName() {
+                                        return HBaseFlinkTestConstants.TEST_TABLE_NAME;
+                                    }
 
-				@Override
-				protected Scan getScanner() {
-					Scan scan = new Scan();
-					scan.addColumn(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME);
-					return scan;
-				}
+                                    @Override
+                                    protected Scan getScanner() {
+                                        Scan scan = new Scan();
+                                        scan.addColumn(
+                                                HBaseFlinkTestConstants.CF_SOME,
+                                                HBaseFlinkTestConstants.Q_SOME);
+                                        return scan;
+                                    }
 
-				private Tuple2<String, String> reuse = new Tuple2<>();
+                                    private Tuple2<String, String> reuse = new Tuple2<>();
 
-				@Override
-				protected Tuple2<String, String> mapResultToTuple(Result r) {
-					String key = Bytes.toString(r.getRow());
-					String val = Bytes.toString(r.getValue(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME));
-					reuse.setField(key, 0);
-					reuse.setField(val, 1);
-					return reuse;
-				}
-		})
-		.filter((FilterFunction<Tuple2<String, String>>) t -> {
-			String val = t.getField(1);
-			return val.startsWith("someStr");
-		});
+                                    @Override
+                                    protected Tuple2<String, String> mapResultToTuple(Result r) {
+                                        String key = Bytes.toString(r.getRow());
+                                        String val =
+                                                Bytes.toString(
+                                                        r.getValue(
+                                                                HBaseFlinkTestConstants.CF_SOME,
+                                                                HBaseFlinkTestConstants.Q_SOME));
+                                        reuse.setField(key, 0);
+                                        reuse.setField(val, 1);
+                                        return reuse;
+                                    }
+                                })
+                        .filter(
+                                (FilterFunction<Tuple2<String, String>>)
+                                        t -> {
+                                            String val = t.getField(1);
+                                            return val.startsWith("someStr");
+                                        });
 
-		hbaseDs.print();
-
-	}
-
+        hbaseDs.print();
+    }
 }

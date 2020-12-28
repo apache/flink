@@ -45,119 +45,133 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link TaskManagerRunner}.
- */
+/** Tests for the {@link TaskManagerRunner}. */
 public class TaskManagerRunnerTest extends TestLogger {
 
-	@Rule
-	public final Timeout timeout = Timeout.seconds(30);
+    @Rule public final Timeout timeout = Timeout.seconds(30);
 
-	private SystemExitTrackingSecurityManager systemExitTrackingSecurityManager;
-	private TaskManagerRunner taskManagerRunner;
+    private SystemExitTrackingSecurityManager systemExitTrackingSecurityManager;
+    private TaskManagerRunner taskManagerRunner;
 
-	@Before
-	public void before() {
-		systemExitTrackingSecurityManager = new SystemExitTrackingSecurityManager();
-		System.setSecurityManager(systemExitTrackingSecurityManager);
-	}
+    @Before
+    public void before() {
+        systemExitTrackingSecurityManager = new SystemExitTrackingSecurityManager();
+        System.setSecurityManager(systemExitTrackingSecurityManager);
+    }
 
-	@After
-	public void after() throws Exception {
-		System.setSecurityManager(null);
-		if (taskManagerRunner != null) {
-			taskManagerRunner.close();
-		}
-	}
+    @After
+    public void after() throws Exception {
+        System.setSecurityManager(null);
+        if (taskManagerRunner != null) {
+            taskManagerRunner.close();
+        }
+    }
 
-	@Test
-	public void testShouldShutdownOnFatalError() throws Exception {
-		Configuration configuration = createConfiguration();
-		// very high timeout, to ensure that we don't fail because of registration timeouts
-		configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("42 h"));
-		taskManagerRunner = createTaskManagerRunner(configuration);
+    @Test
+    public void testShouldShutdownOnFatalError() throws Exception {
+        Configuration configuration = createConfiguration();
+        // very high timeout, to ensure that we don't fail because of registration timeouts
+        configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("42 h"));
+        taskManagerRunner = createTaskManagerRunner(configuration);
 
-		taskManagerRunner.onFatalError(new RuntimeException());
+        taskManagerRunner.onFatalError(new RuntimeException());
 
-		Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
-		assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
-	}
+        Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
+        assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
+    }
 
-	@Test
-	public void testShouldShutdownIfRegistrationWithJobManagerFails() throws Exception {
-		Configuration configuration = createConfiguration();
-		configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("10 ms"));
-		taskManagerRunner = createTaskManagerRunner(configuration);
+    @Test
+    public void testShouldShutdownIfRegistrationWithJobManagerFails() throws Exception {
+        Configuration configuration = createConfiguration();
+        configuration.set(
+                TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("10 ms"));
+        taskManagerRunner = createTaskManagerRunner(configuration);
 
-		Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
-		assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
-	}
+        Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
+        assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
+    }
 
-	@Test
-	public void testUnexpectedTaskManagerTerminationFailsRunnerFatally() throws Exception {
-		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-		final TestingTaskExecutorService taskExecutorService = TestingTaskExecutorService.newBuilder()
-				.setTerminationFuture(terminationFuture)
-				.build();
-		final TaskManagerRunner taskManagerRunner = createTaskManagerRunner(
-				createConfiguration(),
-				createTaskExecutorServiceFactory(taskExecutorService));
+    @Test
+    public void testUnexpectedTaskManagerTerminationFailsRunnerFatally() throws Exception {
+        final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+        final TestingTaskExecutorService taskExecutorService =
+                TestingTaskExecutorService.newBuilder()
+                        .setTerminationFuture(terminationFuture)
+                        .build();
+        final TaskManagerRunner taskManagerRunner =
+                createTaskManagerRunner(
+                        createConfiguration(),
+                        createTaskExecutorServiceFactory(taskExecutorService));
 
-		terminationFuture.completeExceptionally(new FlinkException("Test exception."));
+        terminationFuture.completeExceptionally(new FlinkException("Test exception."));
 
-		Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
-		assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
-	}
+        Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
+        assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
+    }
 
-	@Test
-	public void testUnexpectedTaskManagerTerminationAfterRunnerCloseWillBeIgnored() throws Exception {
-		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-		final TestingTaskExecutorService taskExecutorService = TestingTaskExecutorService.newBuilder()
-				.setTerminationFuture(terminationFuture)
-				.withManualTerminationFutureCompletion()
-				.build();
-		final TaskManagerRunner taskManagerRunner = createTaskManagerRunner(
-				createConfiguration(),
-				createTaskExecutorServiceFactory(taskExecutorService));
+    @Test
+    public void testUnexpectedTaskManagerTerminationAfterRunnerCloseWillBeIgnored()
+            throws Exception {
+        final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+        final TestingTaskExecutorService taskExecutorService =
+                TestingTaskExecutorService.newBuilder()
+                        .setTerminationFuture(terminationFuture)
+                        .withManualTerminationFutureCompletion()
+                        .build();
+        final TaskManagerRunner taskManagerRunner =
+                createTaskManagerRunner(
+                        createConfiguration(),
+                        createTaskExecutorServiceFactory(taskExecutorService));
 
-		taskManagerRunner.closeAsync();
+        taskManagerRunner.closeAsync();
 
-		terminationFuture.completeExceptionally(new FlinkException("Test exception."));
+        terminationFuture.completeExceptionally(new FlinkException("Test exception."));
 
-		assertThat(systemExitTrackingSecurityManager.getSystemExitFuture(), willNotComplete(Duration.ofMillis(10L)));
-	}
+        assertThat(
+                systemExitTrackingSecurityManager.getSystemExitFuture(),
+                willNotComplete(Duration.ofMillis(10L)));
+    }
 
-	@Nonnull
-	private TaskManagerRunner.TaskExecutorServiceFactory createTaskExecutorServiceFactory(
-			TestingTaskExecutorService taskExecutorService) {
-		return (
-				configuration,
-				resourceID,
-				rpcService,
-				highAvailabilityServices,
-				heartbeatServices,
-				metricRegistry,
-				blobCacheService,
-				localCommunicationOnly,
-				externalResourceInfoProvider,
-				fatalErrorHandler) -> taskExecutorService;
-	}
+    @Nonnull
+    private TaskManagerRunner.TaskExecutorServiceFactory createTaskExecutorServiceFactory(
+            TestingTaskExecutorService taskExecutorService) {
+        return (configuration,
+                resourceID,
+                rpcService,
+                highAvailabilityServices,
+                heartbeatServices,
+                metricRegistry,
+                blobCacheService,
+                localCommunicationOnly,
+                externalResourceInfoProvider,
+                fatalErrorHandler) -> taskExecutorService;
+    }
 
-	private static Configuration createConfiguration() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
-		configuration.setString(TaskManagerOptions.HOST, "localhost");
-		return TaskExecutorResourceUtils.adjustForLocalExecution(configuration);
-	}
+    private static Configuration createConfiguration() {
+        final Configuration configuration = new Configuration();
+        configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+        configuration.setString(TaskManagerOptions.HOST, "localhost");
+        return TaskExecutorResourceUtils.adjustForLocalExecution(configuration);
+    }
 
-	private static TaskManagerRunner createTaskManagerRunner(final Configuration configuration) throws Exception {
-		return createTaskManagerRunner(configuration, TaskManagerRunner::createTaskExecutorService);
-	}
+    private static TaskManagerRunner createTaskManagerRunner(final Configuration configuration)
+            throws Exception {
+        return createTaskManagerRunner(configuration, TaskManagerRunner::createTaskExecutorService);
+    }
 
-	private static TaskManagerRunner createTaskManagerRunner(final Configuration configuration, TaskManagerRunner.TaskExecutorServiceFactory taskExecutorServiceFactory) throws Exception {
-		final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
-		TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, ResourceID.generate(), pluginManager, taskExecutorServiceFactory);
-		taskManagerRunner.start();
-		return taskManagerRunner;
-	}
+    private static TaskManagerRunner createTaskManagerRunner(
+            final Configuration configuration,
+            TaskManagerRunner.TaskExecutorServiceFactory taskExecutorServiceFactory)
+            throws Exception {
+        final PluginManager pluginManager =
+                PluginUtils.createPluginManagerFromRootFolder(configuration);
+        TaskManagerRunner taskManagerRunner =
+                new TaskManagerRunner(
+                        configuration,
+                        ResourceID.generate(),
+                        pluginManager,
+                        taskExecutorServiceFactory);
+        taskManagerRunner.start();
+        return taskManagerRunner;
+    }
 }

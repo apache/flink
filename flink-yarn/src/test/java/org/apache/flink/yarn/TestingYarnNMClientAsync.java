@@ -29,52 +29,56 @@ import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.impl.NMClientAsyncImpl;
 
-/**
- * A Yarn {@link NMClientAsync} implementation for testing.
- */
+/** A Yarn {@link NMClientAsync} implementation for testing. */
 class TestingYarnNMClientAsync extends NMClientAsyncImpl {
 
-	private volatile TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
-	private volatile TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
+    private volatile TriConsumer<Container, ContainerLaunchContext, CallbackHandler>
+            startContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
+    private volatile TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer =
+            (ignored1, ignored2, ignored3) -> {};
 
-	TestingYarnNMClientAsync(final CallbackHandler callbackHandler) {
-		super(callbackHandler);
-	}
+    TestingYarnNMClientAsync(final CallbackHandler callbackHandler) {
+        super(callbackHandler);
+    }
 
-	@Override
-	public void startContainerAsync(Container container, ContainerLaunchContext containerLaunchContext) {
-		this.startContainerAsyncConsumer.accept(container, containerLaunchContext, callbackHandler);
-	}
+    @Override
+    public void startContainerAsync(
+            Container container, ContainerLaunchContext containerLaunchContext) {
+        this.startContainerAsyncConsumer.accept(container, containerLaunchContext, callbackHandler);
+    }
 
-	@Override
-	public void stopContainerAsync(ContainerId containerId, NodeId nodeId) {
-		this.stopContainerAsyncConsumer.accept(containerId, nodeId, callbackHandler);
-	}
+    @Override
+    public void stopContainerAsync(ContainerId containerId, NodeId nodeId) {
+        this.stopContainerAsyncConsumer.accept(containerId, nodeId, callbackHandler);
+    }
 
-	void setStartContainerAsyncConsumer(TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer) {
-		this.startContainerAsyncConsumer = Preconditions.checkNotNull(startContainerAsyncConsumer);
-	}
+    void setStartContainerAsyncConsumer(
+            TriConsumer<Container, ContainerLaunchContext, CallbackHandler>
+                    startContainerAsyncConsumer) {
+        this.startContainerAsyncConsumer = Preconditions.checkNotNull(startContainerAsyncConsumer);
+    }
 
-	void setStopContainerAsyncConsumer(TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer) {
-		this.stopContainerAsyncConsumer = Preconditions.checkNotNull(stopContainerAsyncConsumer);
-	}
+    void setStopContainerAsyncConsumer(
+            TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer) {
+        this.stopContainerAsyncConsumer = Preconditions.checkNotNull(stopContainerAsyncConsumer);
+    }
 
-	// ------------------------------------------------------------------------
-	//  Override lifecycle methods to avoid actually starting the service
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Override lifecycle methods to avoid actually starting the service
+    // ------------------------------------------------------------------------
 
-	@Override
-	protected void serviceInit(Configuration conf) throws Exception {
-		// noop
-	}
+    @Override
+    protected void serviceInit(Configuration conf) throws Exception {
+        // noop
+    }
 
-	@Override
-	protected void serviceStart() throws Exception {
-		// noop
-	}
+    @Override
+    protected void serviceStart() throws Exception {
+        // noop
+    }
 
-	@Override
-	protected void serviceStop() throws Exception {
-		// noop
-	}
+    @Override
+    protected void serviceStop() throws Exception {
+        // noop
+    }
 }

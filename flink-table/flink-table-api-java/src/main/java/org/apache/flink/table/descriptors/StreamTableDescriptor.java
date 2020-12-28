@@ -30,12 +30,13 @@ import org.apache.flink.table.api.internal.Registration;
 @PublicEvolving
 public final class StreamTableDescriptor extends ConnectTableDescriptor {
 
-	public StreamTableDescriptor(Registration registration, ConnectorDescriptor connectorDescriptor) {
-		super(registration, connectorDescriptor);
-	}
+    public StreamTableDescriptor(
+            Registration registration, ConnectorDescriptor connectorDescriptor) {
+        super(registration, connectorDescriptor);
+    }
 
-	@Override
-	public StreamTableDescriptor withSchema(Schema schema) {
-		return (StreamTableDescriptor) super.withSchema(schema);
-	}
+    @Override
+    public StreamTableDescriptor withSchema(Schema schema) {
+        return (StreamTableDescriptor) super.withSchema(schema);
+    }
 }

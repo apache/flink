@@ -30,62 +30,64 @@ import java.util.List;
 
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link NumberSequenceSource}.
- */
+/** Tests for the {@link NumberSequenceSource}. */
 public class NumberSequenceSourceTest {
 
-	@Test
-	public void testReaderCheckpoints() throws Exception {
-		final long from = 177;
-		final long mid = 333;
-		final long to = 563;
-		final long elementsPerCycle = (to - from) / 3;
+    @Test
+    public void testReaderCheckpoints() throws Exception {
+        final long from = 177;
+        final long mid = 333;
+        final long to = 563;
+        final long elementsPerCycle = (to - from) / 3;
 
-		final TestingReaderOutput<Long> out = new TestingReaderOutput<>();
+        final TestingReaderOutput<Long> out = new TestingReaderOutput<>();
 
-		SourceReader<Long, NumberSequenceSource.NumberSequenceSplit> reader = createReader();
-		reader.addSplits(Arrays.asList(
-				new NumberSequenceSource.NumberSequenceSplit("split-1", from, mid),
-				new NumberSequenceSource.NumberSequenceSplit("split-2", mid + 1, to)));
+        SourceReader<Long, NumberSequenceSource.NumberSequenceSplit> reader = createReader();
+        reader.addSplits(
+                Arrays.asList(
+                        new NumberSequenceSource.NumberSequenceSplit("split-1", from, mid),
+                        new NumberSequenceSource.NumberSequenceSplit("split-2", mid + 1, to)));
 
-		long remainingInCycle = elementsPerCycle;
-		while (reader.pollNext(out) != InputStatus.END_OF_INPUT) {
-			if (--remainingInCycle <= 0) {
-				remainingInCycle = elementsPerCycle;
-				// checkpoint
-				List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState(1L);
+        long remainingInCycle = elementsPerCycle;
+        while (reader.pollNext(out) != InputStatus.END_OF_INPUT) {
+            if (--remainingInCycle <= 0) {
+                remainingInCycle = elementsPerCycle;
+                // checkpoint
+                List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState(1L);
 
-				// re-create and restore
-				reader = createReader();
-				reader.addSplits(splits);
-			}
-		}
+                // re-create and restore
+                reader = createReader();
+                reader.addSplits(splits);
+            }
+        }
 
-		final List<Long> result = out.getEmittedRecords();
-		validateSequence(result, from, to);
-	}
+        final List<Long> result = out.getEmittedRecords();
+        validateSequence(result, from, to);
+    }
 
-	private static void validateSequence(final List<Long> sequence, final long from, final long to) {
-		if (sequence.size() != to - from + 1) {
-			failSequence(sequence, from, to);
-		}
+    private static void validateSequence(
+            final List<Long> sequence, final long from, final long to) {
+        if (sequence.size() != to - from + 1) {
+            failSequence(sequence, from, to);
+        }
 
-		long nextExpected = from;
-		for (Long next : sequence) {
-			if (next != nextExpected++) {
-				failSequence(sequence, from, to);
-			}
-		}
-	}
+        long nextExpected = from;
+        for (Long next : sequence) {
+            if (next != nextExpected++) {
+                failSequence(sequence, from, to);
+            }
+        }
+    }
 
-	private static void failSequence(final List<Long> sequence, final long from, final long to) {
-		fail(String.format("Expected: A sequence [%d, %d], but found: sequence (size %d) : %s",
-				from, to, sequence.size(), sequence));
-	}
+    private static void failSequence(final List<Long> sequence, final long from, final long to) {
+        fail(
+                String.format(
+                        "Expected: A sequence [%d, %d], but found: sequence (size %d) : %s",
+                        from, to, sequence.size(), sequence));
+    }
 
-	private static SourceReader<Long, NumberSequenceSource.NumberSequenceSplit> createReader() {
-		// the arguments passed in the source constructor matter only to the enumerator
-		return new NumberSequenceSource(0L, 0L).createReader(new TestingReaderContext());
-	}
+    private static SourceReader<Long, NumberSequenceSource.NumberSequenceSplit> createReader() {
+        // the arguments passed in the source constructor matter only to the enumerator
+        return new NumberSequenceSource(0L, 0L).createReader(new TestingReaderContext());
+    }
 }

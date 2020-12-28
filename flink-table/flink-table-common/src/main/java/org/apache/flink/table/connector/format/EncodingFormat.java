@@ -30,8 +30,9 @@ import org.apache.flink.table.types.DataType;
 @PublicEvolving
 public interface EncodingFormat<I> extends Format {
 
-	/**
-	 * Creates runtime encoder implementation that is configured to consume data of the given data type.
-	 */
-	I createRuntimeEncoder(DynamicTableSink.Context context, DataType consumedDataType);
+    /**
+     * Creates runtime encoder implementation that is configured to consume data of the given data
+     * type.
+     */
+    I createRuntimeEncoder(DynamicTableSink.Context context, DataType consumedDataType);
 }

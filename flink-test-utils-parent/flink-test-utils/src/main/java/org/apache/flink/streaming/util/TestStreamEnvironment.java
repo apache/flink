@@ -35,103 +35,91 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}.
- */
+/** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
-	/** The job executor to use to execute environment's jobs. */
-	private final JobExecutor jobExecutor;
+    /** The job executor to use to execute environment's jobs. */
+    private final JobExecutor jobExecutor;
 
-	private final Collection<Path> jarFiles;
+    private final Collection<Path> jarFiles;
 
-	private final Collection<URL> classPaths;
+    private final Collection<URL> classPaths;
 
-	public TestStreamEnvironment(
-			JobExecutor jobExecutor,
-			int parallelism,
-			Collection<Path> jarFiles,
-			Collection<URL> classPaths) {
+    public TestStreamEnvironment(
+            JobExecutor jobExecutor,
+            int parallelism,
+            Collection<Path> jarFiles,
+            Collection<URL> classPaths) {
 
-		this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
-		this.jarFiles = Preconditions.checkNotNull(jarFiles);
-		this.classPaths = Preconditions.checkNotNull(classPaths);
-		getConfiguration().set(DeploymentOptions.TARGET, LocalExecutor.NAME);
-		getConfiguration().set(DeploymentOptions.ATTACHED, true);
+        this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
+        this.jarFiles = Preconditions.checkNotNull(jarFiles);
+        this.classPaths = Preconditions.checkNotNull(classPaths);
+        getConfiguration().set(DeploymentOptions.TARGET, LocalExecutor.NAME);
+        getConfiguration().set(DeploymentOptions.ATTACHED, true);
 
-		setParallelism(parallelism);
-	}
+        setParallelism(parallelism);
+    }
 
-	public TestStreamEnvironment(
-			JobExecutor jobExecutor,
-			int parallelism) {
-		this(jobExecutor, parallelism, Collections.emptyList(), Collections.emptyList());
-	}
+    public TestStreamEnvironment(JobExecutor jobExecutor, int parallelism) {
+        this(jobExecutor, parallelism, Collections.emptyList(), Collections.emptyList());
+    }
 
-	@Override
-	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		final JobGraph jobGraph = streamGraph.getJobGraph();
+    @Override
+    public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+        final JobGraph jobGraph = streamGraph.getJobGraph();
 
-		for (Path jarFile : jarFiles) {
-			jobGraph.addJar(jarFile);
-		}
+        for (Path jarFile : jarFiles) {
+            jobGraph.addJar(jarFile);
+        }
 
-		jobGraph.setClasspaths(new ArrayList<>(classPaths));
+        jobGraph.setClasspaths(new ArrayList<>(classPaths));
 
-		return jobExecutor.executeJobBlocking(jobGraph);
-	}
+        return jobExecutor.executeJobBlocking(jobGraph);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
-	 * the given cluster with the given default parallelism and the specified jar files and class
-	 * paths.
-	 *
-	 * @param jobExecutor The executor to execute the jobs on
-	 * @param parallelism The default parallelism for the test programs.
-	 * @param jarFiles Additional jar files to execute the job with
-	 * @param classpaths Additional class paths to execute the job with
-	 */
-	public static void setAsContext(
-			final JobExecutor jobExecutor,
-			final int parallelism,
-			final Collection<Path> jarFiles,
-			final Collection<URL> classpaths) {
+    /**
+     * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
+     * the given cluster with the given default parallelism and the specified jar files and class
+     * paths.
+     *
+     * @param jobExecutor The executor to execute the jobs on
+     * @param parallelism The default parallelism for the test programs.
+     * @param jarFiles Additional jar files to execute the job with
+     * @param classpaths Additional class paths to execute the job with
+     */
+    public static void setAsContext(
+            final JobExecutor jobExecutor,
+            final int parallelism,
+            final Collection<Path> jarFiles,
+            final Collection<URL> classpaths) {
 
-		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
-			@Override
-			public StreamExecutionEnvironment createExecutionEnvironment() {
-				return new TestStreamEnvironment(
-					jobExecutor,
-					parallelism,
-					jarFiles,
-					classpaths);
-			}
-		};
+        StreamExecutionEnvironmentFactory factory =
+                new StreamExecutionEnvironmentFactory() {
+                    @Override
+                    public StreamExecutionEnvironment createExecutionEnvironment() {
+                        return new TestStreamEnvironment(
+                                jobExecutor, parallelism, jarFiles, classpaths);
+                    }
+                };
 
-		initializeContextEnvironment(factory);
-	}
+        initializeContextEnvironment(factory);
+    }
 
-	/**
-	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
-	 * the given cluster with the given default parallelism.
-	 *
-	 * @param jobExecutor The executor to execute the jobs on
-	 * @param parallelism The default parallelism for the test programs.
-	 */
-	public static void setAsContext(final JobExecutor jobExecutor, final int parallelism) {
-		setAsContext(
-			jobExecutor,
-			parallelism,
-			Collections.emptyList(),
-			Collections.emptyList());
-	}
+    /**
+     * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
+     * the given cluster with the given default parallelism.
+     *
+     * @param jobExecutor The executor to execute the jobs on
+     * @param parallelism The default parallelism for the test programs.
+     */
+    public static void setAsContext(final JobExecutor jobExecutor, final int parallelism) {
+        setAsContext(jobExecutor, parallelism, Collections.emptyList(), Collections.emptyList());
+    }
 
-	/**
-	 * Resets the streaming context environment to null.
-	 */
-	public static void unsetAsContext() {
-		resetContextEnvironment();
-	}
+    /** Resets the streaming context environment to null. */
+    public static void unsetAsContext() {
+        resetContextEnvironment();
+    }
 }

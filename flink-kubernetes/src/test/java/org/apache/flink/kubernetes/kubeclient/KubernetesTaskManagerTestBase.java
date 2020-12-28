@@ -32,70 +32,81 @@ import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Base test class for the TaskManager side.
- */
+/** Base test class for the TaskManager side. */
 public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 
-	protected static final int RPC_PORT = 12345;
+    protected static final int RPC_PORT = 12345;
 
-	protected static final String POD_NAME = "taskmanager-pod-1";
-	private static final String DYNAMIC_PROPERTIES = "";
+    protected static final String POD_NAME = "taskmanager-pod-1";
+    private static final String DYNAMIC_PROPERTIES = "";
 
-	protected static final int TOTAL_PROCESS_MEMORY = 1184;
-	protected static final double TASK_MANAGER_CPU = 2.0;
+    protected static final int TOTAL_PROCESS_MEMORY = 1184;
+    protected static final double TASK_MANAGER_CPU = 2.0;
 
-	protected final Map<String, String> customizedEnvs = new HashMap<String, String>() {
-		{
-			put("key1", "value1");
-			put("key2", "value2");
-		}
-	};
+    protected final Map<String, String> customizedEnvs =
+            new HashMap<String, String>() {
+                {
+                    put("key1", "value1");
+                    put("key2", "value2");
+                }
+            };
 
-	protected final Map<String, String> userLabels = new HashMap<String, String>() {
-		{
-			put("label1", "value1");
-			put("label2", "value2");
-		}
-	};
+    protected final Map<String, String> userLabels =
+            new HashMap<String, String>() {
+                {
+                    put("label1", "value1");
+                    put("label2", "value2");
+                }
+            };
 
-	protected final Map<String, String> nodeSelector = new HashMap<String, String>() {
-		{
-			put("env", "production");
-			put("disk", "ssd");
-		}
-	};
+    protected final Map<String, String> nodeSelector =
+            new HashMap<String, String>() {
+                {
+                    put("env", "production");
+                    put("disk", "ssd");
+                }
+            };
 
-	protected TaskExecutorProcessSpec taskExecutorProcessSpec;
+    protected TaskExecutorProcessSpec taskExecutorProcessSpec;
 
-	protected ContaineredTaskManagerParameters containeredTaskManagerParameters;
+    protected ContaineredTaskManagerParameters containeredTaskManagerParameters;
 
-	protected KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
+    protected KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
 
-	protected FlinkPod baseFlinkPod = new FlinkPod.Builder().build();
+    protected FlinkPod baseFlinkPod = new FlinkPod.Builder().build();
 
-	@Override
-	protected void setupFlinkConfig() {
-		super.setupFlinkConfig();
+    @Override
+    protected void setupFlinkConfig() {
+        super.setupFlinkConfig();
 
-		flinkConfig.set(TaskManagerOptions.RPC_PORT, String.valueOf(RPC_PORT));
-		flinkConfig.set(TaskManagerOptions.CPU_CORES, TASK_MANAGER_CPU);
-		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(TOTAL_PROCESS_MEMORY + "m"));
-		customizedEnvs.forEach((k, v) ->
-			flinkConfig.setString(ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + k, v));
-		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_LABELS, userLabels);
-		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR, nodeSelector);
-	}
+        flinkConfig.set(TaskManagerOptions.RPC_PORT, String.valueOf(RPC_PORT));
+        flinkConfig.set(TaskManagerOptions.CPU_CORES, TASK_MANAGER_CPU);
+        flinkConfig.set(
+                TaskManagerOptions.TOTAL_PROCESS_MEMORY,
+                MemorySize.parse(TOTAL_PROCESS_MEMORY + "m"));
+        customizedEnvs.forEach(
+                (k, v) ->
+                        flinkConfig.setString(
+                                ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + k,
+                                v));
+        this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_LABELS, userLabels);
+        this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR, nodeSelector);
+    }
 
-	@Override
-	protected void onSetup() throws Exception {
-		taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(flinkConfig);
-		containeredTaskManagerParameters = ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
-		kubernetesTaskManagerParameters = new KubernetesTaskManagerParameters(
-				flinkConfig,
-				POD_NAME,
-				DYNAMIC_PROPERTIES,
-				containeredTaskManagerParameters,
-				ExternalResourceUtils.getExternalResources(flinkConfig, KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));
-	}
+    @Override
+    protected void onSetup() throws Exception {
+        taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(flinkConfig);
+        containeredTaskManagerParameters =
+                ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
+        kubernetesTaskManagerParameters =
+                new KubernetesTaskManagerParameters(
+                        flinkConfig,
+                        POD_NAME,
+                        DYNAMIC_PROPERTIES,
+                        containeredTaskManagerParameters,
+                        ExternalResourceUtils.getExternalResources(
+                                flinkConfig,
+                                KubernetesConfigOptions
+                                        .EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));
+    }
 }

@@ -24,30 +24,28 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import java.util.Random;
 
 /**
- * Partitioner that distributes the data equally by selecting one output channel
- * randomly.
+ * Partitioner that distributes the data equally by selecting one output channel randomly.
  *
- * @param <T>
- *            Type of the Tuple
+ * @param <T> Type of the Tuple
  */
 @Internal
 public class ShufflePartitioner<T> extends StreamPartitioner<T> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private Random random = new Random();
+    private Random random = new Random();
 
-	@Override
-	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
-		return random.nextInt(numberOfChannels);
-	}
+    @Override
+    public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
+        return random.nextInt(numberOfChannels);
+    }
 
-	@Override
-	public StreamPartitioner<T> copy() {
-		return new ShufflePartitioner<T>();
-	}
+    @Override
+    public StreamPartitioner<T> copy() {
+        return new ShufflePartitioner<T>();
+    }
 
-	@Override
-	public String toString() {
-		return "SHUFFLE";
-	}
+    @Override
+    public String toString() {
+        return "SHUFFLE";
+    }
 }

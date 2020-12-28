@@ -43,116 +43,110 @@ import java.util.Set;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITER;
 
-/**
- * Test csv {@link FileSystemFormatFactory}.
- */
+/** Test csv {@link FileSystemFormatFactory}. */
 public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
-	public static final ConfigOption<Boolean> USE_BULK_WRITER = ConfigOptions.key("use-bulk-writer")
-			.booleanType()
-			.defaultValue(false);
+    public static final ConfigOption<Boolean> USE_BULK_WRITER =
+            ConfigOptions.key("use-bulk-writer").booleanType().defaultValue(false);
 
-	@Override
-	public String factoryIdentifier() {
-		return "testcsv";
-	}
+    @Override
+    public String factoryIdentifier() {
+        return "testcsv";
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(USE_BULK_WRITER);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(USE_BULK_WRITER);
+        return options;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		return new TestRowDataCsvInputFormat(
-				context.getPaths(),
-				context.getSchema(),
-				context.getPartitionKeys(),
-				context.getDefaultPartName(),
-				context.getProjectFields(),
-				context.getPushedDownLimit());
-	}
+    @Override
+    public InputFormat<RowData, ?> createReader(ReaderContext context) {
+        return new TestRowDataCsvInputFormat(
+                context.getPaths(),
+                context.getSchema(),
+                context.getPartitionKeys(),
+                context.getDefaultPartName(),
+                context.getProjectFields(),
+                context.getPushedDownLimit());
+    }
 
-	private boolean useBulkWriter(WriterContext context) {
-		return context.getFormatOptions().get(USE_BULK_WRITER);
-	}
+    private boolean useBulkWriter(WriterContext context) {
+        return context.getFormatOptions().get(USE_BULK_WRITER);
+    }
 
-	@Override
-	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		if (useBulkWriter(context)) {
-			return Optional.empty();
-		}
+    @Override
+    public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
+        if (useBulkWriter(context)) {
+            return Optional.empty();
+        }
 
-		DataType[] types = context.getFormatFieldTypes();
-		return Optional.of((rowData, stream) -> {
-			writeCsvToStream(types, rowData, stream);
-		});
-	}
+        DataType[] types = context.getFormatFieldTypes();
+        return Optional.of(
+                (rowData, stream) -> {
+                    writeCsvToStream(types, rowData, stream);
+                });
+    }
 
-	private static void writeCsvToStream(
-			DataType[] types,
-			RowData rowData,
-			OutputStream stream) throws IOException {
-		LogicalType[] fieldTypes = Arrays.stream(types)
-				.map(DataType::getLogicalType)
-				.toArray(LogicalType[]::new);
-		DataFormatConverters.DataFormatConverter converter = DataFormatConverters.getConverterForDataType(
-				TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
+    private static void writeCsvToStream(DataType[] types, RowData rowData, OutputStream stream)
+            throws IOException {
+        LogicalType[] fieldTypes =
+                Arrays.stream(types).map(DataType::getLogicalType).toArray(LogicalType[]::new);
+        DataFormatConverters.DataFormatConverter converter =
+                DataFormatConverters.getConverterForDataType(
+                        TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
 
-		Row row = (Row) converter.toExternal(rowData);
-		StringBuilder builder = new StringBuilder();
-		Object o;
-		for (int i = 0; i < row.getArity(); i++) {
-			if (i > 0) {
-				builder.append(DEFAULT_FIELD_DELIMITER);
-			}
-			if ((o = row.getField(i)) != null) {
-				builder.append(o);
-			}
-		}
-		String str = builder.toString();
-		stream.write(str.getBytes(StandardCharsets.UTF_8));
-		stream.write(DEFAULT_LINE_DELIMITER.getBytes(StandardCharsets.UTF_8));
-	}
+        Row row = (Row) converter.toExternal(rowData);
+        StringBuilder builder = new StringBuilder();
+        Object o;
+        for (int i = 0; i < row.getArity(); i++) {
+            if (i > 0) {
+                builder.append(DEFAULT_FIELD_DELIMITER);
+            }
+            if ((o = row.getField(i)) != null) {
+                builder.append(o);
+            }
+        }
+        String str = builder.toString();
+        stream.write(str.getBytes(StandardCharsets.UTF_8));
+        stream.write(DEFAULT_LINE_DELIMITER.getBytes(StandardCharsets.UTF_8));
+    }
 
-	@Override
-	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
-		if (!useBulkWriter(context)) {
-			return Optional.empty();
-		}
+    @Override
+    public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
+        if (!useBulkWriter(context)) {
+            return Optional.empty();
+        }
 
-		DataType[] types = context.getFormatFieldTypes();
-		return Optional.of(out -> new CsvBulkWriter(types, out));
-	}
+        DataType[] types = context.getFormatFieldTypes();
+        return Optional.of(out -> new CsvBulkWriter(types, out));
+    }
 
-	private static class CsvBulkWriter implements BulkWriter<RowData> {
+    private static class CsvBulkWriter implements BulkWriter<RowData> {
 
-		private final DataType[] types;
-		private final OutputStream stream;
+        private final DataType[] types;
+        private final OutputStream stream;
 
-		private CsvBulkWriter(DataType[] types, OutputStream stream) {
-			this.types = types;
-			this.stream = stream;
-		}
+        private CsvBulkWriter(DataType[] types, OutputStream stream) {
+            this.types = types;
+            this.stream = stream;
+        }
 
-		@Override
-		public void addElement(RowData element) throws IOException {
-			writeCsvToStream(types, element, stream);
-		}
+        @Override
+        public void addElement(RowData element) throws IOException {
+            writeCsvToStream(types, element, stream);
+        }
 
-		@Override
-		public void flush() {
-		}
+        @Override
+        public void flush() {}
 
-		@Override
-		public void finish() {
-		}
-	}
+        @Override
+        public void finish() {}
+    }
 }

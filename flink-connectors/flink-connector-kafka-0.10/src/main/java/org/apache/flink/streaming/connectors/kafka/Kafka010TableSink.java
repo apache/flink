@@ -27,36 +27,26 @@ import org.apache.flink.types.Row;
 import java.util.Optional;
 import java.util.Properties;
 
-/**
- * Kafka 0.10 table sink for writing data into Kafka.
- */
+/** Kafka 0.10 table sink for writing data into Kafka. */
 @Internal
 public class Kafka010TableSink extends KafkaTableSinkBase {
 
-	public Kafka010TableSink(
-			TableSchema schema,
-			String topic,
-			Properties properties,
-			Optional<FlinkKafkaPartitioner<Row>> partitioner,
-			SerializationSchema<Row> serializationSchema) {
-		super(
-			schema,
-			topic,
-			properties,
-			partitioner,
-			serializationSchema);
-	}
+    public Kafka010TableSink(
+            TableSchema schema,
+            String topic,
+            Properties properties,
+            Optional<FlinkKafkaPartitioner<Row>> partitioner,
+            SerializationSchema<Row> serializationSchema) {
+        super(schema, topic, properties, partitioner, serializationSchema);
+    }
 
-	@Override
-	protected FlinkKafkaProducerBase<Row> createKafkaProducer(
-			String topic,
-			Properties properties,
-			SerializationSchema<Row> serializationSchema,
-			Optional<FlinkKafkaPartitioner<Row>> partitioner) {
-		return new FlinkKafkaProducer010<>(
-			topic,
-			serializationSchema,
-			properties,
-			partitioner.orElse(null));
-	}
+    @Override
+    protected FlinkKafkaProducerBase<Row> createKafkaProducer(
+            String topic,
+            Properties properties,
+            SerializationSchema<Row> serializationSchema,
+            Optional<FlinkKafkaPartitioner<Row>> partitioner) {
+        return new FlinkKafkaProducer010<>(
+                topic, serializationSchema, properties, partitioner.orElse(null));
+    }
 }

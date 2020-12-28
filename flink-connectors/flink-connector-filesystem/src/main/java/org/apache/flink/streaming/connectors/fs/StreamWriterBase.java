@@ -24,85 +24,75 @@ import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 
-/**
- * Base class for {@link Writer Writers} that write to a {@link FSDataOutputStream}.
- */
+/** Base class for {@link Writer Writers} that write to a {@link FSDataOutputStream}. */
 @Deprecated
 public abstract class StreamWriterBase<T> implements Writer<T> {
 
-	private static final long serialVersionUID = 2L;
+    private static final long serialVersionUID = 2L;
 
-	/**
-	 * The {@code FSDataOutputStream} for the current part file.
-	 */
-	private transient FSDataOutputStream outStream;
+    /** The {@code FSDataOutputStream} for the current part file. */
+    private transient FSDataOutputStream outStream;
 
-	private boolean syncOnFlush;
+    private boolean syncOnFlush;
 
-	public StreamWriterBase() {
-	}
+    public StreamWriterBase() {}
 
-	protected StreamWriterBase(StreamWriterBase<T> other) {
-		this.syncOnFlush = other.syncOnFlush;
-	}
+    protected StreamWriterBase(StreamWriterBase<T> other) {
+        this.syncOnFlush = other.syncOnFlush;
+    }
 
-	/**
-	 * Controls whether to sync {@link FSDataOutputStream} on flush.
-	 */
-	public void setSyncOnFlush(boolean syncOnFlush) {
-		this.syncOnFlush = syncOnFlush;
-	}
+    /** Controls whether to sync {@link FSDataOutputStream} on flush. */
+    public void setSyncOnFlush(boolean syncOnFlush) {
+        this.syncOnFlush = syncOnFlush;
+    }
 
-	/**
-	 * Returns the current output stream, if the stream is open.
-	 */
-	protected FSDataOutputStream getStream() {
-		if (outStream == null) {
-			throw new IllegalStateException("Output stream has not been opened");
-		}
-		return outStream;
-	}
+    /** Returns the current output stream, if the stream is open. */
+    protected FSDataOutputStream getStream() {
+        if (outStream == null) {
+            throw new IllegalStateException("Output stream has not been opened");
+        }
+        return outStream;
+    }
 
-	@Override
-	public void open(FileSystem fs, Path path) throws IOException {
-		if (outStream != null) {
-			throw new IllegalStateException("Writer has already been opened");
-		}
-		outStream = fs.create(path, false);
-	}
+    @Override
+    public void open(FileSystem fs, Path path) throws IOException {
+        if (outStream != null) {
+            throw new IllegalStateException("Writer has already been opened");
+        }
+        outStream = fs.create(path, false);
+    }
 
-	@Override
-	public long flush() throws IOException {
-		if (outStream == null) {
-			throw new IllegalStateException("Writer is not open");
-		}
-		if (syncOnFlush) {
-			outStream.hsync();
-		}
-		else {
-			outStream.hflush();
-		}
-		return outStream.getPos();
-	}
+    @Override
+    public long flush() throws IOException {
+        if (outStream == null) {
+            throw new IllegalStateException("Writer is not open");
+        }
+        if (syncOnFlush) {
+            outStream.hsync();
+        } else {
+            outStream.hflush();
+        }
+        return outStream.getPos();
+    }
 
-	@Override
-	public long getPos() throws IOException {
-		if (outStream == null) {
-			throw new IllegalStateException("Writer is not open");
-		}
-		return outStream.getPos();
-	}
+    @Override
+    public long getPos() throws IOException {
+        if (outStream == null) {
+            throw new IllegalStateException("Writer is not open");
+        }
+        return outStream.getPos();
+    }
 
-	@Override
-	public void close() throws IOException {
-		if (outStream != null) {
-			flush();
-			outStream.close();
-			outStream = null;
-		}
-	}
+    @Override
+    public void close() throws IOException {
+        if (outStream != null) {
+            flush();
+            outStream.close();
+            outStream = null;
+        }
+    }
 
-	public boolean isSyncOnFlush() {
-		return syncOnFlush;
-	}
+    public boolean isSyncOnFlush() {
+        return syncOnFlush;
+    }
 }

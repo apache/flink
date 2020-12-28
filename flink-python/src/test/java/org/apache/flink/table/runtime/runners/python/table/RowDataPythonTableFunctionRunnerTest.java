@@ -36,41 +36,42 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link RowDataPythonTableFunctionRunner}. These test that
- * the input data type and output data type are properly constructed.
+ * Tests for {@link RowDataPythonTableFunctionRunner}. These test that the input data type and
+ * output data type are properly constructed.
  */
-public class RowDataPythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRunnerTest<RowData> {
+public class RowDataPythonTableFunctionRunnerTest
+        extends AbstractPythonTableFunctionRunnerTest<RowData> {
 
-	@Test
-	public void testInputOutputDataTypeConstructedProperlyForSingleUDTF() throws Exception {
-		final AbstractPythonTableFunctionRunner<RowData> runner = createUDTFRunner();
+    @Test
+    public void testInputOutputDataTypeConstructedProperlyForSingleUDTF() throws Exception {
+        final AbstractPythonTableFunctionRunner<RowData> runner = createUDTFRunner();
 
-		// check input TypeSerializer
-		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertTrue(inputTypeSerializer instanceof RowDataSerializer);
+        // check input TypeSerializer
+        TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
+        assertTrue(inputTypeSerializer instanceof RowDataSerializer);
 
-		assertEquals(1, ((RowDataSerializer) inputTypeSerializer).getArity());
-	}
+        assertEquals(1, ((RowDataSerializer) inputTypeSerializer).getArity());
+    }
 
-	@Override
-	public AbstractPythonTableFunctionRunner<RowData> createPythonTableFunctionRunner(
-		PythonFunctionInfo pythonFunctionInfo,
-		RowType inputType,
-		RowType outputType) throws Exception {
-		final FnDataReceiver<byte[]> dummyReceiver = input -> {
-			// ignore the execution results
-		};
+    @Override
+    public AbstractPythonTableFunctionRunner<RowData> createPythonTableFunctionRunner(
+            PythonFunctionInfo pythonFunctionInfo, RowType inputType, RowType outputType)
+            throws Exception {
+        final FnDataReceiver<byte[]> dummyReceiver =
+                input -> {
+                    // ignore the execution results
+                };
 
-		final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
+        final PythonEnvironmentManager environmentManager = createTestEnvironmentManager();
 
-		return new RowDataPythonTableFunctionRunner(
-			"testPythonRunner",
-			dummyReceiver,
-			pythonFunctionInfo,
-			environmentManager,
-			inputType,
-			outputType,
-			Collections.emptyMap(),
-			PythonTestUtils.createMockFlinkMetricContainer());
-	}
+        return new RowDataPythonTableFunctionRunner(
+                "testPythonRunner",
+                dummyReceiver,
+                pythonFunctionInfo,
+                environmentManager,
+                inputType,
+                outputType,
+                Collections.emptyMap(),
+                PythonTestUtils.createMockFlinkMetricContainer());
+    }
 }

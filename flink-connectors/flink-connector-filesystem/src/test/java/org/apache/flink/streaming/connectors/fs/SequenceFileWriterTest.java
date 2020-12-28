@@ -25,20 +25,19 @@ import org.junit.Test;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link SequenceFileWriter}.
- */
+/** Tests for {@link SequenceFileWriter}. */
 public class SequenceFileWriterTest {
 
-	@Test
-	public void testDuplicate() {
-		SequenceFileWriter<Text, Text> writer = new SequenceFileWriter("BZ", SequenceFile.CompressionType.BLOCK);
-		writer.setSyncOnFlush(true);
-		SequenceFileWriter<Text, Text> other = writer.duplicate();
+    @Test
+    public void testDuplicate() {
+        SequenceFileWriter<Text, Text> writer =
+                new SequenceFileWriter("BZ", SequenceFile.CompressionType.BLOCK);
+        writer.setSyncOnFlush(true);
+        SequenceFileWriter<Text, Text> other = writer.duplicate();
 
-		assertTrue(StreamWriterBaseComparator.equals(writer, other));
+        assertTrue(StreamWriterBaseComparator.equals(writer, other));
 
-		writer.setSyncOnFlush(false);
-		assertFalse(StreamWriterBaseComparator.equals(writer, other));
-	}
+        writer.setSyncOnFlush(false);
+        assertFalse(StreamWriterBaseComparator.equals(writer, other));
+    }
 }

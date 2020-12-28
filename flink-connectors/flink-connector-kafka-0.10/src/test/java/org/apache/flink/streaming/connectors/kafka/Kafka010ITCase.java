@@ -47,300 +47,321 @@ import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
-/**
- * IT cases for Kafka 0.10 .
- */
+/** IT cases for Kafka 0.10 . */
 public class Kafka010ITCase extends KafkaConsumerTestBase {
 
-	// ------------------------------------------------------------------------
-	//  Suite of Tests
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Suite of Tests
+    // ------------------------------------------------------------------------
 
-	@Test(timeout = 60000)
-	public void testFailOnNoBroker() throws Exception {
-		runFailOnNoBrokerTest();
-	}
+    @Test(timeout = 60000)
+    public void testFailOnNoBroker() throws Exception {
+        runFailOnNoBrokerTest();
+    }
 
-	@Test(timeout = 60000)
-	public void testConcurrentProducerConsumerTopology() throws Exception {
-		runSimpleConcurrentProducerConsumerTopology();
-	}
+    @Test(timeout = 60000)
+    public void testConcurrentProducerConsumerTopology() throws Exception {
+        runSimpleConcurrentProducerConsumerTopology();
+    }
 
-	@Test(timeout = 60000)
-	public void testKeyValueSupport() throws Exception {
-		runKeyValueTest();
-	}
+    @Test(timeout = 60000)
+    public void testKeyValueSupport() throws Exception {
+        runKeyValueTest();
+    }
 
-	// --- canceling / failures ---
+    // --- canceling / failures ---
 
-	@Test(timeout = 60000)
-	public void testCancelingEmptyTopic() throws Exception {
-		runCancelingOnEmptyInputTest();
-	}
+    @Test(timeout = 60000)
+    public void testCancelingEmptyTopic() throws Exception {
+        runCancelingOnEmptyInputTest();
+    }
 
-	@Test(timeout = 60000)
-	public void testCancelingFullTopic() throws Exception {
-		runCancelingOnFullInputTest();
-	}
-	// --- source to partition mappings and exactly once ---
+    @Test(timeout = 60000)
+    public void testCancelingFullTopic() throws Exception {
+        runCancelingOnFullInputTest();
+    }
+    // --- source to partition mappings and exactly once ---
 
-	@Test(timeout = 60000)
-	public void testOneToOneSources() throws Exception {
-		runOneToOneExactlyOnceTest();
-	}
+    @Test(timeout = 60000)
+    public void testOneToOneSources() throws Exception {
+        runOneToOneExactlyOnceTest();
+    }
 
-	@Test(timeout = 60000)
-	public void testOneSourceMultiplePartitions() throws Exception {
-		runOneSourceMultiplePartitionsExactlyOnceTest();
-	}
+    @Test(timeout = 60000)
+    public void testOneSourceMultiplePartitions() throws Exception {
+        runOneSourceMultiplePartitionsExactlyOnceTest();
+    }
 
-	@Test(timeout = 60000)
-	public void testMultipleSourcesOnePartition() throws Exception {
-		runMultipleSourcesOnePartitionExactlyOnceTest();
-	}
+    @Test(timeout = 60000)
+    public void testMultipleSourcesOnePartition() throws Exception {
+        runMultipleSourcesOnePartitionExactlyOnceTest();
+    }
 
-	// --- broker failure ---
+    // --- broker failure ---
 
-	@Test(timeout = 60000)
-	public void testBrokerFailure() throws Exception {
-		runBrokerFailureTest();
-	}
+    @Test(timeout = 60000)
+    public void testBrokerFailure() throws Exception {
+        runBrokerFailureTest();
+    }
 
-	// --- special executions ---
+    // --- special executions ---
 
-	@Test(timeout = 60000)
-	public void testBigRecordJob() throws Exception {
-		runBigRecordTestTopology();
-	}
+    @Test(timeout = 60000)
+    public void testBigRecordJob() throws Exception {
+        runBigRecordTestTopology();
+    }
 
-	@Test(timeout = 60000)
-	public void testMultipleTopics() throws Exception {
-		runProduceConsumeMultipleTopics(true);
-	}
+    @Test(timeout = 60000)
+    public void testMultipleTopics() throws Exception {
+        runProduceConsumeMultipleTopics(true);
+    }
 
-	@Test(timeout = 60000)
-	public void testAllDeletes() throws Exception {
-		runAllDeletesTest();
-	}
+    @Test(timeout = 60000)
+    public void testAllDeletes() throws Exception {
+        runAllDeletesTest();
+    }
 
-	@Test(timeout = 60000)
-	public void testMetricsAndEndOfStream() throws Exception {
-		runEndOfStreamTest();
-	}
+    @Test(timeout = 60000)
+    public void testMetricsAndEndOfStream() throws Exception {
+        runEndOfStreamTest();
+    }
 
-	// --- startup mode ---
+    // --- startup mode ---
 
-	@Test(timeout = 60000)
-	public void testStartFromEarliestOffsets() throws Exception {
-		runStartFromEarliestOffsets();
-	}
+    @Test(timeout = 60000)
+    public void testStartFromEarliestOffsets() throws Exception {
+        runStartFromEarliestOffsets();
+    }
 
-	@Test(timeout = 60000)
-	public void testStartFromLatestOffsets() throws Exception {
-		runStartFromLatestOffsets();
-	}
+    @Test(timeout = 60000)
+    public void testStartFromLatestOffsets() throws Exception {
+        runStartFromLatestOffsets();
+    }
 
-	@Test(timeout = 60000)
-	public void testStartFromGroupOffsets() throws Exception {
-		runStartFromGroupOffsets();
-	}
+    @Test(timeout = 60000)
+    public void testStartFromGroupOffsets() throws Exception {
+        runStartFromGroupOffsets();
+    }
 
-	@Test(timeout = 60000)
-	public void testStartFromSpecificOffsets() throws Exception {
-		runStartFromSpecificOffsets();
-	}
+    @Test(timeout = 60000)
+    public void testStartFromSpecificOffsets() throws Exception {
+        runStartFromSpecificOffsets();
+    }
 
-	@Test(timeout = 60000)
-	public void testStartFromTimestamp() throws Exception {
-		runStartFromTimestamp();
-	}
+    @Test(timeout = 60000)
+    public void testStartFromTimestamp() throws Exception {
+        runStartFromTimestamp();
+    }
 
-	// --- offset committing ---
+    // --- offset committing ---
 
-	@Test(timeout = 60000)
-	public void testCommitOffsetsToKafka() throws Exception {
-		runCommitOffsetsToKafka();
-	}
+    @Test(timeout = 60000)
+    public void testCommitOffsetsToKafka() throws Exception {
+        runCommitOffsetsToKafka();
+    }
 
-	@Test(timeout = 60000)
-	public void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
-		runAutoOffsetRetrievalAndCommitToKafka();
-	}
+    @Test(timeout = 60000)
+    public void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
+        runAutoOffsetRetrievalAndCommitToKafka();
+    }
 
-	@Test(timeout = 60000)
-	public void testCollectingSchema() throws Exception {
-		runCollectingSchemaTest();
-	}
+    @Test(timeout = 60000)
+    public void testCollectingSchema() throws Exception {
+        runCollectingSchemaTest();
+    }
 
-	/**
-	 * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka.
-	 */
-	@Ignore("This test is disabled because of: https://issues.apache.org/jira/browse/FLINK-9217")
-	@Test(timeout = 60000)
-	public void testTimestamps() throws Exception {
+    /**
+     * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka.
+     */
+    @Ignore("This test is disabled because of: https://issues.apache.org/jira/browse/FLINK-9217")
+    @Test(timeout = 60000)
+    public void testTimestamps() throws Exception {
 
-		final String topic = "tstopic";
-		createTestTopic(topic, 3, 1);
+        final String topic = "tstopic";
+        createTestTopic(topic, 3, 1);
 
-		// ---------- Produce an event time stream into Kafka -------------------
+        // ---------- Produce an event time stream into Kafka -------------------
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-				env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		DataStream<Long> streamWithTimestamps = env.addSource(new SourceFunction<Long>() {
-			private static final long serialVersionUID = -2255105836471289626L;
-			boolean running = true;
+        DataStream<Long> streamWithTimestamps =
+                env.addSource(
+                        new SourceFunction<Long>() {
+                            private static final long serialVersionUID = -2255105836471289626L;
+                            boolean running = true;
 
-			@Override
-			public void run(SourceContext<Long> ctx) throws Exception {
-				long i = 0;
-				while (running) {
-					ctx.collectWithTimestamp(i, i * 2);
-					if (i++ == 1000L) {
-						running = false;
-					}
-				}
-			}
+                            @Override
+                            public void run(SourceContext<Long> ctx) throws Exception {
+                                long i = 0;
+                                while (running) {
+                                    ctx.collectWithTimestamp(i, i * 2);
+                                    if (i++ == 1000L) {
+                                        running = false;
+                                    }
+                                }
+                            }
 
-			@Override
-			public void cancel() {
-				running = false;
-			}
-		});
+                            @Override
+                            public void cancel() {
+                                running = false;
+                            }
+                        });
 
-		final TypeInformationSerializationSchema<Long> longSer = new TypeInformationSerializationSchema<>(Types.LONG, env.getConfig());
-		FlinkKafkaProducer010.FlinkKafkaProducer010Configuration prod = FlinkKafkaProducer010.writeToKafkaWithTimestamps(streamWithTimestamps, topic, new KeyedSerializationSchemaWrapper<>(longSer), standardProps, new FlinkKafkaPartitioner<Long>() {
-			private static final long serialVersionUID = -6730989584364230617L;
+        final TypeInformationSerializationSchema<Long> longSer =
+                new TypeInformationSerializationSchema<>(Types.LONG, env.getConfig());
+        FlinkKafkaProducer010.FlinkKafkaProducer010Configuration prod =
+                FlinkKafkaProducer010.writeToKafkaWithTimestamps(
+                        streamWithTimestamps,
+                        topic,
+                        new KeyedSerializationSchemaWrapper<>(longSer),
+                        standardProps,
+                        new FlinkKafkaPartitioner<Long>() {
+                            private static final long serialVersionUID = -6730989584364230617L;
 
-			@Override
-			public int partition(Long next, byte[] key, byte[] value, String targetTopic, int[] partitions) {
-				return (int) (next % 3);
-			}
-		});
-		prod.setParallelism(3);
-		prod.setWriteTimestampToKafka(true);
-		env.execute("Produce some");
+                            @Override
+                            public int partition(
+                                    Long next,
+                                    byte[] key,
+                                    byte[] value,
+                                    String targetTopic,
+                                    int[] partitions) {
+                                return (int) (next % 3);
+                            }
+                        });
+        prod.setParallelism(3);
+        prod.setWriteTimestampToKafka(true);
+        env.execute("Produce some");
 
-		// ---------- Consume stream from Kafka -------------------
+        // ---------- Consume stream from Kafka -------------------
 
-		env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-				env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		FlinkKafkaConsumer010<Long> kafkaSource = new FlinkKafkaConsumer010<>(topic, new LimitedLongDeserializer(), standardProps);
-		kafkaSource.assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Long>() {
-			private static final long serialVersionUID = -4834111073247835189L;
+        FlinkKafkaConsumer010<Long> kafkaSource =
+                new FlinkKafkaConsumer010<>(topic, new LimitedLongDeserializer(), standardProps);
+        kafkaSource.assignTimestampsAndWatermarks(
+                new AssignerWithPunctuatedWatermarks<Long>() {
+                    private static final long serialVersionUID = -4834111073247835189L;
 
-			@Nullable
-			@Override
-			public Watermark checkAndGetNextWatermark(Long lastElement, long extractedTimestamp) {
-				if (lastElement % 10 == 0) {
-					return new Watermark(lastElement);
-				}
-				return null;
-			}
+                    @Nullable
+                    @Override
+                    public Watermark checkAndGetNextWatermark(
+                            Long lastElement, long extractedTimestamp) {
+                        if (lastElement % 10 == 0) {
+                            return new Watermark(lastElement);
+                        }
+                        return null;
+                    }
 
-			@Override
-			public long extractTimestamp(Long element, long previousElementTimestamp) {
-				return previousElementTimestamp;
-			}
-		});
+                    @Override
+                    public long extractTimestamp(Long element, long previousElementTimestamp) {
+                        return previousElementTimestamp;
+                    }
+                });
 
-		DataStream<Long> stream = env.addSource(kafkaSource);
-		GenericTypeInfo<Object> objectTypeInfo = new GenericTypeInfo<>(Object.class);
-		stream.transform("timestamp validating operator", objectTypeInfo, new TimestampValidatingOperator()).setParallelism(1);
+        DataStream<Long> stream = env.addSource(kafkaSource);
+        GenericTypeInfo<Object> objectTypeInfo = new GenericTypeInfo<>(Object.class);
+        stream.transform(
+                        "timestamp validating operator",
+                        objectTypeInfo,
+                        new TimestampValidatingOperator())
+                .setParallelism(1);
 
-		env.execute("Consume again");
+        env.execute("Consume again");
 
-		deleteTestTopic(topic);
-	}
+        deleteTestTopic(topic);
+    }
 
-	private static class TimestampValidatingOperator extends StreamSink<Long> {
+    private static class TimestampValidatingOperator extends StreamSink<Long> {
 
-		private static final long serialVersionUID = 1353168781235526806L;
+        private static final long serialVersionUID = 1353168781235526806L;
 
-		public TimestampValidatingOperator() {
-			super(new SinkFunction<Long>() {
-				private static final long serialVersionUID = -6676565693361786524L;
+        public TimestampValidatingOperator() {
+            super(
+                    new SinkFunction<Long>() {
+                        private static final long serialVersionUID = -6676565693361786524L;
 
-				@Override
-				public void invoke(Long value) throws Exception {
-					throw new RuntimeException("Unexpected");
-				}
-			});
-		}
+                        @Override
+                        public void invoke(Long value) throws Exception {
+                            throw new RuntimeException("Unexpected");
+                        }
+                    });
+        }
 
-		long elCount = 0;
-		long wmCount = 0;
-		long lastWM = Long.MIN_VALUE;
+        long elCount = 0;
+        long wmCount = 0;
+        long lastWM = Long.MIN_VALUE;
 
-		@Override
-		public void processElement(StreamRecord<Long> element) throws Exception {
-			elCount++;
-			if (element.getValue() * 2 != element.getTimestamp()) {
-				throw new RuntimeException("Invalid timestamp: " + element);
-			}
-		}
+        @Override
+        public void processElement(StreamRecord<Long> element) throws Exception {
+            elCount++;
+            if (element.getValue() * 2 != element.getTimestamp()) {
+                throw new RuntimeException("Invalid timestamp: " + element);
+            }
+        }
 
-		@Override
-		public void processWatermark(Watermark mark) throws Exception {
-			wmCount++;
+        @Override
+        public void processWatermark(Watermark mark) throws Exception {
+            wmCount++;
 
-			if (lastWM <= mark.getTimestamp()) {
-				lastWM = mark.getTimestamp();
-			} else {
-				throw new RuntimeException("Received watermark higher than the last one");
-			}
+            if (lastWM <= mark.getTimestamp()) {
+                lastWM = mark.getTimestamp();
+            } else {
+                throw new RuntimeException("Received watermark higher than the last one");
+            }
 
-			if (mark.getTimestamp() % 10 != 0 && mark.getTimestamp() != Long.MAX_VALUE) {
-				throw new RuntimeException("Invalid watermark: " + mark.getTimestamp());
-			}
-		}
+            if (mark.getTimestamp() % 10 != 0 && mark.getTimestamp() != Long.MAX_VALUE) {
+                throw new RuntimeException("Invalid watermark: " + mark.getTimestamp());
+            }
+        }
 
-		@Override
-		public void close() throws Exception {
-			super.close();
-			if (elCount != 1000L) {
-				throw new RuntimeException("Wrong final element count " + elCount);
-			}
+        @Override
+        public void close() throws Exception {
+            super.close();
+            if (elCount != 1000L) {
+                throw new RuntimeException("Wrong final element count " + elCount);
+            }
 
-			if (wmCount <= 2) {
-				throw new RuntimeException("Almost no watermarks have been sent " + wmCount);
-			}
-		}
-	}
+            if (wmCount <= 2) {
+                throw new RuntimeException("Almost no watermarks have been sent " + wmCount);
+            }
+        }
+    }
 
-	private static class LimitedLongDeserializer implements KafkaDeserializationSchema<Long> {
+    private static class LimitedLongDeserializer implements KafkaDeserializationSchema<Long> {
 
-		private static final long serialVersionUID = 6966177118923713521L;
-		private final TypeInformation<Long> ti;
-		private final TypeSerializer<Long> ser;
-		long cnt = 0;
+        private static final long serialVersionUID = 6966177118923713521L;
+        private final TypeInformation<Long> ti;
+        private final TypeSerializer<Long> ser;
+        long cnt = 0;
 
-		public LimitedLongDeserializer() {
-			this.ti = Types.LONG;
-			this.ser = ti.createSerializer(new ExecutionConfig());
-		}
+        public LimitedLongDeserializer() {
+            this.ti = Types.LONG;
+            this.ser = ti.createSerializer(new ExecutionConfig());
+        }
 
-		@Override
-		public TypeInformation<Long> getProducedType() {
-			return ti;
-		}
+        @Override
+        public TypeInformation<Long> getProducedType() {
+            return ti;
+        }
 
-		@Override
-		public Long deserialize(ConsumerRecord<byte[], byte[]> record) throws IOException {
-			cnt++;
-			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(record.value()));
-			Long e = ser.deserialize(in);
-			return e;
-		}
+        @Override
+        public Long deserialize(ConsumerRecord<byte[], byte[]> record) throws IOException {
+            cnt++;
+            DataInputView in =
+                    new DataInputViewStreamWrapper(new ByteArrayInputStream(record.value()));
+            Long e = ser.deserialize(in);
+            return e;
+        }
 
-		@Override
-		public boolean isEndOfStream(Long nextElement) {
-			return cnt > 1000L;
-		}
-	}
+        @Override
+        public boolean isEndOfStream(Long nextElement) {
+            return cnt > 1000L;
+        }
+    }
 }

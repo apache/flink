@@ -72,442 +72,444 @@ import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_P
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
 import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFormatFactory;
 
-/**
- * File system {@link TableSink}.
- */
-public class FileSystemTableSink implements
-		AppendStreamTableSink<RowData>,
-		PartitionableTableSink,
-		OverwritableTableSink {
+/** File system {@link TableSink}. */
+public class FileSystemTableSink
+        implements AppendStreamTableSink<RowData>, PartitionableTableSink, OverwritableTableSink {
 
-	private final ObjectIdentifier tableIdentifier;
-	private final boolean isBounded;
-	private final TableSchema schema;
-	private final List<String> partitionKeys;
-	private final Path path;
-	private final String defaultPartName;
-	private final Map<String, String> properties;
+    private final ObjectIdentifier tableIdentifier;
+    private final boolean isBounded;
+    private final TableSchema schema;
+    private final List<String> partitionKeys;
+    private final Path path;
+    private final String defaultPartName;
+    private final Map<String, String> properties;
 
-	private boolean overwrite = false;
-	private boolean dynamicGrouping = false;
-	private LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<>();
+    private boolean overwrite = false;
+    private boolean dynamicGrouping = false;
+    private LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<>();
 
-	/**
-	 * Construct a file system table sink.
-	 *
-	 * @param isBounded whether the input of sink is bounded.
-	 * @param schema schema of the table.
-	 * @param path directory path of the file system table.
-	 * @param partitionKeys partition keys of the table.
-	 * @param defaultPartName The default partition name in case the dynamic partition column value
-	 *                        is null/empty string.
-	 * @param properties properties.
-	 */
-	public FileSystemTableSink(
-			ObjectIdentifier tableIdentifier,
-			boolean isBounded,
-			TableSchema schema,
-			Path path,
-			List<String> partitionKeys,
-			String defaultPartName,
-			Map<String, String> properties) {
-		this.tableIdentifier = tableIdentifier;
-		this.isBounded = isBounded;
-		this.schema = schema;
-		this.path = path;
-		this.defaultPartName = defaultPartName;
-		this.partitionKeys = partitionKeys;
-		this.properties = properties;
-	}
+    /**
+     * Construct a file system table sink.
+     *
+     * @param isBounded whether the input of sink is bounded.
+     * @param schema schema of the table.
+     * @param path directory path of the file system table.
+     * @param partitionKeys partition keys of the table.
+     * @param defaultPartName The default partition name in case the dynamic partition column value
+     *     is null/empty string.
+     * @param properties properties.
+     */
+    public FileSystemTableSink(
+            ObjectIdentifier tableIdentifier,
+            boolean isBounded,
+            TableSchema schema,
+            Path path,
+            List<String> partitionKeys,
+            String defaultPartName,
+            Map<String, String> properties) {
+        this.tableIdentifier = tableIdentifier;
+        this.isBounded = isBounded;
+        this.schema = schema;
+        this.path = path;
+        this.defaultPartName = defaultPartName;
+        this.partitionKeys = partitionKeys;
+        this.properties = properties;
+    }
 
-	@Override
-	public final DataStreamSink<RowData> consumeDataStream(DataStream<RowData> dataStream) {
-		RowDataPartitionComputer computer = new RowDataPartitionComputer(
-				defaultPartName,
-				schema.getFieldNames(),
-				schema.getFieldDataTypes(),
-				partitionKeys.toArray(new String[0]));
+    @Override
+    public final DataStreamSink<RowData> consumeDataStream(DataStream<RowData> dataStream) {
+        RowDataPartitionComputer computer =
+                new RowDataPartitionComputer(
+                        defaultPartName,
+                        schema.getFieldNames(),
+                        schema.getFieldDataTypes(),
+                        partitionKeys.toArray(new String[0]));
 
-		EmptyMetaStoreFactory metaStoreFactory = new EmptyMetaStoreFactory(path);
-		OutputFileConfig outputFileConfig = OutputFileConfig.builder()
-				.withPartPrefix("part-" + UUID.randomUUID().toString())
-				.build();
-		FileSystemFactory fsFactory = FileSystem::get;
+        EmptyMetaStoreFactory metaStoreFactory = new EmptyMetaStoreFactory(path);
+        OutputFileConfig outputFileConfig =
+                OutputFileConfig.builder()
+                        .withPartPrefix("part-" + UUID.randomUUID().toString())
+                        .build();
+        FileSystemFactory fsFactory = FileSystem::get;
 
-		if (isBounded) {
-			FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
-			builder.setPartitionComputer(computer);
-			builder.setDynamicGrouped(dynamicGrouping);
-			builder.setPartitionColumns(partitionKeys.toArray(new String[0]));
-			builder.setFormatFactory(createOutputFormatFactory());
-			builder.setMetaStoreFactory(metaStoreFactory);
-			builder.setFileSystemFactory(fsFactory);
-			builder.setOverwrite(overwrite);
-			builder.setStaticPartitions(staticPartitions);
-			builder.setTempPath(toStagingPath());
-			builder.setOutputFileConfig(outputFileConfig);
-			return dataStream.writeUsingOutputFormat(builder.build())
-					.setParallelism(dataStream.getParallelism());
-		} else {
-			Configuration conf = new Configuration();
-			properties.forEach(conf::setString);
-			Object writer = createWriter();
-			TableBucketAssigner assigner = new TableBucketAssigner(computer);
-			TableRollingPolicy rollingPolicy = new TableRollingPolicy(
-					!(writer instanceof Encoder),
-					conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
-					conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
+        if (isBounded) {
+            FileSystemOutputFormat.Builder<RowData> builder =
+                    new FileSystemOutputFormat.Builder<>();
+            builder.setPartitionComputer(computer);
+            builder.setDynamicGrouped(dynamicGrouping);
+            builder.setPartitionColumns(partitionKeys.toArray(new String[0]));
+            builder.setFormatFactory(createOutputFormatFactory());
+            builder.setMetaStoreFactory(metaStoreFactory);
+            builder.setFileSystemFactory(fsFactory);
+            builder.setOverwrite(overwrite);
+            builder.setStaticPartitions(staticPartitions);
+            builder.setTempPath(toStagingPath());
+            builder.setOutputFileConfig(outputFileConfig);
+            return dataStream
+                    .writeUsingOutputFormat(builder.build())
+                    .setParallelism(dataStream.getParallelism());
+        } else {
+            Configuration conf = new Configuration();
+            properties.forEach(conf::setString);
+            Object writer = createWriter();
+            TableBucketAssigner assigner = new TableBucketAssigner(computer);
+            TableRollingPolicy rollingPolicy =
+                    new TableRollingPolicy(
+                            !(writer instanceof Encoder),
+                            conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
+                            conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
 
-			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
-			if (writer instanceof Encoder) {
-				//noinspection unchecked
-				bucketsBuilder = StreamingFileSink.forRowFormat(
-						path, new ProjectionEncoder((Encoder<RowData>) writer, computer))
-						.withBucketAssigner(assigner)
-						.withOutputFileConfig(outputFileConfig)
-						.withRollingPolicy(rollingPolicy);
-			} else {
-				//noinspection unchecked
-				bucketsBuilder = StreamingFileSink.forBulkFormat(
-						path, new ProjectionBulkFactory((BulkWriter.Factory<RowData>) writer, computer))
-						.withBucketAssigner(assigner)
-						.withOutputFileConfig(outputFileConfig)
-						.withRollingPolicy(rollingPolicy);
-			}
-			return createStreamingSink(
-					conf,
-					path,
-					partitionKeys,
-					tableIdentifier,
-					overwrite,
-					dataStream,
-					bucketsBuilder,
-					metaStoreFactory,
-					fsFactory,
-					conf.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis());
-		}
-	}
+            BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
+            if (writer instanceof Encoder) {
+                //noinspection unchecked
+                bucketsBuilder =
+                        StreamingFileSink.forRowFormat(
+                                        path,
+                                        new ProjectionEncoder((Encoder<RowData>) writer, computer))
+                                .withBucketAssigner(assigner)
+                                .withOutputFileConfig(outputFileConfig)
+                                .withRollingPolicy(rollingPolicy);
+            } else {
+                //noinspection unchecked
+                bucketsBuilder =
+                        StreamingFileSink.forBulkFormat(
+                                        path,
+                                        new ProjectionBulkFactory(
+                                                (BulkWriter.Factory<RowData>) writer, computer))
+                                .withBucketAssigner(assigner)
+                                .withOutputFileConfig(outputFileConfig)
+                                .withRollingPolicy(rollingPolicy);
+            }
+            return createStreamingSink(
+                    conf,
+                    path,
+                    partitionKeys,
+                    tableIdentifier,
+                    overwrite,
+                    dataStream,
+                    bucketsBuilder,
+                    metaStoreFactory,
+                    fsFactory,
+                    conf.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis());
+        }
+    }
 
-	public static DataStreamSink<RowData> createStreamingSink(
-			Configuration conf,
-			Path path,
-			List<String> partitionKeys,
-			ObjectIdentifier tableIdentifier,
-			boolean overwrite,
-			DataStream<RowData> inputStream,
-			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder,
-			TableMetaStoreFactory msFactory,
-			FileSystemFactory fsFactory,
-			long rollingCheckInterval) {
-		if (overwrite) {
-			throw new IllegalStateException("Streaming mode not support overwrite.");
-		}
+    public static DataStreamSink<RowData> createStreamingSink(
+            Configuration conf,
+            Path path,
+            List<String> partitionKeys,
+            ObjectIdentifier tableIdentifier,
+            boolean overwrite,
+            DataStream<RowData> inputStream,
+            BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder,
+            TableMetaStoreFactory msFactory,
+            FileSystemFactory fsFactory,
+            long rollingCheckInterval) {
+        if (overwrite) {
+            throw new IllegalStateException("Streaming mode not support overwrite.");
+        }
 
-		StreamingFileWriter fileWriter = new StreamingFileWriter(
-				rollingCheckInterval,
-				bucketsBuilder);
-		DataStream<CommitMessage> writerStream = inputStream.transform(
-				StreamingFileWriter.class.getSimpleName(),
-				TypeExtractor.createTypeInfo(CommitMessage.class),
-				fileWriter).setParallelism(inputStream.getParallelism());
+        StreamingFileWriter fileWriter =
+                new StreamingFileWriter(rollingCheckInterval, bucketsBuilder);
+        DataStream<CommitMessage> writerStream =
+                inputStream
+                        .transform(
+                                StreamingFileWriter.class.getSimpleName(),
+                                TypeExtractor.createTypeInfo(CommitMessage.class),
+                                fileWriter)
+                        .setParallelism(inputStream.getParallelism());
 
-		DataStream<?> returnStream = writerStream;
+        DataStream<?> returnStream = writerStream;
 
-		// save committer when we don't need it.
-		if (partitionKeys.size() > 0 && conf.contains(SINK_PARTITION_COMMIT_POLICY_KIND)) {
-			StreamingFileCommitter committer = new StreamingFileCommitter(
-					path, tableIdentifier, partitionKeys, msFactory, fsFactory, conf);
-			returnStream = writerStream
-					.transform(StreamingFileCommitter.class.getSimpleName(), Types.VOID, committer)
-					.setParallelism(1)
-					.setMaxParallelism(1);
-		}
-		//noinspection unchecked
-		return returnStream.addSink(new DiscardingSink()).setParallelism(1);
-	}
+        // save committer when we don't need it.
+        if (partitionKeys.size() > 0 && conf.contains(SINK_PARTITION_COMMIT_POLICY_KIND)) {
+            StreamingFileCommitter committer =
+                    new StreamingFileCommitter(
+                            path, tableIdentifier, partitionKeys, msFactory, fsFactory, conf);
+            returnStream =
+                    writerStream
+                            .transform(
+                                    StreamingFileCommitter.class.getSimpleName(),
+                                    Types.VOID,
+                                    committer)
+                            .setParallelism(1)
+                            .setMaxParallelism(1);
+        }
+        //noinspection unchecked
+        return returnStream.addSink(new DiscardingSink()).setParallelism(1);
+    }
 
-	private Path toStagingPath() {
-		Path stagingDir = new Path(path, ".staging_" + System.currentTimeMillis());
-		try {
-			FileSystem fs = stagingDir.getFileSystem();
-			Preconditions.checkState(
-					fs.exists(stagingDir) || fs.mkdirs(stagingDir),
-					"Failed to create staging dir " + stagingDir);
-			return stagingDir;
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private Path toStagingPath() {
+        Path stagingDir = new Path(path, ".staging_" + System.currentTimeMillis());
+        try {
+            FileSystem fs = stagingDir.getFileSystem();
+            Preconditions.checkState(
+                    fs.exists(stagingDir) || fs.mkdirs(stagingDir),
+                    "Failed to create staging dir " + stagingDir);
+            return stagingDir;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	private OutputFormatFactory<RowData> createOutputFormatFactory() {
-		Object writer = createWriter();
-		return writer instanceof Encoder ?
-				path -> createEncoderOutputFormat((Encoder<RowData>) writer, path) :
-				path -> createBulkWriterOutputFormat((BulkWriter.Factory<RowData>) writer, path);
-	}
+    @SuppressWarnings("unchecked")
+    private OutputFormatFactory<RowData> createOutputFormatFactory() {
+        Object writer = createWriter();
+        return writer instanceof Encoder
+                ? path -> createEncoderOutputFormat((Encoder<RowData>) writer, path)
+                : path -> createBulkWriterOutputFormat((BulkWriter.Factory<RowData>) writer, path);
+    }
 
-	private Object createWriter() {
-		FileSystemFormatFactory formatFactory = createFormatFactory(properties);
-		Configuration conf = new Configuration();
-		properties.forEach(conf::setString);
+    private Object createWriter() {
+        FileSystemFormatFactory formatFactory = createFormatFactory(properties);
+        Configuration conf = new Configuration();
+        properties.forEach(conf::setString);
 
-		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
+        FileSystemFormatFactory.WriterContext context =
+                new FileSystemFormatFactory.WriterContext() {
 
-			@Override
-			public TableSchema getSchema() {
-				return schema;
-			}
+                    @Override
+                    public TableSchema getSchema() {
+                        return schema;
+                    }
 
-			@Override
-			public ReadableConfig getFormatOptions() {
-				return new DelegatingConfiguration(conf, formatFactory.factoryIdentifier() + ".");
-			}
+                    @Override
+                    public ReadableConfig getFormatOptions() {
+                        return new DelegatingConfiguration(
+                                conf, formatFactory.factoryIdentifier() + ".");
+                    }
 
-			@Override
-			public List<String> getPartitionKeys() {
-				return partitionKeys;
-			}
-		};
+                    @Override
+                    public List<String> getPartitionKeys() {
+                        return partitionKeys;
+                    }
+                };
 
-		Optional<Encoder<RowData>> encoder = formatFactory.createEncoder(context);
-		Optional<BulkWriter.Factory<RowData>> bulk = formatFactory.createBulkWriterFactory(context);
+        Optional<Encoder<RowData>> encoder = formatFactory.createEncoder(context);
+        Optional<BulkWriter.Factory<RowData>> bulk = formatFactory.createBulkWriterFactory(context);
 
-		if (encoder.isPresent()) {
-			return encoder.get();
-		} else if (bulk.isPresent()) {
-			return bulk.get();
-		} else {
-			throw new TableException(
-					formatFactory + " format should implement at least one Encoder or BulkWriter");
-		}
-	}
+        if (encoder.isPresent()) {
+            return encoder.get();
+        } else if (bulk.isPresent()) {
+            return bulk.get();
+        } else {
+            throw new TableException(
+                    formatFactory + " format should implement at least one Encoder or BulkWriter");
+        }
+    }
 
-	private static OutputFormat<RowData> createBulkWriterOutputFormat(
-			BulkWriter.Factory<RowData> factory,
-			Path path) {
-		return new OutputFormat<RowData>() {
+    private static OutputFormat<RowData> createBulkWriterOutputFormat(
+            BulkWriter.Factory<RowData> factory, Path path) {
+        return new OutputFormat<RowData>() {
 
-			private static final long serialVersionUID = 1L;
+            private static final long serialVersionUID = 1L;
 
-			private transient BulkWriter<RowData> writer;
+            private transient BulkWriter<RowData> writer;
 
-			@Override
-			public void configure(Configuration parameters) {
-			}
+            @Override
+            public void configure(Configuration parameters) {}
 
-			@Override
-			public void open(int taskNumber, int numTasks) throws IOException {
-				this.writer = factory.create(path.getFileSystem()
-						.create(path, FileSystem.WriteMode.OVERWRITE));
-			}
+            @Override
+            public void open(int taskNumber, int numTasks) throws IOException {
+                this.writer =
+                        factory.create(
+                                path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+            }
 
-			@Override
-			public void writeRecord(RowData record) throws IOException {
-				writer.addElement(record);
-			}
+            @Override
+            public void writeRecord(RowData record) throws IOException {
+                writer.addElement(record);
+            }
 
-			@Override
-			public void close() throws IOException {
-				writer.flush();
-				writer.finish();
-			}
-		};
-	}
+            @Override
+            public void close() throws IOException {
+                writer.flush();
+                writer.finish();
+            }
+        };
+    }
 
-	private static OutputFormat<RowData> createEncoderOutputFormat(
-			Encoder<RowData> encoder,
-			Path path) {
-		return new OutputFormat<RowData>() {
+    private static OutputFormat<RowData> createEncoderOutputFormat(
+            Encoder<RowData> encoder, Path path) {
+        return new OutputFormat<RowData>() {
 
-			private static final long serialVersionUID = 1L;
+            private static final long serialVersionUID = 1L;
 
-			private transient FSDataOutputStream output;
+            private transient FSDataOutputStream output;
 
-			@Override
-			public void configure(Configuration parameters) {
-			}
+            @Override
+            public void configure(Configuration parameters) {}
 
-			@Override
-			public void open(int taskNumber, int numTasks) throws IOException {
-				this.output = path.getFileSystem()
-						.create(path, FileSystem.WriteMode.OVERWRITE);
-			}
+            @Override
+            public void open(int taskNumber, int numTasks) throws IOException {
+                this.output = path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE);
+            }
 
-			@Override
-			public void writeRecord(RowData record) throws IOException {
-				encoder.encode(record, output);
-			}
+            @Override
+            public void writeRecord(RowData record) throws IOException {
+                encoder.encode(record, output);
+            }
 
-			@Override
-			public void close() throws IOException {
-				this.output.flush();
-				this.output.close();
-			}
-		};
-	}
+            @Override
+            public void close() throws IOException {
+                this.output.flush();
+                this.output.close();
+            }
+        };
+    }
 
-	@Override
-	public FileSystemTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		return this;
-	}
+    @Override
+    public FileSystemTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+        return this;
+    }
 
-	@Override
-	public void setOverwrite(boolean overwrite) {
-		this.overwrite = overwrite;
-	}
+    @Override
+    public void setOverwrite(boolean overwrite) {
+        this.overwrite = overwrite;
+    }
 
-	@Override
-	public void setStaticPartition(Map<String, String> partitions) {
-		this.staticPartitions = toPartialLinkedPartSpec(partitions);
-	}
+    @Override
+    public void setStaticPartition(Map<String, String> partitions) {
+        this.staticPartitions = toPartialLinkedPartSpec(partitions);
+    }
 
-	private LinkedHashMap<String, String> toPartialLinkedPartSpec(Map<String, String> part) {
-		LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
-		for (String partitionKey : partitionKeys) {
-			if (part.containsKey(partitionKey)) {
-				partSpec.put(partitionKey, part.get(partitionKey));
-			}
-		}
-		return partSpec;
-	}
+    private LinkedHashMap<String, String> toPartialLinkedPartSpec(Map<String, String> part) {
+        LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
+        for (String partitionKey : partitionKeys) {
+            if (part.containsKey(partitionKey)) {
+                partSpec.put(partitionKey, part.get(partitionKey));
+            }
+        }
+        return partSpec;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return schema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return schema;
+    }
 
-	@Override
-	public DataType getConsumedDataType() {
-		return schema.toRowDataType().bridgedTo(RowData.class);
-	}
+    @Override
+    public DataType getConsumedDataType() {
+        return schema.toRowDataType().bridgedTo(RowData.class);
+    }
 
-	@Override
-	public boolean configurePartitionGrouping(boolean supportsGrouping) {
-		this.dynamicGrouping = supportsGrouping;
-		return dynamicGrouping;
-	}
+    @Override
+    public boolean configurePartitionGrouping(boolean supportsGrouping) {
+        this.dynamicGrouping = supportsGrouping;
+        return dynamicGrouping;
+    }
 
-	/**
-	 * Table bucket assigner, wrap {@link PartitionComputer}.
-	 */
-	public static class TableBucketAssigner implements BucketAssigner<RowData, String> {
+    /** Table bucket assigner, wrap {@link PartitionComputer}. */
+    public static class TableBucketAssigner implements BucketAssigner<RowData, String> {
 
-		private final PartitionComputer<RowData> computer;
+        private final PartitionComputer<RowData> computer;
 
-		public TableBucketAssigner(PartitionComputer<RowData> computer) {
-			this.computer = computer;
-		}
+        public TableBucketAssigner(PartitionComputer<RowData> computer) {
+            this.computer = computer;
+        }
 
-		@Override
-		public String getBucketId(RowData element, Context context) {
-			try {
-				return PartitionPathUtils.generatePartitionPath(
-						computer.generatePartValues(element));
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
+        @Override
+        public String getBucketId(RowData element, Context context) {
+            try {
+                return PartitionPathUtils.generatePartitionPath(
+                        computer.generatePartValues(element));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
 
-		@Override
-		public SimpleVersionedSerializer<String> getSerializer() {
-			return SimpleVersionedStringSerializer.INSTANCE;
-		}
-	}
+        @Override
+        public SimpleVersionedSerializer<String> getSerializer() {
+            return SimpleVersionedStringSerializer.INSTANCE;
+        }
+    }
 
-	/**
-	 * Table {@link RollingPolicy}, it extends {@link CheckpointRollingPolicy} for bulk writers.
-	 */
-	public static class TableRollingPolicy extends CheckpointRollingPolicy<RowData, String> {
+    /** Table {@link RollingPolicy}, it extends {@link CheckpointRollingPolicy} for bulk writers. */
+    public static class TableRollingPolicy extends CheckpointRollingPolicy<RowData, String> {
 
-		private final boolean rollOnCheckpoint;
-		private final long rollingFileSize;
-		private final long rollingTimeInterval;
+        private final boolean rollOnCheckpoint;
+        private final long rollingFileSize;
+        private final long rollingTimeInterval;
 
-		public TableRollingPolicy(
-				boolean rollOnCheckpoint,
-				long rollingFileSize,
-				long rollingTimeInterval) {
-			this.rollOnCheckpoint = rollOnCheckpoint;
-			Preconditions.checkArgument(rollingFileSize > 0L);
-			Preconditions.checkArgument(rollingTimeInterval > 0L);
-			this.rollingFileSize = rollingFileSize;
-			this.rollingTimeInterval = rollingTimeInterval;
-		}
+        public TableRollingPolicy(
+                boolean rollOnCheckpoint, long rollingFileSize, long rollingTimeInterval) {
+            this.rollOnCheckpoint = rollOnCheckpoint;
+            Preconditions.checkArgument(rollingFileSize > 0L);
+            Preconditions.checkArgument(rollingTimeInterval > 0L);
+            this.rollingFileSize = rollingFileSize;
+            this.rollingTimeInterval = rollingTimeInterval;
+        }
 
-		@Override
-		public boolean shouldRollOnCheckpoint(PartFileInfo<String> partFileState) {
-			try {
-				return rollOnCheckpoint || partFileState.getSize() > rollingFileSize;
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
+        @Override
+        public boolean shouldRollOnCheckpoint(PartFileInfo<String> partFileState) {
+            try {
+                return rollOnCheckpoint || partFileState.getSize() > rollingFileSize;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
-		@Override
-		public boolean shouldRollOnEvent(
-				PartFileInfo<String> partFileState,
-				RowData element) throws IOException {
-			return partFileState.getSize() > rollingFileSize;
-		}
+        @Override
+        public boolean shouldRollOnEvent(PartFileInfo<String> partFileState, RowData element)
+                throws IOException {
+            return partFileState.getSize() > rollingFileSize;
+        }
 
-		@Override
-		public boolean shouldRollOnProcessingTime(
-				PartFileInfo<String> partFileState,
-				long currentTime) {
-			return currentTime - partFileState.getCreationTime() >= rollingTimeInterval;
-		}
-	}
+        @Override
+        public boolean shouldRollOnProcessingTime(
+                PartFileInfo<String> partFileState, long currentTime) {
+            return currentTime - partFileState.getCreationTime() >= rollingTimeInterval;
+        }
+    }
 
-	private static class ProjectionEncoder implements Encoder<RowData> {
+    private static class ProjectionEncoder implements Encoder<RowData> {
 
-		private final Encoder<RowData> encoder;
-		private final RowDataPartitionComputer computer;
+        private final Encoder<RowData> encoder;
+        private final RowDataPartitionComputer computer;
 
-		private ProjectionEncoder(Encoder<RowData> encoder, RowDataPartitionComputer computer) {
-			this.encoder = encoder;
-			this.computer = computer;
-		}
+        private ProjectionEncoder(Encoder<RowData> encoder, RowDataPartitionComputer computer) {
+            this.encoder = encoder;
+            this.computer = computer;
+        }
 
-		@Override
-		public void encode(RowData element, OutputStream stream) throws IOException {
-			encoder.encode(computer.projectColumnsToWrite(element), stream);
-		}
-	}
+        @Override
+        public void encode(RowData element, OutputStream stream) throws IOException {
+            encoder.encode(computer.projectColumnsToWrite(element), stream);
+        }
+    }
 
-	/**
-	 * Project row to non-partition fields.
-	 */
-	public static class ProjectionBulkFactory implements BulkWriter.Factory<RowData> {
+    /** Project row to non-partition fields. */
+    public static class ProjectionBulkFactory implements BulkWriter.Factory<RowData> {
 
-		private final BulkWriter.Factory<RowData> factory;
-		private final RowDataPartitionComputer computer;
+        private final BulkWriter.Factory<RowData> factory;
+        private final RowDataPartitionComputer computer;
 
-		public ProjectionBulkFactory(BulkWriter.Factory<RowData> factory, RowDataPartitionComputer computer) {
-			this.factory = factory;
-			this.computer = computer;
-		}
+        public ProjectionBulkFactory(
+                BulkWriter.Factory<RowData> factory, RowDataPartitionComputer computer) {
+            this.factory = factory;
+            this.computer = computer;
+        }
 
-		@Override
-		public BulkWriter<RowData> create(FSDataOutputStream out) throws IOException {
-			BulkWriter<RowData> writer = factory.create(out);
-			return new BulkWriter<RowData>() {
+        @Override
+        public BulkWriter<RowData> create(FSDataOutputStream out) throws IOException {
+            BulkWriter<RowData> writer = factory.create(out);
+            return new BulkWriter<RowData>() {
 
-				@Override
-				public void addElement(RowData element) throws IOException {
-					writer.addElement(computer.projectColumnsToWrite(element));
-				}
+                @Override
+                public void addElement(RowData element) throws IOException {
+                    writer.addElement(computer.projectColumnsToWrite(element));
+                }
 
-				@Override
-				public void flush() throws IOException {
-					writer.flush();
-				}
+                @Override
+                public void flush() throws IOException {
+                    writer.flush();
+                }
 
-				@Override
-				public void finish() throws IOException {
-					writer.finish();
-				}
-			};
-		}
-	}
+                @Override
+                public void finish() throws IOException {
+                    writer.finish();
+                }
+            };
+        }
+    }
 }

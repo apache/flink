@@ -35,62 +35,60 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import java.io.IOException;
 import java.util.Map;
 
-/**
- * The Python {@link ScalarFunction} operator for the blink planner.
- */
+/** The Python {@link ScalarFunction} operator for the blink planner. */
 @Internal
-public class RowDataPythonScalarFunctionOperator extends AbstractRowDataPythonScalarFunctionOperator {
+public class RowDataPythonScalarFunctionOperator
+        extends AbstractRowDataPythonScalarFunctionOperator {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The TypeSerializer for udf execution results.
-	 */
-	private transient TypeSerializer<RowData> udfOutputTypeSerializer;
+    /** The TypeSerializer for udf execution results. */
+    private transient TypeSerializer<RowData> udfOutputTypeSerializer;
 
-	public RowDataPythonScalarFunctionOperator(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-	}
+    public RowDataPythonScalarFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void open() throws Exception {
-		super.open();
-		udfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public void open() throws Exception {
+        super.open();
+        udfOutputTypeSerializer =
+                PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
+    }
 
-	@Override
-	@SuppressWarnings("ConstantConditions")
-	public void emitResults() throws IOException {
-		byte[] rawUdfResult;
-		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			RowData input = forwardedInputQueue.poll();
-			reuseJoinedRow.setRowKind(input.getRowKind());
-			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
-			RowData udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
-			rowDataWrapper.collect(reuseJoinedRow.replace(input, udfResult));
-		}
-	}
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public void emitResults() throws IOException {
+        byte[] rawUdfResult;
+        while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
+            RowData input = forwardedInputQueue.poll();
+            reuseJoinedRow.setRowKind(input.getRowKind());
+            bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
+            RowData udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
+            rowDataWrapper.collect(reuseJoinedRow.replace(input, udfResult));
+        }
+    }
 
-	@Override
-	public PythonFunctionRunner<RowData> createPythonFunctionRunner(
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager,
-			Map<String, String> jobOptions) {
-		return new RowDataPythonScalarFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			resultReceiver,
-			scalarFunctions,
-			pythonEnvironmentManager,
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			jobOptions,
-			getFlinkMetricContainer());
-	}
+    @Override
+    public PythonFunctionRunner<RowData> createPythonFunctionRunner(
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonEnvironmentManager pythonEnvironmentManager,
+            Map<String, String> jobOptions) {
+        return new RowDataPythonScalarFunctionRunner(
+                getRuntimeContext().getTaskName(),
+                resultReceiver,
+                scalarFunctions,
+                pythonEnvironmentManager,
+                userDefinedFunctionInputType,
+                userDefinedFunctionOutputType,
+                jobOptions,
+                getFlinkMetricContainer());
+    }
 }

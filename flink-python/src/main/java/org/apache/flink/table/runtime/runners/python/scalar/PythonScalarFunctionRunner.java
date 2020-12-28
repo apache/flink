@@ -34,27 +34,35 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import java.util.Map;
 
 /**
- * A {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
- * It takes {@link Row} as the input and outputs a byte array.
+ * A {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s. It takes {@link
+ * Row} as the input and outputs a byte array.
  */
 @Internal
 public class PythonScalarFunctionRunner extends AbstractGeneralPythonScalarFunctionRunner<Row> {
 
-	public PythonScalarFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, flinkMetricContainer);
-	}
+    public PythonScalarFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonFunctionInfo[] scalarFunctions,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                resultReceiver,
+                scalarFunctions,
+                environmentManager,
+                inputType,
+                outputType,
+                jobOptions,
+                flinkMetricContainer);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public RowSerializer getInputTypeSerializer() {
-		return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public RowSerializer getInputTypeSerializer() {
+        return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());
+    }
 }

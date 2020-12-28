@@ -27,50 +27,46 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link SerializedValue}.
- */
+/** Tests for the {@link SerializedValue}. */
 public class SerializedValueTest {
 
-	@Test
-	public void testSimpleValue() {
-		try {
-			final String value = "teststring";
+    @Test
+    public void testSimpleValue() {
+        try {
+            final String value = "teststring";
 
-			SerializedValue<String> v = new SerializedValue<>(value);
-			SerializedValue<String> copy = CommonTestUtils.createCopySerializable(v);
+            SerializedValue<String> v = new SerializedValue<>(value);
+            SerializedValue<String> copy = CommonTestUtils.createCopySerializable(v);
 
-			assertEquals(value, v.deserializeValue(getClass().getClassLoader()));
-			assertEquals(value, copy.deserializeValue(getClass().getClassLoader()));
+            assertEquals(value, v.deserializeValue(getClass().getClassLoader()));
+            assertEquals(value, copy.deserializeValue(getClass().getClassLoader()));
 
-			assertEquals(v, copy);
-			assertEquals(v.hashCode(), copy.hashCode());
+            assertEquals(v, copy);
+            assertEquals(v.hashCode(), copy.hashCode());
 
-			assertNotNull(v.toString());
-			assertNotNull(copy.toString());
+            assertNotNull(v.toString());
+            assertNotNull(copy.toString());
 
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testNullValue() {
-		try {
-			SerializedValue<Object> v = new SerializedValue<>(null);
-			SerializedValue<Object> copy = CommonTestUtils.createCopySerializable(v);
+    @Test
+    public void testNullValue() {
+        try {
+            SerializedValue<Object> v = new SerializedValue<>(null);
+            SerializedValue<Object> copy = CommonTestUtils.createCopySerializable(v);
 
-			assertNull(copy.deserializeValue(getClass().getClassLoader()));
+            assertNull(copy.deserializeValue(getClass().getClassLoader()));
 
-			assertEquals(v, copy);
-			assertEquals(v.hashCode(), copy.hashCode());
-			assertEquals(v.toString(), copy.toString());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertEquals(v, copy);
+            assertEquals(v.hashCode(), copy.hashCode());
+            assertEquals(v.toString(), copy.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

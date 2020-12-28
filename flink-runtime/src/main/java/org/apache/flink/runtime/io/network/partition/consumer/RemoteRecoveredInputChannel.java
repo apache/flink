@@ -30,50 +30,58 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An input channel reads recovered state from previous unaligned checkpoint snapshots
- * via {@link ChannelStateReader} and then converts into {@link RemoteInputChannel} finally.
+ * An input channel reads recovered state from previous unaligned checkpoint snapshots via {@link
+ * ChannelStateReader} and then converts into {@link RemoteInputChannel} finally.
  */
 public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
-	private final ConnectionID connectionId;
-	private final ConnectionManager connectionManager;
+    private final ConnectionID connectionId;
+    private final ConnectionManager connectionManager;
 
-	private boolean exclusiveBuffersAssigned;
+    private boolean exclusiveBuffersAssigned;
 
-	RemoteRecoveredInputChannel(
-			SingleInputGate inputGate,
-			int channelIndex,
-			ResultPartitionID partitionId,
-			ConnectionID connectionId,
-			ConnectionManager connectionManager,
-			int initialBackOff,
-			int maxBackoff,
-			InputChannelMetrics metrics) {
-		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInRemoteCounter(), metrics.getNumBuffersInRemoteCounter());
+    RemoteRecoveredInputChannel(
+            SingleInputGate inputGate,
+            int channelIndex,
+            ResultPartitionID partitionId,
+            ConnectionID connectionId,
+            ConnectionManager connectionManager,
+            int initialBackOff,
+            int maxBackoff,
+            InputChannelMetrics metrics) {
+        super(
+                inputGate,
+                channelIndex,
+                partitionId,
+                initialBackOff,
+                maxBackoff,
+                metrics.getNumBytesInRemoteCounter(),
+                metrics.getNumBuffersInRemoteCounter());
 
-		this.connectionId = checkNotNull(connectionId);
-		this.connectionManager = checkNotNull(connectionManager);
-	}
+        this.connectionId = checkNotNull(connectionId);
+        this.connectionManager = checkNotNull(connectionManager);
+    }
 
-	@Override
-	public InputChannel toInputChannel() throws IOException {
-		RemoteInputChannel remoteInputChannel = new RemoteInputChannel(
-			inputGate,
-			getChannelIndex(),
-			partitionId,
-			connectionId,
-			connectionManager,
-			initialBackoff,
-			maxBackoff,
-			numBytesIn,
-			numBuffersIn);
-		remoteInputChannel.assignExclusiveSegments();
-		return remoteInputChannel;
-	}
+    @Override
+    public InputChannel toInputChannel() throws IOException {
+        RemoteInputChannel remoteInputChannel =
+                new RemoteInputChannel(
+                        inputGate,
+                        getChannelIndex(),
+                        partitionId,
+                        connectionId,
+                        connectionManager,
+                        initialBackoff,
+                        maxBackoff,
+                        numBytesIn,
+                        numBuffersIn);
+        remoteInputChannel.assignExclusiveSegments();
+        return remoteInputChannel;
+    }
 
-	void assignExclusiveSegments() throws IOException {
-		checkState(!exclusiveBuffersAssigned, "Exclusive buffers should be assigned only once.");
+    void assignExclusiveSegments() throws IOException {
+        checkState(!exclusiveBuffersAssigned, "Exclusive buffers should be assigned only once.");
 
-		bufferManager.requestExclusiveBuffers();
-		exclusiveBuffersAssigned = true;
-	}
+        bufferManager.requestExclusiveBuffers();
+        exclusiveBuffersAssigned = true;
+    }
 }

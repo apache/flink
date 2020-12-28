@@ -27,61 +27,59 @@ import java.io.IOException;
 @Internal
 public final class EnumComparator<T extends Enum<T>> extends BasicTypeComparator<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public EnumComparator(boolean ascending) {
-		super(ascending);
-	}
+    public EnumComparator(boolean ascending) {
+        super(ascending);
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		int i1 = firstSource.readInt();
-		int i2 = secondSource.readInt();
-		int comp = (i1 < i2 ? -1 : (i1 == i2 ? 0 : 1)); 
-		return ascendingComparison ? comp : -comp; 
-	}
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        int i1 = firstSource.readInt();
+        int i2 = secondSource.readInt();
+        int comp = (i1 < i2 ? -1 : (i1 == i2 ? 0 : 1));
+        return ascendingComparison ? comp : -comp;
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return true;
-	}
+    @Override
+    public boolean supportsNormalizedKey() {
+        return true;
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return 4;
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return 4;
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return keyBytes < 4;
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return keyBytes < 4;
+    }
 
-	@Override
-	public void putNormalizedKey(T iValue, MemorySegment target, int offset, int numBytes) {
-		int value = iValue.ordinal() - Integer.MIN_VALUE;
-		
-		// see IntValue for an explanation of the logic
-		if (numBytes == 4) {
-			// default case, full normalized key
-			target.putIntBigEndian(offset, value);
-		}
-		else if (numBytes <= 0) {
-		}
-		else if (numBytes < 4) {
-			for (int i = 0; numBytes > 0; numBytes--, i++) {
-				target.put(offset + i, (byte) (value >>> ((3-i)<<3)));
-			}
-		}
-		else {
-			target.putLongBigEndian(offset, value);
-			for (int i = 4; i < numBytes; i++) {
-				target.put(offset + i, (byte) 0);
-			}
-		}
-	}
+    @Override
+    public void putNormalizedKey(T iValue, MemorySegment target, int offset, int numBytes) {
+        int value = iValue.ordinal() - Integer.MIN_VALUE;
 
-	@Override
-	public EnumComparator<T> duplicate() {
-		return new EnumComparator<T>(ascendingComparison);
-	}
+        // see IntValue for an explanation of the logic
+        if (numBytes == 4) {
+            // default case, full normalized key
+            target.putIntBigEndian(offset, value);
+        } else if (numBytes <= 0) {
+        } else if (numBytes < 4) {
+            for (int i = 0; numBytes > 0; numBytes--, i++) {
+                target.put(offset + i, (byte) (value >>> ((3 - i) << 3)));
+            }
+        } else {
+            target.putLongBigEndian(offset, value);
+            for (int i = 4; i < numBytes; i++) {
+                target.put(offset + i, (byte) 0);
+            }
+        }
+    }
+
+    @Override
+    public EnumComparator<T> duplicate() {
+        return new EnumComparator<T>(ascendingComparison);
+    }
 }

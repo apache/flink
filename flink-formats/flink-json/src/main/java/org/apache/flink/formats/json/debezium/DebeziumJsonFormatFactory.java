@@ -44,86 +44,87 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Format factory for providing configured instances of Debezium JSON to RowData {@link DeserializationSchema}.
+ * Format factory for providing configured instances of Debezium JSON to RowData {@link
+ * DeserializationSchema}.
  */
-public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
+public class DebeziumJsonFormatFactory
+        implements DeserializationFormatFactory, SerializationFormatFactory {
 
-	public static final String IDENTIFIER = "debezium-json";
+    public static final String IDENTIFIER = "debezium-json";
 
-	public static final ConfigOption<Boolean> SCHEMA_INCLUDE = ConfigOptions
-		.key("schema-include")
-		.booleanType()
-		.defaultValue(false)
-		.withDescription("When setting up a Debezium Kafka Connect, users can enable " +
-			"a Kafka configuration 'value.converter.schemas.enable' to include schema in the message. " +
-			"This option indicates the Debezium JSON data include the schema in the message or not. " +
-			"Default is false.");
+    public static final ConfigOption<Boolean> SCHEMA_INCLUDE =
+            ConfigOptions.key("schema-include")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When setting up a Debezium Kafka Connect, users can enable "
+                                    + "a Kafka configuration 'value.converter.schemas.enable' to include schema in the message. "
+                                    + "This option indicates the Debezium JSON data include the schema in the message or not. "
+                                    + "Default is false.");
 
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
+    public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
 
-	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
+    public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
-		final boolean schemaInclude = formatOptions.get(SCHEMA_INCLUDE);
-		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
-		TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
+    @SuppressWarnings("unchecked")
+    @Override
+    public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
+        final boolean schemaInclude = formatOptions.get(SCHEMA_INCLUDE);
+        final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
+        TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
 
-		return new DecodingFormat<DeserializationSchema<RowData>>() {
-			@Override
-			public DeserializationSchema<RowData> createRuntimeDecoder(
-					DynamicTableSource.Context context, DataType producedDataType) {
-				final RowType rowType = (RowType) producedDataType.getLogicalType();
-				final TypeInformation<RowData> rowDataTypeInfo =
-					(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
-				return new DebeziumJsonDeserializationSchema(
-					rowType,
-					rowDataTypeInfo,
-					schemaInclude,
-					ignoreParseErrors,
-					timestampFormatOption);
-			}
+        return new DecodingFormat<DeserializationSchema<RowData>>() {
+            @Override
+            public DeserializationSchema<RowData> createRuntimeDecoder(
+                    DynamicTableSource.Context context, DataType producedDataType) {
+                final RowType rowType = (RowType) producedDataType.getLogicalType();
+                final TypeInformation<RowData> rowDataTypeInfo =
+                        (TypeInformation<RowData>) context.createTypeInformation(producedDataType);
+                return new DebeziumJsonDeserializationSchema(
+                        rowType,
+                        rowDataTypeInfo,
+                        schemaInclude,
+                        ignoreParseErrors,
+                        timestampFormatOption);
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.newBuilder()
-					.addContainedKind(RowKind.INSERT)
-					.addContainedKind(RowKind.UPDATE_BEFORE)
-					.addContainedKind(RowKind.UPDATE_AFTER)
-					.addContainedKind(RowKind.DELETE)
-					.build();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.INSERT)
+                        .addContainedKind(RowKind.UPDATE_BEFORE)
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
+            }
+        };
+    }
 
-	@Override
-	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
-		throw new UnsupportedOperationException("Debezium format doesn't support as a sink format yet.");
-	}
+    @Override
+    public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        throw new UnsupportedOperationException(
+                "Debezium format doesn't support as a sink format yet.");
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(SCHEMA_INCLUDE);
-		options.add(IGNORE_PARSE_ERRORS);
-		options.add(TIMESTAMP_FORMAT);
-		return options;
-	}
-
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(SCHEMA_INCLUDE);
+        options.add(IGNORE_PARSE_ERRORS);
+        options.add(TIMESTAMP_FORMAT);
+        return options;
+    }
 }

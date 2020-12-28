@@ -24,82 +24,82 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Testing implementation of the {@link JobManagerRunner}.
- */
+/** Testing implementation of the {@link JobManagerRunner}. */
 public class TestingJobManagerRunner implements JobManagerRunner {
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	private final boolean blockingTermination;
+    private final boolean blockingTermination;
 
-	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
+    private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
 
-	private final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture;
+    private final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture;
 
-	private final CompletableFuture<Void> terminationFuture;
+    private final CompletableFuture<Void> terminationFuture;
 
-	private final OneShotLatch closeAsyncLatch = new OneShotLatch();
+    private final OneShotLatch closeAsyncLatch = new OneShotLatch();
 
-	public TestingJobManagerRunner(JobID jobId) {
-		this(jobId, false);
-	}
+    public TestingJobManagerRunner(JobID jobId) {
+        this(jobId, false);
+    }
 
-	public TestingJobManagerRunner(JobID jobId, boolean blockingTermination) {
-		this.jobId = jobId;
-		this.blockingTermination = blockingTermination;
-		this.resultFuture = new CompletableFuture<>();
-		this.jobMasterGatewayFuture = new CompletableFuture<>();
-		this.terminationFuture = new CompletableFuture<>();
+    public TestingJobManagerRunner(JobID jobId, boolean blockingTermination) {
+        this.jobId = jobId;
+        this.blockingTermination = blockingTermination;
+        this.resultFuture = new CompletableFuture<>();
+        this.jobMasterGatewayFuture = new CompletableFuture<>();
+        this.terminationFuture = new CompletableFuture<>();
 
-		terminationFuture.whenComplete((ignored, ignoredThrowable) -> resultFuture.completeExceptionally(new JobNotFinishedException(jobId)));
-	}
+        terminationFuture.whenComplete(
+                (ignored, ignoredThrowable) ->
+                        resultFuture.completeExceptionally(new JobNotFinishedException(jobId)));
+    }
 
-	@Override
-	public void start() throws Exception {}
+    @Override
+    public void start() throws Exception {}
 
-	@Override
-	public CompletableFuture<JobMasterGateway> getJobMasterGateway() {
-		return jobMasterGatewayFuture;
-	}
+    @Override
+    public CompletableFuture<JobMasterGateway> getJobMasterGateway() {
+        return jobMasterGatewayFuture;
+    }
 
-	@Override
-	public CompletableFuture<ArchivedExecutionGraph> getResultFuture() {
-		return resultFuture;
-	}
+    @Override
+    public CompletableFuture<ArchivedExecutionGraph> getResultFuture() {
+        return resultFuture;
+    }
 
-	@Override
-	public JobID getJobID() {
-		return jobId;
-	}
+    @Override
+    public JobID getJobID() {
+        return jobId;
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		closeAsyncLatch.trigger();
-		if (!blockingTermination) {
-			terminationFuture.complete(null);
-		}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        closeAsyncLatch.trigger();
+        if (!blockingTermination) {
+            terminationFuture.complete(null);
+        }
 
-		return terminationFuture;
-	}
+        return terminationFuture;
+    }
 
-	public void completeResultFuture(ArchivedExecutionGraph archivedExecutionGraph) {
-		resultFuture.complete(archivedExecutionGraph);
-	}
+    public void completeResultFuture(ArchivedExecutionGraph archivedExecutionGraph) {
+        resultFuture.complete(archivedExecutionGraph);
+    }
 
-	public void completeResultFutureExceptionally(Exception e) {
-		resultFuture.completeExceptionally(e);
-	}
+    public void completeResultFutureExceptionally(Exception e) {
+        resultFuture.completeExceptionally(e);
+    }
 
-	public void completeTerminationFuture() {
-		terminationFuture.complete(null);
-	}
+    public void completeTerminationFuture() {
+        terminationFuture.complete(null);
+    }
 
-	public void waitUntilCloseAsyncIsBeingCalled() throws InterruptedException {
-		closeAsyncLatch.await();
-	}
+    public void waitUntilCloseAsyncIsBeingCalled() throws InterruptedException {
+        closeAsyncLatch.await();
+    }
 
-	public CompletableFuture<Void> getTerminationFuture() {
-		return terminationFuture;
-	}
+    public CompletableFuture<Void> getTerminationFuture() {
+        return terminationFuture;
+    }
 }

@@ -22,65 +22,64 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 
 /**
- * Concrete implementation of the {@link FileStatus} interface for the
- * Hadoop Distribution File System.
+ * Concrete implementation of the {@link FileStatus} interface for the Hadoop Distribution File
+ * System.
  */
 public final class HadoopFileStatus implements FileStatus {
 
-	private org.apache.hadoop.fs.FileStatus fileStatus;
+    private org.apache.hadoop.fs.FileStatus fileStatus;
 
-	/**
-	 * Creates a new file status from an HDFS file status.
-	 *
-	 * @param fileStatus
-	 *        the HDFS file status
-	 */
-	public HadoopFileStatus(org.apache.hadoop.fs.FileStatus fileStatus) {
-		this.fileStatus = fileStatus;
-	}
+    /**
+     * Creates a new file status from an HDFS file status.
+     *
+     * @param fileStatus the HDFS file status
+     */
+    public HadoopFileStatus(org.apache.hadoop.fs.FileStatus fileStatus) {
+        this.fileStatus = fileStatus;
+    }
 
-	@Override
-	public long getLen() {
-		return fileStatus.getLen();
-	}
+    @Override
+    public long getLen() {
+        return fileStatus.getLen();
+    }
 
-	@Override
-	public long getBlockSize() {
-		long blocksize = fileStatus.getBlockSize();
-		if (blocksize > fileStatus.getLen()) {
-			return fileStatus.getLen();
-		}
+    @Override
+    public long getBlockSize() {
+        long blocksize = fileStatus.getBlockSize();
+        if (blocksize > fileStatus.getLen()) {
+            return fileStatus.getLen();
+        }
 
-		return blocksize;
-	}
+        return blocksize;
+    }
 
-	@Override
-	public long getAccessTime() {
-		return fileStatus.getAccessTime();
-	}
+    @Override
+    public long getAccessTime() {
+        return fileStatus.getAccessTime();
+    }
 
-	@Override
-	public long getModificationTime() {
-		return fileStatus.getModificationTime();
-	}
+    @Override
+    public long getModificationTime() {
+        return fileStatus.getModificationTime();
+    }
 
-	@Override
-	public short getReplication() {
-		return fileStatus.getReplication();
-	}
+    @Override
+    public short getReplication() {
+        return fileStatus.getReplication();
+    }
 
-	public org.apache.hadoop.fs.FileStatus getInternalFileStatus() {
-		return this.fileStatus;
-	}
+    public org.apache.hadoop.fs.FileStatus getInternalFileStatus() {
+        return this.fileStatus;
+    }
 
-	@Override
-	public Path getPath() {
-		return new Path(fileStatus.getPath().toUri());
-	}
+    @Override
+    public Path getPath() {
+        return new Path(fileStatus.getPath().toUri());
+    }
 
-	@SuppressWarnings("deprecation")
-	@Override
-	public boolean isDir() {
-		return fileStatus.isDir();
-	}
+    @SuppressWarnings("deprecation")
+    @Override
+    public boolean isDir() {
+        return fileStatus.isDir();
+    }
 }

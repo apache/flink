@@ -28,44 +28,52 @@ import static org.apache.flink.api.common.restartstrategy.RestartStrategies.noRe
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 
-/**
- * Tests for {@link RestartStrategyResolving}.
- */
+/** Tests for {@link RestartStrategyResolving}. */
 public class RestartStrategyResolvingTest extends TestLogger {
 
-	@Test
-	public void testClientSideHighestPriority() {
-		RestartStrategy resolvedStrategy = RestartStrategyResolving.resolve(noRestart(),
-			new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(2, 1000L),
-			true);
+    @Test
+    public void testClientSideHighestPriority() {
+        RestartStrategy resolvedStrategy =
+                RestartStrategyResolving.resolve(
+                        noRestart(),
+                        new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(2, 1000L),
+                        true);
 
-		assertThat(resolvedStrategy, instanceOf(NoRestartStrategy.class));
-	}
+        assertThat(resolvedStrategy, instanceOf(NoRestartStrategy.class));
+    }
 
-	@Test
-	public void testFixedStrategySetWhenCheckpointingEnabled() {
-		RestartStrategy resolvedStrategy = RestartStrategyResolving.resolve(fallBackRestart(),
-			new NoOrFixedIfCheckpointingEnabledRestartStrategyFactory(),
-			true);
+    @Test
+    public void testFixedStrategySetWhenCheckpointingEnabled() {
+        RestartStrategy resolvedStrategy =
+                RestartStrategyResolving.resolve(
+                        fallBackRestart(),
+                        new NoOrFixedIfCheckpointingEnabledRestartStrategyFactory(),
+                        true);
 
-		assertThat(resolvedStrategy, instanceOf(FixedDelayRestartStrategy.class));
-	}
+        assertThat(resolvedStrategy, instanceOf(FixedDelayRestartStrategy.class));
+    }
 
-	@Test
-	public void testServerStrategyIsUsedSetWhenCheckpointingEnabled() {
-		RestartStrategy resolvedStrategy = RestartStrategyResolving.resolve(fallBackRestart(),
-			new FailureRateRestartStrategy.FailureRateRestartStrategyFactory(5, Time.seconds(5), Time.seconds(2)),
-			true);
+    @Test
+    public void testServerStrategyIsUsedSetWhenCheckpointingEnabled() {
+        RestartStrategy resolvedStrategy =
+                RestartStrategyResolving.resolve(
+                        fallBackRestart(),
+                        new FailureRateRestartStrategy.FailureRateRestartStrategyFactory(
+                                5, Time.seconds(5), Time.seconds(2)),
+                        true);
 
-		assertThat(resolvedStrategy, instanceOf(FailureRateRestartStrategy.class));
-	}
+        assertThat(resolvedStrategy, instanceOf(FailureRateRestartStrategy.class));
+    }
 
-	@Test
-	public void testServerStrategyIsUsedSetWhenCheckpointingDisabled() {
-		RestartStrategy resolvedStrategy = RestartStrategyResolving.resolve(fallBackRestart(),
-			new FailureRateRestartStrategy.FailureRateRestartStrategyFactory(5, Time.seconds(5), Time.seconds(2)),
-			false);
+    @Test
+    public void testServerStrategyIsUsedSetWhenCheckpointingDisabled() {
+        RestartStrategy resolvedStrategy =
+                RestartStrategyResolving.resolve(
+                        fallBackRestart(),
+                        new FailureRateRestartStrategy.FailureRateRestartStrategyFactory(
+                                5, Time.seconds(5), Time.seconds(2)),
+                        false);
 
-		assertThat(resolvedStrategy, instanceOf(FailureRateRestartStrategy.class));
-	}
+        assertThat(resolvedStrategy, instanceOf(FailureRateRestartStrategy.class));
+    }
 }

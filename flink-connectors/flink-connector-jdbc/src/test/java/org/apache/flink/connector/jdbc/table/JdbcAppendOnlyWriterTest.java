@@ -43,74 +43,73 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import static org.mockito.Mockito.doReturn;
 
-/**
- * Test for the Append only mode.
- */
+/** Test for the Append only mode. */
 public class JdbcAppendOnlyWriterTest extends JdbcTestBase {
 
-	private JdbcBatchingOutputFormat format;
-	private String[] fieldNames;
+    private JdbcBatchingOutputFormat format;
+    private String[] fieldNames;
 
-	@Before
-	public void setup() {
-		fieldNames = new String[]{"id", "title", "author", "price", "qty"};
-	}
+    @Before
+    public void setup() {
+        fieldNames = new String[] {"id", "title", "author", "price", "qty"};
+    }
 
-	@Test(expected = IOException.class)
-	public void testMaxRetry() throws Exception {
-		format = JdbcBatchingOutputFormat.builder()
-			.setOptions(JdbcOptions.builder()
-				.setDBUrl(getDbMetadata().getUrl())
-				.setTableName(OUTPUT_TABLE)
-				.build())
-			.setFieldNames(fieldNames)
-			.setKeyFields(null)
-			.build();
-		RuntimeContext context = Mockito.mock(RuntimeContext.class);
-		ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
-		doReturn(config).when(context).getExecutionConfig();
-		doReturn(true).when(config).isObjectReuseEnabled();
-		format.setRuntimeContext(context);
-		format.open(0, 1);
+    @Test(expected = IOException.class)
+    public void testMaxRetry() throws Exception {
+        format =
+                JdbcBatchingOutputFormat.builder()
+                        .setOptions(
+                                JdbcOptions.builder()
+                                        .setDBUrl(getDbMetadata().getUrl())
+                                        .setTableName(OUTPUT_TABLE)
+                                        .build())
+                        .setFieldNames(fieldNames)
+                        .setKeyFields(null)
+                        .build();
+        RuntimeContext context = Mockito.mock(RuntimeContext.class);
+        ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
+        doReturn(config).when(context).getExecutionConfig();
+        doReturn(true).when(config).isObjectReuseEnabled();
+        format.setRuntimeContext(context);
+        format.open(0, 1);
 
-		// alter table schema to trigger retry logic after failure.
-		alterTable();
-		for (TestEntry entry : TEST_DATA) {
-			format.writeRecord(Tuple2.of(true, toRow(entry)));
-		}
+        // alter table schema to trigger retry logic after failure.
+        alterTable();
+        for (TestEntry entry : TEST_DATA) {
+            format.writeRecord(Tuple2.of(true, toRow(entry)));
+        }
 
-		// after retry default times, throws a BatchUpdateException.
-		format.flush();
-	}
+        // after retry default times, throws a BatchUpdateException.
+        format.flush();
+    }
 
-	private void alterTable() throws Exception {
-		Class.forName(getDbMetadata().getDriverClass());
-		try (Connection conn = DriverManager.getConnection(getDbMetadata().getUrl());
-			Statement stat = conn.createStatement()) {
-			stat.execute("ALTER  TABLE " + OUTPUT_TABLE + " DROP COLUMN " + fieldNames[1]);
-		}
-	}
+    private void alterTable() throws Exception {
+        Class.forName(getDbMetadata().getDriverClass());
+        try (Connection conn = DriverManager.getConnection(getDbMetadata().getUrl());
+                Statement stat = conn.createStatement()) {
+            stat.execute("ALTER  TABLE " + OUTPUT_TABLE + " DROP COLUMN " + fieldNames[1]);
+        }
+    }
 
-	@After
-	public void clear() throws Exception {
-		if (format != null) {
-			try {
-				format.close();
-			} catch (RuntimeException e) {
-				// ignore exception when close.
-			}
-		}
-		format = null;
-		Class.forName(getDbMetadata().getDriverClass());
-		try (
-			Connection conn = DriverManager.getConnection(getDbMetadata().getUrl());
-			Statement stat = conn.createStatement()) {
-			stat.execute("DELETE FROM " + OUTPUT_TABLE);
-		}
-	}
+    @After
+    public void clear() throws Exception {
+        if (format != null) {
+            try {
+                format.close();
+            } catch (RuntimeException e) {
+                // ignore exception when close.
+            }
+        }
+        format = null;
+        Class.forName(getDbMetadata().getDriverClass());
+        try (Connection conn = DriverManager.getConnection(getDbMetadata().getUrl());
+                Statement stat = conn.createStatement()) {
+            stat.execute("DELETE FROM " + OUTPUT_TABLE);
+        }
+    }
 
-	@Override
-	protected DbMetadata getDbMetadata() {
-		return DERBY_EBOOKSHOP_DB;
-	}
+    @Override
+    protected DbMetadata getDbMetadata() {
+        return DERBY_EBOOKSHOP_DB;
+    }
 }

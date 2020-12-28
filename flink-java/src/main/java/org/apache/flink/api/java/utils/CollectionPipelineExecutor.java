@@ -35,59 +35,59 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * An {@link PipelineExecutor} for serial, local, collection-based executions of Flink programs.
- */
+/** An {@link PipelineExecutor} for serial, local, collection-based executions of Flink programs. */
 @Internal
 public class CollectionPipelineExecutor implements PipelineExecutor {
 
-	public static final String NAME = "collection";
+    public static final String NAME = "collection";
 
-	@Override
-	public CompletableFuture<JobClient> execute(
-			Pipeline pipeline,
-			Configuration configuration) throws Exception {
-		Plan plan = (Plan) pipeline;
-		CollectionExecutor exec = new CollectionExecutor(plan.getExecutionConfig());
-		JobExecutionResult result = exec.execute(plan);
+    @Override
+    public CompletableFuture<JobClient> execute(Pipeline pipeline, Configuration configuration)
+            throws Exception {
+        Plan plan = (Plan) pipeline;
+        CollectionExecutor exec = new CollectionExecutor(plan.getExecutionConfig());
+        JobExecutionResult result = exec.execute(plan);
 
-		return CompletableFuture.completedFuture(new JobClient() {
-			@Override
-			public JobID getJobID() {
-				return new JobID();
-			}
+        return CompletableFuture.completedFuture(
+                new JobClient() {
+                    @Override
+                    public JobID getJobID() {
+                        return new JobID();
+                    }
 
-			@Override
-			public CompletableFuture<JobStatus> getJobStatus() {
-				return CompletableFuture.completedFuture(JobStatus.FINISHED);
-			}
+                    @Override
+                    public CompletableFuture<JobStatus> getJobStatus() {
+                        return CompletableFuture.completedFuture(JobStatus.FINISHED);
+                    }
 
-			@Override
-			public CompletableFuture<Void> cancel() {
-				return CompletableFuture.completedFuture(null);
-			}
+                    @Override
+                    public CompletableFuture<Void> cancel() {
+                        return CompletableFuture.completedFuture(null);
+                    }
 
-			@Override
-			public CompletableFuture<String> stopWithSavepoint(
-					boolean advanceToEndOfEventTime,
-					@Nullable String savepointDirectory) {
-				return CompletableFuture.completedFuture("null");
-			}
+                    @Override
+                    public CompletableFuture<String> stopWithSavepoint(
+                            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
+                        return CompletableFuture.completedFuture("null");
+                    }
 
-			@Override
-			public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
-				return CompletableFuture.completedFuture("null");
-			}
+                    @Override
+                    public CompletableFuture<String> triggerSavepoint(
+                            @Nullable String savepointDirectory) {
+                        return CompletableFuture.completedFuture("null");
+                    }
 
-			@Override
-			public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
-				return CompletableFuture.completedFuture(Collections.emptyMap());
-			}
+                    @Override
+                    public CompletableFuture<Map<String, Object>> getAccumulators(
+                            ClassLoader classLoader) {
+                        return CompletableFuture.completedFuture(Collections.emptyMap());
+                    }
 
-			@Override
-			public CompletableFuture<JobExecutionResult> getJobExecutionResult(ClassLoader userClassloader) {
-				return CompletableFuture.completedFuture(result);
-			}
-		});
-	}
+                    @Override
+                    public CompletableFuture<JobExecutionResult> getJobExecutionResult(
+                            ClassLoader userClassloader) {
+                        return CompletableFuture.completedFuture(result);
+                    }
+                });
+    }
 }

@@ -28,9 +28,9 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
  */
 public interface StreamTableSink<T> extends TableSink<T> {
 
-	/**
-	 * Consumes the DataStream and return the sink transformation {@link DataStreamSink}.
-	 * The returned {@link DataStreamSink} will be used to set resources for the sink operator.
-	 */
-	DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
+    /**
+     * Consumes the DataStream and return the sink transformation {@link DataStreamSink}. The
+     * returned {@link DataStreamSink} will be used to set resources for the sink operator.
+     */
+    DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
 }

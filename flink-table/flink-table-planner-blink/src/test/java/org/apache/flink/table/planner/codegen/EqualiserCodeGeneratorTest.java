@@ -38,62 +38,58 @@ import java.util.function.Function;
 
 import static org.apache.flink.table.data.TimestampData.fromEpochMillis;
 
-/**
- * Test for {@link EqualiserCodeGenerator}.
- */
+/** Test for {@link EqualiserCodeGenerator}. */
 public class EqualiserCodeGeneratorTest {
 
-	@Test
-	public void testRaw() {
-		RecordEqualiser equaliser = new EqualiserCodeGenerator(
-				new LogicalType[]{new TypeInformationRawType<>(Types.INT)})
-				.generateRecordEqualiser("RAW")
-				.newInstance(Thread.currentThread().getContextClassLoader());
-		Function<RawValueData<?>, BinaryRowData> func = o -> {
-			BinaryRowData row = new BinaryRowData(1);
-			BinaryRowWriter writer = new BinaryRowWriter(row);
-			writer.writeRawValue(0, o, new RawValueDataSerializer<>(IntSerializer.INSTANCE));
-			writer.complete();
-			return row;
-		};
-		assertBoolean(equaliser, func, RawValueData.fromObject(1), RawValueData.fromObject(1), true);
-		assertBoolean(equaliser, func, RawValueData.fromObject(1), RawValueData.fromObject(2), false);
-	}
+    @Test
+    public void testRaw() {
+        RecordEqualiser equaliser =
+                new EqualiserCodeGenerator(
+                                new LogicalType[] {new TypeInformationRawType<>(Types.INT)})
+                        .generateRecordEqualiser("RAW")
+                        .newInstance(Thread.currentThread().getContextClassLoader());
+        Function<RawValueData<?>, BinaryRowData> func =
+                o -> {
+                    BinaryRowData row = new BinaryRowData(1);
+                    BinaryRowWriter writer = new BinaryRowWriter(row);
+                    writer.writeRawValue(
+                            0, o, new RawValueDataSerializer<>(IntSerializer.INSTANCE));
+                    writer.complete();
+                    return row;
+                };
+        assertBoolean(
+                equaliser, func, RawValueData.fromObject(1), RawValueData.fromObject(1), true);
+        assertBoolean(
+                equaliser, func, RawValueData.fromObject(1), RawValueData.fromObject(2), false);
+    }
 
-	@Test
-	public void testTimestamp() {
-		RecordEqualiser equaliser = new EqualiserCodeGenerator(
-				new LogicalType[]{new TimestampType()})
-				.generateRecordEqualiser("TIMESTAMP")
-				.newInstance(Thread.currentThread().getContextClassLoader());
-		Function<TimestampData, BinaryRowData> func = o -> {
-			BinaryRowData row = new BinaryRowData(1);
-			BinaryRowWriter writer = new BinaryRowWriter(row);
-			writer.writeTimestamp(0, o, 9);
-			writer.complete();
-			return row;
-		};
-		assertBoolean(equaliser, func, fromEpochMillis(1024), fromEpochMillis(1024), true);
-		assertBoolean(equaliser, func, fromEpochMillis(1024), fromEpochMillis(1025), false);
-	}
+    @Test
+    public void testTimestamp() {
+        RecordEqualiser equaliser =
+                new EqualiserCodeGenerator(new LogicalType[] {new TimestampType()})
+                        .generateRecordEqualiser("TIMESTAMP")
+                        .newInstance(Thread.currentThread().getContextClassLoader());
+        Function<TimestampData, BinaryRowData> func =
+                o -> {
+                    BinaryRowData row = new BinaryRowData(1);
+                    BinaryRowWriter writer = new BinaryRowWriter(row);
+                    writer.writeTimestamp(0, o, 9);
+                    writer.complete();
+                    return row;
+                };
+        assertBoolean(equaliser, func, fromEpochMillis(1024), fromEpochMillis(1024), true);
+        assertBoolean(equaliser, func, fromEpochMillis(1024), fromEpochMillis(1025), false);
+    }
 
-	private static <T> void assertBoolean(
-			RecordEqualiser equaliser,
-			Function<T, BinaryRowData> toBinaryRow,
-			T o1,
-			T o2,
-			boolean bool) {
-		Assert.assertEquals(bool, equaliser.equals(
-				GenericRowData.of(o1),
-				GenericRowData.of(o2)));
-		Assert.assertEquals(bool, equaliser.equals(
-				toBinaryRow.apply(o1),
-				GenericRowData.of(o2)));
-		Assert.assertEquals(bool, equaliser.equals(
-				GenericRowData.of(o1),
-				toBinaryRow.apply(o2)));
-		Assert.assertEquals(bool, equaliser.equals(
-				toBinaryRow.apply(o1),
-				toBinaryRow.apply(o2)));
-	}
+    private static <T> void assertBoolean(
+            RecordEqualiser equaliser,
+            Function<T, BinaryRowData> toBinaryRow,
+            T o1,
+            T o2,
+            boolean bool) {
+        Assert.assertEquals(bool, equaliser.equals(GenericRowData.of(o1), GenericRowData.of(o2)));
+        Assert.assertEquals(bool, equaliser.equals(toBinaryRow.apply(o1), GenericRowData.of(o2)));
+        Assert.assertEquals(bool, equaliser.equals(GenericRowData.of(o1), toBinaryRow.apply(o2)));
+        Assert.assertEquals(bool, equaliser.equals(toBinaryRow.apply(o1), toBinaryRow.apply(o2)));
+    }
 }

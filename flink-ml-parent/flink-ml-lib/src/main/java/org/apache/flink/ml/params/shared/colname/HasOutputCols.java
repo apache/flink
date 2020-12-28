@@ -25,23 +25,24 @@ import org.apache.flink.ml.api.misc.param.WithParams;
 
 /**
  * An interface for classes with a parameter specifying names of multiple output columns.
+ *
  * @see HasOutputCol
  * @see HasOutputColDefaultAsNull
  * @see HasOutputColsDefaultAsNull
  */
-public interface HasOutputCols<T> extends WithParams <T> {
+public interface HasOutputCols<T> extends WithParams<T> {
 
-	ParamInfo <String[]> OUTPUT_COLS = ParamInfoFactory
-		.createParamInfo("outputCols", String[].class)
-		.setDescription("Names of the output columns")
-		.setRequired()
-		.build();
+    ParamInfo<String[]> OUTPUT_COLS =
+            ParamInfoFactory.createParamInfo("outputCols", String[].class)
+                    .setDescription("Names of the output columns")
+                    .setRequired()
+                    .build();
 
-	default String[] getOutputCols() {
-		return get(OUTPUT_COLS);
-	}
+    default String[] getOutputCols() {
+        return get(OUTPUT_COLS);
+    }
 
-	default T setOutputCols(String... value) {
-		return set(OUTPUT_COLS, value);
-	}
+    default T setOutputCols(String... value) {
+        return set(OUTPUT_COLS, value);
+    }
 }

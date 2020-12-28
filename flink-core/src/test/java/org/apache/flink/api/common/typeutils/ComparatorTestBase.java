@@ -18,14 +18,6 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-
-import static org.junit.Assert.*;
-
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -35,6 +27,14 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
+import static org.junit.Assert.*;
+
 /**
  * Abstract test base for comparators.
  *
@@ -42,483 +42,491 @@ import org.junit.Test;
  */
 public abstract class ComparatorTestBase<T> extends TestLogger {
 
-	// Same as in the NormalizedKeySorter
-	private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 8;
+    // Same as in the NormalizedKeySorter
+    private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 8;
 
-	protected abstract TypeComparator<T> createComparator(boolean ascending);
+    protected abstract TypeComparator<T> createComparator(boolean ascending);
 
-	protected abstract TypeSerializer<T> createSerializer();
+    protected abstract TypeSerializer<T> createSerializer();
 
-	/**
-	 * Returns the sorted data set.
-	 * <p>
-	 * Note: every element needs to be *strictly greater* than the previous element.
-	 *
-	 * @return sorted test data set
-	 */
-	protected abstract T[] getSortedTestData();
+    /**
+     * Returns the sorted data set.
+     *
+     * <p>Note: every element needs to be *strictly greater* than the previous element.
+     *
+     * @return sorted test data set
+     */
+    protected abstract T[] getSortedTestData();
 
-	// -------------------------------- test duplication ------------------------------------------
-	
-	@Test
-	public void testDuplicate() {
-		try {
-			TypeComparator<T> comparator = getComparator(true);
-			TypeComparator<T> clone = comparator.duplicate();
-			
-			T[] data = getSortedData();
-			comparator.setReference(data[0]);
-			clone.setReference(data[1]);
-			
-			assertTrue("Comparator duplication does not work: Altering the reference in a duplicated comparator alters the original comparator's reference.", 
-					comparator.equalToReference(data[0]) && clone.equalToReference(data[1]));
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
-		}
-	}
-	
-	// --------------------------------- equality tests -------------------------------------------
-	
-	@Test
-	public void testEquality() {
-		testEquals(true);
-		testEquals(false);
-	}
+    // -------------------------------- test duplication ------------------------------------------
 
-	protected void testEquals(boolean ascending) {
-		try {
-			// Just setup two identical output/inputViews and go over their data to see if compare works
-			TestOutputView out1;
-			TestOutputView out2;
-			TestInputView in1;
-			TestInputView in2;
+    @Test
+    public void testDuplicate() {
+        try {
+            TypeComparator<T> comparator = getComparator(true);
+            TypeComparator<T> clone = comparator.duplicate();
 
-			// Now use comparator and compare
-			TypeComparator<T> comparator = getComparator(ascending);
-			T[] data = getSortedData();
-			for (T d : data) {
+            T[] data = getSortedData();
+            comparator.setReference(data[0]);
+            clone.setReference(data[1]);
 
-				out2 = new TestOutputView();
-				writeSortedData(d, out2);
-				in2 = out2.getInputView();
+            assertTrue(
+                    "Comparator duplication does not work: Altering the reference in a duplicated comparator alters the original comparator's reference.",
+                    comparator.equalToReference(data[0]) && clone.equalToReference(data[1]));
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            Assert.fail(e.getMessage());
+        }
+    }
 
-				out1 = new TestOutputView();
-				writeSortedData(d, out1);
-				in1 = out1.getInputView();
+    // --------------------------------- equality tests -------------------------------------------
 
-				assertTrue(comparator.compareSerialized(in1, in2) == 0);
-			}
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
-	}
+    @Test
+    public void testEquality() {
+        testEquals(true);
+        testEquals(false);
+    }
 
-	@Test
-	public void testEqualityWithReference() {
-		try {
-			TypeSerializer<T> serializer = createSerializer();
-			TypeComparator<T> comparator = getComparator(true);
-			TypeComparator<T> comparator2 = getComparator(true);
-			T[] data = getSortedData();
-			for (T d : data) {
-				comparator.setReference(d);
-				// Make a copy to compare
-				T copy = serializer.copy(d, serializer.createInstance());
+    protected void testEquals(boolean ascending) {
+        try {
+            // Just setup two identical output/inputViews and go over their data to see if compare
+            // works
+            TestOutputView out1;
+            TestOutputView out2;
+            TestInputView in1;
+            TestInputView in2;
 
-				// And then test equalTo and compareToReference method of comparator
-				assertTrue(comparator.equalToReference(d));
-				comparator2.setReference(copy);
-				assertTrue(comparator.compareToReference(comparator2) == 0);
-			}
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
-	}
+            // Now use comparator and compare
+            TypeComparator<T> comparator = getComparator(ascending);
+            T[] data = getSortedData();
+            for (T d : data) {
 
-	// --------------------------------- inequality tests ----------------------------------------
-	@Test
-	public void testInequality() {
-		testGreatSmallAscDesc(true, true);
-		testGreatSmallAscDesc(false, true);
-		testGreatSmallAscDesc(true, false);
-		testGreatSmallAscDesc(false, false);
-	}
+                out2 = new TestOutputView();
+                writeSortedData(d, out2);
+                in2 = out2.getInputView();
 
-	protected void testGreatSmallAscDesc(boolean ascending, boolean greater) {
-		try {
-			//split data into low and high part
-			T[] data = getSortedData();
+                out1 = new TestOutputView();
+                writeSortedData(d, out1);
+                in1 = out1.getInputView();
 
-			TypeComparator<T> comparator = getComparator(ascending);
-			TestOutputView out1;
-			TestOutputView out2;
-			TestInputView in1;
-			TestInputView in2;
+                assertTrue(comparator.compareSerialized(in1, in2) == 0);
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Exception in test: " + e.getMessage());
+        }
+    }
 
-			//compares every element in high with every element in low
-			for (int x = 0; x < data.length - 1; x++) {
-				for (int y = x + 1; y < data.length; y++) {
-					out1 = new TestOutputView();
-					writeSortedData(data[x], out1);
-					in1 = out1.getInputView();
+    @Test
+    public void testEqualityWithReference() {
+        try {
+            TypeSerializer<T> serializer = createSerializer();
+            TypeComparator<T> comparator = getComparator(true);
+            TypeComparator<T> comparator2 = getComparator(true);
+            T[] data = getSortedData();
+            for (T d : data) {
+                comparator.setReference(d);
+                // Make a copy to compare
+                T copy = serializer.copy(d, serializer.createInstance());
 
-					out2 = new TestOutputView();
-					writeSortedData(data[y], out2);
-					in2 = out2.getInputView();
+                // And then test equalTo and compareToReference method of comparator
+                assertTrue(comparator.equalToReference(d));
+                comparator2.setReference(copy);
+                assertTrue(comparator.compareToReference(comparator2) == 0);
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Exception in test: " + e.getMessage());
+        }
+    }
 
-					if (greater && ascending) {
-						assertTrue(comparator.compareSerialized(in1, in2) < 0);
-					}
-					if (greater && !ascending) {
-						assertTrue(comparator.compareSerialized(in1, in2) > 0);
-					}
-					if (!greater && ascending) {
-						assertTrue(comparator.compareSerialized(in2, in1) > 0);
-					}
-					if (!greater && !ascending) {
-						assertTrue(comparator.compareSerialized(in2, in1) < 0);
-					}
-				}
-			}
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
-	}
+    // --------------------------------- inequality tests ----------------------------------------
+    @Test
+    public void testInequality() {
+        testGreatSmallAscDesc(true, true);
+        testGreatSmallAscDesc(false, true);
+        testGreatSmallAscDesc(true, false);
+        testGreatSmallAscDesc(false, false);
+    }
 
-	@Test
-	public void testInequalityWithReference() {
-		testGreatSmallAscDescWithReference(true, true);
-		testGreatSmallAscDescWithReference(true, false);
-		testGreatSmallAscDescWithReference(false, true);
-		testGreatSmallAscDescWithReference(false, false);
-	}
+    protected void testGreatSmallAscDesc(boolean ascending, boolean greater) {
+        try {
+            // split data into low and high part
+            T[] data = getSortedData();
 
-	protected void testGreatSmallAscDescWithReference(boolean ascending, boolean greater) {
-		try {
-			T[] data = getSortedData();
+            TypeComparator<T> comparator = getComparator(ascending);
+            TestOutputView out1;
+            TestOutputView out2;
+            TestInputView in1;
+            TestInputView in2;
 
-			TypeComparator<T> comparatorLow = getComparator(ascending);
-			TypeComparator<T> comparatorHigh = getComparator(ascending);
+            // compares every element in high with every element in low
+            for (int x = 0; x < data.length - 1; x++) {
+                for (int y = x + 1; y < data.length; y++) {
+                    out1 = new TestOutputView();
+                    writeSortedData(data[x], out1);
+                    in1 = out1.getInputView();
 
-			//compares every element in high with every element in low
-			for (int x = 0; x < data.length - 1; x++) {
-				for (int y = x + 1; y < data.length; y++) {
-					comparatorLow.setReference(data[x]);
-					comparatorHigh.setReference(data[y]);
+                    out2 = new TestOutputView();
+                    writeSortedData(data[y], out2);
+                    in2 = out2.getInputView();
 
-					if (greater && ascending) {
-						assertTrue(comparatorLow.compareToReference(comparatorHigh) > 0);
-					}
-					if (greater && !ascending) {
-						assertTrue(comparatorLow.compareToReference(comparatorHigh) < 0);
-					}
-					if (!greater && ascending) {
-						assertTrue(comparatorHigh.compareToReference(comparatorLow) < 0);
-					}
-					if (!greater && !ascending) {
-						assertTrue(comparatorHigh.compareToReference(comparatorLow) > 0);
-					}
-				}
-			}
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
-	}
+                    if (greater && ascending) {
+                        assertTrue(comparator.compareSerialized(in1, in2) < 0);
+                    }
+                    if (greater && !ascending) {
+                        assertTrue(comparator.compareSerialized(in1, in2) > 0);
+                    }
+                    if (!greater && ascending) {
+                        assertTrue(comparator.compareSerialized(in2, in1) > 0);
+                    }
+                    if (!greater && !ascending) {
+                        assertTrue(comparator.compareSerialized(in2, in1) < 0);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Exception in test: " + e.getMessage());
+        }
+    }
 
-	// --------------------------------- Normalized key tests -------------------------------------
-	
-	// Help Function for setting up a memory segment and normalize the keys of the data array in it
-	public MemorySegment setupNormalizedKeysMemSegment(T[] data, int normKeyLen, TypeComparator<T> comparator) {
-		MemorySegment memSeg = MemorySegmentFactory.allocateUnpooledSegment(2048);
+    @Test
+    public void testInequalityWithReference() {
+        testGreatSmallAscDescWithReference(true, true);
+        testGreatSmallAscDescWithReference(true, false);
+        testGreatSmallAscDescWithReference(false, true);
+        testGreatSmallAscDescWithReference(false, false);
+    }
 
-		// Setup normalized Keys in the memory segment
-		int offset = 0;
-		for (T e : data) {
-			comparator.putNormalizedKey(e, memSeg, offset, normKeyLen);
-			offset += normKeyLen;
-		}
-		return memSeg;
-	}
-	
-	// Help Function which return a normalizedKeyLength, either as done in the NormalizedKeySorter or it's half
-	private int getNormKeyLen(boolean halfLength, T[] data,
-			TypeComparator<T> comparator) throws Exception {
-		// Same as in the NormalizedKeySorter
-		int keyLen = Math.min(comparator.getNormalizeKeyLen(), DEFAULT_MAX_NORMALIZED_KEY_LEN);
-		if (keyLen < comparator.getNormalizeKeyLen()) {
-			assertTrue(comparator.isNormalizedKeyPrefixOnly(keyLen));
-		}
+    protected void testGreatSmallAscDescWithReference(boolean ascending, boolean greater) {
+        try {
+            T[] data = getSortedData();
 
-		if (halfLength) {
-			keyLen = keyLen / 2;
-			assertTrue(comparator.isNormalizedKeyPrefixOnly(keyLen));
-		}
-		return keyLen;
-	}
+            TypeComparator<T> comparatorLow = getComparator(ascending);
+            TypeComparator<T> comparatorHigh = getComparator(ascending);
 
-	@Test
-	public void testNormalizedKeysEqualsFullLength() {
-		// Ascending or descending does not matter in this case
-		TypeComparator<T> comparator = getComparator(true);
-		if (!comparator.supportsNormalizedKey()) {
-			return;
-		}
-		testNormalizedKeysEquals(false);
-	}
+            // compares every element in high with every element in low
+            for (int x = 0; x < data.length - 1; x++) {
+                for (int y = x + 1; y < data.length; y++) {
+                    comparatorLow.setReference(data[x]);
+                    comparatorHigh.setReference(data[y]);
 
-	@Test
-	public void testNormalizedKeysEqualsHalfLength() {
-		TypeComparator<T> comparator = getComparator(true);
-		if (!comparator.supportsNormalizedKey()) {
-			return;
-		}
-		testNormalizedKeysEquals(true);
-	}
-	
-	public void testNormalizedKeysEquals(boolean halfLength) {
-		try {
-			TypeComparator<T> comparator = getComparator(true);
-			T[] data = getSortedData();
-			int normKeyLen = getNormKeyLen(halfLength, data, comparator);
+                    if (greater && ascending) {
+                        assertTrue(comparatorLow.compareToReference(comparatorHigh) > 0);
+                    }
+                    if (greater && !ascending) {
+                        assertTrue(comparatorLow.compareToReference(comparatorHigh) < 0);
+                    }
+                    if (!greater && ascending) {
+                        assertTrue(comparatorHigh.compareToReference(comparatorLow) < 0);
+                    }
+                    if (!greater && !ascending) {
+                        assertTrue(comparatorHigh.compareToReference(comparatorLow) > 0);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Exception in test: " + e.getMessage());
+        }
+    }
 
-			MemorySegment memSeg1 = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
-			MemorySegment memSeg2 = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
+    // --------------------------------- Normalized key tests -------------------------------------
 
-			for (int i = 0; i < data.length; i++) {
-				assertTrue(memSeg1.compare(memSeg2, i * normKeyLen, i * normKeyLen, normKeyLen) == 0);
-			}
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
-	}
+    // Help Function for setting up a memory segment and normalize the keys of the data array in it
+    public MemorySegment setupNormalizedKeysMemSegment(
+            T[] data, int normKeyLen, TypeComparator<T> comparator) {
+        MemorySegment memSeg = MemorySegmentFactory.allocateUnpooledSegment(2048);
 
+        // Setup normalized Keys in the memory segment
+        int offset = 0;
+        for (T e : data) {
+            comparator.putNormalizedKey(e, memSeg, offset, normKeyLen);
+            offset += normKeyLen;
+        }
+        return memSeg;
+    }
 
-	@Test
-	public void testNormalizedKeysGreatSmallFullLength() {
-		// ascending/descending in comparator doesn't matter for normalized keys
-		TypeComparator<T> comparator = getComparator(true);
-		if (!comparator.supportsNormalizedKey()) {
-			return;
-		}
-		testNormalizedKeysGreatSmall(true, comparator, false);
-		testNormalizedKeysGreatSmall(false, comparator, false);
-	}
+    // Help Function which return a normalizedKeyLength, either as done in the NormalizedKeySorter
+    // or it's half
+    private int getNormKeyLen(boolean halfLength, T[] data, TypeComparator<T> comparator)
+            throws Exception {
+        // Same as in the NormalizedKeySorter
+        int keyLen = Math.min(comparator.getNormalizeKeyLen(), DEFAULT_MAX_NORMALIZED_KEY_LEN);
+        if (keyLen < comparator.getNormalizeKeyLen()) {
+            assertTrue(comparator.isNormalizedKeyPrefixOnly(keyLen));
+        }
 
-	@Test
-	public void testNormalizedKeysGreatSmallAscDescHalfLength() {
-		// ascending/descending in comparator doesn't matter for normalized keys
-		TypeComparator<T> comparator = getComparator(true);
-		if (!comparator.supportsNormalizedKey()) {
-			return;
-		}
-		testNormalizedKeysGreatSmall(true, comparator, true);
-		testNormalizedKeysGreatSmall(false, comparator, true);
-	}
+        if (halfLength) {
+            keyLen = keyLen / 2;
+            assertTrue(comparator.isNormalizedKeyPrefixOnly(keyLen));
+        }
+        return keyLen;
+    }
 
-	protected void testNormalizedKeysGreatSmall(boolean greater, TypeComparator<T> comparator, boolean halfLength) {
-		try {
-			T[] data = getSortedData();
-			// Get the normKeyLen on which we are testing
-			int normKeyLen = getNormKeyLen(halfLength, data, comparator);
+    @Test
+    public void testNormalizedKeysEqualsFullLength() {
+        // Ascending or descending does not matter in this case
+        TypeComparator<T> comparator = getComparator(true);
+        if (!comparator.supportsNormalizedKey()) {
+            return;
+        }
+        testNormalizedKeysEquals(false);
+    }
 
-			// Write the data into different 2 memory segments
-			MemorySegment memSegLow = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
-			MemorySegment memSegHigh = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
+    @Test
+    public void testNormalizedKeysEqualsHalfLength() {
+        TypeComparator<T> comparator = getComparator(true);
+        if (!comparator.supportsNormalizedKey()) {
+            return;
+        }
+        testNormalizedKeysEquals(true);
+    }
 
-			boolean fullyDetermines = !comparator.isNormalizedKeyPrefixOnly(normKeyLen);
-			
-			// Compare every element with every bigger element
-			for (int l = 0; l < data.length - 1; l++) {
-				for (int h = l + 1; h < data.length; h++) {
-					int cmp;
-					if (greater) {
-						cmp = memSegLow.compare(memSegHigh, l * normKeyLen, h * normKeyLen, normKeyLen);
-						if (fullyDetermines) {
-							assertTrue(cmp < 0);
-						} else {
-							assertTrue(cmp <= 0);
-						}
-					} else {
-						cmp = memSegHigh.compare(memSegLow, h * normKeyLen, l * normKeyLen, normKeyLen);
-						if (fullyDetermines) {
-							assertTrue(cmp > 0);
-						} else {
-							assertTrue(cmp >= 0);
-						}
-					}
-				}
-			}
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
-	}
+    public void testNormalizedKeysEquals(boolean halfLength) {
+        try {
+            TypeComparator<T> comparator = getComparator(true);
+            T[] data = getSortedData();
+            int normKeyLen = getNormKeyLen(halfLength, data, comparator);
 
-	@Test
-	public void testNormalizedKeyReadWriter() {
-		try {
-			T[] data = getSortedData();
-			T reuse = getSortedData()[0];
+            MemorySegment memSeg1 = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
+            MemorySegment memSeg2 = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
 
-			TypeComparator<T> comp1 = getComparator(true);
-			if(!comp1.supportsSerializationWithKeyNormalization()){
-				return;
-			}
-			TypeComparator<T> comp2 = comp1.duplicate();
-			comp2.setReference(reuse);
+            for (int i = 0; i < data.length; i++) {
+                assertTrue(
+                        memSeg1.compare(memSeg2, i * normKeyLen, i * normKeyLen, normKeyLen) == 0);
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Exception in test: " + e.getMessage());
+        }
+    }
 
-			TestOutputView out = new TestOutputView();
-			TestInputView in;
+    @Test
+    public void testNormalizedKeysGreatSmallFullLength() {
+        // ascending/descending in comparator doesn't matter for normalized keys
+        TypeComparator<T> comparator = getComparator(true);
+        if (!comparator.supportsNormalizedKey()) {
+            return;
+        }
+        testNormalizedKeysGreatSmall(true, comparator, false);
+        testNormalizedKeysGreatSmall(false, comparator, false);
+    }
 
-			for (T value : data) {
-				comp1.setReference(value);
-				comp1.writeWithKeyNormalization(value, out);
-				in = out.getInputView();
-				comp1.readWithKeyDenormalization(reuse, in);
-				
-				assertTrue(comp1.compareToReference(comp2) == 0);
-			}
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
-	}
+    @Test
+    public void testNormalizedKeysGreatSmallAscDescHalfLength() {
+        // ascending/descending in comparator doesn't matter for normalized keys
+        TypeComparator<T> comparator = getComparator(true);
+        if (!comparator.supportsNormalizedKey()) {
+            return;
+        }
+        testNormalizedKeysGreatSmall(true, comparator, true);
+        testNormalizedKeysGreatSmall(false, comparator, true);
+    }
 
-	// -------------------------------- Key extraction tests --------------------------------------
+    protected void testNormalizedKeysGreatSmall(
+            boolean greater, TypeComparator<T> comparator, boolean halfLength) {
+        try {
+            T[] data = getSortedData();
+            // Get the normKeyLen on which we are testing
+            int normKeyLen = getNormKeyLen(halfLength, data, comparator);
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testKeyExtraction() {
-		TypeComparator<T> comparator = getComparator(true);
-		T[] data = getSortedData();
+            // Write the data into different 2 memory segments
+            MemorySegment memSegLow = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
+            MemorySegment memSegHigh = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
 
-		for (T value : data) {
-			TypeComparator[] comparators = comparator.getFlatComparators();
-			Object[] extractedKeys = new Object[comparators.length];
-			int insertedKeys = comparator.extractKeys(value, extractedKeys, 0);
-			assertTrue(insertedKeys == comparators.length);
+            boolean fullyDetermines = !comparator.isNormalizedKeyPrefixOnly(normKeyLen);
 
-			for (int i = 0; i < insertedKeys; i++) {
-				// check if some keys are null, although this is not supported
-				if (!supportsNullKeys()) {
-					assertNotNull(extractedKeys[i]);
-				}
-				// compare the extracted key with itself as a basic check
-				// if the extracted key corresponds to the comparator
-				assertTrue(comparators[i].compare(extractedKeys[i], extractedKeys[i]) == 0);
-			}
-		}
-	}
+            // Compare every element with every bigger element
+            for (int l = 0; l < data.length - 1; l++) {
+                for (int h = l + 1; h < data.length; h++) {
+                    int cmp;
+                    if (greater) {
+                        cmp =
+                                memSegLow.compare(
+                                        memSegHigh, l * normKeyLen, h * normKeyLen, normKeyLen);
+                        if (fullyDetermines) {
+                            assertTrue(cmp < 0);
+                        } else {
+                            assertTrue(cmp <= 0);
+                        }
+                    } else {
+                        cmp =
+                                memSegHigh.compare(
+                                        memSegLow, h * normKeyLen, l * normKeyLen, normKeyLen);
+                        if (fullyDetermines) {
+                            assertTrue(cmp > 0);
+                        } else {
+                            assertTrue(cmp >= 0);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Exception in test: " + e.getMessage());
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    @Test
+    public void testNormalizedKeyReadWriter() {
+        try {
+            T[] data = getSortedData();
+            T reuse = getSortedData()[0];
 
-	protected void deepEquals(String message, T should, T is) {
-		assertEquals(message, should, is);
-	}
+            TypeComparator<T> comp1 = getComparator(true);
+            if (!comp1.supportsSerializationWithKeyNormalization()) {
+                return;
+            }
+            TypeComparator<T> comp2 = comp1.duplicate();
+            comp2.setReference(reuse);
 
-	// --------------------------------------------------------------------------------------------
-	protected TypeComparator<T> getComparator(boolean ascending) {
-		TypeComparator<T> comparator = createComparator(ascending);
-		if (comparator == null) {
-			throw new RuntimeException("Test case corrupt. Returns null as comparator.");
-		}
-		return comparator;
-	}
+            TestOutputView out = new TestOutputView();
+            TestInputView in;
 
-	protected T[] getSortedData() {
-		T[] data = getSortedTestData();
-		if (data == null) {
-			throw new RuntimeException("Test case corrupt. Returns null as test data.");
-		}
-		if (data.length < 2) {
-			throw new RuntimeException("Test case does not provide enough sorted test data.");
-		}
-		
-		return data;
-	}
+            for (T value : data) {
+                comp1.setReference(value);
+                comp1.writeWithKeyNormalization(value, out);
+                in = out.getInputView();
+                comp1.readWithKeyDenormalization(reuse, in);
 
-	protected TypeSerializer<T> getSerializer() {
-		TypeSerializer<T> serializer = createSerializer();
-		if (serializer == null) {
-			throw new RuntimeException("Test case corrupt. Returns null as serializer.");
-		}
-		return serializer;
-	}
+                assertTrue(comp1.compareToReference(comp2) == 0);
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Exception in test: " + e.getMessage());
+        }
+    }
 
-	protected void writeSortedData(T value, TestOutputView out) throws IOException {
-		TypeSerializer<T> serializer = getSerializer();
+    // -------------------------------- Key extraction tests --------------------------------------
 
-		// Write data into a outputView
-		serializer.serialize(value, out);
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testKeyExtraction() {
+        TypeComparator<T> comparator = getComparator(true);
+        T[] data = getSortedData();
 
-		// This are the same tests like in the serializer
-		// Just look if the data is really there after serialization, before testing comparator on it
-		TestInputView in = out.getInputView();
-		assertTrue("No data available during deserialization.", in.available() > 0);
+        for (T value : data) {
+            TypeComparator[] comparators = comparator.getFlatComparators();
+            Object[] extractedKeys = new Object[comparators.length];
+            int insertedKeys = comparator.extractKeys(value, extractedKeys, 0);
+            assertTrue(insertedKeys == comparators.length);
 
-		T deserialized = serializer.deserialize(serializer.createInstance(), in);
-		deepEquals("Deserialized value is wrong.", value, deserialized);
+            for (int i = 0; i < insertedKeys; i++) {
+                // check if some keys are null, although this is not supported
+                if (!supportsNullKeys()) {
+                    assertNotNull(extractedKeys[i]);
+                }
+                // compare the extracted key with itself as a basic check
+                // if the extracted key corresponds to the comparator
+                assertTrue(comparators[i].compare(extractedKeys[i], extractedKeys[i]) == 0);
+            }
+        }
+    }
 
-	}
+    // --------------------------------------------------------------------------------------------
 
-	protected boolean supportsNullKeys() {
-		return false;
-	}
+    protected void deepEquals(String message, T should, T is) {
+        assertEquals(message, should, is);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	public static final class TestOutputView extends DataOutputStream implements DataOutputView {
+    // --------------------------------------------------------------------------------------------
+    protected TypeComparator<T> getComparator(boolean ascending) {
+        TypeComparator<T> comparator = createComparator(ascending);
+        if (comparator == null) {
+            throw new RuntimeException("Test case corrupt. Returns null as comparator.");
+        }
+        return comparator;
+    }
 
-		public TestOutputView() {
-			super(new ByteArrayOutputStream(4096));
-		}
+    protected T[] getSortedData() {
+        T[] data = getSortedTestData();
+        if (data == null) {
+            throw new RuntimeException("Test case corrupt. Returns null as test data.");
+        }
+        if (data.length < 2) {
+            throw new RuntimeException("Test case does not provide enough sorted test data.");
+        }
 
-		public TestInputView getInputView() {
-			ByteArrayOutputStream baos = (ByteArrayOutputStream) out;
-			return new TestInputView(baos.toByteArray());
-		}
+        return data;
+    }
 
-		@Override
-		public void skipBytesToWrite(int numBytes) throws IOException {
-			for (int i = 0; i < numBytes; i++) {
-				write(0);
-			}
-		}
+    protected TypeSerializer<T> getSerializer() {
+        TypeSerializer<T> serializer = createSerializer();
+        if (serializer == null) {
+            throw new RuntimeException("Test case corrupt. Returns null as serializer.");
+        }
+        return serializer;
+    }
 
-		@Override
-		public void write(DataInputView source, int numBytes) throws IOException {
-			byte[] buffer = new byte[numBytes];
-			source.readFully(buffer);
-			write(buffer);
-		}
-	}
+    protected void writeSortedData(T value, TestOutputView out) throws IOException {
+        TypeSerializer<T> serializer = getSerializer();
 
-	public static final class TestInputView extends DataInputStream implements DataInputView {
+        // Write data into a outputView
+        serializer.serialize(value, out);
 
-		public TestInputView(byte[] data) {
-			super(new ByteArrayInputStream(data));
-		}
+        // This are the same tests like in the serializer
+        // Just look if the data is really there after serialization, before testing comparator on
+        // it
+        TestInputView in = out.getInputView();
+        assertTrue("No data available during deserialization.", in.available() > 0);
 
-		@Override
-		public void skipBytesToRead(int numBytes) throws IOException {
-			while (numBytes > 0) {
-				int skipped = skipBytes(numBytes);
-				numBytes -= skipped;
-			}
-		}
-	}
+        T deserialized = serializer.deserialize(serializer.createInstance(), in);
+        deepEquals("Deserialized value is wrong.", value, deserialized);
+    }
+
+    protected boolean supportsNullKeys() {
+        return false;
+    }
+
+    // --------------------------------------------------------------------------------------------
+    public static final class TestOutputView extends DataOutputStream implements DataOutputView {
+
+        public TestOutputView() {
+            super(new ByteArrayOutputStream(4096));
+        }
+
+        public TestInputView getInputView() {
+            ByteArrayOutputStream baos = (ByteArrayOutputStream) out;
+            return new TestInputView(baos.toByteArray());
+        }
+
+        @Override
+        public void skipBytesToWrite(int numBytes) throws IOException {
+            for (int i = 0; i < numBytes; i++) {
+                write(0);
+            }
+        }
+
+        @Override
+        public void write(DataInputView source, int numBytes) throws IOException {
+            byte[] buffer = new byte[numBytes];
+            source.readFully(buffer);
+            write(buffer);
+        }
+    }
+
+    public static final class TestInputView extends DataInputStream implements DataInputView {
+
+        public TestInputView(byte[] data) {
+            super(new ByteArrayInputStream(data));
+        }
+
+        @Override
+        public void skipBytesToRead(int numBytes) throws IOException {
+            while (numBytes > 0) {
+                int skipped = skipBytes(numBytes);
+                numBytes -= skipped;
+            }
+        }
+    }
 }

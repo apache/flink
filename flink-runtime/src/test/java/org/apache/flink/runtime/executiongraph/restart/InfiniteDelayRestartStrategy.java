@@ -27,37 +27,38 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Testing restart strategy which promise to restart {@link ExecutionGraph} after the infinite time delay.
- * Actually {@link ExecutionGraph} will never be restarted. No additional threads will be used.
+ * Testing restart strategy which promise to restart {@link ExecutionGraph} after the infinite time
+ * delay. Actually {@link ExecutionGraph} will never be restarted. No additional threads will be
+ * used.
  */
 public class InfiniteDelayRestartStrategy implements RestartStrategy {
 
-	private static final Logger LOG = LoggerFactory.getLogger(InfiniteDelayRestartStrategy.class);
+    private static final Logger LOG = LoggerFactory.getLogger(InfiniteDelayRestartStrategy.class);
 
-	private final int maxRestartAttempts;
-	private int restartAttemptCounter;
+    private final int maxRestartAttempts;
+    private int restartAttemptCounter;
 
-	public InfiniteDelayRestartStrategy() {
-		this(-1);
-	}
+    public InfiniteDelayRestartStrategy() {
+        this(-1);
+    }
 
-	public InfiniteDelayRestartStrategy(int maxRestartAttempts) {
-		this.maxRestartAttempts = maxRestartAttempts;
-		restartAttemptCounter = 0;
-	}
+    public InfiniteDelayRestartStrategy(int maxRestartAttempts) {
+        this.maxRestartAttempts = maxRestartAttempts;
+        restartAttemptCounter = 0;
+    }
 
-	@Override
-	public boolean canRestart() {
-		return maxRestartAttempts < 0 || restartAttemptCounter < maxRestartAttempts;
-	}
+    @Override
+    public boolean canRestart() {
+        return maxRestartAttempts < 0 || restartAttemptCounter < maxRestartAttempts;
+    }
 
-	@Override
-	public CompletableFuture<Void> restart(RestartCallback restarter, ScheduledExecutor executor) {
-		LOG.info("Delaying retry of job execution forever");
+    @Override
+    public CompletableFuture<Void> restart(RestartCallback restarter, ScheduledExecutor executor) {
+        LOG.info("Delaying retry of job execution forever");
 
-		if (maxRestartAttempts >= 0) {
-			restartAttemptCounter++;
-		}
-		return new CompletableFuture<>();
-	}
+        if (maxRestartAttempts >= 0) {
+            restartAttemptCounter++;
+        }
+        return new CompletableFuture<>();
+    }
 }

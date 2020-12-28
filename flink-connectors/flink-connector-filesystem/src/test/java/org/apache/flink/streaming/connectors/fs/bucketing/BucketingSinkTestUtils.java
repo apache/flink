@@ -28,56 +28,55 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
-/**
- * Test utilities for bucketing sinks.
- */
+/** Test utilities for bucketing sinks. */
 public class BucketingSinkTestUtils {
 
-	public static final String PART_PREFIX = "part";
-	public static final String PENDING_SUFFIX = ".pending";
-	public static final String IN_PROGRESS_SUFFIX = ".in-progress";
-	public static final String VALID_LENGTH_SUFFIX = ".valid";
+    public static final String PART_PREFIX = "part";
+    public static final String PENDING_SUFFIX = ".pending";
+    public static final String IN_PROGRESS_SUFFIX = ".in-progress";
+    public static final String VALID_LENGTH_SUFFIX = ".valid";
 
-	/**
-	 * Verifies the correct number of written files and reasonable length files.
-	 */
-	public static void checkLocalFs(File outDir, int inprogress, int pending, int completed, int valid) throws IOException {
-		int inProg = 0;
-		int pend = 0;
-		int compl = 0;
-		int val = 0;
+    /** Verifies the correct number of written files and reasonable length files. */
+    public static void checkLocalFs(
+            File outDir, int inprogress, int pending, int completed, int valid) throws IOException {
+        int inProg = 0;
+        int pend = 0;
+        int compl = 0;
+        int val = 0;
 
-		for (File file: FileUtils.listFiles(outDir, null, true)) {
-			if (file.getAbsolutePath().endsWith("crc")) {
-				continue;
-			}
-			String path = file.getPath();
-			if (path.endsWith(IN_PROGRESS_SUFFIX)) {
-				inProg++;
-			} else if (path.endsWith(PENDING_SUFFIX)) {
-				pend++;
-			} else if (path.endsWith(VALID_LENGTH_SUFFIX)) {
-				// check that content of length file is valid
-				try (DataInputStream dis = new DataInputStream(new FileInputStream(file))) {
-					final long validLength = Long.valueOf(dis.readUTF());
-					final String truncated = path.substring(0, path.length() - VALID_LENGTH_SUFFIX.length());
-					Assert.assertTrue("Mismatch between valid length and file size.",
-						FileUtils.sizeOf(new File(truncated)) >= validLength);
-				}
-				val++;
-			} else if (path.contains(PART_PREFIX)) {
-				compl++;
-			}
-		}
+        for (File file : FileUtils.listFiles(outDir, null, true)) {
+            if (file.getAbsolutePath().endsWith("crc")) {
+                continue;
+            }
+            String path = file.getPath();
+            if (path.endsWith(IN_PROGRESS_SUFFIX)) {
+                inProg++;
+            } else if (path.endsWith(PENDING_SUFFIX)) {
+                pend++;
+            } else if (path.endsWith(VALID_LENGTH_SUFFIX)) {
+                // check that content of length file is valid
+                try (DataInputStream dis = new DataInputStream(new FileInputStream(file))) {
+                    final long validLength = Long.valueOf(dis.readUTF());
+                    final String truncated =
+                            path.substring(0, path.length() - VALID_LENGTH_SUFFIX.length());
+                    Assert.assertTrue(
+                            "Mismatch between valid length and file size.",
+                            FileUtils.sizeOf(new File(truncated)) >= validLength);
+                }
+                val++;
+            } else if (path.contains(PART_PREFIX)) {
+                compl++;
+            }
+        }
 
-		Assert.assertEquals(inprogress, inProg);
-		Assert.assertEquals(pending, pend);
-		Assert.assertEquals(completed, compl);
-		// check length file in case truncating is not supported
-		try {
-			RawLocalFileSystem.class.getMethod("truncate", Path.class, long.class);
-		} catch (NoSuchMethodException e) {
-			Assert.assertEquals(valid, val);
-		}
-	}
+        Assert.assertEquals(inprogress, inProg);
+        Assert.assertEquals(pending, pend);
+        Assert.assertEquals(completed, compl);
+        // check length file in case truncating is not supported
+        try {
+            RawLocalFileSystem.class.getMethod("truncate", Path.class, long.class);
+        } catch (NoSuchMethodException e) {
+            Assert.assertEquals(valid, val);
+        }
+    }
 }

@@ -42,177 +42,188 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An input channel reads recovered state from previous unaligned checkpoint snapshots
- * via {@link ChannelStateReader}.
+ * An input channel reads recovered state from previous unaligned checkpoint snapshots via {@link
+ * ChannelStateReader}.
  */
 public abstract class RecoveredInputChannel extends InputChannel {
 
-	private static final Logger LOG = LoggerFactory.getLogger(RecoveredInputChannel.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RecoveredInputChannel.class);
 
-	private final ArrayDeque<Buffer> receivedBuffers = new ArrayDeque<>();
-	private final CompletableFuture<?> stateConsumedFuture = new CompletableFuture<>();
-	protected final BufferManager bufferManager;
+    private final ArrayDeque<Buffer> receivedBuffers = new ArrayDeque<>();
+    private final CompletableFuture<?> stateConsumedFuture = new CompletableFuture<>();
+    protected final BufferManager bufferManager;
 
-	@GuardedBy("receivedBuffers")
-	private boolean isReleased;
+    @GuardedBy("receivedBuffers")
+    private boolean isReleased;
 
-	RecoveredInputChannel(
-			SingleInputGate inputGate,
-			int channelIndex,
-			ResultPartitionID partitionId,
-			int initialBackoff,
-			int maxBackoff,
-			Counter numBytesIn,
-			Counter numBuffersIn) {
-		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, numBytesIn, numBuffersIn);
+    RecoveredInputChannel(
+            SingleInputGate inputGate,
+            int channelIndex,
+            ResultPartitionID partitionId,
+            int initialBackoff,
+            int maxBackoff,
+            Counter numBytesIn,
+            Counter numBuffersIn) {
+        super(
+                inputGate,
+                channelIndex,
+                partitionId,
+                initialBackoff,
+                maxBackoff,
+                numBytesIn,
+                numBuffersIn);
 
-		bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
-	}
+        bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
+    }
 
-	public abstract InputChannel toInputChannel() throws IOException;
+    public abstract InputChannel toInputChannel() throws IOException;
 
-	CompletableFuture<?> getStateConsumedFuture() {
-		return stateConsumedFuture;
-	}
+    CompletableFuture<?> getStateConsumedFuture() {
+        return stateConsumedFuture;
+    }
 
-	protected void readRecoveredState(ChannelStateReader reader) throws IOException, InterruptedException {
-		ReadResult result = ReadResult.HAS_MORE_DATA;
-		while (result == ReadResult.HAS_MORE_DATA) {
-			Buffer buffer = bufferManager.requestBufferBlocking();
-			result = internalReaderRecoveredState(reader, buffer);
-		}
-		finishReadRecoveredState();
-	}
+    protected void readRecoveredState(ChannelStateReader reader)
+            throws IOException, InterruptedException {
+        ReadResult result = ReadResult.HAS_MORE_DATA;
+        while (result == ReadResult.HAS_MORE_DATA) {
+            Buffer buffer = bufferManager.requestBufferBlocking();
+            result = internalReaderRecoveredState(reader, buffer);
+        }
+        finishReadRecoveredState();
+    }
 
-	private ReadResult internalReaderRecoveredState(ChannelStateReader reader, Buffer buffer) throws IOException {
-		ReadResult result;
-		try {
-			result = reader.readInputData(channelInfo, buffer);
-		} catch (Throwable t) {
-			buffer.recycleBuffer();
-			throw t;
-		}
-		if (buffer.readableBytes() > 0) {
-			onRecoveredStateBuffer(buffer);
-		} else {
-			buffer.recycleBuffer();
-		}
-		return result;
-	}
+    private ReadResult internalReaderRecoveredState(ChannelStateReader reader, Buffer buffer)
+            throws IOException {
+        ReadResult result;
+        try {
+            result = reader.readInputData(channelInfo, buffer);
+        } catch (Throwable t) {
+            buffer.recycleBuffer();
+            throw t;
+        }
+        if (buffer.readableBytes() > 0) {
+            onRecoveredStateBuffer(buffer);
+        } else {
+            buffer.recycleBuffer();
+        }
+        return result;
+    }
 
-	private void onRecoveredStateBuffer(Buffer buffer) {
-		boolean recycleBuffer = true;
-		try {
-			final boolean wasEmpty;
-			synchronized (receivedBuffers) {
-				// Similar to notifyBufferAvailable(), make sure that we never add a buffer
-				// after releaseAllResources() released all buffers from receivedBuffers.
-				if (isReleased) {
-					return;
-				}
+    private void onRecoveredStateBuffer(Buffer buffer) {
+        boolean recycleBuffer = true;
+        try {
+            final boolean wasEmpty;
+            synchronized (receivedBuffers) {
+                // Similar to notifyBufferAvailable(), make sure that we never add a buffer
+                // after releaseAllResources() released all buffers from receivedBuffers.
+                if (isReleased) {
+                    return;
+                }
 
-				wasEmpty = receivedBuffers.isEmpty();
-				receivedBuffers.add(buffer);
-				recycleBuffer = false;
-			}
+                wasEmpty = receivedBuffers.isEmpty();
+                receivedBuffers.add(buffer);
+                recycleBuffer = false;
+            }
 
-			if (wasEmpty) {
-				notifyChannelNonEmpty();
-			}
-		} finally {
-			if (recycleBuffer) {
-				buffer.recycleBuffer();
-			}
-		}
-	}
+            if (wasEmpty) {
+                notifyChannelNonEmpty();
+            }
+        } finally {
+            if (recycleBuffer) {
+                buffer.recycleBuffer();
+            }
+        }
+    }
 
-	private void finishReadRecoveredState() throws IOException {
-		onRecoveredStateBuffer(EventSerializer.toBuffer(EndOfChannelStateEvent.INSTANCE));
-		bufferManager.releaseFloatingBuffers();
-		LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
-	}
+    private void finishReadRecoveredState() throws IOException {
+        onRecoveredStateBuffer(EventSerializer.toBuffer(EndOfChannelStateEvent.INSTANCE));
+        bufferManager.releaseFloatingBuffers();
+        LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
+    }
 
-	@Nullable
-	private BufferAndAvailability getNextRecoveredStateBuffer() throws IOException {
-		final Buffer next;
-		final boolean moreAvailable;
+    @Nullable
+    private BufferAndAvailability getNextRecoveredStateBuffer() throws IOException {
+        final Buffer next;
+        final boolean moreAvailable;
 
-		synchronized (receivedBuffers) {
-			checkState(!isReleased, "Trying to read from released RecoveredInputChannel");
-			next = receivedBuffers.poll();
-			moreAvailable = !receivedBuffers.isEmpty();
-		}
+        synchronized (receivedBuffers) {
+            checkState(!isReleased, "Trying to read from released RecoveredInputChannel");
+            next = receivedBuffers.poll();
+            moreAvailable = !receivedBuffers.isEmpty();
+        }
 
-		if (next == null) {
-			return null;
-		} else if (isEndOfChannelStateEvent(next)) {
-			stateConsumedFuture.complete(null);
-			return null;
-		} else {
-			return new BufferAndAvailability(next, moreAvailable, 0);
-		}
-	}
+        if (next == null) {
+            return null;
+        } else if (isEndOfChannelStateEvent(next)) {
+            stateConsumedFuture.complete(null);
+            return null;
+        } else {
+            return new BufferAndAvailability(next, moreAvailable, 0);
+        }
+    }
 
-	private boolean isEndOfChannelStateEvent(Buffer buffer) throws IOException {
-		if (buffer.isBuffer()) {
-			return false;
-		}
+    private boolean isEndOfChannelStateEvent(Buffer buffer) throws IOException {
+        if (buffer.isBuffer()) {
+            return false;
+        }
 
-		AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
-		buffer.setReaderIndex(0);
-		return event.getClass() == EndOfChannelStateEvent.class;
-	}
+        AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+        buffer.setReaderIndex(0);
+        return event.getClass() == EndOfChannelStateEvent.class;
+    }
 
-	@Override
-	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
-		checkError();
-		return Optional.ofNullable(getNextRecoveredStateBuffer());
-	}
+    @Override
+    Optional<BufferAndAvailability> getNextBuffer() throws IOException {
+        checkError();
+        return Optional.ofNullable(getNextRecoveredStateBuffer());
+    }
 
-	@Override
-	public void resumeConsumption() {
-		throw new UnsupportedOperationException("RecoveredInputChannel should never be blocked.");
-	}
+    @Override
+    public void resumeConsumption() {
+        throw new UnsupportedOperationException("RecoveredInputChannel should never be blocked.");
+    }
 
-	@Override
-	void requestSubpartition(int subpartitionIndex) {
-		throw new UnsupportedOperationException("RecoveredInputChannel should never request partition.");
-	}
+    @Override
+    void requestSubpartition(int subpartitionIndex) {
+        throw new UnsupportedOperationException(
+                "RecoveredInputChannel should never request partition.");
+    }
 
-	@Override
-	void sendTaskEvent(TaskEvent event) {
-		throw new UnsupportedOperationException("RecoveredInputChannel should never send any task events.");
-	}
+    @Override
+    void sendTaskEvent(TaskEvent event) {
+        throw new UnsupportedOperationException(
+                "RecoveredInputChannel should never send any task events.");
+    }
 
-	@Override
-	boolean isReleased() {
-		synchronized (receivedBuffers) {
-			return isReleased;
-		}
-	}
+    @Override
+    boolean isReleased() {
+        synchronized (receivedBuffers) {
+            return isReleased;
+        }
+    }
 
-	void releaseAllResources() throws IOException {
-		ArrayDeque<Buffer> releasedBuffers = new ArrayDeque<>();
-		boolean shouldRelease = false;
+    void releaseAllResources() throws IOException {
+        ArrayDeque<Buffer> releasedBuffers = new ArrayDeque<>();
+        boolean shouldRelease = false;
 
-		synchronized (receivedBuffers) {
-			if (!isReleased) {
-				isReleased = true;
-				shouldRelease = true;
-				releasedBuffers.addAll(receivedBuffers);
-				receivedBuffers.clear();
-			}
-		}
+        synchronized (receivedBuffers) {
+            if (!isReleased) {
+                isReleased = true;
+                shouldRelease = true;
+                releasedBuffers.addAll(receivedBuffers);
+                receivedBuffers.clear();
+            }
+        }
 
-		if (shouldRelease) {
-			bufferManager.releaseAllBuffers(releasedBuffers);
-		}
-	}
+        if (shouldRelease) {
+            bufferManager.releaseAllBuffers(releasedBuffers);
+        }
+    }
 
-	@VisibleForTesting
-	protected int getNumberOfQueuedBuffers() {
-		synchronized (receivedBuffers) {
-			return receivedBuffers.size();
-		}
-	}
+    @VisibleForTesting
+    protected int getNumberOfQueuedBuffers() {
+        synchronized (receivedBuffers) {
+            return receivedBuffers.size();
+        }
+    }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework.overlays;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -32,28 +33,29 @@ import static org.junit.Assert.assertEquals;
 
 public class Krb5ConfOverlayTest extends ContainerOverlayTestBase {
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Test
-	public void testConfigure() throws Exception {
+    @Test
+    public void testConfigure() throws Exception {
 
-		File krb5conf = tempFolder.newFile();
+        File krb5conf = tempFolder.newFile();
 
-		Krb5ConfOverlay overlay = new Krb5ConfOverlay(krb5conf);
+        Krb5ConfOverlay overlay = new Krb5ConfOverlay(krb5conf);
 
-		ContainerSpecification spec = new ContainerSpecification();
-		overlay.configure(spec);
+        ContainerSpecification spec = new ContainerSpecification();
+        overlay.configure(spec);
 
-		assertEquals(TARGET_PATH.getPath(), spec.getSystemProperties().getString(JAVA_SECURITY_KRB5_CONF, null));
-		checkArtifact(spec, TARGET_PATH);
-	}
+        assertEquals(
+                TARGET_PATH.getPath(),
+                spec.getSystemProperties().getString(JAVA_SECURITY_KRB5_CONF, null));
+        checkArtifact(spec, TARGET_PATH);
+    }
 
-	@Test
-	public void testNoConf() throws Exception {
-		Krb5ConfOverlay overlay = new Krb5ConfOverlay((Path) null);
+    @Test
+    public void testNoConf() throws Exception {
+        Krb5ConfOverlay overlay = new Krb5ConfOverlay((Path) null);
 
-		ContainerSpecification containerSpecification = new ContainerSpecification();
-		overlay.configure(containerSpecification);
-	}
+        ContainerSpecification containerSpecification = new ContainerSpecification();
+        overlay.configure(containerSpecification);
+    }
 }

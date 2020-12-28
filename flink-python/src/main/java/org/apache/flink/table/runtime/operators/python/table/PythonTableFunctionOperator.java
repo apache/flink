@@ -40,108 +40,104 @@ import org.apache.calcite.rel.core.JoinRelType;
 import java.io.IOException;
 import java.util.Map;
 
-/**
- * The Python {@link TableFunction} operator for the legacy planner.
- */
+/** The Python {@link TableFunction} operator for the legacy planner. */
 @Internal
-public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOperator<CRow, CRow, Row> {
+public class PythonTableFunctionOperator
+        extends AbstractPythonTableFunctionOperator<CRow, CRow, Row> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The collector used to collect records.
-	 */
-	private transient StreamRecordCRowWrappingCollector cRowWrapper;
+    /** The collector used to collect records. */
+    private transient StreamRecordCRowWrappingCollector cRowWrapper;
 
-	/**
-	 * The type serializer for the forwarded fields.
-	 */
-	private transient TypeSerializer<CRow> forwardedInputSerializer;
+    /** The type serializer for the forwarded fields. */
+    private transient TypeSerializer<CRow> forwardedInputSerializer;
 
-	/**
-	 * The TypeSerializer for udtf execution results.
-	 */
-	private transient TypeSerializer<Row> udtfOutputTypeSerializer;
+    /** The TypeSerializer for udtf execution results. */
+    private transient TypeSerializer<Row> udtfOutputTypeSerializer;
 
-	public PythonTableFunctionOperator(
-		Configuration config,
-		PythonFunctionInfo tableFunction,
-		RowType inputType,
-		RowType outputType,
-		int[] udtfInputOffsets,
-		JoinRelType joinType) {
-		super(config, tableFunction, inputType, outputType, udtfInputOffsets, joinType);
-	}
+    public PythonTableFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo tableFunction,
+            RowType inputType,
+            RowType outputType,
+            int[] udtfInputOffsets,
+            JoinRelType joinType) {
+        super(config, tableFunction, inputType, outputType, udtfInputOffsets, joinType);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void open() throws Exception {
-		super.open();
-		this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);
-		CRowTypeInfo forwardedInputTypeInfo = new CRowTypeInfo(
-			(RowTypeInfo) TypeConversions.fromDataTypeToLegacyInfo(
-				TypeConversions.fromLogicalToDataType(inputType)));
-		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getExecutionConfig());
-		udtfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public void open() throws Exception {
+        super.open();
+        this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);
+        CRowTypeInfo forwardedInputTypeInfo =
+                new CRowTypeInfo(
+                        (RowTypeInfo)
+                                TypeConversions.fromDataTypeToLegacyInfo(
+                                        TypeConversions.fromLogicalToDataType(inputType)));
+        forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getExecutionConfig());
+        udtfOutputTypeSerializer =
+                PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
+    }
 
-	@Override
-	public void emitResults() throws IOException {
-		CRow input = null;
-		byte[] rawUdtfResult;
-		boolean lastIsFinishResult = true;
-		while ((rawUdtfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			if (input == null) {
-				input = forwardedInputQueue.poll();
-			}
-			boolean isFinishResult = isFinishResult(rawUdtfResult);
-			if (isFinishResult && (!lastIsFinishResult || joinType == JoinRelType.INNER)) {
-				input = forwardedInputQueue.poll();
-			} else if (input != null) {
-				if (!isFinishResult) {
-					bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
-					Row udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
-					cRowWrapper.setChange(input.change());
-					cRowWrapper.collect(Row.join(input.row(), udtfResult));
-				} else {
-					Row udtfResult = new Row(userDefinedFunctionOutputType.getFieldCount());
-					for (int i = 0; i < udtfResult.getArity(); i++) {
-						udtfResult.setField(0, null);
-					}
-					cRowWrapper.collect(Row.join(input.row(), udtfResult));
-					input = forwardedInputQueue.poll();
-				}
-			}
-			lastIsFinishResult = isFinishResult;
-		}
-	}
+    @Override
+    public void emitResults() throws IOException {
+        CRow input = null;
+        byte[] rawUdtfResult;
+        boolean lastIsFinishResult = true;
+        while ((rawUdtfResult = userDefinedFunctionResultQueue.poll()) != null) {
+            if (input == null) {
+                input = forwardedInputQueue.poll();
+            }
+            boolean isFinishResult = isFinishResult(rawUdtfResult);
+            if (isFinishResult && (!lastIsFinishResult || joinType == JoinRelType.INNER)) {
+                input = forwardedInputQueue.poll();
+            } else if (input != null) {
+                if (!isFinishResult) {
+                    bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
+                    Row udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
+                    cRowWrapper.setChange(input.change());
+                    cRowWrapper.collect(Row.join(input.row(), udtfResult));
+                } else {
+                    Row udtfResult = new Row(userDefinedFunctionOutputType.getFieldCount());
+                    for (int i = 0; i < udtfResult.getArity(); i++) {
+                        udtfResult.setField(0, null);
+                    }
+                    cRowWrapper.collect(Row.join(input.row(), udtfResult));
+                    input = forwardedInputQueue.poll();
+                }
+            }
+            lastIsFinishResult = isFinishResult;
+        }
+    }
 
-	@Override
-	public void bufferInput(CRow input) {
-		if (getExecutionConfig().isObjectReuseEnabled()) {
-			input = forwardedInputSerializer.copy(input);
-		}
-		forwardedInputQueue.add(input);
-	}
+    @Override
+    public void bufferInput(CRow input) {
+        if (getExecutionConfig().isObjectReuseEnabled()) {
+            input = forwardedInputSerializer.copy(input);
+        }
+        forwardedInputQueue.add(input);
+    }
 
-	@Override
-	public Row getFunctionInput(CRow element) {
-		return Row.project(element.row(), userDefinedFunctionInputOffsets);
-	}
+    @Override
+    public Row getFunctionInput(CRow element) {
+        return Row.project(element.row(), userDefinedFunctionInputOffsets);
+    }
 
-	@Override
-	public PythonFunctionRunner<Row> createPythonFunctionRunner(
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager,
-		Map<String, String> jobOptions) {
-		return new PythonTableFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			resultReceiver,
-			tableFunction,
-			pythonEnvironmentManager,
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			jobOptions,
-			getFlinkMetricContainer());
-	}
+    @Override
+    public PythonFunctionRunner<Row> createPythonFunctionRunner(
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonEnvironmentManager pythonEnvironmentManager,
+            Map<String, String> jobOptions) {
+        return new PythonTableFunctionRunner(
+                getRuntimeContext().getTaskName(),
+                resultReceiver,
+                tableFunction,
+                pythonEnvironmentManager,
+                userDefinedFunctionInputType,
+                userDefinedFunctionOutputType,
+                jobOptions,
+                getFlinkMetricContainer());
+    }
 }

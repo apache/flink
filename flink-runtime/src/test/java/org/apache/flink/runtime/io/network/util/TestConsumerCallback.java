@@ -28,76 +28,72 @@ import static org.junit.Assert.assertEquals;
 
 public interface TestConsumerCallback {
 
-	void onBuffer(Buffer buffer);
+    void onBuffer(Buffer buffer);
 
-	void onEvent(AbstractEvent event);
+    void onEvent(AbstractEvent event);
 
-	public static class CountingCallback implements TestConsumerCallback {
+    public static class CountingCallback implements TestConsumerCallback {
 
-		private final AtomicInteger numberOfReadBuffers = new AtomicInteger();
+        private final AtomicInteger numberOfReadBuffers = new AtomicInteger();
 
-		private final AtomicInteger numberOfReadEvents = new AtomicInteger();
+        private final AtomicInteger numberOfReadEvents = new AtomicInteger();
 
-		@Override
-		public void onBuffer(Buffer buffer) {
-			numberOfReadBuffers.incrementAndGet();
-		}
+        @Override
+        public void onBuffer(Buffer buffer) {
+            numberOfReadBuffers.incrementAndGet();
+        }
 
-		@Override
-		public void onEvent(AbstractEvent event) {
-			numberOfReadEvents.incrementAndGet();
-		}
+        @Override
+        public void onEvent(AbstractEvent event) {
+            numberOfReadEvents.incrementAndGet();
+        }
 
-		/**
-		 * Returns the number of read buffers.
-		 */
-		public int getNumberOfReadBuffers() {
-			return numberOfReadBuffers.get();
-		}
+        /** Returns the number of read buffers. */
+        public int getNumberOfReadBuffers() {
+            return numberOfReadBuffers.get();
+        }
 
-		/**
-		 * Returns the number of read events;
-		 */
-		public int getNumberOfReadEvents() {
-			return numberOfReadEvents.get();
-		}
-	}
+        /** Returns the number of read events; */
+        public int getNumberOfReadEvents() {
+            return numberOfReadEvents.get();
+        }
+    }
 
-	public static class RecyclingCallback extends CountingCallback {
+    public static class RecyclingCallback extends CountingCallback {
 
-		@Override
-		public void onBuffer(Buffer buffer) {
-			super.onBuffer(buffer);
+        @Override
+        public void onBuffer(Buffer buffer) {
+            super.onBuffer(buffer);
 
-			buffer.recycleBuffer();
-		}
+            buffer.recycleBuffer();
+        }
 
-		@Override
-		public void onEvent(AbstractEvent event) {
-			super.onEvent(event);
-		}
-	}
+        @Override
+        public void onEvent(AbstractEvent event) {
+            super.onEvent(event);
+        }
+    }
 
-	public class VerifyAscendingCallback extends RecyclingCallback {
+    public class VerifyAscendingCallback extends RecyclingCallback {
 
-		@Override
-		public void onBuffer(Buffer buffer) {
-			final MemorySegment segment = buffer.getMemorySegment();
+        @Override
+        public void onBuffer(Buffer buffer) {
+            final MemorySegment segment = buffer.getMemorySegment();
 
-			int expected = getNumberOfReadBuffers() * (segment.size() / 4);
+            int expected = getNumberOfReadBuffers() * (segment.size() / 4);
 
-			for (int i = 0; i < segment.size(); i += 4) {
-				assertEquals(expected, segment.getInt(i));
+            for (int i = 0; i < segment.size(); i += 4) {
+                assertEquals(expected, segment.getInt(i));
 
-				expected++;
-			}
+                expected++;
+            }
 
-			super.onBuffer(buffer);
-		}
+            super.onBuffer(buffer);
+        }
 
-		@Override
-		public void onEvent(AbstractEvent event) {
-			super.onEvent(event);
-		}
-	}
+        @Override
+        public void onEvent(AbstractEvent event) {
+            super.onEvent(event);
+        }
+    }
 }

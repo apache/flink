@@ -20,18 +20,12 @@ package org.apache.flink.table.data.vector.writable;
 
 import org.apache.flink.table.data.vector.ShortColumnVector;
 
-/**
- * Writable {@link ShortColumnVector}.
- */
+/** Writable {@link ShortColumnVector}. */
 public interface WritableShortVector extends WritableColumnVector, ShortColumnVector {
 
-	/**
-	 * Set short at rowId with the provided value.
-	 */
-	void setShort(int rowId, short value);
+    /** Set short at rowId with the provided value. */
+    void setShort(int rowId, short value);
 
-	/**
-	 * Fill the column vector with the provided value.
-	 */
-	void fill(short value);
+    /** Fill the column vector with the provided value. */
+    void fill(short value);
 }

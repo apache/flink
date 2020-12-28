@@ -33,79 +33,85 @@ import java.util.Properties;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A partition discoverer that can be used to discover topics and partitions metadata
- * from Kafka brokers via the Kafka 0.10 high-level consumer API.
+ * A partition discoverer that can be used to discover topics and partitions metadata from Kafka
+ * brokers via the Kafka 0.10 high-level consumer API.
  */
 @Internal
 public class Kafka010PartitionDiscoverer extends AbstractPartitionDiscoverer {
 
-	private final Properties kafkaProperties;
+    private final Properties kafkaProperties;
 
-	private KafkaConsumer<?, ?> kafkaConsumer;
+    private KafkaConsumer<?, ?> kafkaConsumer;
 
-	public Kafka010PartitionDiscoverer(
-		KafkaTopicsDescriptor topicsDescriptor,
-		int indexOfThisSubtask,
-		int numParallelSubtasks,
-		Properties kafkaProperties) {
+    public Kafka010PartitionDiscoverer(
+            KafkaTopicsDescriptor topicsDescriptor,
+            int indexOfThisSubtask,
+            int numParallelSubtasks,
+            Properties kafkaProperties) {
 
-		super(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks);
-		this.kafkaProperties = checkNotNull(kafkaProperties);
-	}
+        super(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks);
+        this.kafkaProperties = checkNotNull(kafkaProperties);
+    }
 
-	@Override
-	protected void initializeConnections() {
-		this.kafkaConsumer = new KafkaConsumer<>(kafkaProperties);
-	}
+    @Override
+    protected void initializeConnections() {
+        this.kafkaConsumer = new KafkaConsumer<>(kafkaProperties);
+    }
 
-	@Override
-	protected List<String> getAllTopics() throws WakeupException {
-		try {
-			return new ArrayList<>(kafkaConsumer.listTopics().keySet());
-		} catch (org.apache.kafka.common.errors.WakeupException e) {
-			// rethrow our own wakeup exception
-			throw new WakeupException();
-		}
-	}
+    @Override
+    protected List<String> getAllTopics() throws WakeupException {
+        try {
+            return new ArrayList<>(kafkaConsumer.listTopics().keySet());
+        } catch (org.apache.kafka.common.errors.WakeupException e) {
+            // rethrow our own wakeup exception
+            throw new WakeupException();
+        }
+    }
 
-	@Override
-	protected List<KafkaTopicPartition> getAllPartitionsForTopics(List<String> topics) throws WakeupException, RuntimeException {
-		List<KafkaTopicPartition> partitions = new LinkedList<>();
+    @Override
+    protected List<KafkaTopicPartition> getAllPartitionsForTopics(List<String> topics)
+            throws WakeupException, RuntimeException {
+        List<KafkaTopicPartition> partitions = new LinkedList<>();
 
-		try {
-			for (String topic : topics) {
-				final List<PartitionInfo> kafkaPartitions = kafkaConsumer.partitionsFor(topic);
+        try {
+            for (String topic : topics) {
+                final List<PartitionInfo> kafkaPartitions = kafkaConsumer.partitionsFor(topic);
 
-				if (kafkaPartitions == null) {
-					throw new RuntimeException(String.format("Could not fetch partitions for %s. Make sure that the topic exists.", topic));
-				}
+                if (kafkaPartitions == null) {
+                    throw new RuntimeException(
+                            String.format(
+                                    "Could not fetch partitions for %s. Make sure that the topic exists.",
+                                    topic));
+                }
 
-				for (PartitionInfo partitionInfo : kafkaPartitions) {
-					partitions.add(new KafkaTopicPartition(partitionInfo.topic(), partitionInfo.partition()));
-				}
-			}
-		} catch (org.apache.kafka.common.errors.WakeupException e) {
-			// rethrow our own wakeup exception
-			throw new WakeupException();
-		}
+                for (PartitionInfo partitionInfo : kafkaPartitions) {
+                    partitions.add(
+                            new KafkaTopicPartition(
+                                    partitionInfo.topic(), partitionInfo.partition()));
+                }
+            }
+        } catch (org.apache.kafka.common.errors.WakeupException e) {
+            // rethrow our own wakeup exception
+            throw new WakeupException();
+        }
 
-		return partitions;
-	}
+        return partitions;
+    }
 
-	@Override
-	protected void wakeupConnections() {
-		if (this.kafkaConsumer != null) {
-			this.kafkaConsumer.wakeup();
-		}
-	}
+    @Override
+    protected void wakeupConnections() {
+        if (this.kafkaConsumer != null) {
+            this.kafkaConsumer.wakeup();
+        }
+    }
 
-	@Override
-	protected void closeConnections() throws Exception {
-		if (this.kafkaConsumer != null) {
-			this.kafkaConsumer.close();
+    @Override
+    protected void closeConnections() throws Exception {
+        if (this.kafkaConsumer != null) {
+            this.kafkaConsumer.close();
 
-			// de-reference the consumer to avoid closing multiple times
-			this.kafkaConsumer = null;
-		}
-	}
+            // de-reference the consumer to avoid closing multiple times
+            this.kafkaConsumer = null;
+        }
+    }
 }

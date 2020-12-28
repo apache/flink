@@ -39,93 +39,91 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link StringWriter}.
- */
+/** Tests for {@link StringWriter}. */
 public class StringWriterTest {
 
-	private static final String CHARSET_NAME = StandardCharsets.UTF_8.name();
+    private static final String CHARSET_NAME = StandardCharsets.UTF_8.name();
 
-	@ClassRule
-	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	private static MiniDFSCluster hdfsCluster;
-	private static org.apache.hadoop.fs.FileSystem dfs;
+    private static MiniDFSCluster hdfsCluster;
+    private static org.apache.hadoop.fs.FileSystem dfs;
 
-	private static String outputDir;
+    private static String outputDir;
 
-	@BeforeClass
-	public static void createHDFS() throws IOException {
-		org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
+    @BeforeClass
+    public static void createHDFS() throws IOException {
+        org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
 
-		File dataDir = TEMPORARY_FOLDER.newFolder();
+        File dataDir = TEMPORARY_FOLDER.newFolder();
 
-		conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dataDir.getAbsolutePath());
-		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
-		hdfsCluster = builder.build();
+        conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dataDir.getAbsolutePath());
+        MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
+        hdfsCluster = builder.build();
 
-		dfs = hdfsCluster.getFileSystem();
+        dfs = hdfsCluster.getFileSystem();
 
-		outputDir = "hdfs://"
-			+ NetUtils.hostAndPortToUrlString(hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort());
-	}
+        outputDir =
+                "hdfs://"
+                        + NetUtils.hostAndPortToUrlString(
+                                hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort());
+    }
 
-	@AfterClass
-	public static void destroyHDFS() {
-		if (hdfsCluster != null) {
-			hdfsCluster.shutdown();
-			hdfsCluster = null;
-		}
-	}
+    @AfterClass
+    public static void destroyHDFS() {
+        if (hdfsCluster != null) {
+            hdfsCluster.shutdown();
+            hdfsCluster = null;
+        }
+    }
 
-	@Test
-	public void testDuplicate() {
-		StringWriter<String> writer = new StringWriter(StandardCharsets.UTF_16.name());
-		writer.setSyncOnFlush(true);
-		StringWriter<String> other = writer.duplicate();
+    @Test
+    public void testDuplicate() {
+        StringWriter<String> writer = new StringWriter(StandardCharsets.UTF_16.name());
+        writer.setSyncOnFlush(true);
+        StringWriter<String> other = writer.duplicate();
 
-		assertTrue(StreamWriterBaseComparator.equals(writer, other));
+        assertTrue(StreamWriterBaseComparator.equals(writer, other));
 
-		writer.setSyncOnFlush(false);
-		assertFalse(StreamWriterBaseComparator.equals(writer, other));
-		assertFalse(StreamWriterBaseComparator.equals(writer, new StringWriter<>()));
-	}
+        writer.setSyncOnFlush(false);
+        assertFalse(StreamWriterBaseComparator.equals(writer, other));
+        assertFalse(StreamWriterBaseComparator.equals(writer, new StringWriter<>()));
+    }
 
-	@Test
-	public void testMultiRowdelimiters() throws IOException {
-		testRowDelimiter("\n");
-		testRowDelimiter("\r\n");
-		testRowDelimiter("*");
-		testRowDelimiter("##");
-	}
+    @Test
+    public void testMultiRowdelimiters() throws IOException {
+        testRowDelimiter("\n");
+        testRowDelimiter("\r\n");
+        testRowDelimiter("*");
+        testRowDelimiter("##");
+    }
 
-	private void testRowDelimiter(String rowDelimiter) throws IOException {
-		String[] inputData = new String[] {"A", "B", "C", "D", "E"};
+    private void testRowDelimiter(String rowDelimiter) throws IOException {
+        String[] inputData = new String[] {"A", "B", "C", "D", "E"};
 
-		Path outputPath = new Path(TEMPORARY_FOLDER.newFile().getAbsolutePath());
+        Path outputPath = new Path(TEMPORARY_FOLDER.newFile().getAbsolutePath());
 
-		StringWriter<String> writer = new StringWriter(CHARSET_NAME, rowDelimiter);
-		try {
-			writer.open(dfs, outputPath);
-			for (String input: inputData) {
-				writer.write(input);
-			}
-		}
-		finally {
-			writer.close();
-		}
+        StringWriter<String> writer = new StringWriter(CHARSET_NAME, rowDelimiter);
+        try {
+            writer.open(dfs, outputPath);
+            for (String input : inputData) {
+                writer.write(input);
+            }
+        } finally {
+            writer.close();
+        }
 
-		try (FSDataInputStream inStream = dfs.open(outputPath)) {
-			String expectedOutput = String.join(rowDelimiter, inputData);
-			byte[] buffer = new byte[expectedOutput.getBytes(CHARSET_NAME).length];
-			readFully(inStream, buffer);
+        try (FSDataInputStream inStream = dfs.open(outputPath)) {
+            String expectedOutput = String.join(rowDelimiter, inputData);
+            byte[] buffer = new byte[expectedOutput.getBytes(CHARSET_NAME).length];
+            readFully(inStream, buffer);
 
-			String outputData = new String(buffer, CHARSET_NAME);
-			assertEquals(expectedOutput, outputData);
-		}
-	}
+            String outputData = new String(buffer, CHARSET_NAME);
+            assertEquals(expectedOutput, outputData);
+        }
+    }
 
-	private void readFully(InputStream in, byte[] buffer) throws IOException {
-		IOUtils.readFully(in, buffer, 0, buffer.length);
-	}
+    private void readFully(InputStream in, byte[] buffer) throws IOException {
+        IOUtils.readFully(in, buffer, 0, buffer.length);
+    }
 }

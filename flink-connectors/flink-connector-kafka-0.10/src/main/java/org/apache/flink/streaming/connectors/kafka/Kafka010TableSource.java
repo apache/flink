@@ -32,73 +32,72 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
-/**
- * Kafka {@link StreamTableSource} for Kafka 0.10.
- */
+/** Kafka {@link StreamTableSource} for Kafka 0.10. */
 @Internal
 public class Kafka010TableSource extends KafkaTableSourceBase {
 
-	/**
-	 * Creates a Kafka 0.10 {@link StreamTableSource}.
-	 *
-	 * @param schema                      Schema of the produced table.
-	 * @param proctimeAttribute           Field name of the processing time attribute.
-	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
-	 * @param fieldMapping                Mapping for the fields of the table schema to
-	 *                                    fields of the physical returned type.
-	 * @param topic                       Kafka topic to consume.
-	 * @param properties                  Properties for the Kafka consumer.
-	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
-	 * @param startupMode                 Startup mode for the contained consumer.
-	 * @param specificStartupOffsets      Specific startup offsets; only relevant when startup
-	 *                                    mode is {@link StartupMode#SPECIFIC_OFFSETS}.
-	 * @param startupTimestampMillis	  Startup timestamp for offsets; only relevant when startup
-	 *                                    mode is {@link StartupMode#TIMESTAMP}.
-	 */
-	public Kafka010TableSource(
-			TableSchema schema,
-			Optional<String> proctimeAttribute,
-			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
-			Optional<Map<String, String>> fieldMapping,
-			String topic,
-			Properties properties,
-			DeserializationSchema<Row> deserializationSchema,
-			StartupMode startupMode,
-			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestampMillis) {
+    /**
+     * Creates a Kafka 0.10 {@link StreamTableSource}.
+     *
+     * @param schema Schema of the produced table.
+     * @param proctimeAttribute Field name of the processing time attribute.
+     * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
+     * @param fieldMapping Mapping for the fields of the table schema to fields of the physical
+     *     returned type.
+     * @param topic Kafka topic to consume.
+     * @param properties Properties for the Kafka consumer.
+     * @param deserializationSchema Deserialization schema for decoding records from Kafka.
+     * @param startupMode Startup mode for the contained consumer.
+     * @param specificStartupOffsets Specific startup offsets; only relevant when startup mode is
+     *     {@link StartupMode#SPECIFIC_OFFSETS}.
+     * @param startupTimestampMillis Startup timestamp for offsets; only relevant when startup mode
+     *     is {@link StartupMode#TIMESTAMP}.
+     */
+    public Kafka010TableSource(
+            TableSchema schema,
+            Optional<String> proctimeAttribute,
+            List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
+            Optional<Map<String, String>> fieldMapping,
+            String topic,
+            Properties properties,
+            DeserializationSchema<Row> deserializationSchema,
+            StartupMode startupMode,
+            Map<KafkaTopicPartition, Long> specificStartupOffsets,
+            long startupTimestampMillis) {
 
-		super(
-			schema,
-			proctimeAttribute,
-			rowtimeAttributeDescriptors,
-			fieldMapping,
-			topic,
-			properties,
-			deserializationSchema,
-			startupMode,
-			specificStartupOffsets,
-			startupTimestampMillis);
-	}
+        super(
+                schema,
+                proctimeAttribute,
+                rowtimeAttributeDescriptors,
+                fieldMapping,
+                topic,
+                properties,
+                deserializationSchema,
+                startupMode,
+                specificStartupOffsets,
+                startupTimestampMillis);
+    }
 
-	/**
-	 * Creates a Kafka 0.10 {@link StreamTableSource}.
-	 *
-	 * @param schema                Schema of the produced table.
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 * @param deserializationSchema Deserialization schema for decoding records from Kafka.
-	 */
-	public Kafka010TableSource(
-			TableSchema schema,
-			String topic,
-			Properties properties,
-			DeserializationSchema<Row> deserializationSchema) {
+    /**
+     * Creates a Kafka 0.10 {@link StreamTableSource}.
+     *
+     * @param schema Schema of the produced table.
+     * @param topic Kafka topic to consume.
+     * @param properties Properties for the Kafka consumer.
+     * @param deserializationSchema Deserialization schema for decoding records from Kafka.
+     */
+    public Kafka010TableSource(
+            TableSchema schema,
+            String topic,
+            Properties properties,
+            DeserializationSchema<Row> deserializationSchema) {
 
-		super(schema, topic, properties, deserializationSchema);
-	}
+        super(schema, topic, properties, deserializationSchema);
+    }
 
-	@Override
-	protected FlinkKafkaConsumerBase<Row> createKafkaConsumer(String topic, Properties properties, DeserializationSchema<Row> deserializationSchema) {
-		return new FlinkKafkaConsumer010<>(topic, deserializationSchema, properties);
-	}
+    @Override
+    protected FlinkKafkaConsumerBase<Row> createKafkaConsumer(
+            String topic, Properties properties, DeserializationSchema<Row> deserializationSchema) {
+        return new FlinkKafkaConsumer010<>(topic, deserializationSchema, properties);
+    }
 }

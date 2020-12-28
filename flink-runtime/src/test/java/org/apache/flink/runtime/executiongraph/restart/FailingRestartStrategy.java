@@ -30,62 +30,58 @@ import javax.annotation.Nonnegative;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * A restart strategy which fails a predefined amount of times.
- */
+/** A restart strategy which fails a predefined amount of times. */
 public class FailingRestartStrategy implements RestartStrategy {
 
-	public static final ConfigOption<Integer> NUM_FAILURES_CONFIG_OPTION = ConfigOptions
-		.key("restart-strategy.failing.failures")
-		.defaultValue(1);
+    public static final ConfigOption<Integer> NUM_FAILURES_CONFIG_OPTION =
+            ConfigOptions.key("restart-strategy.failing.failures").defaultValue(1);
 
-	private final int numberOfFailures;
+    private final int numberOfFailures;
 
-	private int restartedTimes;
+    private int restartedTimes;
 
-	public FailingRestartStrategy(@Nonnegative int numberOfFailures) {
-		this.numberOfFailures = numberOfFailures;
-	}
+    public FailingRestartStrategy(@Nonnegative int numberOfFailures) {
+        this.numberOfFailures = numberOfFailures;
+    }
 
-	@Override
-	public boolean canRestart() {
-		return true;
-	}
+    @Override
+    public boolean canRestart() {
+        return true;
+    }
 
-	@Override
-	public CompletableFuture<Void> restart(RestartCallback restarter, ScheduledExecutor executor) {
-		++restartedTimes;
+    @Override
+    public CompletableFuture<Void> restart(RestartCallback restarter, ScheduledExecutor executor) {
+        ++restartedTimes;
 
-		if (restartedTimes <= numberOfFailures) {
-			return FutureUtils.completedExceptionally(new FlinkRuntimeException("Fail to restart for " + restartedTimes + " time(s)."));
-		} else {
-			return FutureUtils.scheduleWithDelay(restarter::triggerFullRecovery, Time.milliseconds(0L), executor);
-		}
-	}
+        if (restartedTimes <= numberOfFailures) {
+            return FutureUtils.completedExceptionally(
+                    new FlinkRuntimeException(
+                            "Fail to restart for " + restartedTimes + " time(s)."));
+        } else {
+            return FutureUtils.scheduleWithDelay(
+                    restarter::triggerFullRecovery, Time.milliseconds(0L), executor);
+        }
+    }
 
-	/**
-	 * Creates a {@link FailingRestartStrategyFactory} from the given Configuration.
-	 */
-	public static FailingRestartStrategyFactory createFactory(Configuration configuration) {
-		int numberOfFailures = configuration.getInteger(NUM_FAILURES_CONFIG_OPTION);
-		return new FailingRestartStrategyFactory(numberOfFailures);
-	}
+    /** Creates a {@link FailingRestartStrategyFactory} from the given Configuration. */
+    public static FailingRestartStrategyFactory createFactory(Configuration configuration) {
+        int numberOfFailures = configuration.getInteger(NUM_FAILURES_CONFIG_OPTION);
+        return new FailingRestartStrategyFactory(numberOfFailures);
+    }
 
-	/**
-	 * Factory for {@link FailingRestartStrategy}.
-	 */
-	public static class FailingRestartStrategyFactory extends RestartStrategyFactory {
-		private static final long serialVersionUID = 1L;
+    /** Factory for {@link FailingRestartStrategy}. */
+    public static class FailingRestartStrategyFactory extends RestartStrategyFactory {
+        private static final long serialVersionUID = 1L;
 
-		private final int numberOfFailures;
+        private final int numberOfFailures;
 
-		public FailingRestartStrategyFactory(int numberOfFailures) {
-			this.numberOfFailures = numberOfFailures;
-		}
+        public FailingRestartStrategyFactory(int numberOfFailures) {
+            this.numberOfFailures = numberOfFailures;
+        }
 
-		@Override
-		public RestartStrategy createRestartStrategy() {
-			return new FailingRestartStrategy(numberOfFailures);
-		}
-	}
+        @Override
+        public RestartStrategy createRestartStrategy() {
+            return new FailingRestartStrategy(numberOfFailures);
+        }
+    }
 }

@@ -26,47 +26,62 @@ import java.security.NoSuchAlgorithmException;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the {@link RMQConnectionConfig}.
- */
+/** Tests for the {@link RMQConnectionConfig}. */
 public class RMQConnectionConfigTest {
 
-	@Test(expected = NullPointerException.class)
-	public void shouldThrowNullPointExceptionIfHostIsNull() throws NoSuchAlgorithmException,
-		KeyManagementException, URISyntaxException {
-		RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
-			.setPort(1000).setUserName("guest")
-			.setPassword("guest").setVirtualHost("/").build();
-		connectionConfig.getConnectionFactory();
-	}
+    @Test(expected = NullPointerException.class)
+    public void shouldThrowNullPointExceptionIfHostIsNull()
+            throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
+        RMQConnectionConfig connectionConfig =
+                new RMQConnectionConfig.Builder()
+                        .setPort(1000)
+                        .setUserName("guest")
+                        .setPassword("guest")
+                        .setVirtualHost("/")
+                        .build();
+        connectionConfig.getConnectionFactory();
+    }
 
-	@Test(expected = NullPointerException.class)
-	public void shouldThrowNullPointExceptionIfPortIsNull() throws NoSuchAlgorithmException,
-		KeyManagementException, URISyntaxException {
-		RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
-			.setHost("localhost").setUserName("guest")
-			.setPassword("guest").setVirtualHost("/").build();
-		connectionConfig.getConnectionFactory();
-	}
+    @Test(expected = NullPointerException.class)
+    public void shouldThrowNullPointExceptionIfPortIsNull()
+            throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
+        RMQConnectionConfig connectionConfig =
+                new RMQConnectionConfig.Builder()
+                        .setHost("localhost")
+                        .setUserName("guest")
+                        .setPassword("guest")
+                        .setVirtualHost("/")
+                        .build();
+        connectionConfig.getConnectionFactory();
+    }
 
-	@Test(expected = NullPointerException.class)
-	public void shouldSetDefaultValueIfConnectionTimeoutNotGiven() throws NoSuchAlgorithmException,
-		KeyManagementException, URISyntaxException {
-		RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
-			.setHost("localhost").setUserName("guest")
-			.setPassword("guest").setVirtualHost("/").build();
-		ConnectionFactory factory = connectionConfig.getConnectionFactory();
-		assertEquals(ConnectionFactory.DEFAULT_CONNECTION_TIMEOUT, factory.getConnectionTimeout());
-	}
+    @Test(expected = NullPointerException.class)
+    public void shouldSetDefaultValueIfConnectionTimeoutNotGiven()
+            throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
+        RMQConnectionConfig connectionConfig =
+                new RMQConnectionConfig.Builder()
+                        .setHost("localhost")
+                        .setUserName("guest")
+                        .setPassword("guest")
+                        .setVirtualHost("/")
+                        .build();
+        ConnectionFactory factory = connectionConfig.getConnectionFactory();
+        assertEquals(ConnectionFactory.DEFAULT_CONNECTION_TIMEOUT, factory.getConnectionTimeout());
+    }
 
-	@Test
-	public void shouldSetProvidedValueIfConnectionTimeoutNotGiven() throws NoSuchAlgorithmException,
-		KeyManagementException, URISyntaxException {
-		RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
-			.setHost("localhost").setPort(5000).setUserName("guest")
-			.setPassword("guest").setVirtualHost("/")
-			.setConnectionTimeout(5000).build();
-		ConnectionFactory factory = connectionConfig.getConnectionFactory();
-		assertEquals(5000, factory.getConnectionTimeout());
-	}
+    @Test
+    public void shouldSetProvidedValueIfConnectionTimeoutNotGiven()
+            throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
+        RMQConnectionConfig connectionConfig =
+                new RMQConnectionConfig.Builder()
+                        .setHost("localhost")
+                        .setPort(5000)
+                        .setUserName("guest")
+                        .setPassword("guest")
+                        .setVirtualHost("/")
+                        .setConnectionTimeout(5000)
+                        .build();
+        ConnectionFactory factory = connectionConfig.getConnectionFactory();
+        assertEquals(5000, factory.getConnectionTimeout());
+    }
 }

@@ -34,50 +34,47 @@ import java.util.Properties;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for AWSUtil.
- */
+/** Tests for AWSUtil. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(AWSUtil.class)
 public class AWSUtilTest {
-	@Rule
-	private final ExpectedException exception = ExpectedException.none();
+    @Rule private final ExpectedException exception = ExpectedException.none();
 
-	@Test
-	public void testDefaultCredentialsProvider() {
-		Properties testConfig = new Properties();
+    @Test
+    public void testDefaultCredentialsProvider() {
+        Properties testConfig = new Properties();
 
-		AWSCredentialsProvider credentialsProvider = AWSUtil.getCredentialsProvider(testConfig);
+        AWSCredentialsProvider credentialsProvider = AWSUtil.getCredentialsProvider(testConfig);
 
-		assertTrue(credentialsProvider instanceof DefaultAWSCredentialsProviderChain);
-	}
+        assertTrue(credentialsProvider instanceof DefaultAWSCredentialsProviderChain);
+    }
 
-	@Test
-	public void testGetCredentialsProvider() {
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "WEB_IDENTITY_TOKEN");
+    @Test
+    public void testGetCredentialsProvider() {
+        Properties testConfig = new Properties();
+        testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "WEB_IDENTITY_TOKEN");
 
-		AWSCredentialsProvider credentialsProvider = AWSUtil.getCredentialsProvider(testConfig);
-		assertTrue(credentialsProvider instanceof WebIdentityTokenCredentialsProvider);
-	}
+        AWSCredentialsProvider credentialsProvider = AWSUtil.getCredentialsProvider(testConfig);
+        assertTrue(credentialsProvider instanceof WebIdentityTokenCredentialsProvider);
+    }
 
-	@Test
-	public void testInvalidCredentialsProvider() {
-		exception.expect(IllegalArgumentException.class);
+    @Test
+    public void testInvalidCredentialsProvider() {
+        exception.expect(IllegalArgumentException.class);
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "INVALID_PROVIDER");
+        Properties testConfig = new Properties();
+        testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "INVALID_PROVIDER");
 
-		AWSUtil.getCredentialsProvider(testConfig);
-	}
+        AWSUtil.getCredentialsProvider(testConfig);
+    }
 
-	@Test
-	public void testValidRegion() {
-		assertTrue(AWSUtil.isValidRegion("us-east-1"));
-	}
+    @Test
+    public void testValidRegion() {
+        assertTrue(AWSUtil.isValidRegion("us-east-1"));
+    }
 
-	@Test
-	public void testInvalidRegion() {
-		assertFalse(AWSUtil.isValidRegion("ur-east-1"));
-	}
+    @Test
+    public void testInvalidRegion() {
+        assertFalse(AWSUtil.isValidRegion("ur-east-1"));
+    }
 }

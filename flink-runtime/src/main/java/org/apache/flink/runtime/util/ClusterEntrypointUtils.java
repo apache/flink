@@ -28,52 +28,57 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.util.Optional;
 
-/**
- * Utility class for {@link org.apache.flink.runtime.entrypoint.ClusterEntrypoint}.
- */
+/** Utility class for {@link org.apache.flink.runtime.entrypoint.ClusterEntrypoint}. */
 public final class ClusterEntrypointUtils {
 
-	private ClusterEntrypointUtils() {
-		throw new UnsupportedOperationException("This class should not be instantiated.");
-	}
+    private ClusterEntrypointUtils() {
+        throw new UnsupportedOperationException("This class should not be instantiated.");
+    }
 
-	/**
-	 * Tries to find the user library directory.
-	 *
-	 * @return the user library directory if it exits, returns {@link Optional#empty()} if there is none
-	 */
-	public static Optional<File> tryFindUserLibDirectory() {
-		final File flinkHomeDirectory = deriveFlinkHomeDirectoryFromLibDirectory();
-		final File usrLibDirectory = new File(flinkHomeDirectory, ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
+    /**
+     * Tries to find the user library directory.
+     *
+     * @return the user library directory if it exits, returns {@link Optional#empty()} if there is
+     *     none
+     */
+    public static Optional<File> tryFindUserLibDirectory() {
+        final File flinkHomeDirectory = deriveFlinkHomeDirectoryFromLibDirectory();
+        final File usrLibDirectory =
+                new File(flinkHomeDirectory, ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
 
-		if (!usrLibDirectory.isDirectory()) {
-			return Optional.empty();
-		}
-		return Optional.of(usrLibDirectory);
-	}
+        if (!usrLibDirectory.isDirectory()) {
+            return Optional.empty();
+        }
+        return Optional.of(usrLibDirectory);
+    }
 
-	@Nullable
-	private static File deriveFlinkHomeDirectoryFromLibDirectory() {
-		final String libDirectory = System.getenv().get(ConfigConstants.ENV_FLINK_LIB_DIR);
+    @Nullable
+    private static File deriveFlinkHomeDirectoryFromLibDirectory() {
+        final String libDirectory = System.getenv().get(ConfigConstants.ENV_FLINK_LIB_DIR);
 
-		if (libDirectory == null) {
-			return null;
-		} else {
-			return new File(libDirectory).getParentFile();
-		}
-	}
+        if (libDirectory == null) {
+            return null;
+        } else {
+            return new File(libDirectory).getParentFile();
+        }
+    }
 
-	/**
-	 * Gets and verify the io-executor pool size based on configuration.
-	 *
-	 * @param config The configuration to read.
-	 * @return The legal io-executor pool size.
-	 */
-	public static int getPoolSize(Configuration config) {
-		final int poolSize = config.getInteger(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE, 4 * Hardware.getNumberCPUCores());
-		Preconditions.checkArgument(poolSize > 0,
-			String.format("Illegal pool size (%s) of io-executor, please re-configure '%s'.",
-				poolSize, ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE.key()));
-		return poolSize;
-	}
+    /**
+     * Gets and verify the io-executor pool size based on configuration.
+     *
+     * @param config The configuration to read.
+     * @return The legal io-executor pool size.
+     */
+    public static int getPoolSize(Configuration config) {
+        final int poolSize =
+                config.getInteger(
+                        ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE,
+                        4 * Hardware.getNumberCPUCores());
+        Preconditions.checkArgument(
+                poolSize > 0,
+                String.format(
+                        "Illegal pool size (%s) of io-executor, please re-configure '%s'.",
+                        poolSize, ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE.key()));
+        return poolSize;
+    }
 }

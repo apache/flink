@@ -30,38 +30,38 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Simple tests for the {@link CheckpointMetadata} data holder class.
- */
+/** Simple tests for the {@link CheckpointMetadata} data holder class. */
 public class CheckpointMetadataTest {
 
-	@Test
-	public void testConstructAndDispose() throws Exception {
-		final Random rnd = new Random();
+    @Test
+    public void testConstructAndDispose() throws Exception {
+        final Random rnd = new Random();
 
-		final long checkpointId = rnd.nextInt(Integer.MAX_VALUE) + 1;
-		final int numTaskStates = 4;
-		final int numSubtaskStates = 16;
-		final int numMasterStates = 7;
+        final long checkpointId = rnd.nextInt(Integer.MAX_VALUE) + 1;
+        final int numTaskStates = 4;
+        final int numSubtaskStates = 16;
+        final int numMasterStates = 7;
 
-		Collection<OperatorState> taskStates =
-				CheckpointTestUtils.createOperatorStates(rnd, null, numTaskStates, numSubtaskStates);
+        Collection<OperatorState> taskStates =
+                CheckpointTestUtils.createOperatorStates(
+                        rnd, null, numTaskStates, numSubtaskStates);
 
-		Collection<MasterState> masterStates =
-				CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
+        Collection<MasterState> masterStates =
+                CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
 
-		CheckpointMetadata checkpoint = new CheckpointMetadata(checkpointId, taskStates, masterStates);
+        CheckpointMetadata checkpoint =
+                new CheckpointMetadata(checkpointId, taskStates, masterStates);
 
-		assertEquals(checkpointId, checkpoint.getCheckpointId());
-		assertEquals(taskStates, checkpoint.getOperatorStates());
-		assertEquals(masterStates, checkpoint.getMasterStates());
+        assertEquals(checkpointId, checkpoint.getCheckpointId());
+        assertEquals(taskStates, checkpoint.getOperatorStates());
+        assertEquals(masterStates, checkpoint.getMasterStates());
 
-		assertFalse(checkpoint.getOperatorStates().isEmpty());
-		assertFalse(checkpoint.getMasterStates().isEmpty());
+        assertFalse(checkpoint.getOperatorStates().isEmpty());
+        assertFalse(checkpoint.getMasterStates().isEmpty());
 
-		checkpoint.dispose();
+        checkpoint.dispose();
 
-		assertTrue(checkpoint.getOperatorStates().isEmpty());
-		assertTrue(checkpoint.getMasterStates().isEmpty());
-	}
+        assertTrue(checkpoint.getOperatorStates().isEmpty());
+        assertTrue(checkpoint.getMasterStates().isEmpty());
+    }
 }

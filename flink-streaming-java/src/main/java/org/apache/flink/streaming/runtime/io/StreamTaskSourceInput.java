@@ -29,47 +29,43 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Implementation of {@link StreamTaskInput} that reads data from the {@link SourceOperator}
- * and returns the {@link InputStatus} to indicate whether the source state is available,
- * unavailable or finished.
+ * Implementation of {@link StreamTaskInput} that reads data from the {@link SourceOperator} and
+ * returns the {@link InputStatus} to indicate whether the source state is available, unavailable or
+ * finished.
  */
 @Internal
 public class StreamTaskSourceInput<T> implements StreamTaskInput<T> {
 
-	private final SourceOperator<T, ?> operator;
+    private final SourceOperator<T, ?> operator;
 
-	public StreamTaskSourceInput(SourceOperator<T, ?> operator) {
-		this.operator = checkNotNull(operator);
-	}
+    public StreamTaskSourceInput(SourceOperator<T, ?> operator) {
+        this.operator = checkNotNull(operator);
+    }
 
-	@Override
-	public InputStatus emitNext(DataOutput<T> output) throws Exception {
-		return operator.emitNext(output);
-	}
+    @Override
+    public InputStatus emitNext(DataOutput<T> output) throws Exception {
+        return operator.emitNext(output);
+    }
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return operator.getAvailableFuture();
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return operator.getAvailableFuture();
+    }
 
-	/**
-	 * This method is invalid and never called by the one/source input processor.
-	 */
-	@Override
-	public int getInputIndex() {
-		return -1;
-	}
+    /** This method is invalid and never called by the one/source input processor. */
+    @Override
+    public int getInputIndex() {
+        return -1;
+    }
 
-	@Override
-	public void close() {
-		IOUtils.closeQuietly(operator::close);
-	}
+    @Override
+    public void close() {
+        IOUtils.closeQuietly(operator::close);
+    }
 
-	@Override
-	public CompletableFuture<Void> prepareSnapshot(
-			ChannelStateWriter channelStateWriter,
-			long checkpointId) {
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Void> prepareSnapshot(
+            ChannelStateWriter channelStateWriter, long checkpointId) {
+        return CompletableFuture.completedFuture(null);
+    }
 }
-

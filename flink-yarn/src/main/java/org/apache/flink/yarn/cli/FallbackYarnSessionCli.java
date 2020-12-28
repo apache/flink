@@ -32,47 +32,52 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
 /**
- * A stub Yarn Command Line to throw an exception with the correct
- * message when the {@code HADOOP_CLASSPATH} is not set.
+ * A stub Yarn Command Line to throw an exception with the correct message when the {@code
+ * HADOOP_CLASSPATH} is not set.
  */
 @Internal
 public class FallbackYarnSessionCli extends AbstractCustomCommandLine {
 
-	public static final String ID = "yarn-cluster";
+    public static final String ID = "yarn-cluster";
 
-	private final Option applicationId;
+    private final Option applicationId;
 
-	public FallbackYarnSessionCli(Configuration configuration) {
-		super(configuration);
-		applicationId = new Option("yid", "yarnapplicationId", true, "Attach to running YARN session");
-	}
+    public FallbackYarnSessionCli(Configuration configuration) {
+        super(configuration);
+        applicationId =
+                new Option("yid", "yarnapplicationId", true, "Attach to running YARN session");
+    }
 
-	@Override
-	public void addGeneralOptions(Options baseOptions) {
-		super.addGeneralOptions(baseOptions);
-		baseOptions.addOption(applicationId);
-	}
+    @Override
+    public void addGeneralOptions(Options baseOptions) {
+        super.addGeneralOptions(baseOptions);
+        baseOptions.addOption(applicationId);
+    }
 
-	@Override
-	public boolean isActive(CommandLine commandLine) {
-		if (originalIsActive(commandLine)) {
-			throw new IllegalStateException(YarnDeploymentTarget.ERROR_MESSAGE);
-		}
-		return false;
-	}
+    @Override
+    public boolean isActive(CommandLine commandLine) {
+        if (originalIsActive(commandLine)) {
+            throw new IllegalStateException(YarnDeploymentTarget.ERROR_MESSAGE);
+        }
+        return false;
+    }
 
-	private boolean originalIsActive(CommandLine commandLine) {
-		final String jobManagerOption = commandLine.getOptionValue(addressOption.getOpt(), null);
-		final boolean yarnJobManager = ID.equals(jobManagerOption);
-		final boolean hasYarnAppId = commandLine.hasOption(applicationId.getOpt())
-				|| configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent();
-		final boolean hasYarnExecutor = YarnSessionClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET))
-				|| YarnJobClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
-		return hasYarnExecutor || yarnJobManager || hasYarnAppId;
-	}
+    private boolean originalIsActive(CommandLine commandLine) {
+        final String jobManagerOption = commandLine.getOptionValue(addressOption.getOpt(), null);
+        final boolean yarnJobManager = ID.equals(jobManagerOption);
+        final boolean hasYarnAppId =
+                commandLine.hasOption(applicationId.getOpt())
+                        || configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent();
+        final boolean hasYarnExecutor =
+                YarnSessionClusterExecutor.NAME.equalsIgnoreCase(
+                                configuration.get(DeploymentOptions.TARGET))
+                        || YarnJobClusterExecutor.NAME.equalsIgnoreCase(
+                                configuration.get(DeploymentOptions.TARGET));
+        return hasYarnExecutor || yarnJobManager || hasYarnAppId;
+    }
 
-	@Override
-	public String getId() {
-		return ID;
-	}
+    @Override
+    public String getId() {
+        return ID;
+    }
 }

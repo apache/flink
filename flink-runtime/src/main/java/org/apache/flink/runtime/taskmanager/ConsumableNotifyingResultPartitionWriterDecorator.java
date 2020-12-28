@@ -44,151 +44,155 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ConsumableNotifyingResultPartitionWriterDecorator implements ResultPartitionWriter {
 
-	private final TaskActions taskActions;
+    private final TaskActions taskActions;
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	private final ResultPartitionWriter partitionWriter;
+    private final ResultPartitionWriter partitionWriter;
 
-	private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
+    private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
 
-	private boolean hasNotifiedPipelinedConsumers;
+    private boolean hasNotifiedPipelinedConsumers;
 
-	public ConsumableNotifyingResultPartitionWriterDecorator(
-			TaskActions taskActions,
-			JobID jobId,
-			ResultPartitionWriter partitionWriter,
-			ResultPartitionConsumableNotifier partitionConsumableNotifier) {
-		this.taskActions = checkNotNull(taskActions);
-		this.jobId = checkNotNull(jobId);
-		this.partitionWriter = checkNotNull(partitionWriter);
-		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
-	}
+    public ConsumableNotifyingResultPartitionWriterDecorator(
+            TaskActions taskActions,
+            JobID jobId,
+            ResultPartitionWriter partitionWriter,
+            ResultPartitionConsumableNotifier partitionConsumableNotifier) {
+        this.taskActions = checkNotNull(taskActions);
+        this.jobId = checkNotNull(jobId);
+        this.partitionWriter = checkNotNull(partitionWriter);
+        this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
+    }
 
-	@Override
-	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		return partitionWriter.getBufferBuilder(targetChannel);
-	}
+    @Override
+    public BufferBuilder getBufferBuilder(int targetChannel)
+            throws IOException, InterruptedException {
+        return partitionWriter.getBufferBuilder(targetChannel);
+    }
 
-	@Override
-	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
-		return partitionWriter.tryGetBufferBuilder(targetChannel);
-	}
+    @Override
+    public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+        return partitionWriter.tryGetBufferBuilder(targetChannel);
+    }
 
-	@Override
-	public ResultPartitionID getPartitionId() {
-		return partitionWriter.getPartitionId();
-	}
+    @Override
+    public ResultPartitionID getPartitionId() {
+        return partitionWriter.getPartitionId();
+    }
 
-	@Override
-	public int getNumberOfSubpartitions() {
-		return partitionWriter.getNumberOfSubpartitions();
-	}
+    @Override
+    public int getNumberOfSubpartitions() {
+        return partitionWriter.getNumberOfSubpartitions();
+    }
 
-	@Override
-	public int getNumTargetKeyGroups() {
-		return partitionWriter.getNumTargetKeyGroups();
-	}
+    @Override
+    public int getNumTargetKeyGroups() {
+        return partitionWriter.getNumTargetKeyGroups();
+    }
 
-	@Override
-	public void setup() throws IOException {
-		partitionWriter.setup();
-	}
+    @Override
+    public void setup() throws IOException {
+        partitionWriter.setup();
+    }
 
-	@Override
-	public ResultSubpartition getSubpartition(int subpartitionIndex) {
-		return partitionWriter.getSubpartition(subpartitionIndex);
-	}
+    @Override
+    public ResultSubpartition getSubpartition(int subpartitionIndex) {
+        return partitionWriter.getSubpartition(subpartitionIndex);
+    }
 
-	@Override
-	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
-		partitionWriter.readRecoveredState(stateReader);
-	}
+    @Override
+    public void readRecoveredState(ChannelStateReader stateReader)
+            throws IOException, InterruptedException {
+        partitionWriter.readRecoveredState(stateReader);
+    }
 
-	@Override
-	public boolean addBufferConsumer(
-			BufferConsumer bufferConsumer,
-			int subpartitionIndex,
-			boolean isPriorityEvent) throws IOException {
-		boolean success = partitionWriter.addBufferConsumer(bufferConsumer, subpartitionIndex, isPriorityEvent);
-		if (success) {
-			notifyPipelinedConsumers();
-		}
+    @Override
+    public boolean addBufferConsumer(
+            BufferConsumer bufferConsumer, int subpartitionIndex, boolean isPriorityEvent)
+            throws IOException {
+        boolean success =
+                partitionWriter.addBufferConsumer(
+                        bufferConsumer, subpartitionIndex, isPriorityEvent);
+        if (success) {
+            notifyPipelinedConsumers();
+        }
 
-		return success;
-	}
+        return success;
+    }
 
-	@Override
-	public void flushAll() {
-		partitionWriter.flushAll();
-	}
+    @Override
+    public void flushAll() {
+        partitionWriter.flushAll();
+    }
 
-	@Override
-	public void flush(int subpartitionIndex) {
-		partitionWriter.flush(subpartitionIndex);
-	}
+    @Override
+    public void flush(int subpartitionIndex) {
+        partitionWriter.flush(subpartitionIndex);
+    }
 
-	@Override
-	public void finish() throws IOException {
-		partitionWriter.finish();
+    @Override
+    public void finish() throws IOException {
+        partitionWriter.finish();
 
-		notifyPipelinedConsumers();
-	}
+        notifyPipelinedConsumers();
+    }
 
-	@Override
-	public void fail(Throwable throwable) {
-		partitionWriter.fail(throwable);
-	}
+    @Override
+    public void fail(Throwable throwable) {
+        partitionWriter.fail(throwable);
+    }
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return partitionWriter.getAvailableFuture();
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return partitionWriter.getAvailableFuture();
+    }
 
-	@Override
-	public void close() throws Exception {
-		partitionWriter.close();
-	}
+    @Override
+    public void close() throws Exception {
+        partitionWriter.close();
+    }
 
-	/**
-	 * Notifies pipelined consumers of this result partition once.
-	 *
-	 * <p>For PIPELINED {@link org.apache.flink.runtime.io.network.partition.ResultPartitionType}s,
-	 * this will trigger the deployment of consuming tasks after the first buffer has been added.
-	 */
-	private void notifyPipelinedConsumers() {
-		if (!hasNotifiedPipelinedConsumers) {
-			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionWriter.getPartitionId(), taskActions);
+    /**
+     * Notifies pipelined consumers of this result partition once.
+     *
+     * <p>For PIPELINED {@link org.apache.flink.runtime.io.network.partition.ResultPartitionType}s,
+     * this will trigger the deployment of consuming tasks after the first buffer has been added.
+     */
+    private void notifyPipelinedConsumers() {
+        if (!hasNotifiedPipelinedConsumers) {
+            partitionConsumableNotifier.notifyPartitionConsumable(
+                    jobId, partitionWriter.getPartitionId(), taskActions);
 
-			hasNotifiedPipelinedConsumers = true;
-		}
-	}
+            hasNotifiedPipelinedConsumers = true;
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Factory
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Factory
+    // ------------------------------------------------------------------------
 
-	public static ResultPartitionWriter[] decorate(
-			Collection<ResultPartitionDeploymentDescriptor> descs,
-			ResultPartitionWriter[] partitionWriters,
-			TaskActions taskActions,
-			JobID jobId,
-			ResultPartitionConsumableNotifier notifier) {
+    public static ResultPartitionWriter[] decorate(
+            Collection<ResultPartitionDeploymentDescriptor> descs,
+            ResultPartitionWriter[] partitionWriters,
+            TaskActions taskActions,
+            JobID jobId,
+            ResultPartitionConsumableNotifier notifier) {
 
-		ResultPartitionWriter[] consumableNotifyingPartitionWriters = new ResultPartitionWriter[partitionWriters.length];
-		int counter = 0;
-		for (ResultPartitionDeploymentDescriptor desc : descs) {
-			if (desc.sendScheduleOrUpdateConsumersMessage() && desc.getPartitionType().isPipelined()) {
-				consumableNotifyingPartitionWriters[counter] = new ConsumableNotifyingResultPartitionWriterDecorator(
-					taskActions,
-					jobId,
-					partitionWriters[counter],
-					notifier);
-			} else {
-				consumableNotifyingPartitionWriters[counter] = partitionWriters[counter];
-			}
-			counter++;
-		}
-		return consumableNotifyingPartitionWriters;
-	}
+        ResultPartitionWriter[] consumableNotifyingPartitionWriters =
+                new ResultPartitionWriter[partitionWriters.length];
+        int counter = 0;
+        for (ResultPartitionDeploymentDescriptor desc : descs) {
+            if (desc.sendScheduleOrUpdateConsumersMessage()
+                    && desc.getPartitionType().isPipelined()) {
+                consumableNotifyingPartitionWriters[counter] =
+                        new ConsumableNotifyingResultPartitionWriterDecorator(
+                                taskActions, jobId, partitionWriters[counter], notifier);
+            } else {
+                consumableNotifyingPartitionWriters[counter] = partitionWriters[counter];
+            }
+            counter++;
+        }
+        return consumableNotifyingPartitionWriters;
+    }
 }

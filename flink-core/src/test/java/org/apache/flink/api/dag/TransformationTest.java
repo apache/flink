@@ -30,52 +30,48 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link Transformation}.
- */
+/** Tests for {@link Transformation}. */
 public class TransformationTest extends TestLogger {
 
-	private Transformation<Void> transformation;
+    private Transformation<Void> transformation;
 
-	@Before
-	public void setUp() {
-		transformation = new TestTransformation<>("t", null, 1);
-	}
+    @Before
+    public void setUp() {
+        transformation = new TestTransformation<>("t", null, 1);
+    }
 
-	@Test
-	public void testSetManagedMemoryWeight() {
-		transformation.setManagedMemoryWeight(123);
-		assertEquals(123, transformation.getManagedMemoryWeight());
-	}
+    @Test
+    public void testSetManagedMemoryWeight() {
+        transformation.setManagedMemoryWeight(123);
+        assertEquals(123, transformation.getManagedMemoryWeight());
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testSetManagedMemoryWeightFailIfResourcesIsSpecified() {
-		final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
-		transformation.setResources(resources, resources);
+    @Test(expected = IllegalArgumentException.class)
+    public void testSetManagedMemoryWeightFailIfResourcesIsSpecified() {
+        final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
+        transformation.setResources(resources, resources);
 
-		transformation.setManagedMemoryWeight(123);
-	}
+        transformation.setManagedMemoryWeight(123);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testSetResourcesFailIfManagedMemoryWeightIsSpecified() {
-		transformation.setManagedMemoryWeight(123);
+    @Test(expected = IllegalArgumentException.class)
+    public void testSetResourcesFailIfManagedMemoryWeightIsSpecified() {
+        transformation.setManagedMemoryWeight(123);
 
-		final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
-		transformation.setResources(resources, resources);
-	}
+        final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
+        transformation.setResources(resources, resources);
+    }
 
-	/**
-	 * A test implementation of {@link Transformation}.
-	 */
-	private class TestTransformation<T> extends Transformation<T> {
+    /** A test implementation of {@link Transformation}. */
+    private class TestTransformation<T> extends Transformation<T> {
 
-		public TestTransformation(String name, TypeInformation<T> outputType, int parallelism) {
-			super(name, outputType, parallelism);
-		}
+        public TestTransformation(String name, TypeInformation<T> outputType, int parallelism) {
+            super(name, outputType, parallelism);
+        }
 
-		@Override
-		public Collection<Transformation<?>> getTransitivePredecessors() {
-			return Collections.EMPTY_LIST;
-		}
-	}
+        @Override
+        public Collection<Transformation<?>> getTransitivePredecessors() {
+            return Collections.EMPTY_LIST;
+        }
+    }
 }

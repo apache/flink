@@ -45,179 +45,179 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Behavior tests for the {@link BoundedBlockingSubpartition} and the
- * {@link BoundedBlockingSubpartitionReader}.
+ * Behavior tests for the {@link BoundedBlockingSubpartition} and the {@link
+ * BoundedBlockingSubpartitionReader}.
  *
- * <p>Full read / write tests for the partition and the reader are in
- * {@link BoundedBlockingSubpartitionWriteReadTest}.
+ * <p>Full read / write tests for the partition and the reader are in {@link
+ * BoundedBlockingSubpartitionWriteReadTest}.
  */
 public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 
-	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
+    private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
 
-	private static FileChannelManager fileChannelManager;
+    private static FileChannelManager fileChannelManager;
 
-	@ClassRule
-	public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
 
-	@BeforeClass
-	public static void setUp() {
-		fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
-	}
+    @BeforeClass
+    public static void setUp() {
+        fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
+    }
 
-	@AfterClass
-	public static void shutdown() throws Exception {
-		fileChannelManager.close();
-	}
+    @AfterClass
+    public static void shutdown() throws Exception {
+        fileChannelManager.close();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void testCreateReaderBeforeFinished() throws Exception {
-		final ResultSubpartition partition = createSubpartition();
+    @Test
+    public void testCreateReaderBeforeFinished() throws Exception {
+        final ResultSubpartition partition = createSubpartition();
 
-		try {
-			partition.createReadView(new NoOpBufferAvailablityListener());
-			fail("expected exception");
-		}
-		catch (IllegalStateException ignored) {}
+        try {
+            partition.createReadView(new NoOpBufferAvailablityListener());
+            fail("expected exception");
+        } catch (IllegalStateException ignored) {
+        }
 
-		partition.release();
-	}
+        partition.release();
+    }
 
-	@Test
-	public void testCloseBoundedData() throws Exception {
-		final TestingBoundedDataReader reader = new TestingBoundedDataReader();
-		final TestingBoundedData data = new TestingBoundedData(reader);
-		final BoundedBlockingSubpartitionReader bbspr = new BoundedBlockingSubpartitionReader(
-				(BoundedBlockingSubpartition) createSubpartition(), data, 10, new NoOpBufferAvailablityListener());
+    @Test
+    public void testCloseBoundedData() throws Exception {
+        final TestingBoundedDataReader reader = new TestingBoundedDataReader();
+        final TestingBoundedData data = new TestingBoundedData(reader);
+        final BoundedBlockingSubpartitionReader bbspr =
+                new BoundedBlockingSubpartitionReader(
+                        (BoundedBlockingSubpartition) createSubpartition(),
+                        data,
+                        10,
+                        new NoOpBufferAvailablityListener());
 
-		bbspr.releaseAllResources();
+        bbspr.releaseAllResources();
 
-		assertTrue(reader.closed);
-	}
+        assertTrue(reader.closed);
+    }
 
-	@Test
-	public void testRecycleCurrentBufferOnFailure() throws Exception {
-		final ResultPartition resultPartition = createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
-		final BoundedBlockingSubpartition subpartition = new BoundedBlockingSubpartition(
-				0,
-				resultPartition,
-				new FailingBoundedData());
-		final BufferConsumer consumer = BufferBuilderTestUtils.createFilledFinishedBufferConsumer(100);
+    @Test
+    public void testRecycleCurrentBufferOnFailure() throws Exception {
+        final ResultPartition resultPartition =
+                createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
+        final BoundedBlockingSubpartition subpartition =
+                new BoundedBlockingSubpartition(0, resultPartition, new FailingBoundedData());
+        final BufferConsumer consumer =
+                BufferBuilderTestUtils.createFilledFinishedBufferConsumer(100);
 
-		try {
-			try {
-				subpartition.add(consumer);
-				subpartition.createReadView(new NoOpBufferAvailablityListener());
-				fail("should fail with an exception");
-			} catch (Exception ignored) {
-				// expected
-			}
+        try {
+            try {
+                subpartition.add(consumer);
+                subpartition.createReadView(new NoOpBufferAvailablityListener());
+                fail("should fail with an exception");
+            } catch (Exception ignored) {
+                // expected
+            }
 
-			assertFalse(consumer.isRecycled());
+            assertFalse(consumer.isRecycled());
 
-			assertNotNull(subpartition.getCurrentBuffer());
-			assertFalse(subpartition.getCurrentBuffer().isRecycled());
-		} finally {
-			subpartition.release();
+            assertNotNull(subpartition.getCurrentBuffer());
+            assertFalse(subpartition.getCurrentBuffer().isRecycled());
+        } finally {
+            subpartition.release();
 
-			assertTrue(consumer.isRecycled());
+            assertTrue(consumer.isRecycled());
 
-			assertNull(subpartition.getCurrentBuffer());
-		}
-	}
+            assertNull(subpartition.getCurrentBuffer());
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	ResultSubpartition createSubpartition() throws Exception {
-		final ResultPartition resultPartition = createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
-		return BoundedBlockingSubpartition.createWithMemoryMappedFile(
-				0, resultPartition, new File(TMP_DIR.newFolder(), "subpartition"));
-	}
+    @Override
+    ResultSubpartition createSubpartition() throws Exception {
+        final ResultPartition resultPartition =
+                createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
+        return BoundedBlockingSubpartition.createWithMemoryMappedFile(
+                0, resultPartition, new File(TMP_DIR.newFolder(), "subpartition"));
+    }
 
-	@Override
-	ResultSubpartition createFailingWritesSubpartition() throws Exception {
-		final ResultPartition resultPartition = createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
+    @Override
+    ResultSubpartition createFailingWritesSubpartition() throws Exception {
+        final ResultPartition resultPartition =
+                createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
 
-		return new BoundedBlockingSubpartition(
-				0,
-				resultPartition,
-				new FailingBoundedData());
-	}
+        return new BoundedBlockingSubpartition(0, resultPartition, new FailingBoundedData());
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static class FailingBoundedData implements BoundedData {
+    private static class FailingBoundedData implements BoundedData {
 
-		@Override
-		public void writeBuffer(Buffer buffer) throws IOException {
-			throw new IOException("test");
-		}
+        @Override
+        public void writeBuffer(Buffer buffer) throws IOException {
+            throw new IOException("test");
+        }
 
-		@Override
-		public void finishWrite() throws IOException {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public void finishWrite() throws IOException {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public Reader createReader(ResultSubpartitionView subpartitionView) throws IOException {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public Reader createReader(ResultSubpartitionView subpartitionView) throws IOException {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public long getSize() {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public long getSize() {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public void close() {}
-	}
+        @Override
+        public void close() {}
+    }
 
-	private static class TestingBoundedData implements BoundedData {
+    private static class TestingBoundedData implements BoundedData {
 
-		private BoundedData.Reader reader;
+        private BoundedData.Reader reader;
 
-		private TestingBoundedData(BoundedData.Reader reader) {
-			this.reader = checkNotNull(reader);
-		}
+        private TestingBoundedData(BoundedData.Reader reader) {
+            this.reader = checkNotNull(reader);
+        }
 
-		@Override
-		public void writeBuffer(Buffer buffer) throws IOException {
-		}
+        @Override
+        public void writeBuffer(Buffer buffer) throws IOException {}
 
-		@Override
-		public void finishWrite() throws IOException {
-		}
+        @Override
+        public void finishWrite() throws IOException {}
 
-		@Override
-		public Reader createReader(ResultSubpartitionView ignored) throws IOException {
-			return reader;
-		}
+        @Override
+        public Reader createReader(ResultSubpartitionView ignored) throws IOException {
+            return reader;
+        }
 
-		@Override
-		public long getSize() {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public long getSize() {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public void close() {}
-	}
+        @Override
+        public void close() {}
+    }
 
-	private static class TestingBoundedDataReader implements BoundedData.Reader {
+    private static class TestingBoundedDataReader implements BoundedData.Reader {
 
-		boolean closed;
+        boolean closed;
 
-		@Nullable
-		@Override
-		public Buffer nextBuffer() throws IOException {
-			return null;
-		}
+        @Nullable
+        @Override
+        public Buffer nextBuffer() throws IOException {
+            return null;
+        }
 
-		@Override
-		public void close() throws IOException {
-			closed = true;
-		}
-	}
+        @Override
+        public void close() throws IOException {
+            closed = true;
+        }
+    }
 }

@@ -55,142 +55,148 @@ import java.util.concurrent.CompletableFuture;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-/**
- * Tests network shuffle when data compression is enabled.
- */
+/** Tests network shuffle when data compression is enabled. */
 @RunWith(Parameterized.class)
 public class ShuffleCompressionITCase {
 
-	private static final int NUM_BUFFERS_TO_SEND = 1000;
+    private static final int NUM_BUFFERS_TO_SEND = 1000;
 
-	private static final int BUFFER_SIZE = 32 * 1024;
+    private static final int BUFFER_SIZE = 32 * 1024;
 
-	private static final int BYTES_PER_RECORD = 12;
+    private static final int BYTES_PER_RECORD = 12;
 
-	/** We plus 1 to guarantee that the last buffer contains no more than one record and can not be compressed. */
-	private static final int NUM_RECORDS_TO_SEND = NUM_BUFFERS_TO_SEND * BUFFER_SIZE / BYTES_PER_RECORD + 1;
+    /**
+     * We plus 1 to guarantee that the last buffer contains no more than one record and can not be
+     * compressed.
+     */
+    private static final int NUM_RECORDS_TO_SEND =
+            NUM_BUFFERS_TO_SEND * BUFFER_SIZE / BYTES_PER_RECORD + 1;
 
-	private static final int NUM_TASKMANAGERS = 2;
+    private static final int NUM_TASKMANAGERS = 2;
 
-	private static final int NUM_SLOTS = 4;
+    private static final int NUM_SLOTS = 4;
 
-	private static final int PARALLELISM = NUM_TASKMANAGERS * NUM_SLOTS;
+    private static final int PARALLELISM = NUM_TASKMANAGERS * NUM_SLOTS;
 
-	private static final LongValue RECORD_TO_SEND = new LongValue(4387942071694473832L);
+    private static final LongValue RECORD_TO_SEND = new LongValue(4387942071694473832L);
 
-	@Parameterized.Parameter
-	public static boolean useBroadcastPartitioner = false;
+    @Parameterized.Parameter public static boolean useBroadcastPartitioner = false;
 
-	@Parameterized.Parameters(name = "useBroadcastPartitioner = {0}")
-	public static Boolean[] params() {
-		return new Boolean[] { true, false };
-	}
+    @Parameterized.Parameters(name = "useBroadcastPartitioner = {0}")
+    public static Boolean[] params() {
+        return new Boolean[] {true, false};
+    }
 
-	@Test
-	public void testDataCompressionForBlockingShuffle() throws Exception {
-		executeTest(createJobGraph(ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH));
-	}
+    @Test
+    public void testDataCompressionForBlockingShuffle() throws Exception {
+        executeTest(
+                createJobGraph(
+                        ScheduleMode.LAZY_FROM_SOURCES,
+                        ResultPartitionType.BLOCKING,
+                        ExecutionMode.BATCH));
+    }
 
-	private void executeTest(JobGraph jobGraph) throws Exception {
-		Configuration configuration = new Configuration();
-		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
-		configuration.setBoolean(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
+    private void executeTest(JobGraph jobGraph) throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
+        configuration.setBoolean(
+                NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
 
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(configuration)
-			.setNumTaskManagers(NUM_TASKMANAGERS)
-			.setNumSlotsPerTaskManager(NUM_SLOTS)
-			.build();
+        final MiniClusterConfiguration miniClusterConfiguration =
+                new MiniClusterConfiguration.Builder()
+                        .setConfiguration(configuration)
+                        .setNumTaskManagers(NUM_TASKMANAGERS)
+                        .setNumSlotsPerTaskManager(NUM_SLOTS)
+                        .build();
 
-		try (MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration)) {
-			miniCluster.start();
+        try (MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration)) {
+            miniCluster.start();
 
-			MiniClusterClient miniClusterClient = new MiniClusterClient(configuration, miniCluster);
-			// wait for the submission to succeed
-			JobID jobID = miniClusterClient.submitJob(jobGraph).get();
+            MiniClusterClient miniClusterClient = new MiniClusterClient(configuration, miniCluster);
+            // wait for the submission to succeed
+            JobID jobID = miniClusterClient.submitJob(jobGraph).get();
 
-			CompletableFuture<JobResult> resultFuture = miniClusterClient.requestJobResult(jobID);
-			assertFalse(resultFuture.get().getSerializedThrowable().isPresent());
-		}
-	}
+            CompletableFuture<JobResult> resultFuture = miniClusterClient.requestJobResult(jobID);
+            assertFalse(resultFuture.get().getSerializedThrowable().isPresent());
+        }
+    }
 
-	private static JobGraph createJobGraph(
-			ScheduleMode scheduleMode,
-			ResultPartitionType resultPartitionType,
-			ExecutionMode executionMode) throws IOException {
-		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+    private static JobGraph createJobGraph(
+            ScheduleMode scheduleMode,
+            ResultPartitionType resultPartitionType,
+            ExecutionMode executionMode)
+            throws IOException {
+        SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
-		JobVertex source = new JobVertex("source");
-		source.setInvokableClass(LongValueSource.class);
-		source.setParallelism(PARALLELISM);
-		source.setSlotSharingGroup(slotSharingGroup);
+        JobVertex source = new JobVertex("source");
+        source.setInvokableClass(LongValueSource.class);
+        source.setParallelism(PARALLELISM);
+        source.setSlotSharingGroup(slotSharingGroup);
 
-		JobVertex sink = new JobVertex("sink");
-		sink.setInvokableClass(ResultVerifyingSink.class);
-		sink.setParallelism(PARALLELISM);
-		sink.setSlotSharingGroup(slotSharingGroup);
+        JobVertex sink = new JobVertex("sink");
+        sink.setInvokableClass(ResultVerifyingSink.class);
+        sink.setParallelism(PARALLELISM);
+        sink.setSlotSharingGroup(slotSharingGroup);
 
-		sink.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
-		JobGraph jobGraph = new JobGraph(source, sink);
-		jobGraph.setScheduleMode(scheduleMode);
+        sink.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+        JobGraph jobGraph = new JobGraph(source, sink);
+        jobGraph.setScheduleMode(scheduleMode);
 
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setExecutionMode(executionMode);
-		jobGraph.setExecutionConfig(executionConfig);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.setExecutionMode(executionMode);
+        jobGraph.setExecutionConfig(executionConfig);
 
-		return jobGraph;
-	}
+        return jobGraph;
+    }
 
-	/**
-	 * Test source that emits {@link LongValue} to downstream.
-	 */
-	public static final class LongValueSource extends AbstractInvokable {
+    /** Test source that emits {@link LongValue} to downstream. */
+    public static final class LongValueSource extends AbstractInvokable {
 
-		public LongValueSource(Environment environment) {
-			super(environment);
-		}
+        public LongValueSource(Environment environment) {
+            super(environment);
+        }
 
-		@Override
-		public void invoke() throws Exception {
-			ResultPartitionWriter resultPartitionWriter = getEnvironment().getWriter(0);
-			RecordWriterBuilder<LongValue> recordWriterBuilder = new RecordWriterBuilder<>();
-			if (getEnvironment().getExecutionConfig().getExecutionMode() == ExecutionMode.PIPELINED) {
-				// enable output flush for pipeline mode
-				recordWriterBuilder.setTimeout(100);
-			}
-			if (useBroadcastPartitioner) {
-				recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
-			}
-			RecordWriter<LongValue> writer = recordWriterBuilder.build(resultPartitionWriter);
+        @Override
+        public void invoke() throws Exception {
+            ResultPartitionWriter resultPartitionWriter = getEnvironment().getWriter(0);
+            RecordWriterBuilder<LongValue> recordWriterBuilder = new RecordWriterBuilder<>();
+            if (getEnvironment().getExecutionConfig().getExecutionMode()
+                    == ExecutionMode.PIPELINED) {
+                // enable output flush for pipeline mode
+                recordWriterBuilder.setTimeout(100);
+            }
+            if (useBroadcastPartitioner) {
+                recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
+            }
+            RecordWriter<LongValue> writer = recordWriterBuilder.build(resultPartitionWriter);
 
-			for (int i = 0; i < NUM_RECORDS_TO_SEND; ++i) {
-				writer.broadcastEmit(RECORD_TO_SEND);
-			}
-			writer.flushAll();
-			writer.clearBuffers();
-		}
-	}
+            for (int i = 0; i < NUM_RECORDS_TO_SEND; ++i) {
+                writer.broadcastEmit(RECORD_TO_SEND);
+            }
+            writer.flushAll();
+            writer.clearBuffers();
+        }
+    }
 
-	/**
-	 * Test sink that receives {@link LongValue} and verifies the received records.
-	 */
-	public static final class ResultVerifyingSink extends AbstractInvokable {
+    /** Test sink that receives {@link LongValue} and verifies the received records. */
+    public static final class ResultVerifyingSink extends AbstractInvokable {
 
-		public ResultVerifyingSink(Environment environment) {
-			super(environment);
-		}
+        public ResultVerifyingSink(Environment environment) {
+            super(environment);
+        }
 
-		@Override
-		public void invoke() throws Exception {
-			MutableRecordReader<LongValue> reader = new MutableRecordReader<>(
-				getEnvironment().getInputGate(0),
-				new String[]{EnvironmentInformation.getTemporaryFileDirectory()});
+        @Override
+        public void invoke() throws Exception {
+            MutableRecordReader<LongValue> reader =
+                    new MutableRecordReader<>(
+                            getEnvironment().getInputGate(0),
+                            new String[] {EnvironmentInformation.getTemporaryFileDirectory()});
 
-			LongValue value = new LongValue();
-			for (int i = 0; i < PARALLELISM * NUM_RECORDS_TO_SEND; ++i) {
-				reader.next(value);
-				assertEquals(RECORD_TO_SEND.getValue(), value.getValue());
-			}
-		}
-	}
+            LongValue value = new LongValue();
+            for (int i = 0; i < PARALLELISM * NUM_RECORDS_TO_SEND; ++i) {
+                reader.next(value);
+                assertEquals(RECORD_TO_SEND.getValue(), value.getValue());
+            }
+        }
+    }
 }

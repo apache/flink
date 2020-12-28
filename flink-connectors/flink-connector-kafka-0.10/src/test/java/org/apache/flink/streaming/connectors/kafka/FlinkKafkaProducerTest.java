@@ -29,44 +29,40 @@ import org.junit.Test;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link FlinkKafkaProducer010}.
- */
+/** Tests for {@link FlinkKafkaProducer010}. */
 public class FlinkKafkaProducerTest {
-	@Test
-	public void testOpenProducer() throws Exception {
+    @Test
+    public void testOpenProducer() throws Exception {
 
-		OpenTestingSerializationSchema schema = new OpenTestingSerializationSchema();
-		FlinkKafkaProducer010<Integer> kafkaProducer = new FlinkKafkaProducer010<>(
-			"localhost:9092",
-			"test-topic",
-			schema
-		);
+        OpenTestingSerializationSchema schema = new OpenTestingSerializationSchema();
+        FlinkKafkaProducer010<Integer> kafkaProducer =
+                new FlinkKafkaProducer010<>("localhost:9092", "test-topic", schema);
 
-		OneInputStreamOperatorTestHarness<Integer, Object> testHarness = new OneInputStreamOperatorTestHarness<>(
-			new StreamSink<>(kafkaProducer),
-			1,
-			1,
-			0,
-			IntSerializer.INSTANCE,
-			new OperatorID(1, 1));
+        OneInputStreamOperatorTestHarness<Integer, Object> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new StreamSink<>(kafkaProducer),
+                        1,
+                        1,
+                        0,
+                        IntSerializer.INSTANCE,
+                        new OperatorID(1, 1));
 
-		testHarness.open();
+        testHarness.open();
 
-		assertThat(schema.openCalled, equalTo(true));
-	}
+        assertThat(schema.openCalled, equalTo(true));
+    }
 
-	private static class OpenTestingSerializationSchema implements SerializationSchema<Integer> {
-		private boolean openCalled;
+    private static class OpenTestingSerializationSchema implements SerializationSchema<Integer> {
+        private boolean openCalled;
 
-		@Override
-		public void open(InitializationContext context) throws Exception {
-			openCalled = true;
-		}
+        @Override
+        public void open(InitializationContext context) throws Exception {
+            openCalled = true;
+        }
 
-		@Override
-		public byte[] serialize(Integer element) {
-			return new byte[0];
-		}
-	}
+        @Override
+        public byte[] serialize(Integer element) {
+            return new byte[0];
+        }
+    }
 }

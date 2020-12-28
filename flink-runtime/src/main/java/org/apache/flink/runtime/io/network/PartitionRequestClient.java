@@ -24,54 +24,55 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 
 import java.io.IOException;
 
-/**
- * Client to send messages or task events via network for {@link RemoteInputChannel}.
- */
+/** Client to send messages or task events via network for {@link RemoteInputChannel}. */
 public interface PartitionRequestClient {
 
-	/**
-	 * Requests a remote sub partition.
-	 *
-	 * @param partitionId The identifier of result partition to be requested.
-	 * @param subpartitionIndex The sub partition index in the requested result partition.
-	 * @param inputChannel The remote input channel for requesting the sub partition.
-	 * @param delayMs The request is scheduled within a delay time.
-	 */
-	void requestSubpartition(
-		ResultPartitionID partitionId,
-		int subpartitionIndex,
-		RemoteInputChannel inputChannel,
-		int delayMs) throws IOException;
+    /**
+     * Requests a remote sub partition.
+     *
+     * @param partitionId The identifier of result partition to be requested.
+     * @param subpartitionIndex The sub partition index in the requested result partition.
+     * @param inputChannel The remote input channel for requesting the sub partition.
+     * @param delayMs The request is scheduled within a delay time.
+     */
+    void requestSubpartition(
+            ResultPartitionID partitionId,
+            int subpartitionIndex,
+            RemoteInputChannel inputChannel,
+            int delayMs)
+            throws IOException;
 
-	/**
-	 * Notifies available credits from one remote input channel.
-	 *
-	 * @param inputChannel The remote input channel who announces the available credits.
-	 */
-	void notifyCreditAvailable(RemoteInputChannel inputChannel);
+    /**
+     * Notifies available credits from one remote input channel.
+     *
+     * @param inputChannel The remote input channel who announces the available credits.
+     */
+    void notifyCreditAvailable(RemoteInputChannel inputChannel);
 
-	/**
-	 * Requests to resume data consumption from one remote input channel.
-	 *
-	 * @param inputChannel The remote input channel who is ready to resume data consumption.
-	 */
-	void resumeConsumption(RemoteInputChannel inputChannel);
+    /**
+     * Requests to resume data consumption from one remote input channel.
+     *
+     * @param inputChannel The remote input channel who is ready to resume data consumption.
+     */
+    void resumeConsumption(RemoteInputChannel inputChannel);
 
-	/**
-	 * Sends a task event backwards to an intermediate result partition.
-	 *
-	 * @param partitionId The identifier of result partition.
-	 * @param event The task event to be sent.
-	 * @param inputChannel The remote input channel for sending this event.
-	 */
-	void sendTaskEvent(ResultPartitionID partitionId, TaskEvent event, RemoteInputChannel inputChannel) throws IOException;
+    /**
+     * Sends a task event backwards to an intermediate result partition.
+     *
+     * @param partitionId The identifier of result partition.
+     * @param event The task event to be sent.
+     * @param inputChannel The remote input channel for sending this event.
+     */
+    void sendTaskEvent(
+            ResultPartitionID partitionId, TaskEvent event, RemoteInputChannel inputChannel)
+            throws IOException;
 
-	/**
-	 * Cancels the partition request for the given remote input channel and removes
-	 * this client from factory if it is not referenced by any other input channels.
-	 *
-	 * @param inputChannel The remote input channel for canceling partition and to
-	 *                     be removed from network stack.
-	 */
-	void close(RemoteInputChannel inputChannel) throws IOException;
+    /**
+     * Cancels the partition request for the given remote input channel and removes this client from
+     * factory if it is not referenced by any other input channels.
+     *
+     * @param inputChannel The remote input channel for canceling partition and to be removed from
+     *     network stack.
+     */
+    void close(RemoteInputChannel inputChannel) throws IOException;
 }

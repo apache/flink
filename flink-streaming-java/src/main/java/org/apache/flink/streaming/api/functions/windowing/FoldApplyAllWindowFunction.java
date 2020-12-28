@@ -45,73 +45,79 @@ import java.util.Collections;
 @Internal
 @Deprecated
 public class FoldApplyAllWindowFunction<W extends Window, T, ACC, R>
-	extends WrappingFunction<AllWindowFunction<ACC, R, W>>
-	implements AllWindowFunction<T, R, W>, OutputTypeConfigurable<R> {
+        extends WrappingFunction<AllWindowFunction<ACC, R, W>>
+        implements AllWindowFunction<T, R, W>, OutputTypeConfigurable<R> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final FoldFunction<T, ACC> foldFunction;
+    private final FoldFunction<T, ACC> foldFunction;
 
-	private byte[] serializedInitialValue;
-	private transient TypeInformation<ACC> accTypeInformation;
-	private TypeSerializer<ACC> accSerializer;
-	private transient ACC initialValue;
+    private byte[] serializedInitialValue;
+    private transient TypeInformation<ACC> accTypeInformation;
+    private TypeSerializer<ACC> accSerializer;
+    private transient ACC initialValue;
 
-	public FoldApplyAllWindowFunction(ACC initialValue,
-			FoldFunction<T, ACC> foldFunction,
-			AllWindowFunction<ACC, R, W> windowFunction,
-			TypeInformation<ACC> accTypeInformation) {
-		super(windowFunction);
-		this.accTypeInformation = accTypeInformation;
-		this.foldFunction = foldFunction;
-		this.initialValue = initialValue;
-	}
+    public FoldApplyAllWindowFunction(
+            ACC initialValue,
+            FoldFunction<T, ACC> foldFunction,
+            AllWindowFunction<ACC, R, W> windowFunction,
+            TypeInformation<ACC> accTypeInformation) {
+        super(windowFunction);
+        this.accTypeInformation = accTypeInformation;
+        this.foldFunction = foldFunction;
+        this.initialValue = initialValue;
+    }
 
-	@Override
-	public void open(Configuration configuration) throws Exception {
-		super.open(configuration);
+    @Override
+    public void open(Configuration configuration) throws Exception {
+        super.open(configuration);
 
-		if (accSerializer == null) {
-			throw new RuntimeException("No serializer set for the fold accumulator type. " +
-				"Probably the setOutputType method was not called.");
-		}
+        if (accSerializer == null) {
+            throw new RuntimeException(
+                    "No serializer set for the fold accumulator type. "
+                            + "Probably the setOutputType method was not called.");
+        }
 
-		if (serializedInitialValue == null) {
-			throw new RuntimeException("No initial value was serialized for the fold " +
-				"window function. Probably the setOutputType method was not called.");
-		}
+        if (serializedInitialValue == null) {
+            throw new RuntimeException(
+                    "No initial value was serialized for the fold "
+                            + "window function. Probably the setOutputType method was not called.");
+        }
 
-		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
-		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
-		initialValue = accSerializer.deserialize(in);
-	}
+        ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
+        DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
+        initialValue = accSerializer.deserialize(in);
+    }
 
-	@Override
-	public void apply(W window, Iterable<T> values, Collector<R> out) throws Exception {
-		ACC result = accSerializer.copy(initialValue);
+    @Override
+    public void apply(W window, Iterable<T> values, Collector<R> out) throws Exception {
+        ACC result = accSerializer.copy(initialValue);
 
-		for (T val: values) {
-			result = foldFunction.fold(result, val);
-		}
+        for (T val : values) {
+            result = foldFunction.fold(result, val);
+        }
 
-		wrappedFunction.apply(window, Collections.singletonList(result), out);
-	}
+        wrappedFunction.apply(window, Collections.singletonList(result), out);
+    }
 
-	@Override
-	public void setOutputType(TypeInformation<R> outTypeInfo, ExecutionConfig executionConfig) {
-		// out type is not used, just use this for the execution config
-		accSerializer = accTypeInformation.createSerializer(executionConfig);
+    @Override
+    public void setOutputType(TypeInformation<R> outTypeInfo, ExecutionConfig executionConfig) {
+        // out type is not used, just use this for the execution config
+        accSerializer = accTypeInformation.createSerializer(executionConfig);
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 
-		try {
-			accSerializer.serialize(initialValue, out);
-		} catch (IOException ioe) {
-			throw new RuntimeException("Unable to serialize initial value of type " +
-				initialValue.getClass().getSimpleName() + " of fold window function.", ioe);
-		}
+        try {
+            accSerializer.serialize(initialValue, out);
+        } catch (IOException ioe) {
+            throw new RuntimeException(
+                    "Unable to serialize initial value of type "
+                            + initialValue.getClass().getSimpleName()
+                            + " of fold window function.",
+                    ioe);
+        }
 
-		serializedInitialValue = baos.toByteArray();
-	}
+        serializedInitialValue = baos.toByteArray();
+    }
 }

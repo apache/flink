@@ -22,28 +22,25 @@ import org.apache.flink.configuration.ConfigConstants;
 
 import org.I0Itec.zkclient.serialize.ZkSerializer;
 
-/**
- * Simple ZooKeeper serializer for Strings.
- */
+/** Simple ZooKeeper serializer for Strings. */
 public class ZooKeeperStringSerializer implements ZkSerializer {
 
-	@Override
-	public byte[] serialize(Object data) {
-		if (data instanceof String) {
-			return ((String) data).getBytes(ConfigConstants.DEFAULT_CHARSET);
-		}
-		else {
-			throw new IllegalArgumentException("ZooKeeperStringSerializer can only serialize strings.");
-		}
-	}
+    @Override
+    public byte[] serialize(Object data) {
+        if (data instanceof String) {
+            return ((String) data).getBytes(ConfigConstants.DEFAULT_CHARSET);
+        } else {
+            throw new IllegalArgumentException(
+                    "ZooKeeperStringSerializer can only serialize strings.");
+        }
+    }
 
-	@Override
-	public Object deserialize(byte[] bytes) {
-		if (bytes == null) {
-			return null;
-		}
-		else {
-			return new String(bytes, ConfigConstants.DEFAULT_CHARSET);
-		}
-	}
+    @Override
+    public Object deserialize(byte[] bytes) {
+        if (bytes == null) {
+            return null;
+        } else {
+            return new String(bytes, ConfigConstants.DEFAULT_CHARSET);
+        }
+    }
 }

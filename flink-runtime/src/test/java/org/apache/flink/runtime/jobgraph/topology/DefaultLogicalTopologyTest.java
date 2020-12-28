@@ -46,89 +46,88 @@ import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertexTes
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-/**
- * Unit tests for {@link DefaultLogicalTopology}.
- */
+/** Unit tests for {@link DefaultLogicalTopology}. */
 public class DefaultLogicalTopologyTest extends TestLogger {
 
-	private JobGraph jobGraph;
+    private JobGraph jobGraph;
 
-	private DefaultLogicalTopology logicalTopology;
+    private DefaultLogicalTopology logicalTopology;
 
-	@Before
-	public void setUp() throws Exception {
-		jobGraph = createJobGraph(false);
-		logicalTopology = new DefaultLogicalTopology(jobGraph);
-	}
+    @Before
+    public void setUp() throws Exception {
+        jobGraph = createJobGraph(false);
+        logicalTopology = new DefaultLogicalTopology(jobGraph);
+    }
 
-	@Test
-	public void testGetVertices() {
-		// vertices from getVertices() should be topologically sorted
-		final Iterable<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
-		final Iterable<DefaultLogicalVertex> logicalVertices = logicalTopology.getVertices();
+    @Test
+    public void testGetVertices() {
+        // vertices from getVertices() should be topologically sorted
+        final Iterable<JobVertex> jobVertices =
+                jobGraph.getVerticesSortedTopologicallyFromSources();
+        final Iterable<DefaultLogicalVertex> logicalVertices = logicalTopology.getVertices();
 
-		assertEquals(Iterables.size(jobVertices), Iterables.size(logicalVertices));
+        assertEquals(Iterables.size(jobVertices), Iterables.size(logicalVertices));
 
-		final Iterator<JobVertex> jobVertexIterator = jobVertices.iterator();
-		final Iterator<DefaultLogicalVertex> logicalVertexIterator = logicalVertices.iterator();
-		while (jobVertexIterator.hasNext()) {
-			assertVertexAndConnectedResultsEquals(jobVertexIterator.next(), logicalVertexIterator.next());
-		}
-	}
+        final Iterator<JobVertex> jobVertexIterator = jobVertices.iterator();
+        final Iterator<DefaultLogicalVertex> logicalVertexIterator = logicalVertices.iterator();
+        while (jobVertexIterator.hasNext()) {
+            assertVertexAndConnectedResultsEquals(
+                    jobVertexIterator.next(), logicalVertexIterator.next());
+        }
+    }
 
-	@Test
-	public void testWithCoLocationConstraints() {
-		final DefaultLogicalTopology topology = new DefaultLogicalTopology(createJobGraph(true));
-		assertTrue(topology.containsCoLocationConstraints());
-	}
+    @Test
+    public void testWithCoLocationConstraints() {
+        final DefaultLogicalTopology topology = new DefaultLogicalTopology(createJobGraph(true));
+        assertTrue(topology.containsCoLocationConstraints());
+    }
 
-	@Test
-	public void testWithoutCoLocationConstraints() {
-		assertFalse(logicalTopology.containsCoLocationConstraints());
-	}
+    @Test
+    public void testWithoutCoLocationConstraints() {
+        assertFalse(logicalTopology.containsCoLocationConstraints());
+    }
 
-	@Test
-	public void testGetLogicalPipelinedRegions() {
-		final Set<DefaultLogicalPipelinedRegion> regions = logicalTopology.getLogicalPipelinedRegions();
-		assertEquals(2, regions.size());
-	}
+    @Test
+    public void testGetLogicalPipelinedRegions() {
+        final Set<DefaultLogicalPipelinedRegion> regions =
+                logicalTopology.getLogicalPipelinedRegions();
+        assertEquals(2, regions.size());
+    }
 
-	private JobGraph createJobGraph(final boolean containsCoLocationConstraint) {
-		final JobVertex[] jobVertices = new JobVertex[3];
-		final int parallelism = 3;
-		jobVertices[0] = createNoOpVertex("v1", parallelism);
-		jobVertices[1] = createNoOpVertex("v2", parallelism);
-		jobVertices[2] = createNoOpVertex("v3", parallelism);
-		jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, PIPELINED);
-		jobVertices[2].connectNewDataSetAsInput(jobVertices[1], ALL_TO_ALL, BLOCKING);
+    private JobGraph createJobGraph(final boolean containsCoLocationConstraint) {
+        final JobVertex[] jobVertices = new JobVertex[3];
+        final int parallelism = 3;
+        jobVertices[0] = createNoOpVertex("v1", parallelism);
+        jobVertices[1] = createNoOpVertex("v2", parallelism);
+        jobVertices[2] = createNoOpVertex("v3", parallelism);
+        jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, PIPELINED);
+        jobVertices[2].connectNewDataSetAsInput(jobVertices[1], ALL_TO_ALL, BLOCKING);
 
-		if (containsCoLocationConstraint) {
-			final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-			jobVertices[0].setSlotSharingGroup(slotSharingGroup);
-			jobVertices[1].setSlotSharingGroup(slotSharingGroup);
+        if (containsCoLocationConstraint) {
+            final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+            jobVertices[0].setSlotSharingGroup(slotSharingGroup);
+            jobVertices[1].setSlotSharingGroup(slotSharingGroup);
 
-			final CoLocationGroup coLocationGroup = new CoLocationGroup();
-			coLocationGroup.addVertex(jobVertices[0]);
-			coLocationGroup.addVertex(jobVertices[1]);
-			jobVertices[0].updateCoLocationGroup(coLocationGroup);
-			jobVertices[1].updateCoLocationGroup(coLocationGroup);
-		}
+            final CoLocationGroup coLocationGroup = new CoLocationGroup();
+            coLocationGroup.addVertex(jobVertices[0]);
+            coLocationGroup.addVertex(jobVertices[1]);
+            jobVertices[0].updateCoLocationGroup(coLocationGroup);
+            jobVertices[1].updateCoLocationGroup(coLocationGroup);
+        }
 
-		return new JobGraph(jobVertices);
-	}
+        return new JobGraph(jobVertices);
+    }
 
-	private static void assertVertexAndConnectedResultsEquals(
-		final JobVertex jobVertex,
-		final DefaultLogicalVertex logicalVertex) {
+    private static void assertVertexAndConnectedResultsEquals(
+            final JobVertex jobVertex, final DefaultLogicalVertex logicalVertex) {
 
-		assertVertexInfoEquals(jobVertex, logicalVertex);
+        assertVertexInfoEquals(jobVertex, logicalVertex);
 
-		final List<IntermediateDataSet> consumedResults = jobVertex.getInputs().stream()
-			.map(JobEdge::getSource)
-			.collect(Collectors.toList());
-		assertResultsEquals(consumedResults, logicalVertex.getConsumedResults());
+        final List<IntermediateDataSet> consumedResults =
+                jobVertex.getInputs().stream().map(JobEdge::getSource).collect(Collectors.toList());
+        assertResultsEquals(consumedResults, logicalVertex.getConsumedResults());
 
-		final List<IntermediateDataSet> producedResults = jobVertex.getProducedDataSets();
-		assertResultsEquals(producedResults, logicalVertex.getProducedResults());
-	}
+        final List<IntermediateDataSet> producedResults = jobVertex.getProducedDataSets();
+        assertResultsEquals(producedResults, logicalVertex.getProducedResults());
+    }
 }

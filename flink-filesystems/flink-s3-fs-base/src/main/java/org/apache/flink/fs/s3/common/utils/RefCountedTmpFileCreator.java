@@ -34,76 +34,79 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * A utility class that creates local {@link RefCountedFileWithStream reference counted files} that serve as temporary files.
+ * A utility class that creates local {@link RefCountedFileWithStream reference counted files} that
+ * serve as temporary files.
  */
 @Internal
-public class RefCountedTmpFileCreator implements FunctionWithException<File, RefCountedFileWithStream, IOException> {
+public class RefCountedTmpFileCreator
+        implements FunctionWithException<File, RefCountedFileWithStream, IOException> {
 
-	private final File[] tempDirectories;
+    private final File[] tempDirectories;
 
-	private final AtomicInteger next;
+    private final AtomicInteger next;
 
-	/**
-	 * Creates a new TmpReferenceCountedCreator.
-	 *
-	 * @param tempDirectories The temp directories, not null, and at least one.
-	 */
-	private RefCountedTmpFileCreator(File... tempDirectories) {
-		checkArgument(tempDirectories.length > 0, "tempDirectories must not be empty");
-		for (File f : tempDirectories) {
-			if (f == null) {
-				throw new IllegalArgumentException("tempDirectories contains null entries");
-			}
-		}
+    /**
+     * Creates a new TmpReferenceCountedCreator.
+     *
+     * @param tempDirectories The temp directories, not null, and at least one.
+     */
+    private RefCountedTmpFileCreator(File... tempDirectories) {
+        checkArgument(tempDirectories.length > 0, "tempDirectories must not be empty");
+        for (File f : tempDirectories) {
+            if (f == null) {
+                throw new IllegalArgumentException("tempDirectories contains null entries");
+            }
+        }
 
-		this.tempDirectories = tempDirectories.clone();
-		this.next = new AtomicInteger(new Random().nextInt(this.tempDirectories.length));
-	}
+        this.tempDirectories = tempDirectories.clone();
+        this.next = new AtomicInteger(new Random().nextInt(this.tempDirectories.length));
+    }
 
-	/**
-	 * Gets the next temp file and stream to temp file.
-	 * This creates the temp file atomically, making sure no previous file is overwritten.
-	 *
-	 * <p>This method is safe against concurrent use.
-	 *
-	 * @return A pair of temp file and output stream to that temp file.
-	 * @throws IOException Thrown, if the stream to the temp file could not be opened.
-	 */
-	@Override
-	public RefCountedFileWithStream apply(File file) throws IOException {
-		final File directory = tempDirectories[nextIndex()];
+    /**
+     * Gets the next temp file and stream to temp file. This creates the temp file atomically,
+     * making sure no previous file is overwritten.
+     *
+     * <p>This method is safe against concurrent use.
+     *
+     * @return A pair of temp file and output stream to that temp file.
+     * @throws IOException Thrown, if the stream to the temp file could not be opened.
+     */
+    @Override
+    public RefCountedFileWithStream apply(File file) throws IOException {
+        final File directory = tempDirectories[nextIndex()];
 
-		while (true) {
-			try {
-				if (file == null) {
-					final File newFile = new File(directory, ".tmp_" + UUID.randomUUID());
-					final OutputStream out = Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
-					return RefCountedFileWithStream.newFile(newFile, out);
-				} else {
-					final OutputStream out = Files.newOutputStream(file.toPath(), StandardOpenOption.APPEND);
-					return RefCountedFileWithStream.restoredFile(file, out, file.length());
-				}
-			} catch (FileAlreadyExistsException ignored) {
-				// fall through the loop and retry
-			}
-		}
-	}
+        while (true) {
+            try {
+                if (file == null) {
+                    final File newFile = new File(directory, ".tmp_" + UUID.randomUUID());
+                    final OutputStream out =
+                            Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
+                    return RefCountedFileWithStream.newFile(newFile, out);
+                } else {
+                    final OutputStream out =
+                            Files.newOutputStream(file.toPath(), StandardOpenOption.APPEND);
+                    return RefCountedFileWithStream.restoredFile(file, out, file.length());
+                }
+            } catch (FileAlreadyExistsException ignored) {
+                // fall through the loop and retry
+            }
+        }
+    }
 
-	private int nextIndex() {
-		int currIndex, newIndex;
-		do {
-			currIndex = next.get();
-			newIndex = currIndex + 1;
-			if (newIndex == tempDirectories.length) {
-				newIndex = 0;
-			}
-		}
-		while (!next.compareAndSet(currIndex, newIndex));
+    private int nextIndex() {
+        int currIndex, newIndex;
+        do {
+            currIndex = next.get();
+            newIndex = currIndex + 1;
+            if (newIndex == tempDirectories.length) {
+                newIndex = 0;
+            }
+        } while (!next.compareAndSet(currIndex, newIndex));
 
-		return currIndex;
-	}
+        return currIndex;
+    }
 
-	public static RefCountedTmpFileCreator inDirectories(File... tmpDirectories) {
-		return new RefCountedTmpFileCreator(tmpDirectories);
-	}
+    public static RefCountedTmpFileCreator inDirectories(File... tmpDirectories) {
+        return new RefCountedTmpFileCreator(tmpDirectories);
+    }
 }

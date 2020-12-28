@@ -33,188 +33,163 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType;
 
-/**
- * built-in LastValue aggregate function.
- */
+/** built-in LastValue aggregate function. */
 public class LastValueAggFunction<T> extends AggregateFunction<T, GenericRowData> {
 
-	@Override
-	public boolean isDeterministic() {
-		return false;
-	}
+    @Override
+    public boolean isDeterministic() {
+        return false;
+    }
 
-	@Override
-	public GenericRowData createAccumulator() {
-		// The accumulator schema:
-		// lastValue: T
-		// lastOrder: Long
-		GenericRowData acc = new GenericRowData(2);
-		acc.setField(0, null);
-		acc.setField(1, Long.MIN_VALUE);
-		return acc;
-	}
+    @Override
+    public GenericRowData createAccumulator() {
+        // The accumulator schema:
+        // lastValue: T
+        // lastOrder: Long
+        GenericRowData acc = new GenericRowData(2);
+        acc.setField(0, null);
+        acc.setField(1, Long.MIN_VALUE);
+        return acc;
+    }
 
-	public void accumulate(GenericRowData acc, Object value) {
-		if (value != null) {
-			acc.setField(0, value);
-		}
-	}
+    public void accumulate(GenericRowData acc, Object value) {
+        if (value != null) {
+            acc.setField(0, value);
+        }
+    }
 
-	public void accumulate(GenericRowData acc, Object value, Long order) {
-		if (value != null && acc.getLong(1) < order) {
-			acc.setField(0, value);
-			acc.setField(1, order);
-		}
-	}
+    public void accumulate(GenericRowData acc, Object value, Long order) {
+        if (value != null && acc.getLong(1) < order) {
+            acc.setField(0, value);
+            acc.setField(1, order);
+        }
+    }
 
-	public void resetAccumulator(GenericRowData acc) {
-		acc.setField(0, null);
-		acc.setField(1, Long.MIN_VALUE);
-	}
+    public void resetAccumulator(GenericRowData acc) {
+        acc.setField(0, null);
+        acc.setField(1, Long.MIN_VALUE);
+    }
 
-	@Override
-	public T getValue(GenericRowData acc) {
-		return (T) acc.getField(0);
-	}
+    @Override
+    public T getValue(GenericRowData acc) {
+        return (T) acc.getField(0);
+    }
 
-	@Override
-	public TypeInformation<GenericRowData> getAccumulatorType() {
-		LogicalType[] fieldTypes = new LogicalType[] {
-				fromTypeInfoToLogicalType(getResultType()),
-				new BigIntType()
-		};
+    @Override
+    public TypeInformation<GenericRowData> getAccumulatorType() {
+        LogicalType[] fieldTypes =
+                new LogicalType[] {fromTypeInfoToLogicalType(getResultType()), new BigIntType()};
 
-		String[] fieldNames = new String[] {
-				"value",
-				"time"
-		};
+        String[] fieldNames = new String[] {"value", "time"};
 
-		return (TypeInformation) new RowDataTypeInfo(fieldTypes, fieldNames);
-	}
+        return (TypeInformation) new RowDataTypeInfo(fieldTypes, fieldNames);
+    }
 
-	/**
-	 * Built-in Byte LastValue aggregate function.
-	 */
-	public static class ByteLastValueAggFunction extends LastValueAggFunction<Byte> {
+    /** Built-in Byte LastValue aggregate function. */
+    public static class ByteLastValueAggFunction extends LastValueAggFunction<Byte> {
 
-		@Override
-		public TypeInformation<Byte> getResultType() {
-			return Types.BYTE;
-		}
-	}
+        @Override
+        public TypeInformation<Byte> getResultType() {
+            return Types.BYTE;
+        }
+    }
 
-	/**
-	 * Built-in Short LastValue aggregate function.
-	 */
-	public static class ShortLastValueAggFunction extends LastValueAggFunction<Short> {
+    /** Built-in Short LastValue aggregate function. */
+    public static class ShortLastValueAggFunction extends LastValueAggFunction<Short> {
 
-		@Override
-		public TypeInformation<Short> getResultType() {
-			return Types.SHORT;
-		}
-	}
+        @Override
+        public TypeInformation<Short> getResultType() {
+            return Types.SHORT;
+        }
+    }
 
-	/**
-	 * Built-in Int LastValue aggregate function.
-	 */
-	public static class IntLastValueAggFunction extends LastValueAggFunction<Integer> {
+    /** Built-in Int LastValue aggregate function. */
+    public static class IntLastValueAggFunction extends LastValueAggFunction<Integer> {
 
-		@Override
-		public TypeInformation<Integer> getResultType() {
-			return Types.INT;
-		}
-	}
+        @Override
+        public TypeInformation<Integer> getResultType() {
+            return Types.INT;
+        }
+    }
 
-	/**
-	 * Built-in Long LastValue aggregate function.
-	 */
-	public static class LongLastValueAggFunction extends LastValueAggFunction<Long> {
+    /** Built-in Long LastValue aggregate function. */
+    public static class LongLastValueAggFunction extends LastValueAggFunction<Long> {
 
-		@Override
-		public TypeInformation<Long> getResultType() {
-			return Types.LONG;
-		}
-	}
+        @Override
+        public TypeInformation<Long> getResultType() {
+            return Types.LONG;
+        }
+    }
 
-	/**
-	 * Built-in Float LastValue aggregate function.
-	 */
-	public static class FloatLastValueAggFunction extends LastValueAggFunction<Float> {
+    /** Built-in Float LastValue aggregate function. */
+    public static class FloatLastValueAggFunction extends LastValueAggFunction<Float> {
 
-		@Override
-		public TypeInformation<Float> getResultType() {
-			return Types.FLOAT;
-		}
-	}
+        @Override
+        public TypeInformation<Float> getResultType() {
+            return Types.FLOAT;
+        }
+    }
 
-	/**
-	 * Built-in Double LastValue aggregate function.
-	 */
-	public static class DoubleLastValueAggFunction extends LastValueAggFunction<Double> {
+    /** Built-in Double LastValue aggregate function. */
+    public static class DoubleLastValueAggFunction extends LastValueAggFunction<Double> {
 
-		@Override
-		public TypeInformation<Double> getResultType() {
-			return Types.DOUBLE;
-		}
-	}
+        @Override
+        public TypeInformation<Double> getResultType() {
+            return Types.DOUBLE;
+        }
+    }
 
-	/**
-	 * Built-in Boolean LastValue aggregate function.
-	 */
-	public static class BooleanLastValueAggFunction extends LastValueAggFunction<Boolean> {
+    /** Built-in Boolean LastValue aggregate function. */
+    public static class BooleanLastValueAggFunction extends LastValueAggFunction<Boolean> {
 
-		@Override
-		public TypeInformation<Boolean> getResultType() {
-			return Types.BOOLEAN;
-		}
-	}
+        @Override
+        public TypeInformation<Boolean> getResultType() {
+            return Types.BOOLEAN;
+        }
+    }
 
-	/**
-	 * Built-in DecimalData LastValue aggregate function.
-	 */
-	public static class DecimalLastValueAggFunction extends LastValueAggFunction<DecimalData> {
+    /** Built-in DecimalData LastValue aggregate function. */
+    public static class DecimalLastValueAggFunction extends LastValueAggFunction<DecimalData> {
 
-		private DecimalDataTypeInfo decimalTypeInfo;
+        private DecimalDataTypeInfo decimalTypeInfo;
 
-		public DecimalLastValueAggFunction(DecimalDataTypeInfo decimalTypeInfo) {
-			this.decimalTypeInfo = decimalTypeInfo;
-		}
+        public DecimalLastValueAggFunction(DecimalDataTypeInfo decimalTypeInfo) {
+            this.decimalTypeInfo = decimalTypeInfo;
+        }
 
-		public void accumulate(GenericRowData acc, DecimalData value) {
-			super.accumulate(acc, value);
-		}
+        public void accumulate(GenericRowData acc, DecimalData value) {
+            super.accumulate(acc, value);
+        }
 
-		public void accumulate(GenericRowData acc, DecimalData value, Long order) {
-			super.accumulate(acc, value, order);
-		}
+        public void accumulate(GenericRowData acc, DecimalData value, Long order) {
+            super.accumulate(acc, value, order);
+        }
 
-		@Override
-		public TypeInformation<DecimalData> getResultType() {
-			return decimalTypeInfo;
-		}
-	}
+        @Override
+        public TypeInformation<DecimalData> getResultType() {
+            return decimalTypeInfo;
+        }
+    }
 
-	/**
-	 * Built-in String LastValue aggregate function.
-	 */
-	public static class StringLastValueAggFunction extends LastValueAggFunction<StringData> {
+    /** Built-in String LastValue aggregate function. */
+    public static class StringLastValueAggFunction extends LastValueAggFunction<StringData> {
 
-		@Override
-		public TypeInformation<StringData> getResultType() {
-			return StringDataTypeInfo.INSTANCE;
-		}
+        @Override
+        public TypeInformation<StringData> getResultType() {
+            return StringDataTypeInfo.INSTANCE;
+        }
 
-		public void accumulate(GenericRowData acc, StringData value) {
-			if (value != null) {
-				super.accumulate(acc, ((BinaryStringData) value).copy());
-			}
-		}
+        public void accumulate(GenericRowData acc, StringData value) {
+            if (value != null) {
+                super.accumulate(acc, ((BinaryStringData) value).copy());
+            }
+        }
 
-		public void accumulate(GenericRowData acc, StringData value, Long order) {
-			// just ignore nulls values and orders
-			if (value != null) {
-				super.accumulate(acc, ((BinaryStringData) value).copy(), order);
-			}
-		}
-	}
+        public void accumulate(GenericRowData acc, StringData value, Long order) {
+            // just ignore nulls values and orders
+            if (value != null) {
+                super.accumulate(acc, ((BinaryStringData) value).copy(), order);
+            }
+        }
+    }
 }

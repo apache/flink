@@ -22,38 +22,43 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Intermediate result partition registry to use in {@link org.apache.flink.runtime.jobmaster.JobMaster}.
+ * Intermediate result partition registry to use in {@link
+ * org.apache.flink.runtime.jobmaster.JobMaster}.
  *
- * @param <T> partition shuffle descriptor used for producer/consumer deployment and their data exchange.
+ * @param <T> partition shuffle descriptor used for producer/consumer deployment and their data
+ *     exchange.
  */
 public interface ShuffleMaster<T extends ShuffleDescriptor> {
 
-	/**
-	 * Asynchronously register a partition and its producer with the shuffle service.
-	 *
-	 * <p>IMPORTANT: the returned future must be completed due to limitations in the default scheduler.
-	 *
-	 * <p>The returned shuffle descriptor is an internal handle
-	 * which identifies the partition internally within the shuffle service.
-	 * The descriptor should provide enough information to read from or write data to the partition.
-	 *
-	 * @param partitionDescriptor general job graph information about the partition
-	 * @param producerDescriptor general producer information (location, execution id, connection info)
-	 * @return future with the partition shuffle descriptor used for producer/consumer deployment and their data exchange.
-	 */
-	CompletableFuture<T> registerPartitionWithProducer(
-		PartitionDescriptor partitionDescriptor,
-		ProducerDescriptor producerDescriptor);
+    /**
+     * Asynchronously register a partition and its producer with the shuffle service.
+     *
+     * <p>IMPORTANT: the returned future must be completed due to limitations in the default
+     * scheduler.
+     *
+     * <p>The returned shuffle descriptor is an internal handle which identifies the partition
+     * internally within the shuffle service. The descriptor should provide enough information to
+     * read from or write data to the partition.
+     *
+     * @param partitionDescriptor general job graph information about the partition
+     * @param producerDescriptor general producer information (location, execution id, connection
+     *     info)
+     * @return future with the partition shuffle descriptor used for producer/consumer deployment
+     *     and their data exchange.
+     */
+    CompletableFuture<T> registerPartitionWithProducer(
+            PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor);
 
-	/**
-	 * Release any external resources occupied by the given partition.
-	 *
-	 * <p>This call triggers release of any resources which are occupied by the given partition in the external systems
-	 * outside of the producer executor. This is mostly relevant for the batch jobs and blocking result partitions.
-	 * The producer local resources are managed by {@link ShuffleDescriptor#storesLocalResourcesOn()} and
-	 * {@link ShuffleEnvironment#releasePartitionsLocally(Collection)}.
-	 *
-	 * @param shuffleDescriptor shuffle descriptor of the result partition to release externally.
-	 */
-	void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor);
+    /**
+     * Release any external resources occupied by the given partition.
+     *
+     * <p>This call triggers release of any resources which are occupied by the given partition in
+     * the external systems outside of the producer executor. This is mostly relevant for the batch
+     * jobs and blocking result partitions. The producer local resources are managed by {@link
+     * ShuffleDescriptor#storesLocalResourcesOn()} and {@link
+     * ShuffleEnvironment#releasePartitionsLocally(Collection)}.
+     *
+     * @param shuffleDescriptor shuffle descriptor of the result partition to release externally.
+     */
+    void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor);
 }

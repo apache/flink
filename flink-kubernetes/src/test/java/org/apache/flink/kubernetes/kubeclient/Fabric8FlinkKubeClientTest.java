@@ -52,199 +52,228 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for Fabric implementation of {@link FlinkKubeClient}.
- */
+/** Tests for Fabric implementation of {@link FlinkKubeClient}. */
 public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
-	private static final int RPC_PORT = 7123;
-	private static final int BLOB_SERVER_PORT = 8346;
+    private static final int RPC_PORT = 7123;
+    private static final int BLOB_SERVER_PORT = 8346;
 
-	private static final double JOB_MANAGER_CPU = 2.0;
-	private static final int JOB_MANAGER_MEMORY = 768;
+    private static final double JOB_MANAGER_CPU = 2.0;
+    private static final int JOB_MANAGER_MEMORY = 768;
 
-	private static final String SERVICE_ACCOUNT_NAME = "service-test";
+    private static final String SERVICE_ACCOUNT_NAME = "service-test";
 
-	private static final String TASKMANAGER_POD_NAME = "mock-task-manager-pod";
+    private static final String TASKMANAGER_POD_NAME = "mock-task-manager-pod";
 
-	private static final String ENTRY_POINT_CLASS = KubernetesSessionClusterEntrypoint.class.getCanonicalName();
+    private static final String ENTRY_POINT_CLASS =
+            KubernetesSessionClusterEntrypoint.class.getCanonicalName();
 
-	private KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
+    private KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
 
-	@Override
-	protected void setupFlinkConfig() {
-		super.setupFlinkConfig();
+    @Override
+    protected void setupFlinkConfig() {
+        super.setupFlinkConfig();
 
-		flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY, CONTAINER_IMAGE_PULL_POLICY);
-		flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
-		flinkConfig.set(RestOptions.PORT, REST_PORT);
-		flinkConfig.set(JobManagerOptions.PORT, RPC_PORT);
-		flinkConfig.set(BlobServerOptions.PORT, Integer.toString(BLOB_SERVER_PORT));
-		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
-		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
-	}
+        flinkConfig.set(
+                KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY, CONTAINER_IMAGE_PULL_POLICY);
+        flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
+        flinkConfig.set(RestOptions.PORT, REST_PORT);
+        flinkConfig.set(JobManagerOptions.PORT, RPC_PORT);
+        flinkConfig.set(BlobServerOptions.PORT, Integer.toString(BLOB_SERVER_PORT));
+        flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
+        flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
+    }
 
-	@Override
-	protected void onSetup() throws Exception {
-		super.onSetup();
+    @Override
+    protected void onSetup() throws Exception {
+        super.onSetup();
 
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
+        KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+        KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
 
-		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(JOB_MANAGER_MEMORY)
-			.setTaskManagerMemoryMB(1000)
-			.setSlotsPerTaskManager(3)
-			.createClusterSpecification();
+        final ClusterSpecification clusterSpecification =
+                new ClusterSpecification.ClusterSpecificationBuilder()
+                        .setMasterMemoryMB(JOB_MANAGER_MEMORY)
+                        .setTaskManagerMemoryMB(1000)
+                        .setSlotsPerTaskManager(3)
+                        .createClusterSpecification();
 
-		final KubernetesJobManagerParameters kubernetesJobManagerParameters =
-			new KubernetesJobManagerParameters(flinkConfig, clusterSpecification);
-		this.kubernetesJobManagerSpecification =
-			KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
-	}
+        final KubernetesJobManagerParameters kubernetesJobManagerParameters =
+                new KubernetesJobManagerParameters(flinkConfig, clusterSpecification);
+        this.kubernetesJobManagerSpecification =
+                KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
+                        kubernetesJobManagerParameters);
+    }
 
-	@Test
-	public void testCreateFlinkMasterComponent() throws Exception {
-		flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
+    @Test
+    public void testCreateFlinkMasterComponent() throws Exception {
+        flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
 
-		final List<Deployment> resultedDeployments = kubeClient.apps().deployments()
-			.inNamespace(NAMESPACE)
-			.list()
-			.getItems();
-		assertEquals(1, resultedDeployments.size());
+        final List<Deployment> resultedDeployments =
+                kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems();
+        assertEquals(1, resultedDeployments.size());
 
-		final List<ConfigMap> resultedConfigMaps = kubeClient.configMaps()
-			.inNamespace(NAMESPACE)
-			.list()
-			.getItems();
-		assertEquals(1, resultedConfigMaps.size());
+        final List<ConfigMap> resultedConfigMaps =
+                kubeClient.configMaps().inNamespace(NAMESPACE).list().getItems();
+        assertEquals(1, resultedConfigMaps.size());
 
-		final List<Service> resultedServices = kubeClient.services()
-			.inNamespace(NAMESPACE)
-			.list()
-			.getItems();
-		assertEquals(2, resultedServices.size());
+        final List<Service> resultedServices =
+                kubeClient.services().inNamespace(NAMESPACE).list().getItems();
+        assertEquals(2, resultedServices.size());
 
-		testOwnerReferenceSetting(resultedDeployments.get(0), resultedConfigMaps);
-		testOwnerReferenceSetting(resultedDeployments.get(0), resultedServices);
-	}
+        testOwnerReferenceSetting(resultedDeployments.get(0), resultedConfigMaps);
+        testOwnerReferenceSetting(resultedDeployments.get(0), resultedServices);
+    }
 
-	private <T extends HasMetadata> void testOwnerReferenceSetting(
-		HasMetadata ownerReference,
-		List<T> resources) {
-		resources.forEach(resource -> {
-			List<OwnerReference> ownerReferences = resource.getMetadata().getOwnerReferences();
-			assertEquals(1, ownerReferences.size());
-			assertEquals(ownerReference.getMetadata().getUid(), ownerReferences.get(0).getUid());
-		});
-	}
+    private <T extends HasMetadata> void testOwnerReferenceSetting(
+            HasMetadata ownerReference, List<T> resources) {
+        resources.forEach(
+                resource -> {
+                    List<OwnerReference> ownerReferences =
+                            resource.getMetadata().getOwnerReferences();
+                    assertEquals(1, ownerReferences.size());
+                    assertEquals(
+                            ownerReference.getMetadata().getUid(), ownerReferences.get(0).getUid());
+                });
+    }
 
-	@Test
-	public void testCreateFlinkTaskManagerPod() throws Exception {
-		this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
+    @Test
+    public void testCreateFlinkTaskManagerPod() throws Exception {
+        this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
 
-		final KubernetesPod kubernetesPod = new KubernetesPod(new PodBuilder()
-			.editOrNewMetadata()
-			.withName("mock-task-manager-pod")
-			.endMetadata()
-			.editOrNewSpec()
-			.endSpec()
-			.build());
-		this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
+        final KubernetesPod kubernetesPod =
+                new KubernetesPod(
+                        new PodBuilder()
+                                .editOrNewMetadata()
+                                .withName("mock-task-manager-pod")
+                                .endMetadata()
+                                .editOrNewSpec()
+                                .endSpec()
+                                .build());
+        this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
 
-		final Pod resultTaskManagerPod =
-			this.kubeClient.pods().inNamespace(NAMESPACE).withName(TASKMANAGER_POD_NAME).get();
+        final Pod resultTaskManagerPod =
+                this.kubeClient.pods().inNamespace(NAMESPACE).withName(TASKMANAGER_POD_NAME).get();
 
-		assertEquals(
-			this.kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems().get(0).getMetadata().getUid(),
-			resultTaskManagerPod.getMetadata().getOwnerReferences().get(0).getUid());
-	}
+        assertEquals(
+                this.kubeClient
+                        .apps()
+                        .deployments()
+                        .inNamespace(NAMESPACE)
+                        .list()
+                        .getItems()
+                        .get(0)
+                        .getMetadata()
+                        .getUid(),
+                resultTaskManagerPod.getMetadata().getOwnerReferences().get(0).getUid());
+    }
 
-	@Test
-	public void testStopPod() throws ExecutionException, InterruptedException {
-		final String podName = "pod-for-delete";
-		final Pod pod = new PodBuilder()
-			.editOrNewMetadata()
-			.withName(podName)
-			.endMetadata()
-			.editOrNewSpec()
-			.endSpec()
-			.build();
+    @Test
+    public void testStopPod() throws ExecutionException, InterruptedException {
+        final String podName = "pod-for-delete";
+        final Pod pod =
+                new PodBuilder()
+                        .editOrNewMetadata()
+                        .withName(podName)
+                        .endMetadata()
+                        .editOrNewSpec()
+                        .endSpec()
+                        .build();
 
-		this.kubeClient.pods().inNamespace(NAMESPACE).create(pod);
-		assertNotNull(this.kubeClient.pods().inNamespace(NAMESPACE).withName(podName).get());
+        this.kubeClient.pods().inNamespace(NAMESPACE).create(pod);
+        assertNotNull(this.kubeClient.pods().inNamespace(NAMESPACE).withName(podName).get());
 
-		this.flinkKubeClient.stopPod(podName).get();
-		assertNull(this.kubeClient.pods().inNamespace(NAMESPACE).withName(podName).get());
-	}
+        this.flinkKubeClient.stopPod(podName).get();
+        assertNull(this.kubeClient.pods().inNamespace(NAMESPACE).withName(podName).get());
+    }
 
-	@Test
-	public void testServiceLoadBalancerWithNoIP() {
-		final String hostName = "test-host-name";
-		mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(hostName, ""));
+    @Test
+    public void testServiceLoadBalancerWithNoIP() {
+        final String hostName = "test-host-name";
+        mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(hostName, ""));
 
-		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+        final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
 
-		assertThat(resultEndpoint.isPresent(), is(true));
-		assertThat(resultEndpoint.get().getAddress(), is(hostName));
-		assertThat(resultEndpoint.get().getPort(), is(REST_PORT));
-	}
+        assertThat(resultEndpoint.isPresent(), is(true));
+        assertThat(resultEndpoint.get().getAddress(), is(hostName));
+        assertThat(resultEndpoint.get().getPort(), is(REST_PORT));
+    }
 
-	@Test
-	public void testServiceLoadBalancerEmptyHostAndIP() {
-		mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer("", ""));
+    @Test
+    public void testServiceLoadBalancerEmptyHostAndIP() {
+        mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer("", ""));
 
-		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-		assertThat(resultEndpoint.isPresent(), is(false));
-	}
+        final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+        assertThat(resultEndpoint.isPresent(), is(false));
+    }
 
-	@Test
-	public void testServiceLoadBalancerNullHostAndIP() {
-		mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(null, null));
+    @Test
+    public void testServiceLoadBalancerNullHostAndIP() {
+        mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(null, null));
 
-		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-		assertThat(resultEndpoint.isPresent(), is(false));
-	}
+        final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+        assertThat(resultEndpoint.isPresent(), is(false));
+    }
 
-	@Test
-	public void testNodePortService() {
-		mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
+    @Test
+    public void testNodePortService() {
+        mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
 
-		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-		assertThat(resultEndpoint.isPresent(), is(true));
-		assertThat(resultEndpoint.get().getPort(), is(NODE_PORT));
-	}
+        final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+        assertThat(resultEndpoint.isPresent(), is(true));
+        assertThat(resultEndpoint.get().getPort(), is(NODE_PORT));
+    }
 
-	@Test
-	public void testClusterIPService() {
-		mockExpectedServiceFromServerSide(buildExternalServiceWithClusterIP());
+    @Test
+    public void testClusterIPService() {
+        mockExpectedServiceFromServerSide(buildExternalServiceWithClusterIP());
 
-		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-		assertThat(resultEndpoint.isPresent(), is(true));
-		assertThat(
-			resultEndpoint.get().getAddress(),
-			is(ExternalServiceDecorator.getNamespacedExternalServiceName(CLUSTER_ID, NAMESPACE)));
-		assertThat(resultEndpoint.get().getPort(), is(REST_PORT));
-	}
+        final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
+        assertThat(resultEndpoint.isPresent(), is(true));
+        assertThat(
+                resultEndpoint.get().getAddress(),
+                is(
+                        ExternalServiceDecorator.getNamespacedExternalServiceName(
+                                CLUSTER_ID, NAMESPACE)));
+        assertThat(resultEndpoint.get().getPort(), is(REST_PORT));
+    }
 
-	@Test
-	public void testStopAndCleanupCluster() throws Exception {
-		this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
+    @Test
+    public void testStopAndCleanupCluster() throws Exception {
+        this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
 
-		final KubernetesPod kubernetesPod = new KubernetesPod(new PodBuilder()
-			.editOrNewMetadata()
-			.withName(TASKMANAGER_POD_NAME)
-			.endMetadata()
-			.editOrNewSpec()
-			.endSpec()
-			.build());
-		this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
+        final KubernetesPod kubernetesPod =
+                new KubernetesPod(
+                        new PodBuilder()
+                                .editOrNewMetadata()
+                                .withName(TASKMANAGER_POD_NAME)
+                                .endMetadata()
+                                .editOrNewSpec()
+                                .endSpec()
+                                .build());
+        this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
 
-		assertEquals(1, this.kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems().size());
-		assertEquals(1, this.kubeClient.configMaps().inNamespace(NAMESPACE).list().getItems().size());
-		assertEquals(2, this.kubeClient.services().inNamespace(NAMESPACE).list().getItems().size());
-		assertEquals(1, this.kubeClient.pods().inNamespace(NAMESPACE).list().getItems().size());
+        assertEquals(
+                1,
+                this.kubeClient
+                        .apps()
+                        .deployments()
+                        .inNamespace(NAMESPACE)
+                        .list()
+                        .getItems()
+                        .size());
+        assertEquals(
+                1, this.kubeClient.configMaps().inNamespace(NAMESPACE).list().getItems().size());
+        assertEquals(2, this.kubeClient.services().inNamespace(NAMESPACE).list().getItems().size());
+        assertEquals(1, this.kubeClient.pods().inNamespace(NAMESPACE).list().getItems().size());
 
-		this.flinkKubeClient.stopAndCleanupCluster(CLUSTER_ID);
-		assertTrue(this.kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems().isEmpty());
-	}
+        this.flinkKubeClient.stopAndCleanupCluster(CLUSTER_ID);
+        assertTrue(
+                this.kubeClient
+                        .apps()
+                        .deployments()
+                        .inNamespace(NAMESPACE)
+                        .list()
+                        .getItems()
+                        .isEmpty());
+    }
 }

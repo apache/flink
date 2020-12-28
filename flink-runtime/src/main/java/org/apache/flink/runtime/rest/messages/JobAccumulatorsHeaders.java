@@ -23,56 +23,53 @@ import org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobAccumulatorsHandler}.
- */
-public class JobAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
+/** Message headers for the {@link JobAccumulatorsHandler}. */
+public class JobAccumulatorsHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
 
-	private static final JobAccumulatorsHeaders INSTANCE = new JobAccumulatorsHeaders();
+    private static final JobAccumulatorsHeaders INSTANCE = new JobAccumulatorsHeaders();
 
-	public static final String URL = "/jobs" +
-		"/:" + JobIDPathParameter.KEY +
-		"/accumulators";
+    public static final String URL = "/jobs" + "/:" + JobIDPathParameter.KEY + "/accumulators";
 
-	private JobAccumulatorsHeaders() {
-	}
+    private JobAccumulatorsHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JobAccumulatorsInfo> getResponseClass() {
-		return JobAccumulatorsInfo.class;
-	}
+    @Override
+    public Class<JobAccumulatorsInfo> getResponseClass() {
+        return JobAccumulatorsInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobAccumulatorsMessageParameters getUnresolvedMessageParameters() {
-		return new JobAccumulatorsMessageParameters();
-	}
+    @Override
+    public JobAccumulatorsMessageParameters getUnresolvedMessageParameters() {
+        return new JobAccumulatorsMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobAccumulatorsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobAccumulatorsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the accumulators for all tasks of a job, aggregated across the respective subtasks.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the accumulators for all tasks of a job, aggregated across the respective subtasks.";
+    }
 }

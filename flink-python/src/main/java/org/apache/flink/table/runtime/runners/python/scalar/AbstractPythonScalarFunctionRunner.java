@@ -40,36 +40,44 @@ import java.util.Map;
  * @param <IN> Type of the input elements.
  */
 @Internal
-public abstract class AbstractPythonScalarFunctionRunner<IN> extends AbstractPythonStatelessFunctionRunner<IN> {
+public abstract class AbstractPythonScalarFunctionRunner<IN>
+        extends AbstractPythonStatelessFunctionRunner<IN> {
 
-	private static final String SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1";
+    private static final String SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1";
 
-	private final PythonFunctionInfo[] scalarFunctions;
+    private final PythonFunctionInfo[] scalarFunctions;
 
-	public AbstractPythonScalarFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, environmentManager, inputType, outputType, SCALAR_FUNCTION_URN, jobOptions, flinkMetricContainer);
-		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
-	}
+    public AbstractPythonScalarFunctionRunner(
+            String taskName,
+            FnDataReceiver<byte[]> resultReceiver,
+            PythonFunctionInfo[] scalarFunctions,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                resultReceiver,
+                environmentManager,
+                inputType,
+                outputType,
+                SCALAR_FUNCTION_URN,
+                jobOptions,
+                flinkMetricContainer);
+        this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
+    }
 
-	/**
-	 * Gets the proto representation of the Python user-defined functions to be executed.
-	 */
-	@VisibleForTesting
-	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
-		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
-		// add udf proto
-		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
-			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
-		}
-		builder.setMetricEnabled(flinkMetricContainer != null);
-		return builder.build();
-	}
+    /** Gets the proto representation of the Python user-defined functions to be executed. */
+    @VisibleForTesting
+    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
+        FlinkFnApi.UserDefinedFunctions.Builder builder =
+                FlinkFnApi.UserDefinedFunctions.newBuilder();
+        // add udf proto
+        for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
+            builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
+        }
+        builder.setMetricEnabled(flinkMetricContainer != null);
+        return builder.build();
+    }
 }

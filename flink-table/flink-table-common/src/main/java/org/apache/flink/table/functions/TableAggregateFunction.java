@@ -29,23 +29,24 @@ import org.apache.flink.util.Collector;
  *
  * <p>The behavior of a {@link TableAggregateFunction} can be defined by implementing a series of
  * custom methods. A {@link TableAggregateFunction} needs at least three methods:
+ *
  * <ul>
- *     <li>createAccumulator</li>
- *     <li>accumulate</li>
- *     <li>emitValue or emitUpdateWithRetract</li>
+ *   <li>createAccumulator
+ *   <li>accumulate
+ *   <li>emitValue or emitUpdateWithRetract
  * </ul>
  *
  * <p>There is another method that can be optional to have:
+ *
  * <ul>
- *     <li>retract</li>
+ *   <li>retract
  * </ul>
  *
  * <p>All these methods must be declared publicly, not static, and named exactly as the names
- * mentioned above. The method {@link #createAccumulator()} is defined in
- * the {@link UserDefinedAggregateFunction} functions, while other methods are explained below.
+ * mentioned above. The method {@link #createAccumulator()} is defined in the {@link
+ * UserDefinedAggregateFunction} functions, while other methods are explained below.
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * Processes the input values and update the provided accumulator instance. The method
  * accumulate can be overloaded with different custom types and arguments. A TableAggregateFunction
  * requires at least one accumulate() method.
@@ -54,11 +55,9 @@ import org.apache.flink.util.Collector;
  * param: [user defined inputs] the input value (usually obtained from a new arrived data).
  *
  * public void accumulate(ACC accumulator, [user defined inputs])
- * }
- * </pre>
+ * }</pre>
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * Retracts the input values from the accumulator instance. The current design assumes the
  * inputs are the values that have been previously accumulated. The method retract can be
  * overloaded with different custom types and arguments.
@@ -67,11 +66,9 @@ import org.apache.flink.util.Collector;
  * param: [user defined inputs] the input value (usually obtained from a new arrived data).
  *
  * public void retract(ACC accumulator, [user defined inputs])
- * }
- * </pre>
+ * }</pre>
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * Called every time when an aggregation result should be materialized. The returned value could
  * be either an early and incomplete result (periodically emitted as data arrive) or the final
  * result of the aggregation.
@@ -80,11 +77,9 @@ import org.apache.flink.util.Collector;
  * param: out                   the collector used to output data.
  *
  * public void emitValue(ACC accumulator, Collector<T> out)
- * }
- * </pre>
+ * }</pre>
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * Called every time when an aggregation result should be materialized. The returned value could
  * be either an early and incomplete result (periodically emitted as data arrive) or the final
  * result of the aggregation.
@@ -102,39 +97,39 @@ import org.apache.flink.util.Collector;
  *                              records.
  *
  * public void emitUpdateWithRetract(ACC accumulator, RetractableCollector<T> out)
- * }
- * </pre>
+ * }</pre>
  *
- * @param <T>   the type of the table aggregation result
+ * @param <T> the type of the table aggregation result
  * @param <ACC> the type of the table aggregation accumulator. The accumulator is used to keep the
- *              aggregated values which are needed to compute an aggregation result.
- *              TableAggregateFunction represents its state using accumulator, thereby the state of
- *              the TableAggregateFunction must be put into the accumulator.
+ *     aggregated values which are needed to compute an aggregation result. TableAggregateFunction
+ *     represents its state using accumulator, thereby the state of the TableAggregateFunction must
+ *     be put into the accumulator.
  */
 @PublicEvolving
 public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
 
-	/**
-	 * Collects a record and forwards it. The collector can output retract messages with the retract
-	 * method. Note: only use it in {@code emitUpdateWithRetract}.
-	 */
-	public interface RetractableCollector<T> extends Collector<T> {
+    /**
+     * Collects a record and forwards it. The collector can output retract messages with the retract
+     * method. Note: only use it in {@code emitUpdateWithRetract}.
+     */
+    public interface RetractableCollector<T> extends Collector<T> {
 
-		/**
-		 * Retract a record.
-		 *
-		 * @param record The record to retract.
-		 */
-		void retract(T record);
-	}
+        /**
+         * Retract a record.
+         *
+         * @param record The record to retract.
+         */
+        void retract(T record);
+    }
 
-	@Override
-	public final FunctionKind getKind() {
-		return FunctionKind.TABLE_AGGREGATE;
-	}
+    @Override
+    public final FunctionKind getKind() {
+        return FunctionKind.TABLE_AGGREGATE;
+    }
 
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		throw new TableException("Table aggregate functions are not updated to the new type system yet.");
-	}
+    @Override
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        throw new TableException(
+                "Table aggregate functions are not updated to the new type system yet.");
+    }
 }

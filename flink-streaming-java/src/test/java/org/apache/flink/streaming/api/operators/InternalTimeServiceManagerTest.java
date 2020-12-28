@@ -23,19 +23,20 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests for {@link InternalTimeServiceManager}.
- */
+/** Tests for {@link InternalTimeServiceManager}. */
 public class InternalTimeServiceManagerTest extends TestLogger {
 
-	/**
-	 * This test fixes some constants, because changing them can harm backwards compatibility.
-	 */
-	@Test
-	public void fixConstants() {
-		String expectedTimerStatePrefix = "_timer_state";
-		Assert.assertEquals(expectedTimerStatePrefix, InternalTimeServiceManager.TIMER_STATE_PREFIX);
-		Assert.assertEquals(expectedTimerStatePrefix + "/processing_", InternalTimeServiceManager.PROCESSING_TIMER_PREFIX);
-		Assert.assertEquals(expectedTimerStatePrefix + "/event_", InternalTimeServiceManager.EVENT_TIMER_PREFIX);
-	}
+    /** This test fixes some constants, because changing them can harm backwards compatibility. */
+    @Test
+    public void fixConstants() {
+        String expectedTimerStatePrefix = "_timer_state";
+        Assert.assertEquals(
+                expectedTimerStatePrefix, InternalTimeServiceManager.TIMER_STATE_PREFIX);
+        Assert.assertEquals(
+                expectedTimerStatePrefix + "/processing_",
+                InternalTimeServiceManager.PROCESSING_TIMER_PREFIX);
+        Assert.assertEquals(
+                expectedTimerStatePrefix + "/event_",
+                InternalTimeServiceManager.EVENT_TIMER_PREFIX);
+    }
 }

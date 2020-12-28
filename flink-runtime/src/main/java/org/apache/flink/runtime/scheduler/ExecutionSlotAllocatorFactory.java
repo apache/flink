@@ -19,11 +19,8 @@
 
 package org.apache.flink.runtime.scheduler;
 
-/**
- * Interface for {@link ExecutionSlotAllocator} factories.
- */
+/** Interface for {@link ExecutionSlotAllocator} factories. */
 public interface ExecutionSlotAllocatorFactory {
 
-	ExecutionSlotAllocator createInstance(InputsLocationsRetriever inputsLocationsRetriever);
-
+    ExecutionSlotAllocator createInstance(InputsLocationsRetriever inputsLocationsRetriever);
 }

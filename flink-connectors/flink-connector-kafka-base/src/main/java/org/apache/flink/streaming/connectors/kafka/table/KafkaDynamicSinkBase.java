@@ -37,97 +37,92 @@ import java.util.Properties;
 /**
  * A version-agnostic Kafka {@link DynamicTableSink}.
  *
- * <p>The version-specific Kafka consumers need to extend this class and
- * override {@link #createKafkaProducer(String, Properties, SerializationSchema, Optional)}}.
+ * <p>The version-specific Kafka consumers need to extend this class and override {@link
+ * #createKafkaProducer(String, Properties, SerializationSchema, Optional)}}.
  */
 @Internal
 public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
 
-	/** Consumed data type of the table. */
-	protected final DataType consumedDataType;
+    /** Consumed data type of the table. */
+    protected final DataType consumedDataType;
 
-	/** The Kafka topic to write to. */
-	protected final String topic;
+    /** The Kafka topic to write to. */
+    protected final String topic;
 
-	/** Properties for the Kafka producer. */
-	protected final Properties properties;
+    /** Properties for the Kafka producer. */
+    protected final Properties properties;
 
-	/** Sink format for encoding records to Kafka. */
-	protected final EncodingFormat<SerializationSchema<RowData>> encodingFormat;
+    /** Sink format for encoding records to Kafka. */
+    protected final EncodingFormat<SerializationSchema<RowData>> encodingFormat;
 
-	/** Partitioner to select Kafka partition for each item. */
-	protected final Optional<FlinkKafkaPartitioner<RowData>> partitioner;
+    /** Partitioner to select Kafka partition for each item. */
+    protected final Optional<FlinkKafkaPartitioner<RowData>> partitioner;
 
-	protected KafkaDynamicSinkBase(
-			DataType consumedDataType,
-			String topic,
-			Properties properties,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
-		this.consumedDataType = Preconditions.checkNotNull(consumedDataType, "Consumed data type must not be null.");
-		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
-		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
-		this.partitioner = Preconditions.checkNotNull(partitioner, "Partitioner must not be null.");
-		this.encodingFormat = Preconditions.checkNotNull(encodingFormat, "Encoding format must not be null.");
-	}
+    protected KafkaDynamicSinkBase(
+            DataType consumedDataType,
+            String topic,
+            Properties properties,
+            Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+            EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+        this.consumedDataType =
+                Preconditions.checkNotNull(
+                        consumedDataType, "Consumed data type must not be null.");
+        this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
+        this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
+        this.partitioner = Preconditions.checkNotNull(partitioner, "Partitioner must not be null.");
+        this.encodingFormat =
+                Preconditions.checkNotNull(encodingFormat, "Encoding format must not be null.");
+    }
 
-	@Override
-	public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
-		return this.encodingFormat.getChangelogMode();
-	}
+    @Override
+    public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+        return this.encodingFormat.getChangelogMode();
+    }
 
-	@Override
-	public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-		SerializationSchema<RowData> serializationSchema =
-				this.encodingFormat.createRuntimeEncoder(context, this.consumedDataType);
+    @Override
+    public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+        SerializationSchema<RowData> serializationSchema =
+                this.encodingFormat.createRuntimeEncoder(context, this.consumedDataType);
 
-		final SinkFunction<RowData> kafkaProducer = createKafkaProducer(
-				this.topic,
-				properties,
-				serializationSchema,
-				this.partitioner);
+        final SinkFunction<RowData> kafkaProducer =
+                createKafkaProducer(this.topic, properties, serializationSchema, this.partitioner);
 
-		return SinkFunctionProvider.of(kafkaProducer);
-	}
+        return SinkFunctionProvider.of(kafkaProducer);
+    }
 
-	/**
-	 * Returns the version-specific Kafka producer.
-	 *
-	 * @param topic               Kafka topic to produce to.
-	 * @param properties          Properties for the Kafka producer.
-	 * @param serializationSchema Serialization schema to use to create Kafka records.
-	 * @param partitioner         Partitioner to select Kafka partition.
-	 * @return The version-specific Kafka producer
-	 */
-	protected abstract SinkFunction<RowData> createKafkaProducer(
-		String topic,
-		Properties properties,
-		SerializationSchema<RowData> serializationSchema,
-		Optional<FlinkKafkaPartitioner<RowData>> partitioner);
+    /**
+     * Returns the version-specific Kafka producer.
+     *
+     * @param topic Kafka topic to produce to.
+     * @param properties Properties for the Kafka producer.
+     * @param serializationSchema Serialization schema to use to create Kafka records.
+     * @param partitioner Partitioner to select Kafka partition.
+     * @return The version-specific Kafka producer
+     */
+    protected abstract SinkFunction<RowData> createKafkaProducer(
+            String topic,
+            Properties properties,
+            SerializationSchema<RowData> serializationSchema,
+            Optional<FlinkKafkaPartitioner<RowData>> partitioner);
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		final KafkaDynamicSinkBase that = (KafkaDynamicSinkBase) o;
-		return Objects.equals(consumedDataType, that.consumedDataType) &&
-			Objects.equals(topic, that.topic) &&
-			Objects.equals(properties, that.properties) &&
-			Objects.equals(encodingFormat, that.encodingFormat) &&
-			Objects.equals(partitioner, that.partitioner);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final KafkaDynamicSinkBase that = (KafkaDynamicSinkBase) o;
+        return Objects.equals(consumedDataType, that.consumedDataType)
+                && Objects.equals(topic, that.topic)
+                && Objects.equals(properties, that.properties)
+                && Objects.equals(encodingFormat, that.encodingFormat)
+                && Objects.equals(partitioner, that.partitioner);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(
-			consumedDataType,
-			topic,
-			properties,
-			encodingFormat,
-			partitioner);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(consumedDataType, topic, properties, encodingFormat, partitioner);
+    }
 }

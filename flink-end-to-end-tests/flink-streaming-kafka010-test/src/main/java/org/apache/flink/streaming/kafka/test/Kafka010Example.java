@@ -30,40 +30,41 @@ import org.apache.flink.streaming.kafka.test.base.RollingAdditionMapper;
 
 /**
  * A simple example that shows how to read from and write to Kafka. This will read String messages
- * from the input topic, parse them into a POJO type {@link KafkaEvent}, group by some key, and finally
- * perform a rolling addition on each key for which the results are written back to another topic.
+ * from the input topic, parse them into a POJO type {@link KafkaEvent}, group by some key, and
+ * finally perform a rolling addition on each key for which the results are written back to another
+ * topic.
  *
- * <p>This example also demonstrates using a watermark assigner to generate per-partition
- * watermarks directly in the Flink Kafka consumer. For demonstration purposes, it is assumed that
- * the String messages are of formatted as a (word,frequency,timestamp) tuple.
+ * <p>This example also demonstrates using a watermark assigner to generate per-partition watermarks
+ * directly in the Flink Kafka consumer. For demonstration purposes, it is assumed that the String
+ * messages are of formatted as a (word,frequency,timestamp) tuple.
  *
- * <p>Example usage:
- * 	--input-topic test-input --output-topic test-output --bootstrap.servers localhost:9092 localhost:2181 --group.id myconsumer
+ * <p>Example usage: --input-topic test-input --output-topic test-output --bootstrap.servers
+ * localhost:9092 localhost:2181 --group.id myconsumer
  */
 public class Kafka010Example {
 
-	public static void main(String[] args) throws Exception {
-		// parse input arguments
-		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
-		StreamExecutionEnvironment env = KafkaExampleUtil.prepareExecutionEnv(parameterTool);
+    public static void main(String[] args) throws Exception {
+        // parse input arguments
+        final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+        StreamExecutionEnvironment env = KafkaExampleUtil.prepareExecutionEnv(parameterTool);
 
-		DataStream<KafkaEvent> input = env
-				.addSource(
-					new FlinkKafkaConsumer010<>(
-						parameterTool.getRequired("input-topic"),
-						new KafkaEventSchema(),
-						parameterTool.getProperties())
-					.assignTimestampsAndWatermarks(new CustomWatermarkExtractor()))
-				.keyBy("word")
-				.map(new RollingAdditionMapper());
+        DataStream<KafkaEvent> input =
+                env.addSource(
+                                new FlinkKafkaConsumer010<>(
+                                                parameterTool.getRequired("input-topic"),
+                                                new KafkaEventSchema(),
+                                                parameterTool.getProperties())
+                                        .assignTimestampsAndWatermarks(
+                                                new CustomWatermarkExtractor()))
+                        .keyBy("word")
+                        .map(new RollingAdditionMapper());
 
-		input.addSink(
-				new FlinkKafkaProducer010<>(
-						parameterTool.getRequired("output-topic"),
-						new KafkaEventSchema(),
-						parameterTool.getProperties()));
+        input.addSink(
+                new FlinkKafkaProducer010<>(
+                        parameterTool.getRequired("output-topic"),
+                        new KafkaEventSchema(),
+                        parameterTool.getProperties()));
 
-		env.execute("Kafka 0.10 Example");
-	}
-
+        env.execute("Kafka 0.10 Example");
+    }
 }

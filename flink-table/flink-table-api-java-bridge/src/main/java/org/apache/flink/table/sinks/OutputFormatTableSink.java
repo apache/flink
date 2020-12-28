@@ -27,20 +27,19 @@ import org.apache.flink.table.api.Table;
 /**
  * Defines an external {@link TableSink} to emit a bounded {@link Table}.
  *
- * @param <T> Type of the bounded {@link OutputFormat} that this {@link TableSink} expects and supports.
+ * @param <T> Type of the bounded {@link OutputFormat} that this {@link TableSink} expects and
+ *     supports.
  */
 @Experimental
 public abstract class OutputFormatTableSink<T> implements StreamTableSink<T> {
 
-	/**
-	 * Returns an {@link OutputFormat} for writing the data of the table.
-	 */
-	public abstract OutputFormat<T> getOutputFormat();
+    /** Returns an {@link OutputFormat} for writing the data of the table. */
+    public abstract OutputFormat<T> getOutputFormat();
 
-	@Override
-	public final DataStreamSink<T> consumeDataStream(DataStream<T> dataStream) {
-		return dataStream
-			.writeUsingOutputFormat(getOutputFormat())
-			.setParallelism(dataStream.getParallelism());
-	}
+    @Override
+    public final DataStreamSink<T> consumeDataStream(DataStream<T> dataStream) {
+        return dataStream
+                .writeUsingOutputFormat(getOutputFormat())
+                .setParallelism(dataStream.getParallelism());
+    }
 }

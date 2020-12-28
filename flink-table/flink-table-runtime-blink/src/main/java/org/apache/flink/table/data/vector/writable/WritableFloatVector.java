@@ -20,28 +20,22 @@ package org.apache.flink.table.data.vector.writable;
 
 import org.apache.flink.table.data.vector.FloatColumnVector;
 
-/**
- * Writable {@link FloatColumnVector}.
- */
+/** Writable {@link FloatColumnVector}. */
 public interface WritableFloatVector extends WritableColumnVector, FloatColumnVector {
 
-	/**
-	 * Set float at rowId with the provided value.
-	 */
-	void setFloat(int rowId, float value);
+    /** Set float at rowId with the provided value. */
+    void setFloat(int rowId, float value);
 
-	/**
-	 * Set floats from binary, need use UNSAFE to copy.
-	 *
-	 * @param rowId set start rowId.
-	 * @param count count for float, so the bytes size is count * 4.
-	 * @param src source binary.
-	 * @param srcIndex source binary index, it is the index for byte index.
-	 */
-	void setFloatsFromBinary(int rowId, int count, byte[] src, int srcIndex);
+    /**
+     * Set floats from binary, need use UNSAFE to copy.
+     *
+     * @param rowId set start rowId.
+     * @param count count for float, so the bytes size is count * 4.
+     * @param src source binary.
+     * @param srcIndex source binary index, it is the index for byte index.
+     */
+    void setFloatsFromBinary(int rowId, int count, byte[] src, int srcIndex);
 
-	/**
-	 * Fill the column vector with the provided value.
-	 */
-	void fill(float value);
+    /** Fill the column vector with the provided value. */
+    void fill(float value);
 }

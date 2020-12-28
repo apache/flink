@@ -32,51 +32,45 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
-/**
- * Factory for creating configured instances of {@link Kafka010DynamicSource}.
- */
+/** Factory for creating configured instances of {@link Kafka010DynamicSource}. */
 public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 
-	public static final String IDENTIFIER = "kafka-0.10";
+    public static final String IDENTIFIER = "kafka-0.10";
 
-	@Override
-	protected KafkaDynamicSourceBase createKafkaTableSource(
-			DataType producedDataType,
-			String topic,
-			Properties properties,
-			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
-			StartupMode startupMode,
-			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestampMillis) {
+    @Override
+    protected KafkaDynamicSourceBase createKafkaTableSource(
+            DataType producedDataType,
+            String topic,
+            Properties properties,
+            DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
+            StartupMode startupMode,
+            Map<KafkaTopicPartition, Long> specificStartupOffsets,
+            long startupTimestampMillis) {
 
-		return new Kafka010DynamicSource(
-			producedDataType,
-			topic,
-			properties,
-			decodingFormat,
-			startupMode,
-			specificStartupOffsets,
-			startupTimestampMillis);
-	}
+        return new Kafka010DynamicSource(
+                producedDataType,
+                topic,
+                properties,
+                decodingFormat,
+                startupMode,
+                specificStartupOffsets,
+                startupTimestampMillis);
+    }
 
-	@Override
-	protected KafkaDynamicSinkBase createKafkaTableSink(
-			DataType consumedDataType,
-			String topic,
-			Properties properties,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+    @Override
+    protected KafkaDynamicSinkBase createKafkaTableSink(
+            DataType consumedDataType,
+            String topic,
+            Properties properties,
+            Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+            EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
 
-		return new Kafka010DynamicSink(
-			consumedDataType,
-			topic,
-			properties,
-			partitioner,
-			encodingFormat);
-	}
+        return new Kafka010DynamicSink(
+                consumedDataType, topic, properties, partitioner, encodingFormat);
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 }

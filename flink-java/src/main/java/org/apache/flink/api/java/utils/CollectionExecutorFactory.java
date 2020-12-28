@@ -24,24 +24,23 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 
-/**
- * An {@link PipelineExecutorFactory} for {@link CollectionPipelineExecutor}.
- */
+/** An {@link PipelineExecutorFactory} for {@link CollectionPipelineExecutor}. */
 @Internal
 public class CollectionExecutorFactory implements PipelineExecutorFactory {
 
-	@Override
-	public String getName() {
-		return CollectionPipelineExecutor.NAME;
-	}
+    @Override
+    public String getName() {
+        return CollectionPipelineExecutor.NAME;
+    }
 
-	@Override
-	public boolean isCompatibleWith(Configuration configuration) {
-		return CollectionPipelineExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
-	}
+    @Override
+    public boolean isCompatibleWith(Configuration configuration) {
+        return CollectionPipelineExecutor.NAME.equalsIgnoreCase(
+                configuration.get(DeploymentOptions.TARGET));
+    }
 
-	@Override
-	public PipelineExecutor getExecutor(Configuration configuration) {
-		return new CollectionPipelineExecutor();
-	}
+    @Override
+    public PipelineExecutor getExecutor(Configuration configuration) {
+        return new CollectionPipelineExecutor();
+    }
 }
