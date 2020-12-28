@@ -19,7 +19,10 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.descriptors.Rowtime;
+import org.apache.flink.table.descriptors.Schema;
 
 import org.junit.Test;
 
@@ -79,6 +82,25 @@ public class TableFormatFactoryBaseTest {
 			.field("csvField", Types.STRING) // aliased
 			.field("abcField", Types.STRING)
 			.field("myTime", Types.SQL_TIMESTAMP)
+			.build();
+		assertEquals(expectedSchema, actualSchema);
+	}
+
+	@Test
+	public void testSchemaDerivationWithRowtimeFromExistField() {
+		Schema schema = new Schema()
+			.field("f1", DataTypes.STRING())
+			.field("f2", DataTypes.BIGINT()).from("t")
+			.field("r", DataTypes.TIMESTAMP(3))
+			.rowtime(
+				new Rowtime().timestampsFromField("t").watermarksPeriodicBounded(3));
+
+		final Map<String, String> properties = schema.toProperties();
+
+		final TableSchema actualSchema = TableFormatFactoryBase.deriveSchema(properties);
+		final TableSchema expectedSchema = TableSchema.builder()
+			.field("f1", Types.STRING)
+			.field("t", Types.LONG)
 			.build();
 		assertEquals(expectedSchema, actualSchema);
 	}
