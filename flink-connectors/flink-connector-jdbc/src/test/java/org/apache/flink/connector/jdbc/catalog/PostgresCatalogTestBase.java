@@ -68,7 +68,7 @@ public class PostgresCatalogTestBase {
 		// jdbc:postgresql://localhost:50807/postgres?user=postgres
 		String embeddedJdbcUrl = pg.getEmbeddedPostgres().getJdbcUrl(TEST_USERNAME, TEST_PWD);
 		// jdbc:postgresql://localhost:50807/
-		baseUrl = embeddedJdbcUrl.substring(0, embeddedJdbcUrl.lastIndexOf("/") + 1);
+		baseUrl = embeddedJdbcUrl.substring(0, embeddedJdbcUrl.lastIndexOf("/"));
 
 		catalog = new PostgresCatalog(TEST_CATALOG_NAME, PostgresCatalog.DEFAULT_DATABASE, TEST_USERNAME, TEST_PWD, baseUrl);
 
@@ -122,7 +122,7 @@ public class PostgresCatalogTestBase {
 	}
 
 	public static void executeSQL(String db, String sql) throws SQLException {
-		try (Connection conn = DriverManager.getConnection(baseUrl + db, TEST_USERNAME, TEST_PWD);
+		try (Connection conn = DriverManager.getConnection(String.format("%s/%s", baseUrl, db), TEST_USERNAME, TEST_PWD);
 			Statement statement = conn.createStatement()) {
 			statement.executeUpdate(sql);
 		} catch (SQLException e) {
