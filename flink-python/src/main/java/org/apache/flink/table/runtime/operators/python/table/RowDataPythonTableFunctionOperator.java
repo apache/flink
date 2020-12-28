@@ -33,12 +33,11 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
-
-import org.apache.calcite.rel.core.JoinRelType;
 
 /** The Python {@link TableFunction} operator for the blink planner. */
 @Internal
@@ -71,7 +70,7 @@ public class RowDataPythonTableFunctionOperator
             RowType inputType,
             RowType outputType,
             int[] udtfInputOffsets,
-            JoinRelType joinType) {
+            FlinkJoinType joinType) {
         super(config, tableFunction, inputType, outputType, udtfInputOffsets, joinType);
     }
 
@@ -141,7 +140,7 @@ public class RowDataPythonTableFunctionOperator
                 rowDataWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
                 resultTuple = pythonFunctionRunner.pollResult();
                 hasJoined = true;
-            } else if (joinType == JoinRelType.LEFT && !hasJoined) {
+            } else if (joinType == FlinkJoinType.LEFT && !hasJoined) {
                 GenericRowData udtfResult =
                         new GenericRowData(userDefinedFunctionOutputType.getFieldCount());
                 for (int i = 0; i < udtfResult.getArity(); i++) {

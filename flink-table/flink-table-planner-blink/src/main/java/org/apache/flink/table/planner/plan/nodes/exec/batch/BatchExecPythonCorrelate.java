@@ -20,17 +20,24 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCorrelate;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexNode;
 
-/** Batch {@link ExecNode} for Python ScalarFunctions. */
-public class BatchExecPythonCalc extends CommonExecPythonCalc implements BatchExecNode<RowData> {
+/** Batch exec node which matches along with join a Python user defined table function. */
+public class BatchExecPythonCorrelate extends CommonExecPythonCorrelate
+        implements BatchExecNode<RowData> {
 
-    public BatchExecPythonCalc(
-            RexProgram calcProgram, ExecEdge inputEdge, RowType outputType, String description) {
-        super(calcProgram, inputEdge, outputType, description);
+    public BatchExecPythonCorrelate(
+            FlinkJoinType joinType,
+            RexCall invocation,
+            RexNode condition,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(joinType, invocation, condition, inputEdge, outputType, description);
     }
 }
