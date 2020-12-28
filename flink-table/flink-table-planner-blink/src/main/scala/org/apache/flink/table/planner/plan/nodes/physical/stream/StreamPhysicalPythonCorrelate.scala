@@ -18,16 +18,15 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCorrelate
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
 
 /**
   * Flink RelNode which matches along with join a python user defined table function.
@@ -47,8 +46,7 @@ class StreamPhysicalPythonCorrelate(
     scan,
     condition,
     outputRowType,
-    joinType)
-  with CommonPythonCorrelate {
+    joinType) {
 
   def copy(
       traitSet: RelTraitSet,
@@ -66,9 +64,9 @@ class StreamPhysicalPythonCorrelate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecPythonCorrelate(
-      joinType,
+      JoinTypeUtil.getFlinkJoinType(joinType),
       scan.getCall.asInstanceOf[RexCall],
-      condition,
+      condition.orNull,
       ExecEdge.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription

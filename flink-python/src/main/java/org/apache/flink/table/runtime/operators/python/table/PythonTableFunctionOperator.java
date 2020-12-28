@@ -25,6 +25,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.plan.utils.JoinTypeUtil;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.python.utils.StreamRecordCRowWrappingCollector;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.types.CRowTypeInfo;
@@ -61,7 +63,13 @@ public class PythonTableFunctionOperator
             RowType outputType,
             int[] udtfInputOffsets,
             JoinRelType joinType) {
-        super(config, tableFunction, inputType, outputType, udtfInputOffsets, joinType);
+        super(
+                config,
+                tableFunction,
+                inputType,
+                outputType,
+                udtfInputOffsets,
+                JoinTypeUtil.getFlinkJoinType(joinType));
     }
 
     @Override
@@ -101,7 +109,7 @@ public class PythonTableFunctionOperator
                 cRowWrapper.collect(Row.join(input.row(), udtfResult));
                 resultTuple = pythonFunctionRunner.pollResult();
                 hasJoined = true;
-            } else if (joinType == JoinRelType.LEFT && !hasJoined) {
+            } else if (joinType == FlinkJoinType.LEFT && !hasJoined) {
                 udtfResult = new Row(userDefinedFunctionOutputType.getFieldCount());
                 for (int i = 0; i < udtfResult.getArity(); i++) {
                     udtfResult.setField(0, null);

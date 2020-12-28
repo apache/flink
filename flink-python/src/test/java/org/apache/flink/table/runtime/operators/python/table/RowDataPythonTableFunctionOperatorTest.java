@@ -23,6 +23,7 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.plan.utils.JoinTypeUtil;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughPythonTableFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
@@ -89,7 +90,13 @@ public class RowDataPythonTableFunctionOperatorTest
                 RowType outputType,
                 int[] udfInputOffsets,
                 JoinRelType joinRelType) {
-            super(config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
+            super(
+                    config,
+                    tableFunction,
+                    inputType,
+                    outputType,
+                    udfInputOffsets,
+                    JoinTypeUtil.getFlinkJoinType(joinRelType));
         }
 
         @Override

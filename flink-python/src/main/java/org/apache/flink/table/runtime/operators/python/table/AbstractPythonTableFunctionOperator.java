@@ -25,11 +25,10 @@ import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
-
-import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +53,7 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
     protected final PythonFunctionInfo tableFunction;
 
     /** The correlate join type. */
-    protected final JoinRelType joinType;
+    protected final FlinkJoinType joinType;
 
     public AbstractPythonTableFunctionOperator(
             Configuration config,
@@ -62,11 +61,11 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
             RowType inputType,
             RowType outputType,
             int[] udtfInputOffsets,
-            JoinRelType joinType) {
+            FlinkJoinType joinType) {
         super(config, inputType, outputType, udtfInputOffsets);
         this.tableFunction = Preconditions.checkNotNull(tableFunction);
         Preconditions.checkArgument(
-                joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT,
+                joinType == FlinkJoinType.INNER || joinType == FlinkJoinType.LEFT,
                 "The join type should be inner join or left join");
         this.joinType = joinType;
     }

@@ -18,10 +18,10 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCorrelate
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCorrelate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
+import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -47,8 +47,7 @@ class BatchPhysicalPythonCorrelate(
     scan,
     condition,
     outputRowType,
-    joinType)
-  with CommonPythonCorrelate {
+    joinType) {
 
   def copy(
       traitSet: RelTraitSet,
@@ -66,9 +65,9 @@ class BatchPhysicalPythonCorrelate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecPythonCorrelate(
-      joinType,
+      JoinTypeUtil.getFlinkJoinType(joinType),
       scan.getCall.asInstanceOf[RexCall],
-      condition,
+      condition.orNull,
       ExecEdge.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
