@@ -405,7 +405,7 @@ object FlinkBatchRuleSets {
     // union
     BatchPhysicalUnionRule.INSTANCE,
     // sort
-    BatchExecSortRule.INSTANCE,
+    BatchPhysicalSortRule.INSTANCE,
     BatchPhysicalLimitRule.INSTANCE,
     BatchExecSortLimitRule.INSTANCE,
     // rank

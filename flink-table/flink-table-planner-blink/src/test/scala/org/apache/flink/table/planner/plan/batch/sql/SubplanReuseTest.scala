@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortMergeJoinRule
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule.TABLE_EXEC_SORT_RANGE_ENABLED
+import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED
 import org.apache.flink.table.planner.plan.utils.OperatorType
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
@@ -222,7 +222,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnSort(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_SORT_RANGE_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_RANGE_SORT_ENABLED, true)
     val sqlQuery =
       """
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c ORDER BY a, b DESC)

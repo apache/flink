@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecSort, BatchExecSortAggregate, BatchPhysicalExchange, BatchPhysicalExpand}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalSort, BatchExecSortAggregate, BatchPhysicalExchange, BatchPhysicalExpand}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.RelOptRuleCall
@@ -55,7 +55,7 @@ import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
   */
 class EnforceLocalSortAggRule extends EnforceLocalAggRuleBase(
   operand(classOf[BatchExecSortAggregate],
-    operand(classOf[BatchExecSort],
+    operand(classOf[BatchPhysicalSort],
       operand(classOf[BatchPhysicalExchange],
         operand(classOf[BatchPhysicalExpand], any)))),
   "EnforceLocalSortAggRule") {
@@ -92,13 +92,13 @@ class EnforceLocalSortAggRule extends EnforceLocalAggRuleBase(
 
   private def createSort(
       input: RelNode,
-      sortKeys: Array[Int]): BatchExecSort = {
+      sortKeys: Array[Int]): BatchPhysicalSort = {
     val cluster = input.getCluster
     val collation = createRelCollation(sortKeys)
     val traitSet = cluster.getPlanner.emptyTraitSet
       .replace(FlinkConventions.BATCH_PHYSICAL)
       .replace(collation)
-    new BatchExecSort(
+    new BatchPhysicalSort(
       cluster,
       traitSet,
       input,

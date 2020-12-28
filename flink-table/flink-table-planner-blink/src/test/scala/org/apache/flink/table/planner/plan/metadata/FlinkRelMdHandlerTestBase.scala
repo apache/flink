@@ -319,7 +319,7 @@ class FlinkRelMdHandlerTestBase {
     val collation = logicalSort.getCollation
     val flinkLogicalSort = new FlinkLogicalSort(cluster, flinkLogicalTraits.replace(collation),
       studentFlinkLogicalScan, collation, null, null)
-    val batchSort = new BatchExecSort(cluster,
+    val batchSort = new BatchPhysicalSort(cluster,
       batchPhysicalTraits.replace(collation).replace(FlinkRelDistribution.SINGLETON),
       studentBatchScan, collation)
     val streamSort = new StreamPhysicalSort(cluster,
@@ -1697,7 +1697,7 @@ class FlinkRelMdHandlerTestBase {
     val collection1 = RelCollations.of(
       FlinkRelOptUtil.ofRelFieldCollation(4), FlinkRelOptUtil.ofRelFieldCollation(1))
     val newSortTrait1 = exchange1.getTraitSet.replace(collection1)
-    val sort1 = new BatchExecSort(cluster, newSortTrait1, exchange1,
+    val sort1 = new BatchPhysicalSort(cluster, newSortTrait1, exchange1,
       newSortTrait1.getTrait(RelCollationTraitDef.INSTANCE))
 
     val outputRowType1 = createRowType("id", "name", "score", "age", "class", "rn")
@@ -1723,7 +1723,7 @@ class FlinkRelMdHandlerTestBase {
     val collation2 = RelCollations.of(
       FlinkRelOptUtil.ofRelFieldCollation(4), FlinkRelOptUtil.ofRelFieldCollation(2))
     val newSortTrait2 = innerWindowAgg1.getTraitSet.replace(collation2)
-    val sort2 = new BatchExecSort(cluster, newSortTrait2, innerWindowAgg1,
+    val sort2 = new BatchPhysicalSort(cluster, newSortTrait2, innerWindowAgg1,
       newSortTrait2.getTrait(RelCollationTraitDef.INSTANCE))
 
     val outputRowType2 = createRowType(

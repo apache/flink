@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalSortAggregate, BatchExecSort, BatchExecSortAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalSortAggregate, BatchPhysicalSort, BatchExecSortAggregate}
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
@@ -86,7 +86,7 @@ class RemoveRedundantLocalSortAggWithoutSortRule extends RemoveRedundantLocalSor
 
 class RemoveRedundantLocalSortAggWithSortRule extends RemoveRedundantLocalSortAggRule(
   operand(classOf[BatchExecSortAggregate],
-    operand(classOf[BatchExecSort],
+    operand(classOf[BatchPhysicalSort],
       operand(classOf[BatchExecLocalSortAggregate],
         operand(classOf[RelNode], FlinkConventions.BATCH_PHYSICAL, any)))),
   "RemoveRedundantLocalSortAggWithSortRule") {
