@@ -22,8 +22,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink SQL 使得使用标准 SQL 开发流应用程序变的简单。如果你曾经在工作中使用过兼容 ANSI-SQL 2011 的数据库或类似的 SQL 系统，那么就很容易学习 Flink。本教程将帮助你快速入门 Flink SQL 开发环境。
- 
+Flink SQL 使得使用标准 SQL 开发流应用程序变的简单。如果你曾经在工作中使用过兼容 ANSI-SQL 2011 的数据库或类似的 SQL 系统，那么就很容易学习 Flink。本教程将帮助你在 Flink SQL 开发环境下快速入门。
+
 * This will be replaced by the TOC
 {:toc}
 
@@ -34,7 +34,7 @@ Flink SQL 使得使用标准 SQL 开发流应用程序变的简单。如果你�
 
 ### 安装
 
-安装 Flink 有多种方式。为了实验，最常见的选择是下载二进制包并在本地运行。你可以按照[本地模式安装]({% link try-flink/local_installation.zh.md %})中的步骤为本教程的剩余部分设置环境。
+安装 Flink 有多种方式。对于实验而言，最常见的选择是下载二进制包并在本地运行。你可以按照[本地模式安装]({% link try-flink/local_installation.zh.md %})中的步骤为本教程的剩余部分设置环境。
 
 完成所有设置后，在安装文件夹中使用以下命令启动本地集群：
 
@@ -42,7 +42,7 @@ Flink SQL 使得使用标准 SQL 开发流应用程序变的简单。如果你�
 ./bin/start-cluster.sh
 {% endhighlight %}
  
-启动完成后，就可以在本地访问 Flink WebUI [localhost:8081](localhost:8081)，你可以通过它来监视不同的作业。
+启动完成后，就可以在本地访问 Flink WebUI [localhost:8081](localhost:8081)，通过它，你可以监控不同的作业。
 
 ### SQL 客户端
 
@@ -81,13 +81,13 @@ SELECT CURRENT_TIMESTAMP;
 
 ## Source 表
 
-与所有 SQL 引擎一样，Flink 查询在表上进行操作。与传统数据库不同，因为 Flink 不在本地管理静态数据；相反，它的查询在外部表上连续运行。
+与所有 SQL 引擎一样，Flink 查询操作是在表上进行。与传统数据库不同，Flink 不在本地管理静态数据；相反，它的查询在外部表上连续运行。
 
-Flink 数据处理管道开始于 source 表。在查询执行期间，source 表产生操作的行；它们是查询时 `FROM` 子句中引用的表。这些表可能是 Kafka 的 topics，数据库，文件系统，或 Flink 知道如何消费的任何其他系统。
+Flink 数据处理流水线开始于 source 表。Source 表产生在查询执行期间可以被操作的行；它们是查询时 `FROM` 子句中引用的表。这些表可能是 Kafka 的 topics，数据库，文件系统，或者任何其它 Flink 知道如何消费的系统。
 
 可以通过 SQL 客户端或使用环境配置文件来定义表。SQL 客户端支持类似于传统 SQL 的 [SQL DDL 命令]({% link dev/table/sql/index.zh.md %})。标准 SQL DDL 用于[创建]({% link dev/table/sql/create.zh.md %})，[修改]({% link dev/table/sql/alter.zh.md %})，[删除]({% link dev/table/sql/drop.zh.md %})表。
 
-Flink 支持可以与表一起使用的不同[连接器]({% link dev/table/connect.zh.md %})和[格式]({% link dev/table/connectors/formats/index.zh.md %})。下面是一个示例，定义一个[CSV 文件]({% link dev/table/connectors/formats/csv.zh.md %})作为 source 表，其中 `emp_id`，`name`，`dept_id` 作为 `CREATE` 表语句中的列。
+Flink 支持不同的[连接器]({% link dev/table/connect.zh.md %})和[格式]({% link dev/table/connectors/formats/index.zh.md %})相结合以定义表。下面是一个示例，定义一个以 [CSV 文件]({% link dev/table/connectors/formats/csv.zh.md %})作为存储格式的 source 表，其中 `emp_id`，`name`，`dept_id` 作为 `CREATE` 表语句中的列。
 
 {% highlight sql %}
 CREATE TABLE employee_information (
@@ -114,11 +114,11 @@ SELECT * from employee_information WHERE DeptId = 1;
 
 ## 连续查询
 
-虽然最初设计时没有考虑流语义，但 SQL 是用于构建连续数据管道的强大工具。Flink SQL 与传统数据库查询的不同之处在于，Flink SQL 持续消费到达的行并对其结果进行更新。
+虽然最初设计时没有考虑流语义，但 SQL 是用于构建连续数据流水线的强大工具。Flink SQL 与传统数据库查询的不同之处在于，Flink SQL 持续消费到达的行并对其结果进行更新。
 
-一个[连续查询]({% link dev/table/streaming/dynamic_tables.zh.md %}#continuous-queries)永远不会终止，结果会生成一个动态表。[动态表]({% link dev/table/streaming/dynamic_tables.zh.md %}#continuous-queries)是 Flink 中 Table API 和 SQL 对流数据支持的核心概念。
+一个[连续查询]({% link dev/table/streaming/dynamic_tables.zh.md %}#continuous-queries)永远不会终止，并会产生一个动态表作为结果。[动态表]({% link dev/table/streaming/dynamic_tables.zh.md %}#continuous-queries)是 Flink 中 Table API 和 SQL 对流数据支持的核心概念。
 
-连续流上的聚合需要在查询执行期间连续存储聚合结果。例如，假设你需要从传入的数据流中计算每个部门的员工人数。查询需要保持每个部门最新的计算总数，以便在处理新行时及时输出结果。
+连续流上的聚合需要在查询执行期间不断地存储聚合的结果。例如，假设你需要从传入的数据流中计算每个部门的员工人数。查询需要维护每个部门最新的计算总数，以便在处理新行时及时输出结果。
 
  {% highlight sql %}
  SELECT 
@@ -132,7 +132,7 @@ GROUP BY dep_id;
 
 ## Sink 表
 
-当运行此查询时，SQL 客户端实时但是以只读方式提供输出。存储结果（为报表或仪表板提供数据来源）需要写到另一个表。这可以使用 `INSERT INTO` 语句来实现。本节中引用的表称为 sink 表。`INSERT INTO` 语句将作为一个独立查询被提交到 Flink 集群中。
+当运行此查询时，SQL 客户端实时但是以只读方式提供输出。存储结果，作为报表或仪表板的数据来源，需要写到另一个表。这可以使用 `INSERT INTO` 语句来实现。本节中引用的表称为 sink 表。`INSERT INTO` 语句将作为一个独立查询被提交到 Flink 集群中。
 
  {% highlight sql %}
  INSERT INTO department_counts
