@@ -48,16 +48,18 @@ public interface CatalogPartition {
 	CatalogPartition copy();
 
 	/**
-	 * Get a brief description of the database.
+	 * Get a brief description of the partition.
+	 * It will be shown to users when they run "DESCRIBE PARTITION" in SQL.
 	 *
-	 * @return an optional short description of the database
+	 * @return an optional short description of the partition
 	 */
 	Optional<String> getDescription();
 
 	/**
-	 * Get a detailed description of the database.
+	 * Get a detailed description of the partition.
+	 * It will be shown to users when they run "DESCRIBE EXTENDED PARTITION" in SQL.
 	 *
-	 * @return an optional long description of the database
+	 * @return an optional long description of the partition
 	 */
 	Optional<String> getDetailedDescription();
 }
