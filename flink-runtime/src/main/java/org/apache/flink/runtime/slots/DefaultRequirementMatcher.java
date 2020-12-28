@@ -25,21 +25,27 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * Default implementation of {@link RequirementMatcher}. This matcher finds the first requirement that a) is not unfulfilled and B) matches the resource profile.
+ * Default implementation of {@link RequirementMatcher}. This matcher finds the first requirement
+ * that a) is not unfulfilled and B) matches the resource profile.
  */
 public class DefaultRequirementMatcher implements RequirementMatcher {
-	@Override
-	public Optional<ResourceProfile> match(ResourceProfile resourceProfile, Collection<Map.Entry<ResourceProfile, Integer>> totalRequirements, Function<ResourceProfile, Integer> numAssignedResourcesLookup) {
-		for (Map.Entry<ResourceProfile, Integer> requirementCandidate : totalRequirements) {
-			ResourceProfile requirementProfile = requirementCandidate.getKey();
+    @Override
+    public Optional<ResourceProfile> match(
+            ResourceProfile resourceProfile,
+            Collection<Map.Entry<ResourceProfile, Integer>> totalRequirements,
+            Function<ResourceProfile, Integer> numAssignedResourcesLookup) {
+        for (Map.Entry<ResourceProfile, Integer> requirementCandidate : totalRequirements) {
+            ResourceProfile requirementProfile = requirementCandidate.getKey();
 
-			// beware the order when matching resources to requirements, because ResourceProfile.UNKNOWN (which only
-			// occurs as a requirement) does not match any resource!
-			if (resourceProfile.isMatching(requirementProfile) && requirementCandidate.getValue() > numAssignedResourcesLookup.apply(requirementProfile)) {
-				return Optional.of(requirementProfile);
-			}
-		}
-		return Optional.empty();
-
-	}
+            // beware the order when matching resources to requirements, because
+            // ResourceProfile.UNKNOWN (which only
+            // occurs as a requirement) does not match any resource!
+            if (resourceProfile.isMatching(requirementProfile)
+                    && requirementCandidate.getValue()
+                            > numAssignedResourcesLookup.apply(requirementProfile)) {
+                return Optional.of(requirementProfile);
+            }
+        }
+        return Optional.empty();
+    }
 }

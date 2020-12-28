@@ -30,40 +30,38 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A read-only and light weight version of {@link CoLocationGroup}.
- */
+/** A read-only and light weight version of {@link CoLocationGroup}. */
 public class CoLocationGroupDesc {
 
-	private final AbstractID id;
+    private final AbstractID id;
 
-	private final List<JobVertexID> vertices;
+    private final List<JobVertexID> vertices;
 
-	private CoLocationGroupDesc(final AbstractID id, final List<JobVertexID> vertices) {
-		this.id = checkNotNull(id);
-		this.vertices = checkNotNull(vertices);
-	}
+    private CoLocationGroupDesc(final AbstractID id, final List<JobVertexID> vertices) {
+        this.id = checkNotNull(id);
+        this.vertices = checkNotNull(vertices);
+    }
 
-	public AbstractID getId() {
-		return id;
-	}
+    public AbstractID getId() {
+        return id;
+    }
 
-	public List<JobVertexID> getVertices() {
-		return Collections.unmodifiableList(vertices);
-	}
+    public List<JobVertexID> getVertices() {
+        return Collections.unmodifiableList(vertices);
+    }
 
-	public CoLocationConstraintDesc getLocationConstraint(final int index) {
-		return new CoLocationConstraintDesc(id, index);
-	}
+    public CoLocationConstraintDesc getLocationConstraint(final int index) {
+        return new CoLocationConstraintDesc(id, index);
+    }
 
-	public static CoLocationGroupDesc from(final CoLocationGroup group) {
-		return new CoLocationGroupDesc(
-			group.getId(),
-			group.getVertices().stream().map(JobVertex::getID).collect(Collectors.toList()));
-	}
+    public static CoLocationGroupDesc from(final CoLocationGroup group) {
+        return new CoLocationGroupDesc(
+                group.getId(),
+                group.getVertices().stream().map(JobVertex::getID).collect(Collectors.toList()));
+    }
 
-	@VisibleForTesting
-	public static CoLocationGroupDesc from(final JobVertexID ...ids) {
-		return new CoLocationGroupDesc(new AbstractID(), Arrays.asList(ids));
-	}
+    @VisibleForTesting
+    public static CoLocationGroupDesc from(final JobVertexID... ids) {
+        return new CoLocationGroupDesc(new AbstractID(), Arrays.asList(ids));
+    }
 }

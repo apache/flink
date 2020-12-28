@@ -21,19 +21,17 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
-/**
- * Singleton {@link JobGraphStoreUtil} implementation for ZooKeeper.
- */
-public enum  ZooKeeperJobGraphStoreUtil implements JobGraphStoreUtil {
-	INSTANCE;
+/** Singleton {@link JobGraphStoreUtil} implementation for ZooKeeper. */
+public enum ZooKeeperJobGraphStoreUtil implements JobGraphStoreUtil {
+    INSTANCE;
 
-	@Override
-	public String jobIDToName(JobID jobId) {
-		return ZooKeeperUtils.getPathForJob(jobId);
-	}
+    @Override
+    public String jobIDToName(JobID jobId) {
+        return ZooKeeperUtils.getPathForJob(jobId);
+    }
 
-	@Override
-	public JobID nameToJobID(String name) {
-		return JobID.fromHexString(name);
-	}
+    @Override
+    public JobID nameToJobID(String name) {
+        return JobID.fromHexString(name);
+    }
 }

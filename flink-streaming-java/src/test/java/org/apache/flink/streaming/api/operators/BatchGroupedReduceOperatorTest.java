@@ -36,89 +36,82 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests {@link BatchGroupedReduceOperator}.
- */
+/** Tests {@link BatchGroupedReduceOperator}. */
 public class BatchGroupedReduceOperatorTest extends TestLogger {
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	@Test
-	public void noIncrementalResults() throws Exception {
-		KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness = createTestHarness();
+    @Test
+    public void noIncrementalResults() throws Exception {
+        KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness =
+                createTestHarness();
 
-		testHarness.processElement(new StreamRecord<>("hello"));
-		testHarness.processElement(new StreamRecord<>("hello"));
-		testHarness.processElement(new StreamRecord<>("ciao"));
-		testHarness.processElement(new StreamRecord<>("ciao"));
+        testHarness.processElement(new StreamRecord<>("hello"));
+        testHarness.processElement(new StreamRecord<>("hello"));
+        testHarness.processElement(new StreamRecord<>("ciao"));
+        testHarness.processElement(new StreamRecord<>("ciao"));
 
-		assertThat(
-				testHarness.getOutput(),
-				empty());
-	}
+        assertThat(testHarness.getOutput(), empty());
+    }
 
-	@Test
-	public void resultsOnMaxWatermark() throws Exception {
-		KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness = createTestHarness();
+    @Test
+    public void resultsOnMaxWatermark() throws Exception {
+        KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness =
+                createTestHarness();
 
-		testHarness.processElement(new StreamRecord<>("hello"));
-		testHarness.processElement(new StreamRecord<>("hello"));
-		testHarness.processElement(new StreamRecord<>("ciao"));
-		testHarness.processElement(new StreamRecord<>("ciao"));
-		testHarness.processElement(new StreamRecord<>("ciao"));
+        testHarness.processElement(new StreamRecord<>("hello"));
+        testHarness.processElement(new StreamRecord<>("hello"));
+        testHarness.processElement(new StreamRecord<>("ciao"));
+        testHarness.processElement(new StreamRecord<>("ciao"));
+        testHarness.processElement(new StreamRecord<>("ciao"));
 
-		testHarness.processWatermark(Long.MAX_VALUE);
+        testHarness.processWatermark(Long.MAX_VALUE);
 
-		ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-		expectedOutput.add(new StreamRecord<>("hellohello", Long.MAX_VALUE));
-		expectedOutput.add(new StreamRecord<>("ciaociaociao", Long.MAX_VALUE));
-		expectedOutput.add(new Watermark(Long.MAX_VALUE));
+        ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+        expectedOutput.add(new StreamRecord<>("hellohello", Long.MAX_VALUE));
+        expectedOutput.add(new StreamRecord<>("ciaociaociao", Long.MAX_VALUE));
+        expectedOutput.add(new Watermark(Long.MAX_VALUE));
 
-		assertThat(
-				testHarness.getOutput(),
-				contains(expectedOutput.toArray()));
-	}
+        assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+    }
 
-	@Test
-	public void resultForSingleInput() throws Exception {
-		KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness = createTestHarness();
+    @Test
+    public void resultForSingleInput() throws Exception {
+        KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness =
+                createTestHarness();
 
-		testHarness.processElement(new StreamRecord<>("hello"));
-		testHarness.processElement(new StreamRecord<>("ciao"));
+        testHarness.processElement(new StreamRecord<>("hello"));
+        testHarness.processElement(new StreamRecord<>("ciao"));
 
-		testHarness.processWatermark(Long.MAX_VALUE);
+        testHarness.processWatermark(Long.MAX_VALUE);
 
-		ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-		expectedOutput.add(new StreamRecord<>("hello", Long.MAX_VALUE));
-		expectedOutput.add(new StreamRecord<>("ciao", Long.MAX_VALUE));
-		expectedOutput.add(new Watermark(Long.MAX_VALUE));
+        ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+        expectedOutput.add(new StreamRecord<>("hello", Long.MAX_VALUE));
+        expectedOutput.add(new StreamRecord<>("ciao", Long.MAX_VALUE));
+        expectedOutput.add(new Watermark(Long.MAX_VALUE));
 
-		assertThat(
-				testHarness.getOutput(),
-				contains(expectedOutput.toArray()));
-	}
+        assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+    }
 
-	private KeyedOneInputStreamOperatorTestHarness<String, String, String> createTestHarness() throws Exception {
-		BatchGroupedReduceOperator<String, Object> operator =
-				new BatchGroupedReduceOperator<>(new Concatenator(), StringSerializer.INSTANCE);
+    private KeyedOneInputStreamOperatorTestHarness<String, String, String> createTestHarness()
+            throws Exception {
+        BatchGroupedReduceOperator<String, Object> operator =
+                new BatchGroupedReduceOperator<>(new Concatenator(), StringSerializer.INSTANCE);
 
-		KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(
-						operator,
-						in -> in,
-						BasicTypeInfo.STRING_TYPE_INFO);
+        KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness =
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        operator, in -> in, BasicTypeInfo.STRING_TYPE_INFO);
 
-		testHarness.setup();
-		testHarness.open();
+        testHarness.setup();
+        testHarness.open();
 
-		return testHarness;
-	}
+        return testHarness;
+    }
 
-	static class Concatenator implements ReduceFunction<String> {
-		@Override
-		public String reduce(String value1, String value2) throws Exception {
-			return value1 + value2;
-		}
-	}
+    static class Concatenator implements ReduceFunction<String> {
+        @Override
+        public String reduce(String value1, String value2) throws Exception {
+            return value1 + value2;
+        }
+    }
 }

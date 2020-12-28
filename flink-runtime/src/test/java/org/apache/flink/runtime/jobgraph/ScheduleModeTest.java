@@ -25,12 +25,10 @@ import static org.junit.Assert.assertTrue;
 
 public class ScheduleModeTest {
 
-	/**
-	 * Test that schedule modes set the lazy deployment flag correctly.
-	 */
-	@Test
-	public void testAllowLazyDeployment() throws Exception {
-		assertTrue(ScheduleMode.LAZY_FROM_SOURCES.allowLazyDeployment());
-		assertFalse(ScheduleMode.EAGER.allowLazyDeployment());
-	}
+    /** Test that schedule modes set the lazy deployment flag correctly. */
+    @Test
+    public void testAllowLazyDeployment() throws Exception {
+        assertTrue(ScheduleMode.LAZY_FROM_SOURCES.allowLazyDeployment());
+        assertFalse(ScheduleMode.EAGER.allowLazyDeployment());
+    }
 }

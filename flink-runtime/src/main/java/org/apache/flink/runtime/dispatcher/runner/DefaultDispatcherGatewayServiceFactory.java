@@ -31,46 +31,48 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Collection;
 
-/**
- * Factory for the {@link DefaultDispatcherGatewayService}.
- */
-class DefaultDispatcherGatewayServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
+/** Factory for the {@link DefaultDispatcherGatewayService}. */
+class DefaultDispatcherGatewayServiceFactory
+        implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
 
-	private final DispatcherFactory dispatcherFactory;
+    private final DispatcherFactory dispatcherFactory;
 
-	private final RpcService rpcService;
+    private final RpcService rpcService;
 
-	private final PartialDispatcherServices partialDispatcherServices;
+    private final PartialDispatcherServices partialDispatcherServices;
 
-	DefaultDispatcherGatewayServiceFactory(
-			DispatcherFactory dispatcherFactory,
-			RpcService rpcService,
-			PartialDispatcherServices partialDispatcherServices) {
-		this.dispatcherFactory = dispatcherFactory;
-		this.rpcService = rpcService;
-		this.partialDispatcherServices = partialDispatcherServices;
-	}
+    DefaultDispatcherGatewayServiceFactory(
+            DispatcherFactory dispatcherFactory,
+            RpcService rpcService,
+            PartialDispatcherServices partialDispatcherServices) {
+        this.dispatcherFactory = dispatcherFactory;
+        this.rpcService = rpcService;
+        this.partialDispatcherServices = partialDispatcherServices;
+    }
 
-	@Override
-	public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
-			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			JobGraphWriter jobGraphWriter) {
+    @Override
+    public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            JobGraphWriter jobGraphWriter) {
 
-		final Dispatcher dispatcher;
-		try {
-			dispatcher = dispatcherFactory.createDispatcher(
-				rpcService,
-				fencingToken,
-				recoveredJobs,
-				(dispatcherGateway, scheduledExecutor, errorHandler) -> new NoOpDispatcherBootstrap(),
-				PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphWriter));
-		} catch (Exception e) {
-			throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
-		}
+        final Dispatcher dispatcher;
+        try {
+            dispatcher =
+                    dispatcherFactory.createDispatcher(
+                            rpcService,
+                            fencingToken,
+                            recoveredJobs,
+                            (dispatcherGateway, scheduledExecutor, errorHandler) ->
+                                    new NoOpDispatcherBootstrap(),
+                            PartialDispatcherServicesWithJobGraphStore.from(
+                                    partialDispatcherServices, jobGraphWriter));
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
+        }
 
-		dispatcher.start();
+        dispatcher.start();
 
-		return DefaultDispatcherGatewayService.from(dispatcher);
-	}
+        return DefaultDispatcherGatewayService.from(dispatcher);
+    }
 }

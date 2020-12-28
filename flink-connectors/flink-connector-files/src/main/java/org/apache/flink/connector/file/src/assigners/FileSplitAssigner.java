@@ -34,38 +34,35 @@ import java.util.Optional;
 @PublicEvolving
 public interface FileSplitAssigner {
 
-	/**
-	 * Gets the next split.
-	 *
-	 * <p>When this method returns an empty {@code Optional}, then the set of splits is
-	 * assumed to be done and the source will finish once the readers finished their current
-	 * splits.
-	 */
-	Optional<FileSourceSplit> getNext(@Nullable String hostname);
+    /**
+     * Gets the next split.
+     *
+     * <p>When this method returns an empty {@code Optional}, then the set of splits is assumed to
+     * be done and the source will finish once the readers finished their current splits.
+     */
+    Optional<FileSourceSplit> getNext(@Nullable String hostname);
 
-	/**
-	 * Adds a set of splits to this assigner. This happens for example when some split processing
-	 * failed and the splits need to be re-added, or when new splits got discovered.
-	 */
-	void addSplits(Collection<FileSourceSplit> splits);
+    /**
+     * Adds a set of splits to this assigner. This happens for example when some split processing
+     * failed and the splits need to be re-added, or when new splits got discovered.
+     */
+    void addSplits(Collection<FileSourceSplit> splits);
 
-	/**
-	 * Gets the remaining splits that this assigner has pending.
-	 */
-	Collection<FileSourceSplit> remainingSplits();
+    /** Gets the remaining splits that this assigner has pending. */
+    Collection<FileSourceSplit> remainingSplits();
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Factory for the {@code FileSplitAssigner}, to allow the {@code FileSplitAssigner} to be eagerly
-	 * initialized and to not be serializable.
-	 */
-	@FunctionalInterface
-	interface Provider extends Serializable {
+    /**
+     * Factory for the {@code FileSplitAssigner}, to allow the {@code FileSplitAssigner} to be
+     * eagerly initialized and to not be serializable.
+     */
+    @FunctionalInterface
+    interface Provider extends Serializable {
 
-		/**
-		 * Creates a new {@code FileSplitAssigner} that starts with the given set of initial splits.
-		 */
-		FileSplitAssigner create(Collection<FileSourceSplit> initialSplits);
-	}
+        /**
+         * Creates a new {@code FileSplitAssigner} that starts with the given set of initial splits.
+         */
+        FileSplitAssigner create(Collection<FileSourceSplit> initialSplits);
+    }
 }

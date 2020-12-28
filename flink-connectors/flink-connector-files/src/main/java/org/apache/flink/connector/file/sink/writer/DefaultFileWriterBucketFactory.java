@@ -26,37 +26,29 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 
 import java.io.IOException;
 
-/**
- * A factory returning {@link FileWriter writer}.
- */
+/** A factory returning {@link FileWriter writer}. */
 @Internal
 public class DefaultFileWriterBucketFactory<IN> implements FileWriterBucketFactory<IN> {
 
-	@Override
-	public FileWriterBucket<IN> getNewBucket(
-			String bucketId,
-			Path bucketPath,
-			BucketWriter<IN, String> bucketWriter,
-			RollingPolicy<IN, String> rollingPolicy,
-			OutputFileConfig outputFileConfig) throws IOException {
-		return FileWriterBucket.getNew(
-				bucketId,
-				bucketPath,
-				bucketWriter,
-				rollingPolicy,
-				outputFileConfig);
-	}
+    @Override
+    public FileWriterBucket<IN> getNewBucket(
+            String bucketId,
+            Path bucketPath,
+            BucketWriter<IN, String> bucketWriter,
+            RollingPolicy<IN, String> rollingPolicy,
+            OutputFileConfig outputFileConfig)
+            throws IOException {
+        return FileWriterBucket.getNew(
+                bucketId, bucketPath, bucketWriter, rollingPolicy, outputFileConfig);
+    }
 
-	@Override
-	public FileWriterBucket<IN> restoreBucket(
-			BucketWriter<IN, String> bucketWriter,
-			RollingPolicy<IN, String> rollingPolicy,
-			FileWriterBucketState bucketState,
-			OutputFileConfig outputFileConfig) throws IOException {
-		return FileWriterBucket.restore(
-				bucketWriter,
-				rollingPolicy,
-				bucketState,
-				outputFileConfig);
-	}
+    @Override
+    public FileWriterBucket<IN> restoreBucket(
+            BucketWriter<IN, String> bucketWriter,
+            RollingPolicy<IN, String> rollingPolicy,
+            FileWriterBucketState bucketState,
+            OutputFileConfig outputFileConfig)
+            throws IOException {
+        return FileWriterBucket.restore(bucketWriter, rollingPolicy, bucketState, outputFileConfig);
+    }
 }

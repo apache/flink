@@ -22,38 +22,38 @@ import org.apache.flink.util.Preconditions;
 
 import java.time.Duration;
 
-/**
- * An implementation of {@link RetryStrategy} that retries at a fixed delay.
- */
+/** An implementation of {@link RetryStrategy} that retries at a fixed delay. */
 public class FixedRetryStrategy implements RetryStrategy {
-	private final int remainingRetries;
-	private final Duration retryDelay;
+    private final int remainingRetries;
+    private final Duration retryDelay;
 
-	/**
-	 * @param remainingRetries number of times to retry
-	 * @param retryDelay delay between retries
-	 */
-	public FixedRetryStrategy(int remainingRetries, Duration retryDelay) {
-		Preconditions.checkArgument(remainingRetries >= 0, "The number of retries must be greater or equal to 0.");
-		this.remainingRetries = remainingRetries;
-		Preconditions.checkArgument(retryDelay.toMillis() >= 0, "The retryDelay must be positive");
-		this.retryDelay = retryDelay;
-	}
+    /**
+     * @param remainingRetries number of times to retry
+     * @param retryDelay delay between retries
+     */
+    public FixedRetryStrategy(int remainingRetries, Duration retryDelay) {
+        Preconditions.checkArgument(
+                remainingRetries >= 0, "The number of retries must be greater or equal to 0.");
+        this.remainingRetries = remainingRetries;
+        Preconditions.checkArgument(retryDelay.toMillis() >= 0, "The retryDelay must be positive");
+        this.retryDelay = retryDelay;
+    }
 
-	@Override
-	public int getNumRemainingRetries() {
-		return remainingRetries;
-	}
+    @Override
+    public int getNumRemainingRetries() {
+        return remainingRetries;
+    }
 
-	@Override
-	public Duration getRetryDelay() {
-		return retryDelay;
-	}
+    @Override
+    public Duration getRetryDelay() {
+        return retryDelay;
+    }
 
-	@Override
-	public RetryStrategy getNextRetryStrategy() {
-		int nextRemainingRetries = remainingRetries - 1;
-		Preconditions.checkState(nextRemainingRetries >= 0, "The number of remaining retries must not be negative");
-		return new FixedRetryStrategy(nextRemainingRetries, retryDelay);
-	}
+    @Override
+    public RetryStrategy getNextRetryStrategy() {
+        int nextRemainingRetries = remainingRetries - 1;
+        Preconditions.checkState(
+                nextRemainingRetries >= 0, "The number of remaining retries must not be negative");
+        return new FixedRetryStrategy(nextRemainingRetries, retryDelay);
+    }
 }

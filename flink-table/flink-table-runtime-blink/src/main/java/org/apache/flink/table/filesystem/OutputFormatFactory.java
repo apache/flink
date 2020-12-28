@@ -32,8 +32,6 @@ import java.io.Serializable;
 @Internal
 public interface OutputFormatFactory<T> extends Serializable {
 
-	/**
-	 * Create a {@link OutputFormat} with specific path.
-	 */
-	OutputFormat<T> createOutputFormat(Path path);
+    /** Create a {@link OutputFormat} with specific path. */
+    OutputFormat<T> createOutputFormat(Path path);
 }

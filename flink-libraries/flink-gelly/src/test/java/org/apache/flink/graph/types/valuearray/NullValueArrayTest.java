@@ -26,59 +26,57 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link NullValueArray}.
- */
+/** Tests for {@link NullValueArray}. */
 public class NullValueArrayTest {
 
-	@Test
-	public void testUnboundedArray() {
-		int count = 4096;
+    @Test
+    public void testUnboundedArray() {
+        int count = 4096;
 
-		ValueArray<NullValue> nva = new NullValueArray();
+        ValueArray<NullValue> nva = new NullValueArray();
 
-		// add several elements
-		for (int i = 0; i < count; i++) {
-			assertFalse(nva.isFull());
-			assertEquals(i, nva.size());
+        // add several elements
+        for (int i = 0; i < count; i++) {
+            assertFalse(nva.isFull());
+            assertEquals(i, nva.size());
 
-			assertTrue(nva.add(NullValue.getInstance()));
+            assertTrue(nva.add(NullValue.getInstance()));
 
-			assertEquals(i + 1, nva.size());
-		}
+            assertEquals(i + 1, nva.size());
+        }
 
-		// array never fills
-		assertFalse(nva.isFull());
-		assertEquals(count, nva.size());
+        // array never fills
+        assertFalse(nva.isFull());
+        assertEquals(count, nva.size());
 
-		// verify the array values
-		int idx = 0;
-		for (NullValue nv : nva) {
-			assertEquals(NullValue.getInstance(), nv);
-		}
+        // verify the array values
+        int idx = 0;
+        for (NullValue nv : nva) {
+            assertEquals(NullValue.getInstance(), nv);
+        }
 
-		// add element past end of array
-		assertTrue(nva.add(NullValue.getInstance()));
-		assertTrue(nva.addAll(nva));
+        // add element past end of array
+        assertTrue(nva.add(NullValue.getInstance()));
+        assertTrue(nva.addAll(nva));
 
-		// test copy
-		assertEquals(nva, nva.copy());
+        // test copy
+        assertEquals(nva, nva.copy());
 
-		// test copyTo
-		NullValueArray nvaTo = new NullValueArray();
-		nva.copyTo(nvaTo);
-		assertEquals(nva, nvaTo);
+        // test copyTo
+        NullValueArray nvaTo = new NullValueArray();
+        nva.copyTo(nvaTo);
+        assertEquals(nva, nvaTo);
 
-		// test mark/reset
-		int size = nva.size();
-		nva.mark();
-		assertTrue(nva.add(NullValue.getInstance()));
-		assertEquals(size + 1, nva.size());
-		nva.reset();
-		assertEquals(size, nva.size());
+        // test mark/reset
+        int size = nva.size();
+        nva.mark();
+        assertTrue(nva.add(NullValue.getInstance()));
+        assertEquals(size + 1, nva.size());
+        nva.reset();
+        assertEquals(size, nva.size());
 
-		// test clear
-		nva.clear();
-		assertEquals(0, nva.size());
-	}
+        // test clear
+        nva.clear();
+        assertEquals(0, nva.size());
+    }
 }

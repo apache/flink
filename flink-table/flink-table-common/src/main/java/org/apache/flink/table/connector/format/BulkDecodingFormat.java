@@ -26,14 +26,10 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 
 import java.util.List;
 
-/**
- * A {@link Format} for a {@link DynamicTableSource} for reading rows by {@link BulkFormat}.
- */
+/** A {@link Format} for a {@link DynamicTableSource} for reading rows by {@link BulkFormat}. */
 @Internal
 public interface BulkDecodingFormat<T> extends DecodingFormat<BulkFormat<T, FileSourceSplit>> {
 
-	/**
-	 * Provides a list of filters in conjunctive form  for filtering on a best-effort basis.
-	 */
-	default void applyFilters(List<ResolvedExpression> filters) {}
+    /** Provides a list of filters in conjunctive form for filtering on a best-effort basis. */
+    default void applyFilters(List<ResolvedExpression> filters) {}
 }

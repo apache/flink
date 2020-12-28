@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.data.vector;
 
-/**
- * Long column vector.
- */
+/** Long column vector. */
 public interface LongColumnVector extends ColumnVector {
-	long getLong(int i);
+    long getLong(int i);
 }

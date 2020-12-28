@@ -25,63 +25,64 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 
 /**
- * Starts a Flink mini cluster as a resource and registers the respective
- * ExecutionEnvironment and StreamExecutionEnvironment.
+ * Starts a Flink mini cluster as a resource and registers the respective ExecutionEnvironment and
+ * StreamExecutionEnvironment.
  */
 public class MiniClusterWithClientResource extends MiniClusterResource {
 
-	private ClusterClient<?> clusterClient;
+    private ClusterClient<?> clusterClient;
 
-	private TestEnvironment executionEnvironment;
+    private TestEnvironment executionEnvironment;
 
-	public MiniClusterWithClientResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
-		super(miniClusterResourceConfiguration);
-	}
+    public MiniClusterWithClientResource(
+            final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
+        super(miniClusterResourceConfiguration);
+    }
 
-	public ClusterClient<?> getClusterClient() {
-		return clusterClient;
-	}
+    public ClusterClient<?> getClusterClient() {
+        return clusterClient;
+    }
 
-	public TestEnvironment getTestEnvironment() {
-		return executionEnvironment;
-	}
+    public TestEnvironment getTestEnvironment() {
+        return executionEnvironment;
+    }
 
-	@Override
-	public void before() throws Exception {
-		super.before();
+    @Override
+    public void before() throws Exception {
+        super.before();
 
-		clusterClient = createMiniClusterClient();
+        clusterClient = createMiniClusterClient();
 
-		executionEnvironment = new TestEnvironment(getMiniCluster(), getNumberSlots(), false);
-		executionEnvironment.setAsContext();
-		TestStreamEnvironment.setAsContext(getMiniCluster(), getNumberSlots());
-	}
+        executionEnvironment = new TestEnvironment(getMiniCluster(), getNumberSlots(), false);
+        executionEnvironment.setAsContext();
+        TestStreamEnvironment.setAsContext(getMiniCluster(), getNumberSlots());
+    }
 
-	@Override
-	public void after() {
-		TestStreamEnvironment.unsetAsContext();
-		TestEnvironment.unsetAsContext();
+    @Override
+    public void after() {
+        TestStreamEnvironment.unsetAsContext();
+        TestEnvironment.unsetAsContext();
 
-		Exception exception = null;
+        Exception exception = null;
 
-		if (clusterClient != null) {
-			try {
-				clusterClient.close();
-			} catch (Exception e) {
-				exception = e;
-			}
-		}
+        if (clusterClient != null) {
+            try {
+                clusterClient.close();
+            } catch (Exception e) {
+                exception = e;
+            }
+        }
 
-		clusterClient = null;
+        clusterClient = null;
 
-		super.after();
+        super.after();
 
-		if (exception != null) {
-			log.warn("Could not properly shut down the MiniClusterWithClientResource.", exception);
-		}
-	}
+        if (exception != null) {
+            log.warn("Could not properly shut down the MiniClusterWithClientResource.", exception);
+        }
+    }
 
-	private MiniClusterClient createMiniClusterClient() {
-		return new MiniClusterClient(getClientConfiguration(), getMiniCluster());
-	}
+    private MiniClusterClient createMiniClusterClient() {
+        return new MiniClusterClient(getClientConfiguration(), getMiniCluster());
+    }
 }

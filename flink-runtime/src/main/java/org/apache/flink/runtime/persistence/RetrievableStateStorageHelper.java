@@ -31,12 +31,12 @@ import java.io.Serializable;
  */
 public interface RetrievableStateStorageHelper<T extends Serializable> {
 
-	/**
-	 * Stores the given state and returns a state handle to it.
-	 *
-	 * @param state State to be stored
-	 * @return State handle to the stored state
-	 * @throws Exception
-	 */
-	RetrievableStateHandle<T> store(T state) throws Exception;
+    /**
+     * Stores the given state and returns a state handle to it.
+     *
+     * @param state State to be stored
+     * @return State handle to the stored state
+     * @throws Exception
+     */
+    RetrievableStateHandle<T> store(T state) throws Exception;
 }

@@ -27,30 +27,32 @@ import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAcce
 import java.io.DataInputStream;
 import java.io.IOException;
 
-/**
- * Utility class for loading {@link CheckpointMetadata} metadata.
- */
+/** Utility class for loading {@link CheckpointMetadata} metadata. */
 @Internal
 public final class SavepointLoader {
-	private SavepointLoader() {}
+    private SavepointLoader() {}
 
-	/**
-	 * Takes the given string (representing a pointer to a checkpoint) and resolves it to a file
-	 * status for the checkpoint's metadata file.
-	 *
-	 *<p>This should only be used when the user code class loader is the current classloader for
-	 * the thread.
-	 * @param savepointPath The path to an external savepoint.
-	 * @return A state handle to savepoint's metadata.
-	 * @throws IOException Thrown, if the path cannot be resolved, the file system not accessed, or
-	 *     the path points to a location that does not seem to be a savepoint.
-	 */
-	public static CheckpointMetadata loadSavepointMetadata(String savepointPath) throws IOException {
-		CompletedCheckpointStorageLocation location = AbstractFsCheckpointStorageAccess
-			.resolveCheckpointPointer(savepointPath);
+    /**
+     * Takes the given string (representing a pointer to a checkpoint) and resolves it to a file
+     * status for the checkpoint's metadata file.
+     *
+     * <p>This should only be used when the user code class loader is the current classloader for
+     * the thread.
+     *
+     * @param savepointPath The path to an external savepoint.
+     * @return A state handle to savepoint's metadata.
+     * @throws IOException Thrown, if the path cannot be resolved, the file system not accessed, or
+     *     the path points to a location that does not seem to be a savepoint.
+     */
+    public static CheckpointMetadata loadSavepointMetadata(String savepointPath)
+            throws IOException {
+        CompletedCheckpointStorageLocation location =
+                AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(savepointPath);
 
-		try (DataInputStream stream = new DataInputStream(location.getMetadataHandle().openInputStream())) {
-			return Checkpoints.loadCheckpointMetadata(stream, Thread.currentThread().getContextClassLoader(), savepointPath);
-		}
-	}
+        try (DataInputStream stream =
+                new DataInputStream(location.getMetadataHandle().openInputStream())) {
+            return Checkpoints.loadCheckpointMetadata(
+                    stream, Thread.currentThread().getContextClassLoader(), savepointPath);
+        }
+    }
 }

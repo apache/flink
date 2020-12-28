@@ -29,38 +29,31 @@ import java.util.List;
  * Partition fetcher for helping continuously fetch partitioned table.
  *
  * @param <P> The type of partition.
- * @param <T> The type of partition offset, the type could be Long when fetches in partition-time
- *          or create-time order, be String when fetches in partition-name order.
+ * @param <T> The type of partition offset, the type could be Long when fetches in partition-time or
+ *     create-time order, be String when fetches in partition-name order.
  */
 @Internal
-public interface ContinuousPartitionFetcher<P, T extends Comparable<T>> extends PartitionFetcher<P> {
+public interface ContinuousPartitionFetcher<P, T extends Comparable<T>>
+        extends PartitionFetcher<P> {
 
-	/**
-	 * Fetch partitions by previous partition offset (Including).
-	 */
-	List<Tuple2<P, T>> fetchPartitions(Context<P, T> context, T previousOffset) throws Exception;
+    /** Fetch partitions by previous partition offset (Including). */
+    List<Tuple2<P, T>> fetchPartitions(Context<P, T> context, T previousOffset) throws Exception;
 
-	/**
-	 * Context for fetch partitions, partition information is stored in hive meta store.
-	 *
-	 * @param <P> The type of partition.
-	 * @param <T> The type of partition offset, the type could be Long when fetches in partition-time
-	 *          or create-time order, be String when fetches in partition-name order.
-	 */
-	interface Context<P, T extends Comparable<T>> extends PartitionFetcher.Context<P>  {
-		/**
-		 * The table full path.
-		 */
-		ObjectPath getTablePath();
+    /**
+     * Context for fetch partitions, partition information is stored in hive meta store.
+     *
+     * @param <P> The type of partition.
+     * @param <T> The type of partition offset, the type could be Long when fetches in
+     *     partition-time or create-time order, be String when fetches in partition-name order.
+     */
+    interface Context<P, T extends Comparable<T>> extends PartitionFetcher.Context<P> {
+        /** The table full path. */
+        ObjectPath getTablePath();
 
-		/**
-		 * Get the Serializer of partition order.
-		 */
-		TypeSerializer<T> getTypeSerializer();
+        /** Get the Serializer of partition order. */
+        TypeSerializer<T> getTypeSerializer();
 
-		/**
-		 * Get the partition consume start offset.
-		 */
-		T getConsumeStartOffset();
-	}
+        /** Get the partition consume start offset. */
+        T getConsumeStartOffset();
+    }
 }

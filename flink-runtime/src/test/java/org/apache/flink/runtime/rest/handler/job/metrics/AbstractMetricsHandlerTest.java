@@ -56,184 +56,185 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for {@link AbstractMetricsHandler}.
- */
+/** Tests for {@link AbstractMetricsHandler}. */
 public class AbstractMetricsHandlerTest extends TestLogger {
 
-	private static final String TEST_METRIC_NAME = "test_counter";
+    private static final String TEST_METRIC_NAME = "test_counter";
 
-	private static final int TEST_METRIC_VALUE = 1000;
+    private static final int TEST_METRIC_VALUE = 1000;
 
-	private static final String METRICS_FILTER_QUERY_PARAM = "get";
+    private static final String METRICS_FILTER_QUERY_PARAM = "get";
 
-	@Mock
-	private MetricFetcher mockMetricFetcher;
+    @Mock private MetricFetcher mockMetricFetcher;
 
-	@Mock
-	private DispatcherGateway mockDispatcherGateway;
+    @Mock private DispatcherGateway mockDispatcherGateway;
 
-	private TestMetricsHandler testMetricsHandler;
+    private TestMetricsHandler testMetricsHandler;
 
-	@Before
-	public void setUp() {
-		MockitoAnnotations.initMocks(this);
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
 
-		final MetricStore metricStore = new MetricStore();
-		metricStore.add(new MetricDump.CounterDump(
-			new QueryScopeInfo.JobManagerQueryScopeInfo(),
-			TEST_METRIC_NAME,
-			TEST_METRIC_VALUE));
+        final MetricStore metricStore = new MetricStore();
+        metricStore.add(
+                new MetricDump.CounterDump(
+                        new QueryScopeInfo.JobManagerQueryScopeInfo(),
+                        TEST_METRIC_NAME,
+                        TEST_METRIC_VALUE));
 
-		when(mockMetricFetcher.getMetricStore()).thenReturn(metricStore);
+        when(mockMetricFetcher.getMetricStore()).thenReturn(metricStore);
 
-		testMetricsHandler = new TestMetricsHandler(
-			new GatewayRetriever<DispatcherGateway>() {
-				@Override
-				public CompletableFuture<DispatcherGateway> getFuture() {
-					return CompletableFuture.completedFuture(mockDispatcherGateway);
-				}
-			},
-			Time.milliseconds(50),
-			Collections.emptyMap(),
-			new TestMetricsHeaders(),
-			mockMetricFetcher);
-	}
+        testMetricsHandler =
+                new TestMetricsHandler(
+                        new GatewayRetriever<DispatcherGateway>() {
+                            @Override
+                            public CompletableFuture<DispatcherGateway> getFuture() {
+                                return CompletableFuture.completedFuture(mockDispatcherGateway);
+                            }
+                        },
+                        Time.milliseconds(50),
+                        Collections.emptyMap(),
+                        new TestMetricsHeaders(),
+                        mockMetricFetcher);
+    }
 
-	@Test
-	public void testListMetrics() throws Exception {
-		final CompletableFuture<MetricCollectionResponseBody> completableFuture =
-			testMetricsHandler.handleRequest(
-				new HandlerRequest<>(
-					EmptyRequestBody.getInstance(),
-					new TestMessageParameters(),
-					Collections.emptyMap(),
-					Collections.emptyMap()),
-				mockDispatcherGateway);
+    @Test
+    public void testListMetrics() throws Exception {
+        final CompletableFuture<MetricCollectionResponseBody> completableFuture =
+                testMetricsHandler.handleRequest(
+                        new HandlerRequest<>(
+                                EmptyRequestBody.getInstance(),
+                                new TestMessageParameters(),
+                                Collections.emptyMap(),
+                                Collections.emptyMap()),
+                        mockDispatcherGateway);
 
-		assertTrue(completableFuture.isDone());
+        assertTrue(completableFuture.isDone());
 
-		final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
-		assertThat(metricCollectionResponseBody.getMetrics(), hasSize(1));
+        final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
+        assertThat(metricCollectionResponseBody.getMetrics(), hasSize(1));
 
-		final Metric metric = metricCollectionResponseBody.getMetrics().iterator().next();
-		assertThat(metric.getId(), equalTo(TEST_METRIC_NAME));
-		assertThat(metric.getValue(), equalTo(null));
-	}
+        final Metric metric = metricCollectionResponseBody.getMetrics().iterator().next();
+        assertThat(metric.getId(), equalTo(TEST_METRIC_NAME));
+        assertThat(metric.getValue(), equalTo(null));
+    }
 
-	@Test
-	public void testReturnEmptyListIfNoComponentMetricStore() throws Exception {
-		testMetricsHandler.returnComponentMetricStore = false;
+    @Test
+    public void testReturnEmptyListIfNoComponentMetricStore() throws Exception {
+        testMetricsHandler.returnComponentMetricStore = false;
 
-		final CompletableFuture<MetricCollectionResponseBody> completableFuture =
-			testMetricsHandler.handleRequest(
-				new HandlerRequest<>(
-					EmptyRequestBody.getInstance(),
-					new TestMessageParameters(),
-					Collections.emptyMap(),
-					Collections.emptyMap()),
-				mockDispatcherGateway);
+        final CompletableFuture<MetricCollectionResponseBody> completableFuture =
+                testMetricsHandler.handleRequest(
+                        new HandlerRequest<>(
+                                EmptyRequestBody.getInstance(),
+                                new TestMessageParameters(),
+                                Collections.emptyMap(),
+                                Collections.emptyMap()),
+                        mockDispatcherGateway);
 
-		assertTrue(completableFuture.isDone());
+        assertTrue(completableFuture.isDone());
 
-		final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
-		assertThat(metricCollectionResponseBody.getMetrics(), empty());
-	}
+        final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
+        assertThat(metricCollectionResponseBody.getMetrics(), empty());
+    }
 
-	@Test
-	public void testGetMetrics() throws Exception {
-		final CompletableFuture<MetricCollectionResponseBody> completableFuture =
-			testMetricsHandler.handleRequest(
-				new HandlerRequest<>(
-					EmptyRequestBody.getInstance(),
-					new TestMessageParameters(),
-					Collections.emptyMap(),
-					Collections.singletonMap(METRICS_FILTER_QUERY_PARAM, Collections.singletonList(TEST_METRIC_NAME))),
-				mockDispatcherGateway);
+    @Test
+    public void testGetMetrics() throws Exception {
+        final CompletableFuture<MetricCollectionResponseBody> completableFuture =
+                testMetricsHandler.handleRequest(
+                        new HandlerRequest<>(
+                                EmptyRequestBody.getInstance(),
+                                new TestMessageParameters(),
+                                Collections.emptyMap(),
+                                Collections.singletonMap(
+                                        METRICS_FILTER_QUERY_PARAM,
+                                        Collections.singletonList(TEST_METRIC_NAME))),
+                        mockDispatcherGateway);
 
-		assertTrue(completableFuture.isDone());
+        assertTrue(completableFuture.isDone());
 
-		final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
-		assertThat(metricCollectionResponseBody.getMetrics(), hasSize(1));
+        final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
+        assertThat(metricCollectionResponseBody.getMetrics(), hasSize(1));
 
-		final Metric metric = metricCollectionResponseBody.getMetrics().iterator().next();
-		assertThat(metric.getId(), equalTo(TEST_METRIC_NAME));
-		assertThat(metric.getValue(), equalTo(Integer.toString(TEST_METRIC_VALUE)));
-	}
+        final Metric metric = metricCollectionResponseBody.getMetrics().iterator().next();
+        assertThat(metric.getId(), equalTo(TEST_METRIC_NAME));
+        assertThat(metric.getValue(), equalTo(Integer.toString(TEST_METRIC_VALUE)));
+    }
 
-	@Test
-	public void testReturnEmptyListIfRequestedMetricIsUnknown() throws Exception {
-		final CompletableFuture<MetricCollectionResponseBody> completableFuture =
-			testMetricsHandler.handleRequest(
-				new HandlerRequest<>(
-					EmptyRequestBody.getInstance(),
-					new TestMessageParameters(),
-					Collections.emptyMap(),
-					Collections.singletonMap(METRICS_FILTER_QUERY_PARAM, Collections.singletonList("unknown_metric"))),
-				mockDispatcherGateway);
+    @Test
+    public void testReturnEmptyListIfRequestedMetricIsUnknown() throws Exception {
+        final CompletableFuture<MetricCollectionResponseBody> completableFuture =
+                testMetricsHandler.handleRequest(
+                        new HandlerRequest<>(
+                                EmptyRequestBody.getInstance(),
+                                new TestMessageParameters(),
+                                Collections.emptyMap(),
+                                Collections.singletonMap(
+                                        METRICS_FILTER_QUERY_PARAM,
+                                        Collections.singletonList("unknown_metric"))),
+                        mockDispatcherGateway);
 
-		assertTrue(completableFuture.isDone());
+        assertTrue(completableFuture.isDone());
 
-		final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
-		assertThat(metricCollectionResponseBody.getMetrics(), empty());
-	}
+        final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
+        assertThat(metricCollectionResponseBody.getMetrics(), empty());
+    }
 
-	private static class TestMetricsHandler extends AbstractMetricsHandler<TestMessageParameters> {
+    private static class TestMetricsHandler extends AbstractMetricsHandler<TestMessageParameters> {
 
-		private boolean returnComponentMetricStore = true;
+        private boolean returnComponentMetricStore = true;
 
-		private TestMetricsHandler(
-			GatewayRetriever<DispatcherGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> headers,
-			MessageHeaders<EmptyRequestBody,
-				MetricCollectionResponseBody,
-				TestMessageParameters> messageHeaders,
-			MetricFetcher metricFetcher) {
+        private TestMetricsHandler(
+                GatewayRetriever<DispatcherGateway> leaderRetriever,
+                Time timeout,
+                Map<String, String> headers,
+                MessageHeaders<
+                                EmptyRequestBody,
+                                MetricCollectionResponseBody,
+                                TestMessageParameters>
+                        messageHeaders,
+                MetricFetcher metricFetcher) {
 
-			super(leaderRetriever, timeout, headers, messageHeaders, metricFetcher);
-		}
+            super(leaderRetriever, timeout, headers, messageHeaders, metricFetcher);
+        }
 
-		@Nullable
-		@Override
-		protected MetricStore.ComponentMetricStore getComponentMetricStore(
-			HandlerRequest<EmptyRequestBody,
-				TestMessageParameters> request,
-			MetricStore metricStore) {
-			return returnComponentMetricStore ? metricStore.getJobManager() : null;
-		}
-	}
+        @Nullable
+        @Override
+        protected MetricStore.ComponentMetricStore getComponentMetricStore(
+                HandlerRequest<EmptyRequestBody, TestMessageParameters> request,
+                MetricStore metricStore) {
+            return returnComponentMetricStore ? metricStore.getJobManager() : null;
+        }
+    }
 
-	private static class TestMetricsHeaders extends
-		AbstractMetricsHeaders<TestMessageParameters> {
+    private static class TestMetricsHeaders extends AbstractMetricsHeaders<TestMessageParameters> {
 
-		@Override
-		public TestMessageParameters getUnresolvedMessageParameters() {
-			return new TestMessageParameters();
-		}
+        @Override
+        public TestMessageParameters getUnresolvedMessageParameters() {
+            return new TestMessageParameters();
+        }
 
-		@Override
-		public String getTargetRestEndpointURL() {
-			return "/";
-		}
+        @Override
+        public String getTargetRestEndpointURL() {
+            return "/";
+        }
 
-		@Override
-		public String getDescription() {
-			return "";
-		}
-	}
+        @Override
+        public String getDescription() {
+            return "";
+        }
+    }
 
-	private static class TestMessageParameters extends MessageParameters {
+    private static class TestMessageParameters extends MessageParameters {
 
-		@Override
-		public Collection<MessagePathParameter<?>> getPathParameters() {
-			return Collections.emptyList();
-		}
+        @Override
+        public Collection<MessagePathParameter<?>> getPathParameters() {
+            return Collections.emptyList();
+        }
 
-		@Override
-		public Collection<MessageQueryParameter<?>> getQueryParameters() {
-			return Collections.singletonList(new MetricsFilterParameter());
-		}
-	}
-
+        @Override
+        public Collection<MessageQueryParameter<?>> getQueryParameters() {
+            return Collections.singletonList(new MetricsFilterParameter());
+        }
+    }
 }

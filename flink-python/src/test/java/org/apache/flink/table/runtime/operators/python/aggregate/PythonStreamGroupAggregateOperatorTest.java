@@ -44,249 +44,260 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 
-/**
- * The tests for {@link PythonStreamGroupAggregateOperator}.
- */
-public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStreamAggregateOperatorTest {
+/** The tests for {@link PythonStreamGroupAggregateOperator}. */
+public class PythonStreamGroupAggregateOperatorTest
+        extends AbstractPythonStreamAggregateOperatorTest {
 
-	@Test
-	public void testFlushDataOnClose() throws Exception {
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(new Configuration());
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+    @Test
+    public void testFlushDataOnClose() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                getTestHarness(new Configuration());
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(false, "c2", 1L), initialTime + 2));
-		testHarness.close();
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
+        testHarness.processElement(new StreamRecord<>(newRow(false, "c2", 1L), initialTime + 2));
+        testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
-		expectedOutput.add(new StreamRecord<>(newRow(false, "c2", 1L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+        expectedOutput.add(new StreamRecord<>(newRow(false, "c2", 1L)));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Test
-	public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
+    @Test
+    public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 1L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c3", 2L), initialTime + 3));
-		// checkpoint trigger finishBundle
-		testHarness.prepareSnapshotPreBarrier(0L);
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 1L), initialTime + 2));
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c3", 2L), initialTime + 3));
+        // checkpoint trigger finishBundle
+        testHarness.prepareSnapshotPreBarrier(0L);
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
-	}
+        testHarness.close();
+    }
 
-	@Test
-	public void testFinishBundleTriggeredByCount() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 3);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
+    @Test
+    public void testFinishBundleTriggeredByCount() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 3);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 1L), initialTime + 2));
-		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 1L), initialTime + 2));
+        assertOutputEquals(
+                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c3", 2L), initialTime + 2));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c3", 2L), initialTime + 2));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
-	}
+        testHarness.close();
+    }
 
-	@Test
-	public void testFinishBundleTriggeredByTime() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
+    @Test
+    public void testFinishBundleTriggeredByTime() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 1L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c3", 2L), initialTime + 3));
-		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 1L), initialTime + 2));
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c3", 2L), initialTime + 3));
+        assertOutputEquals(
+                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
-		testHarness.setProcessingTime(1000L);
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        testHarness.setProcessingTime(1000L);
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
-	}
+        testHarness.close();
+    }
 
-	@Test
-	public void testWatermarkProcessedOnFinishBundle() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+    @Test
+    public void testWatermarkProcessedOnFinishBundle() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 1L), initialTime + 2));
-		testHarness.processWatermark(initialTime + 2);
-		assertOutputEquals("Watermark has been processed", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 1L), initialTime + 2));
+        testHarness.processWatermark(initialTime + 2);
+        assertOutputEquals("Watermark has been processed", expectedOutput, testHarness.getOutput());
 
-		// checkpoint trigger finishBundle
-		testHarness.prepareSnapshotPreBarrier(0L);
+        // checkpoint trigger finishBundle
+        testHarness.prepareSnapshotPreBarrier(0L);
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
-		expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+        expectedOutput.add(new Watermark(initialTime + 2));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
-	}
+        testHarness.close();
+    }
 
-	@Test
-	public void testStateCleanupTimer() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setString("table.exec.state.ttl", "100");
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
+    @Test
+    public void testStateCleanupTimer() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setString("table.exec.state.ttl", "100");
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.setProcessingTime(0L);
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
-		testHarness.setProcessingTime(500L);
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 1L), initialTime + 2));
-		testHarness.setProcessingTime(599L);
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 2L), initialTime + 3));
-		testHarness.setProcessingTime(1000L);
+        testHarness.setProcessingTime(0L);
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c1", 0L), initialTime + 1));
+        testHarness.setProcessingTime(500L);
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 1L), initialTime + 2));
+        testHarness.setProcessingTime(599L);
+        testHarness.processElement(new StreamRecord<>(newRow(true, "c2", 2L), initialTime + 3));
+        testHarness.setProcessingTime(1000L);
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "state_cleanup_triggered: c1", 100L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 2L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "state_cleanup_triggered: c2", 699L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "state_cleanup_triggered: c1", 100L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 2L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "state_cleanup_triggered: c2", 699L)));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
-	}
+        testHarness.close();
+    }
 
-	@Override
-	public OneInputStreamOperator getTestOperator(Configuration config) {
-		long stateTtl = Long.valueOf(config.getString("table.exec.state.ttl", "0"));
-		return new PassThroughPythonStreamGroupAggregateOperator(
-			config,
-			getInputType(),
-			getOutputType(),
-			new PythonAggregateFunctionInfo[]{
-				new PythonAggregateFunctionInfo(
-					PythonScalarFunctionOperatorTestBase.DummyPythonFunction.INSTANCE,
-					new Integer[]{0},
-					-1,
-					false)},
-			getGrouping(),
-			-1,
-			false,
-			false,
-			stateTtl,
-			stateTtl);
-	}
+    @Override
+    public OneInputStreamOperator getTestOperator(Configuration config) {
+        long stateTtl = Long.valueOf(config.getString("table.exec.state.ttl", "0"));
+        return new PassThroughPythonStreamGroupAggregateOperator(
+                config,
+                getInputType(),
+                getOutputType(),
+                new PythonAggregateFunctionInfo[] {
+                    new PythonAggregateFunctionInfo(
+                            PythonScalarFunctionOperatorTestBase.DummyPythonFunction.INSTANCE,
+                            new Integer[] {0},
+                            -1,
+                            false)
+                },
+                getGrouping(),
+                -1,
+                false,
+                false,
+                stateTtl,
+                stateTtl);
+    }
 
-	private static class PassThroughPythonStreamGroupAggregateOperator
-		extends PythonStreamGroupAggregateOperator {
+    private static class PassThroughPythonStreamGroupAggregateOperator
+            extends PythonStreamGroupAggregateOperator {
 
-		PassThroughPythonStreamGroupAggregateOperator(
-			Configuration config,
-			RowType inputType,
-			RowType outputType,
-			PythonAggregateFunctionInfo[] aggregateFunctions,
-			int[] grouping,
-			int indexOfCountStar,
-			boolean countStarInserted,
-			boolean generateUpdateBefore,
-			long minRetentionTime,
-			long maxRetentionTime) {
-			super(
-				config,
-				inputType,
-				outputType,
-				aggregateFunctions,
-				new DataViewUtils.DataViewSpec[0][0],
-				grouping,
-				indexOfCountStar,
-				countStarInserted,
-				generateUpdateBefore,
-				minRetentionTime,
-				maxRetentionTime);
-		}
+        PassThroughPythonStreamGroupAggregateOperator(
+                Configuration config,
+                RowType inputType,
+                RowType outputType,
+                PythonAggregateFunctionInfo[] aggregateFunctions,
+                int[] grouping,
+                int indexOfCountStar,
+                boolean countStarInserted,
+                boolean generateUpdateBefore,
+                long minRetentionTime,
+                long maxRetentionTime) {
+            super(
+                    config,
+                    inputType,
+                    outputType,
+                    aggregateFunctions,
+                    new DataViewUtils.DataViewSpec[0][0],
+                    grouping,
+                    indexOfCountStar,
+                    countStarInserted,
+                    generateUpdateBefore,
+                    minRetentionTime,
+                    maxRetentionTime);
+        }
 
-		@Override
-		public PythonFunctionRunner createPythonFunctionRunner() {
-			return new PassThroughStreamAggregatePythonFunctionRunner(
-				getRuntimeContext().getTaskName(),
-				PythonTestUtils.createTestEnvironmentManager(),
-				userDefinedFunctionInputType,
-				outputType,
-				STREAM_GROUP_AGGREGATE_URN,
-				getUserDefinedFunctionsProto(),
-				FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
-				new HashMap<>(),
-				PythonTestUtils.createMockFlinkMetricContainer(),
-				getKeyedStateBackend(),
-				getKeySerializer(),
-				getProcessFunction());
-		}
+        @Override
+        public PythonFunctionRunner createPythonFunctionRunner() {
+            return new PassThroughStreamAggregatePythonFunctionRunner(
+                    getRuntimeContext().getTaskName(),
+                    PythonTestUtils.createTestEnvironmentManager(),
+                    userDefinedFunctionInputType,
+                    outputType,
+                    STREAM_GROUP_AGGREGATE_URN,
+                    getUserDefinedFunctionsProto(),
+                    FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
+                    new HashMap<>(),
+                    PythonTestUtils.createMockFlinkMetricContainer(),
+                    getKeyedStateBackend(),
+                    getKeySerializer(),
+                    getProcessFunction());
+        }
 
-		private Function<byte[], byte[]> getProcessFunction() {
-			return (input_bytes) -> {
-				try {
-					RowData input = udfInputTypeSerializer.deserialize(new DataInputDeserializer(input_bytes));
-					DataOutputSerializer output = new DataOutputSerializer(1);
-					if (input.getByte(0) == NORMAL_RECORD) {
-						udfOutputTypeSerializer.serialize(input.getRow(1, inputType.getFieldCount()), output);
-					} else {
-						udfOutputTypeSerializer.serialize(GenericRowData.of(
-							StringData.fromString(
-								"state_cleanup_triggered: " +
-									input.getRow(3, getKeyType().getFieldCount()).getString(0)),
-							input.getLong(2)),
-							output);
-					}
-					return output.getCopyOfBuffer();
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				}
-			};
-		}
-	}
+        private Function<byte[], byte[]> getProcessFunction() {
+            return (input_bytes) -> {
+                try {
+                    RowData input =
+                            udfInputTypeSerializer.deserialize(
+                                    new DataInputDeserializer(input_bytes));
+                    DataOutputSerializer output = new DataOutputSerializer(1);
+                    if (input.getByte(0) == NORMAL_RECORD) {
+                        udfOutputTypeSerializer.serialize(
+                                input.getRow(1, inputType.getFieldCount()), output);
+                    } else {
+                        udfOutputTypeSerializer.serialize(
+                                GenericRowData.of(
+                                        StringData.fromString(
+                                                "state_cleanup_triggered: "
+                                                        + input.getRow(
+                                                                        3,
+                                                                        getKeyType()
+                                                                                .getFieldCount())
+                                                                .getString(0)),
+                                        input.getLong(2)),
+                                output);
+                    }
+                    return output.getCopyOfBuffer();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            };
+        }
+    }
 }

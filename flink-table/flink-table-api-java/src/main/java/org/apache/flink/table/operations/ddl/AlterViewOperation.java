@@ -20,18 +20,16 @@ package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-/**
- * Abstract Operation to describe all ALTER VIEW statements.
- */
+/** Abstract Operation to describe all ALTER VIEW statements. */
 public abstract class AlterViewOperation implements AlterOperation {
 
-	protected final ObjectIdentifier viewIdentifier;
+    protected final ObjectIdentifier viewIdentifier;
 
-	public AlterViewOperation(ObjectIdentifier viewIdentifier) {
-		this.viewIdentifier = viewIdentifier;
-	}
+    public AlterViewOperation(ObjectIdentifier viewIdentifier) {
+        this.viewIdentifier = viewIdentifier;
+    }
 
-	public ObjectIdentifier getViewIdentifier() {
-		return viewIdentifier;
-	}
+    public ObjectIdentifier getViewIdentifier() {
+        return viewIdentifier;
+    }
 }

@@ -24,44 +24,45 @@ import org.apache.flink.runtime.event.RuntimeEvent;
 
 /**
  * Marks the end of recovered state of {@link RecoveredInputChannel} of this subtask or {@link
- * org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition} on the upstream.
+ * org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition} on the
+ * upstream.
  */
 public class EndOfChannelStateEvent extends RuntimeEvent {
 
-	/** The singleton instance of this event. */
-	public static final EndOfChannelStateEvent INSTANCE = new EndOfChannelStateEvent();
+    /** The singleton instance of this event. */
+    public static final EndOfChannelStateEvent INSTANCE = new EndOfChannelStateEvent();
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	// not instantiable
-	private EndOfChannelStateEvent() {}
+    // not instantiable
+    private EndOfChannelStateEvent() {}
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void read(DataInputView in) {
-		// Nothing to do here
-	}
+    @Override
+    public void read(DataInputView in) {
+        // Nothing to do here
+    }
 
-	@Override
-	public void write(DataOutputView out) {
-		// Nothing to do here
-	}
+    @Override
+    public void write(DataOutputView out) {
+        // Nothing to do here
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return 1965146670;
-	}
+    @Override
+    public int hashCode() {
+        return 1965146670;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == EndOfChannelStateEvent.class;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj != null && obj.getClass() == EndOfChannelStateEvent.class;
+    }
 
-	@Override
-	public String toString() {
-		return getClass().getSimpleName();
-	}
+    @Override
+    public String toString() {
+        return getClass().getSimpleName();
+    }
 }

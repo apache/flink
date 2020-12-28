@@ -45,93 +45,93 @@ import java.util.UUID;
  */
 public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
 
-	private final TableSchema tableSchema;
-	protected final DataFormatConverters.DataFormatConverter<RowData, Row> converter;
-	private final TypeSerializer<T> typeSerializer;
+    private final TableSchema tableSchema;
+    protected final DataFormatConverters.DataFormatConverter<RowData, Row> converter;
+    private final TypeSerializer<T> typeSerializer;
 
-	private CollectResultIterator<T> iterator;
+    private CollectResultIterator<T> iterator;
 
-	@SuppressWarnings("unchecked")
-	public SelectTableSinkBase(TableSchema schema, TypeSerializer<T> typeSerializer) {
-		this.tableSchema = schema;
-		this.converter = DataFormatConverters.getConverterForDataType(this.tableSchema.toPhysicalRowDataType());
-		this.typeSerializer = typeSerializer;
-	}
+    @SuppressWarnings("unchecked")
+    public SelectTableSinkBase(TableSchema schema, TypeSerializer<T> typeSerializer) {
+        this.tableSchema = schema;
+        this.converter =
+                DataFormatConverters.getConverterForDataType(
+                        this.tableSchema.toPhysicalRowDataType());
+        this.typeSerializer = typeSerializer;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 
-	@Override
-	public TableSink<T> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public TableSink<T> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<T> dataStream) {
-		StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
+    @Override
+    public DataStreamSink<?> consumeDataStream(DataStream<T> dataStream) {
+        StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
 
-		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
-		CollectSinkOperatorFactory<T> factory = new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
-		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
-		this.iterator = new CollectResultIterator<>(
-			operator.getOperatorIdFuture(),
-			typeSerializer,
-			accumulatorName,
-			env.getCheckpointConfig());
+        String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
+        CollectSinkOperatorFactory<T> factory =
+                new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
+        CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
+        this.iterator =
+                new CollectResultIterator<>(
+                        operator.getOperatorIdFuture(),
+                        typeSerializer,
+                        accumulatorName,
+                        env.getCheckpointConfig());
 
-		CollectStreamSink<?> sink = new CollectStreamSink<>(dataStream, factory);
-		env.addOperator(sink.getTransformation());
-		return sink.name("Select table sink");
-	}
+        CollectStreamSink<?> sink = new CollectStreamSink<>(dataStream, factory);
+        env.addOperator(sink.getTransformation());
+        return sink.name("Select table sink");
+    }
 
-	public SelectResultProvider getSelectResultProvider() {
-		return new SelectResultProvider() {
-			@Override
-			public void setJobClient(JobClient jobClient) {
-				iterator.setJobClient(jobClient);
-			}
+    public SelectResultProvider getSelectResultProvider() {
+        return new SelectResultProvider() {
+            @Override
+            public void setJobClient(JobClient jobClient) {
+                iterator.setJobClient(jobClient);
+            }
 
-			@Override
-			public CloseableIterator<Row> getResultIterator() {
-				return new RowIteratorWrapper(iterator);
-			}
-		};
-	}
+            @Override
+            public CloseableIterator<Row> getResultIterator() {
+                return new RowIteratorWrapper(iterator);
+            }
+        };
+    }
 
-	/**
-	 * An Iterator wrapper class that converts Iterator&lt;T&gt; to Iterator&lt;Row&gt;.
-	 */
-	private class RowIteratorWrapper implements CloseableIterator<Row> {
-		private final CollectResultIterator<T> iterator;
+    /** An Iterator wrapper class that converts Iterator&lt;T&gt; to Iterator&lt;Row&gt;. */
+    private class RowIteratorWrapper implements CloseableIterator<Row> {
+        private final CollectResultIterator<T> iterator;
 
-		public RowIteratorWrapper(CollectResultIterator<T> iterator) {
-			this.iterator = iterator;
-		}
+        public RowIteratorWrapper(CollectResultIterator<T> iterator) {
+            this.iterator = iterator;
+        }
 
-		@Override
-		public boolean hasNext() {
-			return iterator.hasNext();
-		}
+        @Override
+        public boolean hasNext() {
+            return iterator.hasNext();
+        }
 
-		@Override
-		public Row next() {
-			return convertToRow(iterator.next());
-		}
+        @Override
+        public Row next() {
+            return convertToRow(iterator.next());
+        }
 
-		@Override
-		public void close() throws Exception {
-			iterator.close();
-		}
-	}
+        @Override
+        public void close() throws Exception {
+            iterator.close();
+        }
+    }
 
-	protected abstract Row convertToRow(T element);
+    protected abstract Row convertToRow(T element);
 
-	/**
-	 * Create {@link InternalTypeInfo} of {@link RowData} based on given table schema.
-	 */
-	protected static InternalTypeInfo<RowData> createTypeInfo(TableSchema tableSchema) {
-		return InternalTypeInfo.of(tableSchema.toRowDataType().getLogicalType());
-	}
+    /** Create {@link InternalTypeInfo} of {@link RowData} based on given table schema. */
+    protected static InternalTypeInfo<RowData> createTypeInfo(TableSchema tableSchema) {
+        return InternalTypeInfo.of(tableSchema.toRowDataType().getLogicalType());
+    }
 }

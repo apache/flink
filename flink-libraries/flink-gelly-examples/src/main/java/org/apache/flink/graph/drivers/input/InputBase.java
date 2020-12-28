@@ -31,17 +31,16 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public abstract class InputBase<K, VV, EV>
-extends ParameterizedBase
-implements Input<K, VV, EV> {
+public abstract class InputBase<K, VV, EV> extends ParameterizedBase implements Input<K, VV, EV> {
 
-	protected LongParameter parallelism = new LongParameter(this, "__parallelism")
-		.setDefaultValue(PARALLELISM_DEFAULT)
-		.setMinimumValue(1)
-		.setMaximumValue(Integer.MAX_VALUE);
+    protected LongParameter parallelism =
+            new LongParameter(this, "__parallelism")
+                    .setDefaultValue(PARALLELISM_DEFAULT)
+                    .setMinimumValue(1)
+                    .setMaximumValue(Integer.MAX_VALUE);
 
-	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
+    @Override
+    public String getName() {
+        return this.getClass().getSimpleName();
+    }
 }

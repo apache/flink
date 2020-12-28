@@ -39,70 +39,85 @@ import static org.apache.flink.runtime.checkpoint.metadata.MetadataV2V3Serialize
 
 class ChannelStateHandleSerializer {
 
-	public void serialize(ResultSubpartitionStateHandle handle, DataOutputStream dataOutputStream) throws IOException {
-		serializeChannelStateHandle(handle, dataOutputStream, (info, out) -> {
-			out.writeInt(info.getPartitionIdx());
-			out.writeInt(info.getSubPartitionIdx());
-		});
-	}
+    public void serialize(ResultSubpartitionStateHandle handle, DataOutputStream dataOutputStream)
+            throws IOException {
+        serializeChannelStateHandle(
+                handle,
+                dataOutputStream,
+                (info, out) -> {
+                    out.writeInt(info.getPartitionIdx());
+                    out.writeInt(info.getSubPartitionIdx());
+                });
+    }
 
-	ResultSubpartitionStateHandle deserializeResultSubpartitionStateHandle(
-			DataInputStream dis,
-			MetadataV2V3SerializerBase.DeserializationContext context) throws IOException {
+    ResultSubpartitionStateHandle deserializeResultSubpartitionStateHandle(
+            DataInputStream dis, MetadataV2V3SerializerBase.DeserializationContext context)
+            throws IOException {
 
-		return deserializeChannelStateHandle(
-			is -> new ResultSubpartitionInfo(is.readInt(), is.readInt()),
-			ResultSubpartitionStateHandle::new,
-			dis,
-			context);
-	}
+        return deserializeChannelStateHandle(
+                is -> new ResultSubpartitionInfo(is.readInt(), is.readInt()),
+                ResultSubpartitionStateHandle::new,
+                dis,
+                context);
+    }
 
-	public void serialize(InputChannelStateHandle handle, DataOutputStream dos) throws IOException {
-		serializeChannelStateHandle(handle, dos, (info, dataOutputStream) -> {
-			dos.writeInt(info.getGateIdx());
-			dos.writeInt(info.getInputChannelIdx());
-		});
-	}
+    public void serialize(InputChannelStateHandle handle, DataOutputStream dos) throws IOException {
+        serializeChannelStateHandle(
+                handle,
+                dos,
+                (info, dataOutputStream) -> {
+                    dos.writeInt(info.getGateIdx());
+                    dos.writeInt(info.getInputChannelIdx());
+                });
+    }
 
-	InputChannelStateHandle deserializeInputChannelStateHandle(
-			DataInputStream dis,
-			MetadataV2V3SerializerBase.DeserializationContext context) throws IOException {
+    InputChannelStateHandle deserializeInputChannelStateHandle(
+            DataInputStream dis, MetadataV2V3SerializerBase.DeserializationContext context)
+            throws IOException {
 
-		return deserializeChannelStateHandle(
-			is -> new InputChannelInfo(is.readInt(), is.readInt()),
-			InputChannelStateHandle::new,
-			dis,
-			context);
-	}
+        return deserializeChannelStateHandle(
+                is -> new InputChannelInfo(is.readInt(), is.readInt()),
+                InputChannelStateHandle::new,
+                dis,
+                context);
+    }
 
-	private static <I> void serializeChannelStateHandle(
-			AbstractChannelStateHandle<I> handle,
-			DataOutputStream dos,
-			BiConsumerWithException<I, DataOutputStream, IOException> infoWriter) throws IOException {
-		dos.writeInt(handle.getSubtaskIndex());
-		infoWriter.accept(handle.getInfo(), dos);
-		dos.writeInt(handle.getOffsets().size());
-		for (long offset : handle.getOffsets()) {
-			dos.writeLong(offset);
-		}
-		dos.writeLong(handle.getStateSize());
-		serializeStreamStateHandle(handle.getDelegate(), dos);
-	}
+    private static <I> void serializeChannelStateHandle(
+            AbstractChannelStateHandle<I> handle,
+            DataOutputStream dos,
+            BiConsumerWithException<I, DataOutputStream, IOException> infoWriter)
+            throws IOException {
+        dos.writeInt(handle.getSubtaskIndex());
+        infoWriter.accept(handle.getInfo(), dos);
+        dos.writeInt(handle.getOffsets().size());
+        for (long offset : handle.getOffsets()) {
+            dos.writeLong(offset);
+        }
+        dos.writeLong(handle.getStateSize());
+        serializeStreamStateHandle(handle.getDelegate(), dos);
+    }
 
-	private static <Info, Handle extends AbstractChannelStateHandle<Info>> Handle deserializeChannelStateHandle(
-			FunctionWithException<DataInputStream, Info, IOException> infoReader,
-			QuadFunction<Integer, Info, StreamStateHandle, StateContentMetaInfo, Handle> handleBuilder,
-			DataInputStream dis,
-			MetadataV2V3SerializerBase.DeserializationContext context) throws IOException {
+    private static <Info, Handle extends AbstractChannelStateHandle<Info>>
+            Handle deserializeChannelStateHandle(
+                    FunctionWithException<DataInputStream, Info, IOException> infoReader,
+                    QuadFunction<Integer, Info, StreamStateHandle, StateContentMetaInfo, Handle>
+                            handleBuilder,
+                    DataInputStream dis,
+                    MetadataV2V3SerializerBase.DeserializationContext context)
+                    throws IOException {
 
-		int subtaskIndex = dis.readInt();
-		final Info info = infoReader.apply(dis);
-		int offsetsSize = dis.readInt();
-		final List<Long> offsets = new ArrayList<>(offsetsSize);
-		for (int i = 0; i < offsetsSize; i++) {
-			offsets.add(dis.readLong());
-		}
-		final long size = dis.readLong();
-		return handleBuilder.apply(subtaskIndex, info, deserializeStreamStateHandle(dis, context), new StateContentMetaInfo(offsets, size));
-	}
+        int subtaskIndex = dis.readInt();
+        final Info info = infoReader.apply(dis);
+        int offsetsSize = dis.readInt();
+        final List<Long> offsets = new ArrayList<>(offsetsSize);
+        for (int i = 0; i < offsetsSize; i++) {
+            offsets.add(dis.readLong());
+        }
+        final long size = dis.readLong();
+        return handleBuilder.apply(
+                subtaskIndex,
+                info,
+                deserializeStreamStateHandle(dis, context),
+                new StateContentMetaInfo(offsets, size));
+    }
 }

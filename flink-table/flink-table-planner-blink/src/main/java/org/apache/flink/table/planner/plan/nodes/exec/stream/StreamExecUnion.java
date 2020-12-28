@@ -27,14 +27,12 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.List;
 
 /**
- * Stream {@link ExecNode} that is not a physical node and just union the inputs' records into one node.
+ * Stream {@link ExecNode} that is not a physical node and just union the inputs' records into one
+ * node.
  */
 public class StreamExecUnion extends CommonExecUnion implements StreamExecNode<RowData> {
 
-	public StreamExecUnion(
-			List<ExecEdge> inputEdges,
-			RowType outputType,
-			String description) {
-		super(inputEdges, outputType, description);
-	}
+    public StreamExecUnion(List<ExecEdge> inputEdges, RowType outputType, String description) {
+        super(inputEdges, outputType, description);
+    }
 }

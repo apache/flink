@@ -37,230 +37,232 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Test for the {@link WatermarkStrategy} class.
- */
+/** Test for the {@link WatermarkStrategy} class. */
 public class WatermarkStrategyTest {
 
-	@Test
-	public void testDefaultTimeStampAssigner() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
-				.forMonotonousTimestamps();
+    @Test
+    public void testDefaultTimeStampAssigner() {
+        WatermarkStrategy<Object> wmStrategy = WatermarkStrategy.forMonotonousTimestamps();
 
-		// ensure that the closure can be cleaned through the WatermarkStategies
-		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+        // ensure that the closure can be cleaned through the WatermarkStategies
+        ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		assertThat(wmStrategy.createTimestampAssigner(assignerContext()),
-				instanceOf(RecordTimestampAssigner.class));
-	}
+        assertThat(
+                wmStrategy.createTimestampAssigner(assignerContext()),
+                instanceOf(RecordTimestampAssigner.class));
+    }
 
-	@Test
-	public void testLambdaTimestampAssigner() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
-				.forMonotonousTimestamps()
-				.withTimestampAssigner((event, timestamp) -> 42L);
+    @Test
+    public void testLambdaTimestampAssigner() {
+        WatermarkStrategy<Object> wmStrategy =
+                WatermarkStrategy.forMonotonousTimestamps()
+                        .withTimestampAssigner((event, timestamp) -> 42L);
 
-		// ensure that the closure can be cleaned through the WatermarkStategies
-		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+        // ensure that the closure can be cleaned through the WatermarkStategies
+        ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		TimestampAssigner<Object> timestampAssigner = wmStrategy
-				.createTimestampAssigner(assignerContext());
+        TimestampAssigner<Object> timestampAssigner =
+                wmStrategy.createTimestampAssigner(assignerContext());
 
-		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
-	}
+        assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
+    }
 
-	@Test
-	public void testLambdaTimestampAssignerSupplier() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
-				.forMonotonousTimestamps()
-				.withTimestampAssigner(TimestampAssignerSupplier.of((event, timestamp) -> 42L));
-		// ensure that the closure can be cleaned through the WatermarkStategies
-		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+    @Test
+    public void testLambdaTimestampAssignerSupplier() {
+        WatermarkStrategy<Object> wmStrategy =
+                WatermarkStrategy.forMonotonousTimestamps()
+                        .withTimestampAssigner(
+                                TimestampAssignerSupplier.of((event, timestamp) -> 42L));
+        // ensure that the closure can be cleaned through the WatermarkStategies
+        ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		TimestampAssigner<Object> timestampAssigner = wmStrategy
-				.createTimestampAssigner(assignerContext());
+        TimestampAssigner<Object> timestampAssigner =
+                wmStrategy.createTimestampAssigner(assignerContext());
 
-		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
-	}
+        assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
+    }
 
-	@Test
-	public void testAnonymousInnerTimestampAssigner() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
-				.forMonotonousTimestamps()
-				.withTimestampAssigner(new SerializableTimestampAssigner<Object>() {
-					@Override
-					public long extractTimestamp(Object element, long recordTimestamp) {
-						return 42;
-					}
-				});
-		// ensure that the closure can be cleaned through the WatermarkStategies
-		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+    @Test
+    public void testAnonymousInnerTimestampAssigner() {
+        WatermarkStrategy<Object> wmStrategy =
+                WatermarkStrategy.forMonotonousTimestamps()
+                        .withTimestampAssigner(
+                                new SerializableTimestampAssigner<Object>() {
+                                    @Override
+                                    public long extractTimestamp(
+                                            Object element, long recordTimestamp) {
+                                        return 42;
+                                    }
+                                });
+        // ensure that the closure can be cleaned through the WatermarkStategies
+        ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		TimestampAssigner<Object> timestampAssigner = wmStrategy
-				.createTimestampAssigner(assignerContext());
+        TimestampAssigner<Object> timestampAssigner =
+                wmStrategy.createTimestampAssigner(assignerContext());
 
-		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
-	}
+        assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
+    }
 
-	@Test
-	public void testClassTimestampAssigner() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
-				.forMonotonousTimestamps()
-				.withTimestampAssigner((ctx) -> new TestTimestampAssigner());
-		// ensure that the closure can be cleaned through the WatermarkStategies
-		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+    @Test
+    public void testClassTimestampAssigner() {
+        WatermarkStrategy<Object> wmStrategy =
+                WatermarkStrategy.forMonotonousTimestamps()
+                        .withTimestampAssigner((ctx) -> new TestTimestampAssigner());
+        // ensure that the closure can be cleaned through the WatermarkStategies
+        ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		TimestampAssigner<Object> timestampAssigner = wmStrategy
-				.createTimestampAssigner(assignerContext());
+        TimestampAssigner<Object> timestampAssigner =
+                wmStrategy.createTimestampAssigner(assignerContext());
 
-		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
-	}
+        assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
+    }
 
-	@Test
-	public void testClassTimestampAssignerUsingSupplier() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
-				.forMonotonousTimestamps()
-				.withTimestampAssigner((context) -> new TestTimestampAssigner());
-		// ensure that the closure can be cleaned through the WatermarkStategies
-		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+    @Test
+    public void testClassTimestampAssignerUsingSupplier() {
+        WatermarkStrategy<Object> wmStrategy =
+                WatermarkStrategy.forMonotonousTimestamps()
+                        .withTimestampAssigner((context) -> new TestTimestampAssigner());
+        // ensure that the closure can be cleaned through the WatermarkStategies
+        ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		TimestampAssigner<Object> timestampAssigner = wmStrategy
-				.createTimestampAssigner(assignerContext());
+        TimestampAssigner<Object> timestampAssigner =
+                wmStrategy.createTimestampAssigner(assignerContext());
 
-		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
-	}
+        assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
+    }
 
-	@Test
-	public void testWithIdlenessHelper() {
-		WatermarkStrategy<String> wmStrategy = WatermarkStrategy
-				.<String>forMonotonousTimestamps()
-				.withIdleness(Duration.ofDays(7));
+    @Test
+    public void testWithIdlenessHelper() {
+        WatermarkStrategy<String> wmStrategy =
+                WatermarkStrategy.<String>forMonotonousTimestamps()
+                        .withIdleness(Duration.ofDays(7));
 
-		// ensure that the closure can be cleaned
-		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+        // ensure that the closure can be cleaned
+        ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		assertThat(wmStrategy.createTimestampAssigner(assignerContext()),
-				instanceOf(RecordTimestampAssigner.class));
-		assertThat(wmStrategy.createWatermarkGenerator(generatorContext()),
-				instanceOf(WatermarksWithIdleness.class));
-	}
+        assertThat(
+                wmStrategy.createTimestampAssigner(assignerContext()),
+                instanceOf(RecordTimestampAssigner.class));
+        assertThat(
+                wmStrategy.createWatermarkGenerator(generatorContext()),
+                instanceOf(WatermarksWithIdleness.class));
+    }
 
-	static class TestTimestampAssigner implements TimestampAssigner<Object>, Serializable {
+    static class TestTimestampAssigner implements TimestampAssigner<Object>, Serializable {
 
-		@Override
-		public long extractTimestamp(Object element, long recordTimestamp) {
-			return 42L;
-		}
-	}
+        @Override
+        public long extractTimestamp(Object element, long recordTimestamp) {
+            return 42L;
+        }
+    }
 
-	static TimestampAssignerSupplier.Context assignerContext() {
-		return new TimestampAssignerSupplier.Context() {
-			@Override
-			public MetricGroup getMetricGroup() {
-				return new DummyMetricGroup();
-			}
-		};
-	}
+    static TimestampAssignerSupplier.Context assignerContext() {
+        return new TimestampAssignerSupplier.Context() {
+            @Override
+            public MetricGroup getMetricGroup() {
+                return new DummyMetricGroup();
+            }
+        };
+    }
 
-	static WatermarkGeneratorSupplier.Context generatorContext() {
-		return new WatermarkGeneratorSupplier.Context() {
-			@Override
-			public MetricGroup getMetricGroup() {
-				return new DummyMetricGroup();
-			}
-		};
-	}
+    static WatermarkGeneratorSupplier.Context generatorContext() {
+        return new WatermarkGeneratorSupplier.Context() {
+            @Override
+            public MetricGroup getMetricGroup() {
+                return new DummyMetricGroup();
+            }
+        };
+    }
 
-	/**
-	 * A dummy {@link MetricGroup} to be used when a group is required as an argument but not
-	 * actually used.
-	 */
-	public static class DummyMetricGroup implements MetricGroup {
+    /**
+     * A dummy {@link MetricGroup} to be used when a group is required as an argument but not
+     * actually used.
+     */
+    public static class DummyMetricGroup implements MetricGroup {
 
-		@Override
-		public Counter counter(int name) {
-			return null;
-		}
+        @Override
+        public Counter counter(int name) {
+            return null;
+        }
 
-		@Override
-		public Counter counter(String name) {
-			return null;
-		}
+        @Override
+        public Counter counter(String name) {
+            return null;
+        }
 
-		@Override
-		public <C extends Counter> C counter(int name, C counter) {
-			return null;
-		}
+        @Override
+        public <C extends Counter> C counter(int name, C counter) {
+            return null;
+        }
 
-		@Override
-		public <C extends Counter> C counter(String name, C counter) {
-			return null;
-		}
+        @Override
+        public <C extends Counter> C counter(String name, C counter) {
+            return null;
+        }
 
-		@Override
-		public <T, G extends Gauge<T>> G gauge(int name, G gauge) {
-			return null;
-		}
+        @Override
+        public <T, G extends Gauge<T>> G gauge(int name, G gauge) {
+            return null;
+        }
 
-		@Override
-		public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
-			return null;
-		}
+        @Override
+        public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
+            return null;
+        }
 
-		@Override
-		public <H extends Histogram> H histogram(String name, H histogram) {
-			return null;
-		}
+        @Override
+        public <H extends Histogram> H histogram(String name, H histogram) {
+            return null;
+        }
 
-		@Override
-		public <H extends Histogram> H histogram(int name, H histogram) {
-			return null;
-		}
+        @Override
+        public <H extends Histogram> H histogram(int name, H histogram) {
+            return null;
+        }
 
-		@Override
-		public <M extends Meter> M meter(String name, M meter) {
-			return null;
-		}
+        @Override
+        public <M extends Meter> M meter(String name, M meter) {
+            return null;
+        }
 
-		@Override
-		public <M extends Meter> M meter(int name, M meter) {
-			return null;
-		}
+        @Override
+        public <M extends Meter> M meter(int name, M meter) {
+            return null;
+        }
 
-		@Override
-		public MetricGroup addGroup(int name) {
-			return null;
-		}
+        @Override
+        public MetricGroup addGroup(int name) {
+            return null;
+        }
 
-		@Override
-		public MetricGroup addGroup(String name) {
-			return null;
-		}
+        @Override
+        public MetricGroup addGroup(String name) {
+            return null;
+        }
 
-		@Override
-		public MetricGroup addGroup(String key, String value) {
-			return null;
-		}
+        @Override
+        public MetricGroup addGroup(String key, String value) {
+            return null;
+        }
 
-		@Override
-		public String[] getScopeComponents() {
-			return new String[0];
-		}
+        @Override
+        public String[] getScopeComponents() {
+            return new String[0];
+        }
 
-		@Override
-		public Map<String, String> getAllVariables() {
-			return null;
-		}
+        @Override
+        public Map<String, String> getAllVariables() {
+            return null;
+        }
 
-		@Override
-		public String getMetricIdentifier(String metricName) {
-			return null;
-		}
+        @Override
+        public String getMetricIdentifier(String metricName) {
+            return null;
+        }
 
-		@Override
-		public String getMetricIdentifier(
-				String metricName, CharacterFilter filter) {
-			return null;
-		}
-	}
+        @Override
+        public String getMetricIdentifier(String metricName, CharacterFilter filter) {
+            return null;
+        }
+    }
 }

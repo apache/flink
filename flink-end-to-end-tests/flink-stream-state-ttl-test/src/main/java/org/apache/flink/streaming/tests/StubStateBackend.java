@@ -42,66 +42,70 @@ import java.util.Collection;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A stub implementation of the {@link StateBackend} that allows the use of
- * a custom {@link TtlTimeProvider}.
+ * A stub implementation of the {@link StateBackend} that allows the use of a custom {@link
+ * TtlTimeProvider}.
  */
 final class StubStateBackend implements StateBackend {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final TtlTimeProvider ttlTimeProvider;
+    private final TtlTimeProvider ttlTimeProvider;
 
-	private final StateBackend backend;
+    private final StateBackend backend;
 
-	StubStateBackend(final StateBackend wrappedBackend, final TtlTimeProvider ttlTimeProvider) {
-		this.backend = checkNotNull(wrappedBackend);
-		this.ttlTimeProvider = checkNotNull(ttlTimeProvider);
-	}
+    StubStateBackend(final StateBackend wrappedBackend, final TtlTimeProvider ttlTimeProvider) {
+        this.backend = checkNotNull(wrappedBackend);
+        this.ttlTimeProvider = checkNotNull(ttlTimeProvider);
+    }
 
-	@Override
-	public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException {
-		return backend.resolveCheckpoint(externalPointer);
-	}
+    @Override
+    public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer)
+            throws IOException {
+        return backend.resolveCheckpoint(externalPointer);
+    }
 
-	@Override
-	public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-		return backend.createCheckpointStorage(jobId);
-	}
+    @Override
+    public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+        return backend.createCheckpointStorage(jobId);
+    }
 
-	@Override
-	public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
-		Environment env,
-		JobID jobID,
-		String operatorIdentifier,
-		TypeSerializer<K> keySerializer,
-		int numberOfKeyGroups,
-		KeyGroupRange keyGroupRange,
-		TaskKvStateRegistry kvStateRegistry,
-		TtlTimeProvider ttlTimeProvider,
-		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		CloseableRegistry cancelStreamRegistry) throws Exception {
+    @Override
+    public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry)
+            throws Exception {
 
-		return backend.createKeyedStateBackend(
-			env,
-			jobID,
-			operatorIdentifier,
-			keySerializer,
-			numberOfKeyGroups,
-			keyGroupRange,
-			kvStateRegistry,
-			this.ttlTimeProvider,
-			metricGroup,
-			stateHandles,
-			cancelStreamRegistry);
-	}
+        return backend.createKeyedStateBackend(
+                env,
+                jobID,
+                operatorIdentifier,
+                keySerializer,
+                numberOfKeyGroups,
+                keyGroupRange,
+                kvStateRegistry,
+                this.ttlTimeProvider,
+                metricGroup,
+                stateHandles,
+                cancelStreamRegistry);
+    }
 
-	@Override
-	public OperatorStateBackend createOperatorStateBackend(
-		Environment env,
-		String operatorIdentifier,
-		@Nonnull Collection<OperatorStateHandle> stateHandles,
-		CloseableRegistry cancelStreamRegistry) throws Exception {
-		return backend.createOperatorStateBackend(env, operatorIdentifier, stateHandles, cancelStreamRegistry);
-	}
+    @Override
+    public OperatorStateBackend createOperatorStateBackend(
+            Environment env,
+            String operatorIdentifier,
+            @Nonnull Collection<OperatorStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry)
+            throws Exception {
+        return backend.createOperatorStateBackend(
+                env, operatorIdentifier, stateHandles, cancelStreamRegistry);
+    }
 }

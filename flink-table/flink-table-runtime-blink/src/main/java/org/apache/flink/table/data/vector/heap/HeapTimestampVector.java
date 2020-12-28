@@ -23,40 +23,38 @@ import org.apache.flink.table.data.vector.writable.WritableTimestampVector;
 
 import java.util.Arrays;
 
-/**
- * This class represents a nullable byte column vector.
- */
+/** This class represents a nullable byte column vector. */
 public class HeapTimestampVector extends AbstractHeapVector implements WritableTimestampVector {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final long[] milliseconds;
-	private final int[] nanoOfMilliseconds;
+    private final long[] milliseconds;
+    private final int[] nanoOfMilliseconds;
 
-	public HeapTimestampVector(int len) {
-		super(len);
-		this.milliseconds = new long[len];
-		this.nanoOfMilliseconds = new int[len];
-	}
+    public HeapTimestampVector(int len) {
+        super(len);
+        this.milliseconds = new long[len];
+        this.nanoOfMilliseconds = new int[len];
+    }
 
-	@Override
-	public TimestampData getTimestamp(int i, int precision) {
-		if (dictionary == null) {
-			return TimestampData.fromEpochMillis(milliseconds[i], nanoOfMilliseconds[i]);
-		} else {
-			return dictionary.decodeToTimestamp(dictionaryIds.vector[i]);
-		}
-	}
+    @Override
+    public TimestampData getTimestamp(int i, int precision) {
+        if (dictionary == null) {
+            return TimestampData.fromEpochMillis(milliseconds[i], nanoOfMilliseconds[i]);
+        } else {
+            return dictionary.decodeToTimestamp(dictionaryIds.vector[i]);
+        }
+    }
 
-	@Override
-	public void setTimestamp(int i, TimestampData timestamp) {
-		milliseconds[i] = timestamp.getMillisecond();
-		nanoOfMilliseconds[i] = timestamp.getNanoOfMillisecond();
-	}
+    @Override
+    public void setTimestamp(int i, TimestampData timestamp) {
+        milliseconds[i] = timestamp.getMillisecond();
+        nanoOfMilliseconds[i] = timestamp.getNanoOfMillisecond();
+    }
 
-	@Override
-	public void fill(TimestampData value) {
-		Arrays.fill(milliseconds, value.getMillisecond());
-		Arrays.fill(nanoOfMilliseconds, value.getNanoOfMillisecond());
-	}
+    @Override
+    public void fill(TimestampData value) {
+        Arrays.fill(milliseconds, value.getMillisecond());
+        Arrays.fill(nanoOfMilliseconds, value.getNanoOfMillisecond());
+    }
 }

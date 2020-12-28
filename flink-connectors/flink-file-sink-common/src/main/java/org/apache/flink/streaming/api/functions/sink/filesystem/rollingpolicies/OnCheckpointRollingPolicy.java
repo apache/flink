@@ -22,27 +22,27 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 
-/**
- * A {@link RollingPolicy} which rolls (ONLY) on every checkpoint.
- */
+/** A {@link RollingPolicy} which rolls (ONLY) on every checkpoint. */
 @PublicEvolving
-public final class OnCheckpointRollingPolicy<IN, BucketID> extends CheckpointRollingPolicy<IN, BucketID> {
+public final class OnCheckpointRollingPolicy<IN, BucketID>
+        extends CheckpointRollingPolicy<IN, BucketID> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private OnCheckpointRollingPolicy() {}
+    private OnCheckpointRollingPolicy() {}
 
-	@Override
-	public boolean shouldRollOnEvent(PartFileInfo<BucketID> partFileState, IN element) {
-		return false;
-	}
+    @Override
+    public boolean shouldRollOnEvent(PartFileInfo<BucketID> partFileState, IN element) {
+        return false;
+    }
 
-	@Override
-	public boolean shouldRollOnProcessingTime(PartFileInfo<BucketID> partFileState, long currentTime) {
-		return false;
-	}
+    @Override
+    public boolean shouldRollOnProcessingTime(
+            PartFileInfo<BucketID> partFileState, long currentTime) {
+        return false;
+    }
 
-	public static <IN, BucketID> OnCheckpointRollingPolicy<IN, BucketID> build() {
-		return new OnCheckpointRollingPolicy<>();
-	}
+    public static <IN, BucketID> OnCheckpointRollingPolicy<IN, BucketID> build() {
+        return new OnCheckpointRollingPolicy<>();
+    }
 }

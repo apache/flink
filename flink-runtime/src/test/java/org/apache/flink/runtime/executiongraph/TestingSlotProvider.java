@@ -35,45 +35,51 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * {@link SlotProvider} implementation for testing purposes.
- */
+/** {@link SlotProvider} implementation for testing purposes. */
 public class TestingSlotProvider implements SlotProvider {
 
-	private final ConcurrentMap<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutures;
+    private final ConcurrentMap<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutures;
 
-	private final Function<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutureCreator;
+    private final Function<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutureCreator;
 
-	private volatile Consumer<SlotRequestId> slotCanceller = ignored -> {};
+    private volatile Consumer<SlotRequestId> slotCanceller = ignored -> {};
 
-	public TestingSlotProvider(Function<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutureCreator) {
-		this.slotFutureCreator = slotFutureCreator;
-		this.slotFutures = new ConcurrentHashMap<>(4);
-	}
+    public TestingSlotProvider(
+            Function<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutureCreator) {
+        this.slotFutureCreator = slotFutureCreator;
+        this.slotFutures = new ConcurrentHashMap<>(4);
+    }
 
-	public void setSlotCanceller(Consumer<SlotRequestId> slotCanceller) {
-		this.slotCanceller = slotCanceller;
-	}
+    public void setSlotCanceller(Consumer<SlotRequestId> slotCanceller) {
+        this.slotCanceller = slotCanceller;
+    }
 
-	@Override
-	public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit task, SlotProfile slotProfile, Time timeout) {
-		Preconditions.checkState(!slotFutures.containsKey(slotRequestId));
-		final CompletableFuture<LogicalSlot> slotFuture = slotFutureCreator.apply(slotRequestId);
+    @Override
+    public CompletableFuture<LogicalSlot> allocateSlot(
+            SlotRequestId slotRequestId,
+            ScheduledUnit task,
+            SlotProfile slotProfile,
+            Time timeout) {
+        Preconditions.checkState(!slotFutures.containsKey(slotRequestId));
+        final CompletableFuture<LogicalSlot> slotFuture = slotFutureCreator.apply(slotRequestId);
 
-		slotFutures.put(slotRequestId, slotFuture);
+        slotFutures.put(slotRequestId, slotFuture);
 
-		return slotFuture;
-	}
+        return slotFuture;
+    }
 
-	@Override
-	public void cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
-		final CompletableFuture<LogicalSlot> slotFuture = slotFutures.remove(slotRequestId);
-		slotFuture.cancel(false);
+    @Override
+    public void cancelSlotRequest(
+            SlotRequestId slotRequestId,
+            @Nullable SlotSharingGroupId slotSharingGroupId,
+            Throwable cause) {
+        final CompletableFuture<LogicalSlot> slotFuture = slotFutures.remove(slotRequestId);
+        slotFuture.cancel(false);
 
-		slotCanceller.accept(slotRequestId);
-	}
+        slotCanceller.accept(slotRequestId);
+    }
 
-	public void complete(SlotRequestId slotRequestId, LogicalSlot logicalSlot) {
-		slotFutures.get(slotRequestId).complete(logicalSlot);
-	}
+    public void complete(SlotRequestId slotRequestId, LogicalSlot logicalSlot) {
+        slotFutures.get(slotRequestId).complete(logicalSlot);
+    }
 }

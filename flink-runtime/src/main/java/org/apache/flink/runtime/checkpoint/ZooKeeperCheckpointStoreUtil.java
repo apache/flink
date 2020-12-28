@@ -21,49 +21,48 @@ package org.apache.flink.runtime.checkpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Singleton {@link CheckpointStoreUtil} implementation for ZooKeeper.
- *
- */
-public enum  ZooKeeperCheckpointStoreUtil implements CheckpointStoreUtil {
-	INSTANCE;
+/** Singleton {@link CheckpointStoreUtil} implementation for ZooKeeper. */
+public enum ZooKeeperCheckpointStoreUtil implements CheckpointStoreUtil {
+    INSTANCE;
 
-	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperCheckpointStoreUtil.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperCheckpointStoreUtil.class);
 
-	/**
-	 * Convert a checkpoint id into a ZooKeeper path.
-	 *
-	 * @param checkpointId to convert to the path
-	 * @return Path created from the given checkpoint id
-	 */
-	@Override
-	public String checkpointIDToName(long checkpointId) {
-		return String.format("/%019d", checkpointId);
-	}
+    /**
+     * Convert a checkpoint id into a ZooKeeper path.
+     *
+     * @param checkpointId to convert to the path
+     * @return Path created from the given checkpoint id
+     */
+    @Override
+    public String checkpointIDToName(long checkpointId) {
+        return String.format("/%019d", checkpointId);
+    }
 
-	/**
-	 * Converts a path to the checkpoint id.
-	 *
-	 * @param path in ZooKeeper
-	 * @return Checkpoint id parsed from the path
-	 */
-	@Override
-	public long nameToCheckpointID(String path) {
-		try {
-			String numberString;
+    /**
+     * Converts a path to the checkpoint id.
+     *
+     * @param path in ZooKeeper
+     * @return Checkpoint id parsed from the path
+     */
+    @Override
+    public long nameToCheckpointID(String path) {
+        try {
+            String numberString;
 
-			// check if we have a leading slash
-			if ('/' == path.charAt(0)) {
-				numberString = path.substring(1);
-			} else {
-				numberString = path;
-			}
-			return Long.parseLong(numberString);
-		} catch (NumberFormatException e) {
-			LOG.warn("Could not parse checkpoint id from {}. This indicates that the " +
-				"checkpoint id to path conversion has changed.", path);
+            // check if we have a leading slash
+            if ('/' == path.charAt(0)) {
+                numberString = path.substring(1);
+            } else {
+                numberString = path;
+            }
+            return Long.parseLong(numberString);
+        } catch (NumberFormatException e) {
+            LOG.warn(
+                    "Could not parse checkpoint id from {}. This indicates that the "
+                            + "checkpoint id to path conversion has changed.",
+                    path);
 
-			return INVALID_CHECKPOINT_ID;
-		}
-	}
+            return INVALID_CHECKPOINT_ID;
+        }
+    }
 }

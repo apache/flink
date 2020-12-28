@@ -22,35 +22,33 @@ import org.apache.flink.metrics.Counter;
 
 import java.util.List;
 
-/**
- * Mapping of counter between Flink and Datadog.
- */
+/** Mapping of counter between Flink and Datadog. */
 public class DCounter extends DMetric {
-	private final Counter counter;
+    private final Counter counter;
 
-	private long lastReportCount = 0;
-	private long currentReportCount = 0;
+    private long lastReportCount = 0;
+    private long currentReportCount = 0;
 
-	public DCounter(Counter c, String metricName, String host, List<String> tags, Clock clock) {
-		super(new MetricMetaData(MetricType.count, metricName, host, tags, clock));
-		counter = c;
-	}
+    public DCounter(Counter c, String metricName, String host, List<String> tags, Clock clock) {
+        super(new MetricMetaData(MetricType.count, metricName, host, tags, clock));
+        counter = c;
+    }
 
-	/**
-	 * Returns the count of events since the last report.
-	 *
-	 * @return the number of events since the last retrieval
-	 */
-	@Override
-	public Number getMetricValue() {
-		long currentCount = counter.getCount();
-		long difference =  currentCount - lastReportCount;
-		currentReportCount = currentCount;
-		return difference;
-	}
+    /**
+     * Returns the count of events since the last report.
+     *
+     * @return the number of events since the last retrieval
+     */
+    @Override
+    public Number getMetricValue() {
+        long currentCount = counter.getCount();
+        long difference = currentCount - lastReportCount;
+        currentReportCount = currentCount;
+        return difference;
+    }
 
-	@Override
-	public void ackReport() {
-		lastReportCount = currentReportCount;
-	}
+    @Override
+    public void ackReport() {
+        lastReportCount = currentReportCount;
+    }
 }

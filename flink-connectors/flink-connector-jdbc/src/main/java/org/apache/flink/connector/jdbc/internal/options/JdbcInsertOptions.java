@@ -21,34 +21,31 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.stream.IntStream;
 
-/**
- * JDBC sink insert options.
- */
+/** JDBC sink insert options. */
 public class JdbcInsertOptions extends JdbcTypedQueryOptions {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final String query;
+    private final String query;
 
-	public JdbcInsertOptions(String query, int[] typesArray) {
-		super(typesArray);
-		this.query = Preconditions.checkNotNull(query, "query is empty");
-	}
+    public JdbcInsertOptions(String query, int[] typesArray) {
+        super(typesArray);
+        this.query = Preconditions.checkNotNull(query, "query is empty");
+    }
 
-	public String getQuery() {
-		return query;
-	}
+    public String getQuery() {
+        return query;
+    }
 
-	public static JdbcInsertOptions from(String query, int firstFieldType, int... nextFieldTypes) {
-		return new JdbcInsertOptions(query, concat(firstFieldType, nextFieldTypes));
-	}
+    public static JdbcInsertOptions from(String query, int firstFieldType, int... nextFieldTypes) {
+        return new JdbcInsertOptions(query, concat(firstFieldType, nextFieldTypes));
+    }
 
-	private static int[] concat(int first, int... next) {
-		if (next == null || next.length == 0) {
-			return new int[]{first};
-		} else {
-			return IntStream.concat(IntStream.of(new int[]{first}), IntStream.of(next)).toArray();
-		}
-	}
-
+    private static int[] concat(int first, int... next) {
+        if (next == null || next.length == 0) {
+            return new int[] {first};
+        } else {
+            return IntStream.concat(IntStream.of(new int[] {first}), IntStream.of(next)).toArray();
+        }
+    }
 }

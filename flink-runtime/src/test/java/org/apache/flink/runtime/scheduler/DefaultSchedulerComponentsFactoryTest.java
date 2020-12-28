@@ -43,45 +43,58 @@ import static org.junit.Assert.fail;
  */
 public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
 
-	@Test
-	public void testCreatingPipelinedSchedulingStrategyFactory() {
+    @Test
+    public void testCreatingPipelinedSchedulingStrategyFactory() {
 
-		final DefaultSchedulerComponents components = createSchedulerComponents(new Configuration());
-		assertThat(components.getSchedulingStrategyFactory(), instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
-		assertThat(components.getAllocatorFactory(), instanceOf(SlotSharingExecutionSlotAllocatorFactory.class));
-	}
+        final DefaultSchedulerComponents components =
+                createSchedulerComponents(new Configuration());
+        assertThat(
+                components.getSchedulingStrategyFactory(),
+                instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
+        assertThat(
+                components.getAllocatorFactory(),
+                instanceOf(SlotSharingExecutionSlotAllocatorFactory.class));
+    }
 
-	@Test
-	public void testCreatingPipelinedRegionSchedulingStrategyFactoryByDefault() {
-		final DefaultSchedulerComponents components = createSchedulerComponents(new Configuration());
-		assertThat(components.getSchedulingStrategyFactory(), instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
-	}
+    @Test
+    public void testCreatingPipelinedRegionSchedulingStrategyFactoryByDefault() {
+        final DefaultSchedulerComponents components =
+                createSchedulerComponents(new Configuration());
+        assertThat(
+                components.getSchedulingStrategyFactory(),
+                instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
+    }
 
-	@Test
-	public void testCreatingPipelinedRegionSchedulingStrategyFactoryWithApproximateLocalRecovery() {
-		final Configuration configuration = new Configuration();
+    @Test
+    public void testCreatingPipelinedRegionSchedulingStrategyFactoryWithApproximateLocalRecovery() {
+        final Configuration configuration = new Configuration();
 
-		try {
-			createSchedulerComponents(configuration, true, EAGER);
-			fail("expected failure");
-		} catch (IllegalArgumentException e) {
-			assertThat(e, containsMessage("Approximate local recovery can not be used together with PipelinedRegionScheduler for now"));
-		}
-	}
+        try {
+            createSchedulerComponents(configuration, true, EAGER);
+            fail("expected failure");
+        } catch (IllegalArgumentException e) {
+            assertThat(
+                    e,
+                    containsMessage(
+                            "Approximate local recovery can not be used together with PipelinedRegionScheduler for now"));
+        }
+    }
 
-	private static DefaultSchedulerComponents createSchedulerComponents(final Configuration configuration) {
-		return createSchedulerComponents(configuration, false, LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
-	}
+    private static DefaultSchedulerComponents createSchedulerComponents(
+            final Configuration configuration) {
+        return createSchedulerComponents(
+                configuration, false, LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
+    }
 
-	private static DefaultSchedulerComponents createSchedulerComponents(
-			final Configuration configuration,
-			boolean iApproximateLocalRecoveryEnabled,
-			ScheduleMode scheduleMode) {
-		return DefaultSchedulerComponents.createSchedulerComponents(
-			scheduleMode,
-			iApproximateLocalRecoveryEnabled,
-			configuration,
-			new TestingSlotPoolImpl(new JobID()),
-			Time.milliseconds(10L));
-	}
+    private static DefaultSchedulerComponents createSchedulerComponents(
+            final Configuration configuration,
+            boolean iApproximateLocalRecoveryEnabled,
+            ScheduleMode scheduleMode) {
+        return DefaultSchedulerComponents.createSchedulerComponents(
+                scheduleMode,
+                iApproximateLocalRecoveryEnabled,
+                configuration,
+                new TestingSlotPoolImpl(new JobID()),
+                Time.milliseconds(10L));
+    }
 }

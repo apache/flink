@@ -26,60 +26,56 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * A state type used in the {@link DataStreamAllroundTestProgram}.
- * Wraps an {@link Event} as state.
+ * A state type used in the {@link DataStreamAllroundTestProgram}. Wraps an {@link Event} as state.
  */
 public class ComplexPayload implements Serializable {
-	private static final long serialVersionUID = 233624606545704853L;
+    private static final long serialVersionUID = 233624606545704853L;
 
-	private final long eventTime;
-	private final List<String> stringList;
-	private final String strPayload;
-	private final InnerPayLoad innerPayLoad;
+    private final long eventTime;
+    private final List<String> stringList;
+    private final String strPayload;
+    private final InnerPayLoad innerPayLoad;
 
-	public ComplexPayload(Event event, String strPayload) {
-		this.eventTime = event.getEventTime();
-		this.innerPayLoad = new InnerPayLoad(event.getSequenceNumber());
-		this.strPayload = strPayload;
-		this.stringList = Arrays.asList(String.valueOf(event.getKey()), event.getPayload());
-	}
+    public ComplexPayload(Event event, String strPayload) {
+        this.eventTime = event.getEventTime();
+        this.innerPayLoad = new InnerPayLoad(event.getSequenceNumber());
+        this.strPayload = strPayload;
+        this.stringList = Arrays.asList(String.valueOf(event.getKey()), event.getPayload());
+    }
 
-	public ComplexPayload(Event event) {
-		this(event, event.getPayload());
-	}
+    public ComplexPayload(Event event) {
+        this(event, event.getPayload());
+    }
 
-	/**
-	 * Nested class in state type. Wraps an {@link Event}'s sequence number.
-	 */
-	public static class InnerPayLoad implements Serializable {
+    /** Nested class in state type. Wraps an {@link Event}'s sequence number. */
+    public static class InnerPayLoad implements Serializable {
 
-		private static final long serialVersionUID = 3986298180012117883L;
+        private static final long serialVersionUID = 3986298180012117883L;
 
-		private final long sequenceNumber;
+        private final long sequenceNumber;
 
-		public InnerPayLoad(long sequenceNumber) {
-			this.sequenceNumber = sequenceNumber;
-		}
+        public InnerPayLoad(long sequenceNumber) {
+            this.sequenceNumber = sequenceNumber;
+        }
 
-		public long getSequenceNumber() {
-			return sequenceNumber;
-		}
-	}
+        public long getSequenceNumber() {
+            return sequenceNumber;
+        }
+    }
 
-	public long getEventTime() {
-		return eventTime;
-	}
+    public long getEventTime() {
+        return eventTime;
+    }
 
-	public List<String> getStringList() {
-		return stringList;
-	}
+    public List<String> getStringList() {
+        return stringList;
+    }
 
-	public String getStrPayload() {
-		return strPayload;
-	}
+    public String getStrPayload() {
+        return strPayload;
+    }
 
-	public InnerPayLoad getInnerPayLoad() {
-		return innerPayLoad;
-	}
+    public InnerPayLoad getInnerPayLoad() {
+        return innerPayLoad;
+    }
 }
-

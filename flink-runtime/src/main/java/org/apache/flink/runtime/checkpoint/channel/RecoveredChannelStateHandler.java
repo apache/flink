@@ -32,102 +32,120 @@ import java.io.IOException;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateByteBuffer.wrap;
 
 interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
-	class BufferWithContext<Context> {
-		final ChannelStateByteBuffer buffer;
-		final Context context;
+    class BufferWithContext<Context> {
+        final ChannelStateByteBuffer buffer;
+        final Context context;
 
-		BufferWithContext(ChannelStateByteBuffer buffer, Context context) {
-			this.buffer = buffer;
-			this.context = context;
-		}
-	}
+        BufferWithContext(ChannelStateByteBuffer buffer, Context context) {
+            this.buffer = buffer;
+            this.context = context;
+        }
+    }
 
-	BufferWithContext<Context> getBuffer(Info info) throws IOException, InterruptedException;
+    BufferWithContext<Context> getBuffer(Info info) throws IOException, InterruptedException;
 
-	void recover(Info info, Context context) throws IOException;
+    void recover(Info info, Context context) throws IOException;
 }
 
-class InputChannelRecoveredStateHandler implements RecoveredChannelStateHandler<InputChannelInfo, Buffer> {
-	private final InputGate[] inputGates;
+class InputChannelRecoveredStateHandler
+        implements RecoveredChannelStateHandler<InputChannelInfo, Buffer> {
+    private final InputGate[] inputGates;
 
-	InputChannelRecoveredStateHandler(InputGate[] inputGates) {
-		this.inputGates = inputGates;
-	}
+    InputChannelRecoveredStateHandler(InputGate[] inputGates) {
+        this.inputGates = inputGates;
+    }
 
-	@Override
-	public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo) throws IOException, InterruptedException {
-		RecoveredInputChannel channel = getChannel(channelInfo);
-		Buffer buffer = channel.requestBufferBlocking();
-		return new BufferWithContext<>(wrap(buffer), buffer);
-	}
+    @Override
+    public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo)
+            throws IOException, InterruptedException {
+        RecoveredInputChannel channel = getChannel(channelInfo);
+        Buffer buffer = channel.requestBufferBlocking();
+        return new BufferWithContext<>(wrap(buffer), buffer);
+    }
 
-	@Override
-	public void recover(InputChannelInfo channelInfo, Buffer buffer) {
-		if (buffer.readableBytes() > 0) {
-			getChannel(channelInfo).onRecoveredStateBuffer(buffer);
-		} else {
-			buffer.recycleBuffer();
-		}
-	}
+    @Override
+    public void recover(InputChannelInfo channelInfo, Buffer buffer) {
+        if (buffer.readableBytes() > 0) {
+            getChannel(channelInfo).onRecoveredStateBuffer(buffer);
+        } else {
+            buffer.recycleBuffer();
+        }
+    }
 
-	@Override
-	public void close() throws IOException {
-		// note that we need to finish all RecoveredInputChannels, not just those with state
-		for (final InputGate inputGate : inputGates) {
-			inputGate.finishReadRecoveredState();
-		}
-	}
+    @Override
+    public void close() throws IOException {
+        // note that we need to finish all RecoveredInputChannels, not just those with state
+        for (final InputGate inputGate : inputGates) {
+            inputGate.finishReadRecoveredState();
+        }
+    }
 
-	private RecoveredInputChannel getChannel(InputChannelInfo info) {
-		return (RecoveredInputChannel) inputGates[info.getGateIdx()].getChannel(info.getInputChannelIdx());
-	}
+    private RecoveredInputChannel getChannel(InputChannelInfo info) {
+        return (RecoveredInputChannel)
+                inputGates[info.getGateIdx()].getChannel(info.getInputChannelIdx());
+    }
 }
 
-class ResultSubpartitionRecoveredStateHandler implements RecoveredChannelStateHandler<ResultSubpartitionInfo, Tuple2<BufferBuilder, BufferConsumer>> {
+class ResultSubpartitionRecoveredStateHandler
+        implements RecoveredChannelStateHandler<
+                ResultSubpartitionInfo, Tuple2<BufferBuilder, BufferConsumer>> {
 
-	private final ResultPartitionWriter[] writers;
-	private final boolean notifyAndBlockOnCompletion;
+    private final ResultPartitionWriter[] writers;
+    private final boolean notifyAndBlockOnCompletion;
 
-	ResultSubpartitionRecoveredStateHandler(ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion) {
-		this.writers = writers;
-		this.notifyAndBlockOnCompletion = notifyAndBlockOnCompletion;
-	}
+    ResultSubpartitionRecoveredStateHandler(
+            ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion) {
+        this.writers = writers;
+        this.notifyAndBlockOnCompletion = notifyAndBlockOnCompletion;
+    }
 
-	@Override
-	public BufferWithContext<Tuple2<BufferBuilder, BufferConsumer>> getBuffer(ResultSubpartitionInfo subpartitionInfo) throws IOException, InterruptedException {
-		BufferBuilder bufferBuilder = getSubpartition(subpartitionInfo).requestBufferBuilderBlocking();
-		return new BufferWithContext<>(wrap(bufferBuilder), Tuple2.of(bufferBuilder, bufferBuilder.createBufferConsumer()));
-	}
+    @Override
+    public BufferWithContext<Tuple2<BufferBuilder, BufferConsumer>> getBuffer(
+            ResultSubpartitionInfo subpartitionInfo) throws IOException, InterruptedException {
+        BufferBuilder bufferBuilder =
+                getSubpartition(subpartitionInfo).requestBufferBuilderBlocking();
+        return new BufferWithContext<>(
+                wrap(bufferBuilder),
+                Tuple2.of(bufferBuilder, bufferBuilder.createBufferConsumer()));
+    }
 
-	@Override
-	public void recover(ResultSubpartitionInfo subpartitionInfo, Tuple2<BufferBuilder, BufferConsumer> bufferBuilderAndConsumer) throws IOException {
-		bufferBuilderAndConsumer.f0.finish();
-		if (bufferBuilderAndConsumer.f1.isDataAvailable()) {
-			boolean added = getSubpartition(subpartitionInfo).add(bufferBuilderAndConsumer.f1, Integer.MIN_VALUE);
-			if (!added) {
-				throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
-			}
-		} else {
-			bufferBuilderAndConsumer.f1.close();
-		}
-	}
+    @Override
+    public void recover(
+            ResultSubpartitionInfo subpartitionInfo,
+            Tuple2<BufferBuilder, BufferConsumer> bufferBuilderAndConsumer)
+            throws IOException {
+        bufferBuilderAndConsumer.f0.finish();
+        if (bufferBuilderAndConsumer.f1.isDataAvailable()) {
+            boolean added =
+                    getSubpartition(subpartitionInfo)
+                            .add(bufferBuilderAndConsumer.f1, Integer.MIN_VALUE);
+            if (!added) {
+                throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
+            }
+        } else {
+            bufferBuilderAndConsumer.f1.close();
+        }
+    }
 
-	private CheckpointedResultSubpartition getSubpartition(ResultSubpartitionInfo subpartitionInfo) {
-		ResultPartitionWriter writer = writers[subpartitionInfo.getPartitionIdx()];
-		if (writer instanceof CheckpointedResultPartition) {
-			return ((CheckpointedResultPartition) writer).getCheckpointedSubpartition(subpartitionInfo.getSubPartitionIdx());
-		} else {
-			throw new IllegalStateException(
-				"Cannot restore state to a non-checkpointable partition type: " + writer);
-		}
-	}
+    private CheckpointedResultSubpartition getSubpartition(
+            ResultSubpartitionInfo subpartitionInfo) {
+        ResultPartitionWriter writer = writers[subpartitionInfo.getPartitionIdx()];
+        if (writer instanceof CheckpointedResultPartition) {
+            return ((CheckpointedResultPartition) writer)
+                    .getCheckpointedSubpartition(subpartitionInfo.getSubPartitionIdx());
+        } else {
+            throw new IllegalStateException(
+                    "Cannot restore state to a non-checkpointable partition type: " + writer);
+        }
+    }
 
-	@Override
-	public void close() throws IOException {
-		for (ResultPartitionWriter writer : writers) {
-			if (writer instanceof CheckpointedResultPartition) {
-				((CheckpointedResultPartition) writer).finishReadRecoveredState(notifyAndBlockOnCompletion);
-			}
-		}
-	}
+    @Override
+    public void close() throws IOException {
+        for (ResultPartitionWriter writer : writers) {
+            if (writer instanceof CheckpointedResultPartition) {
+                ((CheckpointedResultPartition) writer)
+                        .finishReadRecoveredState(notifyAndBlockOnCompletion);
+            }
+        }
+    }
 }

@@ -24,93 +24,92 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
+
 import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.*;
 
-/**
- * Tests for the {@link CoLocationConstraint}.
- */
+/** Tests for the {@link CoLocationConstraint}. */
 public class CoLocationConstraintTest {
 
-	@Test
-	public void testCreateConstraints() {
-		JobVertexID id1 = new JobVertexID();
-		JobVertexID id2 = new JobVertexID();
+    @Test
+    public void testCreateConstraints() {
+        JobVertexID id1 = new JobVertexID();
+        JobVertexID id2 = new JobVertexID();
 
-		JobVertex vertex1 = new JobVertex("vertex1", id1);
-		vertex1.setParallelism(2);
+        JobVertex vertex1 = new JobVertex("vertex1", id1);
+        vertex1.setParallelism(2);
 
-		JobVertex vertex2 = new JobVertex("vertex2", id2);
-		vertex2.setParallelism(3);
+        JobVertex vertex2 = new JobVertex("vertex2", id2);
+        vertex2.setParallelism(3);
 
-		CoLocationGroup group = new CoLocationGroup(vertex1, vertex2);
+        CoLocationGroup group = new CoLocationGroup(vertex1, vertex2);
 
-		AbstractID groupId = group.getId();
-		assertNotNull(groupId);
+        AbstractID groupId = group.getId();
+        assertNotNull(groupId);
 
-		CoLocationConstraint constraint1 = group.getLocationConstraint(0);
-		CoLocationConstraint constraint2 = group.getLocationConstraint(1);
-		CoLocationConstraint constraint3 = group.getLocationConstraint(2);
+        CoLocationConstraint constraint1 = group.getLocationConstraint(0);
+        CoLocationConstraint constraint2 = group.getLocationConstraint(1);
+        CoLocationConstraint constraint3 = group.getLocationConstraint(2);
 
-		assertFalse(constraint1 == constraint2);
-		assertFalse(constraint1 == constraint3);
-		assertFalse(constraint2 == constraint3);
+        assertFalse(constraint1 == constraint2);
+        assertFalse(constraint1 == constraint3);
+        assertFalse(constraint2 == constraint3);
 
-		assertEquals(groupId, constraint1.getGroupId());
-		assertEquals(groupId, constraint2.getGroupId());
-		assertEquals(groupId, constraint3.getGroupId());
-	}
+        assertEquals(groupId, constraint1.getGroupId());
+        assertEquals(groupId, constraint2.getGroupId());
+        assertEquals(groupId, constraint3.getGroupId());
+    }
 
-	@Test
-	public void testLockLocation() {
-		JobVertex vertex = new JobVertex("vertex");
-		vertex.setParallelism(1);
+    @Test
+    public void testLockLocation() {
+        JobVertex vertex = new JobVertex("vertex");
+        vertex.setParallelism(1);
 
-		CoLocationGroup constraintGroup = new CoLocationGroup(vertex);
-		CoLocationConstraint constraint = constraintGroup.getLocationConstraint(0);
+        CoLocationGroup constraintGroup = new CoLocationGroup(vertex);
+        CoLocationConstraint constraint = constraintGroup.getLocationConstraint(0);
 
-		// constraint is completely unassigned
-		assertThat(constraint.getSlotRequestId(), is(nullValue()));
-		assertThat(constraint.isAssigned(), is(false));
+        // constraint is completely unassigned
+        assertThat(constraint.getSlotRequestId(), is(nullValue()));
+        assertThat(constraint.isAssigned(), is(false));
 
-		// set the slot, but do not lock the location yet
-		SlotRequestId slotRequestId = new SlotRequestId();
-		constraint.setSlotRequestId(slotRequestId);
-		assertThat(constraint.isAssigned(), is(false));
+        // set the slot, but do not lock the location yet
+        SlotRequestId slotRequestId = new SlotRequestId();
+        constraint.setSlotRequestId(slotRequestId);
+        assertThat(constraint.isAssigned(), is(false));
 
-		// try to get the location
-		try {
-			constraint.getLocation();
-			fail("should throw an IllegalStateException");
-		} catch (IllegalStateException e) {
-			// as expected
-		} catch (Exception e) {
-			fail("wrong exception, should be IllegalStateException");
-		}
+        // try to get the location
+        try {
+            constraint.getLocation();
+            fail("should throw an IllegalStateException");
+        } catch (IllegalStateException e) {
+            // as expected
+        } catch (Exception e) {
+            fail("wrong exception, should be IllegalStateException");
+        }
 
-		TaskManagerLocation location = new LocalTaskManagerLocation();
-		constraint.lockLocation(location);
+        TaskManagerLocation location = new LocalTaskManagerLocation();
+        constraint.lockLocation(location);
 
-		// now, the location is assigned and we have a location
-		assertThat(constraint.isAssigned(), is(true));
-		assertThat(constraint.getLocation(), is(location));
+        // now, the location is assigned and we have a location
+        assertThat(constraint.isAssigned(), is(true));
+        assertThat(constraint.getLocation(), is(location));
 
-		// we can not lock a different location
-		try {
-			TaskManagerLocation anotherLocation = new LocalTaskManagerLocation();
-			constraint.lockLocation(anotherLocation);
-			fail("should throw an IllegalStateException");
-		} catch (IllegalStateException e) {
-			// as expected
-		} catch (Exception e) {
-			fail("wrong exception, should be IllegalStateException");
-		}
+        // we can not lock a different location
+        try {
+            TaskManagerLocation anotherLocation = new LocalTaskManagerLocation();
+            constraint.lockLocation(anotherLocation);
+            fail("should throw an IllegalStateException");
+        } catch (IllegalStateException e) {
+            // as expected
+        } catch (Exception e) {
+            fail("wrong exception, should be IllegalStateException");
+        }
 
-		constraint.setSlotRequestId(null);
-		assertThat(constraint.isAssigned(), is(true));
-		assertThat(constraint.getLocation(), is(location));
-	}
+        constraint.setSlotRequestId(null);
+        assertThat(constraint.isAssigned(), is(true));
+        assertThat(constraint.getLocation(), is(location));
+    }
 }

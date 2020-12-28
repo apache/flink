@@ -25,43 +25,40 @@ import org.slf4j.LoggerFactory;
 
 import static org.apache.flink.kubernetes.utils.Constants.CHECKPOINT_ID_KEY_PREFIX;
 
-/**
- * Singleton {@link CheckpointStoreUtil} implementation for Kubernetes.
- *
- */
+/** Singleton {@link CheckpointStoreUtil} implementation for Kubernetes. */
 public enum KubernetesCheckpointStoreUtil implements CheckpointStoreUtil {
-	INSTANCE;
+    INSTANCE;
 
-	private static final Logger LOG = LoggerFactory.getLogger(KubernetesCheckpointStoreUtil.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KubernetesCheckpointStoreUtil.class);
 
-	/**
-	 * Convert a checkpoint id into a ConfigMap key.
-	 *
-	 * @param checkpointId to convert to the key
-	 *
-	 * @return key created from the given checkpoint id
-	 */
-	@Override
-	public String checkpointIDToName(long checkpointId) {
-		return CHECKPOINT_ID_KEY_PREFIX + String.format("%019d", checkpointId);
-	}
+    /**
+     * Convert a checkpoint id into a ConfigMap key.
+     *
+     * @param checkpointId to convert to the key
+     * @return key created from the given checkpoint id
+     */
+    @Override
+    public String checkpointIDToName(long checkpointId) {
+        return CHECKPOINT_ID_KEY_PREFIX + String.format("%019d", checkpointId);
+    }
 
-	/**
-	 * Converts a key in ConfigMap to the checkpoint id.
-	 *
-	 * @param key in ConfigMap
-	 *
-	 * @return Checkpoint id parsed from the key
-	 */
-	@Override
-	public long nameToCheckpointID(String key) {
-		try {
-			return Long.parseLong(key.substring(CHECKPOINT_ID_KEY_PREFIX.length()));
-		} catch (NumberFormatException e) {
-			LOG.warn("Could not parse checkpoint id from {}. This indicates that the " +
-				"checkpoint id to path conversion has changed.", key);
+    /**
+     * Converts a key in ConfigMap to the checkpoint id.
+     *
+     * @param key in ConfigMap
+     * @return Checkpoint id parsed from the key
+     */
+    @Override
+    public long nameToCheckpointID(String key) {
+        try {
+            return Long.parseLong(key.substring(CHECKPOINT_ID_KEY_PREFIX.length()));
+        } catch (NumberFormatException e) {
+            LOG.warn(
+                    "Could not parse checkpoint id from {}. This indicates that the "
+                            + "checkpoint id to path conversion has changed.",
+                    key);
 
-			return INVALID_CHECKPOINT_ID;
-		}
-	}
+            return INVALID_CHECKPOINT_ID;
+        }
+    }
 }

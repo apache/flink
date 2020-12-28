@@ -28,63 +28,63 @@ import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 
 import java.io.IOException;
 
-/**
- * An {@link AggregatingState} which keeps value for a single key at a time.
- */
+/** An {@link AggregatingState} which keeps value for a single key at a time. */
 class BatchExecutionKeyAggregatingState<K, N, IN, ACC, OUT>
-		extends MergingAbstractBatchExecutionKeyState<K, N, ACC, IN, OUT>
-		implements InternalAggregatingState<K, N, IN, ACC, OUT> {
+        extends MergingAbstractBatchExecutionKeyState<K, N, ACC, IN, OUT>
+        implements InternalAggregatingState<K, N, IN, ACC, OUT> {
 
-	private final AggregateFunction<IN, ACC, OUT> aggFunction;
+    private final AggregateFunction<IN, ACC, OUT> aggFunction;
 
-	public BatchExecutionKeyAggregatingState(
-			ACC defaultValue,
-			AggregateFunction<IN, ACC, OUT> aggregateFunction,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<ACC> stateSerializer) {
-		super(defaultValue, keySerializer, namespaceSerializer, stateSerializer);
-		this.aggFunction = aggregateFunction;
-	}
+    public BatchExecutionKeyAggregatingState(
+            ACC defaultValue,
+            AggregateFunction<IN, ACC, OUT> aggregateFunction,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<ACC> stateSerializer) {
+        super(defaultValue, keySerializer, namespaceSerializer, stateSerializer);
+        this.aggFunction = aggregateFunction;
+    }
 
-	@Override
-	public OUT get() {
-		ACC acc = getOrDefault();
-		return acc != null ? aggFunction.getResult(acc) : null;
-	}
+    @Override
+    public OUT get() {
+        ACC acc = getOrDefault();
+        return acc != null ? aggFunction.getResult(acc) : null;
+    }
 
-	@Override
-	public void add(IN value) throws IOException {
-		if (value == null) {
-			clear();
-			return;
-		}
+    @Override
+    public void add(IN value) throws IOException {
+        if (value == null) {
+            clear();
+            return;
+        }
 
-		try {
-			if (getCurrentNamespaceValue() == null) {
-				setCurrentNamespaceValue(aggFunction.createAccumulator());
-			}
-			setCurrentNamespaceValue(aggFunction.add(value, getCurrentNamespaceValue()));
-		} catch (Exception e) {
-			throw new IOException("Exception while applying AggregateFunction in aggregating state", e);
-		}
-	}
+        try {
+            if (getCurrentNamespaceValue() == null) {
+                setCurrentNamespaceValue(aggFunction.createAccumulator());
+            }
+            setCurrentNamespaceValue(aggFunction.add(value, getCurrentNamespaceValue()));
+        } catch (Exception e) {
+            throw new IOException(
+                    "Exception while applying AggregateFunction in aggregating state", e);
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	static <T, K, N, SV, S extends State, IS extends S> IS create(
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, SV> stateDesc) {
-		return (IS) new BatchExecutionKeyAggregatingState<>(
-			stateDesc.getDefaultValue(),
-			((AggregatingStateDescriptor<T, SV, ?>) stateDesc).getAggregateFunction(),
-			keySerializer,
-			namespaceSerializer,
-			stateDesc.getSerializer());
-	}
+    @SuppressWarnings("unchecked")
+    static <T, K, N, SV, S extends State, IS extends S> IS create(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<S, SV> stateDesc) {
+        return (IS)
+                new BatchExecutionKeyAggregatingState<>(
+                        stateDesc.getDefaultValue(),
+                        ((AggregatingStateDescriptor<T, SV, ?>) stateDesc).getAggregateFunction(),
+                        keySerializer,
+                        namespaceSerializer,
+                        stateDesc.getSerializer());
+    }
 
-	@Override
-	protected ACC merge(ACC target, ACC source) {
-		return aggFunction.merge(target, source);
-	}
+    @Override
+    protected ACC merge(ACC target, ACC source) {
+        return aggFunction.merge(target, source);
+    }
 }

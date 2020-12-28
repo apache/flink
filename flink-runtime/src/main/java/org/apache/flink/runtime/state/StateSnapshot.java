@@ -28,49 +28,48 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
- * General interface for state snapshots that should be written partitioned by key-groups.
- * All snapshots should be released after usage. This interface outlines the asynchronous snapshot life-cycle, which
- * typically looks as follows. In the synchronous part of a checkpoint, an instance of {@link StateSnapshot} is produced
- * for a state and captures the state at this point in time. Then, in the asynchronous part of the checkpoint, the user
- * calls {@link #getKeyGroupWriter()} to ensure that the snapshot is partitioned into key-groups. For state that is
- * already partitioned, this can be a NOP. The returned {@link StateKeyGroupWriter} can be used by the caller
- * to write the state by key-group. As a last step, when the state is completely written, the user calls
- * {@link #release()}.
+ * General interface for state snapshots that should be written partitioned by key-groups. All
+ * snapshots should be released after usage. This interface outlines the asynchronous snapshot
+ * life-cycle, which typically looks as follows. In the synchronous part of a checkpoint, an
+ * instance of {@link StateSnapshot} is produced for a state and captures the state at this point in
+ * time. Then, in the asynchronous part of the checkpoint, the user calls {@link
+ * #getKeyGroupWriter()} to ensure that the snapshot is partitioned into key-groups. For state that
+ * is already partitioned, this can be a NOP. The returned {@link StateKeyGroupWriter} can be used
+ * by the caller to write the state by key-group. As a last step, when the state is completely
+ * written, the user calls {@link #release()}.
  */
 @Internal
 public interface StateSnapshot {
 
-	/**
-	 * This method returns {@link StateKeyGroupWriter} and should be called in the asynchronous part of the snapshot.
-	 */
-	@Nonnull
-	StateKeyGroupWriter getKeyGroupWriter();
+    /**
+     * This method returns {@link StateKeyGroupWriter} and should be called in the asynchronous part
+     * of the snapshot.
+     */
+    @Nonnull
+    StateKeyGroupWriter getKeyGroupWriter();
 
-	/**
-	 * Returns a snapshot of the state's meta data.
-	 */
-	@Nonnull
-	StateMetaInfoSnapshot getMetaInfoSnapshot();
+    /** Returns a snapshot of the state's meta data. */
+    @Nonnull
+    StateMetaInfoSnapshot getMetaInfoSnapshot();
 
-	/**
-	 * Release the snapshot. All snapshots should be released when they are no longer used because some implementation
-	 * can only release resources after a release. Produced {@link StateKeyGroupWriter} should no longer be used
-	 * after calling this method.
-	 */
-	void release();
+    /**
+     * Release the snapshot. All snapshots should be released when they are no longer used because
+     * some implementation can only release resources after a release. Produced {@link
+     * StateKeyGroupWriter} should no longer be used after calling this method.
+     */
+    void release();
 
-	/**
-	 * Interface for writing a snapshot that is partitioned into key-groups.
-	 */
-	interface StateKeyGroupWriter {
-		/**
-		 * Writes the data for the specified key-group to the output. You must call {@link #getKeyGroupWriter()} once
-		 * before first calling this method.
-		 *
-		 * @param dov        the output.
-		 * @param keyGroupId the key-group to write.
-		 * @throws IOException on write-related problems.
-		 */
-		void writeStateInKeyGroup(@Nonnull DataOutputView dov, @Nonnegative int keyGroupId) throws IOException;
-	}
+    /** Interface for writing a snapshot that is partitioned into key-groups. */
+    interface StateKeyGroupWriter {
+        /**
+         * Writes the data for the specified key-group to the output. You must call {@link
+         * #getKeyGroupWriter()} once before first calling this method.
+         *
+         * @param dov the output.
+         * @param keyGroupId the key-group to write.
+         * @throws IOException on write-related problems.
+         */
+        void writeStateInKeyGroup(@Nonnull DataOutputView dov, @Nonnegative int keyGroupId)
+                throws IOException;
+    }
 }

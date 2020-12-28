@@ -28,31 +28,29 @@ import org.hamcrest.Matcher;
 
 import java.util.List;
 
-/**
- * List of matchers that might be useful in the table ecosystem.
- */
+/** List of matchers that might be useful in the table ecosystem. */
 @Internal
 public final class TableTestMatchers {
 
-	public static Matcher<List<Row>> deepEqualTo(List<Row> rows, boolean ignoreOrder) {
-		return new BaseMatcher<List<Row>>() {
+    public static Matcher<List<Row>> deepEqualTo(List<Row> rows, boolean ignoreOrder) {
+        return new BaseMatcher<List<Row>>() {
 
-			@Override
-			public void describeTo(Description description) {
-				description.appendValueList("", "\n", "", rows);
-			}
+            @Override
+            public void describeTo(Description description) {
+                description.appendValueList("", "\n", "", rows);
+            }
 
-			@Override
-			@SuppressWarnings("unchecked")
-			public void describeMismatch(Object item, Description description) {
-				description.appendText("was ").appendValueList("", "\n", "", (List<Row>) item);
-			}
+            @Override
+            @SuppressWarnings("unchecked")
+            public void describeMismatch(Object item, Description description) {
+                description.appendText("was ").appendValueList("", "\n", "", (List<Row>) item);
+            }
 
-			@Override
-			@SuppressWarnings("unchecked")
-			public boolean matches(Object item) {
-				return RowUtils.compareRows(rows, (List<Row>) item, ignoreOrder);
-			}
-		};
-	}
+            @Override
+            @SuppressWarnings("unchecked")
+            public boolean matches(Object item) {
+                return RowUtils.compareRows(rows, (List<Row>) item, ignoreOrder);
+            }
+        };
+    }
 }

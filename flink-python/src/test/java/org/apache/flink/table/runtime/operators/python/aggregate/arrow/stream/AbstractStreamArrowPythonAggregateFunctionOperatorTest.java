@@ -33,34 +33,38 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 
-/**
- * Base class for Stream Arrow Python aggregate function operator tests.
- */
+/** Base class for Stream Arrow Python aggregate function operator tests. */
 public abstract class AbstractStreamArrowPythonAggregateFunctionOperatorTest
-	extends ArrowPythonAggregateFunctionOperatorTestBase {
+        extends ArrowPythonAggregateFunctionOperatorTestBase {
 
-	public OneInputStreamOperatorTestHarness<RowData, RowData> getTestHarness(
-		Configuration config) throws Exception {
-		RowType inputType = getInputType();
-		RowType outputType = getOutputType();
-		AbstractArrowPythonAggregateFunctionOperator operator = getTestOperator(
-			config,
-			new PythonFunctionInfo[]{
-				new PythonFunctionInfo(
-					PythonScalarFunctionOperatorTestBase.DummyPythonFunction.INSTANCE,
-					new Integer[]{0})},
-			inputType,
-			outputType,
-			new int[]{0},
-			new int[]{2});
+    public OneInputStreamOperatorTestHarness<RowData, RowData> getTestHarness(Configuration config)
+            throws Exception {
+        RowType inputType = getInputType();
+        RowType outputType = getOutputType();
+        AbstractArrowPythonAggregateFunctionOperator operator =
+                getTestOperator(
+                        config,
+                        new PythonFunctionInfo[] {
+                            new PythonFunctionInfo(
+                                    PythonScalarFunctionOperatorTestBase.DummyPythonFunction
+                                            .INSTANCE,
+                                    new Integer[] {0})
+                        },
+                        inputType,
+                        outputType,
+                        new int[] {0},
+                        new int[] {2});
 
-		int[] grouping = new int[] {0};
-		RowDataKeySelector keySelector =
-			KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(getInputType()));
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keySelector.getProducedType());
-		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
-		testHarness.setup(new RowDataSerializer(outputType));
-		return testHarness;
-	}
+        int[] grouping = new int[] {0};
+        RowDataKeySelector keySelector =
+                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(getInputType()));
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        operator, keySelector, keySelector.getProducedType());
+        testHarness
+                .getStreamConfig()
+                .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
+        testHarness.setup(new RowDataSerializer(outputType));
+        return testHarness;
+    }
 }

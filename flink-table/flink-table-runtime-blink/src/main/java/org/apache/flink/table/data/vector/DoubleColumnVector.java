@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.data.vector;
 
-/**
- * Double column vector.
- */
+/** Double column vector. */
 public interface DoubleColumnVector extends ColumnVector {
-	double getDouble(int i);
+    double getDouble(int i);
 }

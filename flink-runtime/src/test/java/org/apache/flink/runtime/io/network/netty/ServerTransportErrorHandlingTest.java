@@ -51,64 +51,74 @@ import static org.mockito.Mockito.when;
 
 public class ServerTransportErrorHandlingTest {
 
-	/**
-	 * Verifies remote closes trigger the release of all resources.
-	 */
-	@Test
-	public void testRemoteClose() throws Exception {
-		final TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
+    /** Verifies remote closes trigger the release of all resources. */
+    @Test
+    public void testRemoteClose() throws Exception {
+        final TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
 
-		final CountDownLatch sync = new CountDownLatch(1);
+        final CountDownLatch sync = new CountDownLatch(1);
 
-		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+        final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
-		when(partitionManager
-			.createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class)))
-			.thenAnswer(new Answer<ResultSubpartitionView>() {
-				@Override
-				public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
-					BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-					listener.notifyDataAvailable();
-					return new CancelPartitionRequestTest.InfiniteSubpartitionView(outboundBuffers, sync);
-				}
-			});
+        when(partitionManager.createSubpartitionView(
+                        any(ResultPartitionID.class),
+                        anyInt(),
+                        any(BufferAvailabilityListener.class)))
+                .thenAnswer(
+                        new Answer<ResultSubpartitionView>() {
+                            @Override
+                            public ResultSubpartitionView answer(InvocationOnMock invocationOnMock)
+                                    throws Throwable {
+                                BufferAvailabilityListener listener =
+                                        (BufferAvailabilityListener)
+                                                invocationOnMock.getArguments()[2];
+                                listener.notifyDataAvailable();
+                                return new CancelPartitionRequestTest.InfiniteSubpartitionView(
+                                        outboundBuffers, sync);
+                            }
+                        });
 
-		NettyProtocol protocol = new NettyProtocol(partitionManager, mock(TaskEventDispatcher.class)) {
+        NettyProtocol protocol =
+                new NettyProtocol(partitionManager, mock(TaskEventDispatcher.class)) {
 
-			@Override
-			public ChannelHandler[] getClientChannelHandlers() {
-				return new ChannelHandler[]{
-					new NettyMessage.NettyMessageEncoder(),
-					// Close on read
-					new ChannelInboundHandlerAdapter() {
-						@Override
-						public void channelRead(ChannelHandlerContext ctx, Object msg)
-							throws Exception {
+                    @Override
+                    public ChannelHandler[] getClientChannelHandlers() {
+                        return new ChannelHandler[] {
+                            new NettyMessage.NettyMessageEncoder(),
+                            // Close on read
+                            new ChannelInboundHandlerAdapter() {
+                                @Override
+                                public void channelRead(ChannelHandlerContext ctx, Object msg)
+                                        throws Exception {
 
-							ctx.channel().close();
-						}
-					}
-				};
-			}
-		};
+                                    ctx.channel().close();
+                                }
+                            }
+                        };
+                    }
+                };
 
-		NettyTestUtil.NettyServerAndClient serverAndClient = null;
+        NettyTestUtil.NettyServerAndClient serverAndClient = null;
 
-		try {
-			serverAndClient = initServerAndClient(protocol, createConfig());
+        try {
+            serverAndClient = initServerAndClient(protocol, createConfig());
 
-			Channel ch = connect(serverAndClient);
+            Channel ch = connect(serverAndClient);
 
-			// Write something to trigger close by server
-			ch.writeAndFlush(new NettyMessage.PartitionRequest(new ResultPartitionID(), 0, new InputChannelID(), Integer.MAX_VALUE));
+            // Write something to trigger close by server
+            ch.writeAndFlush(
+                    new NettyMessage.PartitionRequest(
+                            new ResultPartitionID(), 0, new InputChannelID(), Integer.MAX_VALUE));
 
-			// Wait for the notification
-			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
-				fail("Timed out after waiting for " + TestingUtils.TESTING_DURATION().toMillis() +
-					" ms to be notified about released partition.");
-			}
-		} finally {
-			shutdown(serverAndClient);
-		}
-	}
+            // Wait for the notification
+            if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
+                fail(
+                        "Timed out after waiting for "
+                                + TestingUtils.TESTING_DURATION().toMillis()
+                                + " ms to be notified about released partition.");
+            }
+        } finally {
+            shutdown(serverAndClient);
+        }
+    }
 }

@@ -23,128 +23,111 @@ import java.sql.Timestamp;
 import java.util.Map;
 import java.util.TreeMap;
 
-/**
- * POJOs for Table API testing.
- */
+/** POJOs for Table API testing. */
 public class JavaPojos {
 
-	/**
-	 * Pojo1 for test.
-	 */
-	public static class Pojo1 implements Serializable {
+    /** Pojo1 for test. */
+    public static class Pojo1 implements Serializable {
 
-		public Timestamp ts;
-		public String msg;
+        public Timestamp ts;
+        public String msg;
 
-		@Override
-		public String toString() {
-			return "Pojo1{" +
-					"ts=" + ts +
-					", msg='" + msg + '\'' +
-					'}';
-		}
-	}
+        @Override
+        public String toString() {
+            return "Pojo1{" + "ts=" + ts + ", msg='" + msg + '\'' + '}';
+        }
+    }
 
-	/**
-	 * Nested POJO.
-	 */
-	public static class Order {
-		public Long user;
-		public ProductItem product;
-		public int amount;
+    /** Nested POJO. */
+    public static class Order {
+        public Long user;
+        public ProductItem product;
+        public int amount;
 
-		public Order() {
-		}
+        public Order() {}
 
-		public Order(Long user, ProductItem product, int amount) {
-			this.user = user;
-			this.product = product;
-			this.amount = amount;
-		}
+        public Order(Long user, ProductItem product, int amount) {
+            this.user = user;
+            this.product = product;
+            this.amount = amount;
+        }
 
-		@Override
-		public String toString() {
-			return "Order{" +
-				"user=" + user +
-				", product='" + product + '\'' +
-				", amount=" + amount +
-				'}';
-		}
-	}
+        @Override
+        public String toString() {
+            return "Order{"
+                    + "user="
+                    + user
+                    + ", product='"
+                    + product
+                    + '\''
+                    + ", amount="
+                    + amount
+                    + '}';
+        }
+    }
 
-	/**
-	 * Simple POJO.
-	 */
-	public static class ProductItem {
-		public String name;
-		public Long id;
+    /** Simple POJO. */
+    public static class ProductItem {
+        public String name;
+        public Long id;
 
-		public ProductItem() {
-		}
+        public ProductItem() {}
 
-		public ProductItem(String name, Long id) {
-			this.name = name;
-			this.id = id;
-		}
+        public ProductItem(String name, Long id) {
+            this.name = name;
+            this.id = id;
+        }
 
-		@Override
-		public String toString() {
-			return "Product{" +
-				"name='" + name + '\'' +
-				", id=" + id +
-				'}';
-		}
-	}
+        @Override
+        public String toString() {
+            return "Product{" + "name='" + name + '\'' + ", id=" + id + '}';
+        }
+    }
 
-	/**
-	 * POJO with a RAW type.
-	 */
-	public static class Device {
-		public Long deviceId;
-		public String deviceName;
-		// raw type
-		public TreeMap<String, Long> metrics;
+    /** POJO with a RAW type. */
+    public static class Device {
+        public Long deviceId;
+        public String deviceName;
+        // raw type
+        public TreeMap<String, Long> metrics;
 
-		public Device() {
-		}
+        public Device() {}
 
-		public Device(Long deviceId, String deviceName, Map<String, Long> metrics) {
-			this.deviceId = deviceId;
-			this.deviceName = deviceName;
-			this.metrics = new TreeMap<>(metrics);
-		}
+        public Device(Long deviceId, String deviceName, Map<String, Long> metrics) {
+            this.deviceId = deviceId;
+            this.deviceName = deviceName;
+            this.metrics = new TreeMap<>(metrics);
+        }
 
-		@Override
-		public String toString() {
-			return "Device{" +
-				"deviceId=" + deviceId +
-				", deviceName='" + deviceName + '\'' +
-				", metrics=" + metrics +
-				'}';
-		}
-	}
+        @Override
+        public String toString() {
+            return "Device{"
+                    + "deviceId="
+                    + deviceId
+                    + ", deviceName='"
+                    + deviceName
+                    + '\''
+                    + ", metrics="
+                    + metrics
+                    + '}';
+        }
+    }
 
-	/**
-	 * A POJO class.
-	 */
-	public static class Person {
-		public String name;
-		public int age;
+    /** A POJO class. */
+    public static class Person {
+        public String name;
+        public int age;
 
-		public Person() {
-		}
+        public Person() {}
 
-		public Person(String name, int age) {
-			this.name = name;
-			this.age = age;
-		}
+        public Person(String name, int age) {
+            this.name = name;
+            this.age = age;
+        }
 
-		@Override
-		public String toString() {
-			return "Person{" +
-				"name='" + name + '\'' +
-				", age=" + age +
-				'}';
-		}
-	}
+        @Override
+        public String toString() {
+            return "Person{" + "name='" + name + '\'' + ", age=" + age + '}';
+        }
+    }
 }

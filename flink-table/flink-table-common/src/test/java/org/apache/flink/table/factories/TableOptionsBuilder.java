@@ -28,37 +28,37 @@ import java.util.Map;
  * implementations.
  */
 public class TableOptionsBuilder {
-	private final Map<String, String> options;
-	private final String connector;
-	private final String format;
+    private final Map<String, String> options;
+    private final String connector;
+    private final String format;
 
-	public TableOptionsBuilder(String connector, String format) {
-		this.options = new HashMap<>();
-		this.connector = connector;
-		this.format = format;
-	}
+    public TableOptionsBuilder(String connector, String format) {
+        this.options = new HashMap<>();
+        this.connector = connector;
+        this.format = format;
+    }
 
-	public TableOptionsBuilder withTableOption(ConfigOption<?> option, String value) {
-		return withTableOption(option.key(), value);
-	}
+    public TableOptionsBuilder withTableOption(ConfigOption<?> option, String value) {
+        return withTableOption(option.key(), value);
+    }
 
-	public TableOptionsBuilder withFormatOption(ConfigOption<?> option, String value) {
-		return withFormatOption(format + "." + option.key(), value);
-	}
+    public TableOptionsBuilder withFormatOption(ConfigOption<?> option, String value) {
+        return withFormatOption(format + "." + option.key(), value);
+    }
 
-	public TableOptionsBuilder withTableOption(String key, String value) {
-		options.put(key, value);
-		return this;
-	}
+    public TableOptionsBuilder withTableOption(String key, String value) {
+        options.put(key, value);
+        return this;
+    }
 
-	public TableOptionsBuilder withFormatOption(String key, String value) {
-		options.put(key, value);
-		return this;
-	}
+    public TableOptionsBuilder withFormatOption(String key, String value) {
+        options.put(key, value);
+        return this;
+    }
 
-	public Map<String, String> build() {
-		withTableOption(FactoryUtil.CONNECTOR, connector);
-		withTableOption(FactoryUtil.FORMAT, format);
-		return options;
-	}
+    public Map<String, String> build() {
+        withTableOption(FactoryUtil.CONNECTOR, connector);
+        withTableOption(FactoryUtil.FORMAT, format);
+        return options;
+    }
 }

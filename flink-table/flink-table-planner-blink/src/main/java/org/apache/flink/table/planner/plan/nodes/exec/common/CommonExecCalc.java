@@ -38,61 +38,62 @@ import org.apache.calcite.rex.RexProgram;
 import java.util.Collections;
 import java.util.Optional;
 
-/**
- * Base class for exec Calc.
- */
+/** Base class for exec Calc. */
 public abstract class CommonExecCalc extends ExecNodeBase<RowData> {
-	private final RexProgram calcProgram;
-	private final Class<?> operatorBaseClass;
-	private final boolean retainHeader;
+    private final RexProgram calcProgram;
+    private final Class<?> operatorBaseClass;
+    private final boolean retainHeader;
 
-	public CommonExecCalc(
-			RexProgram calcProgram,
-			Class<?> operatorBaseClass,
-			boolean retainHeader,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-		this.calcProgram = calcProgram;
-		this.operatorBaseClass = operatorBaseClass;
-		this.retainHeader = retainHeader;
-	}
+    public CommonExecCalc(
+            RexProgram calcProgram,
+            Class<?> operatorBaseClass,
+            boolean retainHeader,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputEdge), outputType, description);
+        this.calcProgram = calcProgram;
+        this.operatorBaseClass = operatorBaseClass;
+        this.retainHeader = retainHeader;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-		final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-		final CodeGeneratorContext ctx = new CodeGeneratorContext(planner.getTableConfig())
-				.setOperatorBaseClass(operatorBaseClass);
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
+        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final CodeGeneratorContext ctx =
+                new CodeGeneratorContext(planner.getTableConfig())
+                        .setOperatorBaseClass(operatorBaseClass);
 
-		final Optional<RexNode> condition;
-		if (calcProgram.getCondition() != null) {
-			condition = Optional.of(calcProgram.expandLocalRef(calcProgram.getCondition()));
-		} else {
-			condition = Optional.empty();
-		}
+        final Optional<RexNode> condition;
+        if (calcProgram.getCondition() != null) {
+            condition = Optional.of(calcProgram.expandLocalRef(calcProgram.getCondition()));
+        } else {
+            condition = Optional.empty();
+        }
 
-		final CodeGenOperatorFactory<RowData> substituteStreamOperator = CalcCodeGenerator.generateCalcOperator(
-				ctx,
-				inputTransform,
-				(RowType) getOutputType(),
-				calcProgram,
-				JavaScalaConversionUtil.toScala(condition),
-				retainHeader,
-				getClass().getSimpleName());
-		final Transformation<RowData> transformation = new OneInputTransformation<>(
-				inputTransform,
-				getDesc(),
-				substituteStreamOperator,
-				InternalTypeInfo.of(getOutputType()),
-				inputTransform.getParallelism());
+        final CodeGenOperatorFactory<RowData> substituteStreamOperator =
+                CalcCodeGenerator.generateCalcOperator(
+                        ctx,
+                        inputTransform,
+                        (RowType) getOutputType(),
+                        calcProgram,
+                        JavaScalaConversionUtil.toScala(condition),
+                        retainHeader,
+                        getClass().getSimpleName());
+        final Transformation<RowData> transformation =
+                new OneInputTransformation<>(
+                        inputTransform,
+                        getDesc(),
+                        substituteStreamOperator,
+                        InternalTypeInfo.of(getOutputType()),
+                        inputTransform.getParallelism());
 
-		if (inputsContainSingleton()) {
-			transformation.setParallelism(1);
-			transformation.setMaxParallelism(1);
-		}
-		return transformation;
-	}
+        if (inputsContainSingleton()) {
+            transformation.setParallelism(1);
+            transformation.setMaxParallelism(1);
+        }
+        return transformation;
+    }
 }

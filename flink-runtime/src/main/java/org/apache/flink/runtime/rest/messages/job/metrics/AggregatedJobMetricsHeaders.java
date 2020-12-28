@@ -18,32 +18,30 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
-/**
- * Headers for aggregating job metrics.
- */
-public class AggregatedJobMetricsHeaders extends AbstractAggregatedMetricsHeaders<AggregatedJobMetricsParameters> {
+/** Headers for aggregating job metrics. */
+public class AggregatedJobMetricsHeaders
+        extends AbstractAggregatedMetricsHeaders<AggregatedJobMetricsParameters> {
 
-	private static final AggregatedJobMetricsHeaders INSTANCE = new AggregatedJobMetricsHeaders();
+    private static final AggregatedJobMetricsHeaders INSTANCE = new AggregatedJobMetricsHeaders();
 
-	private AggregatedJobMetricsHeaders() {
-	}
+    private AggregatedJobMetricsHeaders() {}
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/jobs/metrics";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/jobs/metrics";
+    }
 
-	@Override
-	public AggregatedJobMetricsParameters getUnresolvedMessageParameters() {
-		return new AggregatedJobMetricsParameters();
-	}
+    @Override
+    public AggregatedJobMetricsParameters getUnresolvedMessageParameters() {
+        return new AggregatedJobMetricsParameters();
+    }
 
-	public static AggregatedJobMetricsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static AggregatedJobMetricsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Provides access to aggregated job metrics.";
-	}
+    @Override
+    public String getDescription() {
+        return "Provides access to aggregated job metrics.";
+    }
 }

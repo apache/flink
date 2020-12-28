@@ -30,8 +30,9 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.After;
 import org.junit.Before;
@@ -59,154 +60,154 @@ import static org.junit.Assert.assertTrue;
  */
 public class NettyMessageClientSideSerializationTest extends TestLogger {
 
-	private static final int BUFFER_SIZE = 1024;
+    private static final int BUFFER_SIZE = 1024;
 
-	private static final BufferCompressor COMPRESSOR = new BufferCompressor(BUFFER_SIZE, "LZ4");
+    private static final BufferCompressor COMPRESSOR = new BufferCompressor(BUFFER_SIZE, "LZ4");
 
-	private static final BufferDecompressor DECOMPRESSOR = new BufferDecompressor(BUFFER_SIZE, "LZ4");
+    private static final BufferDecompressor DECOMPRESSOR =
+            new BufferDecompressor(BUFFER_SIZE, "LZ4");
 
-	private final Random random = new Random();
+    private final Random random = new Random();
 
-	private EmbeddedChannel channel;
+    private EmbeddedChannel channel;
 
-	private NetworkBufferPool networkBufferPool;
+    private NetworkBufferPool networkBufferPool;
 
-	private SingleInputGate inputGate;
+    private SingleInputGate inputGate;
 
-	private InputChannelID inputChannelId;
+    private InputChannelID inputChannelId;
 
-	@Before
-	public void setup() throws IOException, InterruptedException {
-		networkBufferPool = new NetworkBufferPool(8, BUFFER_SIZE);
-		inputGate = createSingleInputGate(1, networkBufferPool);
-		RemoteInputChannel inputChannel = createRemoteInputChannel(
-			inputGate,
-			new TestingPartitionRequestClient());
-		inputChannel.requestSubpartition(0);
-		inputGate.setInputChannels(inputChannel);
-		inputGate.setupChannels();
+    @Before
+    public void setup() throws IOException, InterruptedException {
+        networkBufferPool = new NetworkBufferPool(8, BUFFER_SIZE);
+        inputGate = createSingleInputGate(1, networkBufferPool);
+        RemoteInputChannel inputChannel =
+                createRemoteInputChannel(inputGate, new TestingPartitionRequestClient());
+        inputChannel.requestSubpartition(0);
+        inputGate.setInputChannels(inputChannel);
+        inputGate.setupChannels();
 
-		CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
-		handler.addInputChannel(inputChannel);
+        CreditBasedPartitionRequestClientHandler handler =
+                new CreditBasedPartitionRequestClientHandler();
+        handler.addInputChannel(inputChannel);
 
-		channel = new EmbeddedChannel(
-			new NettyMessageEncoder(), // For outbound messages
-			new NettyMessageClientDecoderDelegate(handler)); // For inbound messages
+        channel =
+                new EmbeddedChannel(
+                        new NettyMessageEncoder(), // For outbound messages
+                        new NettyMessageClientDecoderDelegate(handler)); // For inbound messages
 
-		inputChannelId = inputChannel.getInputChannelId();
-	}
+        inputChannelId = inputChannel.getInputChannelId();
+    }
 
-	@After
-	public void tearDown() throws IOException {
-		if (inputGate != null) {
-			inputGate.close();
-		}
+    @After
+    public void tearDown() throws IOException {
+        if (inputGate != null) {
+            inputGate.close();
+        }
 
-		if (networkBufferPool != null) {
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
-		}
+        if (networkBufferPool != null) {
+            networkBufferPool.destroyAllBufferPools();
+            networkBufferPool.destroy();
+        }
 
-		if (channel != null) {
-			channel.close();
-		}
-	}
+        if (channel != null) {
+            channel.close();
+        }
+    }
 
-	@Test
-	public void testErrorResponseWithoutErrorMessage() {
-		testErrorResponse(new ErrorResponse(new IllegalStateException(), inputChannelId));
-	}
+    @Test
+    public void testErrorResponseWithoutErrorMessage() {
+        testErrorResponse(new ErrorResponse(new IllegalStateException(), inputChannelId));
+    }
 
-	@Test
-	public void testErrorResponseWithErrorMessage() {
-		testErrorResponse(new ErrorResponse(
-			new IllegalStateException("Illegal illegal illegal"),
-			inputChannelId));
-	}
+    @Test
+    public void testErrorResponseWithErrorMessage() {
+        testErrorResponse(
+                new ErrorResponse(
+                        new IllegalStateException("Illegal illegal illegal"), inputChannelId));
+    }
 
-	@Test
-	public void testErrorResponseWithFatalError() {
-		testErrorResponse(new ErrorResponse(new IllegalStateException("Illegal illegal illegal")));
-	}
+    @Test
+    public void testErrorResponseWithFatalError() {
+        testErrorResponse(new ErrorResponse(new IllegalStateException("Illegal illegal illegal")));
+    }
 
-	@Test
-	public void testOrdinaryBufferResponse() {
-		testBufferResponse(false, false);
-	}
+    @Test
+    public void testOrdinaryBufferResponse() {
+        testBufferResponse(false, false);
+    }
 
-	@Test
-	public void testBufferResponseWithReadOnlySlice() {
-		testBufferResponse(true, false);
-	}
+    @Test
+    public void testBufferResponseWithReadOnlySlice() {
+        testBufferResponse(true, false);
+    }
 
-	@Test
-	public void testCompressedBufferResponse() {
-		testBufferResponse(false, true);
-	}
+    @Test
+    public void testCompressedBufferResponse() {
+        testBufferResponse(false, true);
+    }
 
-	private void testErrorResponse(ErrorResponse expect) {
-		ErrorResponse actual = encodeAndDecode(expect, channel);
-		verifyErrorResponse(expect, actual);
-	}
+    private void testErrorResponse(ErrorResponse expect) {
+        ErrorResponse actual = encodeAndDecode(expect, channel);
+        verifyErrorResponse(expect, actual);
+    }
 
-	private void testBufferResponse(boolean testReadOnlyBuffer, boolean testCompressedBuffer) {
-		checkArgument(
-			!(testReadOnlyBuffer & testCompressedBuffer),
-			"There are no cases with both readonly slice and compression.");
+    private void testBufferResponse(boolean testReadOnlyBuffer, boolean testCompressedBuffer) {
+        checkArgument(
+                !(testReadOnlyBuffer & testCompressedBuffer),
+                "There are no cases with both readonly slice and compression.");
 
-		NetworkBuffer buffer = new NetworkBuffer(
-			MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE),
-			FreeingBufferRecycler.INSTANCE);
-		for (int i = 0; i < BUFFER_SIZE; i += 8) {
-			buffer.writeLong(i);
-		}
+        NetworkBuffer buffer =
+                new NetworkBuffer(
+                        MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE),
+                        FreeingBufferRecycler.INSTANCE);
+        for (int i = 0; i < BUFFER_SIZE; i += 8) {
+            buffer.writeLong(i);
+        }
 
-		Buffer testBuffer = buffer;
-		if (testReadOnlyBuffer) {
-			testBuffer = buffer.readOnlySlice();
-		} else if (testCompressedBuffer) {
-			testBuffer = COMPRESSOR.compressToOriginalBuffer(buffer);
-		}
+        Buffer testBuffer = buffer;
+        if (testReadOnlyBuffer) {
+            testBuffer = buffer.readOnlySlice();
+        } else if (testCompressedBuffer) {
+            testBuffer = COMPRESSOR.compressToOriginalBuffer(buffer);
+        }
 
-		BufferResponse expected = new BufferResponse(
-			testBuffer,
-			random.nextInt(),
-			inputChannelId,
-			random.nextInt());
-		BufferResponse actual = encodeAndDecode(expected, channel);
+        BufferResponse expected =
+                new BufferResponse(testBuffer, random.nextInt(), inputChannelId, random.nextInt());
+        BufferResponse actual = encodeAndDecode(expected, channel);
 
-		assertTrue(buffer.isRecycled());
-		assertTrue(testBuffer.isRecycled());
-		assertNotNull(
-			"The request input channel should always have available buffers in this test.",
-			actual.getBuffer());
+        assertTrue(buffer.isRecycled());
+        assertTrue(testBuffer.isRecycled());
+        assertNotNull(
+                "The request input channel should always have available buffers in this test.",
+                actual.getBuffer());
 
-		Buffer decodedBuffer = actual.getBuffer();
-		if (testCompressedBuffer) {
-			assertTrue(actual.isCompressed);
-			decodedBuffer = decompress(decodedBuffer);
-		}
+        Buffer decodedBuffer = actual.getBuffer();
+        if (testCompressedBuffer) {
+            assertTrue(actual.isCompressed);
+            decodedBuffer = decompress(decodedBuffer);
+        }
 
-		verifyBufferResponseHeader(expected, actual);
-		assertEquals(BUFFER_SIZE, decodedBuffer.readableBytes());
-		for (int i = 0; i < BUFFER_SIZE; i += 8) {
-			assertEquals(i, decodedBuffer.asByteBuf().readLong());
-		}
+        verifyBufferResponseHeader(expected, actual);
+        assertEquals(BUFFER_SIZE, decodedBuffer.readableBytes());
+        for (int i = 0; i < BUFFER_SIZE; i += 8) {
+            assertEquals(i, decodedBuffer.asByteBuf().readLong());
+        }
 
-		// Release the received message.
-		actual.releaseBuffer();
-		if (testCompressedBuffer) {
-			decodedBuffer.recycleBuffer();
-		}
+        // Release the received message.
+        actual.releaseBuffer();
+        if (testCompressedBuffer) {
+            decodedBuffer.recycleBuffer();
+        }
 
-		assertTrue(actual.getBuffer().isRecycled());
-	}
+        assertTrue(actual.getBuffer().isRecycled());
+    }
 
-	private Buffer decompress(Buffer buffer) {
-		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
-		Buffer compressedBuffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
-		buffer.asByteBuf().readBytes(compressedBuffer.asByteBuf(), buffer.readableBytes());
-		compressedBuffer.setCompressed(true);
-		return DECOMPRESSOR.decompressToOriginalBuffer(compressedBuffer);
-	}
+    private Buffer decompress(Buffer buffer) {
+        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
+        Buffer compressedBuffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
+        buffer.asByteBuf().readBytes(compressedBuffer.asByteBuf(), buffer.readableBytes());
+        compressedBuffer.setCompressed(true);
+        return DECOMPRESSOR.decompressToOriginalBuffer(compressedBuffer);
+    }
 }

@@ -23,66 +23,56 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
-/**
- * Context for {@link CompactReader} and {@link CompactWriter}.
- */
+/** Context for {@link CompactReader} and {@link CompactWriter}. */
 public interface CompactContext {
 
-	static CompactContext create(
-			Configuration config,
-			FileSystem fileSystem,
-			String partition,
-			Path path) {
-		return new CompactContextImpl(config, fileSystem, partition, path);
-	}
+    static CompactContext create(
+            Configuration config, FileSystem fileSystem, String partition, Path path) {
+        return new CompactContextImpl(config, fileSystem, partition, path);
+    }
 
-	Configuration getConfig();
+    Configuration getConfig();
 
-	FileSystem getFileSystem();
+    FileSystem getFileSystem();
 
-	String getPartition();
+    String getPartition();
 
-	Path getPath();
+    Path getPath();
 
-	/**
-	 * Implementation of {@link CompactContext}.
-	 */
-	class CompactContextImpl implements CompactContext {
+    /** Implementation of {@link CompactContext}. */
+    class CompactContextImpl implements CompactContext {
 
-		private final Configuration config;
-		private final FileSystem fileSystem;
-		private final String partition;
-		private final Path path;
+        private final Configuration config;
+        private final FileSystem fileSystem;
+        private final String partition;
+        private final Path path;
 
-		private CompactContextImpl(
-				Configuration config,
-				FileSystem fileSystem,
-				String partition,
-				Path path) {
-			this.config = config;
-			this.fileSystem = fileSystem;
-			this.partition = partition;
-			this.path = path;
-		}
+        private CompactContextImpl(
+                Configuration config, FileSystem fileSystem, String partition, Path path) {
+            this.config = config;
+            this.fileSystem = fileSystem;
+            this.partition = partition;
+            this.path = path;
+        }
 
-		@Override
-		public Configuration getConfig() {
-			return config;
-		}
+        @Override
+        public Configuration getConfig() {
+            return config;
+        }
 
-		@Override
-		public FileSystem getFileSystem() {
-			return fileSystem;
-		}
+        @Override
+        public FileSystem getFileSystem() {
+            return fileSystem;
+        }
 
-		@Override
-		public String getPartition() {
-			return partition;
-		}
+        @Override
+        public String getPartition() {
+            return partition;
+        }
 
-		@Override
-		public Path getPath() {
-			return path;
-		}
-	}
+        @Override
+        public Path getPath() {
+            return path;
+        }
+    }
 }

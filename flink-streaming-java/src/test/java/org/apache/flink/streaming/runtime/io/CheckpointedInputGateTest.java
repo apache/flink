@@ -43,83 +43,99 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * {@link CheckpointedInputGate} test.
- */
+/** {@link CheckpointedInputGate} test. */
 public class CheckpointedInputGateTest {
-	@Test
-	public void testUpstreamResumedUponEndOfRecovery() throws Exception {
-		int numberOfChannels = 11;
-		NetworkBufferPool bufferPool = new NetworkBufferPool(numberOfChannels * 3, 1024);
-		try {
-			ResumeCountingConnectionManager resumeCounter = new ResumeCountingConnectionManager();
-			CheckpointedInputGate gate = setupInputGate(numberOfChannels, bufferPool, resumeCounter);
-			assertFalse(gate.pollNext().isPresent());
-			for (int channelIndex = 0; channelIndex < numberOfChannels - 1; channelIndex++) {
-				emitEndOfState(gate, channelIndex);
-				assertFalse("should align (block all channels)", gate.pollNext().isPresent());
-			}
+    @Test
+    public void testUpstreamResumedUponEndOfRecovery() throws Exception {
+        int numberOfChannels = 11;
+        NetworkBufferPool bufferPool = new NetworkBufferPool(numberOfChannels * 3, 1024);
+        try {
+            ResumeCountingConnectionManager resumeCounter = new ResumeCountingConnectionManager();
+            CheckpointedInputGate gate =
+                    setupInputGate(numberOfChannels, bufferPool, resumeCounter);
+            assertFalse(gate.pollNext().isPresent());
+            for (int channelIndex = 0; channelIndex < numberOfChannels - 1; channelIndex++) {
+                emitEndOfState(gate, channelIndex);
+                assertFalse("should align (block all channels)", gate.pollNext().isPresent());
+            }
 
-			emitEndOfState(gate, numberOfChannels - 1);
-			Optional<BufferOrEvent> polled = gate.pollNext();
-			assertTrue(polled.isPresent());
-			assertTrue(polled.get().isEvent());
-			assertEquals(EndOfChannelStateEvent.INSTANCE, polled.get().getEvent());
-			assertEquals(numberOfChannels, resumeCounter.getNumResumed());
-			assertFalse("should only be a single event no matter of what is the number of channels", gate.pollNext().isPresent());
-		} finally {
-			bufferPool.destroy();
-		}
-	}
+            emitEndOfState(gate, numberOfChannels - 1);
+            Optional<BufferOrEvent> polled = gate.pollNext();
+            assertTrue(polled.isPresent());
+            assertTrue(polled.get().isEvent());
+            assertEquals(EndOfChannelStateEvent.INSTANCE, polled.get().getEvent());
+            assertEquals(numberOfChannels, resumeCounter.getNumResumed());
+            assertFalse(
+                    "should only be a single event no matter of what is the number of channels",
+                    gate.pollNext().isPresent());
+        } finally {
+            bufferPool.destroy();
+        }
+    }
 
-	private void emitEndOfState(CheckpointedInputGate checkpointedInputGate, int channelIndex) throws IOException {
-		((RemoteInputChannel) checkpointedInputGate.getChannel(channelIndex))
-			.onBuffer(EventSerializer.toBuffer(EndOfChannelStateEvent.INSTANCE, false), 0, 0);
-	}
+    private void emitEndOfState(CheckpointedInputGate checkpointedInputGate, int channelIndex)
+            throws IOException {
+        ((RemoteInputChannel) checkpointedInputGate.getChannel(channelIndex))
+                .onBuffer(EventSerializer.toBuffer(EndOfChannelStateEvent.INSTANCE, false), 0, 0);
+    }
 
-	private CheckpointedInputGate setupInputGate(int numberOfChannels, NetworkBufferPool networkBufferPool, ResumeCountingConnectionManager connectionManager) throws Exception {
-		SingleInputGate singleInputGate = new SingleInputGateBuilder()
-			.setBufferPoolFactory(networkBufferPool.createBufferPool(numberOfChannels, Integer.MAX_VALUE))
-			.setSegmentProvider(networkBufferPool)
-			.setChannelFactory((builder, gate) -> builder.setConnectionManager(connectionManager).buildRemoteChannel(gate))
-			.setNumberOfChannels(numberOfChannels)
-			.build();
-		singleInputGate.setup();
-		CheckpointBarrierTracker barrierHandler = new CheckpointBarrierTracker(numberOfChannels, new AbstractInvokable(new DummyEnvironment()) {
-			@Override
-			public void invoke() {
-			}
-		});
-		MailboxExecutorImpl mailboxExecutor = new MailboxExecutorImpl(new TaskMailboxImpl(), 0, StreamTaskActionExecutor.IMMEDIATE);
+    private CheckpointedInputGate setupInputGate(
+            int numberOfChannels,
+            NetworkBufferPool networkBufferPool,
+            ResumeCountingConnectionManager connectionManager)
+            throws Exception {
+        SingleInputGate singleInputGate =
+                new SingleInputGateBuilder()
+                        .setBufferPoolFactory(
+                                networkBufferPool.createBufferPool(
+                                        numberOfChannels, Integer.MAX_VALUE))
+                        .setSegmentProvider(networkBufferPool)
+                        .setChannelFactory(
+                                (builder, gate) ->
+                                        builder.setConnectionManager(connectionManager)
+                                                .buildRemoteChannel(gate))
+                        .setNumberOfChannels(numberOfChannels)
+                        .build();
+        singleInputGate.setup();
+        CheckpointBarrierTracker barrierHandler =
+                new CheckpointBarrierTracker(
+                        numberOfChannels,
+                        new AbstractInvokable(new DummyEnvironment()) {
+                            @Override
+                            public void invoke() {}
+                        });
+        MailboxExecutorImpl mailboxExecutor =
+                new MailboxExecutorImpl(
+                        new TaskMailboxImpl(), 0, StreamTaskActionExecutor.IMMEDIATE);
 
-		CheckpointedInputGate checkpointedInputGate = new CheckpointedInputGate(
-			singleInputGate,
-			barrierHandler,
-			mailboxExecutor,
-			UpstreamRecoveryTracker.forInputGate(singleInputGate));
-		for (int i = 0; i < numberOfChannels; i++) {
-			((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartition(0);
-		}
-		return checkpointedInputGate;
-	}
+        CheckpointedInputGate checkpointedInputGate =
+                new CheckpointedInputGate(
+                        singleInputGate,
+                        barrierHandler,
+                        mailboxExecutor,
+                        UpstreamRecoveryTracker.forInputGate(singleInputGate));
+        for (int i = 0; i < numberOfChannels; i++) {
+            ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartition(0);
+        }
+        return checkpointedInputGate;
+    }
 
-	private static class ResumeCountingConnectionManager extends TestingConnectionManager {
-		private int numResumed;
+    private static class ResumeCountingConnectionManager extends TestingConnectionManager {
+        private int numResumed;
 
-		@Override
-		public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
-			return new TestingPartitionRequestClient() {
-				@Override
-				public void resumeConsumption(RemoteInputChannel inputChannel) {
-					numResumed++;
-					super.resumeConsumption(inputChannel);
-				}
-			};
-		}
+        @Override
+        public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
+            return new TestingPartitionRequestClient() {
+                @Override
+                public void resumeConsumption(RemoteInputChannel inputChannel) {
+                    numResumed++;
+                    super.resumeConsumption(inputChannel);
+                }
+            };
+        }
 
-		private int getNumResumed() {
-			return numResumed;
-		}
-	}
+        private int getNumResumed() {
+            return numResumed;
+        }
+    }
 }
-

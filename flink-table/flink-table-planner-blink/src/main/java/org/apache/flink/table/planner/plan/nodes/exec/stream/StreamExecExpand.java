@@ -28,16 +28,14 @@ import org.apache.calcite.rex.RexNode;
 
 import java.util.List;
 
-/**
- * Stream {@link ExecNode} that can expand one row to multiple rows based on given projects.
- */
+/** Stream {@link ExecNode} that can expand one row to multiple rows based on given projects. */
 public class StreamExecExpand extends CommonExecExpand implements StreamExecNode<RowData> {
 
-	public StreamExecExpand(
-			List<List<RexNode>> projects,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(projects, true, inputEdge, outputType, description);
-	}
+    public StreamExecExpand(
+            List<List<RexNode>> projects,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(projects, true, inputEdge, outputType, description);
+    }
 }

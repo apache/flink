@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util.event;
 
 import org.apache.flink.runtime.event.TaskEvent;
@@ -29,62 +28,53 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * This class contains unit tests for the {@link TaskEventHandler}.
- * 
- */
+/** This class contains unit tests for the {@link TaskEventHandler}. */
 public class TaskEventHandlerTest {
-	/**
-	 * A test implementation of an {@link EventListener}.
-	 * 
-	 */
-	private static class TestEventListener implements EventListener<TaskEvent> {
+    /** A test implementation of an {@link EventListener}. */
+    private static class TestEventListener implements EventListener<TaskEvent> {
 
-		/**
-		 * The event that was last received by this event listener.
-		 */
-		private TaskEvent receivedEvent = null;
+        /** The event that was last received by this event listener. */
+        private TaskEvent receivedEvent = null;
 
-		/**
-		 * {@inheritDoc}
-		 * @param event
-		 */
-		@Override
-		public void onEvent(TaskEvent event) {
+        /**
+         * {@inheritDoc}
+         *
+         * @param event
+         */
+        @Override
+        public void onEvent(TaskEvent event) {
 
-			this.receivedEvent = event;
-		}
+            this.receivedEvent = event;
+        }
 
-		/**
-		 * Returns the event which was last received by this event listener. If no event
-		 * has been received so far the return value is <code>null</code>.
-		 * 
-		 * @return the event which was last received, possibly <code>null</code>
-		 */
-		public TaskEvent getLastReceivedEvent() {
+        /**
+         * Returns the event which was last received by this event listener. If no event has been
+         * received so far the return value is <code>null</code>.
+         *
+         * @return the event which was last received, possibly <code>null</code>
+         */
+        public TaskEvent getLastReceivedEvent() {
 
-			return this.receivedEvent;
-		}
-	}
+            return this.receivedEvent;
+        }
+    }
 
-	/**
-	 * Tests the publish/subscribe mechanisms implemented in the {@link TaskEventHandler}.
-	 */
-	@Test
-	public void testEventNotificationManager() {
+    /** Tests the publish/subscribe mechanisms implemented in the {@link TaskEventHandler}. */
+    @Test
+    public void testEventNotificationManager() {
 
-		final TaskEventHandler evm = new TaskEventHandler();
-		final TestEventListener listener = new TestEventListener();
+        final TaskEventHandler evm = new TaskEventHandler();
+        final TestEventListener listener = new TestEventListener();
 
-		evm.subscribe(listener, StringTaskEvent.class);
+        evm.subscribe(listener, StringTaskEvent.class);
 
-		final StringTaskEvent stringTaskEvent1 = new StringTaskEvent("Test 1");
+        final StringTaskEvent stringTaskEvent1 = new StringTaskEvent("Test 1");
 
-		evm.publish(stringTaskEvent1);
-		evm.publish(new IntegerTaskEvent(5));
+        evm.publish(stringTaskEvent1);
+        evm.publish(new IntegerTaskEvent(5));
 
-		assertNotNull(listener.getLastReceivedEvent());
-		StringTaskEvent receivedStringEvent = (StringTaskEvent) listener.getLastReceivedEvent();
-		assertEquals(stringTaskEvent1, receivedStringEvent);
-	}
+        assertNotNull(listener.getLastReceivedEvent());
+        StringTaskEvent receivedStringEvent = (StringTaskEvent) listener.getLastReceivedEvent();
+        assertEquals(stringTaskEvent1, receivedStringEvent);
+    }
 }

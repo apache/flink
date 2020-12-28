@@ -24,36 +24,39 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
-/**
- * Headers for the {@link TaskManagerCustomLogHandler}.
- */
-public class TaskManagerCustomLogHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerFileMessageParameters> {
+/** Headers for the {@link TaskManagerCustomLogHandler}. */
+public class TaskManagerCustomLogHeaders
+        implements UntypedResponseMessageHeaders<
+                EmptyRequestBody, TaskManagerFileMessageParameters> {
 
-	private static final TaskManagerCustomLogHeaders INSTANCE = new TaskManagerCustomLogHeaders();
+    private static final TaskManagerCustomLogHeaders INSTANCE = new TaskManagerCustomLogHeaders();
 
-	private static final String URL = String.format("/taskmanagers/:%s/logs/:%s", TaskManagerIdPathParameter.KEY, LogFileNamePathParameter.KEY);
+    private static final String URL =
+            String.format(
+                    "/taskmanagers/:%s/logs/:%s",
+                    TaskManagerIdPathParameter.KEY, LogFileNamePathParameter.KEY);
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public TaskManagerFileMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerFileMessageParameters();
-	}
+    @Override
+    public TaskManagerFileMessageParameters getUnresolvedMessageParameters() {
+        return new TaskManagerFileMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static TaskManagerCustomLogHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static TaskManagerCustomLogHeaders getInstance() {
+        return INSTANCE;
+    }
 }

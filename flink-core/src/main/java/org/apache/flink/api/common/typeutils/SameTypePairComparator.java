@@ -22,26 +22,26 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public class SameTypePairComparator<T> extends TypePairComparator<T, T> {
 
-	private TypeComparator<T> comp, comp2;
+    private TypeComparator<T> comp, comp2;
 
-	public SameTypePairComparator(TypeComparator<T> comp) {
-		this.comp = comp;
-		comp2 = comp.duplicate();
-	}
+    public SameTypePairComparator(TypeComparator<T> comp) {
+        this.comp = comp;
+        comp2 = comp.duplicate();
+    }
 
-	@Override
-	public void setReference(T reference) {
-		comp.setReference(reference);
-	}
+    @Override
+    public void setReference(T reference) {
+        comp.setReference(reference);
+    }
 
-	@Override
-	public boolean equalToReference(T candidate) {
-		return comp.equalToReference(candidate);
-	}
+    @Override
+    public boolean equalToReference(T candidate) {
+        return comp.equalToReference(candidate);
+    }
 
-	@Override
-	public int compareToReference(T candidate) {
-		comp2.setReference(candidate);
-		return comp.compareToReference(comp2);
-	}
+    @Override
+    public int compareToReference(T candidate) {
+        comp2.setReference(candidate);
+        return comp.compareToReference(comp2);
+    }
 }

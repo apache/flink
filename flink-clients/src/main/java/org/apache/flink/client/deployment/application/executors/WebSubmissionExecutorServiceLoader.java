@@ -31,36 +31,38 @@ import java.util.stream.Stream;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link PipelineExecutorServiceLoader} that always returns an {@link WebSubmissionExecutorFactory}.
+ * A {@link PipelineExecutorServiceLoader} that always returns an {@link
+ * WebSubmissionExecutorFactory}.
  */
 @Internal
 public class WebSubmissionExecutorServiceLoader implements PipelineExecutorServiceLoader {
 
-	private final Collection<JobID> submittedJobIds;
+    private final Collection<JobID> submittedJobIds;
 
-	private final DispatcherGateway dispatcherGateway;
+    private final DispatcherGateway dispatcherGateway;
 
-	/**
-	 * Creates an {@link WebSubmissionExecutorServiceLoader}.
-	 * @param submittedJobIds a list that is going to be filled by the {@link EmbeddedExecutor} with the job ids of the
-	 *                        new jobs that will be submitted. This is essentially used to return the submitted job ids
-	 *                        to the caller.
-	 * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit jobs.
-	 */
-	public WebSubmissionExecutorServiceLoader(
-			final Collection<JobID> submittedJobIds,
-			final DispatcherGateway dispatcherGateway) {
-		this.submittedJobIds = checkNotNull(submittedJobIds);
-		this.dispatcherGateway = checkNotNull(dispatcherGateway);
-	}
+    /**
+     * Creates an {@link WebSubmissionExecutorServiceLoader}.
+     *
+     * @param submittedJobIds a list that is going to be filled by the {@link EmbeddedExecutor} with
+     *     the job ids of the new jobs that will be submitted. This is essentially used to return
+     *     the submitted job ids to the caller.
+     * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit
+     *     jobs.
+     */
+    public WebSubmissionExecutorServiceLoader(
+            final Collection<JobID> submittedJobIds, final DispatcherGateway dispatcherGateway) {
+        this.submittedJobIds = checkNotNull(submittedJobIds);
+        this.dispatcherGateway = checkNotNull(dispatcherGateway);
+    }
 
-	@Override
-	public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
-		return new WebSubmissionExecutorFactory(submittedJobIds, dispatcherGateway);
-	}
+    @Override
+    public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
+        return new WebSubmissionExecutorFactory(submittedJobIds, dispatcherGateway);
+    }
 
-	@Override
-	public Stream<String> getExecutorNames() {
-		return Stream.<String>builder().add(EmbeddedExecutor.NAME).build();
-	}
+    @Override
+    public Stream<String> getExecutorNames() {
+        return Stream.<String>builder().add(EmbeddedExecutor.NAME).build();
+    }
 }

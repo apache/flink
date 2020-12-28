@@ -24,32 +24,28 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 
 import java.util.Properties;
 
-/**
- * A factory interface used to create instances of {@link RecordPublisher}.
- */
+/** A factory interface used to create instances of {@link RecordPublisher}. */
 @Internal
 public interface RecordPublisherFactory {
 
-	/**
-	 * Create a {@link RecordPublisher}.
-	 *
-	 * @param startingPosition the position in the shard to start consuming records from
-	 * @param consumerConfig the properties used to configure the {@link RecordPublisher}.
-	 * @param metricGroup the {@link MetricGroup} used to report metrics to
-	 * @param streamShardHandle the stream shard in which to consume from
-	 * @return the constructed {@link RecordPublisher}
-	 */
-	RecordPublisher create(
-			StartingPosition startingPosition,
-			Properties consumerConfig,
-			MetricGroup metricGroup,
-			StreamShardHandle streamShardHandle) throws InterruptedException;
+    /**
+     * Create a {@link RecordPublisher}.
+     *
+     * @param startingPosition the position in the shard to start consuming records from
+     * @param consumerConfig the properties used to configure the {@link RecordPublisher}.
+     * @param metricGroup the {@link MetricGroup} used to report metrics to
+     * @param streamShardHandle the stream shard in which to consume from
+     * @return the constructed {@link RecordPublisher}
+     */
+    RecordPublisher create(
+            StartingPosition startingPosition,
+            Properties consumerConfig,
+            MetricGroup metricGroup,
+            StreamShardHandle streamShardHandle)
+            throws InterruptedException;
 
-	/**
-	 * Destroy any open resources used by the factory.
-	 */
-	default void close() {
-		// Do nothing by default
-	}
-
+    /** Destroy any open resources used by the factory. */
+    default void close() {
+        // Do nothing by default
+    }
 }

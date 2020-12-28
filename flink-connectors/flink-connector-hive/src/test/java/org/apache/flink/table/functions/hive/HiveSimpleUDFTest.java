@@ -50,305 +50,264 @@ import java.util.Optional;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for {@link HiveSimpleUDF}.
- */
+/** Test for {@link HiveSimpleUDF}. */
 public class HiveSimpleUDFTest {
-	private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
+    private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
 
-	@Test
-	public void testBooleanUDF() {
-		HiveSimpleUDF udf = init(BooleanUDF.class, new DataType[]{ DataTypes.INT()});
-		assertTrue((boolean) udf.eval(1));
-	}
+    @Test
+    public void testBooleanUDF() {
+        HiveSimpleUDF udf = init(BooleanUDF.class, new DataType[] {DataTypes.INT()});
+        assertTrue((boolean) udf.eval(1));
+    }
 
-	@Test
-	public void testFloatUDF() {
-		HiveSimpleUDF udf = init(FloatUDF.class, new DataType[]{ DataTypes.FLOAT()});
-		assertEquals(3.0f, (float) udf.eval(3.0f), 0);
-	}
+    @Test
+    public void testFloatUDF() {
+        HiveSimpleUDF udf = init(FloatUDF.class, new DataType[] {DataTypes.FLOAT()});
+        assertEquals(3.0f, (float) udf.eval(3.0f), 0);
+    }
 
-	@Test
-	public void testIntUDF() {
-		HiveSimpleUDF udf = init(IntUDF.class, new DataType[]{ DataTypes.INT()});
-		assertEquals(3, (int) udf.eval(3));
-	}
+    @Test
+    public void testIntUDF() {
+        HiveSimpleUDF udf = init(IntUDF.class, new DataType[] {DataTypes.INT()});
+        assertEquals(3, (int) udf.eval(3));
+    }
 
-	@Test
-	public void testStringUDF() {
-		HiveSimpleUDF udf = init(StringUDF.class, new DataType[]{ DataTypes.STRING()});
-		assertEquals("test", udf.eval("test"));
-	}
+    @Test
+    public void testStringUDF() {
+        HiveSimpleUDF udf = init(StringUDF.class, new DataType[] {DataTypes.STRING()});
+        assertEquals("test", udf.eval("test"));
+    }
 
-	@Test
-	public void testUDFRand() {
-		HiveSimpleUDF udf = init(UDFRand.class, new DataType[0]);
+    @Test
+    public void testUDFRand() {
+        HiveSimpleUDF udf = init(UDFRand.class, new DataType[0]);
 
-		double result = (double) udf.eval();
+        double result = (double) udf.eval();
 
-		assertTrue(result >= 0 && result < 1);
-	}
+        assertTrue(result >= 0 && result < 1);
+    }
 
-	@Test
-	public void testUDFBin() {
-		HiveSimpleUDF udf = init(UDFBin.class, new DataType[]{ DataTypes.INT() });
+    @Test
+    public void testUDFBin() {
+        HiveSimpleUDF udf = init(UDFBin.class, new DataType[] {DataTypes.INT()});
 
-		assertEquals("1100", udf.eval(12));
-	}
+        assertEquals("1100", udf.eval(12));
+    }
 
-	@Test
-	public void testUDFConv() {
-		HiveSimpleUDF udf = init(
-			UDFConv.class,
-			new DataType[]{
-				DataTypes.STRING(),
-				DataTypes.INT(),
-				DataTypes.INT()
-			});
+    @Test
+    public void testUDFConv() {
+        HiveSimpleUDF udf =
+                init(
+                        UDFConv.class,
+                        new DataType[] {DataTypes.STRING(), DataTypes.INT(), DataTypes.INT()});
 
-		assertEquals("1", udf.eval("12", 2, 10));
-		assertEquals("-16", udf.eval(-10, 16, -10));
-	}
+        assertEquals("1", udf.eval("12", 2, 10));
+        assertEquals("-16", udf.eval(-10, 16, -10));
+    }
 
-	@Test
-	public void testUDFJson() {
-		String pattern = "$.owner";
-		String json = "{\"store\": \"test\", \"owner\": \"amy\"}";
-		String expected = "amy";
+    @Test
+    public void testUDFJson() {
+        String pattern = "$.owner";
+        String json = "{\"store\": \"test\", \"owner\": \"amy\"}";
+        String expected = "amy";
 
-		HiveSimpleUDF udf = init(
-			UDFJson.class,
-			new DataType[]{
-				DataTypes.STRING(),
-				DataTypes.STRING()
-			});
+        HiveSimpleUDF udf =
+                init(UDFJson.class, new DataType[] {DataTypes.STRING(), DataTypes.STRING()});
 
-		assertEquals(expected, udf.eval(json, pattern));
+        assertEquals(expected, udf.eval(json, pattern));
 
-		udf = init(
-			UDFJson.class,
-			new DataType[]{
-				DataTypes.CHAR(100),
-				DataTypes.CHAR(pattern.length())
-			});
+        udf =
+                init(
+                        UDFJson.class,
+                        new DataType[] {DataTypes.CHAR(100), DataTypes.CHAR(pattern.length())});
 
-		assertEquals(expected, udf.eval(json, pattern));
+        assertEquals(expected, udf.eval(json, pattern));
 
-		udf = init(
-			UDFJson.class,
-			new DataType[]{
-				DataTypes.VARCHAR(100),
-				DataTypes.VARCHAR(pattern.length())
-			});
+        udf =
+                init(
+                        UDFJson.class,
+                        new DataType[] {
+                            DataTypes.VARCHAR(100), DataTypes.VARCHAR(pattern.length())
+                        });
 
-		assertEquals(expected, udf.eval(json, pattern));
+        assertEquals(expected, udf.eval(json, pattern));
 
-		// Test invalid CHAR length
-		udf = init(
-			UDFJson.class,
-			new DataType[]{
-				DataTypes.CHAR(100),
-				DataTypes.CHAR(pattern.length() - 1) // shorter than pattern's length by 1
-			});
+        // Test invalid CHAR length
+        udf =
+                init(
+                        UDFJson.class,
+                        new DataType[] {
+                            DataTypes.CHAR(100),
+                            DataTypes.CHAR(
+                                    pattern.length() - 1) // shorter than pattern's length by 1
+                        });
 
-		// Cannot find path "$.owne"
-		assertEquals(null, udf.eval(json, pattern));
-	}
+        // Cannot find path "$.owne"
+        assertEquals(null, udf.eval(json, pattern));
+    }
 
-	@Test
-	public void testUDFWeekOfYear() throws FlinkHiveUDFException {
-		HiveSimpleUDF udf = init(
-			UDFWeekOfYear.class,
-			new DataType[]{
-				DataTypes.STRING()
-			});
+    @Test
+    public void testUDFWeekOfYear() throws FlinkHiveUDFException {
+        HiveSimpleUDF udf = init(UDFWeekOfYear.class, new DataType[] {DataTypes.STRING()});
 
-		assertEquals(29, udf.eval("1969-07-20"));
-		assertEquals(29, udf.eval(Date.valueOf("1969-07-20")));
-		assertEquals(29, udf.eval(Timestamp.valueOf("1969-07-20 00:00:00")));
-		assertEquals(1, udf.eval("1980-12-31 12:59:59"));
-	}
+        assertEquals(29, udf.eval("1969-07-20"));
+        assertEquals(29, udf.eval(Date.valueOf("1969-07-20")));
+        assertEquals(29, udf.eval(Timestamp.valueOf("1969-07-20 00:00:00")));
+        assertEquals(1, udf.eval("1980-12-31 12:59:59"));
+    }
 
-	@Test
-	public void testUDFRegExpExtract() {
-		HiveSimpleUDF udf = init(
-			UDFRegExpExtract.class,
-			new DataType[]{
-				DataTypes.STRING(),
-				DataTypes.STRING(),
-				DataTypes.INT()
-			});
+    @Test
+    public void testUDFRegExpExtract() {
+        HiveSimpleUDF udf =
+                init(
+                        UDFRegExpExtract.class,
+                        new DataType[] {DataTypes.STRING(), DataTypes.STRING(), DataTypes.INT()});
 
-		assertEquals("100", udf.eval("100-200", "(\\d+)-(\\d+)", 1));
-	}
+        assertEquals("100", udf.eval("100-200", "(\\d+)-(\\d+)", 1));
+    }
 
-	@Test
-	public void testUDFUnbase64() {
-		HiveSimpleUDF udf = init(
-			UDFBase64.class,
-			new DataType[]{
-				DataTypes.BYTES()
-			});
+    @Test
+    public void testUDFUnbase64() {
+        HiveSimpleUDF udf = init(UDFBase64.class, new DataType[] {DataTypes.BYTES()});
 
-		assertEquals("Cg==", udf.eval(new byte[] {10}));
-	}
+        assertEquals("Cg==", udf.eval(new byte[] {10}));
+    }
 
-	@Test
-	public void testUDFUnhex() throws UnsupportedEncodingException {
-		HiveSimpleUDF udf = init(
-			UDFUnhex.class,
-			new DataType[]{
-				DataTypes.STRING()
-			});
+    @Test
+    public void testUDFUnhex() throws UnsupportedEncodingException {
+        HiveSimpleUDF udf = init(UDFUnhex.class, new DataType[] {DataTypes.STRING()});
 
-		assertEquals("MySQL", new String((byte[]) udf.eval("4D7953514C"), "UTF-8"));
-	}
+        assertEquals("MySQL", new String((byte[]) udf.eval("4D7953514C"), "UTF-8"));
+    }
 
-	@Test
-	public void testUDFToInteger() {
-		HiveSimpleUDF udf = init(
-			UDFToInteger.class,
-			new DataType[]{
-				DataTypes.DECIMAL(5, 3)
-			});
+    @Test
+    public void testUDFToInteger() {
+        HiveSimpleUDF udf = init(UDFToInteger.class, new DataType[] {DataTypes.DECIMAL(5, 3)});
 
-		assertEquals(1, udf.eval(BigDecimal.valueOf(1.1d)));
-	}
+        assertEquals(1, udf.eval(BigDecimal.valueOf(1.1d)));
+    }
 
-	@Test
-	public void testUDFArray_singleArray() {
-		Double[] testInputs = new Double[] { 1.1d, 2.2d };
+    @Test
+    public void testUDFArray_singleArray() {
+        Double[] testInputs = new Double[] {1.1d, 2.2d};
 
-		// input arg is a single array
-		HiveSimpleUDF udf = init(
-			TestHiveUDFArray.class,
-			new DataType[]{
-				DataTypes.ARRAY(DataTypes.DOUBLE())
-			});
+        // input arg is a single array
+        HiveSimpleUDF udf =
+                init(TestHiveUDFArray.class, new DataType[] {DataTypes.ARRAY(DataTypes.DOUBLE())});
 
-		assertEquals(3, udf.eval(1.1d, 2.2d));
-		assertEquals(3, udf.eval(testInputs));
+        assertEquals(3, udf.eval(1.1d, 2.2d));
+        assertEquals(3, udf.eval(testInputs));
 
-		// input is not a single array
-		udf = init(
-			TestHiveUDFArray.class,
-			new DataType[]{
-				DataTypes.INT(),
-				DataTypes.ARRAY(DataTypes.DOUBLE())
-			});
+        // input is not a single array
+        udf =
+                init(
+                        TestHiveUDFArray.class,
+                        new DataType[] {DataTypes.INT(), DataTypes.ARRAY(DataTypes.DOUBLE())});
 
-		assertEquals(8, udf.eval(5, testInputs));
+        assertEquals(8, udf.eval(5, testInputs));
 
-		udf = init(
-			TestHiveUDFArray.class,
-			new DataType[]{
-				DataTypes.INT(),
-				DataTypes.ARRAY(DataTypes.DOUBLE()),
-				DataTypes.ARRAY(DataTypes.DOUBLE())
-			});
+        udf =
+                init(
+                        TestHiveUDFArray.class,
+                        new DataType[] {
+                            DataTypes.INT(),
+                            DataTypes.ARRAY(DataTypes.DOUBLE()),
+                            DataTypes.ARRAY(DataTypes.DOUBLE())
+                        });
 
-		assertEquals(11, udf.eval(5, testInputs, testInputs));
-	}
+        assertEquals(11, udf.eval(5, testInputs, testInputs));
+    }
 
-	protected static HiveSimpleUDF init(Class hiveUdfClass, DataType[] argTypes) {
-		HiveSimpleUDF udf = new HiveSimpleUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
+    protected static HiveSimpleUDF init(Class hiveUdfClass, DataType[] argTypes) {
+        HiveSimpleUDF udf =
+                new HiveSimpleUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
 
-		// Hive UDF won't have literal args
-		CallContext callContext = new HiveUDFCallContext(new Object[0], argTypes);
-		udf.getTypeInference(null).getOutputTypeStrategy().inferType(callContext);
+        // Hive UDF won't have literal args
+        CallContext callContext = new HiveUDFCallContext(new Object[0], argTypes);
+        udf.getTypeInference(null).getOutputTypeStrategy().inferType(callContext);
 
-		udf.open(null);
+        udf.open(null);
 
-		return udf;
-	}
+        return udf;
+    }
 
-	/**
-	 * Boolean Test UDF.
-	 */
-	public static class BooleanUDF extends UDF {
-		public boolean evaluate(int content) {
-			return content == 1;
-		}
-	}
+    /** Boolean Test UDF. */
+    public static class BooleanUDF extends UDF {
+        public boolean evaluate(int content) {
+            return content == 1;
+        }
+    }
 
-	/**
-	 * Float Test UDF.
-	 */
-	public static class FloatUDF extends UDF {
-		public float evaluate(float content) {
-			return content;
-		}
-	}
+    /** Float Test UDF. */
+    public static class FloatUDF extends UDF {
+        public float evaluate(float content) {
+            return content;
+        }
+    }
 
-	/**
-	 * Int Test UDF.
-	 */
-	public static class IntUDF extends UDF {
-		public int evaluate(int content) {
-			return content;
-		}
-	}
+    /** Int Test UDF. */
+    public static class IntUDF extends UDF {
+        public int evaluate(int content) {
+            return content;
+        }
+    }
 
-	/**
-	 * String Test UDF.
-	 */
-	public static class StringUDF extends UDF {
-		public String evaluate(String content) {
-			return content;
-		}
-	}
+    /** String Test UDF. */
+    public static class StringUDF extends UDF {
+        public String evaluate(String content) {
+            return content;
+        }
+    }
 
-	/**
-	 * A CallContext implementation for Hive UDF tests.
-	 */
-	public static class HiveUDFCallContext implements CallContext {
+    /** A CallContext implementation for Hive UDF tests. */
+    public static class HiveUDFCallContext implements CallContext {
 
-		private final Object[] constantArgs;
-		private final DataType[] argTypes;
+        private final Object[] constantArgs;
+        private final DataType[] argTypes;
 
-		public HiveUDFCallContext(Object[] constantArgs, DataType[] argTypes) {
-			this.constantArgs = constantArgs;
-			this.argTypes = argTypes;
-		}
+        public HiveUDFCallContext(Object[] constantArgs, DataType[] argTypes) {
+            this.constantArgs = constantArgs;
+            this.argTypes = argTypes;
+        }
 
-		@Override
-		public DataTypeFactory getDataTypeFactory() {
-			return null;
-		}
+        @Override
+        public DataTypeFactory getDataTypeFactory() {
+            return null;
+        }
 
-		@Override
-		public FunctionDefinition getFunctionDefinition() {
-			return null;
-		}
+        @Override
+        public FunctionDefinition getFunctionDefinition() {
+            return null;
+        }
 
-		@Override
-		public boolean isArgumentLiteral(int pos) {
-			return pos >= 0 && pos < constantArgs.length && constantArgs[pos] != null;
-		}
+        @Override
+        public boolean isArgumentLiteral(int pos) {
+            return pos >= 0 && pos < constantArgs.length && constantArgs[pos] != null;
+        }
 
-		@Override
-		public boolean isArgumentNull(int pos) {
-			return false;
-		}
+        @Override
+        public boolean isArgumentNull(int pos) {
+            return false;
+        }
 
-		@Override
-		public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-			return (Optional<T>) Optional.of(constantArgs[pos]);
-		}
+        @Override
+        public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+            return (Optional<T>) Optional.of(constantArgs[pos]);
+        }
 
-		@Override
-		public String getName() {
-			return null;
-		}
+        @Override
+        public String getName() {
+            return null;
+        }
 
-		@Override
-		public List<DataType> getArgumentDataTypes() {
-			return Arrays.asList(argTypes);
-		}
+        @Override
+        public List<DataType> getArgumentDataTypes() {
+            return Arrays.asList(argTypes);
+        }
 
-		@Override
-		public Optional<DataType> getOutputDataType() {
-			return Optional.empty();
-		}
-	}
+        @Override
+        public Optional<DataType> getOutputDataType() {
+            return Optional.empty();
+        }
+    }
 }

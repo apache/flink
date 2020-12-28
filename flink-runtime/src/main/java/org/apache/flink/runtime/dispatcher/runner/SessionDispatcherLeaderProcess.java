@@ -43,233 +43,227 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
- * Process which encapsulates the job recovery logic and life cycle management of a
- * {@link Dispatcher}.
+ * Process which encapsulates the job recovery logic and life cycle management of a {@link
+ * Dispatcher}.
  */
-public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess implements JobGraphStore.JobGraphListener {
+public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess
+        implements JobGraphStore.JobGraphListener {
 
-	private final DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory;
+    private final DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory;
 
-	private final JobGraphStore jobGraphStore;
+    private final JobGraphStore jobGraphStore;
 
-	private final Executor ioExecutor;
+    private final Executor ioExecutor;
 
-	private CompletableFuture<Void> onGoingRecoveryOperation = FutureUtils.completedVoidFuture();
+    private CompletableFuture<Void> onGoingRecoveryOperation = FutureUtils.completedVoidFuture();
 
-	private SessionDispatcherLeaderProcess(
-			UUID leaderSessionId,
-			DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
-			JobGraphStore jobGraphStore,
-			Executor ioExecutor,
-			FatalErrorHandler fatalErrorHandler) {
-		super(leaderSessionId, fatalErrorHandler);
+    private SessionDispatcherLeaderProcess(
+            UUID leaderSessionId,
+            DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
+            JobGraphStore jobGraphStore,
+            Executor ioExecutor,
+            FatalErrorHandler fatalErrorHandler) {
+        super(leaderSessionId, fatalErrorHandler);
 
-		this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
-		this.jobGraphStore = jobGraphStore;
-		this.ioExecutor = ioExecutor;
-	}
+        this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
+        this.jobGraphStore = jobGraphStore;
+        this.ioExecutor = ioExecutor;
+    }
 
-	@Override
-	protected void onStart() {
-		startServices();
+    @Override
+    protected void onStart() {
+        startServices();
 
-		onGoingRecoveryOperation = recoverJobsAsync()
-			.thenAccept(this::createDispatcherIfRunning)
-			.handle(this::onErrorIfRunning);
-	}
+        onGoingRecoveryOperation =
+                recoverJobsAsync()
+                        .thenAccept(this::createDispatcherIfRunning)
+                        .handle(this::onErrorIfRunning);
+    }
 
-	private void startServices() {
-		try {
-			jobGraphStore.start(this);
-		} catch (Exception e) {
-			throw new FlinkRuntimeException(
-				String.format(
-					"Could not start %s when trying to start the %s.",
-					jobGraphStore.getClass().getSimpleName(),
-					getClass().getSimpleName()),
-				e);
-		}
-	}
+    private void startServices() {
+        try {
+            jobGraphStore.start(this);
+        } catch (Exception e) {
+            throw new FlinkRuntimeException(
+                    String.format(
+                            "Could not start %s when trying to start the %s.",
+                            jobGraphStore.getClass().getSimpleName(), getClass().getSimpleName()),
+                    e);
+        }
+    }
 
-	private void createDispatcherIfRunning(Collection<JobGraph> jobGraphs) {
-		runIfStateIs(State.RUNNING, () -> createDispatcher(jobGraphs));
-	}
+    private void createDispatcherIfRunning(Collection<JobGraph> jobGraphs) {
+        runIfStateIs(State.RUNNING, () -> createDispatcher(jobGraphs));
+    }
 
-	private void createDispatcher(Collection<JobGraph> jobGraphs) {
+    private void createDispatcher(Collection<JobGraph> jobGraphs) {
 
-		final DispatcherGatewayService dispatcherService = dispatcherGatewayServiceFactory.create(
-			DispatcherId.fromUuid(getLeaderSessionId()),
-			jobGraphs,
-			jobGraphStore);
+        final DispatcherGatewayService dispatcherService =
+                dispatcherGatewayServiceFactory.create(
+                        DispatcherId.fromUuid(getLeaderSessionId()), jobGraphs, jobGraphStore);
 
-		completeDispatcherSetup(dispatcherService);
-	}
+        completeDispatcherSetup(dispatcherService);
+    }
 
-	private CompletableFuture<Collection<JobGraph>> recoverJobsAsync() {
-		return CompletableFuture.supplyAsync(
-			this::recoverJobsIfRunning,
-			ioExecutor);
-	}
+    private CompletableFuture<Collection<JobGraph>> recoverJobsAsync() {
+        return CompletableFuture.supplyAsync(this::recoverJobsIfRunning, ioExecutor);
+    }
 
-	private Collection<JobGraph> recoverJobsIfRunning() {
-		return supplyUnsynchronizedIfRunning(this::recoverJobs).orElse(Collections.emptyList());
+    private Collection<JobGraph> recoverJobsIfRunning() {
+        return supplyUnsynchronizedIfRunning(this::recoverJobs).orElse(Collections.emptyList());
+    }
 
-	}
+    private Collection<JobGraph> recoverJobs() {
+        log.info("Recover all persisted job graphs.");
+        final Collection<JobID> jobIds = getJobIds();
+        final Collection<JobGraph> recoveredJobGraphs = new ArrayList<>();
 
-	private Collection<JobGraph> recoverJobs() {
-		log.info("Recover all persisted job graphs.");
-		final Collection<JobID> jobIds = getJobIds();
-		final Collection<JobGraph> recoveredJobGraphs = new ArrayList<>();
+        for (JobID jobId : jobIds) {
+            recoveredJobGraphs.add(recoverJob(jobId));
+        }
 
-		for (JobID jobId : jobIds) {
-			recoveredJobGraphs.add(recoverJob(jobId));
-		}
+        log.info("Successfully recovered {} persisted job graphs.", recoveredJobGraphs.size());
 
-		log.info("Successfully recovered {} persisted job graphs.", recoveredJobGraphs.size());
+        return recoveredJobGraphs;
+    }
 
-		return recoveredJobGraphs;
-	}
+    private Collection<JobID> getJobIds() {
+        try {
+            return jobGraphStore.getJobIds();
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Could not retrieve job ids of persisted jobs.", e);
+        }
+    }
 
-	private Collection<JobID> getJobIds() {
-		try {
-			return jobGraphStore.getJobIds();
-		} catch (Exception e) {
-			throw new FlinkRuntimeException(
-				"Could not retrieve job ids of persisted jobs.",
-				e);
-		}
-	}
+    private JobGraph recoverJob(JobID jobId) {
+        log.info("Trying to recover job with job id {}.", jobId);
+        try {
+            return jobGraphStore.recoverJobGraph(jobId);
+        } catch (Exception e) {
+            throw new FlinkRuntimeException(
+                    String.format("Could not recover job with job id %s.", jobId), e);
+        }
+    }
 
-	private JobGraph recoverJob(JobID jobId) {
-		log.info("Trying to recover job with job id {}.", jobId);
-		try {
-			return jobGraphStore.recoverJobGraph(jobId);
-		} catch (Exception e) {
-			throw new FlinkRuntimeException(
-				String.format("Could not recover job with job id %s.", jobId),
-				e);
-		}
-	}
+    @Override
+    protected CompletableFuture<Void> onClose() {
+        return CompletableFuture.runAsync(this::stopServices, ioExecutor);
+    }
 
-	@Override
-	protected CompletableFuture<Void> onClose() {
-		return CompletableFuture.runAsync(
-			this::stopServices,
-			ioExecutor);
-	}
+    private void stopServices() {
+        try {
+            jobGraphStore.stop();
+        } catch (Exception e) {
+            ExceptionUtils.rethrow(e);
+        }
+    }
 
-	private void stopServices() {
-		try {
-			jobGraphStore.stop();
-		} catch (Exception e) {
-			ExceptionUtils.rethrow(e);
-		}
-	}
+    // ------------------------------------------------------------
+    // JobGraphListener
+    // ------------------------------------------------------------
 
-	// ------------------------------------------------------------
-	// JobGraphListener
-	// ------------------------------------------------------------
+    @Override
+    public void onAddedJobGraph(JobID jobId) {
+        runIfStateIs(State.RUNNING, () -> handleAddedJobGraph(jobId));
+    }
 
-	@Override
-	public void onAddedJobGraph(JobID jobId) {
-		runIfStateIs(
-			State.RUNNING,
-			() -> handleAddedJobGraph(jobId));
-	}
+    private void handleAddedJobGraph(JobID jobId) {
+        log.debug(
+                "Job {} has been added to the {} by another process.",
+                jobId,
+                jobGraphStore.getClass().getSimpleName());
 
-	private void handleAddedJobGraph(JobID jobId) {
-		log.debug(
-			"Job {} has been added to the {} by another process.",
-			jobId,
-			jobGraphStore.getClass().getSimpleName());
+        // serialize all ongoing recovery operations
+        onGoingRecoveryOperation =
+                onGoingRecoveryOperation
+                        .thenApplyAsync(ignored -> recoverJobIfRunning(jobId), ioExecutor)
+                        .thenCompose(
+                                optionalJobGraph ->
+                                        optionalJobGraph
+                                                .flatMap(this::submitAddedJobIfRunning)
+                                                .orElse(FutureUtils.completedVoidFuture()))
+                        .handle(this::onErrorIfRunning);
+    }
 
-		// serialize all ongoing recovery operations
-		onGoingRecoveryOperation = onGoingRecoveryOperation
-			.thenApplyAsync(
-				ignored -> recoverJobIfRunning(jobId),
-				ioExecutor)
-			.thenCompose(optionalJobGraph -> optionalJobGraph
-				.flatMap(this::submitAddedJobIfRunning)
-				.orElse(FutureUtils.completedVoidFuture()))
-			.handle(this::onErrorIfRunning);
-	}
+    private Optional<CompletableFuture<Void>> submitAddedJobIfRunning(JobGraph jobGraph) {
+        return supplyIfRunning(() -> submitAddedJob(jobGraph));
+    }
 
-	private Optional<CompletableFuture<Void>> submitAddedJobIfRunning(JobGraph jobGraph) {
-		return supplyIfRunning(() -> submitAddedJob(jobGraph));
-	}
+    private CompletableFuture<Void> submitAddedJob(JobGraph jobGraph) {
+        final DispatcherGateway dispatcherGateway = getDispatcherGatewayInternal();
 
-	private CompletableFuture<Void> submitAddedJob(JobGraph jobGraph) {
-		final DispatcherGateway dispatcherGateway = getDispatcherGatewayInternal();
+        return dispatcherGateway
+                .submitJob(jobGraph, RpcUtils.INF_TIMEOUT)
+                .thenApply(FunctionUtils.nullFn())
+                .exceptionally(this::filterOutDuplicateJobSubmissionException);
+    }
 
-		return dispatcherGateway
-			.submitJob(jobGraph, RpcUtils.INF_TIMEOUT)
-			.thenApply(FunctionUtils.nullFn())
-			.exceptionally(this::filterOutDuplicateJobSubmissionException);
-	}
+    private Void filterOutDuplicateJobSubmissionException(Throwable throwable) {
+        final Throwable strippedException = ExceptionUtils.stripCompletionException(throwable);
+        if (strippedException instanceof DuplicateJobSubmissionException) {
+            final DuplicateJobSubmissionException duplicateJobSubmissionException =
+                    (DuplicateJobSubmissionException) strippedException;
 
-	private Void filterOutDuplicateJobSubmissionException(Throwable throwable) {
-		final Throwable strippedException = ExceptionUtils.stripCompletionException(throwable);
-		if (strippedException instanceof DuplicateJobSubmissionException) {
-			final DuplicateJobSubmissionException duplicateJobSubmissionException = (DuplicateJobSubmissionException) strippedException;
+            log.debug(
+                    "Ignore recovered job {} because the job is currently being executed.",
+                    duplicateJobSubmissionException.getJobID(),
+                    duplicateJobSubmissionException);
 
-			log.debug("Ignore recovered job {} because the job is currently being executed.", duplicateJobSubmissionException.getJobID(), duplicateJobSubmissionException);
+            return null;
+        } else {
+            throw new CompletionException(throwable);
+        }
+    }
 
-			return null;
-		} else {
-			throw new CompletionException(throwable);
-		}
-	}
+    private DispatcherGateway getDispatcherGatewayInternal() {
+        return Preconditions.checkNotNull(getDispatcherGateway().getNow(null));
+    }
 
-	private DispatcherGateway getDispatcherGatewayInternal() {
-		return Preconditions.checkNotNull(getDispatcherGateway().getNow(null));
-	}
+    private Optional<JobGraph> recoverJobIfRunning(JobID jobId) {
+        return supplyUnsynchronizedIfRunning(() -> recoverJob(jobId));
+    }
 
-	private Optional<JobGraph> recoverJobIfRunning(JobID jobId) {
-		return supplyUnsynchronizedIfRunning(() -> recoverJob(jobId));
-	}
+    @Override
+    public void onRemovedJobGraph(JobID jobId) {
+        runIfStateIs(State.RUNNING, () -> handleRemovedJobGraph(jobId));
+    }
 
-	@Override
-	public void onRemovedJobGraph(JobID jobId) {
-		runIfStateIs(
-			State.RUNNING,
-			() -> handleRemovedJobGraph(jobId));
-	}
+    private void handleRemovedJobGraph(JobID jobId) {
+        log.debug(
+                "Job {} has been removed from the {} by another process.",
+                jobId,
+                jobGraphStore.getClass().getSimpleName());
 
-	private void handleRemovedJobGraph(JobID jobId) {
-		log.debug(
-			"Job {} has been removed from the {} by another process.",
-			jobId,
-			jobGraphStore.getClass().getSimpleName());
+        onGoingRecoveryOperation =
+                onGoingRecoveryOperation
+                        .thenCompose(
+                                ignored ->
+                                        removeJobGraphIfRunning(jobId)
+                                                .orElse(FutureUtils.completedVoidFuture()))
+                        .handle(this::onErrorIfRunning);
+    }
 
-		onGoingRecoveryOperation = onGoingRecoveryOperation
-			.thenCompose(ignored -> removeJobGraphIfRunning(jobId).orElse(FutureUtils.completedVoidFuture()))
-			.handle(this::onErrorIfRunning);
-	}
+    private Optional<CompletableFuture<Void>> removeJobGraphIfRunning(JobID jobId) {
+        return supplyIfRunning(() -> removeJobGraph(jobId));
+    }
 
-	private Optional<CompletableFuture<Void>> removeJobGraphIfRunning(JobID jobId) {
-		return supplyIfRunning(() -> removeJobGraph(jobId));
-	}
+    private CompletableFuture<Void> removeJobGraph(JobID jobId) {
+        return getDispatcherService()
+                .map(dispatcherService -> dispatcherService.onRemovedJobGraph(jobId))
+                .orElseGet(FutureUtils::completedVoidFuture);
+    }
 
-	private CompletableFuture<Void> removeJobGraph(JobID jobId) {
-		return getDispatcherService().map(dispatcherService -> dispatcherService.onRemovedJobGraph(jobId))
-			.orElseGet(FutureUtils::completedVoidFuture);
-	}
+    // ---------------------------------------------------------------
+    // Factory methods
+    // ---------------------------------------------------------------
 
-	// ---------------------------------------------------------------
-	// Factory methods
-	// ---------------------------------------------------------------
-
-	public static SessionDispatcherLeaderProcess create(
-			UUID leaderSessionId,
-			DispatcherGatewayServiceFactory dispatcherFactory,
-			JobGraphStore jobGraphStore,
-			Executor ioExecutor,
-			FatalErrorHandler fatalErrorHandler) {
-		return new SessionDispatcherLeaderProcess(
-			leaderSessionId,
-			dispatcherFactory,
-			jobGraphStore,
-			ioExecutor,
-			fatalErrorHandler);
-	}
+    public static SessionDispatcherLeaderProcess create(
+            UUID leaderSessionId,
+            DispatcherGatewayServiceFactory dispatcherFactory,
+            JobGraphStore jobGraphStore,
+            Executor ioExecutor,
+            FatalErrorHandler fatalErrorHandler) {
+        return new SessionDispatcherLeaderProcess(
+                leaderSessionId, dispatcherFactory, jobGraphStore, ioExecutor, fatalErrorHandler);
+    }
 }

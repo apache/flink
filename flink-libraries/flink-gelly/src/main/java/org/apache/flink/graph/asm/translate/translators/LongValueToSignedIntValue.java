@@ -28,20 +28,18 @@ import org.apache.flink.util.MathUtils;
  *
  * <p>Throws {@link RuntimeException} for integer overflow.
  */
-public class LongValueToSignedIntValue
-implements TranslateFunction<LongValue, IntValue> {
+public class LongValueToSignedIntValue implements TranslateFunction<LongValue, IntValue> {
 
-	public static final long MAX_VERTEX_COUNT = 1L << 32;
+    public static final long MAX_VERTEX_COUNT = 1L << 32;
 
-	@Override
-	public IntValue translate(LongValue value, IntValue reuse)
-			throws Exception {
-		if (reuse == null) {
-			reuse = new IntValue();
-		}
+    @Override
+    public IntValue translate(LongValue value, IntValue reuse) throws Exception {
+        if (reuse == null) {
+            reuse = new IntValue();
+        }
 
-		reuse.setValue(MathUtils.checkedDownCast(value.getValue()));
+        reuse.setValue(MathUtils.checkedDownCast(value.getValue()));
 
-		return reuse;
-	}
+        return reuse;
+    }
 }

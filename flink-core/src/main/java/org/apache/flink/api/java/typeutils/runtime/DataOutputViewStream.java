@@ -20,24 +20,25 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataOutputView;
+
 import java.io.IOException;
 import java.io.OutputStream;
 
 @Internal
 public class DataOutputViewStream extends OutputStream {
-	protected DataOutputView outputView;
+    protected DataOutputView outputView;
 
-	public DataOutputViewStream(DataOutputView outputView){
-		this.outputView = outputView;
-	}
+    public DataOutputViewStream(DataOutputView outputView) {
+        this.outputView = outputView;
+    }
 
-	@Override
-	public void write(int b) throws IOException {
-		outputView.writeByte(b);
-	}
+    @Override
+    public void write(int b) throws IOException {
+        outputView.writeByte(b);
+    }
 
-	@Override
-	public void write(byte[] b, int off, int len) throws IOException {
-		outputView.write(b, off, len);
-	}
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+        outputView.write(b, off, len);
+    }
 }

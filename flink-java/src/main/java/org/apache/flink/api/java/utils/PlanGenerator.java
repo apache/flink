@@ -40,149 +40,160 @@ import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A generator that generates a {@link Plan} from a graph of {@link Operator}s.
- */
+/** A generator that generates a {@link Plan} from a graph of {@link Operator}s. */
 @Internal
 public class PlanGenerator {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PlanGenerator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PlanGenerator.class);
 
-	private final List<DataSink<?>> sinks;
-	private final ExecutionConfig config;
-	private final int defaultParallelism;
-	private final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile;
-	private final String jobName;
+    private final List<DataSink<?>> sinks;
+    private final ExecutionConfig config;
+    private final int defaultParallelism;
+    private final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile;
+    private final String jobName;
 
-	public PlanGenerator(
-			List<DataSink<?>> sinks,
-			ExecutionConfig config,
-			int defaultParallelism,
-			List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile,
-			String jobName) {
-		this.sinks = checkNotNull(sinks);
-		this.config = checkNotNull(config);
-		this.cacheFile = checkNotNull(cacheFile);
-		this.jobName = checkNotNull(jobName);
-		this.defaultParallelism = defaultParallelism;
-	}
+    public PlanGenerator(
+            List<DataSink<?>> sinks,
+            ExecutionConfig config,
+            int defaultParallelism,
+            List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile,
+            String jobName) {
+        this.sinks = checkNotNull(sinks);
+        this.config = checkNotNull(config);
+        this.cacheFile = checkNotNull(cacheFile);
+        this.jobName = checkNotNull(jobName);
+        this.defaultParallelism = defaultParallelism;
+    }
 
-	public Plan generate() {
-		final Plan plan = createPlan();
-		registerGenericTypeInfoIfConfigured(plan);
-		registerCachedFiles(plan);
+    public Plan generate() {
+        final Plan plan = createPlan();
+        registerGenericTypeInfoIfConfigured(plan);
+        registerCachedFiles(plan);
 
-		logTypeRegistrationDetails();
-		return plan;
-	}
+        logTypeRegistrationDetails();
+        return plan;
+    }
 
-	/**
-	 * Create plan.
-	 *
-	 * @return the generated plan.
-	 */
-	private Plan createPlan() {
-		final OperatorTranslation translator = new OperatorTranslation();
-		final Plan plan = translator.translateToPlan(sinks, jobName);
+    /**
+     * Create plan.
+     *
+     * @return the generated plan.
+     */
+    private Plan createPlan() {
+        final OperatorTranslation translator = new OperatorTranslation();
+        final Plan plan = translator.translateToPlan(sinks, jobName);
 
-		if (defaultParallelism > 0) {
-			plan.setDefaultParallelism(defaultParallelism);
-		}
-		plan.setExecutionConfig(config);
-		return plan;
-	}
+        if (defaultParallelism > 0) {
+            plan.setDefaultParallelism(defaultParallelism);
+        }
+        plan.setExecutionConfig(config);
+        return plan;
+    }
 
-	/**
-	 * Check plan for GenericTypeInfo's and register the types at the serializers.
-	 *
-	 * @param plan the generated plan.
-	 */
-	private void registerGenericTypeInfoIfConfigured(Plan plan) {
-		if (!config.isAutoTypeRegistrationDisabled()) {
-			plan.accept(new Visitor<Operator<?>>() {
+    /**
+     * Check plan for GenericTypeInfo's and register the types at the serializers.
+     *
+     * @param plan the generated plan.
+     */
+    private void registerGenericTypeInfoIfConfigured(Plan plan) {
+        if (!config.isAutoTypeRegistrationDisabled()) {
+            plan.accept(
+                    new Visitor<Operator<?>>() {
 
-				private final Set<Class<?>> registeredTypes = new HashSet<>();
-				private final Set<org.apache.flink.api.common.operators.Operator<?>> visitedOperators = new HashSet<>();
+                        private final Set<Class<?>> registeredTypes = new HashSet<>();
+                        private final Set<org.apache.flink.api.common.operators.Operator<?>>
+                                visitedOperators = new HashSet<>();
 
-				@Override
-				public boolean preVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
-					if (!visitedOperators.add(visitable)) {
-						return false;
-					}
-					OperatorInformation<?> opInfo = visitable.getOperatorInfo();
-					Serializers.recursivelyRegisterType(opInfo.getOutputType(), config, registeredTypes);
-					return true;
-				}
+                        @Override
+                        public boolean preVisit(
+                                org.apache.flink.api.common.operators.Operator<?> visitable) {
+                            if (!visitedOperators.add(visitable)) {
+                                return false;
+                            }
+                            OperatorInformation<?> opInfo = visitable.getOperatorInfo();
+                            Serializers.recursivelyRegisterType(
+                                    opInfo.getOutputType(), config, registeredTypes);
+                            return true;
+                        }
 
-				@Override
-				public void postVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
-				}
-			});
-		}
-	}
+                        @Override
+                        public void postVisit(
+                                org.apache.flink.api.common.operators.Operator<?> visitable) {}
+                    });
+        }
+    }
 
-	private void registerCachedFiles(Plan plan) {
-		try {
-			registerCachedFilesWithPlan(plan);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
-		}
-	}
+    private void registerCachedFiles(Plan plan) {
+        try {
+            registerCachedFilesWithPlan(plan);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Error while registering cached files: " + e.getMessage(), e);
+        }
+    }
 
-	/**
-	 * Registers all files that were registered at this execution environment's cache registry of the
-	 * given plan's cache registry.
-	 *
-	 * @param p The plan to register files at.
-	 * @throws IOException Thrown if checks for existence and sanity fail.
-	 */
-	private void registerCachedFilesWithPlan(Plan p) throws IOException {
-		for (Tuple2<String, DistributedCache.DistributedCacheEntry> entry : cacheFile) {
-			p.registerCachedFile(entry.f0, entry.f1);
-		}
-	}
+    /**
+     * Registers all files that were registered at this execution environment's cache registry of
+     * the given plan's cache registry.
+     *
+     * @param p The plan to register files at.
+     * @throws IOException Thrown if checks for existence and sanity fail.
+     */
+    private void registerCachedFilesWithPlan(Plan p) throws IOException {
+        for (Tuple2<String, DistributedCache.DistributedCacheEntry> entry : cacheFile) {
+            p.registerCachedFile(entry.f0, entry.f1);
+        }
+    }
 
-	private void logTypeRegistrationDetails() {
-		int registeredTypes = getNumberOfRegisteredTypes();
-		int defaultKryoSerializers = getNumberOfDefaultKryoSerializers();
+    private void logTypeRegistrationDetails() {
+        int registeredTypes = getNumberOfRegisteredTypes();
+        int defaultKryoSerializers = getNumberOfDefaultKryoSerializers();
 
-		LOG.info("The job has {} registered types and {} default Kryo serializers", registeredTypes, defaultKryoSerializers);
+        LOG.info(
+                "The job has {} registered types and {} default Kryo serializers",
+                registeredTypes,
+                defaultKryoSerializers);
 
-		if (config.isForceKryoEnabled() && config.isForceAvroEnabled()) {
-			LOG.warn("In the ExecutionConfig, both Avro and Kryo are enforced. Using Kryo serializer for serializing POJOs");
-		} else if (config.isForceKryoEnabled()) {
-			LOG.info("Using KryoSerializer for serializing POJOs");
-		} else if (config.isForceAvroEnabled()) {
-			LOG.info("Using AvroSerializer for serializing POJOs");
-		}
+        if (config.isForceKryoEnabled() && config.isForceAvroEnabled()) {
+            LOG.warn(
+                    "In the ExecutionConfig, both Avro and Kryo are enforced. Using Kryo serializer for serializing POJOs");
+        } else if (config.isForceKryoEnabled()) {
+            LOG.info("Using KryoSerializer for serializing POJOs");
+        } else if (config.isForceAvroEnabled()) {
+            LOG.info("Using AvroSerializer for serializing POJOs");
+        }
 
-		if (LOG.isDebugEnabled()) {
-			logDebuggingTypeDetails();
-		}
-	}
+        if (LOG.isDebugEnabled()) {
+            logDebuggingTypeDetails();
+        }
+    }
 
-	private int getNumberOfRegisteredTypes() {
-		return config.getRegisteredKryoTypes().size() +
-				config.getRegisteredPojoTypes().size() +
-				config.getRegisteredTypesWithKryoSerializerClasses().size() +
-				config.getRegisteredTypesWithKryoSerializers().size();
-	}
+    private int getNumberOfRegisteredTypes() {
+        return config.getRegisteredKryoTypes().size()
+                + config.getRegisteredPojoTypes().size()
+                + config.getRegisteredTypesWithKryoSerializerClasses().size()
+                + config.getRegisteredTypesWithKryoSerializers().size();
+    }
 
-	private int getNumberOfDefaultKryoSerializers() {
-		return config.getDefaultKryoSerializers().size() +
-				config.getDefaultKryoSerializerClasses().size();
-	}
+    private int getNumberOfDefaultKryoSerializers() {
+        return config.getDefaultKryoSerializers().size()
+                + config.getDefaultKryoSerializerClasses().size();
+    }
 
-	private void logDebuggingTypeDetails() {
-		LOG.debug("Registered Kryo types: {}", config.getRegisteredKryoTypes().toString());
-		LOG.debug("Registered Kryo with Serializers types: {}",
-				config.getRegisteredTypesWithKryoSerializers().entrySet().toString());
-		LOG.debug("Registered Kryo with Serializer Classes types: {}",
-				config.getRegisteredTypesWithKryoSerializerClasses().entrySet().toString());
-		LOG.debug("Registered Kryo default Serializers: {}",
-				config.getDefaultKryoSerializers().entrySet().toString());
-		LOG.debug("Registered Kryo default Serializers Classes {}",
-				config.getDefaultKryoSerializerClasses().entrySet().toString());
-		LOG.debug("Registered POJO types: {}", config.getRegisteredPojoTypes().toString());
-	}
+    private void logDebuggingTypeDetails() {
+        LOG.debug("Registered Kryo types: {}", config.getRegisteredKryoTypes().toString());
+        LOG.debug(
+                "Registered Kryo with Serializers types: {}",
+                config.getRegisteredTypesWithKryoSerializers().entrySet().toString());
+        LOG.debug(
+                "Registered Kryo with Serializer Classes types: {}",
+                config.getRegisteredTypesWithKryoSerializerClasses().entrySet().toString());
+        LOG.debug(
+                "Registered Kryo default Serializers: {}",
+                config.getDefaultKryoSerializers().entrySet().toString());
+        LOG.debug(
+                "Registered Kryo default Serializers Classes {}",
+                config.getDefaultKryoSerializerClasses().entrySet().toString());
+        LOG.debug("Registered POJO types: {}", config.getRegisteredPojoTypes().toString());
+    }
 }

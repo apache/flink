@@ -22,12 +22,10 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
 
-/**
- * Test for {@link CoreModule}.
- */
+/** Test for {@link CoreModule}. */
 public class CoreModuleTest {
-	@Test
-	public void testGetNonExistFunction() {
-		assertFalse(CoreModule.INSTANCE.getFunctionDefinition("nonexist").isPresent());
-	}
+    @Test
+    public void testGetNonExistFunction() {
+        assertFalse(CoreModule.INSTANCE.getFunctionDefinition("nonexist").isPresent());
+    }
 }

@@ -20,18 +20,16 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 
 import org.apache.flink.util.FlinkException;
 
-/**
- * Kubernetes related checked exceptions.
- */
+/** Kubernetes related checked exceptions. */
 public class KubernetesException extends FlinkException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public KubernetesException(String message) {
-		super(message);
-	}
+    public KubernetesException(String message) {
+        super(message);
+    }
 
-	public KubernetesException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public KubernetesException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

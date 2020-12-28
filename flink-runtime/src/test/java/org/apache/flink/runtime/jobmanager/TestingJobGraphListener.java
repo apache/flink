@@ -23,30 +23,28 @@ import org.apache.flink.api.common.JobID;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * {@link JobGraphStore.JobGraphListener} implementation for testing purposes.
- */
+/** {@link JobGraphStore.JobGraphListener} implementation for testing purposes. */
 public class TestingJobGraphListener implements JobGraphStore.JobGraphListener {
 
-	private final List<JobID> addedJobGraphs = new ArrayList<>();
+    private final List<JobID> addedJobGraphs = new ArrayList<>();
 
-	private final List<JobID> removedJobGraphs = new ArrayList<>();
+    private final List<JobID> removedJobGraphs = new ArrayList<>();
 
-	@Override
-	public void onAddedJobGraph(JobID jobId) {
-		addedJobGraphs.add(jobId);
-	}
+    @Override
+    public void onAddedJobGraph(JobID jobId) {
+        addedJobGraphs.add(jobId);
+    }
 
-	@Override
-	public void onRemovedJobGraph(JobID jobId) {
-		removedJobGraphs.add(jobId);
-	}
+    @Override
+    public void onRemovedJobGraph(JobID jobId) {
+        removedJobGraphs.add(jobId);
+    }
 
-	public List<JobID> getAddedJobGraphs() {
-		return addedJobGraphs;
-	}
+    public List<JobID> getAddedJobGraphs() {
+        return addedJobGraphs;
+    }
 
-	public List<JobID> getRemovedJobGraphs() {
-		return removedJobGraphs;
-	}
+    public List<JobID> getRemovedJobGraphs() {
+        return removedJobGraphs;
+    }
 }

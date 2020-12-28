@@ -54,182 +54,199 @@ import java.util.List;
 import static org.apache.flink.connector.file.src.FileSource.DEFAULT_SPLIT_ASSIGNER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A unified data source that reads a hive table.
- */
-public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit> implements ResultTypeQueryable<RowData> {
+/** A unified data source that reads a hive table. */
+public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit>
+        implements ResultTypeQueryable<RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final JobConfWrapper jobConfWrapper;
-	private final List<String> partitionKeys;
-	private final ContinuousPartitionFetcher<Partition, ?> fetcher;
-	private final HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext;
-	private final ObjectPath tablePath;
+    private final JobConfWrapper jobConfWrapper;
+    private final List<String> partitionKeys;
+    private final ContinuousPartitionFetcher<Partition, ?> fetcher;
+    private final HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext;
+    private final ObjectPath tablePath;
 
-	HiveSource(
-			Path[] inputPaths,
-			FileEnumerator.Provider fileEnumerator,
-			FileSplitAssigner.Provider splitAssigner,
-			BulkFormat<RowData, HiveSourceSplit> readerFormat,
-			@Nullable ContinuousEnumerationSettings continuousEnumerationSettings,
-			JobConf jobConf,
-			ObjectPath tablePath,
-			List<String> partitionKeys,
-			@Nullable ContinuousPartitionFetcher<Partition, ?> fetcher,
-			@Nullable HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext) {
-		super(
-				inputPaths,
-				fileEnumerator,
-				splitAssigner,
-				readerFormat,
-				continuousEnumerationSettings);
-		this.jobConfWrapper = new JobConfWrapper(jobConf);
-		this.tablePath = tablePath;
-		this.partitionKeys = partitionKeys;
-		this.fetcher = fetcher;
-		this.fetcherContext = fetcherContext;
-	}
+    HiveSource(
+            Path[] inputPaths,
+            FileEnumerator.Provider fileEnumerator,
+            FileSplitAssigner.Provider splitAssigner,
+            BulkFormat<RowData, HiveSourceSplit> readerFormat,
+            @Nullable ContinuousEnumerationSettings continuousEnumerationSettings,
+            JobConf jobConf,
+            ObjectPath tablePath,
+            List<String> partitionKeys,
+            @Nullable ContinuousPartitionFetcher<Partition, ?> fetcher,
+            @Nullable HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext) {
+        super(
+                inputPaths,
+                fileEnumerator,
+                splitAssigner,
+                readerFormat,
+                continuousEnumerationSettings);
+        this.jobConfWrapper = new JobConfWrapper(jobConf);
+        this.tablePath = tablePath;
+        this.partitionKeys = partitionKeys;
+        this.fetcher = fetcher;
+        this.fetcherContext = fetcherContext;
+    }
 
-	@Override
-	public SimpleVersionedSerializer<HiveSourceSplit> getSplitSerializer() {
-		return HiveSourceSplitSerializer.INSTANCE;
-	}
+    @Override
+    public SimpleVersionedSerializer<HiveSourceSplit> getSplitSerializer() {
+        return HiveSourceSplitSerializer.INSTANCE;
+    }
 
-	@Override
-	public SimpleVersionedSerializer<PendingSplitsCheckpoint<HiveSourceSplit>> getEnumeratorCheckpointSerializer() {
-		if (continuousPartitionedEnumerator()) {
-			return new ContinuousHivePendingSplitsCheckpointSerializer(getSplitSerializer());
-		} else {
-			return super.getEnumeratorCheckpointSerializer();
-		}
-	}
+    @Override
+    public SimpleVersionedSerializer<PendingSplitsCheckpoint<HiveSourceSplit>>
+            getEnumeratorCheckpointSerializer() {
+        if (continuousPartitionedEnumerator()) {
+            return new ContinuousHivePendingSplitsCheckpointSerializer(getSplitSerializer());
+        } else {
+            return super.getEnumeratorCheckpointSerializer();
+        }
+    }
 
-	@Override
-	public SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>> createEnumerator(
-			SplitEnumeratorContext<HiveSourceSplit> enumContext) {
-		if (continuousPartitionedEnumerator()) {
-			return createContinuousSplitEnumerator(
-					enumContext, fetcherContext.getConsumeStartOffset(), Collections.emptyList(), Collections.emptyList());
-		} else {
-			return super.createEnumerator(enumContext);
-		}
-	}
+    @Override
+    public SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>>
+            createEnumerator(SplitEnumeratorContext<HiveSourceSplit> enumContext) {
+        if (continuousPartitionedEnumerator()) {
+            return createContinuousSplitEnumerator(
+                    enumContext,
+                    fetcherContext.getConsumeStartOffset(),
+                    Collections.emptyList(),
+                    Collections.emptyList());
+        } else {
+            return super.createEnumerator(enumContext);
+        }
+    }
 
-	@Override
-	public SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>> restoreEnumerator(
-			SplitEnumeratorContext<HiveSourceSplit> enumContext, PendingSplitsCheckpoint<HiveSourceSplit> checkpoint) {
-		if (continuousPartitionedEnumerator()) {
-			Preconditions.checkState(checkpoint instanceof ContinuousHivePendingSplitsCheckpoint,
-					"Illegal type of splits checkpoint %s for streaming read partitioned table", checkpoint.getClass().getName());
-			ContinuousHivePendingSplitsCheckpoint hiveCheckpoint = (ContinuousHivePendingSplitsCheckpoint) checkpoint;
-			return createContinuousSplitEnumerator(
-					enumContext, hiveCheckpoint.getCurrentReadOffset(), hiveCheckpoint.getSeenPartitionsSinceOffset(), hiveCheckpoint.getSplits());
-		} else {
-			return super.restoreEnumerator(enumContext, checkpoint);
-		}
-	}
+    @Override
+    public SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>>
+            restoreEnumerator(
+                    SplitEnumeratorContext<HiveSourceSplit> enumContext,
+                    PendingSplitsCheckpoint<HiveSourceSplit> checkpoint) {
+        if (continuousPartitionedEnumerator()) {
+            Preconditions.checkState(
+                    checkpoint instanceof ContinuousHivePendingSplitsCheckpoint,
+                    "Illegal type of splits checkpoint %s for streaming read partitioned table",
+                    checkpoint.getClass().getName());
+            ContinuousHivePendingSplitsCheckpoint hiveCheckpoint =
+                    (ContinuousHivePendingSplitsCheckpoint) checkpoint;
+            return createContinuousSplitEnumerator(
+                    enumContext,
+                    hiveCheckpoint.getCurrentReadOffset(),
+                    hiveCheckpoint.getSeenPartitionsSinceOffset(),
+                    hiveCheckpoint.getSplits());
+        } else {
+            return super.restoreEnumerator(enumContext, checkpoint);
+        }
+    }
 
-	private boolean continuousPartitionedEnumerator() {
-		return getBoundedness() == Boundedness.CONTINUOUS_UNBOUNDED && !partitionKeys.isEmpty();
-	}
+    private boolean continuousPartitionedEnumerator() {
+        return getBoundedness() == Boundedness.CONTINUOUS_UNBOUNDED && !partitionKeys.isEmpty();
+    }
 
-	private SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>> createContinuousSplitEnumerator(
-			SplitEnumeratorContext<HiveSourceSplit> enumContext,
-			Comparable<?> currentReadOffset,
-			Collection<List<String>> seenPartitions,
-			Collection<HiveSourceSplit> splits) {
-		return new ContinuousHiveSplitEnumerator(
-				enumContext,
-				currentReadOffset,
-				seenPartitions,
-				getAssignerFactory().create(new ArrayList<>(splits)),
-				getContinuousEnumerationSettings().getDiscoveryInterval().toMillis(),
-				jobConfWrapper.conf(),
-				tablePath,
-				fetcher,
-				fetcherContext
-		);
-	}
+    private SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>>
+            createContinuousSplitEnumerator(
+                    SplitEnumeratorContext<HiveSourceSplit> enumContext,
+                    Comparable<?> currentReadOffset,
+                    Collection<List<String>> seenPartitions,
+                    Collection<HiveSourceSplit> splits) {
+        return new ContinuousHiveSplitEnumerator(
+                enumContext,
+                currentReadOffset,
+                seenPartitions,
+                getAssignerFactory().create(new ArrayList<>(splits)),
+                getContinuousEnumerationSettings().getDiscoveryInterval().toMillis(),
+                jobConfWrapper.conf(),
+                tablePath,
+                fetcher,
+                fetcherContext);
+    }
 
-	/**
-	 * Builder to build HiveSource instances.
-	 */
-	public static class HiveSourceBuilder extends AbstractFileSourceBuilder<RowData, HiveSourceSplit, HiveSourceBuilder> {
+    /** Builder to build HiveSource instances. */
+    public static class HiveSourceBuilder
+            extends AbstractFileSourceBuilder<RowData, HiveSourceSplit, HiveSourceBuilder> {
 
-		private final JobConf jobConf;
-		private final ObjectPath tablePath;
-		private final List<String> partitionKeys;
+        private final JobConf jobConf;
+        private final ObjectPath tablePath;
+        private final List<String> partitionKeys;
 
-		private ContinuousPartitionFetcher<Partition, ?> fetcher = null;
-		private HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext = null;
+        private ContinuousPartitionFetcher<Partition, ?> fetcher = null;
+        private HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext = null;
 
-		HiveSourceBuilder(
-				JobConf jobConf,
-				ObjectPath tablePath,
-				CatalogTable catalogTable,
-				List<HiveTablePartition> partitions,
-				@Nullable Long limit,
-				String hiveVersion,
-				boolean useMapRedReader,
-				RowType producedRowType) {
-			super(
-					new Path[1],
-					createBulkFormat(new JobConf(jobConf), catalogTable, hiveVersion, producedRowType, useMapRedReader, limit),
-					new HiveSourceFileEnumerator.Provider(partitions, new JobConfWrapper(jobConf)),
-					null);
-			this.jobConf = jobConf;
-			this.tablePath = tablePath;
-			this.partitionKeys = catalogTable.getPartitionKeys();
-		}
+        HiveSourceBuilder(
+                JobConf jobConf,
+                ObjectPath tablePath,
+                CatalogTable catalogTable,
+                List<HiveTablePartition> partitions,
+                @Nullable Long limit,
+                String hiveVersion,
+                boolean useMapRedReader,
+                RowType producedRowType) {
+            super(
+                    new Path[1],
+                    createBulkFormat(
+                            new JobConf(jobConf),
+                            catalogTable,
+                            hiveVersion,
+                            producedRowType,
+                            useMapRedReader,
+                            limit),
+                    new HiveSourceFileEnumerator.Provider(partitions, new JobConfWrapper(jobConf)),
+                    null);
+            this.jobConf = jobConf;
+            this.tablePath = tablePath;
+            this.partitionKeys = catalogTable.getPartitionKeys();
+        }
 
-		@Override
-		public HiveSource build() {
-			FileSplitAssigner.Provider splitAssigner = continuousSourceSettings == null || partitionKeys.isEmpty() ?
-					DEFAULT_SPLIT_ASSIGNER : SimpleSplitAssigner::new;
-			return new HiveSource(
-					inputPaths,
-					fileEnumerator,
-					splitAssigner,
-					readerFormat,
-					continuousSourceSettings,
-					jobConf,
-					tablePath,
-					partitionKeys,
-					fetcher,
-					fetcherContext
-			);
-		}
+        @Override
+        public HiveSource build() {
+            FileSplitAssigner.Provider splitAssigner =
+                    continuousSourceSettings == null || partitionKeys.isEmpty()
+                            ? DEFAULT_SPLIT_ASSIGNER
+                            : SimpleSplitAssigner::new;
+            return new HiveSource(
+                    inputPaths,
+                    fileEnumerator,
+                    splitAssigner,
+                    readerFormat,
+                    continuousSourceSettings,
+                    jobConf,
+                    tablePath,
+                    partitionKeys,
+                    fetcher,
+                    fetcherContext);
+        }
 
-		public HiveSourceBuilder setFetcher(ContinuousPartitionFetcher<Partition, ?> fetcher) {
-			this.fetcher = fetcher;
-			return this;
-		}
+        public HiveSourceBuilder setFetcher(ContinuousPartitionFetcher<Partition, ?> fetcher) {
+            this.fetcher = fetcher;
+            return this;
+        }
 
-		public HiveSourceBuilder setFetcherContext(HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext) {
-			this.fetcherContext = fetcherContext;
-			return this;
-		}
+        public HiveSourceBuilder setFetcherContext(
+                HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext) {
+            this.fetcherContext = fetcherContext;
+            return this;
+        }
 
-		private static BulkFormat<RowData, HiveSourceSplit> createBulkFormat(
-				JobConf jobConf,
-				CatalogTable catalogTable,
-				String hiveVersion,
-				RowType producedRowType,
-				boolean useMapRedReader,
-				Long limit) {
-			checkNotNull(catalogTable, "catalogTable can not be null.");
-			return LimitableBulkFormat.create(
-					new HiveBulkFormatAdapter(
-							new JobConfWrapper(jobConf),
-							catalogTable.getPartitionKeys(),
-							catalogTable.getSchema().getFieldNames(),
-							catalogTable.getSchema().getFieldDataTypes(),
-							hiveVersion,
-							producedRowType,
-							useMapRedReader),
-					limit
-			);
-		}
-	}
+        private static BulkFormat<RowData, HiveSourceSplit> createBulkFormat(
+                JobConf jobConf,
+                CatalogTable catalogTable,
+                String hiveVersion,
+                RowType producedRowType,
+                boolean useMapRedReader,
+                Long limit) {
+            checkNotNull(catalogTable, "catalogTable can not be null.");
+            return LimitableBulkFormat.create(
+                    new HiveBulkFormatAdapter(
+                            new JobConfWrapper(jobConf),
+                            catalogTable.getPartitionKeys(),
+                            catalogTable.getSchema().getFieldNames(),
+                            catalogTable.getSchema().getFieldDataTypes(),
+                            hiveVersion,
+                            producedRowType,
+                            useMapRedReader),
+                    limit);
+        }
+    }
 }

@@ -42,49 +42,53 @@ import static org.junit.Assert.fail;
  */
 public class IteratorSourcesITCase extends TestLogger {
 
-	private static final int PARALLELISM = 4;
+    private static final int PARALLELISM = 4;
 
-	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setNumberTaskManagers(1)
-			.setNumberSlotsPerTaskManager(PARALLELISM)
-			.build());
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(PARALLELISM)
+                            .build());
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void testParallelSourceExecution() throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+    @Test
+    public void testParallelSourceExecution() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-		final DataStream<Long> stream = env.fromSource(
-				new NumberSequenceSource(1L, 1_000L),
-				WatermarkStrategy.noWatermarks(),
-				"iterator source");
+        final DataStream<Long> stream =
+                env.fromSource(
+                        new NumberSequenceSource(1L, 1_000L),
+                        WatermarkStrategy.noWatermarks(),
+                        "iterator source");
 
-		final List<Long> result = DataStreamUtils.collectBoundedStream(stream, "Iterator Source Test");
+        final List<Long> result =
+                DataStreamUtils.collectBoundedStream(stream, "Iterator Source Test");
 
-		verifySequence(result, 1L, 1_000L);
-	}
+        verifySequence(result, 1L, 1_000L);
+    }
 
-	// ------------------------------------------------------------------------
-	//  test utils
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  test utils
+    // ------------------------------------------------------------------------
 
-	private static void verifySequence(final List<Long> sequence, final long from, final long to) {
-		if (sequence.size() != to - from + 1) {
-			fail(String.format("Expected: Sequence [%d, %d]. Found: %s", from, to, sequence));
-		}
+    private static void verifySequence(final List<Long> sequence, final long from, final long to) {
+        if (sequence.size() != to - from + 1) {
+            fail(String.format("Expected: Sequence [%d, %d]. Found: %s", from, to, sequence));
+        }
 
-		final ArrayList<Long> list = new ArrayList<>(sequence); // copy to be safe against immutable lists, etc.
-		list.sort(Long::compareTo);
+        final ArrayList<Long> list =
+                new ArrayList<>(sequence); // copy to be safe against immutable lists, etc.
+        list.sort(Long::compareTo);
 
-		int pos = 0;
-		for (long value = from; value <= to; value++, pos++) {
-			if (value != list.get(pos)) {
-				fail(String.format("Expected: Sequence [%d, %d]. Found: %s", from, to, list));
-			}
-		}
-	}
+        int pos = 0;
+        for (long value = from; value <= to; value++, pos++) {
+            if (value != list.get(pos)) {
+                fail(String.format("Expected: Sequence [%d, %d]. Found: %s", from, to, list));
+            }
+        }
+    }
 }

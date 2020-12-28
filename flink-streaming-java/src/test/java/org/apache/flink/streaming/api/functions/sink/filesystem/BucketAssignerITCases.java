@@ -31,38 +31,34 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 
-/**
- * Integration tests for {@link BucketAssigner bucket assigners}.
- */
+/** Integration tests for {@link BucketAssigner bucket assigners}. */
 public class BucketAssignerITCases {
 
-	@ClassRule
-	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	@Test
-	public void testAssembleBucketPath() throws Exception {
-		final File outDir = TEMP_FOLDER.newFolder();
-		final Path basePath = new Path(outDir.toURI());
-		final long time = 1000L;
+    @Test
+    public void testAssembleBucketPath() throws Exception {
+        final File outDir = TEMP_FOLDER.newFolder();
+        final Path basePath = new Path(outDir.toURI());
+        final long time = 1000L;
 
-		final RollingPolicy<String, String> rollingPolicy =
-			DefaultRollingPolicy
-				.builder()
-				.withMaxPartSize(7L)
-				.build();
+        final RollingPolicy<String, String> rollingPolicy =
+                DefaultRollingPolicy.builder().withMaxPartSize(7L).build();
 
-		final Buckets<String, String> buckets =  new Buckets<>(
-			basePath,
-			new BasePathBucketAssigner<>(),
-			new DefaultBucketFactoryImpl<>(),
-			new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
-			rollingPolicy,
-			0,
-			OutputFileConfig.builder().build()
-		);
+        final Buckets<String, String> buckets =
+                new Buckets<>(
+                        basePath,
+                        new BasePathBucketAssigner<>(),
+                        new DefaultBucketFactoryImpl<>(),
+                        new RowWiseBucketWriter<>(
+                                FileSystem.get(basePath.toUri()).createRecoverableWriter(),
+                                new SimpleStringEncoder<>()),
+                        rollingPolicy,
+                        0,
+                        OutputFileConfig.builder().build());
 
-		Bucket<String, String> bucket =
-			buckets.onElement("abc", new TestUtils.MockSinkContext(time, time, time));
-		Assert.assertEquals(new Path(basePath.toUri()), bucket.getBucketPath());
-	}
+        Bucket<String, String> bucket =
+                buckets.onElement("abc", new TestUtils.MockSinkContext(time, time, time));
+        Assert.assertEquals(new Path(basePath.toUri()), bucket.getBucketPath());
+    }
 }

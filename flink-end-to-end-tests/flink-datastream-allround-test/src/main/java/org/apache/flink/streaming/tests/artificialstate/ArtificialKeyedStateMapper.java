@@ -31,53 +31,53 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A generic, stateful {@link MapFunction} that allows specifying what states to maintain
- * based on a provided list of {@link ArtificialStateBuilder}s.
+ * A generic, stateful {@link MapFunction} that allows specifying what states to maintain based on a
+ * provided list of {@link ArtificialStateBuilder}s.
  */
-public class ArtificialKeyedStateMapper<IN, OUT> extends RichMapFunction<IN, OUT> implements CheckpointedFunction {
+public class ArtificialKeyedStateMapper<IN, OUT> extends RichMapFunction<IN, OUT>
+        implements CheckpointedFunction {
 
-	private static final long serialVersionUID = 513012258173556604L;
+    private static final long serialVersionUID = 513012258173556604L;
 
-	private final MapFunction<IN, OUT> mapFunction;
-	private final List<ArtificialStateBuilder<IN>> artificialStateBuilders;
+    private final MapFunction<IN, OUT> mapFunction;
+    private final List<ArtificialStateBuilder<IN>> artificialStateBuilders;
 
-	public ArtificialKeyedStateMapper(
-		MapFunction<IN, OUT> mapFunction,
-		ArtificialStateBuilder<IN> artificialStateBuilders) {
-		this(mapFunction, Collections.singletonList(artificialStateBuilders));
-	}
+    public ArtificialKeyedStateMapper(
+            MapFunction<IN, OUT> mapFunction, ArtificialStateBuilder<IN> artificialStateBuilders) {
+        this(mapFunction, Collections.singletonList(artificialStateBuilders));
+    }
 
-	public ArtificialKeyedStateMapper(
-		MapFunction<IN, OUT> mapFunction,
-		List<ArtificialStateBuilder<IN>> artificialStateBuilders) {
+    public ArtificialKeyedStateMapper(
+            MapFunction<IN, OUT> mapFunction,
+            List<ArtificialStateBuilder<IN>> artificialStateBuilders) {
 
-		this.mapFunction = mapFunction;
-		this.artificialStateBuilders = artificialStateBuilders;
-		Set<String> stateNames = new HashSet<>(this.artificialStateBuilders.size());
-		for (ArtificialStateBuilder<IN> stateBuilder : this.artificialStateBuilders) {
-			if (!stateNames.add(stateBuilder.getStateName())) {
-				throw new IllegalArgumentException("Duplicated state name: " + stateBuilder.getStateName());
-			}
-		}
-	}
+        this.mapFunction = mapFunction;
+        this.artificialStateBuilders = artificialStateBuilders;
+        Set<String> stateNames = new HashSet<>(this.artificialStateBuilders.size());
+        for (ArtificialStateBuilder<IN> stateBuilder : this.artificialStateBuilders) {
+            if (!stateNames.add(stateBuilder.getStateName())) {
+                throw new IllegalArgumentException(
+                        "Duplicated state name: " + stateBuilder.getStateName());
+            }
+        }
+    }
 
-	@Override
-	public OUT map(IN value) throws Exception {
-		for (ArtificialStateBuilder<IN> stateBuilder : artificialStateBuilders) {
-			stateBuilder.artificialStateForElement(value);
-		}
+    @Override
+    public OUT map(IN value) throws Exception {
+        for (ArtificialStateBuilder<IN> stateBuilder : artificialStateBuilders) {
+            stateBuilder.artificialStateForElement(value);
+        }
 
-		return mapFunction.map(value);
-	}
+        return mapFunction.map(value);
+    }
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-	}
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {}
 
-	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
-		for (ArtificialStateBuilder<IN> stateBuilder : artificialStateBuilders) {
-			stateBuilder.initialize(context);
-		}
-	}
+    @Override
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+        for (ArtificialStateBuilder<IN> stateBuilder : artificialStateBuilders) {
+            stateBuilder.initialize(context);
+        }
+    }
 }

@@ -27,110 +27,111 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Flink's description of a partition in a Kafka topic.
- * Serializable, and common across all Kafka consumer subclasses (0.8, 0.9, ...)
+ * Flink's description of a partition in a Kafka topic. Serializable, and common across all Kafka
+ * consumer subclasses (0.8, 0.9, ...)
  *
- * <p>Note: This class must not change in its structure, because it would change the
- * serialization format and make previous savepoints unreadable.
+ * <p>Note: This class must not change in its structure, because it would change the serialization
+ * format and make previous savepoints unreadable.
  */
 @PublicEvolving
 public final class KafkaTopicPartition implements Serializable {
 
-	/** THIS SERIAL VERSION UID MUST NOT CHANGE, BECAUSE IT WOULD BREAK
-	 * READING OLD SERIALIZED INSTANCES FROM SAVEPOINTS. */
-	private static final long serialVersionUID = 722083576322742325L;
+    /**
+     * THIS SERIAL VERSION UID MUST NOT CHANGE, BECAUSE IT WOULD BREAK READING OLD SERIALIZED
+     * INSTANCES FROM SAVEPOINTS.
+     */
+    private static final long serialVersionUID = 722083576322742325L;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private final String topic;
-	private final int partition;
-	private final int cachedHash;
+    private final String topic;
+    private final int partition;
+    private final int cachedHash;
 
-	public KafkaTopicPartition(String topic, int partition) {
-		this.topic = requireNonNull(topic);
-		this.partition = partition;
-		this.cachedHash = 31 * topic.hashCode() + partition;
-	}
+    public KafkaTopicPartition(String topic, int partition) {
+        this.topic = requireNonNull(topic);
+        this.partition = partition;
+        this.cachedHash = 31 * topic.hashCode() + partition;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public String getTopic() {
-		return topic;
-	}
+    public String getTopic() {
+        return topic;
+    }
 
-	public int getPartition() {
-		return partition;
-	}
+    public int getPartition() {
+        return partition;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "KafkaTopicPartition{" +
-				"topic='" + topic + '\'' +
-				", partition=" + partition +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "KafkaTopicPartition{" + "topic='" + topic + '\'' + ", partition=" + partition + '}';
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		else if (o instanceof KafkaTopicPartition) {
-			KafkaTopicPartition that = (KafkaTopicPartition) o;
-			return this.partition == that.partition && this.topic.equals(that.topic);
-		}
-		else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        } else if (o instanceof KafkaTopicPartition) {
+            KafkaTopicPartition that = (KafkaTopicPartition) o;
+            return this.partition == that.partition && this.topic.equals(that.topic);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return cachedHash;
-	}
+    @Override
+    public int hashCode() {
+        return cachedHash;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	public static String toString(Map<KafkaTopicPartition, Long> map) {
-		StringBuilder sb = new StringBuilder();
-		for (Map.Entry<KafkaTopicPartition, Long> p: map.entrySet()) {
-			KafkaTopicPartition ktp = p.getKey();
-			sb.append(ktp.getTopic()).append(":").append(ktp.getPartition()).append("=").append(p.getValue()).append(", ");
-		}
-		return sb.toString();
-	}
+    public static String toString(Map<KafkaTopicPartition, Long> map) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<KafkaTopicPartition, Long> p : map.entrySet()) {
+            KafkaTopicPartition ktp = p.getKey();
+            sb.append(ktp.getTopic())
+                    .append(":")
+                    .append(ktp.getPartition())
+                    .append("=")
+                    .append(p.getValue())
+                    .append(", ");
+        }
+        return sb.toString();
+    }
 
-	public static String toString(List<KafkaTopicPartition> partitions) {
-		StringBuilder sb = new StringBuilder();
-		for (KafkaTopicPartition p: partitions) {
-			sb.append(p.getTopic()).append(":").append(p.getPartition()).append(", ");
-		}
-		return sb.toString();
-	}
+    public static String toString(List<KafkaTopicPartition> partitions) {
+        StringBuilder sb = new StringBuilder();
+        for (KafkaTopicPartition p : partitions) {
+            sb.append(p.getTopic()).append(":").append(p.getPartition()).append(", ");
+        }
+        return sb.toString();
+    }
 
-	public static List<KafkaTopicPartition> dropLeaderData(List<KafkaTopicPartitionLeader> partitionInfos) {
-		List<KafkaTopicPartition> ret = new ArrayList<>(partitionInfos.size());
-		for (KafkaTopicPartitionLeader ktpl: partitionInfos) {
-			ret.add(ktpl.getTopicPartition());
-		}
-		return ret;
-	}
+    public static List<KafkaTopicPartition> dropLeaderData(
+            List<KafkaTopicPartitionLeader> partitionInfos) {
+        List<KafkaTopicPartition> ret = new ArrayList<>(partitionInfos.size());
+        for (KafkaTopicPartitionLeader ktpl : partitionInfos) {
+            ret.add(ktpl.getTopicPartition());
+        }
+        return ret;
+    }
 
-	/**
-	 * A {@link java.util.Comparator} for {@link KafkaTopicPartition}s.
-	 */
-	public static class Comparator implements java.util.Comparator<KafkaTopicPartition> {
-		@Override
-		public int compare(KafkaTopicPartition p1, KafkaTopicPartition p2) {
-			if (!p1.getTopic().equals(p2.getTopic())) {
-				return p1.getTopic().compareTo(p2.getTopic());
-			} else {
-				return Integer.compare(p1.getPartition(), p2.getPartition());
-			}
-		}
-	}
+    /** A {@link java.util.Comparator} for {@link KafkaTopicPartition}s. */
+    public static class Comparator implements java.util.Comparator<KafkaTopicPartition> {
+        @Override
+        public int compare(KafkaTopicPartition p1, KafkaTopicPartition p2) {
+            if (!p1.getTopic().equals(p2.getTopic())) {
+                return p1.getTopic().compareTo(p2.getTopic());
+            } else {
+                return Integer.compare(p1.getPartition(), p2.getPartition());
+            }
+        }
+    }
 }

@@ -17,12 +17,10 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-/**
- * Possible states for the deployment of an execution.
- */
+/** Possible states for the deployment of an execution. */
 public enum ExecutionDeploymentState {
-	/** The deployment has or is about to be started. */
-	PENDING,
-	/** The deployment has been acknowledged by the TaskExecutor. */
-	DEPLOYED
+    /** The deployment has or is about to be started. */
+    PENDING,
+    /** The deployment has been acknowledged by the TaskExecutor. */
+    DEPLOYED
 }

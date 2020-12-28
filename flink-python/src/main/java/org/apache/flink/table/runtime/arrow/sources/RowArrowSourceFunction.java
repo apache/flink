@@ -30,25 +30,23 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 
-/**
- * An Arrow {@link SourceFunction} which takes {@link Row} as the type of the produced records.
- */
+/** An Arrow {@link SourceFunction} which takes {@link Row} as the type of the produced records. */
 @Internal
 public class RowArrowSourceFunction extends AbstractArrowSourceFunction<Row> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	RowArrowSourceFunction(DataType dataType, byte[][] arrowData) {
-		super(dataType, arrowData);
-	}
+    RowArrowSourceFunction(DataType dataType, byte[][] arrowData) {
+        super(dataType, arrowData);
+    }
 
-	@Override
-	ArrowReader<Row> createArrowReader(VectorSchemaRoot root) {
-		return ArrowUtils.createRowArrowReader(root, (RowType) dataType.getLogicalType());
-	}
+    @Override
+    ArrowReader<Row> createArrowReader(VectorSchemaRoot root) {
+        return ArrowUtils.createRowArrowReader(root, (RowType) dataType.getLogicalType());
+    }
 
-	@Override
-	public TypeInformation<Row> getProducedType() {
-		return (TypeInformation<Row>) TypeConversions.fromDataTypeToLegacyInfo(dataType);
-	}
+    @Override
+    public TypeInformation<Row> getProducedType() {
+        return (TypeInformation<Row>) TypeConversions.fromDataTypeToLegacyInfo(dataType);
+    }
 }

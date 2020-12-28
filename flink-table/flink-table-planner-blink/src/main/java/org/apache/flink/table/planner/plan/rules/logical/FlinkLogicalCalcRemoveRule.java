@@ -23,13 +23,15 @@ import org.apache.calcite.rel.rules.CalcRemoveRule;
 
 import static org.apache.calcite.rel.rules.CalcRemoveRule.Config;
 
-/**
- * Rule to remove trivial {@link FlinkLogicalCalc}.
- */
+/** Rule to remove trivial {@link FlinkLogicalCalc}. */
 public class FlinkLogicalCalcRemoveRule {
-	public static final CalcRemoveRule INSTANCE = Config.DEFAULT.withOperandSupplier(
-			b -> b.operand(FlinkLogicalCalc.class)
-					.predicate(calc -> calc.getProgram().isTrivial())
-					.anyInputs())
-			.as(Config.class).toRule();
+    public static final CalcRemoveRule INSTANCE =
+            Config.DEFAULT
+                    .withOperandSupplier(
+                            b ->
+                                    b.operand(FlinkLogicalCalc.class)
+                                            .predicate(calc -> calc.getProgram().isTrivial())
+                                            .anyInputs())
+                    .as(Config.class)
+                    .toRule();
 }

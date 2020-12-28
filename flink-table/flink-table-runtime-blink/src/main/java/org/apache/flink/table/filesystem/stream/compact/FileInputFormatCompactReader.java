@@ -23,50 +23,46 @@ import org.apache.flink.core.fs.FileInputSplit;
 
 import java.io.IOException;
 
-/**
- * The {@link CompactReader} to delegate {@link FileInputFormat}.
- */
+/** The {@link CompactReader} to delegate {@link FileInputFormat}. */
 public class FileInputFormatCompactReader<T> implements CompactReader<T> {
 
-	private final FileInputFormat<T> format;
+    private final FileInputFormat<T> format;
 
-	private FileInputFormatCompactReader(FileInputFormat<T> format) {
-		this.format = format;
-	}
+    private FileInputFormatCompactReader(FileInputFormat<T> format) {
+        this.format = format;
+    }
 
-	@Override
-	public T read() throws IOException {
-		if (format.reachedEnd()) {
-			return null;
-		}
-		return format.nextRecord(null);
-	}
+    @Override
+    public T read() throws IOException {
+        if (format.reachedEnd()) {
+            return null;
+        }
+        return format.nextRecord(null);
+    }
 
-	@Override
-	public void close() throws IOException {
-		format.close();
-	}
+    @Override
+    public void close() throws IOException {
+        format.close();
+    }
 
-	public static <T> CompactReader.Factory<T> factory(FileInputFormat<T> format) {
-		return new Factory<>(format);
-	}
+    public static <T> CompactReader.Factory<T> factory(FileInputFormat<T> format) {
+        return new Factory<>(format);
+    }
 
-	/**
-	 * Factory to create {@link FileInputFormatCompactReader}.
-	 */
-	private static class Factory<T> implements CompactReader.Factory<T> {
+    /** Factory to create {@link FileInputFormatCompactReader}. */
+    private static class Factory<T> implements CompactReader.Factory<T> {
 
-		private final FileInputFormat<T> format;
+        private final FileInputFormat<T> format;
 
-		public Factory(FileInputFormat<T> format) {
-			this.format = format;
-		}
+        public Factory(FileInputFormat<T> format) {
+            this.format = format;
+        }
 
-		@Override
-		public CompactReader<T> create(CompactContext context) throws IOException {
-			long len = context.getFileSystem().getFileStatus(context.getPath()).getLen();
-			format.open(new FileInputSplit(0, context.getPath(), 0, len, null));
-			return new FileInputFormatCompactReader<>(format);
-		}
-	}
+        @Override
+        public CompactReader<T> create(CompactContext context) throws IOException {
+            long len = context.getFileSystem().getFileStatus(context.getPath()).getLen();
+            format.open(new FileInputSplit(0, context.getPath(), 0, len, null));
+            return new FileInputFormatCompactReader<>(format);
+        }
+    }
 }

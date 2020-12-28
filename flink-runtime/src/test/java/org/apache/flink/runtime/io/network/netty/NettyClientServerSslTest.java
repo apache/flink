@@ -53,281 +53,303 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the SSL connection between Netty Server and Client used for the
- * data plane.
- */
+/** Tests for the SSL connection between Netty Server and Client used for the data plane. */
 @RunWith(Parameterized.class)
 public class NettyClientServerSslTest extends TestLogger {
 
-	@Parameterized.Parameter
-	public String sslProvider;
+    @Parameterized.Parameter public String sslProvider;
 
-	@Parameterized.Parameters(name = "SSL provider = {0}")
-	public static List<String> parameters() {
-		return SSLUtilsTest.AVAILABLE_SSL_PROVIDERS;
-	}
+    @Parameterized.Parameters(name = "SSL provider = {0}")
+    public static List<String> parameters() {
+        return SSLUtilsTest.AVAILABLE_SSL_PROVIDERS;
+    }
 
-	/**
-	 * Verify valid ssl configuration and connection.
-	 */
-	@Test
-	public void testValidSslConnection() throws Exception {
-		testValidSslConnection(createSslConfig());
-	}
+    /** Verify valid ssl configuration and connection. */
+    @Test
+    public void testValidSslConnection() throws Exception {
+        testValidSslConnection(createSslConfig());
+    }
 
-	/**
-	 * Verify valid (advanced) ssl configuration and connection.
-	 */
-	@Test
-	public void testValidSslConnectionAdvanced() throws Exception {
-		Configuration sslConfig = createSslConfig();
-		sslConfig.setInteger(SSL_INTERNAL_SESSION_CACHE_SIZE, 1);
-		sslConfig.setInteger(SSL_INTERNAL_SESSION_TIMEOUT, 1_000);
-		sslConfig.setInteger(SSL_INTERNAL_HANDSHAKE_TIMEOUT, 1_000);
-		sslConfig.setInteger(SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, 1_000);
+    /** Verify valid (advanced) ssl configuration and connection. */
+    @Test
+    public void testValidSslConnectionAdvanced() throws Exception {
+        Configuration sslConfig = createSslConfig();
+        sslConfig.setInteger(SSL_INTERNAL_SESSION_CACHE_SIZE, 1);
+        sslConfig.setInteger(SSL_INTERNAL_SESSION_TIMEOUT, 1_000);
+        sslConfig.setInteger(SSL_INTERNAL_HANDSHAKE_TIMEOUT, 1_000);
+        sslConfig.setInteger(SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, 1_000);
 
-		testValidSslConnection(sslConfig);
-	}
+        testValidSslConnection(sslConfig);
+    }
 
-	private void testValidSslConnection(Configuration sslConfig) throws Exception {
-		OneShotLatch serverChannelInitComplete = new OneShotLatch();
-		final SslHandler[] serverSslHandler = new SslHandler[1];
+    private void testValidSslConnection(Configuration sslConfig) throws Exception {
+        OneShotLatch serverChannelInitComplete = new OneShotLatch();
+        final SslHandler[] serverSslHandler = new SslHandler[1];
 
-		NettyProtocol protocol = new NoOpProtocol();
+        NettyProtocol protocol = new NoOpProtocol();
 
-		NettyConfig nettyConfig = createNettyConfig(sslConfig);
+        NettyConfig nettyConfig = createNettyConfig(sslConfig);
 
-		final NettyBufferPool bufferPool = new NettyBufferPool(1);
-		final NettyServer server = NettyTestUtil.initServer(
-			nettyConfig,
-			bufferPool,
-			sslHandlerFactory ->
-				new TestingServerChannelInitializer(
-					protocol,
-					sslHandlerFactory,
-					serverChannelInitComplete,
-					serverSslHandler));
-		final NettyClient client = NettyTestUtil.initClient(nettyConfig, protocol, bufferPool);
-		final NettyServerAndClient serverAndClient = new NettyServerAndClient(server, client);
+        final NettyBufferPool bufferPool = new NettyBufferPool(1);
+        final NettyServer server =
+                NettyTestUtil.initServer(
+                        nettyConfig,
+                        bufferPool,
+                        sslHandlerFactory ->
+                                new TestingServerChannelInitializer(
+                                        protocol,
+                                        sslHandlerFactory,
+                                        serverChannelInitComplete,
+                                        serverSslHandler));
+        final NettyClient client = NettyTestUtil.initClient(nettyConfig, protocol, bufferPool);
+        final NettyServerAndClient serverAndClient = new NettyServerAndClient(server, client);
 
-		Channel ch = NettyTestUtil.connect(serverAndClient);
+        Channel ch = NettyTestUtil.connect(serverAndClient);
 
-		SslHandler clientSslHandler = (SslHandler) ch.pipeline().get("ssl");
-		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_HANDSHAKE_TIMEOUT, clientSslHandler.getHandshakeTimeoutMillis());
-		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, clientSslHandler.getCloseNotifyFlushTimeoutMillis());
+        SslHandler clientSslHandler = (SslHandler) ch.pipeline().get("ssl");
+        assertEqualsOrDefault(
+                sslConfig,
+                SSL_INTERNAL_HANDSHAKE_TIMEOUT,
+                clientSslHandler.getHandshakeTimeoutMillis());
+        assertEqualsOrDefault(
+                sslConfig,
+                SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT,
+                clientSslHandler.getCloseNotifyFlushTimeoutMillis());
 
-		// should be able to send text data
-		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
-		ch.writeAndFlush("test").sync();
+        // should be able to send text data
+        ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+        ch.writeAndFlush("test").sync();
 
-		// session context is only be available after a session was setup -> this should be true after data was sent
-		serverChannelInitComplete.await();
-		assertNotNull(serverSslHandler[0]);
+        // session context is only be available after a session was setup -> this should be true
+        // after data was sent
+        serverChannelInitComplete.await();
+        assertNotNull(serverSslHandler[0]);
 
-		// verify server parameters
-		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_HANDSHAKE_TIMEOUT, serverSslHandler[0].getHandshakeTimeoutMillis());
-		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, serverSslHandler[0].getCloseNotifyFlushTimeoutMillis());
-		SSLSessionContext sessionContext = serverSslHandler[0].engine().getSession().getSessionContext();
-		assertNotNull("bug in unit test setup: session context not available", sessionContext);
-		// note: can't verify session cache setting at the client - delegate to server instead (with our own channel initializer)
-		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_SESSION_CACHE_SIZE, sessionContext.getSessionCacheSize());
-		int sessionTimeout = sslConfig.getInteger(SSL_INTERNAL_SESSION_TIMEOUT);
-		if (sessionTimeout != -1) {
-			// session timeout config is in milliseconds but the context returns it in seconds
-			assertEquals(sessionTimeout / 1000, sessionContext.getSessionTimeout());
-		} else {
-			assertTrue("default value (-1) should not be propagated", sessionContext.getSessionTimeout() >= 0);
-		}
+        // verify server parameters
+        assertEqualsOrDefault(
+                sslConfig,
+                SSL_INTERNAL_HANDSHAKE_TIMEOUT,
+                serverSslHandler[0].getHandshakeTimeoutMillis());
+        assertEqualsOrDefault(
+                sslConfig,
+                SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT,
+                serverSslHandler[0].getCloseNotifyFlushTimeoutMillis());
+        SSLSessionContext sessionContext =
+                serverSslHandler[0].engine().getSession().getSessionContext();
+        assertNotNull("bug in unit test setup: session context not available", sessionContext);
+        // note: can't verify session cache setting at the client - delegate to server instead (with
+        // our own channel initializer)
+        assertEqualsOrDefault(
+                sslConfig, SSL_INTERNAL_SESSION_CACHE_SIZE, sessionContext.getSessionCacheSize());
+        int sessionTimeout = sslConfig.getInteger(SSL_INTERNAL_SESSION_TIMEOUT);
+        if (sessionTimeout != -1) {
+            // session timeout config is in milliseconds but the context returns it in seconds
+            assertEquals(sessionTimeout / 1000, sessionContext.getSessionTimeout());
+        } else {
+            assertTrue(
+                    "default value (-1) should not be propagated",
+                    sessionContext.getSessionTimeout() >= 0);
+        }
 
-		NettyTestUtil.shutdown(serverAndClient);
-	}
+        NettyTestUtil.shutdown(serverAndClient);
+    }
 
-	private static void assertEqualsOrDefault(Configuration sslConfig, ConfigOption<Integer> option, long actual) {
-		long expected = sslConfig.getInteger(option);
-		if (expected != option.defaultValue()) {
-			assertEquals(expected, actual);
-		} else {
-			assertTrue("default value (" + option.defaultValue() + ") should not be propagated",
-				actual >= 0);
-		}
-	}
+    private static void assertEqualsOrDefault(
+            Configuration sslConfig, ConfigOption<Integer> option, long actual) {
+        long expected = sslConfig.getInteger(option);
+        if (expected != option.defaultValue()) {
+            assertEquals(expected, actual);
+        } else {
+            assertTrue(
+                    "default value (" + option.defaultValue() + ") should not be propagated",
+                    actual >= 0);
+        }
+    }
 
-	/**
-	 * Verify failure on invalid ssl configuration.
-	 */
-	@Test
-	public void testInvalidSslConfiguration() throws Exception {
-		NettyProtocol protocol = new NoOpProtocol();
+    /** Verify failure on invalid ssl configuration. */
+    @Test
+    public void testInvalidSslConfiguration() throws Exception {
+        NettyProtocol protocol = new NoOpProtocol();
 
-		Configuration config = createSslConfig();
-		// Modify the keystore password to an incorrect one
-		config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "invalidpassword");
+        Configuration config = createSslConfig();
+        // Modify the keystore password to an incorrect one
+        config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "invalidpassword");
 
-		NettyConfig nettyConfig = createNettyConfig(config);
+        NettyConfig nettyConfig = createNettyConfig(config);
 
-		NettyTestUtil.NettyServerAndClient serverAndClient = null;
-		try {
-			serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
-			Assert.fail("Created server and client from invalid configuration");
-		} catch (Exception e) {
-			// Exception should be thrown as expected
-		}
+        NettyTestUtil.NettyServerAndClient serverAndClient = null;
+        try {
+            serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+            Assert.fail("Created server and client from invalid configuration");
+        } catch (Exception e) {
+            // Exception should be thrown as expected
+        }
 
-		NettyTestUtil.shutdown(serverAndClient);
-	}
+        NettyTestUtil.shutdown(serverAndClient);
+    }
 
-	/**
-	 * Verify SSL handshake error when untrusted server certificate is used.
-	 */
-	@Test
-	public void testSslHandshakeError() throws Exception {
-		NettyProtocol protocol = new NoOpProtocol();
+    /** Verify SSL handshake error when untrusted server certificate is used. */
+    @Test
+    public void testSslHandshakeError() throws Exception {
+        NettyProtocol protocol = new NoOpProtocol();
 
-		Configuration config = createSslConfig();
+        Configuration config = createSslConfig();
 
-		// Use a server certificate which is not present in the truststore
-		config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
+        // Use a server certificate which is not present in the truststore
+        config.setString(
+                SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
 
-		NettyConfig nettyConfig = createNettyConfig(config);
+        NettyConfig nettyConfig = createNettyConfig(config);
 
-		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+        NettyTestUtil.NettyServerAndClient serverAndClient =
+                NettyTestUtil.initServerAndClient(protocol, nettyConfig);
 
-		Channel ch = NettyTestUtil.connect(serverAndClient);
-		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+        Channel ch = NettyTestUtil.connect(serverAndClient);
+        ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 
-		// Attempting to write data over ssl should fail
-		assertFalse(ch.writeAndFlush("test").await().isSuccess());
+        // Attempting to write data over ssl should fail
+        assertFalse(ch.writeAndFlush("test").await().isSuccess());
 
-		NettyTestUtil.shutdown(serverAndClient);
-	}
+        NettyTestUtil.shutdown(serverAndClient);
+    }
 
-	@Test
-	public void testClientUntrustedCertificate() throws Exception {
-		final Configuration serverConfig = createSslConfig();
-		final Configuration clientConfig = createSslConfig();
+    @Test
+    public void testClientUntrustedCertificate() throws Exception {
+        final Configuration serverConfig = createSslConfig();
+        final Configuration clientConfig = createSslConfig();
 
-		// give the client a different keystore / certificate
-		clientConfig.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
+        // give the client a different keystore / certificate
+        clientConfig.setString(
+                SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
 
-		final NettyConfig nettyServerConfig = createNettyConfig(serverConfig);
-		final NettyConfig nettyClientConfig = createNettyConfig(clientConfig);
+        final NettyConfig nettyServerConfig = createNettyConfig(serverConfig);
+        final NettyConfig nettyClientConfig = createNettyConfig(clientConfig);
 
-		final NettyBufferPool bufferPool = new NettyBufferPool(1);
-		final NettyProtocol protocol = new NoOpProtocol();
+        final NettyBufferPool bufferPool = new NettyBufferPool(1);
+        final NettyProtocol protocol = new NoOpProtocol();
 
-		final NettyServer server = NettyTestUtil.initServer(nettyServerConfig, protocol, bufferPool);
-		final NettyClient client = NettyTestUtil.initClient(nettyClientConfig, protocol, bufferPool);
-		final NettyServerAndClient serverAndClient = new NettyServerAndClient(server, client);
+        final NettyServer server =
+                NettyTestUtil.initServer(nettyServerConfig, protocol, bufferPool);
+        final NettyClient client =
+                NettyTestUtil.initClient(nettyClientConfig, protocol, bufferPool);
+        final NettyServerAndClient serverAndClient = new NettyServerAndClient(server, client);
 
-		final Channel ch = NettyTestUtil.connect(serverAndClient);
-		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+        final Channel ch = NettyTestUtil.connect(serverAndClient);
+        ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 
-		// Attempting to write data over ssl should fail
-		assertFalse(ch.writeAndFlush("test").await().isSuccess());
+        // Attempting to write data over ssl should fail
+        assertFalse(ch.writeAndFlush("test").await().isSuccess());
 
-		NettyTestUtil.shutdown(serverAndClient);
-	}
+        NettyTestUtil.shutdown(serverAndClient);
+    }
 
-	@Test
-	public void testSslPinningForValidFingerprint() throws Exception {
-		NettyProtocol protocol = new NoOpProtocol();
+    @Test
+    public void testSslPinningForValidFingerprint() throws Exception {
+        NettyProtocol protocol = new NoOpProtocol();
 
-		Configuration config = createSslConfig();
+        Configuration config = createSslConfig();
 
-		// pin the certificate based on internal cert
-		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, SSLUtilsTest.getCertificateFingerprint(config, "flink.test"));
+        // pin the certificate based on internal cert
+        config.setString(
+                SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
+                SSLUtilsTest.getCertificateFingerprint(config, "flink.test"));
 
-		NettyConfig nettyConfig = createNettyConfig(config);
+        NettyConfig nettyConfig = createNettyConfig(config);
 
-		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+        NettyTestUtil.NettyServerAndClient serverAndClient =
+                NettyTestUtil.initServerAndClient(protocol, nettyConfig);
 
-		Channel ch = NettyTestUtil.connect(serverAndClient);
-		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+        Channel ch = NettyTestUtil.connect(serverAndClient);
+        ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 
-		assertTrue(ch.writeAndFlush("test").await().isSuccess());
+        assertTrue(ch.writeAndFlush("test").await().isSuccess());
 
-		NettyTestUtil.shutdown(serverAndClient);
-	}
+        NettyTestUtil.shutdown(serverAndClient);
+    }
 
-	@Test
-	public void testSslPinningForInvalidFingerprint() throws Exception {
-		NettyProtocol protocol = new NoOpProtocol();
+    @Test
+    public void testSslPinningForInvalidFingerprint() throws Exception {
+        NettyProtocol protocol = new NoOpProtocol();
 
-		Configuration config = createSslConfig();
+        Configuration config = createSslConfig();
 
-		// pin the certificate based on internal cert
-		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, SSLUtilsTest.getCertificateFingerprint(config, "flink.test").replaceAll("[0-9A-Z]", "0"));
+        // pin the certificate based on internal cert
+        config.setString(
+                SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
+                SSLUtilsTest.getCertificateFingerprint(config, "flink.test")
+                        .replaceAll("[0-9A-Z]", "0"));
 
-		NettyConfig nettyConfig = createNettyConfig(config);
+        NettyConfig nettyConfig = createNettyConfig(config);
 
-		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+        NettyTestUtil.NettyServerAndClient serverAndClient =
+                NettyTestUtil.initServerAndClient(protocol, nettyConfig);
 
-		Channel ch = NettyTestUtil.connect(serverAndClient);
-		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+        Channel ch = NettyTestUtil.connect(serverAndClient);
+        ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 
-		assertFalse(ch.writeAndFlush("test").await().isSuccess());
+        assertFalse(ch.writeAndFlush("test").await().isSuccess());
 
-		NettyTestUtil.shutdown(serverAndClient);
-	}
+        NettyTestUtil.shutdown(serverAndClient);
+    }
 
-	private Configuration createSslConfig() {
-		return SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(sslProvider);
-	}
+    private Configuration createSslConfig() {
+        return SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(sslProvider);
+    }
 
-	private static NettyConfig createNettyConfig(Configuration config) {
-		return new NettyConfig(
-				InetAddress.getLoopbackAddress(),
-				NetUtils.getAvailablePort(),
-				NettyTestUtil.DEFAULT_SEGMENT_SIZE,
-				1,
-				config);
-	}
+    private static NettyConfig createNettyConfig(Configuration config) {
+        return new NettyConfig(
+                InetAddress.getLoopbackAddress(),
+                NetUtils.getAvailablePort(),
+                NettyTestUtil.DEFAULT_SEGMENT_SIZE,
+                1,
+                config);
+    }
 
-	private static final class NoOpProtocol extends NettyProtocol {
+    private static final class NoOpProtocol extends NettyProtocol {
 
-		NoOpProtocol() {
-			super(null, null);
-		}
+        NoOpProtocol() {
+            super(null, null);
+        }
 
-		@Override
-		public ChannelHandler[] getServerChannelHandlers() {
-			return new ChannelHandler[0];
-		}
+        @Override
+        public ChannelHandler[] getServerChannelHandlers() {
+            return new ChannelHandler[0];
+        }
 
-		@Override
-		public ChannelHandler[] getClientChannelHandlers() {
-			return new ChannelHandler[0];
-		}
-	}
+        @Override
+        public ChannelHandler[] getClientChannelHandlers() {
+            return new ChannelHandler[0];
+        }
+    }
 
-	/**
-	 * Wrapper around {@link NettyServer.ServerChannelInitializer} making the server's SSL handler
-	 * available for the tests.
-	 */
-	private static class TestingServerChannelInitializer extends NettyServer.ServerChannelInitializer {
-		private final OneShotLatch latch;
-		private final SslHandler[] serverHandler;
+    /**
+     * Wrapper around {@link NettyServer.ServerChannelInitializer} making the server's SSL handler
+     * available for the tests.
+     */
+    private static class TestingServerChannelInitializer
+            extends NettyServer.ServerChannelInitializer {
+        private final OneShotLatch latch;
+        private final SslHandler[] serverHandler;
 
-		TestingServerChannelInitializer(
-			NettyProtocol protocol,
-			SSLHandlerFactory sslHandlerFactory,
-			OneShotLatch latch,
-			SslHandler[] serverHandler) {
-			super(protocol, sslHandlerFactory);
-			this.latch = latch;
-			this.serverHandler = serverHandler;
-		}
+        TestingServerChannelInitializer(
+                NettyProtocol protocol,
+                SSLHandlerFactory sslHandlerFactory,
+                OneShotLatch latch,
+                SslHandler[] serverHandler) {
+            super(protocol, sslHandlerFactory);
+            this.latch = latch;
+            this.serverHandler = serverHandler;
+        }
 
-		@Override
-		public void initChannel(SocketChannel channel) throws Exception {
-			super.initChannel(channel);
+        @Override
+        public void initChannel(SocketChannel channel) throws Exception {
+            super.initChannel(channel);
 
-			SslHandler sslHandler = (SslHandler) channel.pipeline().get("ssl");
-			assertNotNull(sslHandler);
-			serverHandler[0] = sslHandler;
+            SslHandler sslHandler = (SslHandler) channel.pipeline().get("ssl");
+            assertNotNull(sslHandler);
+            serverHandler[0] = sslHandler;
 
-			latch.trigger();
-		}
-	}
+            latch.trigger();
+        }
+    }
 }

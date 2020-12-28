@@ -21,18 +21,17 @@ package org.apache.flink.runtime.security.contexts;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContextInitializeException;
 
-/**
- * Test security context factory class to test out linkage error circumstances.
- */
+/** Test security context factory class to test out linkage error circumstances. */
 public class LinkageErrorSecurityContextFactory implements SecurityContextFactory {
 
-	@Override
-	public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
-		return true;
-	}
+    @Override
+    public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
+        return true;
+    }
 
-	@Override
-	public SecurityContext createContext(SecurityConfiguration securityConfig) throws SecurityContextInitializeException {
-		throw new LinkageError("Incompatible due to dependency missing!");
-	}
+    @Override
+    public SecurityContext createContext(SecurityConfiguration securityConfig)
+            throws SecurityContextInitializeException {
+        throw new LinkageError("Incompatible due to dependency missing!");
+    }
 }

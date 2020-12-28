@@ -36,123 +36,120 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * Controller for aligned checkpoints.
- */
+/** Controller for aligned checkpoints. */
 @Internal
 public class AlignedController implements CheckpointBarrierBehaviourController {
-	private final CheckpointableInput[] inputs;
+    private final CheckpointableInput[] inputs;
 
-	/**
-	 * {@link #blockedChannels} are the ones for which we have already processed {@link CheckpointBarrier}
-	 * (via {@link #barrierReceived(InputChannelInfo, CheckpointBarrier)}. {@link #sequenceNumberInAnnouncedChannels}
-	 * on the other hand, are the ones that we have processed {@link #barrierAnnouncement(InputChannelInfo, CheckpointBarrier, int)}
-	 * but not yet {@link #barrierReceived(InputChannelInfo, CheckpointBarrier)}.
-	 */
-	private final Map<InputChannelInfo, Boolean> blockedChannels;
-	private final Map<InputChannelInfo, Integer> sequenceNumberInAnnouncedChannels;
+    /**
+     * {@link #blockedChannels} are the ones for which we have already processed {@link
+     * CheckpointBarrier} (via {@link #barrierReceived(InputChannelInfo, CheckpointBarrier)}. {@link
+     * #sequenceNumberInAnnouncedChannels} on the other hand, are the ones that we have processed
+     * {@link #barrierAnnouncement(InputChannelInfo, CheckpointBarrier, int)} but not yet {@link
+     * #barrierReceived(InputChannelInfo, CheckpointBarrier)}.
+     */
+    private final Map<InputChannelInfo, Boolean> blockedChannels;
 
-	public AlignedController(CheckpointableInput... inputs) {
-		this.inputs = inputs;
-		blockedChannels = Arrays.stream(inputs)
-			.flatMap(gate -> gate.getChannelInfos().stream())
-			.collect(Collectors.toMap(Function.identity(), info -> false));
-		sequenceNumberInAnnouncedChannels = new HashMap<>();
-	}
+    private final Map<InputChannelInfo, Integer> sequenceNumberInAnnouncedChannels;
 
-	@Override
-	public void barrierAnnouncement(
-			InputChannelInfo channelInfo,
-			CheckpointBarrier announcedBarrier,
-			int sequenceNumber) {
-		Integer previousValue = sequenceNumberInAnnouncedChannels.put(channelInfo, sequenceNumber);
-		checkState(
-			previousValue == null,
-			"Stream corrupt: Repeated barrierAnnouncement [%s] overwriting [%s] for the same checkpoint on input %s",
-			announcedBarrier,
-			sequenceNumber,
-			channelInfo);
-	}
+    public AlignedController(CheckpointableInput... inputs) {
+        this.inputs = inputs;
+        blockedChannels =
+                Arrays.stream(inputs)
+                        .flatMap(gate -> gate.getChannelInfos().stream())
+                        .collect(Collectors.toMap(Function.identity(), info -> false));
+        sequenceNumberInAnnouncedChannels = new HashMap<>();
+    }
 
-	@Override
-	public void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier) {
-		sequenceNumberInAnnouncedChannels.clear();
-	}
+    @Override
+    public void barrierAnnouncement(
+            InputChannelInfo channelInfo, CheckpointBarrier announcedBarrier, int sequenceNumber) {
+        Integer previousValue = sequenceNumberInAnnouncedChannels.put(channelInfo, sequenceNumber);
+        checkState(
+                previousValue == null,
+                "Stream corrupt: Repeated barrierAnnouncement [%s] overwriting [%s] for the same checkpoint on input %s",
+                announcedBarrier,
+                sequenceNumber,
+                channelInfo);
+    }
 
-	@Override
-	public Optional<CheckpointBarrier> barrierReceived(
-			InputChannelInfo channelInfo,
-			CheckpointBarrier barrier) {
-		checkState(!blockedChannels.put(channelInfo, true), "Stream corrupt: Repeated barrier for same checkpoint on input " + channelInfo);
-		sequenceNumberInAnnouncedChannels.remove(channelInfo);
-		CheckpointableInput input = inputs[channelInfo.getGateIdx()];
-		input.blockConsumption(channelInfo);
-		return Optional.empty();
-	}
+    @Override
+    public void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier) {
+        sequenceNumberInAnnouncedChannels.clear();
+    }
 
-	@Override
-	public Optional<CheckpointBarrier> preProcessFirstBarrier(
-			InputChannelInfo channelInfo,
-			CheckpointBarrier barrier) {
-		checkArgument(!barrier.getCheckpointOptions().isUnalignedCheckpoint(), "Unaligned barrier is not expected");
-		return Optional.empty();
-	}
+    @Override
+    public Optional<CheckpointBarrier> barrierReceived(
+            InputChannelInfo channelInfo, CheckpointBarrier barrier) {
+        checkState(
+                !blockedChannels.put(channelInfo, true),
+                "Stream corrupt: Repeated barrier for same checkpoint on input " + channelInfo);
+        sequenceNumberInAnnouncedChannels.remove(channelInfo);
+        CheckpointableInput input = inputs[channelInfo.getGateIdx()];
+        input.blockConsumption(channelInfo);
+        return Optional.empty();
+    }
 
-	@Override
-	public Optional<CheckpointBarrier> postProcessLastBarrier(
-			InputChannelInfo channelInfo,
-			CheckpointBarrier barrier) throws IOException {
-		checkState(!barrier.getCheckpointOptions().isUnalignedCheckpoint());
-		resetPendingCheckpoint(barrier.getId());
-		resumeConsumption();
-		return Optional.of(barrier);
-	}
+    @Override
+    public Optional<CheckpointBarrier> preProcessFirstBarrier(
+            InputChannelInfo channelInfo, CheckpointBarrier barrier) {
+        checkArgument(
+                !barrier.getCheckpointOptions().isUnalignedCheckpoint(),
+                "Unaligned barrier is not expected");
+        return Optional.empty();
+    }
 
-	@Override
-	public void abortPendingCheckpoint(
-			long cancelledId,
-			CheckpointException exception) throws IOException {
-		resetPendingCheckpoint(cancelledId);
-		resumeConsumption();
-	}
+    @Override
+    public Optional<CheckpointBarrier> postProcessLastBarrier(
+            InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
+        checkState(!barrier.getCheckpointOptions().isUnalignedCheckpoint());
+        resetPendingCheckpoint(barrier.getId());
+        resumeConsumption();
+        return Optional.of(barrier);
+    }
 
-	@Override
-	public void obsoleteBarrierReceived(
-			InputChannelInfo channelInfo,
-			CheckpointBarrier barrier) throws IOException {
-		resumeConsumption(channelInfo);
-	}
+    @Override
+    public void abortPendingCheckpoint(long cancelledId, CheckpointException exception)
+            throws IOException {
+        resetPendingCheckpoint(cancelledId);
+        resumeConsumption();
+    }
 
-	protected void resetPendingCheckpoint(long cancelledId) {
-		for (final CheckpointableInput input : inputs) {
-			input.checkpointStopped(cancelledId);
-		}
-	}
+    @Override
+    public void obsoleteBarrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier)
+            throws IOException {
+        resumeConsumption(channelInfo);
+    }
 
-	public Collection<InputChannelInfo> getBlockedChannels() {
-		return blockedChannels.entrySet()
-			.stream()
-			.filter(entry -> entry.getValue())
-			.map(entry -> entry.getKey())
-			.collect(Collectors.toSet());
-	}
+    protected void resetPendingCheckpoint(long cancelledId) {
+        for (final CheckpointableInput input : inputs) {
+            input.checkpointStopped(cancelledId);
+        }
+    }
 
-	public Map<InputChannelInfo, Integer> getSequenceNumberInAnnouncedChannels() {
-		return new HashMap<>(sequenceNumberInAnnouncedChannels);
-	}
+    public Collection<InputChannelInfo> getBlockedChannels() {
+        return blockedChannels.entrySet().stream()
+                .filter(entry -> entry.getValue())
+                .map(entry -> entry.getKey())
+                .collect(Collectors.toSet());
+    }
 
-	public void resumeConsumption() throws IOException {
-		for (Map.Entry<InputChannelInfo, Boolean> blockedChannel : blockedChannels.entrySet()) {
-			if (blockedChannel.getValue()) {
-				resumeConsumption(blockedChannel.getKey());
-			}
-			blockedChannel.setValue(false);
-		}
-		sequenceNumberInAnnouncedChannels.clear();
-	}
+    public Map<InputChannelInfo, Integer> getSequenceNumberInAnnouncedChannels() {
+        return new HashMap<>(sequenceNumberInAnnouncedChannels);
+    }
 
-	void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
-		CheckpointableInput input = inputs[channelInfo.getGateIdx()];
-		input.resumeConsumption(channelInfo);
-	}
+    public void resumeConsumption() throws IOException {
+        for (Map.Entry<InputChannelInfo, Boolean> blockedChannel : blockedChannels.entrySet()) {
+            if (blockedChannel.getValue()) {
+                resumeConsumption(blockedChannel.getKey());
+            }
+            blockedChannel.setValue(false);
+        }
+        sequenceNumberInAnnouncedChannels.clear();
+    }
+
+    void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
+        CheckpointableInput input = inputs[channelInfo.getGateIdx()];
+        input.resumeConsumption(channelInfo);
+    }
 }

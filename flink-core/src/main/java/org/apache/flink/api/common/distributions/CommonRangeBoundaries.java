@@ -22,58 +22,59 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 
 @Internal
 public class CommonRangeBoundaries<T> implements RangeBoundaries<T> {
-	private final TypeComparator<T> typeComparator;
-	private final Object[][] boundaries;
-	private final TypeComparator[] flatComparators;
-	private final Object[] keys;
+    private final TypeComparator<T> typeComparator;
+    private final Object[][] boundaries;
+    private final TypeComparator[] flatComparators;
+    private final Object[] keys;
 
-	public CommonRangeBoundaries(TypeComparator<T> typeComparators, Object[][] boundaries) {
-		this.typeComparator = typeComparators;
-		this.flatComparators = typeComparators.getFlatComparators();
-		this.keys = new Object[flatComparators.length];
-		this.boundaries = boundaries;
-	}
+    public CommonRangeBoundaries(TypeComparator<T> typeComparators, Object[][] boundaries) {
+        this.typeComparator = typeComparators;
+        this.flatComparators = typeComparators.getFlatComparators();
+        this.keys = new Object[flatComparators.length];
+        this.boundaries = boundaries;
+    }
 
-	@Override
-	public int getRangeIndex(T record) {
-		return binarySearch(record);
-	}
+    @Override
+    public int getRangeIndex(T record) {
+        return binarySearch(record);
+    }
 
-	// Search the range index of input record.
-	private int binarySearch(T record) {
-		int low = 0;
-		int high = this.boundaries.length - 1;
-		typeComparator.extractKeys(record, keys, 0);
+    // Search the range index of input record.
+    private int binarySearch(T record) {
+        int low = 0;
+        int high = this.boundaries.length - 1;
+        typeComparator.extractKeys(record, keys, 0);
 
-		while (low <= high) {
-			final int mid = (low + high) >>> 1;
-			final int result = compareKeys(flatComparators, keys, this.boundaries[mid]);
+        while (low <= high) {
+            final int mid = (low + high) >>> 1;
+            final int result = compareKeys(flatComparators, keys, this.boundaries[mid]);
 
-			if (result > 0) {
-				low = mid + 1;
-			} else if (result < 0) {
-				high = mid - 1;
-			} else {
-				return mid;
-			}
-		}
-		// key not found, but the low index is the target
-		// bucket, since the boundaries are the upper bound
-		return low;
-	}
+            if (result > 0) {
+                low = mid + 1;
+            } else if (result < 0) {
+                high = mid - 1;
+            } else {
+                return mid;
+            }
+        }
+        // key not found, but the low index is the target
+        // bucket, since the boundaries are the upper bound
+        return low;
+    }
 
-	private int compareKeys(TypeComparator[] flatComparators, Object[] keys, Object[] boundary) {
-		if (flatComparators.length != keys.length || flatComparators.length != boundary.length) {
-			throw new RuntimeException("Can not compare keys with boundary due to mismatched length.");
-		}
+    private int compareKeys(TypeComparator[] flatComparators, Object[] keys, Object[] boundary) {
+        if (flatComparators.length != keys.length || flatComparators.length != boundary.length) {
+            throw new RuntimeException(
+                    "Can not compare keys with boundary due to mismatched length.");
+        }
 
-		for (int i=0; i<flatComparators.length; i++) {
-			int result = flatComparators[i].compare(keys[i], boundary[i]);
-			if (result != 0) {
-				return result;
-			}
-		}
+        for (int i = 0; i < flatComparators.length; i++) {
+            int result = flatComparators[i].compare(keys[i], boundary[i]);
+            if (result != 0) {
+                return result;
+            }
+        }
 
-		return 0;
-	}
+        return 0;
+    }
 }

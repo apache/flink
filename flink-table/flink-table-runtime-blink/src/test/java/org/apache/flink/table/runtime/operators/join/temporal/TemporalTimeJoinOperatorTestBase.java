@@ -27,41 +27,39 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-/**
- * Base test class for TemporalJoinOperator.
- */
+/** Base test class for TemporalJoinOperator. */
 abstract class TemporalTimeJoinOperatorTestBase {
-	protected String funcCode =
-			"public class TimeTemporalJoinCondition extends org.apache.flink.api.common.functions.AbstractRichFunction " +
-					"implements org.apache.flink.table.runtime.generated.JoinCondition {\n"
-					+ "\n"
-					+ "    public TimeTemporalJoinCondition(Object[] reference) {\n"
-					+ "    }\n"
-					+ "\n"
-					+ "    @Override\n"
-					+ "    public boolean apply(org.apache.flink.table.data.RowData in1, org.apache.flink.table.data.RowData in2) {\n"
-					+ "        return true;\n"
-					+ "    }\n"
-					+ "}\n";
-	protected GeneratedJoinCondition joinCondition = new GeneratedJoinCondition(
-			"TimeTemporalJoinCondition",
-			funcCode,
-			new Object[0]);
-	protected InternalTypeInfo<RowData> rowType = InternalTypeInfo.ofFields(
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new VarCharType(VarCharType.MAX_LENGTH));
-	protected InternalTypeInfo<RowData> outputRowType = InternalTypeInfo.ofFields(
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new VarCharType(VarCharType.MAX_LENGTH));
-	protected RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
-	protected int keyIdx = 1;
-	protected BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(
-			new int[]{keyIdx},
-			rowType.toRowFieldTypes());
-	protected TypeInformation<RowData> keyType = keySelector.getProducedType();
+    protected String funcCode =
+            "public class TimeTemporalJoinCondition extends org.apache.flink.api.common.functions.AbstractRichFunction "
+                    + "implements org.apache.flink.table.runtime.generated.JoinCondition {\n"
+                    + "\n"
+                    + "    public TimeTemporalJoinCondition(Object[] reference) {\n"
+                    + "    }\n"
+                    + "\n"
+                    + "    @Override\n"
+                    + "    public boolean apply(org.apache.flink.table.data.RowData in1, org.apache.flink.table.data.RowData in2) {\n"
+                    + "        return true;\n"
+                    + "    }\n"
+                    + "}\n";
+    protected GeneratedJoinCondition joinCondition =
+            new GeneratedJoinCondition("TimeTemporalJoinCondition", funcCode, new Object[0]);
+    protected InternalTypeInfo<RowData> rowType =
+            InternalTypeInfo.ofFields(
+                    new BigIntType(),
+                    new VarCharType(VarCharType.MAX_LENGTH),
+                    new VarCharType(VarCharType.MAX_LENGTH));
+    protected InternalTypeInfo<RowData> outputRowType =
+            InternalTypeInfo.ofFields(
+                    new BigIntType(),
+                    new VarCharType(VarCharType.MAX_LENGTH),
+                    new VarCharType(VarCharType.MAX_LENGTH),
+                    new BigIntType(),
+                    new VarCharType(VarCharType.MAX_LENGTH),
+                    new VarCharType(VarCharType.MAX_LENGTH));
+    protected RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
+    protected int keyIdx = 1;
+    protected BinaryRowDataKeySelector keySelector =
+            new BinaryRowDataKeySelector(new int[] {keyIdx}, rowType.toRowFieldTypes());
+    protected TypeInformation<RowData> keyType = keySelector.getProducedType();
 }

@@ -40,76 +40,82 @@ import javax.annotation.Nullable;
 import java.util.concurrent.Executor;
 
 /**
- * Factory class for creating {@link ActiveResourceManager} with various implementations of {@link ResourceManagerDriver}.
+ * Factory class for creating {@link ActiveResourceManager} with various implementations of {@link
+ * ResourceManagerDriver}.
  */
 public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceIDRetrievable>
-		extends ResourceManagerFactory<WorkerType> {
+        extends ResourceManagerFactory<WorkerType> {
 
-	@Override
-	public ResourceManager<WorkerType> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			MetricRegistry metricRegistry,
-			String hostname,
-			Executor ioExecutor) throws Exception {
-		return super.createResourceManager(
-				createActiveResourceManagerConfiguration(configuration),
-				resourceId,
-				rpcService,
-				highAvailabilityServices,
-				heartbeatServices,
-				fatalErrorHandler,
-				clusterInformation,
-				webInterfaceUrl,
-				metricRegistry,
-				hostname,
-				ioExecutor);
-	}
+    @Override
+    public ResourceManager<WorkerType> createResourceManager(
+            Configuration configuration,
+            ResourceID resourceId,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            FatalErrorHandler fatalErrorHandler,
+            ClusterInformation clusterInformation,
+            @Nullable String webInterfaceUrl,
+            MetricRegistry metricRegistry,
+            String hostname,
+            Executor ioExecutor)
+            throws Exception {
+        return super.createResourceManager(
+                createActiveResourceManagerConfiguration(configuration),
+                resourceId,
+                rpcService,
+                highAvailabilityServices,
+                heartbeatServices,
+                fatalErrorHandler,
+                clusterInformation,
+                webInterfaceUrl,
+                metricRegistry,
+                hostname,
+                ioExecutor);
+    }
 
-	private Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
-		final Configuration copiedConfig = new Configuration(originalConfiguration);
-		// In active mode, it depends on the ResourceManager to set the ResourceID of TaskManagers.
-		copiedConfig.removeConfig(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID);
-		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-				copiedConfig, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
-	}
+    private Configuration createActiveResourceManagerConfiguration(
+            Configuration originalConfiguration) {
+        final Configuration copiedConfig = new Configuration(originalConfiguration);
+        // In active mode, it depends on the ResourceManager to set the ResourceID of TaskManagers.
+        copiedConfig.removeConfig(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID);
+        return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+                copiedConfig, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+    }
 
-	@Override
-	public ResourceManager<WorkerType> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			ResourceManagerRuntimeServices resourceManagerRuntimeServices,
-			Executor ioExecutor) throws Exception {
+    @Override
+    public ResourceManager<WorkerType> createResourceManager(
+            Configuration configuration,
+            ResourceID resourceId,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            FatalErrorHandler fatalErrorHandler,
+            ClusterInformation clusterInformation,
+            @Nullable String webInterfaceUrl,
+            ResourceManagerMetricGroup resourceManagerMetricGroup,
+            ResourceManagerRuntimeServices resourceManagerRuntimeServices,
+            Executor ioExecutor)
+            throws Exception {
 
-		return new ActiveResourceManager<>(
-				createResourceManagerDriver(configuration, webInterfaceUrl, rpcService.getAddress()),
-				configuration,
-				rpcService,
-				resourceId,
-				highAvailabilityServices,
-				heartbeatServices,
-				resourceManagerRuntimeServices.getSlotManager(),
-				ResourceManagerPartitionTrackerImpl::new,
-				resourceManagerRuntimeServices.getJobLeaderIdService(),
-				clusterInformation,
-				fatalErrorHandler,
-				resourceManagerMetricGroup,
-				ioExecutor);
-	}
+        return new ActiveResourceManager<>(
+                createResourceManagerDriver(
+                        configuration, webInterfaceUrl, rpcService.getAddress()),
+                configuration,
+                rpcService,
+                resourceId,
+                highAvailabilityServices,
+                heartbeatServices,
+                resourceManagerRuntimeServices.getSlotManager(),
+                ResourceManagerPartitionTrackerImpl::new,
+                resourceManagerRuntimeServices.getJobLeaderIdService(),
+                clusterInformation,
+                fatalErrorHandler,
+                resourceManagerMetricGroup,
+                ioExecutor);
+    }
 
-	protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver(
-			Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress) throws Exception;
+    protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver(
+            Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress)
+            throws Exception;
 }

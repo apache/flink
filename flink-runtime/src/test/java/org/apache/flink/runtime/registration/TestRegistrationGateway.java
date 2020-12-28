@@ -26,62 +26,61 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * Mock gateway for {@link RegistrationResponse}.
- */
+/** Mock gateway for {@link RegistrationResponse}. */
 public class TestRegistrationGateway extends TestingGatewayBase {
 
-	private final BlockingQueue<RegistrationCall> invocations;
+    private final BlockingQueue<RegistrationCall> invocations;
 
-	private final RegistrationResponse[] responses;
+    private final RegistrationResponse[] responses;
 
-	private int pos;
+    private int pos;
 
-	public TestRegistrationGateway(RegistrationResponse... responses) {
-		Preconditions.checkArgument(responses != null && responses.length > 0);
+    public TestRegistrationGateway(RegistrationResponse... responses) {
+        Preconditions.checkArgument(responses != null && responses.length > 0);
 
-		this.invocations = new LinkedBlockingQueue<>();
-		this.responses = responses;
-	}
+        this.invocations = new LinkedBlockingQueue<>();
+        this.responses = responses;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public CompletableFuture<RegistrationResponse> registrationCall(UUID leaderId, long timeout) {
-		invocations.add(new RegistrationCall(leaderId, timeout));
+    public CompletableFuture<RegistrationResponse> registrationCall(UUID leaderId, long timeout) {
+        invocations.add(new RegistrationCall(leaderId, timeout));
 
-		RegistrationResponse response = responses[pos];
-		if (pos < responses.length - 1) {
-			pos++;
-		}
+        RegistrationResponse response = responses[pos];
+        if (pos < responses.length - 1) {
+            pos++;
+        }
 
-		// return a completed future (for a proper value), or one that never completes and will time out (for null)
-		return response != null ? CompletableFuture.completedFuture(response) : futureWithTimeout(timeout);
-	}
+        // return a completed future (for a proper value), or one that never completes and will time
+        // out (for null)
+        return response != null
+                ? CompletableFuture.completedFuture(response)
+                : futureWithTimeout(timeout);
+    }
 
-	public BlockingQueue<RegistrationCall> getInvocations() {
-		return invocations;
-	}
+    public BlockingQueue<RegistrationCall> getInvocations() {
+        return invocations;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Invocation parameters.
-	 */
-	public static class RegistrationCall {
-		private final UUID leaderId;
-		private final long timeout;
+    /** Invocation parameters. */
+    public static class RegistrationCall {
+        private final UUID leaderId;
+        private final long timeout;
 
-		public RegistrationCall(UUID leaderId, long timeout) {
-			this.leaderId = leaderId;
-			this.timeout = timeout;
-		}
+        public RegistrationCall(UUID leaderId, long timeout) {
+            this.leaderId = leaderId;
+            this.timeout = timeout;
+        }
 
-		public UUID leaderId() {
-			return leaderId;
-		}
+        public UUID leaderId() {
+            return leaderId;
+        }
 
-		public long timeout() {
-			return timeout;
-		}
-	}
+        public long timeout() {
+            return timeout;
+        }
+    }
 }

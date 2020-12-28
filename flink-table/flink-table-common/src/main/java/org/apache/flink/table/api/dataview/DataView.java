@@ -22,8 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.ImperativeAggregateFunction;
 
 /**
- * A {@link DataView} is a collection type that can be used in the accumulator of an
- * {@link ImperativeAggregateFunction}.
+ * A {@link DataView} is a collection type that can be used in the accumulator of an {@link
+ * ImperativeAggregateFunction}.
  *
  * <p>Depending on the context in which the function is used, a {@link DataView} can be backed by a
  * Java heap collection or a state backend.
@@ -34,8 +34,6 @@ import org.apache.flink.table.functions.ImperativeAggregateFunction;
 @PublicEvolving
 public interface DataView {
 
-	/**
-	 * Clears the {@link DataView} and removes all data.
-	 */
-	void clear();
+    /** Clears the {@link DataView} and removes all data. */
+    void clear();
 }

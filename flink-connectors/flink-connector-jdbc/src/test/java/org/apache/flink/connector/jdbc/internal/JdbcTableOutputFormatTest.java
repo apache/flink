@@ -49,117 +49,131 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import static org.junit.Assert.assertArrayEquals;
 import static org.mockito.Mockito.doReturn;
 
-/**
- * Tests for the {@link JdbcBatchingOutputFormat}.
- */
+/** Tests for the {@link JdbcBatchingOutputFormat}. */
 public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
 
-	private TableJdbcUpsertOutputFormat format;
-	private String[] fieldNames;
-	private String[] keyFields;
+    private TableJdbcUpsertOutputFormat format;
+    private String[] fieldNames;
+    private String[] keyFields;
 
-	@Before
-	public void setup() {
-		fieldNames = new String[]{"id", "title", "author", "price", "qty"};
-		keyFields = new String[]{"id"};
-	}
+    @Before
+    public void setup() {
+        fieldNames = new String[] {"id", "title", "author", "price", "qty"};
+        keyFields = new String[] {"id"};
+    }
 
-	@Test
-	public void testUpsertFormatCloseBeforeOpen() throws Exception{
-		JdbcOptions options = JdbcOptions.builder()
-			.setDBUrl(getDbMetadata().getUrl())
-			.setTableName(OUTPUT_TABLE)
-			.build();
-		JdbcDmlOptions dmlOptions = JdbcDmlOptions.builder()
-			.withTableName(options.getTableName()).withDialect(options.getDialect())
-			.withFieldNames(fieldNames).withKeyFields(keyFields).build();
-		format = new TableJdbcUpsertOutputFormat(new SimpleJdbcConnectionProvider(options), dmlOptions, JdbcExecutionOptions.defaults());
-		// FLINK-17544: There should be no NPE thrown from this method
-		format.close();
-	}
+    @Test
+    public void testUpsertFormatCloseBeforeOpen() throws Exception {
+        JdbcOptions options =
+                JdbcOptions.builder()
+                        .setDBUrl(getDbMetadata().getUrl())
+                        .setTableName(OUTPUT_TABLE)
+                        .build();
+        JdbcDmlOptions dmlOptions =
+                JdbcDmlOptions.builder()
+                        .withTableName(options.getTableName())
+                        .withDialect(options.getDialect())
+                        .withFieldNames(fieldNames)
+                        .withKeyFields(keyFields)
+                        .build();
+        format =
+                new TableJdbcUpsertOutputFormat(
+                        new SimpleJdbcConnectionProvider(options),
+                        dmlOptions,
+                        JdbcExecutionOptions.defaults());
+        // FLINK-17544: There should be no NPE thrown from this method
+        format.close();
+    }
 
-	@Test
-	public void testJdbcOutputFormat() throws Exception {
-		JdbcOptions options = JdbcOptions.builder()
-				.setDBUrl(getDbMetadata().getUrl())
-				.setTableName(OUTPUT_TABLE)
-				.build();
-		JdbcDmlOptions dmlOptions = JdbcDmlOptions.builder()
-				.withTableName(options.getTableName()).withDialect(options.getDialect())
-				.withFieldNames(fieldNames).withKeyFields(keyFields).build();
-		format = new TableJdbcUpsertOutputFormat(new SimpleJdbcConnectionProvider(options), dmlOptions, JdbcExecutionOptions.defaults());
-		RuntimeContext context = Mockito.mock(RuntimeContext.class);
-		ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
-		doReturn(config).when(context).getExecutionConfig();
-		doReturn(true).when(config).isObjectReuseEnabled();
-		format.setRuntimeContext(context);
-		format.open(0, 1);
+    @Test
+    public void testJdbcOutputFormat() throws Exception {
+        JdbcOptions options =
+                JdbcOptions.builder()
+                        .setDBUrl(getDbMetadata().getUrl())
+                        .setTableName(OUTPUT_TABLE)
+                        .build();
+        JdbcDmlOptions dmlOptions =
+                JdbcDmlOptions.builder()
+                        .withTableName(options.getTableName())
+                        .withDialect(options.getDialect())
+                        .withFieldNames(fieldNames)
+                        .withKeyFields(keyFields)
+                        .build();
+        format =
+                new TableJdbcUpsertOutputFormat(
+                        new SimpleJdbcConnectionProvider(options),
+                        dmlOptions,
+                        JdbcExecutionOptions.defaults());
+        RuntimeContext context = Mockito.mock(RuntimeContext.class);
+        ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
+        doReturn(config).when(context).getExecutionConfig();
+        doReturn(true).when(config).isObjectReuseEnabled();
+        format.setRuntimeContext(context);
+        format.open(0, 1);
 
-		for (TestEntry entry : TEST_DATA) {
-			format.writeRecord(Tuple2.of(true, toRow(entry)));
-		}
-		format.flush();
-		check(Arrays.stream(TEST_DATA).map(JdbcDataTestBase::toRow).toArray(Row[]::new));
+        for (TestEntry entry : TEST_DATA) {
+            format.writeRecord(Tuple2.of(true, toRow(entry)));
+        }
+        format.flush();
+        check(Arrays.stream(TEST_DATA).map(JdbcDataTestBase::toRow).toArray(Row[]::new));
 
-		// override
-		for (TestEntry entry : TEST_DATA) {
-			format.writeRecord(Tuple2.of(true, toRow(entry)));
-		}
-		format.flush();
-		check(Arrays.stream(TEST_DATA).map(JdbcDataTestBase::toRow).toArray(Row[]::new));
+        // override
+        for (TestEntry entry : TEST_DATA) {
+            format.writeRecord(Tuple2.of(true, toRow(entry)));
+        }
+        format.flush();
+        check(Arrays.stream(TEST_DATA).map(JdbcDataTestBase::toRow).toArray(Row[]::new));
 
-		// delete
-		for (int i = 0; i < TEST_DATA.length / 2; i++) {
-			format.writeRecord(Tuple2.of(false, toRow(TEST_DATA[i])));
-		}
-		Row[] expected = new Row[TEST_DATA.length - TEST_DATA.length / 2];
-		for (int i = TEST_DATA.length / 2; i < TEST_DATA.length; i++) {
-			expected[i - TEST_DATA.length / 2] = toRow(TEST_DATA[i]);
-		}
-		format.flush();
-		check(expected);
-	}
+        // delete
+        for (int i = 0; i < TEST_DATA.length / 2; i++) {
+            format.writeRecord(Tuple2.of(false, toRow(TEST_DATA[i])));
+        }
+        Row[] expected = new Row[TEST_DATA.length - TEST_DATA.length / 2];
+        for (int i = TEST_DATA.length / 2; i < TEST_DATA.length; i++) {
+            expected[i - TEST_DATA.length / 2] = toRow(TEST_DATA[i]);
+        }
+        format.flush();
+        check(expected);
+    }
 
-	private void check(Row[] rows) throws SQLException {
-		check(rows, getDbMetadata().getUrl(), OUTPUT_TABLE, fieldNames);
-	}
+    private void check(Row[] rows) throws SQLException {
+        check(rows, getDbMetadata().getUrl(), OUTPUT_TABLE, fieldNames);
+    }
 
-	public static void check(Row[] rows, String url, String table, String[] fields) throws SQLException {
-		try (
-				Connection dbConn = DriverManager.getConnection(url);
-				PreparedStatement statement = dbConn.prepareStatement("select * from " + table);
-				ResultSet resultSet = statement.executeQuery()
-		) {
-			List<String> results = new ArrayList<>();
-			while (resultSet.next()) {
-				Row row = new Row(fields.length);
-				for (int i = 0; i < fields.length; i++) {
-					row.setField(i, resultSet.getObject(fields[i]));
-				}
-				results.add(row.toString());
-			}
-			String[] sortedExpect = Arrays.stream(rows).map(Row::toString).toArray(String[]::new);
-			String[] sortedResult = results.toArray(new String[0]);
-			Arrays.sort(sortedExpect);
-			Arrays.sort(sortedResult);
-			assertArrayEquals(sortedExpect, sortedResult);
-		}
-	}
+    public static void check(Row[] rows, String url, String table, String[] fields)
+            throws SQLException {
+        try (Connection dbConn = DriverManager.getConnection(url);
+                PreparedStatement statement = dbConn.prepareStatement("select * from " + table);
+                ResultSet resultSet = statement.executeQuery()) {
+            List<String> results = new ArrayList<>();
+            while (resultSet.next()) {
+                Row row = new Row(fields.length);
+                for (int i = 0; i < fields.length; i++) {
+                    row.setField(i, resultSet.getObject(fields[i]));
+                }
+                results.add(row.toString());
+            }
+            String[] sortedExpect = Arrays.stream(rows).map(Row::toString).toArray(String[]::new);
+            String[] sortedResult = results.toArray(new String[0]);
+            Arrays.sort(sortedExpect);
+            Arrays.sort(sortedResult);
+            assertArrayEquals(sortedExpect, sortedResult);
+        }
+    }
 
-	@After
-	public void clearOutputTable() throws Exception {
-		if (format != null) {
-			format.close();
-		}
-		format = null;
-		Class.forName(getDbMetadata().getDriverClass());
-		try (
-				Connection conn = DriverManager.getConnection(getDbMetadata().getUrl());
-				Statement stat = conn.createStatement()) {
-			stat.execute("DELETE FROM " + OUTPUT_TABLE);
+    @After
+    public void clearOutputTable() throws Exception {
+        if (format != null) {
+            format.close();
+        }
+        format = null;
+        Class.forName(getDbMetadata().getDriverClass());
+        try (Connection conn = DriverManager.getConnection(getDbMetadata().getUrl());
+                Statement stat = conn.createStatement()) {
+            stat.execute("DELETE FROM " + OUTPUT_TABLE);
 
-			stat.close();
-			conn.close();
-		}
-	}
+            stat.close();
+            conn.close();
+        }
+    }
 }

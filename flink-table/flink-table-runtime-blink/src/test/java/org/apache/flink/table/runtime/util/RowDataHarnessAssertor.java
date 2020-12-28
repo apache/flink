@@ -36,109 +36,101 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Utils for working with the various window test harnesses.
- */
+/** Utils for working with the various window test harnesses. */
 public class RowDataHarnessAssertor {
 
-	private final LogicalType[] types;
-	private final Comparator<GenericRowData> comparator;
+    private final LogicalType[] types;
+    private final Comparator<GenericRowData> comparator;
 
-	public RowDataHarnessAssertor(LogicalType[] types, Comparator<GenericRowData> comparator) {
-		this.types = types;
-		this.comparator = comparator;
-	}
+    public RowDataHarnessAssertor(LogicalType[] types, Comparator<GenericRowData> comparator) {
+        this.types = types;
+        this.comparator = comparator;
+    }
 
-	public RowDataHarnessAssertor(LogicalType[] types) {
-		this(types, new StringComparator());
-	}
+    public RowDataHarnessAssertor(LogicalType[] types) {
+        this(types, new StringComparator());
+    }
 
-	/**
-	 * Compare the two queues containing operator/task output by converting them to an array first.
-	 * Asserts two converted array should be same.
-	 */
-	public void assertOutputEquals(
-			String message,
-			Collection<Object> expected,
-			Collection<Object> actual) {
-		assertOutputEquals(message, expected, actual, false);
-	}
+    /**
+     * Compare the two queues containing operator/task output by converting them to an array first.
+     * Asserts two converted array should be same.
+     */
+    public void assertOutputEquals(
+            String message, Collection<Object> expected, Collection<Object> actual) {
+        assertOutputEquals(message, expected, actual, false);
+    }
 
-	/**
-	 * Compare the two queues containing operator/task output by converting them to an array first, sort array by
-	 * comparator. Assertes two sorted converted array should be same.
-	 */
-	public void assertOutputEqualsSorted(
-			String message,
-			Collection<Object> expected,
-			Collection<Object> actual) {
-		assertOutputEquals(message, expected, actual, true);
-	}
+    /**
+     * Compare the two queues containing operator/task output by converting them to an array first,
+     * sort array by comparator. Assertes two sorted converted array should be same.
+     */
+    public void assertOutputEqualsSorted(
+            String message, Collection<Object> expected, Collection<Object> actual) {
+        assertOutputEquals(message, expected, actual, true);
+    }
 
-	private void assertOutputEquals(
-			String message,
-			Collection<Object> expected,
-			Collection<Object> actual,
-			boolean needSort) {
-		if (needSort) {
-			Preconditions.checkArgument(comparator != null, "Comparator should not be null!");
-		}
-		assertEquals(expected.size(), actual.size());
+    private void assertOutputEquals(
+            String message,
+            Collection<Object> expected,
+            Collection<Object> actual,
+            boolean needSort) {
+        if (needSort) {
+            Preconditions.checkArgument(comparator != null, "Comparator should not be null!");
+        }
+        assertEquals(expected.size(), actual.size());
 
-		// first, compare only watermarks, their position should be deterministic
-		Iterator<Object> exIt = expected.iterator();
-		Iterator<Object> actIt = actual.iterator();
-		while (exIt.hasNext()) {
-			Object nextEx = exIt.next();
-			Object nextAct = actIt.next();
-			if (nextEx instanceof Watermark) {
-				assertEquals(nextEx, nextAct);
-			}
-		}
+        // first, compare only watermarks, their position should be deterministic
+        Iterator<Object> exIt = expected.iterator();
+        Iterator<Object> actIt = actual.iterator();
+        while (exIt.hasNext()) {
+            Object nextEx = exIt.next();
+            Object nextAct = actIt.next();
+            if (nextEx instanceof Watermark) {
+                assertEquals(nextEx, nextAct);
+            }
+        }
 
-		List<GenericRowData> expectedRecords = new ArrayList<>();
-		List<GenericRowData> actualRecords = new ArrayList<>();
+        List<GenericRowData> expectedRecords = new ArrayList<>();
+        List<GenericRowData> actualRecords = new ArrayList<>();
 
-		for (Object ex : expected) {
-			if (ex instanceof StreamRecord) {
-				RowData row = (RowData) ((StreamRecord) ex).getValue();
-				if (row instanceof GenericRowData) {
-					expectedRecords.add((GenericRowData) row);
-				} else {
-					GenericRowData genericRow = RowDataTestUtil.toGenericRowDeeply(
-						row,
-						types);
-					expectedRecords.add(genericRow);
-				}
-			}
-		}
+        for (Object ex : expected) {
+            if (ex instanceof StreamRecord) {
+                RowData row = (RowData) ((StreamRecord) ex).getValue();
+                if (row instanceof GenericRowData) {
+                    expectedRecords.add((GenericRowData) row);
+                } else {
+                    GenericRowData genericRow = RowDataTestUtil.toGenericRowDeeply(row, types);
+                    expectedRecords.add(genericRow);
+                }
+            }
+        }
 
-		for (Object act : actual) {
-			if (act instanceof StreamRecord) {
-				RowData actualOutput = (RowData) ((StreamRecord) act).getValue();
-				// joined row can't equals to generic row, so cast joined row to generic row first
-				GenericRowData actualRow = RowDataTestUtil.toGenericRowDeeply(
-						actualOutput,
-						types);
-				actualRecords.add(actualRow);
-			}
-		}
+        for (Object act : actual) {
+            if (act instanceof StreamRecord) {
+                RowData actualOutput = (RowData) ((StreamRecord) act).getValue();
+                // joined row can't equals to generic row, so cast joined row to generic row first
+                GenericRowData actualRow = RowDataTestUtil.toGenericRowDeeply(actualOutput, types);
+                actualRecords.add(actualRow);
+            }
+        }
 
-		GenericRowData[] sortedExpected = expectedRecords.toArray(new GenericRowData[expectedRecords.size()]);
-		GenericRowData[] sortedActual = actualRecords.toArray(new GenericRowData[actualRecords.size()]);
+        GenericRowData[] sortedExpected =
+                expectedRecords.toArray(new GenericRowData[expectedRecords.size()]);
+        GenericRowData[] sortedActual =
+                actualRecords.toArray(new GenericRowData[actualRecords.size()]);
 
-		if (needSort) {
-			Arrays.sort(sortedExpected, comparator);
-			Arrays.sort(sortedActual, comparator);
-		}
+        if (needSort) {
+            Arrays.sort(sortedExpected, comparator);
+            Arrays.sort(sortedActual, comparator);
+        }
 
-		Assert.assertArrayEquals(message, sortedExpected, sortedActual);
-	}
+        Assert.assertArrayEquals(message, sortedExpected, sortedActual);
+    }
 
-	private static class StringComparator implements Comparator<GenericRowData> {
-		@Override
-		public int compare(GenericRowData o1, GenericRowData o2) {
-			return o1.toString().compareTo(o2.toString());
-		}
-	}
+    private static class StringComparator implements Comparator<GenericRowData> {
+        @Override
+        public int compare(GenericRowData o1, GenericRowData o2) {
+            return o1.toString().compareTo(o2.toString());
+        }
+    }
 }

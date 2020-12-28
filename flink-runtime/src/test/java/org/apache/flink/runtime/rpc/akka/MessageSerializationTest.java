@@ -44,167 +44,168 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests that akka rpc invocation messages are properly serialized and errors reported.
- */
+/** Tests that akka rpc invocation messages are properly serialized and errors reported. */
 public class MessageSerializationTest extends TestLogger {
-	private static RpcService akkaRpcService1;
-	private static RpcService akkaRpcService2;
+    private static RpcService akkaRpcService1;
+    private static RpcService akkaRpcService2;
 
-	private static final Time timeout = Time.seconds(10L);
-	private static final int maxFrameSize = 32000;
+    private static final Time timeout = Time.seconds(10L);
+    private static final int maxFrameSize = 32000;
 
-	@BeforeClass
-	public static void setup() throws Exception {
-		Configuration configuration = new Configuration();
-		configuration.setString(AkkaOptions.FRAMESIZE, maxFrameSize + "b");
+    @BeforeClass
+    public static void setup() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.setString(AkkaOptions.FRAMESIZE, maxFrameSize + "b");
 
-		akkaRpcService1 = AkkaRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0).createAndStart();
-		akkaRpcService2 = AkkaRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0).createAndStart();
-	}
+        akkaRpcService1 =
+                AkkaRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0)
+                        .createAndStart();
+        akkaRpcService2 =
+                AkkaRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0)
+                        .createAndStart();
+    }
 
-	@AfterClass
-	public static void teardown() throws InterruptedException, ExecutionException, TimeoutException {
-		final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(2);
+    @AfterClass
+    public static void teardown()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(2);
 
-		terminationFutures.add(akkaRpcService1.stopService());
-		terminationFutures.add(akkaRpcService2.stopService());
+        terminationFutures.add(akkaRpcService1.stopService());
+        terminationFutures.add(akkaRpcService2.stopService());
 
-		FutureUtils
-			.waitForAll(terminationFutures)
-			.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-	}
+        FutureUtils.waitForAll(terminationFutures)
+                .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+    }
 
-	/**
-	 * Tests that a local rpc call with a non serializable argument can be executed.
-	 */
-	@Test
-	public void testNonSerializableLocalMessageTransfer() throws Exception {
-		LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
-		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
-		testEndpoint.start();
+    /** Tests that a local rpc call with a non serializable argument can be executed. */
+    @Test
+    public void testNonSerializableLocalMessageTransfer() throws Exception {
+        LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
+        TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
+        testEndpoint.start();
 
-		TestGateway testGateway = testEndpoint.getSelfGateway(TestGateway.class);
+        TestGateway testGateway = testEndpoint.getSelfGateway(TestGateway.class);
 
-		NonSerializableObject expected = new NonSerializableObject(42);
+        NonSerializableObject expected = new NonSerializableObject(42);
 
-		testGateway.foobar(expected);
+        testGateway.foobar(expected);
 
-		assertThat(linkedBlockingQueue.take(), Is.<Object>is(expected));
-	}
+        assertThat(linkedBlockingQueue.take(), Is.<Object>is(expected));
+    }
 
-	/**
-	 * Tests that a remote rpc call with a non-serializable argument fails with an
-	 * {@link IOException} (or an {@link java.lang.reflect.UndeclaredThrowableException} if the
-	 * the method declaration does not include the {@link IOException} as throwable).
-	 */
-	@Test(expected = IOException.class)
-	public void testNonSerializableRemoteMessageTransfer() throws Exception {
-		LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
+    /**
+     * Tests that a remote rpc call with a non-serializable argument fails with an {@link
+     * IOException} (or an {@link java.lang.reflect.UndeclaredThrowableException} if the the method
+     * declaration does not include the {@link IOException} as throwable).
+     */
+    @Test(expected = IOException.class)
+    public void testNonSerializableRemoteMessageTransfer() throws Exception {
+        LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
 
-		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
-		testEndpoint.start();
+        TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
+        testEndpoint.start();
 
-		String address = testEndpoint.getAddress();
+        String address = testEndpoint.getAddress();
 
-		CompletableFuture<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
+        CompletableFuture<TestGateway> remoteGatewayFuture =
+                akkaRpcService2.connect(address, TestGateway.class);
 
-		TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
+        TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
 
-		remoteGateway.foobar(new Object());
+        remoteGateway.foobar(new Object());
 
-		fail("Should have failed because Object is not serializable.");
-	}
+        fail("Should have failed because Object is not serializable.");
+    }
 
-	/**
-	 * Tests that a remote rpc call with a serializable argument can be successfully executed.
-	 */
-	@Test
-	public void testSerializableRemoteMessageTransfer() throws Exception {
-		LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
+    /** Tests that a remote rpc call with a serializable argument can be successfully executed. */
+    @Test
+    public void testSerializableRemoteMessageTransfer() throws Exception {
+        LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
 
-		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
-		testEndpoint.start();
+        TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
+        testEndpoint.start();
 
-		String address = testEndpoint.getAddress();
+        String address = testEndpoint.getAddress();
 
-		CompletableFuture<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
+        CompletableFuture<TestGateway> remoteGatewayFuture =
+                akkaRpcService2.connect(address, TestGateway.class);
 
-		TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
+        TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
 
-		int expected = 42;
+        int expected = 42;
 
-		remoteGateway.foobar(expected);
+        remoteGateway.foobar(expected);
 
-		assertThat(linkedBlockingQueue.take(), Is.<Object>is(expected));
-	}
+        assertThat(linkedBlockingQueue.take(), Is.<Object>is(expected));
+    }
 
-	/**
-	 * Tests that a message which exceeds the maximum frame size is detected and a corresponding
-	 * exception is thrown.
-	 */
-	@Test(expected = IOException.class)
-	public void testMaximumFramesizeRemoteMessageTransfer() throws Exception {
-		LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
+    /**
+     * Tests that a message which exceeds the maximum frame size is detected and a corresponding
+     * exception is thrown.
+     */
+    @Test(expected = IOException.class)
+    public void testMaximumFramesizeRemoteMessageTransfer() throws Exception {
+        LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
 
-		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
-		testEndpoint.start();
+        TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
+        testEndpoint.start();
 
-		String address = testEndpoint.getAddress();
+        String address = testEndpoint.getAddress();
 
-		CompletableFuture<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
+        CompletableFuture<TestGateway> remoteGatewayFuture =
+                akkaRpcService2.connect(address, TestGateway.class);
 
-		TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
+        TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
 
-		int bufferSize = maxFrameSize + 1;
-		byte[] buffer = new byte[bufferSize];
+        int bufferSize = maxFrameSize + 1;
+        byte[] buffer = new byte[bufferSize];
 
-		remoteGateway.foobar(buffer);
+        remoteGateway.foobar(buffer);
 
-		fail("Should have failed due to exceeding the maximum framesize.");
-	}
+        fail("Should have failed due to exceeding the maximum framesize.");
+    }
 
-	private interface TestGateway extends RpcGateway {
-		void foobar(Object object) throws IOException, InterruptedException;
-	}
+    private interface TestGateway extends RpcGateway {
+        void foobar(Object object) throws IOException, InterruptedException;
+    }
 
-	private static class TestEndpoint extends RpcEndpoint implements TestGateway {
+    private static class TestEndpoint extends RpcEndpoint implements TestGateway {
 
-		private final LinkedBlockingQueue<Object> queue;
+        private final LinkedBlockingQueue<Object> queue;
 
-		protected TestEndpoint(RpcService rpcService, LinkedBlockingQueue<Object> queue) {
-			super(rpcService);
-			this.queue = queue;
-		}
+        protected TestEndpoint(RpcService rpcService, LinkedBlockingQueue<Object> queue) {
+            super(rpcService);
+            this.queue = queue;
+        }
 
-		@Override
-		public void foobar(Object object) throws InterruptedException {
-			queue.put(object);
-		}
-	}
+        @Override
+        public void foobar(Object object) throws InterruptedException {
+            queue.put(object);
+        }
+    }
 
-	private static class NonSerializableObject {
-		private final Object object = new Object();
-		private final int value;
+    private static class NonSerializableObject {
+        private final Object object = new Object();
+        private final int value;
 
-		NonSerializableObject(int value) {
-			this.value = value;
-		}
+        NonSerializableObject(int value) {
+            this.value = value;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof NonSerializableObject) {
-				NonSerializableObject nonSerializableObject = (NonSerializableObject) obj;
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof NonSerializableObject) {
+                NonSerializableObject nonSerializableObject = (NonSerializableObject) obj;
 
-				return value == nonSerializableObject.value;
-			} else {
-				return false;
-			}
-		}
+                return value == nonSerializableObject.value;
+            } else {
+                return false;
+            }
+        }
 
-		@Override
-		public int hashCode() {
-			return value * 41;
-		}
-	}
+        @Override
+        public int hashCode() {
+            return value * 41;
+        }
+    }
 }

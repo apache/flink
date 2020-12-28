@@ -29,46 +29,46 @@ import java.util.Objects;
 /**
  * {@link TypeInformation} for {@link Timestamp}.
  *
- * <p>The difference between Types.SQL_TIMESTAMP is this TypeInformation holds a precision
- * Reminder: Conversion from DateType to TypeInformation (and back) exists in
+ * <p>The difference between Types.SQL_TIMESTAMP is this TypeInformation holds a precision Reminder:
+ * Conversion from DateType to TypeInformation (and back) exists in
  * TableSourceUtil.computeIndexMapping, which should be fixed after we remove Legacy TypeInformation
  * TODO: https://issues.apache.org/jira/browse/FLINK-14927
  */
 public class LegacyTimestampTypeInfo extends SqlTimeTypeInfo<Timestamp> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int precision;
+    private final int precision;
 
-	@SuppressWarnings("unchecked")
-	public LegacyTimestampTypeInfo(int precision) {
-		super(
-			Timestamp.class,
-			SqlTimestampSerializer.INSTANCE,
-			(Class) SqlTimestampComparator.class);
-		this.precision = precision;
-	}
+    @SuppressWarnings("unchecked")
+    public LegacyTimestampTypeInfo(int precision) {
+        super(
+                Timestamp.class,
+                SqlTimestampSerializer.INSTANCE,
+                (Class) SqlTimestampComparator.class);
+        this.precision = precision;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (!(obj instanceof LegacyTimestampTypeInfo)) {
-			return false;
-		}
-		LegacyTimestampTypeInfo that = (LegacyTimestampTypeInfo) obj;
-		return this.precision == that.precision;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof LegacyTimestampTypeInfo)) {
+            return false;
+        }
+        LegacyTimestampTypeInfo that = (LegacyTimestampTypeInfo) obj;
+        return this.precision == that.precision;
+    }
 
-	@Override
-	public String toString() {
-		return String.format("Timestamp(%d)", precision);
-	}
+    @Override
+    public String toString() {
+        return String.format("Timestamp(%d)", precision);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(this.getClass().getCanonicalName(), precision);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.getClass().getCanonicalName(), precision);
+    }
 
-	public int getPrecision() {
-		return precision;
-	}
+    public int getPrecision() {
+        return precision;
+    }
 }

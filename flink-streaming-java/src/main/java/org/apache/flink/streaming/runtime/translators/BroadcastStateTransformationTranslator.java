@@ -29,36 +29,40 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link TransformationTranslator} for the {@link BroadcastStateTransformation}.
  *
- * @param <IN1> The type of the elements in the non-broadcasted input of the {@link BroadcastStateTransformation}.
- * @param <IN2> The type of the elements in the broadcasted input of the {@link BroadcastStateTransformation}.
+ * @param <IN1> The type of the elements in the non-broadcasted input of the {@link
+ *     BroadcastStateTransformation}.
+ * @param <IN2> The type of the elements in the broadcasted input of the {@link
+ *     BroadcastStateTransformation}.
  * @param <OUT> The type of the elements that result from the {@link BroadcastStateTransformation}.
  */
 @Internal
 public class BroadcastStateTransformationTranslator<IN1, IN2, OUT>
-		extends AbstractTwoInputTransformationTranslator<IN1, IN2, OUT, BroadcastStateTransformation<IN1, IN2, OUT>> {
+        extends AbstractTwoInputTransformationTranslator<
+                IN1, IN2, OUT, BroadcastStateTransformation<IN1, IN2, OUT>> {
 
-	@Override
-	protected Collection<Integer> translateForBatchInternal(
-			final BroadcastStateTransformation<IN1, IN2, OUT> transformation,
-			final Context context) {
-		throw new UnsupportedOperationException("The Broadcast State Pattern is not support in BATCH execution mode.");
-	}
+    @Override
+    protected Collection<Integer> translateForBatchInternal(
+            final BroadcastStateTransformation<IN1, IN2, OUT> transformation,
+            final Context context) {
+        throw new UnsupportedOperationException(
+                "The Broadcast State Pattern is not support in BATCH execution mode.");
+    }
 
-	@Override
-	protected Collection<Integer> translateForStreamingInternal(
-			final BroadcastStateTransformation<IN1, IN2, OUT> transformation,
-			final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(context);
+    @Override
+    protected Collection<Integer> translateForStreamingInternal(
+            final BroadcastStateTransformation<IN1, IN2, OUT> transformation,
+            final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(context);
 
-		return translateInternal(
-				transformation,
-				transformation.getNonBroadcastStream(),
-				transformation.getBroadcastStream(),
-				transformation.getOperatorFactory(),
-				transformation.getStateKeyType(),
-				transformation.getKeySelector(),
-				null,
-				context);
-	}
+        return translateInternal(
+                transformation,
+                transformation.getNonBroadcastStream(),
+                transformation.getBroadcastStream(),
+                transformation.getOperatorFactory(),
+                transformation.getStateKeyType(),
+                transformation.getKeySelector(),
+                null,
+                context);
+    }
 }

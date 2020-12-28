@@ -22,13 +22,14 @@ import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingRetrievalBase;
 
 /**
- * Test {@link LeaderRetrievalEventHandler} implementation which offers some convenience functions for
- * testing purposes.
+ * Test {@link LeaderRetrievalEventHandler} implementation which offers some convenience functions
+ * for testing purposes.
  */
-public class TestingLeaderRetrievalEventHandler extends TestingRetrievalBase implements LeaderRetrievalEventHandler {
+public class TestingLeaderRetrievalEventHandler extends TestingRetrievalBase
+        implements LeaderRetrievalEventHandler {
 
-	@Override
-	public void notifyLeaderAddress(LeaderInformation leaderInformation) {
-		offerToLeaderQueue(leaderInformation);
-	}
+    @Override
+    public void notifyLeaderAddress(LeaderInformation leaderInformation) {
+        offerToLeaderQueue(leaderInformation);
+    }
 }

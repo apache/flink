@@ -22,24 +22,22 @@ import org.apache.flink.orc.vector.OrcVectorizedBatchWrapper;
 
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
-/**
- * Wrap {@link VectorizedRowBatch} orc batch.
- */
+/** Wrap {@link VectorizedRowBatch} orc batch. */
 public class OrcNoHiveBatchWrapper implements OrcVectorizedBatchWrapper<VectorizedRowBatch> {
 
-	private VectorizedRowBatch batch;
+    private VectorizedRowBatch batch;
 
-	public OrcNoHiveBatchWrapper(VectorizedRowBatch batch) {
-		this.batch = batch;
-	}
+    public OrcNoHiveBatchWrapper(VectorizedRowBatch batch) {
+        this.batch = batch;
+    }
 
-	@Override
-	public VectorizedRowBatch getBatch() {
-		return batch;
-	}
+    @Override
+    public VectorizedRowBatch getBatch() {
+        return batch;
+    }
 
-	@Override
-	public int size() {
-		return batch.size;
-	}
+    @Override
+    public int size() {
+        return batch.size;
+    }
 }

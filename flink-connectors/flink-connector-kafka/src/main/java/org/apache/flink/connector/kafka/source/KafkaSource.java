@@ -50,8 +50,9 @@ import java.util.Properties;
 import java.util.function.Supplier;
 
 /**
- * The Source implementation of Kafka. Please use a {@link KafkaSourceBuilder} to construct a {@link KafkaSource}.
- * The following example shows how to create a KafkaSource emitting records of <code>String</code> type.
+ * The Source implementation of Kafka. Please use a {@link KafkaSourceBuilder} to construct a {@link
+ * KafkaSource}. The following example shows how to create a KafkaSource emitting records of <code>
+ * String</code> type.
  *
  * <pre>{@code
  * KafkaSource<String> source = KafkaSource
@@ -68,111 +69,113 @@ import java.util.function.Supplier;
  *
  * @param <OUT> the output type of the source.
  */
-public class KafkaSource<OUT> implements Source<OUT, KafkaPartitionSplit, KafkaSourceEnumState>, ResultTypeQueryable<OUT> {
-	private static final long serialVersionUID = -8755372893283732098L;
-	// Users can choose only one of the following ways to specify the topics to consume from.
-	private final KafkaSubscriber subscriber;
-	// Users can specify the starting / stopping offset initializer.
-	private final OffsetsInitializer startingOffsetsInitializer;
-	private final OffsetsInitializer stoppingOffsetsInitializer;
-	// Boundedness
-	private final Boundedness boundedness;
-	private final KafkaRecordDeserializer<OUT> deserializationSchema;
-	// The configurations.
-	private final Properties props;
+public class KafkaSource<OUT>
+        implements Source<OUT, KafkaPartitionSplit, KafkaSourceEnumState>,
+                ResultTypeQueryable<OUT> {
+    private static final long serialVersionUID = -8755372893283732098L;
+    // Users can choose only one of the following ways to specify the topics to consume from.
+    private final KafkaSubscriber subscriber;
+    // Users can specify the starting / stopping offset initializer.
+    private final OffsetsInitializer startingOffsetsInitializer;
+    private final OffsetsInitializer stoppingOffsetsInitializer;
+    // Boundedness
+    private final Boundedness boundedness;
+    private final KafkaRecordDeserializer<OUT> deserializationSchema;
+    // The configurations.
+    private final Properties props;
 
-	KafkaSource(
-			KafkaSubscriber subscriber,
-			OffsetsInitializer startingOffsetsInitializer,
-			@Nullable OffsetsInitializer stoppingOffsetsInitializer,
-			Boundedness boundedness,
-			KafkaRecordDeserializer<OUT> deserializationSchema,
-			Properties props) {
-		this.subscriber = subscriber;
-		this.startingOffsetsInitializer = startingOffsetsInitializer;
-		this.stoppingOffsetsInitializer = stoppingOffsetsInitializer;
-		this.boundedness = boundedness;
-		this.deserializationSchema = deserializationSchema;
-		this.props = props;
-	}
+    KafkaSource(
+            KafkaSubscriber subscriber,
+            OffsetsInitializer startingOffsetsInitializer,
+            @Nullable OffsetsInitializer stoppingOffsetsInitializer,
+            Boundedness boundedness,
+            KafkaRecordDeserializer<OUT> deserializationSchema,
+            Properties props) {
+        this.subscriber = subscriber;
+        this.startingOffsetsInitializer = startingOffsetsInitializer;
+        this.stoppingOffsetsInitializer = stoppingOffsetsInitializer;
+        this.boundedness = boundedness;
+        this.deserializationSchema = deserializationSchema;
+        this.props = props;
+    }
 
-	/**
-	 * Get a kafkaSourceBuilder to build a {@link KafkaSource}.
-	 *
-	 * @return a Kafka source builder.
-	 */
-	public static <OUT> KafkaSourceBuilder<OUT> builder() {
-		return new KafkaSourceBuilder<>();
-	}
+    /**
+     * Get a kafkaSourceBuilder to build a {@link KafkaSource}.
+     *
+     * @return a Kafka source builder.
+     */
+    public static <OUT> KafkaSourceBuilder<OUT> builder() {
+        return new KafkaSourceBuilder<>();
+    }
 
-	@Override
-	public Boundedness getBoundedness() {
-		return this.boundedness;
-	}
+    @Override
+    public Boundedness getBoundedness() {
+        return this.boundedness;
+    }
 
-	@Override
-	public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext) {
-		FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<OUT, Long, Long>>> elementsQueue =
-				new FutureCompletingBlockingQueue<>();
-		Supplier<KafkaPartitionSplitReader<OUT>> splitReaderSupplier =
-			() -> new KafkaPartitionSplitReader<>(
-				props,
-				deserializationSchema,
-				readerContext.getIndexOfSubtask());
-		KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>();
+    @Override
+    public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext) {
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<OUT, Long, Long>>> elementsQueue =
+                new FutureCompletingBlockingQueue<>();
+        Supplier<KafkaPartitionSplitReader<OUT>> splitReaderSupplier =
+                () ->
+                        new KafkaPartitionSplitReader<>(
+                                props, deserializationSchema, readerContext.getIndexOfSubtask());
+        KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>();
 
-		return new KafkaSourceReader<>(
-				elementsQueue,
-				splitReaderSupplier,
-				recordEmitter,
-				toConfiguration(props),
-				readerContext);
-	}
+        return new KafkaSourceReader<>(
+                elementsQueue,
+                splitReaderSupplier,
+                recordEmitter,
+                toConfiguration(props),
+                readerContext);
+    }
 
-	@Override
-	public SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> createEnumerator(
-			SplitEnumeratorContext<KafkaPartitionSplit> enumContext) {
-		return new KafkaSourceEnumerator(
-				subscriber,
-				startingOffsetsInitializer,
-				stoppingOffsetsInitializer,
-				props,
-				enumContext);
-	}
+    @Override
+    public SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> createEnumerator(
+            SplitEnumeratorContext<KafkaPartitionSplit> enumContext) {
+        return new KafkaSourceEnumerator(
+                subscriber,
+                startingOffsetsInitializer,
+                stoppingOffsetsInitializer,
+                props,
+                enumContext);
+    }
 
-	@Override
-	public SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> restoreEnumerator(
-			SplitEnumeratorContext<KafkaPartitionSplit> enumContext,
-			KafkaSourceEnumState checkpoint) throws IOException {
-		return new KafkaSourceEnumerator(
-				subscriber,
-				startingOffsetsInitializer,
-				stoppingOffsetsInitializer,
-				props,
-				enumContext,
-				checkpoint.getCurrentAssignment());
-	}
+    @Override
+    public SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> restoreEnumerator(
+            SplitEnumeratorContext<KafkaPartitionSplit> enumContext,
+            KafkaSourceEnumState checkpoint)
+            throws IOException {
+        return new KafkaSourceEnumerator(
+                subscriber,
+                startingOffsetsInitializer,
+                stoppingOffsetsInitializer,
+                props,
+                enumContext,
+                checkpoint.getCurrentAssignment());
+    }
 
-	@Override
-	public SimpleVersionedSerializer<KafkaPartitionSplit> getSplitSerializer() {
-		return new KafkaPartitionSplitSerializer();
-	}
+    @Override
+    public SimpleVersionedSerializer<KafkaPartitionSplit> getSplitSerializer() {
+        return new KafkaPartitionSplitSerializer();
+    }
 
-	@Override
-	public SimpleVersionedSerializer<KafkaSourceEnumState> getEnumeratorCheckpointSerializer() {
-		return new KafkaSourceEnumStateSerializer();
-	}
+    @Override
+    public SimpleVersionedSerializer<KafkaSourceEnumState> getEnumeratorCheckpointSerializer() {
+        return new KafkaSourceEnumStateSerializer();
+    }
 
-	@Override
-	public TypeInformation<OUT> getProducedType() {
-		return deserializationSchema.getProducedType();
-	}
+    @Override
+    public TypeInformation<OUT> getProducedType() {
+        return deserializationSchema.getProducedType();
+    }
 
-	// ----------- private helper methods ---------------
+    // ----------- private helper methods ---------------
 
-	private Configuration toConfiguration(Properties props) {
-		Configuration config = new Configuration();
-		props.stringPropertyNames().forEach(key -> config.setString(key, props.getProperty(key)));
-		return config;
-	}
+    private Configuration toConfiguration(Properties props) {
+        Configuration config = new Configuration();
+        props.stringPropertyNames().forEach(key -> config.setString(key, props.getProperty(key)));
+        return config;
+    }
 }

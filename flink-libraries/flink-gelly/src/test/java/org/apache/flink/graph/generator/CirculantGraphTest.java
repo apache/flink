@@ -27,58 +27,53 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link CirculantGraph}.
- */
+/** Tests for {@link CirculantGraph}. */
 public class CirculantGraphTest extends GraphGeneratorTestBase {
 
-	@Test
-	public void testGraph() throws Exception {
-		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)
-			.addRange(4, 3)
-			.generate();
+    @Test
+    public void testGraph() throws Exception {
+        Graph<LongValue, NullValue, NullValue> graph =
+                new CirculantGraph(env, 10).addRange(4, 3).generate();
 
-		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
-		String edges = "0,4; 0,5; 0,6; 1,5; 1,6; 1,7; 2,6;" +
-			"2,7; 2,8; 3,7; 3,8; 3,9; 4,0; 4,8; 4,9;" +
-			"5,0; 5,1; 5,9; 6,0; 6,1; 6,2; 7,1; 7,2; 7,3;" +
-			"8,2; 8,3; 8,4; 9,3; 9,4; 9,5";
+        String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
+        String edges =
+                "0,4; 0,5; 0,6; 1,5; 1,6; 1,7; 2,6;"
+                        + "2,7; 2,8; 3,7; 3,8; 3,9; 4,0; 4,8; 4,9;"
+                        + "5,0; 5,1; 5,9; 6,0; 6,1; 6,2; 7,1; 7,2; 7,3;"
+                        + "8,2; 8,3; 8,4; 9,3; 9,4; 9,5";
 
-		TestUtils.compareGraph(graph, vertices, edges);
-	}
+        TestUtils.compareGraph(graph, vertices, edges);
+    }
 
-	@Test
-	public void testGraphMetrics() throws Exception {
-		int vertexCount = 10;
-		int offset = 4;
-		int length = 2;
+    @Test
+    public void testGraphMetrics() throws Exception {
+        int vertexCount = 10;
+        int offset = 4;
+        int length = 2;
 
-		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)
-			.addRange(offset, length)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph =
+                new CirculantGraph(env, 10).addRange(offset, length).generate();
 
-		assertEquals(vertexCount, graph.numberOfVertices());
-		assertEquals(vertexCount * length, graph.numberOfEdges());
+        assertEquals(vertexCount, graph.numberOfVertices());
+        assertEquals(vertexCount * length, graph.numberOfEdges());
 
-		long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
-		long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
+        long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
+        long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
 
-		assertEquals(length, maxInDegree);
-		assertEquals(length, maxOutDegree);
-	}
+        assertEquals(length, maxInDegree);
+        assertEquals(length, maxOutDegree);
+    }
 
-	@Test
-	public void testParallelism() throws Exception {
-		int parallelism = 2;
+    @Test
+    public void testParallelism() throws Exception {
+        int parallelism = 2;
 
-		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)
-			.addRange(4, 2)
-			.setParallelism(parallelism)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph =
+                new CirculantGraph(env, 10).addRange(4, 2).setParallelism(parallelism).generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<>());
-		graph.getEdges().output(new DiscardingOutputFormat<>());
+        graph.getVertices().output(new DiscardingOutputFormat<>());
+        graph.getEdges().output(new DiscardingOutputFormat<>());
 
-		TestUtils.verifyParallelism(env, parallelism);
-	}
+        TestUtils.verifyParallelism(env, parallelism);
+    }
 }

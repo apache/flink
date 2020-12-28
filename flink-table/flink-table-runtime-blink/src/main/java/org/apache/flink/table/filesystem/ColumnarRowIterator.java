@@ -29,49 +29,47 @@ import org.apache.flink.table.data.RowData;
 import javax.annotation.Nullable;
 
 /**
- * A {@link BulkFormat.RecordIterator} that returns {@link RowData}s.
- * The next row is set by {@link ColumnarRowData#setRowId}.
+ * A {@link BulkFormat.RecordIterator} that returns {@link RowData}s. The next row is set by {@link
+ * ColumnarRowData#setRowId}.
  */
 public class ColumnarRowIterator extends RecyclableIterator<RowData> {
 
-	private final ColumnarRowData rowData;
-	private final MutableRecordAndPosition<RowData> recordAndPosition;
+    private final ColumnarRowData rowData;
+    private final MutableRecordAndPosition<RowData> recordAndPosition;
 
-	private int num;
-	private int pos;
+    private int num;
+    private int pos;
 
-	public ColumnarRowIterator(ColumnarRowData rowData, @Nullable Runnable recycler) {
-		super(recycler);
-		this.rowData = rowData;
-		this.recordAndPosition = new MutableRecordAndPosition<>();
-	}
+    public ColumnarRowIterator(ColumnarRowData rowData, @Nullable Runnable recycler) {
+        super(recycler);
+        this.rowData = rowData;
+        this.recordAndPosition = new MutableRecordAndPosition<>();
+    }
 
-	/**
-	 * @param num number rows in this batch.
-	 * @param recordSkipCount The number of rows that have been returned before this batch.
-	 */
-	public void set(final int num, final long recordSkipCount) {
-		set(num, CheckpointedPosition.NO_OFFSET, recordSkipCount);
-	}
+    /**
+     * @param num number rows in this batch.
+     * @param recordSkipCount The number of rows that have been returned before this batch.
+     */
+    public void set(final int num, final long recordSkipCount) {
+        set(num, CheckpointedPosition.NO_OFFSET, recordSkipCount);
+    }
 
-	/**
-	 * Set number rows in this batch and updates the position.
-	 */
-	public void set(final int num, final long offset, final long recordSkipCount) {
-		this.num = num;
-		this.pos = 0;
-		this.recordAndPosition.set(null, offset, recordSkipCount);
-	}
+    /** Set number rows in this batch and updates the position. */
+    public void set(final int num, final long offset, final long recordSkipCount) {
+        this.num = num;
+        this.pos = 0;
+        this.recordAndPosition.set(null, offset, recordSkipCount);
+    }
 
-	@Nullable
-	@Override
-	public RecordAndPosition<RowData> next() {
-		if (pos < num) {
-			rowData.setRowId(pos++);
-			recordAndPosition.setNext(rowData);
-			return recordAndPosition;
-		} else {
-			return null;
-		}
-	}
+    @Nullable
+    @Override
+    public RecordAndPosition<RowData> next() {
+        if (pos < num) {
+            rowData.setRowId(pos++);
+            recordAndPosition.setNext(rowData);
+            return recordAndPosition;
+        } else {
+            return null;
+        }
+    }
 }

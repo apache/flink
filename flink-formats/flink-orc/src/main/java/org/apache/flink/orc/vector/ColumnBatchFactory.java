@@ -23,11 +23,9 @@ import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 
 import java.io.Serializable;
 
-/**
- * Interface to create {@link VectorizedColumnBatch}.
- */
+/** Interface to create {@link VectorizedColumnBatch}. */
 @FunctionalInterface
 public interface ColumnBatchFactory<BatchT, SplitT extends FileSourceSplit> extends Serializable {
 
-	VectorizedColumnBatch create(SplitT splitT, BatchT rowBatch);
+    VectorizedColumnBatch create(SplitT splitT, BatchT rowBatch);
 }

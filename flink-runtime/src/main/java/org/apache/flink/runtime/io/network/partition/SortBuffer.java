@@ -27,80 +27,65 @@ import java.nio.ByteBuffer;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Data of different channels can be appended to a {@link SortBuffer} and after the {@link SortBuffer}
- * is finished, the appended data can be copied from it in channel index order.
+ * Data of different channels can be appended to a {@link SortBuffer} and after the {@link
+ * SortBuffer} is finished, the appended data can be copied from it in channel index order.
  */
 public interface SortBuffer {
 
-	/**
-	 * Appends data of the specified channel to this {@link SortBuffer} and returns true if all bytes
-	 * of the source buffer is copied to this {@link SortBuffer} successfully, otherwise if returns
-	 * false, nothing will be copied.
-	 */
-	boolean append(ByteBuffer source, int targetChannel, Buffer.DataType dataType) throws IOException;
+    /**
+     * Appends data of the specified channel to this {@link SortBuffer} and returns true if all
+     * bytes of the source buffer is copied to this {@link SortBuffer} successfully, otherwise if
+     * returns false, nothing will be copied.
+     */
+    boolean append(ByteBuffer source, int targetChannel, Buffer.DataType dataType)
+            throws IOException;
 
-	/**
-	 * Copies data in this {@link SortBuffer} to the target {@link MemorySegment} in channel index
-	 * order and returns {@link BufferWithChannel} which contains the copied data and the corresponding
-	 * channel index.
-	 */
-	BufferWithChannel copyIntoSegment(MemorySegment target);
+    /**
+     * Copies data in this {@link SortBuffer} to the target {@link MemorySegment} in channel index
+     * order and returns {@link BufferWithChannel} which contains the copied data and the
+     * corresponding channel index.
+     */
+    BufferWithChannel copyIntoSegment(MemorySegment target);
 
-	/**
-	 * Returns the number of records written to this {@link SortBuffer}.
-	 */
-	long numRecords();
+    /** Returns the number of records written to this {@link SortBuffer}. */
+    long numRecords();
 
-	/**
-	 * Returns the number of bytes written to this {@link SortBuffer}.
-	 */
-	long numBytes();
+    /** Returns the number of bytes written to this {@link SortBuffer}. */
+    long numBytes();
 
-	/**
-	 * Returns true if there is still data can be consumed in this {@link SortBuffer}.
-	 */
-	boolean hasRemaining();
+    /** Returns true if there is still data can be consumed in this {@link SortBuffer}. */
+    boolean hasRemaining();
 
-	/**
-	 * Finishes this {@link SortBuffer} which means no record can be appended any more.
-	 */
-	void finish();
+    /** Finishes this {@link SortBuffer} which means no record can be appended any more. */
+    void finish();
 
-	/**
-	 * Whether this {@link SortBuffer} is finished or not.
-	 */
-	boolean isFinished();
+    /** Whether this {@link SortBuffer} is finished or not. */
+    boolean isFinished();
 
-	/**
-	 * Releases this {@link SortBuffer} which releases all resources.
-	 */
-	void release();
+    /** Releases this {@link SortBuffer} which releases all resources. */
+    void release();
 
-	/**
-	 * Whether this {@link SortBuffer} is released or not.
-	 */
-	boolean isReleased();
+    /** Whether this {@link SortBuffer} is released or not. */
+    boolean isReleased();
 
-	/**
-	 * Buffer and the corresponding channel index returned to reader.
-	 */
-	class BufferWithChannel {
+    /** Buffer and the corresponding channel index returned to reader. */
+    class BufferWithChannel {
 
-		private final Buffer buffer;
+        private final Buffer buffer;
 
-		private final int channelIndex;
+        private final int channelIndex;
 
-		BufferWithChannel(Buffer buffer, int channelIndex) {
-			this.buffer = checkNotNull(buffer);
-			this.channelIndex = channelIndex;
-		}
+        BufferWithChannel(Buffer buffer, int channelIndex) {
+            this.buffer = checkNotNull(buffer);
+            this.channelIndex = channelIndex;
+        }
 
-		public Buffer getBuffer() {
-			return buffer;
-		}
+        public Buffer getBuffer() {
+            return buffer;
+        }
 
-		public int getChannelIndex() {
-			return channelIndex;
-		}
-	}
+        public int getChannelIndex() {
+            return channelIndex;
+        }
+    }
 }

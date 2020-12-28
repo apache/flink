@@ -26,21 +26,21 @@ import java.util.Optional;
  * {@link BackPressureStatsTracker} implementation which always returns no back pressure statistics.
  */
 public enum VoidBackPressureStatsTracker implements BackPressureStatsTracker {
+    INSTANCE {
+        @Override
+        public Optional<OperatorBackPressureStats> getOperatorBackPressureStats(
+                ExecutionJobVertex vertex) {
+            return Optional.empty();
+        }
 
-	INSTANCE {
-		@Override
-		public Optional<OperatorBackPressureStats> getOperatorBackPressureStats(ExecutionJobVertex vertex) {
-			return Optional.empty();
-		}
+        @Override
+        public void cleanUpOperatorStatsCache() {
+            // nothing to do
+        }
 
-		@Override
-		public void cleanUpOperatorStatsCache() {
-			// nothing to do
-		}
-
-		@Override
-		public void shutDown() {
-			// nothing to do
-		}
-	}
+        @Override
+        public void shutDown() {
+            // nothing to do
+        }
+    }
 }

@@ -56,100 +56,109 @@ import java.util.function.Function;
 import static org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo;
 
 /**
- * Base {@link ExecNode} to read data from an external source defined by a {@link StreamTableSource}.
+ * Base {@link ExecNode} to read data from an external source defined by a {@link
+ * StreamTableSource}.
  */
 public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowData> {
 
-	protected final TableSource<?> tableSource;
-	protected final List<String> qualifiedName;
+    protected final TableSource<?> tableSource;
+    protected final List<String> qualifiedName;
 
-	public CommonExecLegacyTableSourceScan(
-			TableSource<?> tableSource,
-			List<String> qualifiedName,
-			RowType outputType,
-			String description) {
-		super(Collections.emptyList(), outputType, description);
-		this.tableSource = tableSource;
-		this.qualifiedName = qualifiedName;
-	}
+    public CommonExecLegacyTableSourceScan(
+            TableSource<?> tableSource,
+            List<String> qualifiedName,
+            RowType outputType,
+            String description) {
+        super(Collections.emptyList(), outputType, description);
+        this.tableSource = tableSource;
+        this.qualifiedName = qualifiedName;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final Transformation<?> sourceTransform;
-		final StreamExecutionEnvironment env = planner.getExecEnv();
-		if (tableSource instanceof InputFormatTableSource) {
-			InputFormatTableSource<Object> inputFormat = (InputFormatTableSource<Object>) tableSource;
-			TypeInformation<Object> typeInfo =
-					(TypeInformation<Object>) fromDataTypeToTypeInfo(inputFormat.getProducedDataType());
-			InputFormat<Object, ?> format = inputFormat.getInputFormat();
-			sourceTransform = createInput(env, format, typeInfo);
-		} else if (tableSource instanceof StreamTableSource) {
-			sourceTransform = ((StreamTableSource<?>) tableSource).getDataStream(env).getTransformation();
-		} else {
-			throw new UnsupportedOperationException(tableSource.getClass().getSimpleName() + " is unsupported.");
-		}
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final Transformation<?> sourceTransform;
+        final StreamExecutionEnvironment env = planner.getExecEnv();
+        if (tableSource instanceof InputFormatTableSource) {
+            InputFormatTableSource<Object> inputFormat =
+                    (InputFormatTableSource<Object>) tableSource;
+            TypeInformation<Object> typeInfo =
+                    (TypeInformation<Object>)
+                            fromDataTypeToTypeInfo(inputFormat.getProducedDataType());
+            InputFormat<Object, ?> format = inputFormat.getInputFormat();
+            sourceTransform = createInput(env, format, typeInfo);
+        } else if (tableSource instanceof StreamTableSource) {
+            sourceTransform =
+                    ((StreamTableSource<?>) tableSource).getDataStream(env).getTransformation();
+        } else {
+            throw new UnsupportedOperationException(
+                    tableSource.getClass().getSimpleName() + " is unsupported.");
+        }
 
-		final TypeInformation<?> inputType = sourceTransform.getOutputType();
-		final DataType producedDataType = tableSource.getProducedDataType();
-		// check that declared and actual type of table source DataStream are identical
-		if (!inputType.equals(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType))) {
-			throw new TableException(String.format("TableSource of type %s " +
-							"returned a DataStream of data type %s that does not match with the " +
-							"data type %s declared by the TableSource.getProducedDataType() method. " +
-							"Please validate the implementation of the TableSource.",
-					tableSource.getClass().getCanonicalName(), inputType, producedDataType));
-		}
+        final TypeInformation<?> inputType = sourceTransform.getOutputType();
+        final DataType producedDataType = tableSource.getProducedDataType();
+        // check that declared and actual type of table source DataStream are identical
+        if (!inputType.equals(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType))) {
+            throw new TableException(
+                    String.format(
+                            "TableSource of type %s "
+                                    + "returned a DataStream of data type %s that does not match with the "
+                                    + "data type %s declared by the TableSource.getProducedDataType() method. "
+                                    + "Please validate the implementation of the TableSource.",
+                            tableSource.getClass().getCanonicalName(),
+                            inputType,
+                            producedDataType));
+        }
 
-		final RowType outputType = (RowType) getOutputType();
-		final RelDataType relDataType = FlinkTypeFactory.INSTANCE().buildRelNodeRowType(outputType);
-		// get expression to extract rowtime attribute
-		final Optional<RexNode> rowtimeExpression = JavaScalaConversionUtil.toJava(
-				TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, relDataType))
-				.map(desc -> TableSourceUtil.getRowtimeExtractionExpression(
-						desc.getTimestampExtractor(),
-						producedDataType,
-						planner.getRelBuilder(),
-						getNameRemapping()
-				));
+        final RowType outputType = (RowType) getOutputType();
+        final RelDataType relDataType = FlinkTypeFactory.INSTANCE().buildRelNodeRowType(outputType);
+        // get expression to extract rowtime attribute
+        final Optional<RexNode> rowtimeExpression =
+                JavaScalaConversionUtil.toJava(
+                                TableSourceUtil.getRowtimeAttributeDescriptor(
+                                        tableSource, relDataType))
+                        .map(
+                                desc ->
+                                        TableSourceUtil.getRowtimeExtractionExpression(
+                                                desc.getTimestampExtractor(),
+                                                producedDataType,
+                                                planner.getRelBuilder(),
+                                                getNameRemapping()));
 
-		return createConversionTransformationIfNeeded(planner, sourceTransform, rowtimeExpression.orElse(null));
-	}
+        return createConversionTransformationIfNeeded(
+                planner, sourceTransform, rowtimeExpression.orElse(null));
+    }
 
-	protected abstract <IN> Transformation<IN> createInput(
-			StreamExecutionEnvironment env,
-			InputFormat<IN, ? extends InputSplit> inputFormat,
-			TypeInformation<IN> typeInfo);
+    protected abstract <IN> Transformation<IN> createInput(
+            StreamExecutionEnvironment env,
+            InputFormat<IN, ? extends InputSplit> inputFormat,
+            TypeInformation<IN> typeInfo);
 
-	protected abstract Transformation<RowData> createConversionTransformationIfNeeded(
-			PlannerBase planner,
-			Transformation<?> sourceTransform,
-			@Nullable RexNode rowtimeExpression);
+    protected abstract Transformation<RowData> createConversionTransformationIfNeeded(
+            PlannerBase planner,
+            Transformation<?> sourceTransform,
+            @Nullable RexNode rowtimeExpression);
 
-	protected boolean needInternalConversion(int[] fieldIndexes) {
-		return ScanUtil.hasTimeAttributeField(fieldIndexes) ||
-				ScanUtil.needsConversion(tableSource.getProducedDataType());
-	}
+    protected boolean needInternalConversion(int[] fieldIndexes) {
+        return ScanUtil.hasTimeAttributeField(fieldIndexes)
+                || ScanUtil.needsConversion(tableSource.getProducedDataType());
+    }
 
-	protected int[] computeIndexMapping(boolean isStreaming) {
-		TableSchema tableSchema = FlinkTypeFactory.toTableSchema(
-				FlinkTypeFactory.INSTANCE().buildRelNodeRowType((RowType) getOutputType()));
-		return TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
-				tableSource,
-				tableSchema.getTableColumns(),
-				isStreaming,
-				getNameRemapping()
-		);
-	}
+    protected int[] computeIndexMapping(boolean isStreaming) {
+        TableSchema tableSchema =
+                FlinkTypeFactory.toTableSchema(
+                        FlinkTypeFactory.INSTANCE().buildRelNodeRowType((RowType) getOutputType()));
+        return TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+                tableSource, tableSchema.getTableColumns(), isStreaming, getNameRemapping());
+    }
 
-	private Function<String, String> getNameRemapping() {
-		if (tableSource instanceof DefinedFieldMapping) {
-			Map<String, String> mapping = ((DefinedFieldMapping) tableSource).getFieldMapping();
-			if (mapping != null) {
-				return mapping::get;
-			}
-		}
-		return Function.identity();
-	}
-
+    private Function<String, String> getNameRemapping() {
+        if (tableSource instanceof DefinedFieldMapping) {
+            Map<String, String> mapping = ((DefinedFieldMapping) tableSource).getFieldMapping();
+            if (mapping != null) {
+                return mapping::get;
+            }
+        }
+        return Function.identity();
+    }
 }

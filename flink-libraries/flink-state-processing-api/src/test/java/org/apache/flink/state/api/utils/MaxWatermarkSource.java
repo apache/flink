@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -23,20 +22,18 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
- * A simple source that emits a max watermark and then immediately returns.
- * This provides an easy way to trigger all event time timers for a restored savepoint.
+ * A simple source that emits a max watermark and then immediately returns. This provides an easy
+ * way to trigger all event time timers for a restored savepoint.
  */
 public class MaxWatermarkSource<T> implements SourceFunction<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public void run(SourceContext<T> ctx) {
-		ctx.emitWatermark(Watermark.MAX_WATERMARK);
-	}
+    @Override
+    public void run(SourceContext<T> ctx) {
+        ctx.emitWatermark(Watermark.MAX_WATERMARK);
+    }
 
-	@Override
-	public void cancel() {
-
-	}
+    @Override
+    public void cancel() {}
 }

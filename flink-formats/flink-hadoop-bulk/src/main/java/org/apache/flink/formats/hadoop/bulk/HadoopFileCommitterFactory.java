@@ -26,32 +26,28 @@ import org.apache.hadoop.fs.Path;
 import java.io.IOException;
 import java.io.Serializable;
 
-/**
- * The factory to create the {@link HadoopFileCommitter}.
- */
+/** The factory to create the {@link HadoopFileCommitter}. */
 @Internal
 public interface HadoopFileCommitterFactory extends Serializable {
 
-	/**
-	 * Creates a new Hadoop file committer for writing.
-	 *
-	 * @param configuration The hadoop configuration.
-	 * @param targetFilePath The target path to commit to.
-	 * @return The corresponding Hadoop file committer.
-	 */
-	HadoopFileCommitter create(Configuration configuration, Path targetFilePath) throws IOException;
+    /**
+     * Creates a new Hadoop file committer for writing.
+     *
+     * @param configuration The hadoop configuration.
+     * @param targetFilePath The target path to commit to.
+     * @return The corresponding Hadoop file committer.
+     */
+    HadoopFileCommitter create(Configuration configuration, Path targetFilePath) throws IOException;
 
-	/**
-	 * Creates a Hadoop file committer for commit the pending file.
-	 *
-	 * @param configuration The hadoop configuration.
-	 * @param targetFilePath The target path to commit to.
-	 * @param inProgressPath The path of the remaining pending file.
-	 * @return The corresponding Hadoop file committer.
-	 */
-	HadoopFileCommitter recoverForCommit(
-		Configuration configuration,
-		Path targetFilePath,
-		Path inProgressPath) throws IOException;
-
+    /**
+     * Creates a Hadoop file committer for commit the pending file.
+     *
+     * @param configuration The hadoop configuration.
+     * @param targetFilePath The target path to commit to.
+     * @param inProgressPath The path of the remaining pending file.
+     * @return The corresponding Hadoop file committer.
+     */
+    HadoopFileCommitter recoverForCommit(
+            Configuration configuration, Path targetFilePath, Path inProgressPath)
+            throws IOException;
 }

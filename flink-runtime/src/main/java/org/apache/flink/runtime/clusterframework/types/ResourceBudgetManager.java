@@ -23,54 +23,55 @@ import org.apache.flink.util.Preconditions;
 /**
  * Budget manager for {@link ResourceProfile}.
  *
- * <p>For a given total resource budget, this class handles reserving and releasing resources
- * from the budget, and rejects reservations if they cannot be satisfied by the remaining budget.
+ * <p>For a given total resource budget, this class handles reserving and releasing resources from
+ * the budget, and rejects reservations if they cannot be satisfied by the remaining budget.
  *
  * <p>Both the total budget and the reservations are in the form of {@link ResourceProfile}.
  */
 public class ResourceBudgetManager {
 
-	private final ResourceProfile totalBudget;
+    private final ResourceProfile totalBudget;
 
-	private ResourceProfile availableBudget;
+    private ResourceProfile availableBudget;
 
-	public ResourceBudgetManager(final ResourceProfile totalBudget) {
-		checkResourceProfileNotNullOrUnknown(totalBudget);
-		this.totalBudget = totalBudget;
-		this.availableBudget = totalBudget;
-	}
+    public ResourceBudgetManager(final ResourceProfile totalBudget) {
+        checkResourceProfileNotNullOrUnknown(totalBudget);
+        this.totalBudget = totalBudget;
+        this.availableBudget = totalBudget;
+    }
 
-	public ResourceProfile getTotalBudget() {
-		return totalBudget;
-	}
+    public ResourceProfile getTotalBudget() {
+        return totalBudget;
+    }
 
-	public ResourceProfile getAvailableBudget() {
-		return availableBudget;
-	}
+    public ResourceProfile getAvailableBudget() {
+        return availableBudget;
+    }
 
-	public boolean reserve(final ResourceProfile reservation) {
-		checkResourceProfileNotNullOrUnknown(reservation);
-		if (!availableBudget.isMatching(reservation)) {
-			return false;
-		}
+    public boolean reserve(final ResourceProfile reservation) {
+        checkResourceProfileNotNullOrUnknown(reservation);
+        if (!availableBudget.isMatching(reservation)) {
+            return false;
+        }
 
-		availableBudget = availableBudget.subtract(reservation);
-		return true;
-	}
+        availableBudget = availableBudget.subtract(reservation);
+        return true;
+    }
 
-	public boolean release(final ResourceProfile reservation) {
-		checkResourceProfileNotNullOrUnknown(reservation);
-		ResourceProfile newAvailableBudget = availableBudget.merge(reservation);
-		if (!totalBudget.isMatching(newAvailableBudget)) {
-			return false;
-		}
+    public boolean release(final ResourceProfile reservation) {
+        checkResourceProfileNotNullOrUnknown(reservation);
+        ResourceProfile newAvailableBudget = availableBudget.merge(reservation);
+        if (!totalBudget.isMatching(newAvailableBudget)) {
+            return false;
+        }
 
-		availableBudget = newAvailableBudget;
-		return true;
-	}
+        availableBudget = newAvailableBudget;
+        return true;
+    }
 
-	private static void checkResourceProfileNotNullOrUnknown(final ResourceProfile resourceProfile) {
-		Preconditions.checkNotNull(resourceProfile);
-		Preconditions.checkArgument(!resourceProfile.equals(ResourceProfile.UNKNOWN));
-	}
+    private static void checkResourceProfileNotNullOrUnknown(
+            final ResourceProfile resourceProfile) {
+        Preconditions.checkNotNull(resourceProfile);
+        Preconditions.checkArgument(!resourceProfile.equals(ResourceProfile.UNKNOWN));
+    }
 }

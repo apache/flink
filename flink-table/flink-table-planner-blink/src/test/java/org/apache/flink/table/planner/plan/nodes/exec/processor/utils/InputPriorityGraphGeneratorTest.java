@@ -30,77 +30,82 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Tests for {@link InputPriorityGraphGenerator}.
- */
+/** Tests for {@link InputPriorityGraphGenerator}. */
 public class InputPriorityGraphGeneratorTest {
 
-	@Test
-	public void testCalculatePipelinedAncestors() {
-		// P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
-		//
-		// 0 ------P----> 1 -E--> 2
-		//   \-----P----> 3 -P-/
-		// 4 -E-> 5 -P-/ /
-		// 6 -----E-----/
-		TestingBatchExecNode[] nodes = new TestingBatchExecNode[7];
-		for (int i = 0; i < nodes.length; i++) {
-			nodes[i] = new TestingBatchExecNode();
-		}
-		nodes[1].addInput(nodes[0]);
-		nodes[2].addInput(nodes[1], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
-		nodes[2].addInput(nodes[3]);
-		nodes[3].addInput(nodes[0]);
-		nodes[3].addInput(nodes[5]);
-		nodes[3].addInput(nodes[6], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
-		nodes[5].addInput(nodes[4], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+    @Test
+    public void testCalculatePipelinedAncestors() {
+        // P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
+        //
+        // 0 ------P----> 1 -E--> 2
+        //   \-----P----> 3 -P-/
+        // 4 -E-> 5 -P-/ /
+        // 6 -----E-----/
+        TestingBatchExecNode[] nodes = new TestingBatchExecNode[7];
+        for (int i = 0; i < nodes.length; i++) {
+            nodes[i] = new TestingBatchExecNode();
+        }
+        nodes[1].addInput(nodes[0]);
+        nodes[2].addInput(
+                nodes[1], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+        nodes[2].addInput(nodes[3]);
+        nodes[3].addInput(nodes[0]);
+        nodes[3].addInput(nodes[5]);
+        nodes[3].addInput(
+                nodes[6], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+        nodes[5].addInput(
+                nodes[4], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
 
-		TestingInputPriorityConflictResolver resolver = new TestingInputPriorityConflictResolver(
-			Collections.singletonList(nodes[2]),
-			Collections.emptySet(),
-			ExecEdge.DamBehavior.END_INPUT);
-		List<ExecNode<?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
-		Assert.assertEquals(2, ancestors.size());
-		Assert.assertTrue(ancestors.contains(nodes[0]));
-		Assert.assertTrue(ancestors.contains(nodes[5]));
-	}
+        TestingInputPriorityConflictResolver resolver =
+                new TestingInputPriorityConflictResolver(
+                        Collections.singletonList(nodes[2]),
+                        Collections.emptySet(),
+                        ExecEdge.DamBehavior.END_INPUT);
+        List<ExecNode<?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
+        Assert.assertEquals(2, ancestors.size());
+        Assert.assertTrue(ancestors.contains(nodes[0]));
+        Assert.assertTrue(ancestors.contains(nodes[5]));
+    }
 
-	@Test
-	public void testCalculateBoundedPipelinedAncestors() {
-		// P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
-		//
-		// 0 -P-> 1 -P-> 2
-		// 3 -P-> 4 -E/
-		TestingBatchExecNode[] nodes = new TestingBatchExecNode[5];
-		for (int i = 0; i < nodes.length; i++) {
-			nodes[i] = new TestingBatchExecNode();
-		}
-		nodes[1].addInput(nodes[0]);
-		nodes[2].addInput(nodes[1]);
-		nodes[2].addInput(nodes[4], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
-		nodes[4].addInput(nodes[3]);
+    @Test
+    public void testCalculateBoundedPipelinedAncestors() {
+        // P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
+        //
+        // 0 -P-> 1 -P-> 2
+        // 3 -P-> 4 -E/
+        TestingBatchExecNode[] nodes = new TestingBatchExecNode[5];
+        for (int i = 0; i < nodes.length; i++) {
+            nodes[i] = new TestingBatchExecNode();
+        }
+        nodes[1].addInput(nodes[0]);
+        nodes[2].addInput(nodes[1]);
+        nodes[2].addInput(
+                nodes[4], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+        nodes[4].addInput(nodes[3]);
 
-		TestingInputPriorityConflictResolver resolver = new TestingInputPriorityConflictResolver(
-			Collections.singletonList(nodes[2]),
-			new HashSet<>(Collections.singleton(nodes[1])),
-			ExecEdge.DamBehavior.END_INPUT);
-		List<ExecNode<?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
-		Assert.assertEquals(1, ancestors.size());
-		Assert.assertTrue(ancestors.contains(nodes[1]));
-	}
+        TestingInputPriorityConflictResolver resolver =
+                new TestingInputPriorityConflictResolver(
+                        Collections.singletonList(nodes[2]),
+                        new HashSet<>(Collections.singleton(nodes[1])),
+                        ExecEdge.DamBehavior.END_INPUT);
+        List<ExecNode<?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
+        Assert.assertEquals(1, ancestors.size());
+        Assert.assertTrue(ancestors.contains(nodes[1]));
+    }
 
-	private static class TestingInputPriorityConflictResolver extends InputPriorityGraphGenerator {
+    private static class TestingInputPriorityConflictResolver extends InputPriorityGraphGenerator {
 
-		private TestingInputPriorityConflictResolver(
-				List<ExecNode<?>> roots,
-				Set<ExecNode<?>> boundaries,
-				ExecEdge.DamBehavior safeDamBehavior) {
-			super(roots, boundaries, safeDamBehavior);
-		}
+        private TestingInputPriorityConflictResolver(
+                List<ExecNode<?>> roots,
+                Set<ExecNode<?>> boundaries,
+                ExecEdge.DamBehavior safeDamBehavior) {
+            super(roots, boundaries, safeDamBehavior);
+        }
 
-		@Override
-		protected void resolveInputPriorityConflict(ExecNode<?> node, int higherInput, int lowerInput) {
-			// do nothing
-		}
-	}
+        @Override
+        protected void resolveInputPriorityConflict(
+                ExecNode<?> node, int higherInput, int lowerInput) {
+            // do nothing
+        }
+    }
 }

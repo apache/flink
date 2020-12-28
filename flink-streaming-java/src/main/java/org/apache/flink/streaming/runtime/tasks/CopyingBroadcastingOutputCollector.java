@@ -23,44 +23,43 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.util.OutputTag;
 
 /**
- * Special version of {@link BroadcastingOutputCollector} that performs a shallow copy of the
- * {@link StreamRecord} to ensure that multi-chaining works correctly.
+ * Special version of {@link BroadcastingOutputCollector} that performs a shallow copy of the {@link
+ * StreamRecord} to ensure that multi-chaining works correctly.
  */
 final class CopyingBroadcastingOutputCollector<T> extends BroadcastingOutputCollector<T> {
 
-	public CopyingBroadcastingOutputCollector(
-			Output<StreamRecord<T>>[] outputs,
-			StreamStatusProvider streamStatusProvider) {
-		super(outputs, streamStatusProvider);
-	}
+    public CopyingBroadcastingOutputCollector(
+            Output<StreamRecord<T>>[] outputs, StreamStatusProvider streamStatusProvider) {
+        super(outputs, streamStatusProvider);
+    }
 
-	@Override
-	public void collect(StreamRecord<T> record) {
+    @Override
+    public void collect(StreamRecord<T> record) {
 
-		for (int i = 0; i < outputs.length - 1; i++) {
-			Output<StreamRecord<T>> output = outputs[i];
-			StreamRecord<T> shallowCopy = record.copy(record.getValue());
-			output.collect(shallowCopy);
-		}
+        for (int i = 0; i < outputs.length - 1; i++) {
+            Output<StreamRecord<T>> output = outputs[i];
+            StreamRecord<T> shallowCopy = record.copy(record.getValue());
+            output.collect(shallowCopy);
+        }
 
-		if (outputs.length > 0) {
-			// don't copy for the last output
-			outputs[outputs.length - 1].collect(record);
-		}
-	}
+        if (outputs.length > 0) {
+            // don't copy for the last output
+            outputs[outputs.length - 1].collect(record);
+        }
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		for (int i = 0; i < outputs.length - 1; i++) {
-			Output<StreamRecord<T>> output = outputs[i];
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        for (int i = 0; i < outputs.length - 1; i++) {
+            Output<StreamRecord<T>> output = outputs[i];
 
-			StreamRecord<X> shallowCopy = record.copy(record.getValue());
-			output.collect(outputTag, shallowCopy);
-		}
+            StreamRecord<X> shallowCopy = record.copy(record.getValue());
+            output.collect(outputTag, shallowCopy);
+        }
 
-		if (outputs.length > 0) {
-			// don't copy for the last output
-			outputs[outputs.length - 1].collect(outputTag, record);
-		}
-	}
+        if (outputs.length > 0) {
+            // don't copy for the last output
+            outputs[outputs.length - 1].collect(outputTag, record);
+        }
+    }
 }

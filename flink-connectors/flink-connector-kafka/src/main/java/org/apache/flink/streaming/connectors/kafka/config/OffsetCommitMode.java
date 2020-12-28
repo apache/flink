@@ -20,20 +20,23 @@ package org.apache.flink.streaming.connectors.kafka.config;
 import org.apache.flink.annotation.Internal;
 
 /**
- * The offset commit mode represents the behaviour of how offsets are externally committed
- * back to Kafka brokers / Zookeeper.
+ * The offset commit mode represents the behaviour of how offsets are externally committed back to
+ * Kafka brokers / Zookeeper.
  *
  * <p>The exact value of this is determined at runtime in the consumer subtasks.
  */
 @Internal
 public enum OffsetCommitMode {
 
-	/** Completely disable offset committing. */
-	DISABLED,
+    /** Completely disable offset committing. */
+    DISABLED,
 
-	/** Commit offsets back to Kafka only when checkpoints are completed. */
-	ON_CHECKPOINTS,
+    /** Commit offsets back to Kafka only when checkpoints are completed. */
+    ON_CHECKPOINTS,
 
-	/** Commit offsets periodically back to Kafka, using the auto commit functionality of internal Kafka clients. */
-	KAFKA_PERIODIC;
+    /**
+     * Commit offsets periodically back to Kafka, using the auto commit functionality of internal
+     * Kafka clients.
+     */
+    KAFKA_PERIODIC;
 }

@@ -31,21 +31,21 @@ import org.apache.flink.util.Collector;
 @Internal
 public class StreamRecordCollector<T> implements Collector<T> {
 
-	private final StreamRecord<T> element = new StreamRecord<>(null);
+    private final StreamRecord<T> element = new StreamRecord<>(null);
 
-	private final Output<StreamRecord<T>> underlyingOutput;
+    private final Output<StreamRecord<T>> underlyingOutput;
 
-	public StreamRecordCollector(Output<StreamRecord<T>> output) {
-		this.underlyingOutput = output;
-	}
+    public StreamRecordCollector(Output<StreamRecord<T>> output) {
+        this.underlyingOutput = output;
+    }
 
-	@Override
-	public void collect(T record) {
-		underlyingOutput.collect(element.replace(record));
-	}
+    @Override
+    public void collect(T record) {
+        underlyingOutput.collect(element.replace(record));
+    }
 
-	@Override
-	public void close() {
-		underlyingOutput.close();
-	}
+    @Override
+    public void close() {
+        underlyingOutput.close();
+    }
 }

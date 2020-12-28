@@ -31,24 +31,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Base {@link ExecNode} that is not a physical node and just union the inputs' records into one node.
+ * Base {@link ExecNode} that is not a physical node and just union the inputs' records into one
+ * node.
  */
 public abstract class CommonExecUnion extends ExecNodeBase<RowData> {
 
-	public CommonExecUnion(
-			List<ExecEdge> inputEdges,
-			RowType outputType,
-			String description) {
-		super(inputEdges, outputType, description);
-	}
+    public CommonExecUnion(List<ExecEdge> inputEdges, RowType outputType, String description) {
+        super(inputEdges, outputType, description);
+    }
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final List<Transformation<RowData>> inputTransforms = new ArrayList<>();
-		for (ExecNode<?> input : getInputNodes()) {
-			inputTransforms.add((Transformation<RowData>) input.translateToPlan(planner));
-		}
-		return new UnionTransformation(inputTransforms);
-	}
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final List<Transformation<RowData>> inputTransforms = new ArrayList<>();
+        for (ExecNode<?> input : getInputNodes()) {
+            inputTransforms.add((Transformation<RowData>) input.translateToPlan(planner));
+        }
+        return new UnionTransformation(inputTransforms);
+    }
 }

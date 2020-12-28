@@ -23,16 +23,16 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 
 /**
- * Testing implementation of the {@link SlotProviderStrategy} which uses {@link ScheduleMode#LAZY_FROM_SOURCES}
- * and sets the allocation timeout to 10s.
+ * Testing implementation of the {@link SlotProviderStrategy} which uses {@link
+ * ScheduleMode#LAZY_FROM_SOURCES} and sets the allocation timeout to 10s.
  */
-public class TestingSlotProviderStrategy extends SlotProviderStrategy.NormalSlotProviderStrategy{
+public class TestingSlotProviderStrategy extends SlotProviderStrategy.NormalSlotProviderStrategy {
 
-	private TestingSlotProviderStrategy(SlotProvider slotProvider, Time allocationTimeout) {
-		super(slotProvider, allocationTimeout);
-	}
+    private TestingSlotProviderStrategy(SlotProvider slotProvider, Time allocationTimeout) {
+        super(slotProvider, allocationTimeout);
+    }
 
-	public static TestingSlotProviderStrategy from(SlotProvider slotProvider) {
-		return new TestingSlotProviderStrategy(slotProvider, Time.seconds(10L));
-	}
+    public static TestingSlotProviderStrategy from(SlotProvider slotProvider) {
+        return new TestingSlotProviderStrategy(slotProvider, Time.seconds(10L));
+    }
 }

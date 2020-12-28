@@ -30,16 +30,19 @@ import org.apache.flink.table.data.RowData;
 /**
  * Enables to push down a watermark strategy into a {@link ScanTableSource}.
  *
- * <p>The concept of watermarks defines when time operations based on an event time attribute will be
- * triggered. A watermark tells operators that no elements with a timestamp older or equal to the watermark
- * timestamp should arrive at the operator. Thus, watermarks are a trade-off between latency and completeness.
+ * <p>The concept of watermarks defines when time operations based on an event time attribute will
+ * be triggered. A watermark tells operators that no elements with a timestamp older or equal to the
+ * watermark timestamp should arrive at the operator. Thus, watermarks are a trade-off between
+ * latency and completeness.
  *
  * <p>Given the following SQL:
+ *
  * <pre>{@code
- *   CREATE TABLE t (i INT, ts TIMESTAMP(3), WATERMARK FOR ts AS ts - INTERVAL '5' SECOND)  // `ts` becomes a time attribute
+ * CREATE TABLE t (i INT, ts TIMESTAMP(3), WATERMARK FOR ts AS ts - INTERVAL '5' SECOND)  // `ts` becomes a time attribute
  * }</pre>
  *
- * <p>In the above example, generated watermarks are lagging 5 seconds behind the highest seen timestamp.
+ * <p>In the above example, generated watermarks are lagging 5 seconds behind the highest seen
+ * timestamp.
  *
  * <p>For correctness, it might be necessary to perform the watermark generation as early as
  * possible in order to be close to the actual data generation within a source's data partition.
@@ -49,9 +52,9 @@ import org.apache.flink.table.data.RowData;
  * by the framework. In this case, this interface does not need to be implemented.
  *
  * <p>If the {@link ScanTableSource} does not return a {@link SourceProvider} and this interface is
- * not implemented, watermarks are generated in a subsequent operation after the source. In this case,
- * it is recommended to implement this interface to perform the watermark generation within source's
- * data partition.
+ * not implemented, watermarks are generated in a subsequent operation after the source. In this
+ * case, it is recommended to implement this interface to perform the watermark generation within
+ * source's data partition.
  *
  * <p>This interface provides a {@link WatermarkStrategy} that needs to be applied to the runtime
  * implementation. Most built-in Flink sources provide a way of setting the watermark generator.
@@ -59,17 +62,17 @@ import org.apache.flink.table.data.RowData;
 @PublicEvolving
 public interface SupportsWatermarkPushDown {
 
-	/**
-	 * Provides a {@link WatermarkStrategy} which defines how to generate {@link Watermark}s in
-	 * the stream source.
-	 *
-	 * <p>The {@link WatermarkStrategy} is a builder/factory for the actual runtime implementation
-	 * consisting of {@link TimestampAssigner} (assigns the event-time timestamps to each record) and
-	 * the {@link WatermarkGenerator} (generates the watermarks).
-	 *
-	 * <p>Note: If necessary, the watermark strategy will contain required computed column expressions
-	 * and consider metadata columns (if {@link SupportsReadingMetadata} is implemented).
-	 */
-	void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy);
-
+    /**
+     * Provides a {@link WatermarkStrategy} which defines how to generate {@link Watermark}s in the
+     * stream source.
+     *
+     * <p>The {@link WatermarkStrategy} is a builder/factory for the actual runtime implementation
+     * consisting of {@link TimestampAssigner} (assigns the event-time timestamps to each record)
+     * and the {@link WatermarkGenerator} (generates the watermarks).
+     *
+     * <p>Note: If necessary, the watermark strategy will contain required computed column
+     * expressions and consider metadata columns (if {@link SupportsReadingMetadata} is
+     * implemented).
+     */
+    void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy);
 }

@@ -25,16 +25,15 @@ import org.junit.Test;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertThat;
 
-/**
- * Test for Scala {@link GettingStartedExample}.
- */
+/** Test for Scala {@link GettingStartedExample}. */
 public class GettingStartedExampleITCase extends ExampleOutputTestBase {
 
-	@Test
-	public void testExample() {
-		GettingStartedExample.main(new String[0]);
-		final String consoleOutput = getOutputString();
-		assertThat(consoleOutput, containsString("|                    6 |                 1979 |"));
-		assertThat(consoleOutput, containsString("SUCCESS!"));
-	}
+    @Test
+    public void testExample() {
+        GettingStartedExample.main(new String[0]);
+        final String consoleOutput = getOutputString();
+        assertThat(
+                consoleOutput, containsString("|                    6 |                 1979 |"));
+        assertThat(consoleOutput, containsString("SUCCESS!"));
+    }
 }

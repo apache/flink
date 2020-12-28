@@ -19,26 +19,26 @@
 package org.apache.flink.util;
 
 /**
- * Simple {@link UserCodeClassLoader} implementation which assumes that the provided class
- * loader will never be released and, hence, will never execute the release hooks.
+ * Simple {@link UserCodeClassLoader} implementation which assumes that the provided class loader
+ * will never be released and, hence, will never execute the release hooks.
  */
 public class SimpleUserCodeClassLoader implements UserCodeClassLoader {
 
-	private final ClassLoader classLoader;
+    private final ClassLoader classLoader;
 
-	private SimpleUserCodeClassLoader(ClassLoader classLoader) {
-		this.classLoader = classLoader;
-	}
+    private SimpleUserCodeClassLoader(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
 
-	@Override
-	public ClassLoader asClassLoader() {
-		return classLoader;
-	}
+    @Override
+    public ClassLoader asClassLoader() {
+        return classLoader;
+    }
 
-	@Override
-	public void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {}
+    @Override
+    public void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {}
 
-	public static SimpleUserCodeClassLoader create(ClassLoader classLoader) {
-		return new SimpleUserCodeClassLoader(classLoader);
-	}
+    public static SimpleUserCodeClassLoader create(ClassLoader classLoader) {
+        return new SimpleUserCodeClassLoader(classLoader);
+    }
 }

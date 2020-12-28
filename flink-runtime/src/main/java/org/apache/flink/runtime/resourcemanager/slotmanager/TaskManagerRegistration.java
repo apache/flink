@@ -28,82 +28,81 @@ import java.util.HashSet;
 
 public class TaskManagerRegistration {
 
-	private final TaskExecutorConnection taskManagerConnection;
+    private final TaskExecutorConnection taskManagerConnection;
 
-	private final HashSet<SlotID> slots;
+    private final HashSet<SlotID> slots;
 
-	private int numberFreeSlots;
+    private int numberFreeSlots;
 
-	/** Timestamp when the last time becoming idle. Otherwise Long.MAX_VALUE. */
-	private long idleSince;
+    /** Timestamp when the last time becoming idle. Otherwise Long.MAX_VALUE. */
+    private long idleSince;
 
-	public TaskManagerRegistration(
-		TaskExecutorConnection taskManagerConnection,
-		Collection<SlotID> slots) {
+    public TaskManagerRegistration(
+            TaskExecutorConnection taskManagerConnection, Collection<SlotID> slots) {
 
-		this.taskManagerConnection = Preconditions.checkNotNull(taskManagerConnection, "taskManagerConnection");
-		Preconditions.checkNotNull(slots, "slots");
+        this.taskManagerConnection =
+                Preconditions.checkNotNull(taskManagerConnection, "taskManagerConnection");
+        Preconditions.checkNotNull(slots, "slots");
 
-		this.slots = new HashSet<>(slots);
+        this.slots = new HashSet<>(slots);
 
-		this.numberFreeSlots = slots.size();
+        this.numberFreeSlots = slots.size();
 
-		idleSince = System.currentTimeMillis();
-	}
+        idleSince = System.currentTimeMillis();
+    }
 
-	public TaskExecutorConnection getTaskManagerConnection() {
-		return taskManagerConnection;
-	}
+    public TaskExecutorConnection getTaskManagerConnection() {
+        return taskManagerConnection;
+    }
 
-	public InstanceID getInstanceId() {
-		return taskManagerConnection.getInstanceID();
-	}
+    public InstanceID getInstanceId() {
+        return taskManagerConnection.getInstanceID();
+    }
 
-	public int getNumberRegisteredSlots() {
-		return slots.size();
-	}
+    public int getNumberRegisteredSlots() {
+        return slots.size();
+    }
 
-	public int getNumberFreeSlots() {
-		return numberFreeSlots;
-	}
+    public int getNumberFreeSlots() {
+        return numberFreeSlots;
+    }
 
-	public void freeSlot() {
-		Preconditions.checkState(
-			numberFreeSlots < slots.size(),
-			"The number of free slots cannot exceed the number of registered slots. This indicates a bug.");
-		numberFreeSlots++;
+    public void freeSlot() {
+        Preconditions.checkState(
+                numberFreeSlots < slots.size(),
+                "The number of free slots cannot exceed the number of registered slots. This indicates a bug.");
+        numberFreeSlots++;
 
-		if (numberFreeSlots == getNumberRegisteredSlots() && idleSince == Long.MAX_VALUE) {
-			idleSince = System.currentTimeMillis();
-		}
-	}
+        if (numberFreeSlots == getNumberRegisteredSlots() && idleSince == Long.MAX_VALUE) {
+            idleSince = System.currentTimeMillis();
+        }
+    }
 
-	public void occupySlot() {
-		Preconditions.checkState(
-			numberFreeSlots > 0,
-			"There are no more free slots. This indicates a bug.");
-		numberFreeSlots--;
+    public void occupySlot() {
+        Preconditions.checkState(
+                numberFreeSlots > 0, "There are no more free slots. This indicates a bug.");
+        numberFreeSlots--;
 
-		idleSince = Long.MAX_VALUE;
-	}
+        idleSince = Long.MAX_VALUE;
+    }
 
-	public Iterable<SlotID> getSlots() {
-		return slots;
-	}
+    public Iterable<SlotID> getSlots() {
+        return slots;
+    }
 
-	public long getIdleSince() {
-		return idleSince;
-	}
+    public long getIdleSince() {
+        return idleSince;
+    }
 
-	public boolean isIdle() {
-		return idleSince != Long.MAX_VALUE;
-	}
+    public boolean isIdle() {
+        return idleSince != Long.MAX_VALUE;
+    }
 
-	public void markUsed() {
-		idleSince = Long.MAX_VALUE;
-	}
+    public void markUsed() {
+        idleSince = Long.MAX_VALUE;
+    }
 
-	public boolean containsSlot(SlotID slotId) {
-		return slots.contains(slotId);
-	}
+    public boolean containsSlot(SlotID slotId) {
+        return slots.contains(slotId);
+    }
 }

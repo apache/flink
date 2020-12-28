@@ -23,31 +23,32 @@ import org.apache.flink.kubernetes.KubernetesTestBase;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Base test class for the Kubernetes Pod.
- */
+/** Base test class for the Kubernetes Pod. */
 public class KubernetesPodTestBase extends KubernetesTestBase {
 
-	protected final Map<String, String> customizedEnvs = new HashMap<String, String>() {
-		{
-			put("key1", "value1");
-			put("key2", "value2");
-		}
-	};
+    protected final Map<String, String> customizedEnvs =
+            new HashMap<String, String>() {
+                {
+                    put("key1", "value1");
+                    put("key2", "value2");
+                }
+            };
 
-	protected final Map<String, String> userLabels = new HashMap<String, String>() {
-		{
-			put("label1", "value1");
-			put("label2", "value2");
-		}
-	};
+    protected final Map<String, String> userLabels =
+            new HashMap<String, String>() {
+                {
+                    put("label1", "value1");
+                    put("label2", "value2");
+                }
+            };
 
-	protected final Map<String, String> nodeSelector = new HashMap<String, String>() {
-		{
-			put("env", "production");
-			put("disk", "ssd");
-		}
-	};
+    protected final Map<String, String> nodeSelector =
+            new HashMap<String, String>() {
+                {
+                    put("env", "production");
+                    put("disk", "ssd");
+                }
+            };
 
-	protected FlinkPod baseFlinkPod = new FlinkPod.Builder().build();
+    protected FlinkPod baseFlinkPod = new FlinkPod.Builder().build();
 }

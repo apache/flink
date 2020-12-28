@@ -20,16 +20,13 @@ package org.apache.flink.table.planner.plan.nodes.exec.visitor;
 
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 
-/**
- * Visitor pattern for traversing a dag of {@link ExecNode} objects.
- */
+/** Visitor pattern for traversing a dag of {@link ExecNode} objects. */
 public interface ExecNodeVisitor {
 
-	/**
-	 * Visits a node during a traversal.
-	 *
-	 * @param node ExecNode to visit
-	 */
-	void visit(ExecNode<?> node);
-
+    /**
+     * Visits a node during a traversal.
+     *
+     * @param node ExecNode to visit
+     */
+    void visit(ExecNode<?> node);
 }

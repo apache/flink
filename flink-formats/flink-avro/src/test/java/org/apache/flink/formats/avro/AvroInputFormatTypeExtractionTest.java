@@ -29,58 +29,56 @@ import org.apache.flink.core.fs.Path;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests for the type extraction of the {@link AvroInputFormat}.
- */
+/** Tests for the type extraction of the {@link AvroInputFormat}. */
 public class AvroInputFormatTypeExtractionTest {
 
-	@Test
-	public void testTypeExtraction() {
-		try {
-			InputFormat<MyAvroType, ?> format = new AvroInputFormat<MyAvroType>(new Path("file:///ignore/this/file"), MyAvroType.class);
+    @Test
+    public void testTypeExtraction() {
+        try {
+            InputFormat<MyAvroType, ?> format =
+                    new AvroInputFormat<MyAvroType>(
+                            new Path("file:///ignore/this/file"), MyAvroType.class);
 
-			TypeInformation<?> typeInfoDirect = TypeExtractor.getInputFormatTypes(format);
+            TypeInformation<?> typeInfoDirect = TypeExtractor.getInputFormatTypes(format);
 
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			DataSet<MyAvroType> input = env.createInput(format);
-			TypeInformation<?> typeInfoDataSet = input.getType();
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            DataSet<MyAvroType> input = env.createInput(format);
+            TypeInformation<?> typeInfoDataSet = input.getType();
 
-			Assert.assertTrue(typeInfoDirect instanceof PojoTypeInfo);
-			Assert.assertTrue(typeInfoDataSet instanceof PojoTypeInfo);
+            Assert.assertTrue(typeInfoDirect instanceof PojoTypeInfo);
+            Assert.assertTrue(typeInfoDataSet instanceof PojoTypeInfo);
 
-			Assert.assertEquals(MyAvroType.class, typeInfoDirect.getTypeClass());
-			Assert.assertEquals(MyAvroType.class, typeInfoDataSet.getTypeClass());
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
-		}
-	}
+            Assert.assertEquals(MyAvroType.class, typeInfoDirect.getTypeClass());
+            Assert.assertEquals(MyAvroType.class, typeInfoDataSet.getTypeClass());
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail(e.getMessage());
+        }
+    }
 
-	/**
-	 * Test type.
-	 */
-	public static final class MyAvroType {
+    /** Test type. */
+    public static final class MyAvroType {
 
-		public String theString;
+        public String theString;
 
-		public MyAvroType recursive;
+        public MyAvroType recursive;
 
-		private double aDouble;
+        private double aDouble;
 
-		public double getaDouble() {
-			return aDouble;
-		}
+        public double getaDouble() {
+            return aDouble;
+        }
 
-		public void setaDouble(double aDouble) {
-			this.aDouble = aDouble;
-		}
+        public void setaDouble(double aDouble) {
+            this.aDouble = aDouble;
+        }
 
-		public void setTheString(String theString) {
-			this.theString = theString;
-		}
+        public void setTheString(String theString) {
+            this.theString = theString;
+        }
 
-		public String getTheString() {
-			return theString;
-		}
-	}
+        public String getTheString() {
+            return theString;
+        }
+    }
 }

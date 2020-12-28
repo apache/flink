@@ -25,28 +25,24 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.DecimalVector;
 
-/**
- * Arrow column vector for DecimalData.
- */
+/** Arrow column vector for DecimalData. */
 @Internal
 public final class ArrowDecimalColumnVector implements DecimalColumnVector {
 
-	/**
-	 * Container which is used to store the sequence of DecimalData values of a column to read.
-	 */
-	private final DecimalVector decimalVector;
+    /** Container which is used to store the sequence of DecimalData values of a column to read. */
+    private final DecimalVector decimalVector;
 
-	public ArrowDecimalColumnVector(DecimalVector decimalVector) {
-		this.decimalVector = Preconditions.checkNotNull(decimalVector);
-	}
+    public ArrowDecimalColumnVector(DecimalVector decimalVector) {
+        this.decimalVector = Preconditions.checkNotNull(decimalVector);
+    }
 
-	@Override
-	public DecimalData getDecimal(int i, int precision, int scale) {
-		return DecimalData.fromBigDecimal(decimalVector.getObject(i), precision, scale);
-	}
+    @Override
+    public DecimalData getDecimal(int i, int precision, int scale) {
+        return DecimalData.fromBigDecimal(decimalVector.getObject(i), precision, scale);
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return decimalVector.isNull(i);
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return decimalVector.isNull(i);
+    }
 }

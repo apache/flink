@@ -23,22 +23,21 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.SmallIntVector;
 
-/**
- * {@link ArrowFieldWriter} for SmallInt.
- */
+/** {@link ArrowFieldWriter} for SmallInt. */
 @Internal
 public final class RowSmallIntWriter extends ArrowFieldWriter<Row> {
 
-	public RowSmallIntWriter(SmallIntVector smallIntVector) {
-		super(smallIntVector);
-	}
+    public RowSmallIntWriter(SmallIntVector smallIntVector) {
+        super(smallIntVector);
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((SmallIntVector) getValueVector()).setNull(getCount());
-		} else {
-			((SmallIntVector) getValueVector()).setSafe(getCount(), (short) value.getField(ordinal));
-		}
-	}
+    @Override
+    public void doWrite(Row value, int ordinal) {
+        if (value.getField(ordinal) == null) {
+            ((SmallIntVector) getValueVector()).setNull(getCount());
+        } else {
+            ((SmallIntVector) getValueVector())
+                    .setSafe(getCount(), (short) value.getField(ordinal));
+        }
+    }
 }
