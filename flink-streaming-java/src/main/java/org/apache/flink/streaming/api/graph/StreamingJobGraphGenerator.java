@@ -834,7 +834,7 @@ public class StreamingJobGraphGenerator {
 				isChainable &= (upStreamOperator instanceof SourceOperatorFactory);
 				break;
 			default:
-				throw new RuntimeException("Unknown chaining strategy: " + upStreamOperator.getChainingStrategy());
+				throw new RuntimeException("Unknown chaining strategy: " + downStreamOperator.getChainingStrategy());
 		}
 
 		return isChainable;
