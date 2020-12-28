@@ -18,17 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.MemorySize
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
-import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer, InternalTypeInfo}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin
+import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
+import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
@@ -43,7 +38,7 @@ import scala.collection.JavaConversions._
 /**
   * Batch physical RelNode for nested-loop [[Join]].
   */
-class BatchExecNestedLoopJoin(
+class BatchPhysicalNestedLoopJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     leftRel: RelNode,
@@ -54,8 +49,7 @@ class BatchExecNestedLoopJoin(
     val leftIsBuild: Boolean,
     // true if one side returns single row, else false
     val singleRowJoin: Boolean)
-  extends BatchPhysicalJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType)
-  with LegacyBatchExecNode[RowData] {
+  extends BatchPhysicalJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
 
   override def copy(
       traitSet: RelTraitSet,
@@ -64,7 +58,7 @@ class BatchExecNestedLoopJoin(
       right: RelNode,
       joinType: JoinRelType,
       semiJoinDone: Boolean): Join = {
-    new BatchExecNestedLoopJoin(
+    new BatchPhysicalNestedLoopJoin(
       cluster,
       traitSet,
       left,
@@ -123,7 +117,19 @@ class BatchExecNestedLoopJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputEdges: util.List[ExecEdge] = {
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecNestedLoopJoin(
+      JoinTypeUtil.getFlinkJoinType(joinType),
+      condition,
+      leftIsBuild,
+      singleRowJoin,
+      getInputEdges,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
+  }
+
+  def getInputEdges: util.List[ExecEdge] = {
     // this is in sync with BatchExecNestedLoopJoinRuleBase#createNestedLoopJoin
     val (buildRequiredShuffle, probeRequiredShuffle) = if (joinType == JoinRelType.FULL) {
       (ExecEdge.RequiredShuffle.singleton(), ExecEdge.RequiredShuffle.singleton())
@@ -146,43 +152,5 @@ class BatchExecNestedLoopJoin(
     } else {
       List(probeEdge, buildEdge)
     }
-  }
-
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val lInput = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[RowData]]
-    val rInput = getInputNodes.get(1).translateToPlan(planner)
-        .asInstanceOf[Transformation[RowData]]
-
-    // get type
-    val lType = lInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
-    val rType = rInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
-    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
-
-    val op = new NestedLoopJoinCodeGenerator(
-      CodeGeneratorContext(planner.getTableConfig),
-      singleRowJoin,
-      leftIsBuild,
-      lType,
-      rType,
-      outputType,
-      flinkJoinType,
-      condition
-    ).gen()
-
-    val parallelism = if (leftIsBuild) rInput.getParallelism else lInput.getParallelism
-    val manageMem = if (singleRowJoin) 0 else {
-      MemorySize.parse(planner.getTableConfig.getConfiguration.getString(
-        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
-    }
-    ExecNodeUtil.createTwoInputTransformation(
-      lInput,
-      rInput,
-      getRelDetailedDescription,
-      op,
-      InternalTypeInfo.of(outputType),
-      parallelism,
-      manageMem)
   }
 }
