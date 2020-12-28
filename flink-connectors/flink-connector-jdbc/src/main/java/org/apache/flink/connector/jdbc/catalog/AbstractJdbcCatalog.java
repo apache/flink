@@ -88,7 +88,7 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 		this.username = username;
 		this.pwd = pwd;
 		this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
-		this.defaultUrl = baseUrl + defaultDatabase;
+		this.defaultUrl = this.baseUrl + defaultDatabase;
 	}
 
 	@Override
