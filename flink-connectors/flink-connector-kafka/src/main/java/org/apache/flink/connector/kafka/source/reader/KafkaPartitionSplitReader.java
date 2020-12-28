@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.reader;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -45,8 +46,10 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -73,6 +76,7 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 	private final SimpleCollector<T> collector;
 	private final String groupId;
 	private final int subtaskId;
+	private final Deque<Tuple2<Map<TopicPartition, OffsetAndMetadata>, OffsetCommitCallback>> pendingAsyncOffsetsCommit;
 
 	public KafkaPartitionSplitReader(
 			Properties props,
@@ -87,6 +91,7 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 		this.collector = new SimpleCollector<>();
 		this.groupId = consumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
 		this.subtaskId = subtaskId;
+		this.pendingAsyncOffsetsCommit = new ArrayDeque<>();
 	}
 
 	@Override
@@ -194,6 +199,17 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 
 	@Override
 	public void close() throws Exception {
+		// Commit all the pending commits.
+		if (!pendingAsyncOffsetsCommit.isEmpty()) {
+			Map<TopicPartition, OffsetAndMetadata> pendingCommits = new HashMap<>();
+			// Combine and commit all the offsets.
+			pendingAsyncOffsetsCommit.forEach(
+				asyncCommit -> pendingCommits.putAll(asyncCommit.f0));
+			consumer.commitSync(pendingCommits);
+			// Fire all the callbacks in order.
+			pendingAsyncOffsetsCommit.forEach(
+				asyncCommit -> asyncCommit.f1.onComplete(asyncCommit.f0, null));
+		}
 		consumer.close();
 	}
 
@@ -202,7 +218,21 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 	public void notifyCheckpointComplete(
 			Map<TopicPartition, OffsetAndMetadata> offsetsToCommit,
 			OffsetCommitCallback offsetCommitCallback) {
-		consumer.commitAsync(offsetsToCommit, offsetCommitCallback);
+		// Due to a bug in KafkaConsumer, the async offsetCommitCallback might not be fired
+		// on consumer closure. So we need to remember the callback for pending
+		// async commit and maybe commit the offsets on consumer closure.
+		pendingAsyncOffsetsCommit.add(new Tuple2<>(offsetsToCommit, offsetCommitCallback));
+		consumer.commitAsync(offsetsToCommit, new OffsetCommitCallback() {
+			@Override
+			public void onComplete(
+					Map<TopicPartition, OffsetAndMetadata> offsets,
+					Exception exception) {
+				// The offsetCommitCallback firing order is guaranteed. So we just
+				// need to remove the first pending commit.
+				pendingAsyncOffsetsCommit.poll();
+				offsetCommitCallback.onComplete(offsets, exception);
+			}
+		});
 	}
 
 	// --------------- private helper method ----------------------

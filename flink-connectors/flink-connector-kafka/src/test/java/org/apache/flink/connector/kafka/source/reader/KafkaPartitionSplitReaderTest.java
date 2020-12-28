@@ -27,6 +27,7 @@ import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDe
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
@@ -81,6 +83,45 @@ public class KafkaPartitionSplitReaderTest {
 		KafkaPartitionSplitReader<Integer> reader = createReader();
 		assignSplitsAndFetchUntilFinish(reader, 0);
 		assignSplitsAndFetchUntilFinish(reader, 1);
+	}
+
+	@Test
+	public void testFinishPendingOffsetsCommitOnClose() throws Exception {
+		final String groupId = "testFinishPendingOffsetsCommitOnClose";
+		final int readerId = 0;
+		KafkaPartitionSplitReader<Integer> reader = createReader(groupId);
+		Map<String, KafkaPartitionSplit> splits = splitsByOwners.get(readerId);
+		assignSplits(reader, splits);
+
+		CountDownLatch numCallbackFired = new CountDownLatch(splits.size());
+		List<Map<TopicPartition, OffsetAndMetadata>> expectedCommitted = new ArrayList<>();
+		List<Map<TopicPartition, OffsetAndMetadata>> actualCommitted = new ArrayList<>();
+		Map<TopicPartition, OffsetAndMetadata> expectedCommittedOnBroker = new HashMap<>();
+		for (KafkaPartitionSplit split : splits.values()) {
+			Map<TopicPartition, OffsetAndMetadata> toCommit = Collections.singletonMap(
+				split.getTopicPartition(),
+				new OffsetAndMetadata(split.getPartition()));
+			expectedCommitted.add(toCommit);
+			expectedCommittedOnBroker.putAll(toCommit);
+			reader.notifyCheckpointComplete(
+				toCommit,
+				(committed, e) -> {
+					numCallbackFired.countDown();
+					actualCommitted.add(committed);
+				});
+		}
+
+		reader.close();
+
+		assertEquals(0, numCallbackFired.getCount());
+		assertEquals(expectedCommitted, actualCommitted);
+		Map<TopicPartition, OffsetAndMetadata> committedOnBroker =
+			KafkaSourceTestEnv
+				.getAdminClient()
+				.listConsumerGroupOffsets(groupId)
+				.partitionsToOffsetAndMetadata()
+				.get();
+		assertEquals(expectedCommittedOnBroker, committedOnBroker);
 	}
 
 	@Test
@@ -164,6 +205,17 @@ public class KafkaPartitionSplitReaderTest {
 				props,
 				KafkaRecordDeserializer.valueOnly(IntegerDeserializer.class),
 				0);
+	}
+
+	private KafkaPartitionSplitReader<Integer> createReader(String groupId) {
+		Properties props = new Properties();
+		props.putAll(KafkaSourceTestEnv.getConsumerProperties(ByteArrayDeserializer.class));
+		props.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+		props.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none");
+		return new KafkaPartitionSplitReader<>(
+			props,
+			KafkaRecordDeserializer.valueOnly(IntegerDeserializer.class),
+			0);
 	}
 
 	private Map<String, KafkaPartitionSplit> assignSplits(
