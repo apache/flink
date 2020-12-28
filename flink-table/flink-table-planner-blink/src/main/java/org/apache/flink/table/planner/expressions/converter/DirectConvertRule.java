@@ -148,6 +148,24 @@ public class DirectConvertRule implements CallExpressionConvertRule {
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.SHA1, FlinkSqlOperatorTable.SHA1);
 		DEFINITION_OPERATOR_MAP.put(
 			BuiltInFunctionDefinitions.STREAM_RECORD_TIMESTAMP, FlinkSqlOperatorTable.STREAMRECORD_TIMESTAMP);
+
+		// json functions
+		DEFINITION_OPERATOR_MAP
+			.put(BuiltInFunctionDefinitions.IS_JSON_VALUE, FlinkSqlOperatorTable.IS_JSON_VALUE);
+		DEFINITION_OPERATOR_MAP
+			.put(BuiltInFunctionDefinitions.IS_JSON_OBJECT, FlinkSqlOperatorTable.IS_JSON_OBJECT);
+		DEFINITION_OPERATOR_MAP
+			.put(BuiltInFunctionDefinitions.IS_JSON_ARRAY, FlinkSqlOperatorTable.IS_JSON_ARRAY);
+		DEFINITION_OPERATOR_MAP
+			.put(BuiltInFunctionDefinitions.IS_JSON_SCALAR, FlinkSqlOperatorTable.IS_JSON_SCALAR);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.IS_NOT_JSON_VALUE,
+			FlinkSqlOperatorTable.IS_NOT_JSON_VALUE);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.IS_NOT_JSON_OBJECT,
+			FlinkSqlOperatorTable.IS_NOT_JSON_OBJECT);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.IS_NOT_JSON_ARRAY,
+			FlinkSqlOperatorTable.IS_NOT_JSON_ARRAY);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.IS_NOT_JSON_SCALAR,
+			FlinkSqlOperatorTable.IS_NOT_JSON_SCALAR);
 	}
 
 	@Override
