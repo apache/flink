@@ -427,7 +427,7 @@ object FlinkBatchRuleSets {
     BatchExecPythonWindowAggregateRule.INSTANCE,
     // join
     BatchPhysicalHashJoinRule.INSTANCE,
-    BatchExecSortMergeJoinRule.INSTANCE,
+    BatchPhysicalSortMergeJoinRule.INSTANCE,
     BatchPhysicalNestedLoopJoinRule.INSTANCE,
     BatchExecSingleRowJoinRule.INSTANCE,
     BatchExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
