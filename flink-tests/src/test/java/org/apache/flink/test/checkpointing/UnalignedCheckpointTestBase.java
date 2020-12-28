@@ -236,7 +236,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 if (split == null) {
                     return Collections.emptyList();
                 }
-                throttle = split.numCompletedCheckpoints >= minCheckpoints;
                 LOG.info(
                         "Snapshotted {} @ {} subtask ({} attempt)",
                         split,
@@ -255,6 +254,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                             numRestarts);
                     split.numCompletedCheckpoints++;
                     numAbortedCheckpoints = 0;
+                    throttle = split.numCompletedCheckpoints >= minCheckpoints;
                 }
             }
 
