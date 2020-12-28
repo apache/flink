@@ -42,6 +42,7 @@ import org.apache.flink.util.Collector;
 import org.junit.BeforeClass;
 
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.streaming.api.TimeCharacteristic.EventTime;
 
@@ -62,11 +63,6 @@ public class KafkaShuffleTestBase extends KafkaConsumerTestBase {
 		private final int numElementsPerProducer;
 		private final boolean unBounded;
 
-		KafkaSourceFunction(int numElementsPerProducer) {
-			this.numElementsPerProducer = numElementsPerProducer;
-			this.unBounded = true;
-		}
-
 		KafkaSourceFunction(int numElementsPerProducer, boolean unBounded) {
 			this.numElementsPerProducer = numElementsPerProducer;
 			this.unBounded = unBounded;
@@ -77,7 +73,12 @@ public class KafkaShuffleTestBase extends KafkaConsumerTestBase {
 			long timestamp = INIT_TIMESTAMP;
 			int sourceInstanceId = getRuntimeContext().getIndexOfThisSubtask();
 			for (int i = 0; i < numElementsPerProducer && running; i++) {
-				ctx.collect(new Tuple3<>(i, timestamp++, sourceInstanceId));
+				synchronized (ctx.getCheckpointLock()) {
+					if (i % (numElementsPerProducer / 10) == 0) {
+						Thread.sleep(500);
+					}
+					ctx.collect(new Tuple3<>(i, timestamp++, sourceInstanceId));
+				}
 			}
 
 			while (running && unBounded) {
@@ -92,14 +93,16 @@ public class KafkaShuffleTestBase extends KafkaConsumerTestBase {
 	}
 
 	static KeyedStream<Tuple3<Integer, Long, Integer>, Tuple> createKafkaShuffle(
-			StreamExecutionEnvironment env,
+			StreamExecutionEnvironment writeEnv,
+			StreamExecutionEnvironment readEnv,
 			String topic,
 			int numElementsPerProducer,
 			int producerParallelism,
 			TimeCharacteristic timeCharacteristic,
 			int numberOfPartitions) {
 		return createKafkaShuffle(
-			env,
+			writeEnv,
+			readEnv,
 			topic,
 			numElementsPerProducer,
 			producerParallelism,
@@ -109,25 +112,45 @@ public class KafkaShuffleTestBase extends KafkaConsumerTestBase {
 	}
 
 	static KeyedStream<Tuple3<Integer, Long, Integer>, Tuple> createKafkaShuffle(
-			StreamExecutionEnvironment env,
+			StreamExecutionEnvironment writeEnv,
+			StreamExecutionEnvironment readEnv,
 			String topic,
 			int numElementsPerProducer,
 			int producerParallelism,
 			TimeCharacteristic timeCharacteristic,
 			int numberOfPartitions,
 			boolean randomness) {
+		// If writeEnv and readEnv are the same, use unbounded source; otherwise use bounded source.
+		// If the producer and consumer are in the same environment, the producer should not finish independently.
+		// Hence unbounded stream is used in this case. If the producer and consumer are in different environments,
+		// the producer needs a way to terminate. Hence bounded stream is used in this case.
 		DataStream<Tuple3<Integer, Long, Integer>> source =
-			env.addSource(new KafkaSourceFunction(numElementsPerProducer)).setParallelism(producerParallelism);
+			writeEnv.addSource(new KafkaSourceFunction(numElementsPerProducer, writeEnv == readEnv))
+				.setParallelism(producerParallelism);
 		DataStream<Tuple3<Integer, Long, Integer>> input = (timeCharacteristic == EventTime) ?
 			source.assignTimestampsAndWatermarks(new PunctuatedExtractor(randomness)).setParallelism(producerParallelism) : source;
 
 		return FlinkKafkaShuffle.persistentKeyBy(
 			input,
+			readEnv,
 			topic,
 			producerParallelism,
 			numberOfPartitions,
 			kafkaServer.getStandardProperties(),
 			0);
+	}
+
+	static CompletableFuture<String> asyncExecute(StreamExecutionEnvironment evn) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					evn.execute("asyncExecution");
+					return "Succeed";
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				return "Failed";
+			});
 	}
 
 	static class PunctuatedExtractor implements AssignerWithPunctuatedWatermarks<Tuple3<Integer, Long, Integer>> {
@@ -265,5 +288,9 @@ public class KafkaShuffleTestBase extends KafkaConsumerTestBase {
 
 	String topic(String prefix, TimeCharacteristic timeCharacteristic) {
 		return prefix + "_" + timeCharacteristic;
+	}
+
+	String topic(String prefix, TimeCharacteristic timeCharacteristic, boolean sameEnvironment) {
+		return prefix + "_" + timeCharacteristic + "_" + sameEnvironment;
 	}
 }

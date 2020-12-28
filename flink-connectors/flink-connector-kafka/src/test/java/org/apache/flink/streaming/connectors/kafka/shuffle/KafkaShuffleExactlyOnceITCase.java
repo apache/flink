@@ -31,10 +31,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
+import java.util.concurrent.CompletableFuture;
+
 import static org.apache.flink.streaming.api.TimeCharacteristic.EventTime;
 import static org.apache.flink.streaming.api.TimeCharacteristic.IngestionTime;
 import static org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Failure Recovery IT Test for KafkaShuffle.
@@ -45,118 +48,205 @@ public class KafkaShuffleExactlyOnceITCase extends KafkaShuffleTestBase {
 	public final Timeout timeout = Timeout.millis(600000L);
 
 	/**
-	 * Failure Recovery after processing 2/3 data with time characteristic: ProcessingTime.
+	 * Failure Recovery after processing 1/3 data with time characteristic: ProcessingTime.
 	 *
 	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testFailureRecoveryProcessingTime() throws Exception {
-		testKafkaShuffleFailureRecovery(1000, ProcessingTime);
+	public void testFailureRecoveryProcessingTimeSameEnv() throws Exception {
+		testKafkaShuffleFailureRecovery(1000, ProcessingTime, true);
 	}
 
 	/**
-	 * Failure Recovery after processing 2/3 data with time characteristic: IngestionTime.
+	 * Failure Recovery after processing 1/3 data with time characteristic: ProcessingTime.
 	 *
 	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * producer and consumer run in different environments
 	 */
 	@Test
-	public void testFailureRecoveryIngestionTime() throws Exception {
-		testKafkaShuffleFailureRecovery(1000, IngestionTime);
+	public void testFailureRecoveryProcessingTimeDifferentEnv() throws Exception {
+		testKafkaShuffleFailureRecovery(1000, ProcessingTime, false);
 	}
 
 	/**
-	 * Failure Recovery after processing 2/3 data with time characteristic: EventTime.
+	 * Failure Recovery after processing 1/3 data with time characteristic: IngestionTime.
 	 *
 	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testFailureRecoveryEventTime() throws Exception {
-		testKafkaShuffleFailureRecovery(1000, EventTime);
+	public void testFailureRecoveryIngestionTimeSameEnv() throws Exception {
+		testKafkaShuffleFailureRecovery(1000, IngestionTime, true);
+	}
+
+	/**
+	 * Failure Recovery after processing 1/3 data with time characteristic: IngestionTime.
+	 *
+	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testFailureRecoveryIngestionTimeDifferentEnv() throws Exception {
+		testKafkaShuffleFailureRecovery(1000, IngestionTime, false);
+	}
+
+	/**
+	 * Failure Recovery after processing 1/3 data with time characteristic: EventTime.
+	 *
+	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * producer and consumer run in the same environment
+	 */
+	@Test
+	public void testFailureRecoveryEventTimeSameEnv() throws Exception {
+		testKafkaShuffleFailureRecovery(1000, EventTime, true);
+	}
+
+	/**
+	 * Failure Recovery after processing 1/3 data with time characteristic: EventTime.
+	 *
+	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testFailureRecoveryEventTimeDifferentEnv() throws Exception {
+		testKafkaShuffleFailureRecovery(1000, EventTime, false);
 	}
 
 	/**
 	 * Failure Recovery after data is repartitioned with time characteristic: ProcessingTime.
 	 *
 	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testAssignedToPartitionFailureRecoveryProcessingTime() throws Exception {
-		testAssignedToPartitionFailureRecovery(500, ProcessingTime);
+	public void testAssignedToPartitionFailureRecoveryProcessingTimeSameEnv() throws Exception {
+		testAssignedToPartitionFailureRecovery(500, ProcessingTime, true);
+	}
+
+	/**
+	 * Failure Recovery after data is repartitioned with time characteristic: ProcessingTime.
+	 *
+	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testAssignedToPartitionFailureRecoveryProcessingTimeDifferentEnv() throws Exception {
+		testAssignedToPartitionFailureRecovery(500, ProcessingTime, false);
 	}
 
 	/**
 	 * Failure Recovery after data is repartitioned with time characteristic: IngestionTime.
 	 *
 	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testAssignedToPartitionFailureRecoveryIngestionTime() throws Exception {
-		testAssignedToPartitionFailureRecovery(500, IngestionTime);
+	public void testAssignedToPartitionFailureRecoveryIngestionTimeSameEnv() throws Exception {
+		testAssignedToPartitionFailureRecovery(500, IngestionTime, true);
+	}
+
+	/**
+	 * Failure Recovery after data is repartitioned with time characteristic: IngestionTime.
+	 *
+	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testAssignedToPartitionFailureRecoveryIngestionTimeDifferentEnv() throws Exception {
+		testAssignedToPartitionFailureRecovery(500, IngestionTime, false);
 	}
 
 	/**
 	 * Failure Recovery after data is repartitioned with time characteristic: EventTime.
 	 *
 	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testAssignedToPartitionFailureRecoveryEventTime() throws Exception {
-		testAssignedToPartitionFailureRecovery(500, EventTime);
+	public void testAssignedToPartitionFailureRecoveryEventTimeSameEnv() throws Exception {
+		testAssignedToPartitionFailureRecovery(500, EventTime, true);
 	}
 
 	/**
-	 * To test failure recovery after processing 2/3 data.
+	 * Failure Recovery after data is repartitioned with time characteristic: EventTime.
+	 *
+	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testAssignedToPartitionFailureRecoveryEventTimeDifferentEnv() throws Exception {
+		testAssignedToPartitionFailureRecovery(500, EventTime, false);
+	}
+
+	/**
+	 * To test failure recovery after processing 1/3 data.
 	 *
 	 * <p>Schema: (key, timestamp, source instance Id).
 	 * Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1
 	 */
 	private void testKafkaShuffleFailureRecovery(
 			int numElementsPerProducer,
-			TimeCharacteristic timeCharacteristic) throws Exception {
-
-		String topic = topic("failure_recovery", timeCharacteristic);
+			TimeCharacteristic timeCharacteristic,
+			boolean sameEnvironment) throws Exception {
+		String topic = topic("failure_recovery", timeCharacteristic, sameEnvironment);
 		final int numberOfPartitions = 1;
 		final int producerParallelism = 1;
-		final int failAfterElements = numElementsPerProducer * numberOfPartitions * 2 / 3;
+		final int failAfterElements = numElementsPerProducer * numberOfPartitions / 3;
 
 		createTestTopic(topic, numberOfPartitions, 1);
 
-		final StreamExecutionEnvironment env =
-			createEnvironment(producerParallelism, timeCharacteristic).enableCheckpointing(500);
+		final StreamExecutionEnvironment writeEnv = createEnvironment(producerParallelism, timeCharacteristic);
+		final StreamExecutionEnvironment readEnv =
+			sameEnvironment ? writeEnv : createEnvironment(producerParallelism, timeCharacteristic);
 
 		createKafkaShuffle(
-			env, topic, numElementsPerProducer, producerParallelism, timeCharacteristic, numberOfPartitions)
+			writeEnv, readEnv, topic, numElementsPerProducer, producerParallelism, timeCharacteristic, numberOfPartitions)
 			.map(new FailingIdentityMapper<>(failAfterElements)).setParallelism(1)
 			.map(new ToInteger(producerParallelism)).setParallelism(1)
 			.addSink(new ValidatingExactlyOnceSink(numElementsPerProducer * producerParallelism)).setParallelism(1);
 
 		FailingIdentityMapper.failedBefore = false;
 
-		tryExecute(env, topic);
+		CompletableFuture<String> completableFuture = CompletableFuture.completedFuture("Failed");
+		if (!sameEnvironment) {
+			completableFuture = asyncExecute(writeEnv);
+		}
+
+		tryExecute(readEnv, topic);
+
+		if (!sameEnvironment) {
+			String result = completableFuture.get();
+			assertEquals("Succeed", result);
+		}
 
 		deleteTestTopic(topic);
 	}
 
 	/**
-	 * To test failure recovery with partition assignment after processing 2/3 data.
+	 * To test failure recovery with partition assignment after processing 1/3 data.
 	 *
 	 * <p>Schema: (key, timestamp, source instance Id).
 	 * Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3
 	 */
 	private void testAssignedToPartitionFailureRecovery(
 			int numElementsPerProducer,
-			TimeCharacteristic timeCharacteristic) throws Exception {
-		String topic = topic("partition_failure_recovery", timeCharacteristic);
+			TimeCharacteristic timeCharacteristic,
+			boolean sameEnvironment) throws Exception {
+		String topic = topic("partition_failure_recovery", timeCharacteristic, sameEnvironment);
 		final int numberOfPartitions = 3;
 		final int producerParallelism = 2;
-		final int failAfterElements = numElementsPerProducer * producerParallelism * 2 / 3;
+		final int failAfterElements = numElementsPerProducer * producerParallelism / 3;
 
 		createTestTopic(topic, numberOfPartitions, 1);
 
-		final StreamExecutionEnvironment env = createEnvironment(producerParallelism, timeCharacteristic);
+		final StreamExecutionEnvironment writeEnv = createEnvironment(producerParallelism, timeCharacteristic);
+		final StreamExecutionEnvironment readEnv =
+			sameEnvironment ? writeEnv : createEnvironment(producerParallelism, timeCharacteristic);
 
 		KeyedStream<Tuple3<Integer, Long, Integer>, Tuple> keyedStream = createKafkaShuffle(
-			env,
+			writeEnv,
+			readEnv,
 			topic,
 			numElementsPerProducer,
 			producerParallelism,
@@ -171,7 +261,17 @@ public class KafkaShuffleExactlyOnceITCase extends KafkaShuffleTestBase {
 
 		FailingIdentityMapper.failedBefore = false;
 
-		tryExecute(env, topic);
+		CompletableFuture<String> completableFuture = CompletableFuture.completedFuture("Failed");
+		if (!sameEnvironment) {
+			completableFuture = asyncExecute(writeEnv);
+		}
+
+		tryExecute(readEnv, topic);
+
+		if (!sameEnvironment) {
+			String result = completableFuture.get();
+			assertEquals("Succeed", result);
+		}
 
 		deleteTestTopic(topic);
 	}
@@ -179,10 +279,17 @@ public class KafkaShuffleExactlyOnceITCase extends KafkaShuffleTestBase {
 	private StreamExecutionEnvironment createEnvironment(
 			int producerParallelism,
 			TimeCharacteristic timeCharacteristic) {
+		return createEnvironment(producerParallelism, timeCharacteristic, 1);
+	}
+
+	private StreamExecutionEnvironment createEnvironment(
+			int producerParallelism,
+			TimeCharacteristic timeCharacteristic,
+			int numberOfRestart) {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(producerParallelism);
 		env.setStreamTimeCharacteristic(timeCharacteristic);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(numberOfRestart, 0));
 		env.setBufferTimeout(0);
 		env.enableCheckpointing(500);
 
