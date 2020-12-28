@@ -106,7 +106,7 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
 // enables the experimental unaligned checkpoints
-env.getCheckpointConfig.enableUnalignedCheckpoints();
+env.getCheckpointConfig().enableUnalignedCheckpoints();
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
