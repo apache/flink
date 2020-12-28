@@ -449,7 +449,7 @@ class FlinkRelMdHandlerTestBase {
       outputRankNumber = true
     )
 
-    val batchLocalRank = new BatchExecRank(
+    val batchLocalRank = new BatchPhysicalRank(
       cluster,
       batchPhysicalTraits,
       studentBatchScan,
@@ -465,7 +465,7 @@ class FlinkRelMdHandlerTestBase {
     val hash6 = FlinkRelDistribution.hash(Array(6), requireStrict = true)
     val batchExchange = new BatchPhysicalExchange(
       cluster, batchLocalRank.getTraitSet.replace(hash6), batchLocalRank, hash6)
-    val batchGlobalRank = new BatchExecRank(
+    val batchGlobalRank = new BatchPhysicalRank(
       cluster,
       batchPhysicalTraits,
       batchExchange,
@@ -531,7 +531,7 @@ class FlinkRelMdHandlerTestBase {
       outputRankNumber = true
     )
 
-    val batchLocalRank = new BatchExecRank(
+    val batchLocalRank = new BatchPhysicalRank(
       cluster,
       batchPhysicalTraits,
       studentBatchScan,
@@ -547,7 +547,7 @@ class FlinkRelMdHandlerTestBase {
     val hash6 = FlinkRelDistribution.hash(Array(6), requireStrict = true)
     val batchExchange = new BatchPhysicalExchange(
       cluster, batchLocalRank.getTraitSet.replace(hash6), batchLocalRank, hash6)
-    val batchGlobalRank = new BatchExecRank(
+    val batchGlobalRank = new BatchPhysicalRank(
       cluster,
       batchPhysicalTraits,
       batchExchange,

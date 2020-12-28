@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
@@ -72,7 +72,7 @@ class BatchExecRankRule
 
     // create local BatchExecRank
     val localRankRange = new ConstantRankRange(1, rankEnd) // local rank always start from 1
-    val localRank = new BatchExecRank(
+    val localRank = new BatchPhysicalRank(
       cluster,
       emptyTraits,
       newLocalInput,
@@ -98,7 +98,7 @@ class BatchExecRankRule
 
     // require SINGLETON or HASH exchange
     val newGlobalInput = RelOptRule.convert(localRank, globalRequiredTraitSet)
-    val globalRank = new BatchExecRank(
+    val globalRank = new BatchPhysicalRank(
       cluster,
       emptyTraits,
       newGlobalInput,
