@@ -82,9 +82,12 @@ class SortITCase extends BatchTestBase {
   @Test
   def testOrderByFetch(): Unit = {
     val ds = CollectionBatchExecTable.get3TupleDataSet(tEnv)
-    val t = ds.orderBy('_1.asc).offset(0).fetch(5)
+    var t = ds.orderBy('_1.asc).offset(0).fetch(5)
     implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       x.productElement(0).asInstanceOf[Int] )
     compare(t, sortExpectedly(tupleDataSetStrings, 0, 5))
+
+    t = ds.orderBy('_1.asc).offset(0).fetch(5).fetch(3)
+    compare(t, sortExpectedly(tupleDataSetStrings, 0, 3))
   }
 }

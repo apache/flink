@@ -77,14 +77,10 @@ final class SortOperationFactory {
 			int offset,
 			QueryOperation child,
 			PostResolverFactory postResolverFactory) {
-		SortQueryOperation previousSort = validateAndGetChildSort(child, postResolverFactory);
+		SortQueryOperation previousSort = getChildSort(child, postResolverFactory);
 
 		if (offset < 0) {
 			throw new ValidationException("Offset should be greater or equal 0");
-		}
-
-		if (previousSort.getOffset() != -1) {
-			throw new ValidationException("OFFSET already defined");
 		}
 
 		return new SortQueryOperation(previousSort.getOrder(), previousSort.getChild(), offset, -1);
@@ -102,7 +98,7 @@ final class SortOperationFactory {
 			int fetch,
 			QueryOperation child,
 			PostResolverFactory postResolverFactory) {
-		SortQueryOperation previousSort = validateAndGetChildSort(child, postResolverFactory);
+		SortQueryOperation previousSort = getChildSort(child, postResolverFactory);
 
 		if (fetch < 0) {
 			throw new ValidationException("Fetch should be greater or equal 0");
@@ -113,16 +109,12 @@ final class SortOperationFactory {
 		return new SortQueryOperation(previousSort.getOrder(), previousSort.getChild(), offset, fetch);
 	}
 
-	private SortQueryOperation validateAndGetChildSort(QueryOperation child, PostResolverFactory postResolverFactory) {
+	private SortQueryOperation getChildSort(QueryOperation child, PostResolverFactory postResolverFactory) {
 		final SortQueryOperation previousSort;
 		if (child instanceof SortQueryOperation) {
 			previousSort = (SortQueryOperation) child;
 		} else {
 			previousSort = (SortQueryOperation) createSort(Collections.emptyList(), child, postResolverFactory);
-		}
-
-		if ((previousSort).getFetch() != -1) {
-			throw new ValidationException("FETCH is already defined.");
 		}
 
 		return previousSort;
