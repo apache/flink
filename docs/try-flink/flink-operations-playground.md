@@ -262,7 +262,7 @@ can observe and - to some extent - verify this behavior.
 
 #### Step 1: Observing the Output
 
-As described [above](#anatomy-of-this-playground), the events in this playground are generate such 
+As described [above](#anatomy-of-this-playground), the events in this playground are generated such 
 that each window  contains exactly one thousand records. So, in order to verify that Flink 
 successfully recovers from a TaskManager failure without data loss or duplication you can tail the 
 output topic and check that - after recovery - all windows are present and the count is correct.
