@@ -115,18 +115,29 @@ object JoinUtil {
       joinInfo: JoinInfo,
       leftType: LogicalType,
       rightType: LogicalType): GeneratedJoinCondition = {
+    generateConditionFunction(
+        config,
+        joinInfo.getRemaining(rexBuilder),
+        leftType,
+        rightType)
+  }
+
+  def generateConditionFunction(
+        config: TableConfig,
+        nonEquiCondition: RexNode,
+        leftType: LogicalType,
+        rightType: LogicalType): GeneratedJoinCondition = {
     val ctx = CodeGeneratorContext(config)
     // should consider null fields
     val exprGenerator = new ExprCodeGenerator(ctx, false)
-      .bindInput(leftType)
-      .bindSecondInput(rightType)
+        .bindInput(leftType)
+        .bindSecondInput(rightType)
 
-    val body = if (joinInfo.isEqui) {
+    val body = if (nonEquiCondition == null) {
       // only equality condition
       "return true;"
     } else {
-      val nonEquiPredicates = joinInfo.getRemaining(rexBuilder)
-      val condition = exprGenerator.generateExpression(nonEquiPredicates)
+      val condition = exprGenerator.generateExpression(nonEquiCondition)
       s"""
          |${condition.code}
          |return ${condition.resultTerm};

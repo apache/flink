@@ -37,7 +37,6 @@ import java.util.stream.Collectors;
 
 /** An Utility class that helps translating {@link ExecNode} to {@link Transformation}. */
 public class ExecNodeUtil {
-
     /**
      * Return bytes size for given option in {@link TableConfig}.
      *
