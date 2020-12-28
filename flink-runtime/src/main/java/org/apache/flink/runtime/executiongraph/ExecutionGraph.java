@@ -186,9 +186,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
     /** The timeout for slot allocations. */
     private final Time allocationTimeout;
 
-    /** The slot provider strategy to use for allocating slots for tasks as they are needed. */
-    private final SlotProviderStrategy slotProviderStrategy;
-
     /** The classloader for the user code. Needed for calls into user code classes. */
     private final ClassLoader userClassLoader;
 
@@ -323,8 +320,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
         this.futureExecutor = Preconditions.checkNotNull(futureExecutor);
         this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 
-        this.slotProviderStrategy =
-                SlotProviderStrategy.from(scheduleMode, slotProvider, allocationTimeout);
         this.userClassLoader = Preconditions.checkNotNull(userClassLoader, "userClassLoader");
 
         this.tasks = new HashMap<>(16);
@@ -572,10 +567,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
     @Override
     public String getJsonPlan() {
         return jsonPlan;
-    }
-
-    public SlotProviderStrategy getSlotProviderStrategy() {
-        return slotProviderStrategy;
     }
 
     public Either<SerializedValue<JobInformation>, PermanentBlobKey> getJobInformationOrBlobKey() {
