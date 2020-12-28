@@ -35,8 +35,6 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -44,7 +42,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -60,11 +57,6 @@ public class TestingExecutionGraphBuilder {
     private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
     private Executor ioExecutor = TestingUtils.defaultExecutor();
     private Time rpcTimeout = AkkaUtils.getDefaultTimeout();
-    private SlotProvider slotProvider =
-            new TestingSlotProvider(
-                    slotRequestId ->
-                            CompletableFuture.completedFuture(
-                                    new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
     private ClassLoader userClassLoader = ExecutionGraph.class.getClassLoader();
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
     private Time allocationTimeout = AkkaUtils.getDefaultTimeout();
@@ -104,11 +96,6 @@ public class TestingExecutionGraphBuilder {
 
     public TestingExecutionGraphBuilder setRpcTimeout(Time rpcTimeout) {
         this.rpcTimeout = rpcTimeout;
-        return this;
-    }
-
-    public TestingExecutionGraphBuilder setSlotProvider(SlotProvider slotProvider) {
-        this.slotProvider = slotProvider;
         return this;
     }
 
@@ -173,7 +160,6 @@ public class TestingExecutionGraphBuilder {
                 jobMasterConfig,
                 futureExecutor,
                 ioExecutor,
-                slotProvider,
                 userClassLoader,
                 completedCheckpointStore,
                 new CheckpointsCleaner(),
@@ -181,7 +167,6 @@ public class TestingExecutionGraphBuilder {
                 rpcTimeout,
                 metricGroup,
                 blobWriter,
-                allocationTimeout,
                 LOG,
                 shuffleMaster,
                 partitionTracker,

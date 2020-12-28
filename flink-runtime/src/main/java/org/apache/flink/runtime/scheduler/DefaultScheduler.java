@@ -45,7 +45,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.ThrowingSlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
@@ -135,14 +134,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 backPressureStatsTracker,
                 ioExecutor,
                 jobMasterConfiguration,
-                new ThrowingSlotProvider(), // this is not used any more in the new scheduler
                 futureExecutor,
                 userCodeLoader,
                 checkpointRecoveryFactory,
                 rpcTimeout,
                 blobWriter,
                 jobManagerJobMetricGroup,
-                Time.seconds(0), // this is not used any more in the new scheduler
                 shuffleMaster,
                 partitionTracker,
                 executionVertexVersioner,

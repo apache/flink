@@ -30,7 +30,6 @@ import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -47,7 +46,6 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -63,7 +61,6 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -81,7 +78,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
@@ -161,8 +157,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                             .setJobGraph(new JobGraph(jobId, "Test Job"))
                             .setFutureExecutor(executor)
                             .setIoExecutor(executor)
-                            .setSlotProvider(
-                                    new TestingSlotProvider(ignore -> new CompletableFuture<>()))
                             .setBlobWriter(blobWriter)
                             .build();
 
@@ -666,32 +660,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
         assertThat(
                 submittedTasks, new ExecutionStageMatcher(Arrays.asList(firstStage, secondStage)));
-    }
-
-    private static final class IteratorTestingSlotProvider extends TestingSlotProvider {
-        private IteratorTestingSlotProvider(
-                final Iterator<CompletableFuture<LogicalSlot>> slotIterator) {
-            super(new IteratorSlotFutureFunction(slotIterator));
-        }
-
-        private static class IteratorSlotFutureFunction
-                implements Function<SlotRequestId, CompletableFuture<LogicalSlot>> {
-            final Iterator<CompletableFuture<LogicalSlot>> slotIterator;
-
-            IteratorSlotFutureFunction(Iterator<CompletableFuture<LogicalSlot>> slotIterator) {
-                this.slotIterator = slotIterator;
-            }
-
-            @Override
-            public CompletableFuture<LogicalSlot> apply(SlotRequestId slotRequestId) {
-                if (slotIterator.hasNext()) {
-                    return slotIterator.next();
-                } else {
-                    return FutureUtils.completedExceptionally(
-                            new FlinkException("No more slots available."));
-                }
-            }
-        }
     }
 
     private ExecutionGraph createExecutionGraph(Configuration configuration) throws Exception {

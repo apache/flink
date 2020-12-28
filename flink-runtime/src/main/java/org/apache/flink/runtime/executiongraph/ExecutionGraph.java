@@ -59,7 +59,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
@@ -183,9 +182,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
     /** The timeout for all messages that require a response/acknowledgement. */
     private final Time rpcTimeout;
 
-    /** The timeout for slot allocations. */
-    private final Time allocationTimeout;
-
     /** The classloader for the user code. Needed for calls into user code classes. */
     private final ClassLoader userClassLoader;
 
@@ -294,10 +290,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
             Executor ioExecutor,
             Time rpcTimeout,
             int maxPriorAttemptsHistoryLength,
-            SlotProvider slotProvider,
             ClassLoader userClassLoader,
             BlobWriter blobWriter,
-            Time allocationTimeout,
             PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
@@ -334,7 +328,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
         this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
 
         this.rpcTimeout = checkNotNull(rpcTimeout);
-        this.allocationTimeout = checkNotNull(allocationTimeout);
 
         this.partitionReleaseStrategyFactory = checkNotNull(partitionReleaseStrategyFactory);
 
@@ -386,10 +379,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
     public ScheduleMode getScheduleMode() {
         return scheduleMode;
-    }
-
-    public Time getAllocationTimeout() {
-        return allocationTimeout;
     }
 
     @Nonnull
