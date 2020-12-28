@@ -23,32 +23,31 @@ import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 
 import java.util.Collection;
 
-/**
- * Callback interfaces for handling resource events from external resource managers.
- */
+/** Callback interfaces for handling resource events from external resource managers. */
 public interface ResourceEventHandler<WorkerType extends ResourceIDRetrievable> {
 
-	/**
-	 * Notifies that workers of previous attempt have been recovered from the external resource manager.
-	 *
-	 * @param recoveredWorkers Collection of worker nodes, in the deployment specific type.
-	 */
-	void onPreviousAttemptWorkersRecovered(Collection<WorkerType> recoveredWorkers);
+    /**
+     * Notifies that workers of previous attempt have been recovered from the external resource
+     * manager.
+     *
+     * @param recoveredWorkers Collection of worker nodes, in the deployment specific type.
+     */
+    void onPreviousAttemptWorkersRecovered(Collection<WorkerType> recoveredWorkers);
 
-	/**
-	 * Notifies that the worker has been terminated.
-	 *
-	 * <p>See also {@link ResourceManagerDriver#requestResource}.
-	 *
-	 * @param resourceId Identifier of the terminated worker.
-	 * @param diagnostics Diagnostic message about the worker termination.
-	 */
-	void onWorkerTerminated(ResourceID resourceId, String diagnostics);
+    /**
+     * Notifies that the worker has been terminated.
+     *
+     * <p>See also {@link ResourceManagerDriver#requestResource}.
+     *
+     * @param resourceId Identifier of the terminated worker.
+     * @param diagnostics Diagnostic message about the worker termination.
+     */
+    void onWorkerTerminated(ResourceID resourceId, String diagnostics);
 
-	/**
-	 * Notifies that an error has occurred that the process cannot proceed.
-	 *
-	 * @param exception Exception that describes the error.
-	 */
-	void onError(Throwable exception);
+    /**
+     * Notifies that an error has occurred that the process cannot proceed.
+     *
+     * @param exception Exception that describes the error.
+     */
+    void onError(Throwable exception);
 }

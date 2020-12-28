@@ -21,16 +21,14 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 
-/**
- * Test utilities for the {@link JobGraph}.
- */
+/** Test utilities for the {@link JobGraph}. */
 public enum JobGraphTestUtils {
-	;
+    ;
 
-	public static JobGraph createSingleVertexJobGraph() {
-		final JobVertex jobVertex = new JobVertex("Test vertex");
-		jobVertex.setInvokableClass(NoOpInvokable.class);
+    public static JobGraph createSingleVertexJobGraph() {
+        final JobVertex jobVertex = new JobVertex("Test vertex");
+        jobVertex.setInvokableClass(NoOpInvokable.class);
 
-		return new JobGraph(jobVertex);
-	}
+        return new JobGraph(jobVertex);
+    }
 }

@@ -30,32 +30,26 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public interface KafkaContextAware<T> {
 
+    /**
+     * Sets the number of the parallel subtask that the Kafka Producer is running on. The numbering
+     * starts from 0 and goes up to parallelism-1 (parallelism as returned by {@link
+     * #setNumParallelInstances(int)}).
+     */
+    default void setParallelInstanceId(int parallelInstanceId) {}
 
-	/**
-	 * Sets the number of the parallel subtask that the Kafka Producer is running on. The numbering
-	 * starts from 0 and goes up to parallelism-1 (parallelism as returned by {@link
-	 * #setNumParallelInstances(int)}).
-	 */
-	default void setParallelInstanceId(int parallelInstanceId) {
-	}
+    /** Sets the parallelism with which the parallel task of the Kafka Producer runs. */
+    default void setNumParallelInstances(int numParallelInstances) {}
 
-	/**
-	 * Sets the parallelism with which the parallel task of the Kafka Producer runs.
-	 */
-	default void setNumParallelInstances(int numParallelInstances) {
-	}
+    /**
+     * Sets the available partitions for the topic returned from {@link #getTargetTopic(Object)}.
+     */
+    default void setPartitions(int[] partitions) {}
 
-	/**
-	 * Sets the available partitions for the topic returned from {@link #getTargetTopic(Object)}.
-	 */
-	default void setPartitions(int[] partitions) {
-	}
-
-	/**
-	 * Returns the topic that the presented element should be sent to. This is not used for setting
-	 * the topic (this is done via the {@link org.apache.kafka.clients.producer.ProducerRecord} that
-	 * is returned from {@link KafkaSerializationSchema#serialize(Object, Long)}, it is only used
-	 * for getting the available partitions that are presented to {@link #setPartitions(int[])}.
-	 */
-	String getTargetTopic(T element);
+    /**
+     * Returns the topic that the presented element should be sent to. This is not used for setting
+     * the topic (this is done via the {@link org.apache.kafka.clients.producer.ProducerRecord} that
+     * is returned from {@link KafkaSerializationSchema#serialize(Object, Long)}, it is only used
+     * for getting the available partitions that are presented to {@link #setPartitions(int[])}.
+     */
+    String getTargetTopic(T element);
 }

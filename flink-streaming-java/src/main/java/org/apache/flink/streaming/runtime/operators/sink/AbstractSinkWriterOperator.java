@@ -37,161 +37,161 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Abstract base class for operators that work with a {@link SinkWriter}.
  *
- * <p>Sub-classes are responsible for creating the specific {@link SinkWriter} by implementing {@link
- * #createWriter()}.
+ * <p>Sub-classes are responsible for creating the specific {@link SinkWriter} by implementing
+ * {@link #createWriter()}.
  *
  * @param <InputT> The input type of the {@link SinkWriter}.
  * @param <CommT> The committable type of the {@link SinkWriter}.
  */
 @Internal
 abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<CommT>
-	implements OneInputStreamOperator<InputT, CommT>, BoundedOneInput {
+        implements OneInputStreamOperator<InputT, CommT>, BoundedOneInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** The runtime information of the input element. */
-	private final Context<InputT> context;
+    /** The runtime information of the input element. */
+    private final Context<InputT> context;
 
-	// ------------------------------- runtime fields ---------------------------------------
+    // ------------------------------- runtime fields ---------------------------------------
 
-	/** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
-	private Long currentWatermark;
+    /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
+    private Long currentWatermark;
 
-	/** The sink writer that does most of the work. */
-	protected SinkWriter<InputT, CommT, ?> sinkWriter;
+    /** The sink writer that does most of the work. */
+    protected SinkWriter<InputT, CommT, ?> sinkWriter;
 
-	AbstractSinkWriterOperator(ProcessingTimeService processingTimeService) {
-		this.processingTimeService = checkNotNull(processingTimeService);
-		this.context = new Context<>();
-	}
+    AbstractSinkWriterOperator(ProcessingTimeService processingTimeService) {
+        this.processingTimeService = checkNotNull(processingTimeService);
+        this.context = new Context<>();
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
+    @Override
+    public void open() throws Exception {
+        super.open();
 
-		this.currentWatermark = Long.MIN_VALUE;
+        this.currentWatermark = Long.MIN_VALUE;
 
-		sinkWriter = createWriter();
-	}
+        sinkWriter = createWriter();
+    }
 
-	@Override
-	public void processElement(StreamRecord<InputT> element) throws Exception {
-		context.element = element;
-		sinkWriter.write(element.getValue(), context);
-	}
+    @Override
+    public void processElement(StreamRecord<InputT> element) throws Exception {
+        context.element = element;
+        sinkWriter.write(element.getValue(), context);
+    }
 
-	@Override
-	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
-		super.prepareSnapshotPreBarrier(checkpointId);
-		sendCommittables(sinkWriter.prepareCommit(false));
-	}
+    @Override
+    public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+        super.prepareSnapshotPreBarrier(checkpointId);
+        sendCommittables(sinkWriter.prepareCommit(false));
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		super.processWatermark(mark);
-		this.currentWatermark = mark.getTimestamp();
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        super.processWatermark(mark);
+        this.currentWatermark = mark.getTimestamp();
+    }
 
-	@Override
-	public void endInput() throws Exception {
-		sendCommittables(sinkWriter.prepareCommit(true));
-	}
+    @Override
+    public void endInput() throws Exception {
+        sendCommittables(sinkWriter.prepareCommit(true));
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		sinkWriter.close();
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        sinkWriter.close();
+    }
 
-	protected Sink.InitContext createInitContext() {
-		return new InitContextImpl(
-				getRuntimeContext().getIndexOfThisSubtask(),
-				processingTimeService,
-				getMetricGroup());
-	}
+    protected Sink.InitContext createInitContext() {
+        return new InitContextImpl(
+                getRuntimeContext().getIndexOfThisSubtask(),
+                processingTimeService,
+                getMetricGroup());
+    }
 
-	/**
-	 * Creates and returns a {@link SinkWriter}.
-	 *
-	 * @throws Exception If creating {@link SinkWriter} fail
-	 */
-	abstract SinkWriter<InputT, CommT, ?> createWriter() throws Exception;
+    /**
+     * Creates and returns a {@link SinkWriter}.
+     *
+     * @throws Exception If creating {@link SinkWriter} fail
+     */
+    abstract SinkWriter<InputT, CommT, ?> createWriter() throws Exception;
 
-	private void sendCommittables(final List<CommT> committables) {
-		for (CommT committable : committables) {
-			output.collect(new StreamRecord<>(committable));
-		}
-	}
+    private void sendCommittables(final List<CommT> committables) {
+        for (CommT committable : committables) {
+            output.collect(new StreamRecord<>(committable));
+        }
+    }
 
-	private class Context<IN> implements SinkWriter.Context {
+    private class Context<IN> implements SinkWriter.Context {
 
-		private StreamRecord<IN> element;
+        private StreamRecord<IN> element;
 
-		@Override
-		public long currentWatermark() {
-			return currentWatermark;
-		}
+        @Override
+        public long currentWatermark() {
+            return currentWatermark;
+        }
 
-		@Override
-		public Long timestamp() {
-			if (element.hasTimestamp()) {
-				return element.getTimestamp();
-			}
-			return null;
-		}
-	}
+        @Override
+        public Long timestamp() {
+            if (element.hasTimestamp()) {
+                return element.getTimestamp();
+            }
+            return null;
+        }
+    }
 
-	private static class InitContextImpl implements Sink.InitContext {
+    private static class InitContextImpl implements Sink.InitContext {
 
-		private final int subtaskIdx;
+        private final int subtaskIdx;
 
-		private final ProcessingTimeService processingTimeService;
+        private final ProcessingTimeService processingTimeService;
 
-		private final MetricGroup metricGroup;
+        private final MetricGroup metricGroup;
 
-		public InitContextImpl(
-				int subtaskIdx,
-				ProcessingTimeService processingTimeService,
-				MetricGroup metricGroup) {
-			this.subtaskIdx = subtaskIdx;
-			this.processingTimeService = checkNotNull(processingTimeService);
-			this.metricGroup = checkNotNull(metricGroup);
-		}
+        public InitContextImpl(
+                int subtaskIdx,
+                ProcessingTimeService processingTimeService,
+                MetricGroup metricGroup) {
+            this.subtaskIdx = subtaskIdx;
+            this.processingTimeService = checkNotNull(processingTimeService);
+            this.metricGroup = checkNotNull(metricGroup);
+        }
 
-		@Override
-		public Sink.ProcessingTimeService getProcessingTimeService() {
-			return new ProcessingTimerServiceImpl(processingTimeService);
-		}
+        @Override
+        public Sink.ProcessingTimeService getProcessingTimeService() {
+            return new ProcessingTimerServiceImpl(processingTimeService);
+        }
 
-		@Override
-		public int getSubtaskId() {
-			return subtaskIdx;
-		}
+        @Override
+        public int getSubtaskId() {
+            return subtaskIdx;
+        }
 
-		@Override
-		public MetricGroup metricGroup() {
-			return metricGroup;
-		}
-	}
+        @Override
+        public MetricGroup metricGroup() {
+            return metricGroup;
+        }
+    }
 
-	private static class ProcessingTimerServiceImpl implements Sink.ProcessingTimeService {
+    private static class ProcessingTimerServiceImpl implements Sink.ProcessingTimeService {
 
-		private final ProcessingTimeService processingTimeService;
+        private final ProcessingTimeService processingTimeService;
 
-		public ProcessingTimerServiceImpl(ProcessingTimeService processingTimeService) {
-			this.processingTimeService = checkNotNull(processingTimeService);
-		}
+        public ProcessingTimerServiceImpl(ProcessingTimeService processingTimeService) {
+            this.processingTimeService = checkNotNull(processingTimeService);
+        }
 
-		@Override
-		public long getCurrentProcessingTime() {
-			return processingTimeService.getCurrentProcessingTime();
-		}
+        @Override
+        public long getCurrentProcessingTime() {
+            return processingTimeService.getCurrentProcessingTime();
+        }
 
-		@Override
-		public void registerProcessingTimer(long time, ProcessingTimeCallback processingTimerCallback) {
-			checkNotNull(processingTimerCallback);
-			processingTimeService.registerTimer(
-					time, processingTimerCallback::onProcessingTime);
-		}
-	}
+        @Override
+        public void registerProcessingTimer(
+                long time, ProcessingTimeCallback processingTimerCallback) {
+            checkNotNull(processingTimerCallback);
+            processingTimeService.registerTimer(time, processingTimerCallback::onProcessingTime);
+        }
+    }
 }

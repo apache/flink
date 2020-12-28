@@ -23,41 +23,39 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.complex.ListVector;
 
-/**
- * {@link ArrowFieldWriter} for Array.
- */
+/** {@link ArrowFieldWriter} for Array. */
 @Internal
 public final class RowArrayWriter extends ArrowFieldWriter<Row> {
 
-	private final ArrowFieldWriter<Row> elementWriter;
+    private final ArrowFieldWriter<Row> elementWriter;
 
-	public RowArrayWriter(ListVector listVector, ArrowFieldWriter<Row> elementWriter) {
-		super(listVector);
-		this.elementWriter = elementWriter;
-	}
+    public RowArrayWriter(ListVector listVector, ArrowFieldWriter<Row> elementWriter) {
+        super(listVector);
+        this.elementWriter = elementWriter;
+    }
 
-	@Override
-	public void doWrite(Row row, int ordinal) {
-		Object field = row.getField(ordinal);
-		if (field != null) {
-			((ListVector) getValueVector()).startNewValue(getCount());
-			Object[] array = (Object[]) field;
-			for (Object element : array) {
-				elementWriter.write(Row.of(element), 0);
-			}
-			((ListVector) getValueVector()).endValue(getCount(), array.length);
-		}
-	}
+    @Override
+    public void doWrite(Row row, int ordinal) {
+        Object field = row.getField(ordinal);
+        if (field != null) {
+            ((ListVector) getValueVector()).startNewValue(getCount());
+            Object[] array = (Object[]) field;
+            for (Object element : array) {
+                elementWriter.write(Row.of(element), 0);
+            }
+            ((ListVector) getValueVector()).endValue(getCount(), array.length);
+        }
+    }
 
-	@Override
-	public void finish() {
-		super.finish();
-		elementWriter.finish();
-	}
+    @Override
+    public void finish() {
+        super.finish();
+        elementWriter.finish();
+    }
 
-	@Override
-	public void reset() {
-		super.reset();
-		elementWriter.reset();
-	}
+    @Override
+    public void reset() {
+        super.reset();
+        elementWriter.reset();
+    }
 }

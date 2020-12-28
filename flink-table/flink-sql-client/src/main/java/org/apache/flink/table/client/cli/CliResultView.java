@@ -31,266 +31,273 @@ import java.util.List;
 
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 
-/**
- * Abstract CLI view for showing results (either as changelog or table).
- */
+/** Abstract CLI view for showing results (either as changelog or table). */
 public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> {
 
-	protected static final int MAX_COLUMN_WIDTH = 25;
+    protected static final int MAX_COLUMN_WIDTH = 25;
 
-	protected static final int NO_ROW_SELECTED = -1;
+    protected static final int NO_ROW_SELECTED = -1;
 
-	protected static final List<Tuple2<String, Long>> REFRESH_INTERVALS;
-	static {
-		REFRESH_INTERVALS = new ArrayList<>();
-		REFRESH_INTERVALS.add(Tuple2.of("Fastest", 0L));
-		REFRESH_INTERVALS.add(Tuple2.of("100 ms", 100L));
-		REFRESH_INTERVALS.add(Tuple2.of("500 ms", 100L));
-		REFRESH_INTERVALS.add(Tuple2.of("1 s", 1_000L));
-		REFRESH_INTERVALS.add(Tuple2.of("5 s", 5_000L));
-		REFRESH_INTERVALS.add(Tuple2.of("10 s", 10_000L));
-		REFRESH_INTERVALS.add(Tuple2.of("1 min", 60_000L));
-		REFRESH_INTERVALS.add(Tuple2.of("-", -1L));
-	}
+    protected static final List<Tuple2<String, Long>> REFRESH_INTERVALS;
 
-	private final RefreshThread refreshThread;
+    static {
+        REFRESH_INTERVALS = new ArrayList<>();
+        REFRESH_INTERVALS.add(Tuple2.of("Fastest", 0L));
+        REFRESH_INTERVALS.add(Tuple2.of("100 ms", 100L));
+        REFRESH_INTERVALS.add(Tuple2.of("500 ms", 100L));
+        REFRESH_INTERVALS.add(Tuple2.of("1 s", 1_000L));
+        REFRESH_INTERVALS.add(Tuple2.of("5 s", 5_000L));
+        REFRESH_INTERVALS.add(Tuple2.of("10 s", 10_000L));
+        REFRESH_INTERVALS.add(Tuple2.of("1 min", 60_000L));
+        REFRESH_INTERVALS.add(Tuple2.of("-", -1L));
+    }
 
-	protected final ResultDescriptor resultDescriptor;
+    private final RefreshThread refreshThread;
 
-	protected int refreshInterval;
+    protected final ResultDescriptor resultDescriptor;
 
-	protected List<String[]> previousResults;
+    protected int refreshInterval;
 
-	protected List<String[]> results;
+    protected List<String[]> previousResults;
 
-	protected int selectedRow;
+    protected List<String[]> results;
 
-	public CliResultView(CliClient client, ResultDescriptor resultDescriptor) {
-		super(client);
-		this.resultDescriptor = resultDescriptor;
+    protected int selectedRow;
 
-		refreshThread = new RefreshThread();
-		selectedRow = NO_ROW_SELECTED;
-	}
+    public CliResultView(CliClient client, ResultDescriptor resultDescriptor) {
+        super(client);
+        this.resultDescriptor = resultDescriptor;
 
-	// --------------------------------------------------------------------------------------------
+        refreshThread = new RefreshThread();
+        selectedRow = NO_ROW_SELECTED;
+    }
 
-	protected void increaseRefreshInterval() {
-		refreshInterval = Math.min(REFRESH_INTERVALS.size() - 1, refreshInterval + 1);
+    // --------------------------------------------------------------------------------------------
 
-		// reset view
-		resetAllParts();
+    protected void increaseRefreshInterval() {
+        refreshInterval = Math.min(REFRESH_INTERVALS.size() - 1, refreshInterval + 1);
 
-		synchronized (refreshThread) {
-			refreshThread.notify();
-		}
-	}
+        // reset view
+        resetAllParts();
 
-	protected void decreaseRefreshInterval(int minInterval) {
-		refreshInterval = Math.max(minInterval, refreshInterval - 1);
+        synchronized (refreshThread) {
+            refreshThread.notify();
+        }
+    }
 
-		// reset view
-		resetAllParts();
+    protected void decreaseRefreshInterval(int minInterval) {
+        refreshInterval = Math.max(minInterval, refreshInterval - 1);
 
-		synchronized (refreshThread) {
-			refreshThread.notify();
-		}
-	}
+        // reset view
+        resetAllParts();
 
-	protected void selectRowUp() {
-		final int visibleRowTop = offsetY;
-		if (selectedRow == NO_ROW_SELECTED) {
-			if (!getMainLines().isEmpty()) {
-				// most bottom visible row
-				selectedRow = Math.min(getMainLines().size(), offsetY + getVisibleMainHeight()) - 1;
-			}
-		}
-		// in visible area
-		else if (selectedRow > visibleRowTop) {
-			selectedRow = selectedRow - 1;
-		}
-		// not visible, scrolling needed
-		else {
-			selectedRow = Math.max(0, selectedRow - 1);
-			scrollUp();
-		}
+        synchronized (refreshThread) {
+            refreshThread.notify();
+        }
+    }
 
-		// reset view
-		resetMainPart();
-	}
+    protected void selectRowUp() {
+        final int visibleRowTop = offsetY;
+        if (selectedRow == NO_ROW_SELECTED) {
+            if (!getMainLines().isEmpty()) {
+                // most bottom visible row
+                selectedRow = Math.min(getMainLines().size(), offsetY + getVisibleMainHeight()) - 1;
+            }
+        }
+        // in visible area
+        else if (selectedRow > visibleRowTop) {
+            selectedRow = selectedRow - 1;
+        }
+        // not visible, scrolling needed
+        else {
+            selectedRow = Math.max(0, selectedRow - 1);
+            scrollUp();
+        }
 
-	protected void selectRowDown() {
-		final int visibleRowBottom = Math.min(getMainLines().size(), offsetY + getVisibleMainHeight()) - 1;
-		if (selectedRow == NO_ROW_SELECTED) {
-			selectedRow = offsetY;
-		}
-		// in visible area
-		else if (visibleRowBottom >= 0 && selectedRow < visibleRowBottom) {
-			selectedRow = selectedRow + 1;
-		}
-		// not visible, scrolling needed
-		else {
-			selectedRow = Math.min(Math.max(0, getMainLines().size() - 1), selectedRow + 1);
-			scrollDown();
-		}
+        // reset view
+        resetMainPart();
+    }
 
-		// reset view
-		resetMainPart();
-	}
+    protected void selectRowDown() {
+        final int visibleRowBottom =
+                Math.min(getMainLines().size(), offsetY + getVisibleMainHeight()) - 1;
+        if (selectedRow == NO_ROW_SELECTED) {
+            selectedRow = offsetY;
+        }
+        // in visible area
+        else if (visibleRowBottom >= 0 && selectedRow < visibleRowBottom) {
+            selectedRow = selectedRow + 1;
+        }
+        // not visible, scrolling needed
+        else {
+            selectedRow = Math.min(Math.max(0, getMainLines().size() - 1), selectedRow + 1);
+            scrollDown();
+        }
 
-	protected void openRow() {
-		if (selectedRow == NO_ROW_SELECTED) {
-			return;
-		}
-		final CliRowView view = new CliRowView(
-			client,
-			resultDescriptor.getResultSchema().getFieldNames(),
-			CliUtils.typesToString(resultDescriptor.getResultSchema().getFieldDataTypes()),
-			getRow(results.get(selectedRow)));
-		view.open(); // enter view
-	}
+        // reset view
+        resetMainPart();
+    }
 
-	protected void stopRetrieval(boolean cleanUpQuery) {
-		// stop retrieval
-		refreshThread.cleanUpQuery = cleanUpQuery;
-		refreshThread.isRunning = false;
-		synchronized (refreshThread) {
-			refreshThread.notify();
-		}
-	}
+    protected void openRow() {
+        if (selectedRow == NO_ROW_SELECTED) {
+            return;
+        }
+        final CliRowView view =
+                new CliRowView(
+                        client,
+                        resultDescriptor.getResultSchema().getFieldNames(),
+                        CliUtils.typesToString(
+                                resultDescriptor.getResultSchema().getFieldDataTypes()),
+                        getRow(results.get(selectedRow)));
+        view.open(); // enter view
+    }
 
-	protected boolean isRetrieving() {
-		return refreshThread.isRunning;
-	}
+    protected void stopRetrieval(boolean cleanUpQuery) {
+        // stop retrieval
+        refreshThread.cleanUpQuery = cleanUpQuery;
+        refreshThread.isRunning = false;
+        synchronized (refreshThread) {
+            refreshThread.notify();
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    protected boolean isRetrieving() {
+        return refreshThread.isRunning;
+    }
 
-	protected abstract void refresh();
+    // --------------------------------------------------------------------------------------------
 
-	protected abstract int computeColumnWidth(int idx);
+    protected abstract void refresh();
 
-	protected abstract String[] getRow(String[] resultRow);
+    protected abstract int computeColumnWidth(int idx);
 
-	// --------------------------------------------------------------------------------------------
+    protected abstract String[] getRow(String[] resultRow);
 
-	@Override
-	protected void init() {
-		refreshThread.start();
-	}
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	protected List<AttributedString> computeMainLines() {
-		final List<AttributedString> lines = new ArrayList<>();
+    @Override
+    protected void init() {
+        refreshThread.start();
+    }
 
-		int lineIdx = 0;
-		for (String[] line : results) {
-			final AttributedStringBuilder row = new AttributedStringBuilder();
+    @Override
+    protected List<AttributedString> computeMainLines() {
+        final List<AttributedString> lines = new ArrayList<>();
 
-			// highlight selected row
-			if (lineIdx == selectedRow) {
-				row.style(AttributedStyle.DEFAULT.inverse());
-			}
+        int lineIdx = 0;
+        for (String[] line : results) {
+            final AttributedStringBuilder row = new AttributedStringBuilder();
 
-			for (int colIdx = 0; colIdx < line.length; colIdx++) {
-				final String col = line[colIdx];
-				final int columnWidth = computeColumnWidth(colIdx);
+            // highlight selected row
+            if (lineIdx == selectedRow) {
+                row.style(AttributedStyle.DEFAULT.inverse());
+            }
 
-				row.append(' ');
-				// check if value was present before last update, if not, highlight it
-				// we don't highlight if the retrieval stopped
-				// both inverse and bold together do not work correctly
-				if (previousResults != null && lineIdx != selectedRow && refreshThread.isRunning &&
-						(lineIdx >= previousResults.size() || !col.equals(previousResults.get(lineIdx)[colIdx]))) {
-					row.style(AttributedStyle.BOLD);
-					normalizeColumn(row, col, columnWidth);
-					row.style(AttributedStyle.DEFAULT);
-				} else {
-					normalizeColumn(row, col, columnWidth);
-				}
-			}
-			lines.add(row.toAttributedString());
+            for (int colIdx = 0; colIdx < line.length; colIdx++) {
+                final String col = line[colIdx];
+                final int columnWidth = computeColumnWidth(colIdx);
 
-			lineIdx++;
-		}
+                row.append(' ');
+                // check if value was present before last update, if not, highlight it
+                // we don't highlight if the retrieval stopped
+                // both inverse and bold together do not work correctly
+                if (previousResults != null
+                        && lineIdx != selectedRow
+                        && refreshThread.isRunning
+                        && (lineIdx >= previousResults.size()
+                                || !col.equals(previousResults.get(lineIdx)[colIdx]))) {
+                    row.style(AttributedStyle.BOLD);
+                    normalizeColumn(row, col, columnWidth);
+                    row.style(AttributedStyle.DEFAULT);
+                } else {
+                    normalizeColumn(row, col, columnWidth);
+                }
+            }
+            lines.add(row.toAttributedString());
 
-		return lines;
-	}
+            lineIdx++;
+        }
 
-	@Override
-	protected void cleanUp() {
-		stopRetrieval(true);
-	}
+        return lines;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    @Override
+    protected void cleanUp() {
+        stopRetrieval(true);
+    }
 
-	private class RefreshThread extends Thread {
+    // --------------------------------------------------------------------------------------------
 
-		public volatile boolean isRunning = true;
+    private class RefreshThread extends Thread {
 
-		public volatile boolean cleanUpQuery = true;
+        public volatile boolean isRunning = true;
 
-		public long lastUpdatedResults = System.currentTimeMillis();
+        public volatile boolean cleanUpQuery = true;
 
-		@Override
-		public void run() {
-			while (isRunning) {
-				final long interval = REFRESH_INTERVALS.get(refreshInterval).f1;
-				if (interval >= 0) {
-					// refresh according to specified interval
-					if (interval > 0) {
-						synchronized (RefreshThread.this) {
-							if (isRunning) {
-								try {
-									RefreshThread.this.wait(interval);
-								} catch (InterruptedException e) {
-									continue;
-								}
-							}
-						}
-					}
+        public long lastUpdatedResults = System.currentTimeMillis();
 
-					synchronized (CliResultView.this) {
-						refresh();
+        @Override
+        public void run() {
+            while (isRunning) {
+                final long interval = REFRESH_INTERVALS.get(refreshInterval).f1;
+                if (interval >= 0) {
+                    // refresh according to specified interval
+                    if (interval > 0) {
+                        synchronized (RefreshThread.this) {
+                            if (isRunning) {
+                                try {
+                                    RefreshThread.this.wait(interval);
+                                } catch (InterruptedException e) {
+                                    continue;
+                                }
+                            }
+                        }
+                    }
 
-						// do the display only every 100 ms (even in fastest mode)
-						if (System.currentTimeMillis() - lastUpdatedResults > 100) {
-							if (CliResultView.this.isRunning()) {
-								display();
-							}
-							lastUpdatedResults = System.currentTimeMillis();
-						}
-					}
-				} else {
-					// keep the thread running but without refreshing
-					synchronized (RefreshThread.this) {
-						if (isRunning) {
-							try {
-								RefreshThread.this.wait(100);
-							} catch (InterruptedException e) {
-								// continue
-							}
-						}
-					}
-				}
-			}
+                    synchronized (CliResultView.this) {
+                        refresh();
 
-			// final display
-			synchronized (CliResultView.this) {
-				if (CliResultView.this.isRunning()) {
-					display();
-				}
-			}
+                        // do the display only every 100 ms (even in fastest mode)
+                        if (System.currentTimeMillis() - lastUpdatedResults > 100) {
+                            if (CliResultView.this.isRunning()) {
+                                display();
+                            }
+                            lastUpdatedResults = System.currentTimeMillis();
+                        }
+                    }
+                } else {
+                    // keep the thread running but without refreshing
+                    synchronized (RefreshThread.this) {
+                        if (isRunning) {
+                            try {
+                                RefreshThread.this.wait(100);
+                            } catch (InterruptedException e) {
+                                // continue
+                            }
+                        }
+                    }
+                }
+            }
 
-			if (cleanUpQuery) {
-				// cancel table program
-				try {
-					// the cancellation happens in the refresh thread in order to keep the main thread
-					// responsive at all times; esp. if the cluster is not available
-					client.getExecutor().cancelQuery(client.getSessionId(), resultDescriptor.getResultId());
-				} catch (SqlExecutionException e) {
-					// ignore further exceptions
-				}
-			}
-		}
-	}
+            // final display
+            synchronized (CliResultView.this) {
+                if (CliResultView.this.isRunning()) {
+                    display();
+                }
+            }
+
+            if (cleanUpQuery) {
+                // cancel table program
+                try {
+                    // the cancellation happens in the refresh thread in order to keep the main
+                    // thread
+                    // responsive at all times; esp. if the cluster is not available
+                    client.getExecutor()
+                            .cancelQuery(client.getSessionId(), resultDescriptor.getResultId());
+                } catch (SqlExecutionException e) {
+                    // ignore further exceptions
+                }
+            }
+        }
+    }
 }

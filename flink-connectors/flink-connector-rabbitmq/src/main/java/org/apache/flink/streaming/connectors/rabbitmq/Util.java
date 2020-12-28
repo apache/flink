@@ -22,13 +22,15 @@ import com.rabbitmq.client.Channel;
 import java.io.IOException;
 
 class Util {
-	/**
-	 * Declares a queue with sensible defaults: durable, non-exclusive, non-autoDelete, and no arguments.
-	 * @param channel the open RMQ channel.
-	 * @param queueName the name of the queue.
-	 * @throws IOException if an error is encountered setting up the queue.
-	 */
-	static void declareQueueDefaults(Channel channel, String queueName) throws IOException {
-		channel.queueDeclare(queueName, true, false, false, null);
-	}
+    /**
+     * Declares a queue with sensible defaults: durable, non-exclusive, non-autoDelete, and no
+     * arguments.
+     *
+     * @param channel the open RMQ channel.
+     * @param queueName the name of the queue.
+     * @throws IOException if an error is encountered setting up the queue.
+     */
+    static void declareQueueDefaults(Channel channel, String queueName) throws IOException {
+        channel.queueDeclare(queueName, true, false, false, null);
+    }
 }

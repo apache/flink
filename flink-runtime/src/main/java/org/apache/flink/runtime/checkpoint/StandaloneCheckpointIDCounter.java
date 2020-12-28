@@ -24,41 +24,42 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * {@link CheckpointIDCounter} instances for JobManagers running in {@link HighAvailabilityMode#NONE}.
+ * {@link CheckpointIDCounter} instances for JobManagers running in {@link
+ * HighAvailabilityMode#NONE}.
  *
  * <p>Simple wrapper around an {@link AtomicLong}.
  */
 public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 
-	private final AtomicLong checkpointIdCounter = new AtomicLong(1);
+    private final AtomicLong checkpointIdCounter = new AtomicLong(1);
 
-	@Override
-	public void start() throws Exception {}
+    @Override
+    public void start() throws Exception {}
 
-	@Override
-	public void shutdown(JobStatus jobStatus) throws Exception {}
+    @Override
+    public void shutdown(JobStatus jobStatus) throws Exception {}
 
-	@Override
-	public long getAndIncrement() throws Exception {
-		return checkpointIdCounter.getAndIncrement();
-	}
+    @Override
+    public long getAndIncrement() throws Exception {
+        return checkpointIdCounter.getAndIncrement();
+    }
 
-	@Override
-	public long get() {
-		return checkpointIdCounter.get();
-	}
+    @Override
+    public long get() {
+        return checkpointIdCounter.get();
+    }
 
-	@Override
-	public void setCount(long newCount) {
-		checkpointIdCounter.set(newCount);
-	}
+    @Override
+    public void setCount(long newCount) {
+        checkpointIdCounter.set(newCount);
+    }
 
-	/**
-	 * Returns the last checkpoint ID (current - 1).
-	 *
-	 * @return Last checkpoint ID.
-	 */
-	public long getLast() {
-		return checkpointIdCounter.get() - 1;
-	}
+    /**
+     * Returns the last checkpoint ID (current - 1).
+     *
+     * @return Last checkpoint ID.
+     */
+    public long getLast() {
+        return checkpointIdCounter.get() - 1;
+    }
 }

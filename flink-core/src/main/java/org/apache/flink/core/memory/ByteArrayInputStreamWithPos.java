@@ -21,26 +21,27 @@ package org.apache.flink.core.memory;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Un-synchronized stream similar to Java's ByteArrayInputStream that also exposes the current position.
+ * Un-synchronized stream similar to Java's ByteArrayInputStream that also exposes the current
+ * position.
  */
 @Internal
 public class ByteArrayInputStreamWithPos extends MemorySegmentInputStreamWithPos {
 
-	private static final byte[] EMPTY = new byte[0];
+    private static final byte[] EMPTY = new byte[0];
 
-	public ByteArrayInputStreamWithPos() {
-		this(EMPTY);
-	}
+    public ByteArrayInputStreamWithPos() {
+        this(EMPTY);
+    }
 
-	public ByteArrayInputStreamWithPos(byte[] buffer) {
-		this(buffer, 0, buffer.length);
-	}
+    public ByteArrayInputStreamWithPos(byte[] buffer) {
+        this(buffer, 0, buffer.length);
+    }
 
-	public ByteArrayInputStreamWithPos(byte[] buffer, int offset, int length) {
-		super(MemorySegmentFactory.wrap(buffer), offset, length);
-	}
+    public ByteArrayInputStreamWithPos(byte[] buffer, int offset, int length) {
+        super(MemorySegmentFactory.wrap(buffer), offset, length);
+    }
 
-	public void setBuffer(byte[] buffer, int off, int len) {
-		setSegment(MemorySegmentFactory.wrap(buffer), off, len);
-	}
+    public void setBuffer(byte[] buffer, int off, int len) {
+        setSegment(MemorySegmentFactory.wrap(buffer), off, len);
+    }
 }

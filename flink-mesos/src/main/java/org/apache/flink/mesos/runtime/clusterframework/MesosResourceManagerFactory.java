@@ -36,41 +36,48 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * {@link ActiveResourceManagerFactory} implementation which creates {@link ActiveResourceManager} with {@link MesosResourceManagerDriver}.
+ * {@link ActiveResourceManagerFactory} implementation which creates {@link ActiveResourceManager}
+ * with {@link MesosResourceManagerDriver}.
  */
-public class MesosResourceManagerFactory extends ActiveResourceManagerFactory<RegisteredMesosWorkerNode> {
+public class MesosResourceManagerFactory
+        extends ActiveResourceManagerFactory<RegisteredMesosWorkerNode> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MesosResourceManagerFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MesosResourceManagerFactory.class);
 
-	@Nonnull
-	private final MesosServices mesosServices;
+    @Nonnull private final MesosServices mesosServices;
 
-	@Nonnull
-	private final MesosConfiguration schedulerConfiguration;
+    @Nonnull private final MesosConfiguration schedulerConfiguration;
 
-	public MesosResourceManagerFactory(@Nonnull MesosServices mesosServices, @Nonnull MesosConfiguration schedulerConfiguration) {
-		this.mesosServices = mesosServices;
-		this.schedulerConfiguration = schedulerConfiguration;
-	}
+    public MesosResourceManagerFactory(
+            @Nonnull MesosServices mesosServices,
+            @Nonnull MesosConfiguration schedulerConfiguration) {
+        this.mesosServices = mesosServices;
+        this.schedulerConfiguration = schedulerConfiguration;
+    }
 
-	@Override
-	protected ResourceManagerDriver<RegisteredMesosWorkerNode> createResourceManagerDriver(
-			Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress) throws Exception {
-		final MesosTaskManagerParameters taskManagerParameters = MesosUtils.createTmParameters(configuration, LOG);
-		final ContainerSpecification taskManagerContainerSpec = MesosUtils.createContainerSpec(configuration);
+    @Override
+    protected ResourceManagerDriver<RegisteredMesosWorkerNode> createResourceManagerDriver(
+            Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress)
+            throws Exception {
+        final MesosTaskManagerParameters taskManagerParameters =
+                MesosUtils.createTmParameters(configuration, LOG);
+        final ContainerSpecification taskManagerContainerSpec =
+                MesosUtils.createContainerSpec(configuration);
 
-		return new MesosResourceManagerDriver(
-				configuration,
-				mesosServices,
-				schedulerConfiguration,
-				taskManagerParameters,
-				taskManagerContainerSpec,
-				webInterfaceUrl);
-	}
+        return new MesosResourceManagerDriver(
+                configuration,
+                mesosServices,
+                schedulerConfiguration,
+                taskManagerParameters,
+                taskManagerContainerSpec,
+                webInterfaceUrl);
+    }
 
-	@Override
-	protected ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
-		Configuration configuration) throws ConfigurationException {
-		return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, MesosWorkerResourceSpecFactory.INSTANCE);
-	}
+    @Override
+    protected ResourceManagerRuntimeServicesConfiguration
+            createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
+                    throws ConfigurationException {
+        return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
+                configuration, MesosWorkerResourceSpecFactory.INSTANCE);
+    }
 }

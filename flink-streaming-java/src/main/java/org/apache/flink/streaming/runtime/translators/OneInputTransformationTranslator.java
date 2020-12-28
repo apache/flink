@@ -28,43 +28,44 @@ import java.util.Collection;
 /**
  * A {@link TransformationTranslator} for the {@link OneInputTransformation}.
  *
- * @param <IN> The type of the elements in the input {@code Transformation} of the transformation to translate.
- * @param <OUT> The type of the elements that result from the provided {@code OneInputTransformation}.
+ * @param <IN> The type of the elements in the input {@code Transformation} of the transformation to
+ *     translate.
+ * @param <OUT> The type of the elements that result from the provided {@code
+ *     OneInputTransformation}.
  */
 @Internal
 public final class OneInputTransformationTranslator<IN, OUT>
-		extends AbstractOneInputTransformationTranslator<IN, OUT, OneInputTransformation<IN, OUT>> {
+        extends AbstractOneInputTransformationTranslator<IN, OUT, OneInputTransformation<IN, OUT>> {
 
-	@Override
-	public Collection<Integer> translateForBatchInternal(
-			final OneInputTransformation<IN, OUT> transformation,
-			final Context context) {
-		KeySelector<IN, ?> keySelector = transformation.getStateKeySelector();
-		Collection<Integer> ids = translateInternal(transformation,
-			transformation.getOperatorFactory(),
-			transformation.getInputType(),
-			keySelector,
-			transformation.getStateKeyType(),
-			context
-		);
-		boolean isKeyed = keySelector != null;
-		if (isKeyed) {
-			BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
-		}
+    @Override
+    public Collection<Integer> translateForBatchInternal(
+            final OneInputTransformation<IN, OUT> transformation, final Context context) {
+        KeySelector<IN, ?> keySelector = transformation.getStateKeySelector();
+        Collection<Integer> ids =
+                translateInternal(
+                        transformation,
+                        transformation.getOperatorFactory(),
+                        transformation.getInputType(),
+                        keySelector,
+                        transformation.getStateKeyType(),
+                        context);
+        boolean isKeyed = keySelector != null;
+        if (isKeyed) {
+            BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+        }
 
-		return ids;
-	}
+        return ids;
+    }
 
-	@Override
-	public Collection<Integer> translateForStreamingInternal(
-			final OneInputTransformation<IN, OUT> transformation,
-			final Context context) {
-		return translateInternal(transformation,
-			transformation.getOperatorFactory(),
-			transformation.getInputType(),
-			transformation.getStateKeySelector(),
-			transformation.getStateKeyType(),
-			context
-		);
-	}
+    @Override
+    public Collection<Integer> translateForStreamingInternal(
+            final OneInputTransformation<IN, OUT> transformation, final Context context) {
+        return translateInternal(
+                transformation,
+                transformation.getOperatorFactory(),
+                transformation.getInputType(),
+                transformation.getStateKeySelector(),
+                transformation.getStateKeyType(),
+                context);
+    }
 }

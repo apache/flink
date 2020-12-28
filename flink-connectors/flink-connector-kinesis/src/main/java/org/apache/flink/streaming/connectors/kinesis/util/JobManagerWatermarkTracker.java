@@ -33,149 +33,156 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * A {@link WatermarkTracker} that shares state through {@link GlobalAggregateManager}.
- */
+/** A {@link WatermarkTracker} that shares state through {@link GlobalAggregateManager}. */
 @PublicEvolving
 public class JobManagerWatermarkTracker extends WatermarkTracker {
 
-	private GlobalAggregateManager aggregateManager;
-	private final String aggregateName;
-	private final WatermarkAggregateFunction aggregateFunction = new WatermarkAggregateFunction();
-	private final long logAccumulatorIntervalMillis;
-	private long updateTimeoutCount;
+    private GlobalAggregateManager aggregateManager;
+    private final String aggregateName;
+    private final WatermarkAggregateFunction aggregateFunction = new WatermarkAggregateFunction();
+    private final long logAccumulatorIntervalMillis;
+    private long updateTimeoutCount;
 
-	public JobManagerWatermarkTracker(String aggregateName) {
-		this(aggregateName, -1);
-	}
+    public JobManagerWatermarkTracker(String aggregateName) {
+        this(aggregateName, -1);
+    }
 
-	public JobManagerWatermarkTracker(String aggregateName, long logAccumulatorIntervalMillis) {
-		super();
-		this.aggregateName = aggregateName;
-		this.logAccumulatorIntervalMillis = logAccumulatorIntervalMillis;
-	}
+    public JobManagerWatermarkTracker(String aggregateName, long logAccumulatorIntervalMillis) {
+        super();
+        this.aggregateName = aggregateName;
+        this.logAccumulatorIntervalMillis = logAccumulatorIntervalMillis;
+    }
 
-	@Override
-	public long updateWatermark(long localWatermark) {
-		WatermarkUpdate update = new WatermarkUpdate();
-		update.id = getSubtaskId();
-		update.watermark = localWatermark;
-		try {
-			byte[] resultBytes = aggregateManager.updateGlobalAggregate(aggregateName,
-				InstantiationUtil.serializeObject(update), aggregateFunction);
-			WatermarkResult result = InstantiationUtil.deserializeObject(resultBytes,
-				this.getClass().getClassLoader());
-			this.updateTimeoutCount += result.updateTimeoutCount;
-			return result.watermark;
-		} catch (ClassNotFoundException | IOException ex) {
-			throw new RuntimeException(ex);
-		}
-	}
+    @Override
+    public long updateWatermark(long localWatermark) {
+        WatermarkUpdate update = new WatermarkUpdate();
+        update.id = getSubtaskId();
+        update.watermark = localWatermark;
+        try {
+            byte[] resultBytes =
+                    aggregateManager.updateGlobalAggregate(
+                            aggregateName,
+                            InstantiationUtil.serializeObject(update),
+                            aggregateFunction);
+            WatermarkResult result =
+                    InstantiationUtil.deserializeObject(
+                            resultBytes, this.getClass().getClassLoader());
+            this.updateTimeoutCount += result.updateTimeoutCount;
+            return result.watermark;
+        } catch (ClassNotFoundException | IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 
-	@Override
-	public void open(RuntimeContext context) {
-		super.open(context);
-		this.aggregateFunction.updateTimeoutMillis = super.getUpdateTimeoutMillis();
-		this.aggregateFunction.logAccumulatorIntervalMillis = logAccumulatorIntervalMillis;
-		Preconditions.checkArgument(context instanceof StreamingRuntimeContext);
-		StreamingRuntimeContext runtimeContext = (StreamingRuntimeContext) context;
-		this.aggregateManager = runtimeContext.getGlobalAggregateManager();
-	}
+    @Override
+    public void open(RuntimeContext context) {
+        super.open(context);
+        this.aggregateFunction.updateTimeoutMillis = super.getUpdateTimeoutMillis();
+        this.aggregateFunction.logAccumulatorIntervalMillis = logAccumulatorIntervalMillis;
+        Preconditions.checkArgument(context instanceof StreamingRuntimeContext);
+        StreamingRuntimeContext runtimeContext = (StreamingRuntimeContext) context;
+        this.aggregateManager = runtimeContext.getGlobalAggregateManager();
+    }
 
-	public long getUpdateTimeoutCount() {
-		return updateTimeoutCount;
-	}
+    public long getUpdateTimeoutCount() {
+        return updateTimeoutCount;
+    }
 
-	/** Watermark aggregation input. */
-	protected static class WatermarkUpdate implements Serializable {
-		protected long watermark = Long.MIN_VALUE;
-		protected String id;
-	}
+    /** Watermark aggregation input. */
+    protected static class WatermarkUpdate implements Serializable {
+        protected long watermark = Long.MIN_VALUE;
+        protected String id;
+    }
 
-	/** Watermark aggregation result. */
-	protected static class WatermarkResult implements Serializable {
-		protected long watermark = Long.MIN_VALUE;
-		protected long updateTimeoutCount = 0;
-	}
+    /** Watermark aggregation result. */
+    protected static class WatermarkResult implements Serializable {
+        protected long watermark = Long.MIN_VALUE;
+        protected long updateTimeoutCount = 0;
+    }
 
-	/**
-	 * Aggregate function for computing a combined watermark of parallel subtasks.
-	 */
-	private static class WatermarkAggregateFunction implements
-		AggregateFunction<byte[], Map<String, WatermarkState>, byte[]> {
+    /** Aggregate function for computing a combined watermark of parallel subtasks. */
+    private static class WatermarkAggregateFunction
+            implements AggregateFunction<byte[], Map<String, WatermarkState>, byte[]> {
 
-		private long updateTimeoutMillis = DEFAULT_UPDATE_TIMEOUT_MILLIS;
-		private long logAccumulatorIntervalMillis = -1;
+        private long updateTimeoutMillis = DEFAULT_UPDATE_TIMEOUT_MILLIS;
+        private long logAccumulatorIntervalMillis = -1;
 
-		// TODO: wrap accumulator
-		static long addCount;
-		static long lastLogged;
-		private static final Logger LOG = LoggerFactory.getLogger(WatermarkAggregateFunction.class);
+        // TODO: wrap accumulator
+        static long addCount;
+        static long lastLogged;
+        private static final Logger LOG = LoggerFactory.getLogger(WatermarkAggregateFunction.class);
 
-		@Override
-		public Map<String, WatermarkState> createAccumulator() {
-			return new HashMap<>();
-		}
+        @Override
+        public Map<String, WatermarkState> createAccumulator() {
+            return new HashMap<>();
+        }
 
-		@Override
-		public Map<String, WatermarkState> add(byte[] valueBytes, Map<String, WatermarkState> accumulator) {
-			addCount++;
-			final WatermarkUpdate value;
-			try {
-				value = InstantiationUtil.deserializeObject(valueBytes, this.getClass().getClassLoader());
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-			WatermarkState ws = accumulator.get(value.id);
-			if (ws == null) {
-				accumulator.put(value.id, ws = new WatermarkState());
-			}
-			ws.watermark = value.watermark;
-			ws.lastUpdated = System.currentTimeMillis();
-			return accumulator;
-		}
+        @Override
+        public Map<String, WatermarkState> add(
+                byte[] valueBytes, Map<String, WatermarkState> accumulator) {
+            addCount++;
+            final WatermarkUpdate value;
+            try {
+                value =
+                        InstantiationUtil.deserializeObject(
+                                valueBytes, this.getClass().getClassLoader());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            WatermarkState ws = accumulator.get(value.id);
+            if (ws == null) {
+                accumulator.put(value.id, ws = new WatermarkState());
+            }
+            ws.watermark = value.watermark;
+            ws.lastUpdated = System.currentTimeMillis();
+            return accumulator;
+        }
 
-		@Override
-		public byte[] getResult(Map<String, WatermarkState> accumulator) {
-			long updateTimeoutCount = 0;
-			long currentTime = System.currentTimeMillis();
-			long globalWatermark = Long.MAX_VALUE;
-			for (Map.Entry<String, WatermarkState> e : accumulator.entrySet()) {
-				WatermarkState ws = e.getValue();
-				if (ws.lastUpdated + updateTimeoutMillis < currentTime) {
-					// ignore outdated entry
-					if (ws.watermark < Long.MAX_VALUE) {
-						updateTimeoutCount++;
-					}
-					continue;
-				}
-				globalWatermark = Math.min(ws.watermark, globalWatermark);
-			}
+        @Override
+        public byte[] getResult(Map<String, WatermarkState> accumulator) {
+            long updateTimeoutCount = 0;
+            long currentTime = System.currentTimeMillis();
+            long globalWatermark = Long.MAX_VALUE;
+            for (Map.Entry<String, WatermarkState> e : accumulator.entrySet()) {
+                WatermarkState ws = e.getValue();
+                if (ws.lastUpdated + updateTimeoutMillis < currentTime) {
+                    // ignore outdated entry
+                    if (ws.watermark < Long.MAX_VALUE) {
+                        updateTimeoutCount++;
+                    }
+                    continue;
+                }
+                globalWatermark = Math.min(ws.watermark, globalWatermark);
+            }
 
-			WatermarkResult result = new WatermarkResult();
-			result.watermark = globalWatermark == Long.MAX_VALUE ? Long.MIN_VALUE : globalWatermark;
-			result.updateTimeoutCount = updateTimeoutCount;
+            WatermarkResult result = new WatermarkResult();
+            result.watermark = globalWatermark == Long.MAX_VALUE ? Long.MIN_VALUE : globalWatermark;
+            result.updateTimeoutCount = updateTimeoutCount;
 
-			if (logAccumulatorIntervalMillis > 0) {
-				if (currentTime - lastLogged > logAccumulatorIntervalMillis) {
-					lastLogged = System.currentTimeMillis();
-					LOG.info("WatermarkAggregateFunction added: {}, timeout: {}, map: {}",
-						addCount, updateTimeoutCount, accumulator);
-				}
-			}
+            if (logAccumulatorIntervalMillis > 0) {
+                if (currentTime - lastLogged > logAccumulatorIntervalMillis) {
+                    lastLogged = System.currentTimeMillis();
+                    LOG.info(
+                            "WatermarkAggregateFunction added: {}, timeout: {}, map: {}",
+                            addCount,
+                            updateTimeoutCount,
+                            accumulator);
+                }
+            }
 
-			try {
-				return InstantiationUtil.serializeObject(result);
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
+            try {
+                return InstantiationUtil.serializeObject(result);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
-		@Override
-		public Map<String, WatermarkState> merge(Map<String, WatermarkState> accumulatorA, Map<String, WatermarkState> accumulatorB) {
-			// not required
-			throw new UnsupportedOperationException();
-		}
-	}
-
+        @Override
+        public Map<String, WatermarkState> merge(
+                Map<String, WatermarkState> accumulatorA,
+                Map<String, WatermarkState> accumulatorB) {
+            // not required
+            throw new UnsupportedOperationException();
+        }
+    }
 }

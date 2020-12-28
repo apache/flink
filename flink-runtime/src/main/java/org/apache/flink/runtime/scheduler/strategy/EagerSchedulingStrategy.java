@@ -30,62 +30,59 @@ import java.util.Set;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@link SchedulingStrategy} instance for streaming job which will schedule all tasks at the same time.
+ * {@link SchedulingStrategy} instance for streaming job which will schedule all tasks at the same
+ * time.
  */
 public class EagerSchedulingStrategy implements SchedulingStrategy {
 
-	private final SchedulerOperations schedulerOperations;
+    private final SchedulerOperations schedulerOperations;
 
-	private final SchedulingTopology schedulingTopology;
+    private final SchedulingTopology schedulingTopology;
 
-	private final DeploymentOption deploymentOption = new DeploymentOption(false);
+    private final DeploymentOption deploymentOption = new DeploymentOption(false);
 
-	public EagerSchedulingStrategy(
-			SchedulerOperations schedulerOperations,
-			SchedulingTopology schedulingTopology) {
-		this.schedulerOperations = checkNotNull(schedulerOperations);
-		this.schedulingTopology = checkNotNull(schedulingTopology);
-	}
+    public EagerSchedulingStrategy(
+            SchedulerOperations schedulerOperations, SchedulingTopology schedulingTopology) {
+        this.schedulerOperations = checkNotNull(schedulerOperations);
+        this.schedulingTopology = checkNotNull(schedulingTopology);
+    }
 
-	@Override
-	public void startScheduling() {
-		allocateSlotsAndDeploy(SchedulingStrategyUtils.getAllVertexIdsFromTopology(schedulingTopology));
-	}
+    @Override
+    public void startScheduling() {
+        allocateSlotsAndDeploy(
+                SchedulingStrategyUtils.getAllVertexIdsFromTopology(schedulingTopology));
+    }
 
-	@Override
-	public void restartTasks(Set<ExecutionVertexID> verticesToRestart) {
-		allocateSlotsAndDeploy(verticesToRestart);
-	}
+    @Override
+    public void restartTasks(Set<ExecutionVertexID> verticesToRestart) {
+        allocateSlotsAndDeploy(verticesToRestart);
+    }
 
-	@Override
-	public void onExecutionStateChange(ExecutionVertexID executionVertexId, ExecutionState executionState) {
-		// Will not react to these notifications.
-	}
+    @Override
+    public void onExecutionStateChange(
+            ExecutionVertexID executionVertexId, ExecutionState executionState) {
+        // Will not react to these notifications.
+    }
 
-	@Override
-	public void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId) {
-		// Will not react to these notifications.
-	}
+    @Override
+    public void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId) {
+        // Will not react to these notifications.
+    }
 
-	private void allocateSlotsAndDeploy(final Set<ExecutionVertexID> verticesToDeploy) {
-		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
-			SchedulingStrategyUtils.createExecutionVertexDeploymentOptionsInTopologicalOrder(
-				schedulingTopology,
-				verticesToDeploy,
-				id -> deploymentOption);
-		schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
-	}
+    private void allocateSlotsAndDeploy(final Set<ExecutionVertexID> verticesToDeploy) {
+        final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
+                SchedulingStrategyUtils.createExecutionVertexDeploymentOptionsInTopologicalOrder(
+                        schedulingTopology, verticesToDeploy, id -> deploymentOption);
+        schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
+    }
 
-	/**
-	 * The factory for creating {@link EagerSchedulingStrategy}.
-	 */
-	public static class Factory implements SchedulingStrategyFactory {
+    /** The factory for creating {@link EagerSchedulingStrategy}. */
+    public static class Factory implements SchedulingStrategyFactory {
 
-		@Override
-		public SchedulingStrategy createInstance(
-				SchedulerOperations schedulerOperations,
-				SchedulingTopology schedulingTopology) {
-			return new EagerSchedulingStrategy(schedulerOperations, schedulingTopology);
-		}
-	}
+        @Override
+        public SchedulingStrategy createInstance(
+                SchedulerOperations schedulerOperations, SchedulingTopology schedulingTopology) {
+            return new EagerSchedulingStrategy(schedulerOperations, schedulingTopology);
+        }
+    }
 }

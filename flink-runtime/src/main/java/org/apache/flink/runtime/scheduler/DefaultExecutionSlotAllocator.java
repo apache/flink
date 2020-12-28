@@ -45,74 +45,80 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class DefaultExecutionSlotAllocator extends AbstractExecutionSlotAllocator {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutionSlotAllocator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutionSlotAllocator.class);
 
-	private final SlotProviderStrategy slotProviderStrategy;
+    private final SlotProviderStrategy slotProviderStrategy;
 
-	DefaultExecutionSlotAllocator(
-			final SlotProviderStrategy slotProviderStrategy,
-			final PreferredLocationsRetriever preferredLocationsRetriever) {
+    DefaultExecutionSlotAllocator(
+            final SlotProviderStrategy slotProviderStrategy,
+            final PreferredLocationsRetriever preferredLocationsRetriever) {
 
-		super(preferredLocationsRetriever);
-		this.slotProviderStrategy = checkNotNull(slotProviderStrategy);
-	}
+        super(preferredLocationsRetriever);
+        this.slotProviderStrategy = checkNotNull(slotProviderStrategy);
+    }
 
-	@Override
-	public List<SlotExecutionVertexAssignment> allocateSlotsFor(
-			List<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
+    @Override
+    public List<SlotExecutionVertexAssignment> allocateSlotsFor(
+            List<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
 
-		validateSchedulingRequirements(executionVertexSchedulingRequirements);
+        validateSchedulingRequirements(executionVertexSchedulingRequirements);
 
-		List<SlotExecutionVertexAssignment> slotExecutionVertexAssignments =
-				new ArrayList<>(executionVertexSchedulingRequirements.size());
+        List<SlotExecutionVertexAssignment> slotExecutionVertexAssignments =
+                new ArrayList<>(executionVertexSchedulingRequirements.size());
 
-		Set<AllocationID> allPreviousAllocationIds = computeAllPriorAllocationIds(executionVertexSchedulingRequirements);
+        Set<AllocationID> allPreviousAllocationIds =
+                computeAllPriorAllocationIds(executionVertexSchedulingRequirements);
 
-		for (ExecutionVertexSchedulingRequirements schedulingRequirements : executionVertexSchedulingRequirements) {
-			final ExecutionVertexID executionVertexId = schedulingRequirements.getExecutionVertexId();
-			final SlotSharingGroupId slotSharingGroupId = schedulingRequirements.getSlotSharingGroupId();
+        for (ExecutionVertexSchedulingRequirements schedulingRequirements :
+                executionVertexSchedulingRequirements) {
+            final ExecutionVertexID executionVertexId =
+                    schedulingRequirements.getExecutionVertexId();
+            final SlotSharingGroupId slotSharingGroupId =
+                    schedulingRequirements.getSlotSharingGroupId();
 
-			final SlotRequestId slotRequestId = new SlotRequestId();
+            final SlotRequestId slotRequestId = new SlotRequestId();
 
-			final CompletableFuture<LogicalSlot> slotFuture = allocateSlot(
-				schedulingRequirements,
-				slotRequestId,
-				allPreviousAllocationIds);
+            final CompletableFuture<LogicalSlot> slotFuture =
+                    allocateSlot(schedulingRequirements, slotRequestId, allPreviousAllocationIds);
 
-			final SlotExecutionVertexAssignment slotExecutionVertexAssignment =
-				createAndRegisterSlotExecutionVertexAssignment(
-					executionVertexId,
-					slotFuture,
-					throwable -> slotProviderStrategy.cancelSlotRequest(slotRequestId, slotSharingGroupId, throwable));
+            final SlotExecutionVertexAssignment slotExecutionVertexAssignment =
+                    createAndRegisterSlotExecutionVertexAssignment(
+                            executionVertexId,
+                            slotFuture,
+                            throwable ->
+                                    slotProviderStrategy.cancelSlotRequest(
+                                            slotRequestId, slotSharingGroupId, throwable));
 
-			slotExecutionVertexAssignments.add(slotExecutionVertexAssignment);
-		}
+            slotExecutionVertexAssignments.add(slotExecutionVertexAssignment);
+        }
 
-		return slotExecutionVertexAssignments;
-	}
+        return slotExecutionVertexAssignments;
+    }
 
-	private CompletableFuture<LogicalSlot> allocateSlot(
-			final ExecutionVertexSchedulingRequirements schedulingRequirements,
-			final SlotRequestId slotRequestId,
-			final Set<AllocationID> allPreviousAllocationIds) {
+    private CompletableFuture<LogicalSlot> allocateSlot(
+            final ExecutionVertexSchedulingRequirements schedulingRequirements,
+            final SlotRequestId slotRequestId,
+            final Set<AllocationID> allPreviousAllocationIds) {
 
-		final ExecutionVertexID executionVertexId = schedulingRequirements.getExecutionVertexId();
+        final ExecutionVertexID executionVertexId = schedulingRequirements.getExecutionVertexId();
 
-		LOG.debug("Allocate slot with id {} for execution {}", slotRequestId, executionVertexId);
+        LOG.debug("Allocate slot with id {} for execution {}", slotRequestId, executionVertexId);
 
-		final CompletableFuture<SlotProfile> slotProfileFuture = getSlotProfileFuture(
-			schedulingRequirements,
-			schedulingRequirements.getPhysicalSlotResourceProfile(),
-			Collections.emptySet(),
-			allPreviousAllocationIds);
+        final CompletableFuture<SlotProfile> slotProfileFuture =
+                getSlotProfileFuture(
+                        schedulingRequirements,
+                        schedulingRequirements.getPhysicalSlotResourceProfile(),
+                        Collections.emptySet(),
+                        allPreviousAllocationIds);
 
-		return slotProfileFuture.thenCompose(
-			slotProfile -> slotProviderStrategy.allocateSlot(
-				slotRequestId,
-				new ScheduledUnit(
-					executionVertexId,
-					schedulingRequirements.getSlotSharingGroupId(),
-					schedulingRequirements.getCoLocationConstraint()),
-				slotProfile));
-	}
+        return slotProfileFuture.thenCompose(
+                slotProfile ->
+                        slotProviderStrategy.allocateSlot(
+                                slotRequestId,
+                                new ScheduledUnit(
+                                        executionVertexId,
+                                        schedulingRequirements.getSlotSharingGroupId(),
+                                        schedulingRequirements.getCoLocationConstraint()),
+                                slotProfile));
+    }
 }

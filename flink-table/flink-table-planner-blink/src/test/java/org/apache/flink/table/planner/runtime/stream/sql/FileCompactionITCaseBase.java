@@ -18,39 +18,45 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
-/**
- * Streaming sink File Compaction ITCase base for File system connector.
- */
+/** Streaming sink File Compaction ITCase base for File system connector. */
 public abstract class FileCompactionITCaseBase extends CompactionITCaseBase {
 
-	protected abstract String format();
+    protected abstract String format();
 
-	@Override
-	protected String partitionField() {
-		return "b";
-	}
+    @Override
+    protected String partitionField() {
+        return "b";
+    }
 
-	@Override
-	protected void createTable(String path) {
-		tEnv().executeSql("CREATE TABLE sink_table (a int, b string, c string) with (" + options(path) + ")");
-	}
+    @Override
+    protected void createTable(String path) {
+        tEnv().executeSql(
+                        "CREATE TABLE sink_table (a int, b string, c string) with ("
+                                + options(path)
+                                + ")");
+    }
 
-	@Override
-	protected void createPartitionTable(String path) {
-		tEnv().executeSql("CREATE TABLE sink_table (a int, b string, c string) partitioned by (b) with (" + options(path) + ")");
-	}
+    @Override
+    protected void createPartitionTable(String path) {
+        tEnv().executeSql(
+                        "CREATE TABLE sink_table (a int, b string, c string) partitioned by (b) with ("
+                                + options(path)
+                                + ")");
+    }
 
-	private String options(String path) {
-		return "'connector'='filesystem'," +
-				"'sink.partition-commit.policy.kind'='success-file'," +
-				"'auto-compaction'='true'," +
-				"'compaction.file-size' = '128MB'," +
-				"'sink.rolling-policy.file-size' = '1b'," + // produce multiple files per task
-				kv("format", format()) + "," +
-				kv("path", path);
-	}
+    private String options(String path) {
+        return "'connector'='filesystem',"
+                + "'sink.partition-commit.policy.kind'='success-file',"
+                + "'auto-compaction'='true',"
+                + "'compaction.file-size' = '128MB',"
+                + "'sink.rolling-policy.file-size' = '1b',"
+                + // produce multiple files per task
+                kv("format", format())
+                + ","
+                + kv("path", path);
+    }
 
-	private String kv(String key, String value) {
-		return String.format("'%s'='%s'", key, value);
-	}
+    private String kv(String key, String value) {
+        return String.format("'%s'='%s'", key, value);
+    }
 }

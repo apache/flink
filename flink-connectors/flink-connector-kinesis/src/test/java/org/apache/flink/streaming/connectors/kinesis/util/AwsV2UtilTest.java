@@ -73,442 +73,463 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static software.amazon.awssdk.http.Protocol.HTTP2;
 
-/**
- * Tests for {@link AwsV2Util}.
- */
+/** Tests for {@link AwsV2Util}. */
 public class AwsV2UtilTest {
 
-	@Test
-	public void testGetCredentialsProviderEnvironmentVariables() {
-		Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "ENV_VAR");
+    @Test
+    public void testGetCredentialsProviderEnvironmentVariables() {
+        Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "ENV_VAR");
 
-		AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
+        AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
 
-		assertTrue(credentialsProvider instanceof EnvironmentVariableCredentialsProvider);
-	}
+        assertTrue(credentialsProvider instanceof EnvironmentVariableCredentialsProvider);
+    }
 
-	@Test
-	public void testGetCredentialsProviderSystemProperties() {
-		Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "SYS_PROP");
+    @Test
+    public void testGetCredentialsProviderSystemProperties() {
+        Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "SYS_PROP");
 
-		AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
+        AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
 
-		assertTrue(credentialsProvider instanceof SystemPropertyCredentialsProvider);
-	}
+        assertTrue(credentialsProvider instanceof SystemPropertyCredentialsProvider);
+    }
 
-	@Test
-	public void testGetCredentialsProviderWebIdentityTokenFileCredentialsProvider() {
-		Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "WEB_IDENTITY_TOKEN");
+    @Test
+    public void testGetCredentialsProviderWebIdentityTokenFileCredentialsProvider() {
+        Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "WEB_IDENTITY_TOKEN");
 
-		AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
+        AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
 
-		assertTrue(credentialsProvider instanceof WebIdentityTokenFileCredentialsProvider);
-	}
+        assertTrue(credentialsProvider instanceof WebIdentityTokenFileCredentialsProvider);
+    }
 
-	@Test
-	public void testGetWebIdentityTokenFileCredentialsProvider() {
-		Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "WEB_IDENTITY_TOKEN");
-		properties.setProperty(roleArn(AWS_CREDENTIALS_PROVIDER), "roleArn");
-		properties.setProperty(roleSessionName(AWS_CREDENTIALS_PROVIDER), "roleSessionName");
+    @Test
+    public void testGetWebIdentityTokenFileCredentialsProvider() {
+        Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "WEB_IDENTITY_TOKEN");
+        properties.setProperty(roleArn(AWS_CREDENTIALS_PROVIDER), "roleArn");
+        properties.setProperty(roleSessionName(AWS_CREDENTIALS_PROVIDER), "roleSessionName");
 
-		WebIdentityTokenFileCredentialsProvider.Builder builder = mockWebIdentityTokenFileCredentialsProviderBuilder();
+        WebIdentityTokenFileCredentialsProvider.Builder builder =
+                mockWebIdentityTokenFileCredentialsProviderBuilder();
 
-		AwsV2Util.getWebIdentityTokenFileCredentialsProvider(builder, properties, AWS_CREDENTIALS_PROVIDER);
+        AwsV2Util.getWebIdentityTokenFileCredentialsProvider(
+                builder, properties, AWS_CREDENTIALS_PROVIDER);
 
-		verify(builder).roleArn("roleArn");
-		verify(builder).roleSessionName("roleSessionName");
-		verify(builder, never()).webIdentityTokenFile(any());
-	}
+        verify(builder).roleArn("roleArn");
+        verify(builder).roleSessionName("roleSessionName");
+        verify(builder, never()).webIdentityTokenFile(any());
+    }
 
-	@Test
-	public void testGetWebIdentityTokenFileCredentialsProviderWithWebIdentityFile() {
-		Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "WEB_IDENTITY_TOKEN");
-		properties.setProperty(webIdentityTokenFile(AWS_CREDENTIALS_PROVIDER), "webIdentityTokenFile");
+    @Test
+    public void testGetWebIdentityTokenFileCredentialsProviderWithWebIdentityFile() {
+        Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "WEB_IDENTITY_TOKEN");
+        properties.setProperty(
+                webIdentityTokenFile(AWS_CREDENTIALS_PROVIDER), "webIdentityTokenFile");
 
-		WebIdentityTokenFileCredentialsProvider.Builder builder = mockWebIdentityTokenFileCredentialsProviderBuilder();
+        WebIdentityTokenFileCredentialsProvider.Builder builder =
+                mockWebIdentityTokenFileCredentialsProviderBuilder();
 
-		AwsV2Util.getWebIdentityTokenFileCredentialsProvider(builder, properties, AWS_CREDENTIALS_PROVIDER);
+        AwsV2Util.getWebIdentityTokenFileCredentialsProvider(
+                builder, properties, AWS_CREDENTIALS_PROVIDER);
 
-		verify(builder).webIdentityTokenFile(Paths.get("webIdentityTokenFile"));
-	}
+        verify(builder).webIdentityTokenFile(Paths.get("webIdentityTokenFile"));
+    }
 
-	@Test
-	public void testGetCredentialsProviderAuto() {
-		Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "AUTO");
+    @Test
+    public void testGetCredentialsProviderAuto() {
+        Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "AUTO");
 
-		AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
+        AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
 
-		assertTrue(credentialsProvider instanceof DefaultCredentialsProvider);
-	}
+        assertTrue(credentialsProvider instanceof DefaultCredentialsProvider);
+    }
 
-	@Test
-	public void testGetCredentialsProviderAssumeRole() {
-		Properties properties = spy(properties(AWS_CREDENTIALS_PROVIDER, "ASSUME_ROLE"));
-		properties.setProperty(AWS_REGION, "eu-west-2");
+    @Test
+    public void testGetCredentialsProviderAssumeRole() {
+        Properties properties = spy(properties(AWS_CREDENTIALS_PROVIDER, "ASSUME_ROLE"));
+        properties.setProperty(AWS_REGION, "eu-west-2");
 
-		AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
+        AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
 
-		assertTrue(credentialsProvider instanceof StsAssumeRoleCredentialsProvider);
+        assertTrue(credentialsProvider instanceof StsAssumeRoleCredentialsProvider);
 
-		verify(properties).getProperty(AWSConfigConstants.roleArn(AWS_CREDENTIALS_PROVIDER));
-		verify(properties).getProperty(AWSConfigConstants.roleSessionName(AWS_CREDENTIALS_PROVIDER));
-		verify(properties).getProperty(AWSConfigConstants.externalId(AWS_CREDENTIALS_PROVIDER));
-		verify(properties).getProperty(AWS_REGION);
-	}
+        verify(properties).getProperty(AWSConfigConstants.roleArn(AWS_CREDENTIALS_PROVIDER));
+        verify(properties)
+                .getProperty(AWSConfigConstants.roleSessionName(AWS_CREDENTIALS_PROVIDER));
+        verify(properties).getProperty(AWSConfigConstants.externalId(AWS_CREDENTIALS_PROVIDER));
+        verify(properties).getProperty(AWS_REGION);
+    }
 
-	@Test
-	public void testGetCredentialsProviderBasic() {
-		Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "BASIC");
-		properties.setProperty(AWSConfigConstants.accessKeyId(AWS_CREDENTIALS_PROVIDER), "ak");
-		properties.setProperty(AWSConfigConstants.secretKey(AWS_CREDENTIALS_PROVIDER), "sk");
+    @Test
+    public void testGetCredentialsProviderBasic() {
+        Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "BASIC");
+        properties.setProperty(AWSConfigConstants.accessKeyId(AWS_CREDENTIALS_PROVIDER), "ak");
+        properties.setProperty(AWSConfigConstants.secretKey(AWS_CREDENTIALS_PROVIDER), "sk");
+
+        AwsCredentials credentials =
+                AwsV2Util.getCredentialsProvider(properties).resolveCredentials();
+
+        assertEquals("ak", credentials.accessKeyId());
+        assertEquals("sk", credentials.secretAccessKey());
+    }
+
+    @Test
+    public void testGetCredentialsProviderProfile() {
+        Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "PROFILE");
+        properties.put(AWSConfigConstants.profileName(AWS_CREDENTIALS_PROVIDER), "default");
+        properties.put(
+                AWSConfigConstants.profilePath(AWS_CREDENTIALS_PROVIDER),
+                "src/test/resources/profile");
+
+        AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
+
+        assertTrue(credentialsProvider instanceof ProfileCredentialsProvider);
+
+        AwsCredentials credentials = credentialsProvider.resolveCredentials();
+        assertEquals("11111111111111111111", credentials.accessKeyId());
+        assertEquals("wJalrXUtnFEMI/K7MDENG/bPxRfiCY1111111111", credentials.secretAccessKey());
+    }
+
+    @Test
+    public void testGetCredentialsProviderNamedProfile() {
+        Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "PROFILE");
+        properties.setProperty(AWSConfigConstants.profileName(AWS_CREDENTIALS_PROVIDER), "foo");
+        properties.setProperty(
+                AWSConfigConstants.profilePath(AWS_CREDENTIALS_PROVIDER),
+                "src/test/resources/profile");
+
+        AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
+
+        assertTrue(credentialsProvider instanceof ProfileCredentialsProvider);
+
+        AwsCredentials credentials = credentialsProvider.resolveCredentials();
+        assertEquals("22222222222222222222", credentials.accessKeyId());
+        assertEquals("wJalrXUtnFEMI/K7MDENG/bPxRfiCY2222222222", credentials.secretAccessKey());
+    }
+
+    @Test
+    public void testGetRegion() {
+        Region region = AwsV2Util.getRegion(properties(AWS_REGION, "eu-west-2"));
 
-		AwsCredentials credentials = AwsV2Util.getCredentialsProvider(properties).resolveCredentials();
+        assertEquals(Region.EU_WEST_2, region);
+    }
 
-		assertEquals("ak", credentials.accessKeyId());
-		assertEquals("sk", credentials.secretAccessKey());
-	}
+    @Test
+    public void testCreateKinesisAsyncClient() {
+        Properties properties = properties(AWS_REGION, "eu-west-2");
+        KinesisAsyncClientBuilder builder = mockKinesisAsyncClientBuilder();
+        ClientOverrideConfiguration clientOverrideConfiguration =
+                ClientOverrideConfiguration.builder().build();
+        SdkAsyncHttpClient httpClient = NettyNioAsyncHttpClient.builder().build();
 
-	@Test
-	public void testGetCredentialsProviderProfile() {
-		Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "PROFILE");
-		properties.put(AWSConfigConstants.profileName(AWS_CREDENTIALS_PROVIDER), "default");
-		properties.put(AWSConfigConstants.profilePath(AWS_CREDENTIALS_PROVIDER), "src/test/resources/profile");
+        AwsV2Util.createKinesisAsyncClient(
+                properties, builder, httpClient, clientOverrideConfiguration);
 
-		AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
+        verify(builder).overrideConfiguration(clientOverrideConfiguration);
+        verify(builder).httpClient(httpClient);
+        verify(builder).region(Region.of("eu-west-2"));
+        verify(builder)
+                .credentialsProvider(argThat(cp -> cp instanceof DefaultCredentialsProvider));
+        verify(builder, never()).endpointOverride(any());
+    }
 
-		assertTrue(credentialsProvider instanceof ProfileCredentialsProvider);
+    @Test
+    public void testCreateKinesisAsyncClientWithEndpointOverride() {
+        Properties properties = properties(AWS_REGION, "eu-west-2");
+        properties.setProperty(ConsumerConfigConstants.AWS_ENDPOINT, "https://localhost");
 
-		AwsCredentials credentials = credentialsProvider.resolveCredentials();
-		assertEquals("11111111111111111111", credentials.accessKeyId());
-		assertEquals("wJalrXUtnFEMI/K7MDENG/bPxRfiCY1111111111", credentials.secretAccessKey());
-	}
+        KinesisAsyncClientBuilder builder = mockKinesisAsyncClientBuilder();
+        ClientOverrideConfiguration clientOverrideConfiguration =
+                ClientOverrideConfiguration.builder().build();
+        SdkAsyncHttpClient httpClient = NettyNioAsyncHttpClient.builder().build();
 
-	@Test
-	public void testGetCredentialsProviderNamedProfile() {
-		Properties properties = properties(AWS_CREDENTIALS_PROVIDER, "PROFILE");
-		properties.setProperty(AWSConfigConstants.profileName(AWS_CREDENTIALS_PROVIDER), "foo");
-		properties.setProperty(AWSConfigConstants.profilePath(AWS_CREDENTIALS_PROVIDER), "src/test/resources/profile");
+        AwsV2Util.createKinesisAsyncClient(
+                properties, builder, httpClient, clientOverrideConfiguration);
 
-		AwsCredentialsProvider credentialsProvider = AwsV2Util.getCredentialsProvider(properties);
+        verify(builder).endpointOverride(URI.create("https://localhost"));
+    }
 
-		assertTrue(credentialsProvider instanceof ProfileCredentialsProvider);
+    @Test
+    public void testCreateNettyHttpClientWithDefaults() {
+        ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+        NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		AwsCredentials credentials = credentialsProvider.resolveCredentials();
-		assertEquals("22222222222222222222", credentials.accessKeyId());
-		assertEquals("wJalrXUtnFEMI/K7MDENG/bPxRfiCY2222222222", credentials.secretAccessKey());
-	}
+        AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
-	@Test
-	public void testGetRegion() {
-		Region region = AwsV2Util.getRegion(properties(AWS_REGION, "eu-west-2"));
+        verify(builder).build();
+        verify(builder).maxConcurrency(DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY);
+        verify(builder).connectionTimeout(Duration.ofSeconds(10));
+        verify(builder).writeTimeout(Duration.ofSeconds(50));
+        verify(builder).connectionMaxIdleTime(Duration.ofMinutes(1));
+        verify(builder).useIdleConnectionReaper(true);
+        verify(builder).protocol(HTTP2);
+        verify(builder, never()).connectionTimeToLive(any());
+    }
 
-		assertEquals(Region.EU_WEST_2, region);
-	}
+    @Test
+    public void testCreateNettyHttpClientConnectionTimeout() {
+        ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+        clientConfiguration.setConnectionTimeout(1000);
 
-	@Test
-	public void testCreateKinesisAsyncClient() {
-		Properties properties = properties(AWS_REGION, "eu-west-2");
-		KinesisAsyncClientBuilder builder = mockKinesisAsyncClientBuilder();
-		ClientOverrideConfiguration clientOverrideConfiguration = ClientOverrideConfiguration.builder().build();
-		SdkAsyncHttpClient httpClient = NettyNioAsyncHttpClient.builder().build();
+        NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		AwsV2Util.createKinesisAsyncClient(properties, builder, httpClient, clientOverrideConfiguration);
+        AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
-		verify(builder).overrideConfiguration(clientOverrideConfiguration);
-		verify(builder).httpClient(httpClient);
-		verify(builder).region(Region.of("eu-west-2"));
-		verify(builder).credentialsProvider(argThat(cp -> cp instanceof DefaultCredentialsProvider));
-		verify(builder, never()).endpointOverride(any());
-	}
+        verify(builder).connectionTimeout(Duration.ofSeconds(1));
+    }
 
-	@Test
-	public void testCreateKinesisAsyncClientWithEndpointOverride() {
-		Properties properties = properties(AWS_REGION, "eu-west-2");
-		properties.setProperty(ConsumerConfigConstants.AWS_ENDPOINT, "https://localhost");
+    @Test
+    public void testCreateNettyHttpClientMaxConcurrency() {
+        Properties clientConfiguration = new Properties();
+        clientConfiguration.setProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY, "123");
 
-		KinesisAsyncClientBuilder builder = mockKinesisAsyncClientBuilder();
-		ClientOverrideConfiguration clientOverrideConfiguration = ClientOverrideConfiguration.builder().build();
-		SdkAsyncHttpClient httpClient = NettyNioAsyncHttpClient.builder().build();
+        NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		AwsV2Util.createKinesisAsyncClient(properties, builder, httpClient, clientOverrideConfiguration);
+        AwsV2Util.createHttpClient(
+                new ClientConfigurationFactory().getConfig(), builder, clientConfiguration);
 
-		verify(builder).endpointOverride(URI.create("https://localhost"));
-	}
+        verify(builder).maxConcurrency(123);
+    }
 
-	@Test
-	public void testCreateNettyHttpClientWithDefaults() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
+    @Test
+    public void testCreateNettyHttpClientWriteTimeout() {
+        ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+        clientConfiguration.setSocketTimeout(3000);
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
+        NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		verify(builder).build();
-		verify(builder).maxConcurrency(DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY);
-		verify(builder).connectionTimeout(Duration.ofSeconds(10));
-		verify(builder).writeTimeout(Duration.ofSeconds(50));
-		verify(builder).connectionMaxIdleTime(Duration.ofMinutes(1));
-		verify(builder).useIdleConnectionReaper(true);
-		verify(builder).protocol(HTTP2);
-		verify(builder, never()).connectionTimeToLive(any());
-	}
+        AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
-	@Test
-	public void testCreateNettyHttpClientConnectionTimeout() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		clientConfiguration.setConnectionTimeout(1000);
+        verify(builder).writeTimeout(Duration.ofSeconds(3));
+    }
 
-		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
+    @Test
+    public void testCreateNettyHttpClientConnectionMaxIdleTime() {
+        ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+        clientConfiguration.setConnectionMaxIdleMillis(2000);
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
+        NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		verify(builder).connectionTimeout(Duration.ofSeconds(1));
-	}
+        AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
-	@Test
-	public void testCreateNettyHttpClientMaxConcurrency() {
-		Properties clientConfiguration = new Properties();
-		clientConfiguration.setProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY, "123");
+        verify(builder).connectionMaxIdleTime(Duration.ofSeconds(2));
+    }
 
-		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
+    @Test
+    public void testCreateNettyHttpClientIdleConnectionReaper() {
+        ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+        clientConfiguration.setUseReaper(false);
 
-		AwsV2Util.createHttpClient(new ClientConfigurationFactory().getConfig(), builder, clientConfiguration);
+        NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		verify(builder).maxConcurrency(123);
-	}
+        AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
-	@Test
-	public void testCreateNettyHttpClientWriteTimeout() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		clientConfiguration.setSocketTimeout(3000);
+        verify(builder).useIdleConnectionReaper(false);
+    }
 
-		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
+    @Test
+    public void testCreateNettyHttpClientIdleConnectionTtl() {
+        ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+        clientConfiguration.setConnectionTTL(5000);
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
+        NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		verify(builder).writeTimeout(Duration.ofSeconds(3));
-	}
+        AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
-	@Test
-	public void testCreateNettyHttpClientConnectionMaxIdleTime() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		clientConfiguration.setConnectionMaxIdleMillis(2000);
+        verify(builder).connectionTimeToLive(Duration.ofSeconds(5));
+    }
 
-		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
+    @Test
+    public void testClientOverrideConfigurationWithDefaults() {
+        ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+        ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
+        AwsV2Util.createClientOverrideConfiguration(clientConfiguration, builder);
 
-		verify(builder).connectionMaxIdleTime(Duration.ofSeconds(2));
-	}
+        verify(builder).build();
+        verify(builder)
+                .putAdvancedOption(
+                        SdkAdvancedClientOption.USER_AGENT_PREFIX,
+                        AWSUtil.formatFlinkUserAgentPrefix());
+        verify(builder).putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_SUFFIX, null);
+        verify(builder, never()).apiCallAttemptTimeout(any());
+        verify(builder, never()).apiCallTimeout(any());
+    }
 
-	@Test
-	public void testCreateNettyHttpClientIdleConnectionReaper() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		clientConfiguration.setUseReaper(false);
+    @Test
+    public void testClientOverrideConfigurationUserAgentSuffix() {
+        ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+        clientConfiguration.setUserAgentSuffix("suffix");
 
-		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
+        ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
+        AwsV2Util.createClientOverrideConfiguration(clientConfiguration, builder);
 
-		verify(builder).useIdleConnectionReaper(false);
-	}
+        verify(builder).putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_SUFFIX, "suffix");
+    }
 
-	@Test
-	public void testCreateNettyHttpClientIdleConnectionTtl() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		clientConfiguration.setConnectionTTL(5000);
+    @Test
+    public void testClientOverrideConfigurationApiCallAttemptTimeout() {
+        ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+        clientConfiguration.setRequestTimeout(500);
 
-		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
+        ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
+        AwsV2Util.createClientOverrideConfiguration(clientConfiguration, builder);
 
-		verify(builder).connectionTimeToLive(Duration.ofSeconds(5));
-	}
+        verify(builder).apiCallAttemptTimeout(Duration.ofMillis(500));
+    }
 
-	@Test
-	public void testClientOverrideConfigurationWithDefaults() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
+    @Test
+    public void testClientOverrideConfigurationApiCallTimeout() {
+        ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+        clientConfiguration.setClientExecutionTimeout(600);
 
-		AwsV2Util.createClientOverrideConfiguration(clientConfiguration, builder);
+        ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
 
-		verify(builder).build();
-		verify(builder).putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, AWSUtil.formatFlinkUserAgentPrefix());
-		verify(builder).putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_SUFFIX, null);
-		verify(builder, never()).apiCallAttemptTimeout(any());
-		verify(builder, never()).apiCallTimeout(any());
-	}
+        AwsV2Util.createClientOverrideConfiguration(clientConfiguration, builder);
 
-	@Test
-	public void testClientOverrideConfigurationUserAgentSuffix() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		clientConfiguration.setUserAgentSuffix("suffix");
+        verify(builder).apiCallTimeout(Duration.ofMillis(600));
+    }
 
-		ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
+    private Properties properties(final String key, final String value) {
+        Properties properties = new Properties();
+        properties.setProperty(key, value);
+        return properties;
+    }
 
-		AwsV2Util.createClientOverrideConfiguration(clientConfiguration, builder);
+    private KinesisAsyncClientBuilder mockKinesisAsyncClientBuilder() {
+        KinesisAsyncClientBuilder builder = mock(KinesisAsyncClientBuilder.class);
+        when(builder.overrideConfiguration(any(ClientOverrideConfiguration.class)))
+                .thenReturn(builder);
+        when(builder.httpClient(any())).thenReturn(builder);
+        when(builder.credentialsProvider(any())).thenReturn(builder);
+        when(builder.region(any())).thenReturn(builder);
 
-		verify(builder).putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_SUFFIX, "suffix");
-	}
+        return builder;
+    }
 
-	@Test
-	public void testClientOverrideConfigurationApiCallAttemptTimeout() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		clientConfiguration.setRequestTimeout(500);
-
-		ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
-
-		AwsV2Util.createClientOverrideConfiguration(clientConfiguration, builder);
-
-		verify(builder).apiCallAttemptTimeout(Duration.ofMillis(500));
-	}
-
-	@Test
-	public void testClientOverrideConfigurationApiCallTimeout() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		clientConfiguration.setClientExecutionTimeout(600);
-
-		ClientOverrideConfiguration.Builder builder = mockClientOverrideConfigurationBuilder();
-
-		AwsV2Util.createClientOverrideConfiguration(clientConfiguration, builder);
-
-		verify(builder).apiCallTimeout(Duration.ofMillis(600));
-	}
-
-	private Properties properties(final String key, final String value) {
-		Properties properties = new Properties();
-		properties.setProperty(key, value);
-		return properties;
-	}
-
-	private KinesisAsyncClientBuilder mockKinesisAsyncClientBuilder() {
-		KinesisAsyncClientBuilder builder = mock(KinesisAsyncClientBuilder.class);
-		when(builder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(builder);
-		when(builder.httpClient(any())).thenReturn(builder);
-		when(builder.credentialsProvider(any())).thenReturn(builder);
-		when(builder.region(any())).thenReturn(builder);
-
-		return builder;
-	}
-
-	private NettyNioAsyncHttpClient.Builder mockHttpClientBuilder() {
-		NettyNioAsyncHttpClient.Builder builder = mock(NettyNioAsyncHttpClient.Builder.class);
-		when(builder.maxConcurrency(anyInt())).thenReturn(builder);
-		when(builder.connectionTimeout(any())).thenReturn(builder);
-		when(builder.writeTimeout(any())).thenReturn(builder);
-		when(builder.connectionMaxIdleTime(any())).thenReturn(builder);
-		when(builder.useIdleConnectionReaper(anyBoolean())).thenReturn(builder);
-		when(builder.connectionAcquisitionTimeout(any())).thenReturn(builder);
-		when(builder.protocol(any())).thenReturn(builder);
-		when(builder.http2Configuration(any(Http2Configuration.class))).thenReturn(builder);
-
-		return builder;
-	}
-
-	private ClientOverrideConfiguration.Builder mockClientOverrideConfigurationBuilder() {
-		ClientOverrideConfiguration.Builder builder = mock(ClientOverrideConfiguration.Builder.class);
-		when(builder.putAdvancedOption(any(), any())).thenReturn(builder);
-		when(builder.apiCallAttemptTimeout(any())).thenReturn(builder);
-		when(builder.apiCallTimeout(any())).thenReturn(builder);
-
-		return builder;
-	}
-
-	private WebIdentityTokenFileCredentialsProvider.Builder mockWebIdentityTokenFileCredentialsProviderBuilder() {
-		WebIdentityTokenFileCredentialsProvider.Builder builder = mock(WebIdentityTokenFileCredentialsProvider.Builder.class);
-		when(builder.roleArn(any())).thenReturn(builder);
-		when(builder.roleSessionName(any())).thenReturn(builder);
-		when(builder.webIdentityTokenFile(any())).thenReturn(builder);
-
-		return builder;
-	}
-
-	@Test
-	public void testIsUsingEfoRecordPublisher() {
-		Properties prop = new Properties();
-		assertFalse(AwsV2Util.isUsingEfoRecordPublisher(prop));
-
-		prop.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
-		assertTrue(AwsV2Util.isUsingEfoRecordPublisher(prop));
-
-		prop.setProperty(RECORD_PUBLISHER_TYPE, POLLING.name());
-		assertFalse(AwsV2Util.isUsingEfoRecordPublisher(prop));
-	}
-
-	@Test
-	public void testIsEagerEfoRegistrationType() {
-		Properties prop = new Properties();
-		assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
-
-		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EAGER.name());
-		assertTrue(AwsV2Util.isEagerEfoRegistrationType(prop));
-
-		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, LAZY.name());
-		assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
-
-		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, NONE.name());
-		assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
-	}
-
-	@Test
-	public void testIsLazyEfoRegistrationType() {
-		Properties prop = new Properties();
-		assertTrue(AwsV2Util.isLazyEfoRegistrationType(prop));
-
-		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EAGER.name());
-		assertFalse(AwsV2Util.isLazyEfoRegistrationType(prop));
-
-		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, LAZY.name());
-		assertTrue(AwsV2Util.isLazyEfoRegistrationType(prop));
-
-		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, NONE.name());
-		assertFalse(AwsV2Util.isLazyEfoRegistrationType(prop));
-	}
-
-	@Test
-	public void testIsNoneEfoRegistrationType() {
-		Properties prop = new Properties();
-		assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
-
-		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EAGER.name());
-		assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
-
-		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, LAZY.name());
-		assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
-
-		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, NONE.name());
-		assertTrue(AwsV2Util.isNoneEfoRegistrationType(prop));
-	}
-
-	@Test
-	public void testIsRecoverableExceptionForRecoverable() {
-		Exception recoverable = LimitExceededException.builder().build();
-		assertTrue(AwsV2Util.isRecoverableException(new ExecutionException(recoverable)));
-	}
-
-	@Test
-	public void testIsRecoverableExceptionForNonRecoverable() {
-		Exception nonRecoverable = new IllegalArgumentException("abc");
-		assertFalse(AwsV2Util.isRecoverableException(new ExecutionException(nonRecoverable)));
-	}
-
-	@Test
-	public void testIsRecoverableExceptionForRuntimeExceptionWrappingRecoverable() {
-		Exception recoverable = LimitExceededException.builder().build();
-		Exception runtime = new RuntimeException("abc", recoverable);
-		assertTrue(AwsV2Util.isRecoverableException(runtime));
-	}
-
-	@Test
-	public void testIsRecoverableExceptionForRuntimeExceptionWrappingNonRecoverable() {
-		Exception nonRecoverable = new IllegalArgumentException("abc");
-		Exception runtime = new RuntimeException("abc", nonRecoverable);
-		assertFalse(AwsV2Util.isRecoverableException(runtime));
-	}
-
-	@Test
-	public void testIsRecoverableExceptionForNullCause() {
-		Exception nonRecoverable = new IllegalArgumentException("abc");
-		assertFalse(AwsV2Util.isRecoverableException(nonRecoverable));
-	}
-
+    private NettyNioAsyncHttpClient.Builder mockHttpClientBuilder() {
+        NettyNioAsyncHttpClient.Builder builder = mock(NettyNioAsyncHttpClient.Builder.class);
+        when(builder.maxConcurrency(anyInt())).thenReturn(builder);
+        when(builder.connectionTimeout(any())).thenReturn(builder);
+        when(builder.writeTimeout(any())).thenReturn(builder);
+        when(builder.connectionMaxIdleTime(any())).thenReturn(builder);
+        when(builder.useIdleConnectionReaper(anyBoolean())).thenReturn(builder);
+        when(builder.connectionAcquisitionTimeout(any())).thenReturn(builder);
+        when(builder.protocol(any())).thenReturn(builder);
+        when(builder.http2Configuration(any(Http2Configuration.class))).thenReturn(builder);
+
+        return builder;
+    }
+
+    private ClientOverrideConfiguration.Builder mockClientOverrideConfigurationBuilder() {
+        ClientOverrideConfiguration.Builder builder =
+                mock(ClientOverrideConfiguration.Builder.class);
+        when(builder.putAdvancedOption(any(), any())).thenReturn(builder);
+        when(builder.apiCallAttemptTimeout(any())).thenReturn(builder);
+        when(builder.apiCallTimeout(any())).thenReturn(builder);
+
+        return builder;
+    }
+
+    private WebIdentityTokenFileCredentialsProvider.Builder
+            mockWebIdentityTokenFileCredentialsProviderBuilder() {
+        WebIdentityTokenFileCredentialsProvider.Builder builder =
+                mock(WebIdentityTokenFileCredentialsProvider.Builder.class);
+        when(builder.roleArn(any())).thenReturn(builder);
+        when(builder.roleSessionName(any())).thenReturn(builder);
+        when(builder.webIdentityTokenFile(any())).thenReturn(builder);
+
+        return builder;
+    }
+
+    @Test
+    public void testIsUsingEfoRecordPublisher() {
+        Properties prop = new Properties();
+        assertFalse(AwsV2Util.isUsingEfoRecordPublisher(prop));
+
+        prop.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
+        assertTrue(AwsV2Util.isUsingEfoRecordPublisher(prop));
+
+        prop.setProperty(RECORD_PUBLISHER_TYPE, POLLING.name());
+        assertFalse(AwsV2Util.isUsingEfoRecordPublisher(prop));
+    }
+
+    @Test
+    public void testIsEagerEfoRegistrationType() {
+        Properties prop = new Properties();
+        assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
+
+        prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EAGER.name());
+        assertTrue(AwsV2Util.isEagerEfoRegistrationType(prop));
+
+        prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, LAZY.name());
+        assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
+
+        prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, NONE.name());
+        assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
+    }
+
+    @Test
+    public void testIsLazyEfoRegistrationType() {
+        Properties prop = new Properties();
+        assertTrue(AwsV2Util.isLazyEfoRegistrationType(prop));
+
+        prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EAGER.name());
+        assertFalse(AwsV2Util.isLazyEfoRegistrationType(prop));
+
+        prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, LAZY.name());
+        assertTrue(AwsV2Util.isLazyEfoRegistrationType(prop));
+
+        prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, NONE.name());
+        assertFalse(AwsV2Util.isLazyEfoRegistrationType(prop));
+    }
+
+    @Test
+    public void testIsNoneEfoRegistrationType() {
+        Properties prop = new Properties();
+        assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
+
+        prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EAGER.name());
+        assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
+
+        prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, LAZY.name());
+        assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
+
+        prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, NONE.name());
+        assertTrue(AwsV2Util.isNoneEfoRegistrationType(prop));
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForRecoverable() {
+        Exception recoverable = LimitExceededException.builder().build();
+        assertTrue(AwsV2Util.isRecoverableException(new ExecutionException(recoverable)));
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForNonRecoverable() {
+        Exception nonRecoverable = new IllegalArgumentException("abc");
+        assertFalse(AwsV2Util.isRecoverableException(new ExecutionException(nonRecoverable)));
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForRuntimeExceptionWrappingRecoverable() {
+        Exception recoverable = LimitExceededException.builder().build();
+        Exception runtime = new RuntimeException("abc", recoverable);
+        assertTrue(AwsV2Util.isRecoverableException(runtime));
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForRuntimeExceptionWrappingNonRecoverable() {
+        Exception nonRecoverable = new IllegalArgumentException("abc");
+        Exception runtime = new RuntimeException("abc", nonRecoverable);
+        assertFalse(AwsV2Util.isRecoverableException(runtime));
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForNullCause() {
+        Exception nonRecoverable = new IllegalArgumentException("abc");
+        assertFalse(AwsV2Util.isRecoverableException(nonRecoverable));
+    }
 }

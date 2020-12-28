@@ -42,71 +42,74 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerComponents.createSchedulerComponents;
 
-/**
- * Factory for {@link DefaultScheduler}.
- */
+/** Factory for {@link DefaultScheduler}. */
 public class DefaultSchedulerFactory implements SchedulerNGFactory {
 
-	@Override
-	public SchedulerNG createInstance(
-			final Logger log,
-			final JobGraph jobGraph,
-			final BackPressureStatsTracker backPressureStatsTracker,
-			final Executor ioExecutor,
-			final Configuration jobMasterConfiguration,
-			final SlotPool slotPool,
-			final ScheduledExecutorService futureExecutor,
-			final ClassLoader userCodeLoader,
-			final CheckpointRecoveryFactory checkpointRecoveryFactory,
-			final Time rpcTimeout,
-			final BlobWriter blobWriter,
-			final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-			final Time slotRequestTimeout,
-			final ShuffleMaster<?> shuffleMaster,
-			final JobMasterPartitionTracker partitionTracker,
-			final ExecutionDeploymentTracker executionDeploymentTracker,
-			long initializationTimestamp) throws Exception {
+    @Override
+    public SchedulerNG createInstance(
+            final Logger log,
+            final JobGraph jobGraph,
+            final BackPressureStatsTracker backPressureStatsTracker,
+            final Executor ioExecutor,
+            final Configuration jobMasterConfiguration,
+            final SlotPool slotPool,
+            final ScheduledExecutorService futureExecutor,
+            final ClassLoader userCodeLoader,
+            final CheckpointRecoveryFactory checkpointRecoveryFactory,
+            final Time rpcTimeout,
+            final BlobWriter blobWriter,
+            final JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            final Time slotRequestTimeout,
+            final ShuffleMaster<?> shuffleMaster,
+            final JobMasterPartitionTracker partitionTracker,
+            final ExecutionDeploymentTracker executionDeploymentTracker,
+            long initializationTimestamp)
+            throws Exception {
 
-		final DefaultSchedulerComponents schedulerComponents = createSchedulerComponents(
-			jobGraph.getScheduleMode(),
-			jobGraph.isApproximateLocalRecoveryEnabled(),
-			jobMasterConfiguration,
-			slotPool,
-			slotRequestTimeout);
-		final RestartBackoffTimeStrategy restartBackoffTimeStrategy = RestartBackoffTimeStrategyFactoryLoader
-			.createRestartBackoffTimeStrategyFactory(
-				jobGraph
-					.getSerializedExecutionConfig()
-					.deserializeValue(userCodeLoader)
-					.getRestartStrategy(),
-				jobMasterConfiguration,
-				jobGraph.isCheckpointingEnabled())
-			.create();
-		log.info("Using restart back off time strategy {} for {} ({}).", restartBackoffTimeStrategy, jobGraph.getName(), jobGraph.getJobID());
+        final DefaultSchedulerComponents schedulerComponents =
+                createSchedulerComponents(
+                        jobGraph.getScheduleMode(),
+                        jobGraph.isApproximateLocalRecoveryEnabled(),
+                        jobMasterConfiguration,
+                        slotPool,
+                        slotRequestTimeout);
+        final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
+                RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
+                                jobGraph.getSerializedExecutionConfig()
+                                        .deserializeValue(userCodeLoader)
+                                        .getRestartStrategy(),
+                                jobMasterConfiguration,
+                                jobGraph.isCheckpointingEnabled())
+                        .create();
+        log.info(
+                "Using restart back off time strategy {} for {} ({}).",
+                restartBackoffTimeStrategy,
+                jobGraph.getName(),
+                jobGraph.getJobID());
 
-		return new DefaultScheduler(
-			log,
-			jobGraph,
-			backPressureStatsTracker,
-			ioExecutor,
-			jobMasterConfiguration,
-			schedulerComponents.getStartUpAction(),
-			futureExecutor,
-			new ScheduledExecutorServiceAdapter(futureExecutor),
-			userCodeLoader,
-			checkpointRecoveryFactory,
-			rpcTimeout,
-			blobWriter,
-			jobManagerJobMetricGroup,
-			shuffleMaster,
-			partitionTracker,
-			schedulerComponents.getSchedulingStrategyFactory(),
-			FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(jobMasterConfiguration),
-			restartBackoffTimeStrategy,
-			new DefaultExecutionVertexOperations(),
-			new ExecutionVertexVersioner(),
-			schedulerComponents.getAllocatorFactory(),
-			executionDeploymentTracker,
-			initializationTimestamp);
-	}
+        return new DefaultScheduler(
+                log,
+                jobGraph,
+                backPressureStatsTracker,
+                ioExecutor,
+                jobMasterConfiguration,
+                schedulerComponents.getStartUpAction(),
+                futureExecutor,
+                new ScheduledExecutorServiceAdapter(futureExecutor),
+                userCodeLoader,
+                checkpointRecoveryFactory,
+                rpcTimeout,
+                blobWriter,
+                jobManagerJobMetricGroup,
+                shuffleMaster,
+                partitionTracker,
+                schedulerComponents.getSchedulingStrategyFactory(),
+                FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(jobMasterConfiguration),
+                restartBackoffTimeStrategy,
+                new DefaultExecutionVertexOperations(),
+                new ExecutionVertexVersioner(),
+                schedulerComponents.getAllocatorFactory(),
+                executionDeploymentTracker,
+                initializationTimestamp);
+    }
 }

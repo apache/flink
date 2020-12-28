@@ -17,13 +17,11 @@ import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple0;
 
-/**
- * A {@link TypeSerializerSnapshot} for {@link Tuple0Serializer}.
- */
+/** A {@link TypeSerializerSnapshot} for {@link Tuple0Serializer}. */
 @SuppressWarnings("WeakerAccess")
 public final class Tuple0SerializerSnapshot extends SimpleTypeSerializerSnapshot<Tuple0> {
 
-	public Tuple0SerializerSnapshot() {
-		super(() -> Tuple0Serializer.INSTANCE);
-	}
+    public Tuple0SerializerSnapshot() {
+        super(() -> Tuple0Serializer.INSTANCE);
+    }
 }

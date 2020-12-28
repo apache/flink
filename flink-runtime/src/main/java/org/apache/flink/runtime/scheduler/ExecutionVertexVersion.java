@@ -21,25 +21,23 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
-/**
- * This class helps to record version of an execution vertex.
- */
+/** This class helps to record version of an execution vertex. */
 public class ExecutionVertexVersion {
 
-	private final ExecutionVertexID executionVertexId;
+    private final ExecutionVertexID executionVertexId;
 
-	private final long version;
+    private final long version;
 
-	ExecutionVertexVersion(final ExecutionVertexID executionVertexId, final long version) {
-		this.executionVertexId = executionVertexId;
-		this.version = version;
-	}
+    ExecutionVertexVersion(final ExecutionVertexID executionVertexId, final long version) {
+        this.executionVertexId = executionVertexId;
+        this.version = version;
+    }
 
-	public ExecutionVertexID getExecutionVertexId() {
-		return executionVertexId;
-	}
+    public ExecutionVertexID getExecutionVertexId() {
+        return executionVertexId;
+    }
 
-	public long getVersion() {
-		return version;
-	}
+    public long getVersion() {
+        return version;
+    }
 }

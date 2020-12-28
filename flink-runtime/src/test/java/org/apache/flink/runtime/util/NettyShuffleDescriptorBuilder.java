@@ -31,72 +31,67 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
-/**
- * Builder to mock {@link NettyShuffleDescriptor} in tests.
- */
+/** Builder to mock {@link NettyShuffleDescriptor} in tests. */
 public class NettyShuffleDescriptorBuilder {
-	private ResourceID producerLocation = ResourceID.generate();
-	private ResultPartitionID id = new ResultPartitionID();
-	private InetAddress address = InetAddress.getLoopbackAddress();
-	private int dataPort;
-	private int connectionIndex;
-	public NettyShuffleDescriptorBuilder setProducerLocation(ResourceID producerLocation) {
-		this.producerLocation = producerLocation;
-		return this;
-	}
+    private ResourceID producerLocation = ResourceID.generate();
+    private ResultPartitionID id = new ResultPartitionID();
+    private InetAddress address = InetAddress.getLoopbackAddress();
+    private int dataPort;
+    private int connectionIndex;
 
-	public NettyShuffleDescriptorBuilder setId(ResultPartitionID id) {
-		this.id = id;
-		return this;
-	}
+    public NettyShuffleDescriptorBuilder setProducerLocation(ResourceID producerLocation) {
+        this.producerLocation = producerLocation;
+        return this;
+    }
 
-	public NettyShuffleDescriptorBuilder setAddress(InetAddress address) {
-		this.address = address;
-		return this;
-	}
+    public NettyShuffleDescriptorBuilder setId(ResultPartitionID id) {
+        this.id = id;
+        return this;
+    }
 
-	public NettyShuffleDescriptorBuilder setDataPort(int dataPort) {
-		this.dataPort = dataPort;
-		return this;
-	}
+    public NettyShuffleDescriptorBuilder setAddress(InetAddress address) {
+        this.address = address;
+        return this;
+    }
 
-	public NettyShuffleDescriptorBuilder setProducerInfoFromTaskManagerLocation(
-			TaskManagerLocation producerTaskManagerLocation) {
-		return setProducerLocation(producerTaskManagerLocation.getResourceID())
-			.setAddress(producerTaskManagerLocation.address())
-			.setDataPort(producerTaskManagerLocation.dataPort());
-	}
+    public NettyShuffleDescriptorBuilder setDataPort(int dataPort) {
+        this.dataPort = dataPort;
+        return this;
+    }
 
-	public NettyShuffleDescriptorBuilder setConnectionIndex(int connectionIndex) {
-		this.connectionIndex = connectionIndex;
-		return this;
-	}
+    public NettyShuffleDescriptorBuilder setProducerInfoFromTaskManagerLocation(
+            TaskManagerLocation producerTaskManagerLocation) {
+        return setProducerLocation(producerTaskManagerLocation.getResourceID())
+                .setAddress(producerTaskManagerLocation.address())
+                .setDataPort(producerTaskManagerLocation.dataPort());
+    }
 
-	public NettyShuffleDescriptor buildRemote() {
-		ConnectionID connectionID = new ConnectionID(new InetSocketAddress(address, dataPort), connectionIndex);
-		return new NettyShuffleDescriptor(
-			producerLocation,
-			new NetworkPartitionConnectionInfo(connectionID),
-			id);
-	}
+    public NettyShuffleDescriptorBuilder setConnectionIndex(int connectionIndex) {
+        this.connectionIndex = connectionIndex;
+        return this;
+    }
 
-	public NettyShuffleDescriptor buildLocal() {
-		return new NettyShuffleDescriptor(
-			producerLocation,
-			LocalExecutionPartitionConnectionInfo.INSTANCE,
-			id);
-	}
+    public NettyShuffleDescriptor buildRemote() {
+        ConnectionID connectionID =
+                new ConnectionID(new InetSocketAddress(address, dataPort), connectionIndex);
+        return new NettyShuffleDescriptor(
+                producerLocation, new NetworkPartitionConnectionInfo(connectionID), id);
+    }
 
-	public static NettyShuffleDescriptorBuilder newBuilder() {
-		return new NettyShuffleDescriptorBuilder();
-	}
+    public NettyShuffleDescriptor buildLocal() {
+        return new NettyShuffleDescriptor(
+                producerLocation, LocalExecutionPartitionConnectionInfo.INSTANCE, id);
+    }
 
-	public static NettyShuffleDescriptor createRemoteWithIdAndLocation(
-			IntermediateResultPartitionID partitionId,
-			ResourceID producerLocation) {
-		return newBuilder()
-			.setId(new ResultPartitionID(partitionId, new ExecutionAttemptID()))
-			.setProducerLocation(producerLocation)
-			.buildRemote();
-	}
+    public static NettyShuffleDescriptorBuilder newBuilder() {
+        return new NettyShuffleDescriptorBuilder();
+    }
+
+    public static NettyShuffleDescriptor createRemoteWithIdAndLocation(
+            IntermediateResultPartitionID partitionId, ResourceID producerLocation) {
+        return newBuilder()
+                .setId(new ResultPartitionID(partitionId, new ExecutionAttemptID()))
+                .setProducerLocation(producerLocation)
+                .buildRemote();
+    }
 }

@@ -31,43 +31,41 @@ import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * {@link ResultPartitionWriter} that collects records or events on the List.
- */
-public class RecordOrEventCollectingResultPartitionWriter<T> extends AbstractCollectingResultPartitionWriter {
-	private final Collection<Object> output;
-	private final NonReusingDeserializationDelegate<T> delegate;
-	private final RecordDeserializer<DeserializationDelegate<T>> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>
-		(new String[]{System.getProperty("java.io.tmpdir")});
+/** {@link ResultPartitionWriter} that collects records or events on the List. */
+public class RecordOrEventCollectingResultPartitionWriter<T>
+        extends AbstractCollectingResultPartitionWriter {
+    private final Collection<Object> output;
+    private final NonReusingDeserializationDelegate<T> delegate;
+    private final RecordDeserializer<DeserializationDelegate<T>> deserializer =
+            new SpillingAdaptiveSpanningRecordDeserializer<>(
+                    new String[] {System.getProperty("java.io.tmpdir")});
 
-	public RecordOrEventCollectingResultPartitionWriter(
-			Collection<Object> output,
-			TypeSerializer<T> serializer) {
-		this.output = checkNotNull(output);
-		this.delegate = new NonReusingDeserializationDelegate<>(checkNotNull(serializer));
-	}
+    public RecordOrEventCollectingResultPartitionWriter(
+            Collection<Object> output, TypeSerializer<T> serializer) {
+        this.output = checkNotNull(output);
+        this.delegate = new NonReusingDeserializationDelegate<>(checkNotNull(serializer));
+    }
 
-	@Override
-	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-		output.add(event);
-	}
+    @Override
+    public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+        output.add(event);
+    }
 
-	@Override
-	protected void deserializeBuffer(Buffer buffer) throws IOException {
-		deserializer.setNextBuffer(buffer);
+    @Override
+    protected void deserializeBuffer(Buffer buffer) throws IOException {
+        deserializer.setNextBuffer(buffer);
 
-		while (deserializer.hasUnfinishedData()) {
-			RecordDeserializer.DeserializationResult result =
-				deserializer.getNextRecord(delegate);
+        while (deserializer.hasUnfinishedData()) {
+            RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(delegate);
 
-			if (result.isFullRecord()) {
-				output.add(delegate.getInstance());
-			}
+            if (result.isFullRecord()) {
+                output.add(delegate.getInstance());
+            }
 
-			if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
-				|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
-				break;
-			}
-		}
-	}
+            if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
+                    || result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
+                break;
+            }
+        }
+    }
 }

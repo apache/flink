@@ -62,112 +62,130 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests ExecutionGraph schedule behavior with not enough resource.
- */
+/** Tests ExecutionGraph schedule behavior with not enough resource. */
 public class ExecutionGraphNotEnoughResourceTest extends TestLogger {
 
-	private static TestingComponentMainThreadExecutor.Resource mainThreadExecutorResource;
-	private static ComponentMainThreadExecutor mainThreadExecutor;
+    private static TestingComponentMainThreadExecutor.Resource mainThreadExecutorResource;
+    private static ComponentMainThreadExecutor mainThreadExecutor;
 
+    private static final JobID TEST_JOB_ID = new JobID();
+    private static final int NUM_TASKS = 31;
 
-	private static final JobID TEST_JOB_ID = new JobID();
-	private static final int NUM_TASKS = 31;
+    @BeforeClass
+    public static void setupClass() {
+        mainThreadExecutorResource = new TestingComponentMainThreadExecutor.Resource();
+        mainThreadExecutorResource.before();
+        mainThreadExecutor =
+                mainThreadExecutorResource
+                        .getComponentMainThreadTestExecutor()
+                        .getMainThreadExecutor();
+    }
 
-	@BeforeClass
-	public static void setupClass() {
-		mainThreadExecutorResource = new TestingComponentMainThreadExecutor.Resource();
-		mainThreadExecutorResource.before();
-		mainThreadExecutor = mainThreadExecutorResource.getComponentMainThreadTestExecutor().getMainThreadExecutor();
-	}
+    @AfterClass
+    public static void teardownClass() {
+        mainThreadExecutorResource.after();
+    }
 
-	@AfterClass
-	public static void teardownClass() {
-		mainThreadExecutorResource.after();
-	}
+    @Test
+    public void testRestartWithSlotSharingAndNotEnoughResources() throws Exception {
+        final int numRestarts = 10;
+        final int parallelism = 20;
 
-	@Test
-	public void testRestartWithSlotSharingAndNotEnoughResources() throws Exception {
-		final int numRestarts = 10;
-		final int parallelism = 20;
+        SlotPool slotPool = null;
+        try {
+            slotPool = new TestingSlotPoolImpl(TEST_JOB_ID);
+            final Scheduler scheduler =
+                    createSchedulerWithSlots(
+                            parallelism - 1, slotPool, new LocalTaskManagerLocation());
 
-		SlotPool slotPool = null;
-		try {
-			slotPool = new TestingSlotPoolImpl(TEST_JOB_ID);
-			final Scheduler scheduler = createSchedulerWithSlots(
-				parallelism - 1, slotPool, new LocalTaskManagerLocation());
+            final SlotSharingGroup sharingGroup = new SlotSharingGroup();
 
-			final SlotSharingGroup sharingGroup = new SlotSharingGroup();
+            final JobVertex source = new JobVertex("source");
+            source.setInvokableClass(NoOpInvokable.class);
+            source.setParallelism(parallelism);
+            source.setSlotSharingGroup(sharingGroup);
 
-			final JobVertex source = new JobVertex("source");
-			source.setInvokableClass(NoOpInvokable.class);
-			source.setParallelism(parallelism);
-			source.setSlotSharingGroup(sharingGroup);
+            final JobVertex sink = new JobVertex("sink");
+            sink.setInvokableClass(NoOpInvokable.class);
+            sink.setParallelism(parallelism);
+            sink.setSlotSharingGroup(sharingGroup);
+            sink.connectNewDataSetAsInput(
+                    source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
 
-			final JobVertex sink = new JobVertex("sink");
-			sink.setInvokableClass(NoOpInvokable.class);
-			sink.setParallelism(parallelism);
-			sink.setSlotSharingGroup(sharingGroup);
-			sink.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED_BOUNDED);
+            final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job", source, sink);
+            jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
-			final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job", source, sink);
-			jobGraph.setScheduleMode(ScheduleMode.EAGER);
+            TestRestartStrategy restartStrategy = new TestRestartStrategy(numRestarts, false);
 
-			TestRestartStrategy restartStrategy = new TestRestartStrategy(numRestarts, false);
+            final ExecutionGraph eg =
+                    TestingExecutionGraphBuilder.newBuilder()
+                            .setJobGraph(jobGraph)
+                            .setSlotProvider(scheduler)
+                            .setRestartStrategy(restartStrategy)
+                            .setAllocationTimeout(Time.milliseconds(1L))
+                            .build();
 
-			final ExecutionGraph eg = TestingExecutionGraphBuilder
-				.newBuilder()
-				.setJobGraph(jobGraph)
-				.setSlotProvider(scheduler)
-				.setRestartStrategy(restartStrategy)
-				.setAllocationTimeout(Time.milliseconds(1L))
-				.build();
+            eg.start(mainThreadExecutor);
 
-			eg.start(mainThreadExecutor);
+            mainThreadExecutor.execute(ThrowingRunnable.unchecked(eg::scheduleForExecution));
 
-			mainThreadExecutor.execute(ThrowingRunnable.unchecked(eg::scheduleForExecution));
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            CompletableFuture.supplyAsync(eg::getState, mainThreadExecutor).join()
+                                    == JobStatus.FAILED,
+                    Deadline.fromNow(Duration.ofSeconds(10)));
 
-			CommonTestUtils.waitUntilCondition(
-				() -> CompletableFuture.supplyAsync(eg::getState, mainThreadExecutor).join() == JobStatus.FAILED,
-				Deadline.fromNow(Duration.ofSeconds(10)));
+            // the last suppressed restart is also counted
+            assertEquals(
+                    numRestarts + 1,
+                    CompletableFuture.supplyAsync(eg::getNumberOfRestarts, mainThreadExecutor)
+                            .join()
+                            .longValue());
 
-			// the last suppressed restart is also counted
-			assertEquals(numRestarts + 1, CompletableFuture.supplyAsync(eg::getNumberOfRestarts, mainThreadExecutor).join().longValue());
+            final Throwable t =
+                    CompletableFuture.supplyAsync(eg::getFailureCause, mainThreadExecutor).join();
+            if (!(t instanceof NoResourceAvailableException)) {
+                ExceptionUtils.rethrowException(t, t.getMessage());
+            }
+        } finally {
+            if (slotPool != null) {
+                CompletableFuture.runAsync(slotPool::close, mainThreadExecutor).join();
+            }
+        }
+    }
 
-			final Throwable t = CompletableFuture.supplyAsync(eg::getFailureCause, mainThreadExecutor).join();
-			if (!(t instanceof NoResourceAvailableException)) {
-				ExceptionUtils.rethrowException(t, t.getMessage());
-			}
-		} finally {
-			if (slotPool != null) {
-				CompletableFuture.runAsync(slotPool::close, mainThreadExecutor).join();
-			}
-		}
-	}
+    private static Scheduler createSchedulerWithSlots(
+            int numSlots, SlotPool slotPool, TaskManagerLocation taskManagerLocation)
+            throws Exception {
+        final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+        final String jobManagerAddress = "foobar";
+        final ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+        slotPool.start(JobMasterId.generate(), jobManagerAddress, mainThreadExecutor);
+        slotPool.connectToResourceManager(resourceManagerGateway);
+        Scheduler scheduler =
+                new SchedulerImpl(
+                        LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
+        scheduler.start(mainThreadExecutor);
 
-	private static Scheduler createSchedulerWithSlots(
-			int numSlots,
-			SlotPool slotPool,
-			TaskManagerLocation taskManagerLocation) throws Exception {
-		final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
-		final String jobManagerAddress = "foobar";
-		final ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-		slotPool.start(JobMasterId.generate(), jobManagerAddress, mainThreadExecutor);
-		slotPool.connectToResourceManager(resourceManagerGateway);
-		Scheduler scheduler = new SchedulerImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
-		scheduler.start(mainThreadExecutor);
+        CompletableFuture.runAsync(
+                        () -> slotPool.registerTaskManager(taskManagerLocation.getResourceID()),
+                        mainThreadExecutor)
+                .join();
 
-		CompletableFuture.runAsync(() -> slotPool.registerTaskManager(taskManagerLocation.getResourceID()), mainThreadExecutor).join();
+        final List<SlotOffer> slotOffers = new ArrayList<>(NUM_TASKS);
+        for (int i = 0; i < numSlots; i++) {
+            final AllocationID allocationId = new AllocationID();
+            final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.ANY);
+            slotOffers.add(slotOffer);
+        }
 
-		final List<SlotOffer> slotOffers = new ArrayList<>(NUM_TASKS);
-		for (int i = 0; i < numSlots; i++) {
-			final AllocationID allocationId = new AllocationID();
-			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.ANY);
-			slotOffers.add(slotOffer);
-		}
+        CompletableFuture.runAsync(
+                        () ->
+                                slotPool.offerSlots(
+                                        taskManagerLocation, taskManagerGateway, slotOffers),
+                        mainThreadExecutor)
+                .join();
 
-		CompletableFuture.runAsync(() -> slotPool.offerSlots(taskManagerLocation, taskManagerGateway, slotOffers), mainThreadExecutor).join();
-
-		return scheduler;
-	}
+        return scheduler;
+    }
 }

@@ -33,37 +33,35 @@ import java.util.List;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link Collect}.
- */
+/** Tests for {@link Collect}. */
 public class CollectTest {
 
-	private ExecutionEnvironment env;
+    private ExecutionEnvironment env;
 
-	@Before
-	public void setup() throws Exception {
-		env = ExecutionEnvironment.createCollectionsEnvironment();
-		env.getConfig().enableObjectReuse();
-	}
+    @Before
+    public void setup() throws Exception {
+        env = ExecutionEnvironment.createCollectionsEnvironment();
+        env.getConfig().enableObjectReuse();
+    }
 
-	@Test
-	public void testList() throws Exception {
-		List<Long> list = Arrays.asList(ArrayUtils.toObject(
-			new long[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }));
+    @Test
+    public void testList() throws Exception {
+        List<Long> list =
+                Arrays.asList(ArrayUtils.toObject(new long[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));
 
-		DataSet<Long> dataset = env.fromCollection(list);
+        DataSet<Long> dataset = env.fromCollection(list);
 
-		List<Long> collected = new Collect<Long>().run(dataset).execute();
+        List<Long> collected = new Collect<Long>().run(dataset).execute();
 
-		assertArrayEquals(list.toArray(), collected.toArray());
-	}
+        assertArrayEquals(list.toArray(), collected.toArray());
+    }
 
-	@Test
-	public void testEmptyList() throws Exception {
-		DataSet<Long> dataset = env.fromCollection(Collections.emptyList(), Types.LONG);
+    @Test
+    public void testEmptyList() throws Exception {
+        DataSet<Long> dataset = env.fromCollection(Collections.emptyList(), Types.LONG);
 
-		List<Long> collected = new Collect<Long>().run(dataset).execute();
+        List<Long> collected = new Collect<Long>().run(dataset).execute();
 
-		assertEquals(0, collected.size());
-	}
+        assertEquals(0, collected.size());
+    }
 }

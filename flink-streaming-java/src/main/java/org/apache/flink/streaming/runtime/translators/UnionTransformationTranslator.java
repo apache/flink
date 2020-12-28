@@ -33,36 +33,34 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link TransformationTranslator} for the {@link UnionTransformation}.
  *
- * @param <OUT> The type of the elements that result from the {@link UnionTransformation} being translated.
+ * @param <OUT> The type of the elements that result from the {@link UnionTransformation} being
+ *     translated.
  */
 @Internal
 public class UnionTransformationTranslator<OUT>
-		extends SimpleTransformationTranslator<OUT, UnionTransformation<OUT>> {
+        extends SimpleTransformationTranslator<OUT, UnionTransformation<OUT>> {
 
-	@Override
-	protected Collection<Integer> translateForBatchInternal(
-			final UnionTransformation<OUT> transformation,
-			final Context context) {
-		return translateInternal(transformation, context);
-	}
+    @Override
+    protected Collection<Integer> translateForBatchInternal(
+            final UnionTransformation<OUT> transformation, final Context context) {
+        return translateInternal(transformation, context);
+    }
 
-	@Override
-	protected Collection<Integer> translateForStreamingInternal(
-			final UnionTransformation<OUT> transformation,
-			final Context context) {
-		return translateInternal(transformation, context);
-	}
+    @Override
+    protected Collection<Integer> translateForStreamingInternal(
+            final UnionTransformation<OUT> transformation, final Context context) {
+        return translateInternal(transformation, context);
+    }
 
-	private Collection<Integer> translateInternal(
-			final UnionTransformation<OUT> transformation,
-			final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(context);
+    private Collection<Integer> translateInternal(
+            final UnionTransformation<OUT> transformation, final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(context);
 
-		final List<Integer> resultIds = new ArrayList<>();
-		for (Transformation<?> input: transformation.getInputs()) {
-			resultIds.addAll(context.getStreamNodeIds(input));
-		}
-		return resultIds;
-	}
+        final List<Integer> resultIds = new ArrayList<>();
+        for (Transformation<?> input : transformation.getInputs()) {
+            resultIds.addAll(context.getStreamNodeIds(input));
+        }
+        return resultIds;
+    }
 }

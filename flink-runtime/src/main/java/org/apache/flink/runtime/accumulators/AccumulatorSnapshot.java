@@ -28,42 +28,44 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * This class encapsulates a map of accumulators for a single task. It is used
- * for the transfer from TaskManagers to the JobManager and from the JobManager
- * to the Client.
+ * This class encapsulates a map of accumulators for a single task. It is used for the transfer from
+ * TaskManagers to the JobManager and from the JobManager to the Client.
  */
 public class AccumulatorSnapshot implements Serializable {
 
-	private static final long serialVersionUID = 42L;
+    private static final long serialVersionUID = 42L;
 
-	private final JobID jobID;
-	private final ExecutionAttemptID executionAttemptID;
+    private final JobID jobID;
+    private final ExecutionAttemptID executionAttemptID;
 
-	/**
-	 * Serialized user accumulators which may require the custom user class loader.
-	 */
-	private final SerializedValue<Map<String, Accumulator<?, ?>>> userAccumulators;
+    /** Serialized user accumulators which may require the custom user class loader. */
+    private final SerializedValue<Map<String, Accumulator<?, ?>>> userAccumulators;
 
-	public AccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
-							Map<String, Accumulator<?, ?>> userAccumulators) throws IOException {
-		this.jobID = jobID;
-		this.executionAttemptID = executionAttemptID;
-		this.userAccumulators = new SerializedValue<>(userAccumulators);
-	}
+    public AccumulatorSnapshot(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            Map<String, Accumulator<?, ?>> userAccumulators)
+            throws IOException {
+        this.jobID = jobID;
+        this.executionAttemptID = executionAttemptID;
+        this.userAccumulators = new SerializedValue<>(userAccumulators);
+    }
 
-	public JobID getJobID() {
-		return jobID;
-	}
+    public JobID getJobID() {
+        return jobID;
+    }
 
-	public ExecutionAttemptID getExecutionAttemptID() {
-		return executionAttemptID;
-	}
+    public ExecutionAttemptID getExecutionAttemptID() {
+        return executionAttemptID;
+    }
 
-	/**
-	 * Gets the user-defined accumulators values.
-	 * @return the serialized map
-	 */
-	public Map<String, Accumulator<?, ?>> deserializeUserAccumulators(ClassLoader classLoader) throws IOException, ClassNotFoundException {
-		return userAccumulators.deserializeValue(classLoader);
-	}
+    /**
+     * Gets the user-defined accumulators values.
+     *
+     * @return the serialized map
+     */
+    public Map<String, Accumulator<?, ?>> deserializeUserAccumulators(ClassLoader classLoader)
+            throws IOException, ClassNotFoundException {
+        return userAccumulators.deserializeValue(classLoader);
+    }
 }

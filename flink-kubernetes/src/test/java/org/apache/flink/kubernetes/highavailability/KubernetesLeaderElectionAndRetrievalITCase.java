@@ -35,57 +35,66 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * IT Tests for the {@link KubernetesLeaderElectionDriver} and {@link KubernetesLeaderRetrievalDriver}. We expect the
- * {@link KubernetesLeaderElectionDriver} could become the leader and {@link KubernetesLeaderRetrievalDriver} could
- * retrieve the leader address from Kubernetes.
+ * IT Tests for the {@link KubernetesLeaderElectionDriver} and {@link
+ * KubernetesLeaderRetrievalDriver}. We expect the {@link KubernetesLeaderElectionDriver} could
+ * become the leader and {@link KubernetesLeaderRetrievalDriver} could retrieve the leader address
+ * from Kubernetes.
  */
 public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
 
-	@ClassRule
-	public static KubernetesResource kubernetesResource = new KubernetesResource();
+    @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
 
-	private static final long TIMEOUT = 120L * 1000L;
+    private static final long TIMEOUT = 120L * 1000L;
 
-	@Test
-	public void testLeaderElectionAndRetrieval() throws Exception {
-		final String configMapName = LEADER_CONFIGMAP_NAME + System.currentTimeMillis();
-		KubernetesLeaderElectionDriver leaderElectionDriver = null;
-		KubernetesLeaderRetrievalDriver leaderRetrievalDriver = null;
+    @Test
+    public void testLeaderElectionAndRetrieval() throws Exception {
+        final String configMapName = LEADER_CONFIGMAP_NAME + System.currentTimeMillis();
+        KubernetesLeaderElectionDriver leaderElectionDriver = null;
+        KubernetesLeaderRetrievalDriver leaderRetrievalDriver = null;
 
-		try {
-			final TestingLeaderElectionEventHandler electionEventHandler =
-				new TestingLeaderElectionEventHandler(LEADER_INFORMATION);
-			leaderElectionDriver = new KubernetesLeaderElectionDriver(
-				kubernetesResource.getFlinkKubeClient(),
-				new KubernetesLeaderElectionConfiguration(
-					configMapName, UUID.randomUUID().toString(), kubernetesResource.getConfiguration()),
-				electionEventHandler,
-				electionEventHandler::handleError);
-			electionEventHandler.init(leaderElectionDriver);
+        try {
+            final TestingLeaderElectionEventHandler electionEventHandler =
+                    new TestingLeaderElectionEventHandler(LEADER_INFORMATION);
+            leaderElectionDriver =
+                    new KubernetesLeaderElectionDriver(
+                            kubernetesResource.getFlinkKubeClient(),
+                            new KubernetesLeaderElectionConfiguration(
+                                    configMapName,
+                                    UUID.randomUUID().toString(),
+                                    kubernetesResource.getConfiguration()),
+                            electionEventHandler,
+                            electionEventHandler::handleError);
+            electionEventHandler.init(leaderElectionDriver);
 
-			final TestingLeaderRetrievalEventHandler retrievalEventHandler = new TestingLeaderRetrievalEventHandler();
-			leaderRetrievalDriver = new KubernetesLeaderRetrievalDriver(
-				kubernetesResource.getFlinkKubeClient(),
-				configMapName,
-				retrievalEventHandler,
-				retrievalEventHandler::handleError);
+            final TestingLeaderRetrievalEventHandler retrievalEventHandler =
+                    new TestingLeaderRetrievalEventHandler();
+            leaderRetrievalDriver =
+                    new KubernetesLeaderRetrievalDriver(
+                            kubernetesResource.getFlinkKubeClient(),
+                            configMapName,
+                            retrievalEventHandler,
+                            retrievalEventHandler::handleError);
 
-			electionEventHandler.waitForLeader(TIMEOUT);
-			// Check the new leader is confirmed
-			assertThat(electionEventHandler.getConfirmedLeaderInformation(), is(LEADER_INFORMATION));
+            electionEventHandler.waitForLeader(TIMEOUT);
+            // Check the new leader is confirmed
+            assertThat(
+                    electionEventHandler.getConfirmedLeaderInformation(), is(LEADER_INFORMATION));
 
-			// Check the leader retrieval driver should be notified the leader address
-			retrievalEventHandler.waitForNewLeader(TIMEOUT);
-			assertThat(retrievalEventHandler.getLeaderSessionID(), is(LEADER_INFORMATION.getLeaderSessionID()));
-			assertThat(retrievalEventHandler.getAddress(), is(LEADER_INFORMATION.getLeaderAddress()));
-		} finally {
-			if (leaderElectionDriver != null) {
-				leaderElectionDriver.close();
-			}
-			if (leaderRetrievalDriver != null) {
-				leaderRetrievalDriver.close();
-			}
-			kubernetesResource.getFlinkKubeClient().deleteConfigMap(configMapName).get();
-		}
-	}
+            // Check the leader retrieval driver should be notified the leader address
+            retrievalEventHandler.waitForNewLeader(TIMEOUT);
+            assertThat(
+                    retrievalEventHandler.getLeaderSessionID(),
+                    is(LEADER_INFORMATION.getLeaderSessionID()));
+            assertThat(
+                    retrievalEventHandler.getAddress(), is(LEADER_INFORMATION.getLeaderAddress()));
+        } finally {
+            if (leaderElectionDriver != null) {
+                leaderElectionDriver.close();
+            }
+            if (leaderRetrievalDriver != null) {
+                leaderRetrievalDriver.close();
+            }
+            kubernetesResource.getFlinkKubeClient().deleteConfigMap(configMapName).get();
+        }
+    }
 }

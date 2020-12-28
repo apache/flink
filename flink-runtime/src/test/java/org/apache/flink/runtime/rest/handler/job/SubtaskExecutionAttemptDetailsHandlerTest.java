@@ -56,126 +56,115 @@ import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests of {@link SubtaskExecutionAttemptDetailsHandler}.
- */
+/** Tests of {@link SubtaskExecutionAttemptDetailsHandler}. */
 public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 
-	@Test
-	public void testHandleRequest() throws Exception {
+    @Test
+    public void testHandleRequest() throws Exception {
 
-		final JobID jobID = new JobID();
-		final JobVertexID jobVertexId = new JobVertexID();
+        final JobID jobID = new JobID();
+        final JobVertexID jobVertexId = new JobVertexID();
 
-		// The testing subtask.
-		final int subtaskIndex = 1;
-		final ExecutionState expectedState = ExecutionState.FINISHED;
-		final int attempt = 0;
+        // The testing subtask.
+        final int subtaskIndex = 1;
+        final ExecutionState expectedState = ExecutionState.FINISHED;
+        final int attempt = 0;
 
-		final StringifiedAccumulatorResult[] emptyAccumulators = new StringifiedAccumulatorResult[0];
+        final StringifiedAccumulatorResult[] emptyAccumulators =
+                new StringifiedAccumulatorResult[0];
 
-		final long bytesIn = 1L;
-		final long bytesOut = 10L;
-		final long recordsIn = 20L;
-		final long recordsOut = 30L;
+        final long bytesIn = 1L;
+        final long bytesOut = 10L;
+        final long recordsIn = 20L;
+        final long recordsOut = 30L;
 
-		final IOMetrics ioMetrics = new IOMetrics(
-			bytesIn,
-			bytesOut,
-			recordsIn,
-			recordsOut);
+        final IOMetrics ioMetrics = new IOMetrics(bytesIn, bytesOut, recordsIn, recordsOut);
 
-		final ArchivedExecutionJobVertex archivedExecutionJobVertex = new ArchivedExecutionJobVertex(
-			new ArchivedExecutionVertex[]{
-				null, // the first subtask won't be queried
-				new ArchivedExecutionVertex(
-					subtaskIndex,
-					"test task",
-					new ArchivedExecution(
-						emptyAccumulators,
-						ioMetrics,
-						new ExecutionAttemptID(),
-						attempt,
-						expectedState,
-						null,
-						null,
-						null,
-						subtaskIndex,
-						new long[ExecutionState.values().length]),
-					new EvictingBoundedList<>(0)
-				)
-			},
-			jobVertexId,
-			"test",
-			1,
-			1,
-			ResourceProfile.UNKNOWN,
-			emptyAccumulators);
+        final ArchivedExecutionJobVertex archivedExecutionJobVertex =
+                new ArchivedExecutionJobVertex(
+                        new ArchivedExecutionVertex[] {
+                            null, // the first subtask won't be queried
+                            new ArchivedExecutionVertex(
+                                    subtaskIndex,
+                                    "test task",
+                                    new ArchivedExecution(
+                                            emptyAccumulators,
+                                            ioMetrics,
+                                            new ExecutionAttemptID(),
+                                            attempt,
+                                            expectedState,
+                                            null,
+                                            null,
+                                            null,
+                                            subtaskIndex,
+                                            new long[ExecutionState.values().length]),
+                                    new EvictingBoundedList<>(0))
+                        },
+                        jobVertexId,
+                        "test",
+                        1,
+                        1,
+                        ResourceProfile.UNKNOWN,
+                        emptyAccumulators);
 
-		// Change some fields so we can make it different from other sub tasks.
-		final MetricFetcher metricFetcher = new MetricFetcherImpl<>(
-			() -> null,
-			address -> null,
-			TestingUtils.defaultExecutor(),
-			Time.milliseconds(1000L),
-			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+        // Change some fields so we can make it different from other sub tasks.
+        final MetricFetcher metricFetcher =
+                new MetricFetcherImpl<>(
+                        () -> null,
+                        address -> null,
+                        TestingUtils.defaultExecutor(),
+                        Time.milliseconds(1000L),
+                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
 
-		// Instance the handler.
-		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
+        // Instance the handler.
+        final RestHandlerConfiguration restHandlerConfiguration =
+                RestHandlerConfiguration.fromConfiguration(new Configuration());
 
-		final SubtaskExecutionAttemptDetailsHandler handler = new SubtaskExecutionAttemptDetailsHandler(
-			() -> null,
-			Time.milliseconds(100L),
-			Collections.emptyMap(),
-			SubtaskExecutionAttemptDetailsHeaders.getInstance(),
-			new DefaultExecutionGraphCache(
-				restHandlerConfiguration.getTimeout(),
-				Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
-			TestingUtils.defaultExecutor(),
-			metricFetcher);
+        final SubtaskExecutionAttemptDetailsHandler handler =
+                new SubtaskExecutionAttemptDetailsHandler(
+                        () -> null,
+                        Time.milliseconds(100L),
+                        Collections.emptyMap(),
+                        SubtaskExecutionAttemptDetailsHeaders.getInstance(),
+                        new DefaultExecutionGraphCache(
+                                restHandlerConfiguration.getTimeout(),
+                                Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
+                        TestingUtils.defaultExecutor(),
+                        metricFetcher);
 
-		final HashMap<String, String> receivedPathParameters = new HashMap<>(4);
-		receivedPathParameters.put(JobIDPathParameter.KEY, jobID.toString());
-		receivedPathParameters.put(JobVertexIdPathParameter.KEY, jobVertexId.toString());
-		receivedPathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(subtaskIndex));
-		receivedPathParameters.put(SubtaskAttemptPathParameter.KEY, Integer.toString(attempt));
+        final HashMap<String, String> receivedPathParameters = new HashMap<>(4);
+        receivedPathParameters.put(JobIDPathParameter.KEY, jobID.toString());
+        receivedPathParameters.put(JobVertexIdPathParameter.KEY, jobVertexId.toString());
+        receivedPathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(subtaskIndex));
+        receivedPathParameters.put(SubtaskAttemptPathParameter.KEY, Integer.toString(attempt));
 
-		final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request = new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			new SubtaskAttemptMessageParameters(),
-			receivedPathParameters,
-			Collections.emptyMap()
-		);
+        final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request =
+                new HandlerRequest<>(
+                        EmptyRequestBody.getInstance(),
+                        new SubtaskAttemptMessageParameters(),
+                        receivedPathParameters,
+                        Collections.emptyMap());
 
-		// Handle request.
-		final SubtaskExecutionAttemptDetailsInfo detailsInfo = handler.handleRequest(
-			request,
-			archivedExecutionJobVertex);
+        // Handle request.
+        final SubtaskExecutionAttemptDetailsInfo detailsInfo =
+                handler.handleRequest(request, archivedExecutionJobVertex);
 
-		// Verify
-		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
-			bytesIn,
-			true,
-			bytesOut,
-			true,
-			recordsIn,
-			true,
-			recordsOut,
-			true
-		);
+        // Verify
+        final IOMetricsInfo ioMetricsInfo =
+                new IOMetricsInfo(bytesIn, true, bytesOut, true, recordsIn, true, recordsOut, true);
 
-		final SubtaskExecutionAttemptDetailsInfo expectedDetailsInfo = new SubtaskExecutionAttemptDetailsInfo(
-			subtaskIndex,
-			expectedState,
-			attempt,
-			"(unassigned)",
-			-1L,
-			0L,
-			-1L,
-			ioMetricsInfo,
-			"(unassigned)"
-		);
+        final SubtaskExecutionAttemptDetailsInfo expectedDetailsInfo =
+                new SubtaskExecutionAttemptDetailsInfo(
+                        subtaskIndex,
+                        expectedState,
+                        attempt,
+                        "(unassigned)",
+                        -1L,
+                        0L,
+                        -1L,
+                        ioMetricsInfo,
+                        "(unassigned)");
 
-		assertEquals(expectedDetailsInfo, detailsInfo);
-	}
+        assertEquals(expectedDetailsInfo, detailsInfo);
+    }
 }

@@ -28,22 +28,21 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-/**
- * Base class of tests for all kinds of processing-time DeduplicateFunction.
- */
+/** Base class of tests for all kinds of processing-time DeduplicateFunction. */
 abstract class ProcTimeDeduplicateFunctionTestBase {
 
-	Time minTime = Time.milliseconds(10);
-	InternalTypeInfo<RowData> inputRowType = InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(),
-			new IntType());
+    Time minTime = Time.milliseconds(10);
+    InternalTypeInfo<RowData> inputRowType =
+            InternalTypeInfo.ofFields(
+                    new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new IntType());
 
-	int rowKeyIdx = 1;
-	BinaryRowDataKeySelector rowKeySelector = new BinaryRowDataKeySelector(
-		new int[] { rowKeyIdx },
-		inputRowType.toRowFieldTypes());
+    int rowKeyIdx = 1;
+    BinaryRowDataKeySelector rowKeySelector =
+            new BinaryRowDataKeySelector(new int[] {rowKeyIdx}, inputRowType.toRowFieldTypes());
 
-	RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(
-		inputRowType.toRowFieldTypes(),
-		new GenericRowRecordSortComparator(rowKeyIdx, inputRowType.toRowFieldTypes()[rowKeyIdx]));
-
+    RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(
+                    inputRowType.toRowFieldTypes(),
+                    new GenericRowRecordSortComparator(
+                            rowKeyIdx, inputRowType.toRowFieldTypes()[rowKeyIdx]));
 }

@@ -27,63 +27,61 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 
-/**
- * A {@code SplitReader} that returns a pre-defined set of records (by split).
- */
+/** A {@code SplitReader} that returns a pre-defined set of records (by split). */
 public class TestingSplitReader<E, SplitT extends SourceSplit> implements SplitReader<E, SplitT> {
 
-	private final ArrayDeque<RecordsWithSplitIds<E>> fetches;
-	private volatile boolean closed;
-	private volatile boolean closeWithException;
+    private final ArrayDeque<RecordsWithSplitIds<E>> fetches;
+    private volatile boolean closed;
+    private volatile boolean closeWithException;
 
-	@SafeVarargs
-	public TestingSplitReader(RecordsWithSplitIds<E>... fetches) {
-		this.fetches = new ArrayDeque<>(fetches.length);
-		this.fetches.addAll(Arrays.asList(fetches));
-		this.closed = false;
-		this.closeWithException = false;
-	}
+    @SafeVarargs
+    public TestingSplitReader(RecordsWithSplitIds<E>... fetches) {
+        this.fetches = new ArrayDeque<>(fetches.length);
+        this.fetches.addAll(Arrays.asList(fetches));
+        this.closed = false;
+        this.closeWithException = false;
+    }
 
-	@Override
-	public RecordsWithSplitIds<E> fetch() throws IOException {
-		if (!fetches.isEmpty()) {
-			return fetches.removeFirst();
-		} else {
-			// block until woken up
-			synchronized (fetches) {
-				try {
-					fetches.wait();
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-				}
-				return null;
-			}
-		}
-	}
+    @Override
+    public RecordsWithSplitIds<E> fetch() throws IOException {
+        if (!fetches.isEmpty()) {
+            return fetches.removeFirst();
+        } else {
+            // block until woken up
+            synchronized (fetches) {
+                try {
+                    fetches.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return null;
+            }
+        }
+    }
 
-	@Override
-	public void handleSplitsChanges(SplitsChange<SplitT> splitsChanges) {}
+    @Override
+    public void handleSplitsChanges(SplitsChange<SplitT> splitsChanges) {}
 
-	@Override
-	public void wakeUp() {
-		synchronized (fetches) {
-			fetches.notifyAll();
-		}
-	}
+    @Override
+    public void wakeUp() {
+        synchronized (fetches) {
+            fetches.notifyAll();
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		if (closeWithException) {
-			throw new Exception("Artificial exception on closing the split reader.");
-		}
-		closed = true;
-	}
+    @Override
+    public void close() throws Exception {
+        if (closeWithException) {
+            throw new Exception("Artificial exception on closing the split reader.");
+        }
+        closed = true;
+    }
 
-	public void setCloseWithException() {
-		closeWithException = true;
-	}
+    public void setCloseWithException() {
+        closeWithException = true;
+    }
 
-	public boolean isClosed() {
-		return closed;
-	}
+    public boolean isClosed() {
+        return closed;
+    }
 }

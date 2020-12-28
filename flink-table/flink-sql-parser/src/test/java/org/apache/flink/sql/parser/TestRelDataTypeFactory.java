@@ -26,39 +26,38 @@ import org.apache.calcite.rel.type.RelDataTypeImpl;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
 
-/**
- * {@link RelDataTypeFactory} for testing purposes.
- */
-public final class TestRelDataTypeFactory extends SqlTypeFactoryImpl implements ExtendedRelTypeFactory {
+/** {@link RelDataTypeFactory} for testing purposes. */
+public final class TestRelDataTypeFactory extends SqlTypeFactoryImpl
+        implements ExtendedRelTypeFactory {
 
-	TestRelDataTypeFactory(RelDataTypeSystem typeSystem) {
-		super(typeSystem);
-	}
+    TestRelDataTypeFactory(RelDataTypeSystem typeSystem) {
+        super(typeSystem);
+    }
 
-	@Override
-	public RelDataType createRawType(String className, String serializerString) {
-		return canonize(new DummyRawType(className, serializerString));
-	}
+    @Override
+    public RelDataType createRawType(String className, String serializerString) {
+        return canonize(new DummyRawType(className, serializerString));
+    }
 
-	private static class DummyRawType extends RelDataTypeImpl {
+    private static class DummyRawType extends RelDataTypeImpl {
 
-		private final String className;
+        private final String className;
 
-		private final String serializerString;
+        private final String serializerString;
 
-		DummyRawType(String className, String serializerString) {
-			this.className = className;
-			this.serializerString = serializerString;
-			computeDigest();
-		}
+        DummyRawType(String className, String serializerString) {
+            this.className = className;
+            this.serializerString = serializerString;
+            computeDigest();
+        }
 
-		@Override
-		protected void generateTypeString(StringBuilder sb, boolean withDetail) {
-			sb.append("RAW('");
-			sb.append(className);
-			sb.append("', '");
-			sb.append(serializerString);
-			sb.append("')");
-		}
-	}
+        @Override
+        protected void generateTypeString(StringBuilder sb, boolean withDetail) {
+            sb.append("RAW('");
+            sb.append(className);
+            sb.append("', '");
+            sb.append(serializerString);
+            sb.append("')");
+        }
+    }
 }

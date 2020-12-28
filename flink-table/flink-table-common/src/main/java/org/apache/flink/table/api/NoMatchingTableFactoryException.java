@@ -27,71 +27,70 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Exception for not finding a {@link TableFactory} for the given properties.
- */
+/** Exception for not finding a {@link TableFactory} for the given properties. */
 public class NoMatchingTableFactoryException extends RuntimeException {
 
-	// message that indicates the current matching step
-	private final String message;
-	// message that indicates the best matched factory
-	@Nullable
-	private final String matchCandidatesMessage;
-	// required factory class
-	private final Class<?> factoryClass;
-	// all found factories
-	private final List<TableFactory> factories;
-	// properties that describe the configuration
-	private final Map<String, String> properties;
+    // message that indicates the current matching step
+    private final String message;
+    // message that indicates the best matched factory
+    @Nullable private final String matchCandidatesMessage;
+    // required factory class
+    private final Class<?> factoryClass;
+    // all found factories
+    private final List<TableFactory> factories;
+    // properties that describe the configuration
+    private final Map<String, String> properties;
 
-	public NoMatchingTableFactoryException(
-		String message,
-		@Nullable String matchCandidatesMessage,
-		Class<?> factoryClass,
-		List<TableFactory> factories,
-		Map<String, String> properties,
-		Throwable cause) {
+    public NoMatchingTableFactoryException(
+            String message,
+            @Nullable String matchCandidatesMessage,
+            Class<?> factoryClass,
+            List<TableFactory> factories,
+            Map<String, String> properties,
+            Throwable cause) {
 
-		super(cause);
-		this.message = message;
-		this.matchCandidatesMessage = matchCandidatesMessage;
-		this.factoryClass = factoryClass;
-		this.factories = factories;
-		this.properties = properties;
-	}
+        super(cause);
+        this.message = message;
+        this.matchCandidatesMessage = matchCandidatesMessage;
+        this.factoryClass = factoryClass;
+        this.factories = factories;
+        this.properties = properties;
+    }
 
-	public NoMatchingTableFactoryException(
-		String message,
-		Class<?> factoryClass,
-		List<TableFactory> factories,
-		Map<String, String> properties) {
-		this(message, null, factoryClass, factories, properties, null);
-	}
+    public NoMatchingTableFactoryException(
+            String message,
+            Class<?> factoryClass,
+            List<TableFactory> factories,
+            Map<String, String> properties) {
+        this(message, null, factoryClass, factories, properties, null);
+    }
 
-	public NoMatchingTableFactoryException(
-		String message,
-		@Nullable String matchCandidatesMessage,
-		Class<?> factoryClass,
-		List<TableFactory> factories,
-		Map<String, String> properties) {
-		this(message, matchCandidatesMessage, factoryClass, factories, properties, null);
-	}
+    public NoMatchingTableFactoryException(
+            String message,
+            @Nullable String matchCandidatesMessage,
+            Class<?> factoryClass,
+            List<TableFactory> factories,
+            Map<String, String> properties) {
+        this(message, matchCandidatesMessage, factoryClass, factories, properties, null);
+    }
 
-	@Override
-	public String getMessage() {
-		String matchCandidatesString = matchCandidatesMessage == null ?
-			"" :
-			"The matching candidates:\n" + matchCandidatesMessage + "\n\n";
-		return String.format(
-			"Could not find a suitable table factory for '%s' in\nthe classpath.\n\n" +
-				"Reason: %s\n\n%s" +
-				"The following properties are requested:\n%s\n\n" +
-				"The following factories have been considered:\n%s",
-			factoryClass.getName(),
-			message,
-			matchCandidatesString,
-			DescriptorProperties.toString(properties),
-			factories.stream().map(p -> p.getClass().getName()).collect(Collectors.joining("\n"))
-		);
-	}
+    @Override
+    public String getMessage() {
+        String matchCandidatesString =
+                matchCandidatesMessage == null
+                        ? ""
+                        : "The matching candidates:\n" + matchCandidatesMessage + "\n\n";
+        return String.format(
+                "Could not find a suitable table factory for '%s' in\nthe classpath.\n\n"
+                        + "Reason: %s\n\n%s"
+                        + "The following properties are requested:\n%s\n\n"
+                        + "The following factories have been considered:\n%s",
+                factoryClass.getName(),
+                message,
+                matchCandidatesString,
+                DescriptorProperties.toString(properties),
+                factories.stream()
+                        .map(p -> p.getClass().getName())
+                        .collect(Collectors.joining("\n")));
+    }
 }

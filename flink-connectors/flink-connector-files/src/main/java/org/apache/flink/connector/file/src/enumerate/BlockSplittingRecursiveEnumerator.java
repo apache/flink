@@ -39,112 +39,120 @@ import java.util.function.Predicate;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This {@code FileEnumerator} enumerates all files under the given paths recursively,
- * and creates a separate split for each file block.
+ * This {@code FileEnumerator} enumerates all files under the given paths recursively, and creates a
+ * separate split for each file block.
  *
  * <p>Please note that file blocks are only exposed by some file systems, such as HDFS. File systems
- * that do not expose block information will not create multiple file splits per file, but keep
- * the files as one source split.
+ * that do not expose block information will not create multiple file splits per file, but keep the
+ * files as one source split.
  *
- * <p>Files with suffixes corresponding to known compression formats (for example '.gzip', '.bz2', ...)
- * will not be split. See {@link StandardDeCompressors} for a list of known formats and suffixes.
+ * <p>Files with suffixes corresponding to known compression formats (for example '.gzip', '.bz2',
+ * ...) will not be split. See {@link StandardDeCompressors} for a list of known formats and
+ * suffixes.
  *
- * <p>The default instantiation of this enumerator filters files with the common hidden file prefixes
- * '.' and '_'. A custom file filter can be specified.
+ * <p>The default instantiation of this enumerator filters files with the common hidden file
+ * prefixes '.' and '_'. A custom file filter can be specified.
  */
 @PublicEvolving
 public class BlockSplittingRecursiveEnumerator extends NonSplittingRecursiveEnumerator {
 
-	private static final Logger LOG = LoggerFactory.getLogger(BlockSplittingRecursiveEnumerator.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(BlockSplittingRecursiveEnumerator.class);
 
-	private final String[] nonSplittableFileSuffixes;
+    private final String[] nonSplittableFileSuffixes;
 
-	/**
-	 * Creates a new enumerator that enumerates all files except hidden files.
-	 * Hidden files are considered files where the filename starts with '.' or with '_'.
-	 *
-	 * <p>The enumerator does not split files that have a suffix corresponding to a known
-	 * compression format (for example '.gzip', '.bz2', '.xy', '.zip', ...).
-	 * See {@link StandardDeCompressors} for details.
-	 */
-	public BlockSplittingRecursiveEnumerator() {
-		this(new DefaultFileFilter(), StandardDeCompressors.getCommonSuffixes().toArray(new String[0]));
-	}
+    /**
+     * Creates a new enumerator that enumerates all files except hidden files. Hidden files are
+     * considered files where the filename starts with '.' or with '_'.
+     *
+     * <p>The enumerator does not split files that have a suffix corresponding to a known
+     * compression format (for example '.gzip', '.bz2', '.xy', '.zip', ...). See {@link
+     * StandardDeCompressors} for details.
+     */
+    public BlockSplittingRecursiveEnumerator() {
+        this(
+                new DefaultFileFilter(),
+                StandardDeCompressors.getCommonSuffixes().toArray(new String[0]));
+    }
 
-	/**
-	 * Creates a new enumerator that uses the given predicate as a filter
-	 * for file paths, and avoids splitting files with the given extension (typically
-	 * to avoid splitting compressed files).
-	 */
-	public BlockSplittingRecursiveEnumerator(
-			final Predicate<Path> fileFilter,
-			final String[] nonSplittableFileSuffixes) {
-		super(fileFilter);
-		this.nonSplittableFileSuffixes = checkNotNull(nonSplittableFileSuffixes);
-	}
+    /**
+     * Creates a new enumerator that uses the given predicate as a filter for file paths, and avoids
+     * splitting files with the given extension (typically to avoid splitting compressed files).
+     */
+    public BlockSplittingRecursiveEnumerator(
+            final Predicate<Path> fileFilter, final String[] nonSplittableFileSuffixes) {
+        super(fileFilter);
+        this.nonSplittableFileSuffixes = checkNotNull(nonSplittableFileSuffixes);
+    }
 
-	protected void convertToSourceSplits(
-			final FileStatus file,
-			final FileSystem fs,
-			final List<FileSourceSplit> target) throws IOException {
+    protected void convertToSourceSplits(
+            final FileStatus file, final FileSystem fs, final List<FileSourceSplit> target)
+            throws IOException {
 
-		if (!isFileSplittable(file.getPath())) {
-			super.convertToSourceSplits(file, fs, target);
-			return;
-		}
+        if (!isFileSplittable(file.getPath())) {
+            super.convertToSourceSplits(file, fs, target);
+            return;
+        }
 
-		final BlockLocation[] blocks = getBlockLocationsForFile(file, fs);
-		if (blocks == null) {
-			target.add(new FileSourceSplit(getNextId(), file.getPath(), 0L, file.getLen()));
-		} else {
-			for (BlockLocation block : blocks) {
-				target.add(new FileSourceSplit(
-						getNextId(),
-						file.getPath(),
-						block.getOffset(),
-						block.getLength(),
-						block.getHosts()));
-			}
-		}
-	}
+        final BlockLocation[] blocks = getBlockLocationsForFile(file, fs);
+        if (blocks == null) {
+            target.add(new FileSourceSplit(getNextId(), file.getPath(), 0L, file.getLen()));
+        } else {
+            for (BlockLocation block : blocks) {
+                target.add(
+                        new FileSourceSplit(
+                                getNextId(),
+                                file.getPath(),
+                                block.getOffset(),
+                                block.getLength(),
+                                block.getHosts()));
+            }
+        }
+    }
 
-	protected boolean isFileSplittable(Path filePath) {
-		if (nonSplittableFileSuffixes.length == 0) {
-			return true;
-		}
+    protected boolean isFileSplittable(Path filePath) {
+        if (nonSplittableFileSuffixes.length == 0) {
+            return true;
+        }
 
-		final String path = filePath.getPath();
-		for (String suffix : nonSplittableFileSuffixes) {
-			if (path.endsWith(suffix)) {
-				return false;
-			}
-		}
-		return true;
-	}
+        final String path = filePath.getPath();
+        for (String suffix : nonSplittableFileSuffixes) {
+            if (path.endsWith(suffix)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-	@Nullable
-	private static BlockLocation[] getBlockLocationsForFile(FileStatus file, FileSystem fs) throws IOException {
-		final long len = file.getLen();
+    @Nullable
+    private static BlockLocation[] getBlockLocationsForFile(FileStatus file, FileSystem fs)
+            throws IOException {
+        final long len = file.getLen();
 
-		final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, len);
-		if (blocks == null || blocks.length == 0) {
-			return null;
-		}
+        final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, len);
+        if (blocks == null || blocks.length == 0) {
+            return null;
+        }
 
-		// a cheap check whether we have all blocks. we don't check whether the blocks fully cover the
-		// file (too expensive) but make some sanity checks to catch early the common cases where incorrect
-		// bloc info is returned by the implementation.
+        // a cheap check whether we have all blocks. we don't check whether the blocks fully cover
+        // the
+        // file (too expensive) but make some sanity checks to catch early the common cases where
+        // incorrect
+        // bloc info is returned by the implementation.
 
-		long totalLen = 0L;
-		for (BlockLocation block : blocks) {
-			totalLen += block.getLength();
-		}
-		if (totalLen != len) {
-			LOG.warn("Block lengths do not match file length for {}. File length is {}, blocks are {}",
-					file.getPath(), len, Arrays.toString(blocks));
-			return null;
-		}
+        long totalLen = 0L;
+        for (BlockLocation block : blocks) {
+            totalLen += block.getLength();
+        }
+        if (totalLen != len) {
+            LOG.warn(
+                    "Block lengths do not match file length for {}. File length is {}, blocks are {}",
+                    file.getPath(),
+                    len,
+                    Arrays.toString(blocks));
+            return null;
+        }
 
-		return blocks;
-	}
+        return blocks;
+    }
 }

@@ -30,39 +30,38 @@ import org.apache.calcite.util.Pair;
 
 import java.util.List;
 
-/**
- * To represent STRUCT type in Hive.
- */
+/** To represent STRUCT type in Hive. */
 public class ExtendedHiveStructTypeNameSpec extends ExtendedSqlRowTypeNameSpec {
 
-	public ExtendedHiveStructTypeNameSpec(
-			SqlParserPos pos,
-			List<SqlIdentifier> fieldNames,
-			List<SqlDataTypeSpec> fieldTypes,
-			List<SqlCharStringLiteral> comments) throws ParseException {
-		super(pos, fieldNames, fieldTypes, comments, false);
-		if (fieldNames.isEmpty()) {
-			throw new ParseException("STRUCT with no fields is not allowed");
-		}
-	}
+    public ExtendedHiveStructTypeNameSpec(
+            SqlParserPos pos,
+            List<SqlIdentifier> fieldNames,
+            List<SqlDataTypeSpec> fieldTypes,
+            List<SqlCharStringLiteral> comments)
+            throws ParseException {
+        super(pos, fieldNames, fieldTypes, comments, false);
+        if (fieldNames.isEmpty()) {
+            throw new ParseException("STRUCT with no fields is not allowed");
+        }
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.print("STRUCT");
-		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
-		int i = 0;
-		for (Pair<SqlIdentifier, SqlDataTypeSpec> p : Pair.zip(getFieldNames(), getFieldTypes())) {
-			writer.sep(",", false);
-			p.left.unparse(writer, 0, 0);
-			p.right.unparse(writer, leftPrec, rightPrec);
-			if (p.right.getNullable() != null && !p.right.getNullable()) {
-				writer.keyword("NOT NULL");
-			}
-			if (getComments().get(i) != null) {
-				getComments().get(i).unparse(writer, leftPrec, rightPrec);
-			}
-			i += 1;
-		}
-		writer.endList(frame);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.print("STRUCT");
+        SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
+        int i = 0;
+        for (Pair<SqlIdentifier, SqlDataTypeSpec> p : Pair.zip(getFieldNames(), getFieldTypes())) {
+            writer.sep(",", false);
+            p.left.unparse(writer, 0, 0);
+            p.right.unparse(writer, leftPrec, rightPrec);
+            if (p.right.getNullable() != null && !p.right.getNullable()) {
+                writer.keyword("NOT NULL");
+            }
+            if (getComments().get(i) != null) {
+                getComments().get(i).unparse(writer, leftPrec, rightPrec);
+            }
+            i += 1;
+        }
+        writer.endList(frame);
+    }
 }

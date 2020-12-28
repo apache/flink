@@ -25,52 +25,55 @@ import javax.annotation.Nullable;
 
 import java.util.Optional;
 
-/**
- * A factory containing all the necessary information for creating clients to Flink clusters.
- */
+/** A factory containing all the necessary information for creating clients to Flink clusters. */
 @Internal
 public interface ClusterClientFactory<ClusterID> {
 
-	/**
-	 * Returns {@code true} if the current {@link ClusterClientFactory} is compatible with the provided configuration,
-	 * {@code false} otherwise.
-	 */
-	boolean isCompatibleWith(Configuration configuration);
+    /**
+     * Returns {@code true} if the current {@link ClusterClientFactory} is compatible with the
+     * provided configuration, {@code false} otherwise.
+     */
+    boolean isCompatibleWith(Configuration configuration);
 
-	/**
-	 * Create a {@link ClusterDescriptor} from the given configuration.
-	 *
-	 * @param configuration containing the configuration options relevant for the {@link ClusterDescriptor}
-	 * @return the corresponding {@link ClusterDescriptor}.
-	 */
-	ClusterDescriptor<ClusterID> createClusterDescriptor(Configuration configuration);
+    /**
+     * Create a {@link ClusterDescriptor} from the given configuration.
+     *
+     * @param configuration containing the configuration options relevant for the {@link
+     *     ClusterDescriptor}
+     * @return the corresponding {@link ClusterDescriptor}.
+     */
+    ClusterDescriptor<ClusterID> createClusterDescriptor(Configuration configuration);
 
-	/**
-	 * Returns the cluster id if a cluster id is specified in the provided configuration, otherwise it returns {@code null}.
-	 *
-	 * <p>A cluster id identifies a running cluster, e.g. the Yarn application id for a Flink cluster running on Yarn.
-	 *
-	 * @param configuration containing the configuration options relevant for the cluster id retrieval
-	 * @return Cluster id identifying the cluster to deploy jobs to or null
-	 */
-	@Nullable
-	ClusterID getClusterId(Configuration configuration);
+    /**
+     * Returns the cluster id if a cluster id is specified in the provided configuration, otherwise
+     * it returns {@code null}.
+     *
+     * <p>A cluster id identifies a running cluster, e.g. the Yarn application id for a Flink
+     * cluster running on Yarn.
+     *
+     * @param configuration containing the configuration options relevant for the cluster id
+     *     retrieval
+     * @return Cluster id identifying the cluster to deploy jobs to or null
+     */
+    @Nullable
+    ClusterID getClusterId(Configuration configuration);
 
-	/**
-	 * Returns the {@link ClusterSpecification} specified by the configuration and the command
-	 * line options. This specification can be used to deploy a new Flink cluster.
-	 *
-	 * @param configuration containing the configuration options relevant for the {@link ClusterSpecification}
-	 * @return the corresponding {@link ClusterSpecification} for a new Flink cluster
-	 */
-	ClusterSpecification getClusterSpecification(Configuration configuration);
+    /**
+     * Returns the {@link ClusterSpecification} specified by the configuration and the command line
+     * options. This specification can be used to deploy a new Flink cluster.
+     *
+     * @param configuration containing the configuration options relevant for the {@link
+     *     ClusterSpecification}
+     * @return the corresponding {@link ClusterSpecification} for a new Flink cluster
+     */
+    ClusterSpecification getClusterSpecification(Configuration configuration);
 
-	/**
-	 * Returns the option to be used when trying to execute an application in Application Mode
-	 * using this cluster client factory, or an {@link Optional#empty()} if the environment of
-	 * this cluster client factory does not support Application Mode.
-	 */
-	default Optional<String> getApplicationTargetName() {
-		return Optional.empty();
-	}
+    /**
+     * Returns the option to be used when trying to execute an application in Application Mode using
+     * this cluster client factory, or an {@link Optional#empty()} if the environment of this
+     * cluster client factory does not support Application Mode.
+     */
+    default Optional<String> getApplicationTargetName() {
+        return Optional.empty();
+    }
 }

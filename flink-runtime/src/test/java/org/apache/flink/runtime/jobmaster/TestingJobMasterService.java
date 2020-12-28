@@ -27,67 +27,66 @@ import javax.annotation.Nonnull;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-/**
- * Implementation of the {@link JobMasterService} for testing purposes.
- */
+/** Implementation of the {@link JobMasterService} for testing purposes. */
 public class TestingJobMasterService implements JobMasterService {
 
-	@Nonnull
-	private final String address;
+    @Nonnull private final String address;
 
-	@Nonnull
-	private final Function<Exception, CompletableFuture<Acknowledge>> suspendFunction;
+    @Nonnull private final Function<Exception, CompletableFuture<Acknowledge>> suspendFunction;
 
-	@Nonnull
-	private final Function<JobMasterId, CompletableFuture<Acknowledge>> startFunction;
+    @Nonnull private final Function<JobMasterId, CompletableFuture<Acknowledge>> startFunction;
 
-	private JobMasterGateway jobMasterGateway;
+    private JobMasterGateway jobMasterGateway;
 
-	public TestingJobMasterService(@Nonnull String address, @Nonnull Function<Exception, CompletableFuture<Acknowledge>> suspendFunction) {
-		this(address, suspendFunction, ignored -> CompletableFuture.completedFuture(Acknowledge.get()));
-	}
+    public TestingJobMasterService(
+            @Nonnull String address,
+            @Nonnull Function<Exception, CompletableFuture<Acknowledge>> suspendFunction) {
+        this(
+                address,
+                suspendFunction,
+                ignored -> CompletableFuture.completedFuture(Acknowledge.get()));
+    }
 
-	public TestingJobMasterService(
-		@Nonnull String address,
-		@Nonnull Function<Exception, CompletableFuture<Acknowledge>> suspendFunction,
-		@Nonnull Function<JobMasterId, CompletableFuture<Acknowledge>> startFunction) {
-		this.address = address;
-		this.suspendFunction = suspendFunction;
-		this.startFunction = startFunction;
-	}
+    public TestingJobMasterService(
+            @Nonnull String address,
+            @Nonnull Function<Exception, CompletableFuture<Acknowledge>> suspendFunction,
+            @Nonnull Function<JobMasterId, CompletableFuture<Acknowledge>> startFunction) {
+        this.address = address;
+        this.suspendFunction = suspendFunction;
+        this.startFunction = startFunction;
+    }
 
-	public TestingJobMasterService() {
-		this(
-			"localhost",
-			e -> CompletableFuture.completedFuture(Acknowledge.get()));
-	}
+    public TestingJobMasterService() {
+        this("localhost", e -> CompletableFuture.completedFuture(Acknowledge.get()));
+    }
 
-	@Override
-	public CompletableFuture<Acknowledge> start(JobMasterId jobMasterId) {
-			jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
-			return startFunction.apply(jobMasterId);
-	}
+    @Override
+    public CompletableFuture<Acknowledge> start(JobMasterId jobMasterId) {
+        jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
+        return startFunction.apply(jobMasterId);
+    }
 
-	@Override
-	public CompletableFuture<Acknowledge> suspend(Exception cause) {
-		jobMasterGateway = null;
-		return suspendFunction.apply(cause);
-	}
+    @Override
+    public CompletableFuture<Acknowledge> suspend(Exception cause) {
+        jobMasterGateway = null;
+        return suspendFunction.apply(cause);
+    }
 
-	@Override
-	public JobMasterGateway getGateway() {
-		Preconditions.checkNotNull(jobMasterGateway, "TestingJobMasterService has not been started yet.");
-		return jobMasterGateway;
-	}
+    @Override
+    public JobMasterGateway getGateway() {
+        Preconditions.checkNotNull(
+                jobMasterGateway, "TestingJobMasterService has not been started yet.");
+        return jobMasterGateway;
+    }
 
-	@Override
-	public String getAddress() {
-		return address;
-	}
+    @Override
+    public String getAddress() {
+        return address;
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		jobMasterGateway = null;
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        jobMasterGateway = null;
+        return CompletableFuture.completedFuture(null);
+    }
 }

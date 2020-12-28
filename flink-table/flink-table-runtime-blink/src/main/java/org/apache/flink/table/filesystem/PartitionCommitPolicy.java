@@ -36,119 +36,105 @@ import java.util.stream.Collectors;
  * <p>The implemented commit method needs to be idempotent because the same partition may be
  * committed multiple times.
  *
- * <p>Default implementations:
- * See {@link MetastoreCommitPolicy}.
- * See {@link SuccessFileCommitPolicy}.
+ * <p>Default implementations: See {@link MetastoreCommitPolicy}. See {@link
+ * SuccessFileCommitPolicy}.
  *
- * <p>Further more, you can implement your own policy, like:
- * - RPC to notify downstream applications.
- * - Trigger hive to analysis partition for generating statistics.
- * ...
+ * <p>Further more, you can implement your own policy, like: - RPC to notify downstream
+ * applications. - Trigger hive to analysis partition for generating statistics. ...
  */
 @Experimental
 public interface PartitionCommitPolicy {
 
-	String METASTORE = "metastore";
-	String SUCCESS_FILE = "success-file";
-	String CUSTOM = "custom";
+    String METASTORE = "metastore";
+    String SUCCESS_FILE = "success-file";
+    String CUSTOM = "custom";
 
-	/**
-	 * Commit a partition.
-	 */
-	void commit(Context context) throws Exception;
+    /** Commit a partition. */
+    void commit(Context context) throws Exception;
 
-	/**
-	 * Context of policy, including table information and partition information.
-	 */
-	interface Context {
+    /** Context of policy, including table information and partition information. */
+    interface Context {
 
-		/**
-		 * Catalog name of this table.
-		 */
-		String catalogName();
+        /** Catalog name of this table. */
+        String catalogName();
 
-		/**
-		 * Database name of this table.
-		 */
-		String databaseName();
+        /** Database name of this table. */
+        String databaseName();
 
-		/**
-		 * Table name.
-		 */
-		String tableName();
+        /** Table name. */
+        String tableName();
 
-		/**
-		 * Table partition keys.
-		 */
-		List<String> partitionKeys();
+        /** Table partition keys. */
+        List<String> partitionKeys();
 
-		/**
-		 * Values of this partition.
-		 */
-		List<String> partitionValues();
+        /** Values of this partition. */
+        List<String> partitionValues();
 
-		/**
-		 * Path of this partition.
-		 */
-		Path partitionPath();
+        /** Path of this partition. */
+        Path partitionPath();
 
-		/**
-		 * Partition spec in the form of a map from partition keys to values.
-		 */
-		default LinkedHashMap<String, String> partitionSpec() {
-			LinkedHashMap<String, String> res = new LinkedHashMap<>();
-			for (int i = 0; i < partitionKeys().size(); i++) {
-				res.put(partitionKeys().get(i), partitionValues().get(i));
-			}
-			return res;
-		}
-	}
+        /** Partition spec in the form of a map from partition keys to values. */
+        default LinkedHashMap<String, String> partitionSpec() {
+            LinkedHashMap<String, String> res = new LinkedHashMap<>();
+            for (int i = 0; i < partitionKeys().size(); i++) {
+                res.put(partitionKeys().get(i), partitionValues().get(i));
+            }
+            return res;
+        }
+    }
 
-	/**
-	 * Create a policy chain from config.
-	 */
-	static List<PartitionCommitPolicy> createPolicyChain(
-			ClassLoader cl,
-			String policyKind,
-			String customClass,
-			String successFileName,
-			Supplier<FileSystem> fsSupplier) {
-		if (policyKind == null) {
-			return Collections.emptyList();
-		}
-		String[] policyStrings = policyKind.split(",");
-		return Arrays.stream(policyStrings).map(name -> {
-			switch (name.toLowerCase()) {
-				case METASTORE:
-					return new MetastoreCommitPolicy();
-				case SUCCESS_FILE:
-					return new SuccessFileCommitPolicy(successFileName, fsSupplier.get());
-				case CUSTOM:
-					try {
-						return (PartitionCommitPolicy) cl.loadClass(customClass).newInstance();
-					} catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
-						throw new RuntimeException(
-								"Can not new instance for custom class from " + customClass, e);
-					}
-				default:
-					throw new UnsupportedOperationException("Unsupported policy: " + name);
-			}
-		}).collect(Collectors.toList());
-	}
+    /** Create a policy chain from config. */
+    static List<PartitionCommitPolicy> createPolicyChain(
+            ClassLoader cl,
+            String policyKind,
+            String customClass,
+            String successFileName,
+            Supplier<FileSystem> fsSupplier) {
+        if (policyKind == null) {
+            return Collections.emptyList();
+        }
+        String[] policyStrings = policyKind.split(",");
+        return Arrays.stream(policyStrings)
+                .map(
+                        name -> {
+                            switch (name.toLowerCase()) {
+                                case METASTORE:
+                                    return new MetastoreCommitPolicy();
+                                case SUCCESS_FILE:
+                                    return new SuccessFileCommitPolicy(
+                                            successFileName, fsSupplier.get());
+                                case CUSTOM:
+                                    try {
+                                        return (PartitionCommitPolicy)
+                                                cl.loadClass(customClass).newInstance();
+                                    } catch (ClassNotFoundException
+                                            | IllegalAccessException
+                                            | InstantiationException e) {
+                                        throw new RuntimeException(
+                                                "Can not new instance for custom class from "
+                                                        + customClass,
+                                                e);
+                                    }
+                                default:
+                                    throw new UnsupportedOperationException(
+                                            "Unsupported policy: " + name);
+                            }
+                        })
+                .collect(Collectors.toList());
+    }
 
-	/**
-	 * Validate commit policy.
-	 */
-	static void validatePolicyChain(boolean isEmptyMetastore, String policyKind) {
-		if (policyKind != null) {
-			String[] policyStrings = policyKind.split(",");
-			for (String policy : policyStrings) {
-				if (isEmptyMetastore && METASTORE.equalsIgnoreCase(policy)) {
-					throw new ValidationException("Can not configure a 'metastore' partition commit" +
-							" policy for a file system table. You can only configure 'metastore'" +
-							" partition commit policy for a hive table.");
-				}
-			}
-		}
-	}
+    /** Validate commit policy. */
+    static void validatePolicyChain(boolean isEmptyMetastore, String policyKind) {
+        if (policyKind != null) {
+            String[] policyStrings = policyKind.split(",");
+            for (String policy : policyStrings) {
+                if (isEmptyMetastore && METASTORE.equalsIgnoreCase(policy)) {
+                    throw new ValidationException(
+                            "Can not configure a 'metastore' partition commit"
+                                    + " policy for a file system table. You can only configure 'metastore'"
+                                    + " partition commit policy for a hive table.");
+                }
+            }
+        }
+    }
 }

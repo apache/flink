@@ -24,99 +24,103 @@ import java.io.Serializable;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link JdbcNumericBetweenParametersProvider}.
- */
+/** Tests for {@link JdbcNumericBetweenParametersProvider}. */
 public class NumericBetweenParametersProviderTest {
 
-	@Test
-	public void testBatchSizeDivisible() {
-		JdbcNumericBetweenParametersProvider provider = new JdbcNumericBetweenParametersProvider(-5, 9).ofBatchSize(3);
-		Serializable[][] actual = provider.getParameterValues();
+    @Test
+    public void testBatchSizeDivisible() {
+        JdbcNumericBetweenParametersProvider provider =
+                new JdbcNumericBetweenParametersProvider(-5, 9).ofBatchSize(3);
+        Serializable[][] actual = provider.getParameterValues();
 
-		long[][] expected = {
-			new long[]{-5, -3},
-			new long[]{-2, 0},
-			new long[]{1, 3},
-			new long[]{4, 6},
-			new long[]{7, 9}
-		};
-		check(expected, actual);
-	}
+        long[][] expected = {
+            new long[] {-5, -3},
+            new long[] {-2, 0},
+            new long[] {1, 3},
+            new long[] {4, 6},
+            new long[] {7, 9}
+        };
+        check(expected, actual);
+    }
 
-	@Test
-	public void testBatchSizeNotDivisible() {
-		JdbcNumericBetweenParametersProvider provider = new JdbcNumericBetweenParametersProvider(-5, 11).ofBatchSize(4);
-		Serializable[][] actual = provider.getParameterValues();
+    @Test
+    public void testBatchSizeNotDivisible() {
+        JdbcNumericBetweenParametersProvider provider =
+                new JdbcNumericBetweenParametersProvider(-5, 11).ofBatchSize(4);
+        Serializable[][] actual = provider.getParameterValues();
 
-		long[][] expected = {
-			new long[]{-5, -2},
-			new long[]{-1, 2},
-			new long[]{3, 5},
-			new long[]{6, 8},
-			new long[]{9, 11}
-		};
-		check(expected, actual);
-	}
+        long[][] expected = {
+            new long[] {-5, -2},
+            new long[] {-1, 2},
+            new long[] {3, 5},
+            new long[] {6, 8},
+            new long[] {9, 11}
+        };
+        check(expected, actual);
+    }
 
-	@Test
-	public void testBatchSizeTooLarge() {
-		JdbcNumericBetweenParametersProvider provider = new JdbcNumericBetweenParametersProvider(0, 2).ofBatchSize(5);
-		Serializable[][] actual = provider.getParameterValues();
+    @Test
+    public void testBatchSizeTooLarge() {
+        JdbcNumericBetweenParametersProvider provider =
+                new JdbcNumericBetweenParametersProvider(0, 2).ofBatchSize(5);
+        Serializable[][] actual = provider.getParameterValues();
 
-		long[][] expected = {new long[]{0, 2}};
-		check(expected, actual);
-	}
+        long[][] expected = {new long[] {0, 2}};
+        check(expected, actual);
+    }
 
-	@Test
-	public void testBatchNumDivisible() {
-		JdbcNumericBetweenParametersProvider provider = new JdbcNumericBetweenParametersProvider(-5, 9).ofBatchNum(5);
-		Serializable[][] actual = provider.getParameterValues();
+    @Test
+    public void testBatchNumDivisible() {
+        JdbcNumericBetweenParametersProvider provider =
+                new JdbcNumericBetweenParametersProvider(-5, 9).ofBatchNum(5);
+        Serializable[][] actual = provider.getParameterValues();
 
-		long[][] expected = {
-			new long[]{-5, -3},
-			new long[]{-2, 0},
-			new long[]{1, 3},
-			new long[]{4, 6},
-			new long[]{7, 9}
-		};
-		check(expected, actual);
-	}
+        long[][] expected = {
+            new long[] {-5, -3},
+            new long[] {-2, 0},
+            new long[] {1, 3},
+            new long[] {4, 6},
+            new long[] {7, 9}
+        };
+        check(expected, actual);
+    }
 
-	@Test
-	public void testBatchNumNotDivisible() {
-		JdbcNumericBetweenParametersProvider provider = new JdbcNumericBetweenParametersProvider(-5, 11).ofBatchNum(5);
-		Serializable[][] actual = provider.getParameterValues();
+    @Test
+    public void testBatchNumNotDivisible() {
+        JdbcNumericBetweenParametersProvider provider =
+                new JdbcNumericBetweenParametersProvider(-5, 11).ofBatchNum(5);
+        Serializable[][] actual = provider.getParameterValues();
 
-		long[][] expected = {
-			new long[]{-5, -2},
-			new long[]{-1, 2},
-			new long[]{3, 5},
-			new long[]{6, 8},
-			new long[]{9, 11}
-		};
-		check(expected, actual);
-	}
+        long[][] expected = {
+            new long[] {-5, -2},
+            new long[] {-1, 2},
+            new long[] {3, 5},
+            new long[] {6, 8},
+            new long[] {9, 11}
+        };
+        check(expected, actual);
+    }
 
-	@Test
-	public void testBatchNumTooLarge() {
-		JdbcNumericBetweenParametersProvider provider = new JdbcNumericBetweenParametersProvider(0, 2).ofBatchNum(5);
-		Serializable[][] actual = provider.getParameterValues();
+    @Test
+    public void testBatchNumTooLarge() {
+        JdbcNumericBetweenParametersProvider provider =
+                new JdbcNumericBetweenParametersProvider(0, 2).ofBatchNum(5);
+        Serializable[][] actual = provider.getParameterValues();
 
-		long[][] expected = {
-			new long[]{0, 0},
-			new long[]{1, 1},
-			new long[]{2, 2}};
-		check(expected, actual);
-	}
+        long[][] expected = {
+            new long[] {0, 0},
+            new long[] {1, 1},
+            new long[] {2, 2}
+        };
+        check(expected, actual);
+    }
 
-	private void check(long[][] expected, Serializable[][] actual) {
-		assertEquals(expected.length, actual.length);
-		for (int i = 0; i < expected.length; i++) {
-			for (int j = 0; j < 2; j++) {
-				assertEquals(expected[i][j], ((Long) actual[i][j]).longValue());
-			}
-		}
-	}
-
+    private void check(long[][] expected, Serializable[][] actual) {
+        assertEquals(expected.length, actual.length);
+        for (int i = 0; i < expected.length; i++) {
+            for (int j = 0; j < 2; j++) {
+                assertEquals(expected[i][j], ((Long) actual[i][j]).longValue());
+            }
+        }
+    }
 }

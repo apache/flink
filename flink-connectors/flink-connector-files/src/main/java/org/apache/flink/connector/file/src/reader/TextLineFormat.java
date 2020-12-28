@@ -33,64 +33,63 @@ import java.io.InputStreamReader;
 /**
  * A reader format that text lines from a file.
  *
- * <p>The reader uses Java's built-in {@link InputStreamReader} to decode the byte stream using various
- * supported charset encodings.
+ * <p>The reader uses Java's built-in {@link InputStreamReader} to decode the byte stream using
+ * various supported charset encodings.
  *
- * <p>This format does not support optimized recovery from checkpoints. On recovery, it will re-read and
- * discard the number of lined that were processed before the last checkpoint. That is due to the fact
- * that the offsets of lines in the file cannot be tracked through the charset decoders with their
- * internal buffering of stream input and charset decoder state.
+ * <p>This format does not support optimized recovery from checkpoints. On recovery, it will re-read
+ * and discard the number of lined that were processed before the last checkpoint. That is due to
+ * the fact that the offsets of lines in the file cannot be tracked through the charset decoders
+ * with their internal buffering of stream input and charset decoder state.
  */
 @PublicEvolving
 public class TextLineFormat extends SimpleStreamFormat<String> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final String DEFAULT_CHARSET_NAME = "UTF-8";
+    public static final String DEFAULT_CHARSET_NAME = "UTF-8";
 
-	private final String charsetName;
+    private final String charsetName;
 
-	public TextLineFormat() {
-		this(DEFAULT_CHARSET_NAME);
-	}
+    public TextLineFormat() {
+        this(DEFAULT_CHARSET_NAME);
+    }
 
-	public TextLineFormat(String charsetName) {
-		this.charsetName = charsetName;
-	}
+    public TextLineFormat(String charsetName) {
+        this.charsetName = charsetName;
+    }
 
-	@Override
-	public Reader createReader(Configuration config, FSDataInputStream stream) throws IOException {
-		final BufferedReader reader = new BufferedReader(new InputStreamReader(stream, charsetName));
-		return new Reader(reader);
-	}
+    @Override
+    public Reader createReader(Configuration config, FSDataInputStream stream) throws IOException {
+        final BufferedReader reader =
+                new BufferedReader(new InputStreamReader(stream, charsetName));
+        return new Reader(reader);
+    }
 
-	@Override
-	public TypeInformation<String> getProducedType() {
-		return Types.STRING;
-	}
+    @Override
+    public TypeInformation<String> getProducedType() {
+        return Types.STRING;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * The actual reader for the {@code TextLineFormat}.
-	 */
-	public static final class Reader implements StreamFormat.Reader<String> {
+    /** The actual reader for the {@code TextLineFormat}. */
+    public static final class Reader implements StreamFormat.Reader<String> {
 
-		private final BufferedReader reader;
+        private final BufferedReader reader;
 
-		Reader(final BufferedReader reader) {
-			this.reader = reader;
-		}
+        Reader(final BufferedReader reader) {
+            this.reader = reader;
+        }
 
-		@Nullable
-		@Override
-		public String read() throws IOException {
-			return reader.readLine();
-		}
+        @Nullable
+        @Override
+        public String read() throws IOException {
+            return reader.readLine();
+        }
 
-		@Override
-		public void close() throws IOException {
-			reader.close();
-		}
-	}
+        @Override
+        public void close() throws IOException {
+            reader.close();
+        }
+    }
 }

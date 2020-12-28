@@ -45,241 +45,231 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-/**
- * A base {@link DispatcherLeaderProcess}.
- */
+/** A base {@link DispatcherLeaderProcess}. */
 @Internal
 public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProcess {
 
-	protected final Logger log = LoggerFactory.getLogger(getClass());
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	private final Object lock = new Object();
+    private final Object lock = new Object();
 
-	private final UUID leaderSessionId;
+    private final UUID leaderSessionId;
 
-	private final FatalErrorHandler fatalErrorHandler;
+    private final FatalErrorHandler fatalErrorHandler;
 
-	private final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture;
+    private final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture;
 
-	private final CompletableFuture<String> leaderAddressFuture;
+    private final CompletableFuture<String> leaderAddressFuture;
 
-	private final CompletableFuture<Void> terminationFuture;
+    private final CompletableFuture<Void> terminationFuture;
 
-	private final CompletableFuture<ApplicationStatus> shutDownFuture;
+    private final CompletableFuture<ApplicationStatus> shutDownFuture;
 
-	private State state;
+    private State state;
 
-	@Nullable
-	private DispatcherGatewayService dispatcherService;
+    @Nullable private DispatcherGatewayService dispatcherService;
 
-	AbstractDispatcherLeaderProcess(UUID leaderSessionId, FatalErrorHandler fatalErrorHandler) {
-		this.leaderSessionId = leaderSessionId;
-		this.fatalErrorHandler = fatalErrorHandler;
+    AbstractDispatcherLeaderProcess(UUID leaderSessionId, FatalErrorHandler fatalErrorHandler) {
+        this.leaderSessionId = leaderSessionId;
+        this.fatalErrorHandler = fatalErrorHandler;
 
-		this.dispatcherGatewayFuture = new CompletableFuture<>();
-		this.leaderAddressFuture = dispatcherGatewayFuture.thenApply(RestfulGateway::getAddress);
-		this.terminationFuture = new CompletableFuture<>();
-		this.shutDownFuture = new CompletableFuture<>();
+        this.dispatcherGatewayFuture = new CompletableFuture<>();
+        this.leaderAddressFuture = dispatcherGatewayFuture.thenApply(RestfulGateway::getAddress);
+        this.terminationFuture = new CompletableFuture<>();
+        this.shutDownFuture = new CompletableFuture<>();
 
-		this.state = State.CREATED;
-	}
+        this.state = State.CREATED;
+    }
 
-	@VisibleForTesting
-	State getState() {
-		synchronized (lock) {
-			return state;
-		}
-	}
+    @VisibleForTesting
+    State getState() {
+        synchronized (lock) {
+            return state;
+        }
+    }
 
-	@Override
-	public final void start() {
-		runIfStateIs(
-			State.CREATED,
-			this::startInternal);
-	}
+    @Override
+    public final void start() {
+        runIfStateIs(State.CREATED, this::startInternal);
+    }
 
-	private void startInternal() {
-		log.info("Start {}.", getClass().getSimpleName());
-		state = State.RUNNING;
-		onStart();
-	}
+    private void startInternal() {
+        log.info("Start {}.", getClass().getSimpleName());
+        state = State.RUNNING;
+        onStart();
+    }
 
-	@Override
-	public final UUID getLeaderSessionId() {
-		return leaderSessionId;
-	}
+    @Override
+    public final UUID getLeaderSessionId() {
+        return leaderSessionId;
+    }
 
-	@Override
-	public final CompletableFuture<DispatcherGateway> getDispatcherGateway() {
-		return dispatcherGatewayFuture;
-	}
+    @Override
+    public final CompletableFuture<DispatcherGateway> getDispatcherGateway() {
+        return dispatcherGatewayFuture;
+    }
 
-	@Override
-	public final CompletableFuture<String> getLeaderAddressFuture() {
-		return leaderAddressFuture;
-	}
+    @Override
+    public final CompletableFuture<String> getLeaderAddressFuture() {
+        return leaderAddressFuture;
+    }
 
-	@Override
-	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
-		return shutDownFuture;
-	}
+    @Override
+    public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+        return shutDownFuture;
+    }
 
-	protected final Optional<DispatcherGatewayService> getDispatcherService() {
-		return Optional.ofNullable(dispatcherService);
-	}
+    protected final Optional<DispatcherGatewayService> getDispatcherService() {
+        return Optional.ofNullable(dispatcherService);
+    }
 
-	@Override
-	public final CompletableFuture<Void> closeAsync() {
-		runIfStateIsNot(
-			State.STOPPED,
-			this::closeInternal);
+    @Override
+    public final CompletableFuture<Void> closeAsync() {
+        runIfStateIsNot(State.STOPPED, this::closeInternal);
 
-		return terminationFuture;
-	}
+        return terminationFuture;
+    }
 
-	private void closeInternal() {
-		log.info("Stopping {}.", getClass().getSimpleName());
+    private void closeInternal() {
+        log.info("Stopping {}.", getClass().getSimpleName());
 
-		state = State.STOPPED;
+        state = State.STOPPED;
 
-		final CompletableFuture<Void> dispatcherServiceTerminationFuture = closeDispatcherService();
+        final CompletableFuture<Void> dispatcherServiceTerminationFuture = closeDispatcherService();
 
-		final CompletableFuture<Void> onCloseTerminationFuture = FutureUtils.composeAfterwards(
-			dispatcherServiceTerminationFuture,
-			this::onClose);
+        final CompletableFuture<Void> onCloseTerminationFuture =
+                FutureUtils.composeAfterwards(dispatcherServiceTerminationFuture, this::onClose);
 
-		FutureUtils.forward(
-			onCloseTerminationFuture,
-			this.terminationFuture);
-	}
+        FutureUtils.forward(onCloseTerminationFuture, this.terminationFuture);
+    }
 
-	private CompletableFuture<Void> closeDispatcherService() {
-		if (dispatcherService != null) {
-			return dispatcherService.closeAsync();
-		} else {
-			return FutureUtils.completedVoidFuture();
-		}
-	}
+    private CompletableFuture<Void> closeDispatcherService() {
+        if (dispatcherService != null) {
+            return dispatcherService.closeAsync();
+        } else {
+            return FutureUtils.completedVoidFuture();
+        }
+    }
 
-	protected abstract void onStart();
+    protected abstract void onStart();
 
-	protected CompletableFuture<Void> onClose() {
-		return FutureUtils.completedVoidFuture();
-	}
+    protected CompletableFuture<Void> onClose() {
+        return FutureUtils.completedVoidFuture();
+    }
 
-	final void completeDispatcherSetup(DispatcherGatewayService dispatcherService) {
-		runIfStateIs(
-			State.RUNNING,
-			() -> completeDispatcherSetupInternal(dispatcherService));
-	}
+    final void completeDispatcherSetup(DispatcherGatewayService dispatcherService) {
+        runIfStateIs(State.RUNNING, () -> completeDispatcherSetupInternal(dispatcherService));
+    }
 
-	private void completeDispatcherSetupInternal(DispatcherGatewayService createdDispatcherService) {
-		Preconditions.checkState(dispatcherService == null, "The DispatcherGatewayService can only be set once.");
-		dispatcherService = createdDispatcherService;
-		dispatcherGatewayFuture.complete(createdDispatcherService.getGateway());
-		FutureUtils.forward(createdDispatcherService.getShutDownFuture(), shutDownFuture);
-		handleUnexpectedDispatcherServiceTermination(createdDispatcherService);
-	}
+    private void completeDispatcherSetupInternal(
+            DispatcherGatewayService createdDispatcherService) {
+        Preconditions.checkState(
+                dispatcherService == null, "The DispatcherGatewayService can only be set once.");
+        dispatcherService = createdDispatcherService;
+        dispatcherGatewayFuture.complete(createdDispatcherService.getGateway());
+        FutureUtils.forward(createdDispatcherService.getShutDownFuture(), shutDownFuture);
+        handleUnexpectedDispatcherServiceTermination(createdDispatcherService);
+    }
 
-	private void handleUnexpectedDispatcherServiceTermination(DispatcherGatewayService createdDispatcherService) {
-		createdDispatcherService.getTerminationFuture().whenComplete(
-				(ignored, throwable) -> {
-					runIfStateIs(State.RUNNING, () -> {
-						handleError(new FlinkException("Unexpected termination of DispatcherService.", throwable));
-					});
-				});
-	}
+    private void handleUnexpectedDispatcherServiceTermination(
+            DispatcherGatewayService createdDispatcherService) {
+        createdDispatcherService
+                .getTerminationFuture()
+                .whenComplete(
+                        (ignored, throwable) -> {
+                            runIfStateIs(
+                                    State.RUNNING,
+                                    () -> {
+                                        handleError(
+                                                new FlinkException(
+                                                        "Unexpected termination of DispatcherService.",
+                                                        throwable));
+                                    });
+                        });
+    }
 
-	final <V> Optional<V> supplyUnsynchronizedIfRunning(Supplier<V> supplier) {
-		synchronized (lock) {
-			if (state != State.RUNNING) {
-				return Optional.empty();
-			}
-		}
+    final <V> Optional<V> supplyUnsynchronizedIfRunning(Supplier<V> supplier) {
+        synchronized (lock) {
+            if (state != State.RUNNING) {
+                return Optional.empty();
+            }
+        }
 
-		return Optional.of(supplier.get());
-	}
+        return Optional.of(supplier.get());
+    }
 
-	final <V> Optional<V> supplyIfRunning(Supplier<V> supplier) {
-		synchronized (lock) {
-			if (state != State.RUNNING) {
-				return Optional.empty();
-			}
+    final <V> Optional<V> supplyIfRunning(Supplier<V> supplier) {
+        synchronized (lock) {
+            if (state != State.RUNNING) {
+                return Optional.empty();
+            }
 
-			return Optional.of(supplier.get());
-		}
-	}
+            return Optional.of(supplier.get());
+        }
+    }
 
-	final void runIfStateIs(State expectedState, Runnable action) {
-		runIfState(expectedState::equals, action);
-	}
+    final void runIfStateIs(State expectedState, Runnable action) {
+        runIfState(expectedState::equals, action);
+    }
 
-	private void runIfStateIsNot(State notExpectedState, Runnable action) {
-		runIfState(
-			state -> !notExpectedState.equals(state),
-			action);
-	}
+    private void runIfStateIsNot(State notExpectedState, Runnable action) {
+        runIfState(state -> !notExpectedState.equals(state), action);
+    }
 
-	private void runIfState(Predicate<State> actionPredicate, Runnable action) {
-		synchronized (lock) {
-			if (actionPredicate.test(state)) {
-				action.run();
-			}
-		}
-	}
+    private void runIfState(Predicate<State> actionPredicate, Runnable action) {
+        synchronized (lock) {
+            if (actionPredicate.test(state)) {
+                action.run();
+            }
+        }
+    }
 
-	final <T> Void onErrorIfRunning(T ignored, Throwable throwable) {
-		synchronized (lock) {
-			if (state != State.RUNNING) {
-				return null;
-			}
-		}
+    final <T> Void onErrorIfRunning(T ignored, Throwable throwable) {
+        synchronized (lock) {
+            if (state != State.RUNNING) {
+                return null;
+            }
+        }
 
-		if (throwable != null) {
-			handleError(throwable);
-		}
+        if (throwable != null) {
+            handleError(throwable);
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	private void handleError(Throwable throwable) {
-		closeAsync();
-		fatalErrorHandler.onFatalError(throwable);
-	}
+    private void handleError(Throwable throwable) {
+        closeAsync();
+        fatalErrorHandler.onFatalError(throwable);
+    }
 
-	/**
-	 * The state of the {@link DispatcherLeaderProcess}.
-	 */
-	protected enum State {
-		CREATED,
-		RUNNING,
-		STOPPED
-	}
+    /** The state of the {@link DispatcherLeaderProcess}. */
+    protected enum State {
+        CREATED,
+        RUNNING,
+        STOPPED
+    }
 
-	// ------------------------------------------------------------
-	// Internal classes
-	// ------------------------------------------------------------
+    // ------------------------------------------------------------
+    // Internal classes
+    // ------------------------------------------------------------
 
-	/**
-	 * Factory for {@link DispatcherGatewayService}.
-	 */
-	public interface DispatcherGatewayServiceFactory {
-		DispatcherGatewayService create(
-			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			JobGraphWriter jobGraphWriter);
-	}
+    /** Factory for {@link DispatcherGatewayService}. */
+    public interface DispatcherGatewayServiceFactory {
+        DispatcherGatewayService create(
+                DispatcherId fencingToken,
+                Collection<JobGraph> recoveredJobs,
+                JobGraphWriter jobGraphWriter);
+    }
 
-	/**
-	 * An accessor of the {@link DispatcherGateway}.
-	 */
-	public interface DispatcherGatewayService extends AutoCloseableAsync {
-		DispatcherGateway getGateway();
+    /** An accessor of the {@link DispatcherGateway}. */
+    public interface DispatcherGatewayService extends AutoCloseableAsync {
+        DispatcherGateway getGateway();
 
-		CompletableFuture<Void> onRemovedJobGraph(JobID jobId);
+        CompletableFuture<Void> onRemovedJobGraph(JobID jobId);
 
-		CompletableFuture<ApplicationStatus> getShutDownFuture();
+        CompletableFuture<ApplicationStatus> getShutDownFuture();
 
-		CompletableFuture<Void> getTerminationFuture();
-	}
+        CompletableFuture<Void> getTerminationFuture();
+    }
 }

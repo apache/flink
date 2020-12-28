@@ -25,15 +25,13 @@ import java.util.concurrent.FutureTask;
 
 import static org.apache.flink.util.function.FunctionUtils.asCallable;
 
-/**
- * {@link FutureTask} that also implements {@link RunnableWithException}.
- */
+/** {@link FutureTask} that also implements {@link RunnableWithException}. */
 public class FutureTaskWithException<V> extends FutureTask<V> implements RunnableWithException {
-	public FutureTaskWithException(Callable<V> callable) {
-		super(callable);
-	}
+    public FutureTaskWithException(Callable<V> callable) {
+        super(callable);
+    }
 
-	public FutureTaskWithException(RunnableWithException command) {
-		this(asCallable(command, null));
-	}
+    public FutureTaskWithException(RunnableWithException command) {
+        this(asCallable(command, null));
+    }
 }

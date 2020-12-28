@@ -34,81 +34,78 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 
-/**
- * Tests for {@link BatchGlobalCommitterOperator}.
- */
+/** Tests for {@link BatchGlobalCommitterOperator}. */
 public class BatchGlobalCommitterOperatorTest extends TestLogger {
 
-	@Test(expected = IllegalStateException.class)
-	public void throwExceptionWithoutCommitter() throws Exception {
-		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(null);
+    @Test(expected = IllegalStateException.class)
+    public void throwExceptionWithoutCommitter() throws Exception {
+        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+                createTestHarness(null);
 
-		testHarness.initializeEmptyState();
-	}
+        testHarness.initializeEmptyState();
+    }
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void doNotSupportRetry() throws Exception {
-		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(new TestSink.AlwaysRetryGlobalCommitter());
+    @Test(expected = UnsupportedOperationException.class)
+    public void doNotSupportRetry() throws Exception {
+        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+                createTestHarness(new TestSink.AlwaysRetryGlobalCommitter());
 
-		testHarness.initializeEmptyState();
-		testHarness.open();
-		testHarness.processElement(new StreamRecord<>("hotel"));
-		testHarness.endInput();
-		testHarness.close();
-	}
+        testHarness.initializeEmptyState();
+        testHarness.open();
+        testHarness.processElement(new StreamRecord<>("hotel"));
+        testHarness.endInput();
+        testHarness.close();
+    }
 
-	@Test
-	public void endOfInput() throws Exception {
-		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter();
-		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(globalCommitter);
-		final List<String> inputs = Arrays.asList("compete", "swear", "shallow");
+    @Test
+    public void endOfInput() throws Exception {
+        final TestSink.DefaultGlobalCommitter globalCommitter =
+                new TestSink.DefaultGlobalCommitter();
+        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+                createTestHarness(globalCommitter);
+        final List<String> inputs = Arrays.asList("compete", "swear", "shallow");
 
-		testHarness.initializeEmptyState();
-		testHarness.open();
+        testHarness.initializeEmptyState();
+        testHarness.open();
 
-		testHarness.processElements(inputs
-				.stream()
-				.map(StreamRecord::new)
-				.collect(Collectors.toList()));
+        testHarness.processElements(
+                inputs.stream().map(StreamRecord::new).collect(Collectors.toList()));
 
-		testHarness.endInput();
+        testHarness.endInput();
 
-		final List<String> expectedCommittedData = Arrays.asList(
-				globalCommitter.combine(inputs),
-				"end of input");
+        final List<String> expectedCommittedData =
+                Arrays.asList(globalCommitter.combine(inputs), "end of input");
 
-		assertThat(
-				globalCommitter.getCommittedData(),
-				containsInAnyOrder(expectedCommittedData.toArray()));
+        assertThat(
+                globalCommitter.getCommittedData(),
+                containsInAnyOrder(expectedCommittedData.toArray()));
 
-		testHarness.close();
+        testHarness.close();
+    }
 
-	}
+    @Test
+    public void close() throws Exception {
+        final TestSink.DefaultGlobalCommitter globalCommitter =
+                new TestSink.DefaultGlobalCommitter();
+        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+                createTestHarness(globalCommitter);
+        testHarness.initializeEmptyState();
+        testHarness.open();
+        testHarness.close();
 
-	@Test
-	public void close() throws Exception {
-		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter();
-		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(globalCommitter);
-		testHarness.initializeEmptyState();
-		testHarness.open();
-		testHarness.close();
+        assertThat(globalCommitter.isClosed(), is(true));
+    }
 
-		assertThat(globalCommitter.isClosed(), is(true));
-	}
+    private OneInputStreamOperatorTestHarness<String, String> createTestHarness(
+            GlobalCommitter<String, String> globalCommitter) throws Exception {
 
-	private OneInputStreamOperatorTestHarness<String, String> createTestHarness(
-			GlobalCommitter<String, String> globalCommitter) throws Exception {
-
-		return new OneInputStreamOperatorTestHarness<>(
-				new BatchGlobalCommitterOperatorFactory<>(TestSink
-						.newBuilder()
-						.setGlobalCommitter(globalCommitter)
-						.setGlobalCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
-						.build()),
-				StringSerializer.INSTANCE);
-	}
+        return new OneInputStreamOperatorTestHarness<>(
+                new BatchGlobalCommitterOperatorFactory<>(
+                        TestSink.newBuilder()
+                                .setGlobalCommitter(globalCommitter)
+                                .setGlobalCommittableSerializer(
+                                        TestSink.StringCommittableSerializer.INSTANCE)
+                                .build()),
+                StringSerializer.INSTANCE);
+    }
 }

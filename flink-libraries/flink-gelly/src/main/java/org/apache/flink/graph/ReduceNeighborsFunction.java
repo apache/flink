@@ -23,22 +23,21 @@ import org.apache.flink.api.common.functions.Function;
 import java.io.Serializable;
 
 /**
- * Interface to be implemented by the function applied to a vertex neighborhood
- * in the {@link Graph#reduceOnNeighbors(ReduceNeighborsFunction, EdgeDirection)}
- * method.
+ * Interface to be implemented by the function applied to a vertex neighborhood in the {@link
+ * Graph#reduceOnNeighbors(ReduceNeighborsFunction, EdgeDirection)} method.
  *
  * @param <VV> the vertex value type
  */
-public interface ReduceNeighborsFunction <VV> extends Function, Serializable {
+public interface ReduceNeighborsFunction<VV> extends Function, Serializable {
 
-	/**
-	 * It combines two neighboring vertex values into one new value of the same type.
-	 * For each vertex, this function is consecutively called,
-	 * until only a single value for each vertex remains.
-	 *
-	 * @param firstNeighborValue the first neighboring vertex value to combine
-	 * @param secondNeighborValue the second neighboring vertex value to combine
-	 * @return the combined value of both input values
-	 */
-	VV reduceNeighbors(VV firstNeighborValue, VV secondNeighborValue);
+    /**
+     * It combines two neighboring vertex values into one new value of the same type. For each
+     * vertex, this function is consecutively called, until only a single value for each vertex
+     * remains.
+     *
+     * @param firstNeighborValue the first neighboring vertex value to combine
+     * @param secondNeighborValue the second neighboring vertex value to combine
+     * @return the combined value of both input values
+     */
+    VV reduceNeighbors(VV firstNeighborValue, VV secondNeighborValue);
 }

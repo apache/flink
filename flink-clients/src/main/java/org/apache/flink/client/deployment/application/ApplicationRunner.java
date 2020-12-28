@@ -27,23 +27,25 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import java.util.List;
 
 /**
- * An interface to be implemented by the entities responsible for application
- * submission for the different deployment environments.
+ * An interface to be implemented by the entities responsible for application submission for the
+ * different deployment environments.
  *
- * <p>This interface assumes access to the cluster's {@link DispatcherGateway},
- * and it does not go through the publicly exposed REST API.
+ * <p>This interface assumes access to the cluster's {@link DispatcherGateway}, and it does not go
+ * through the publicly exposed REST API.
  */
 @Internal
 public interface ApplicationRunner {
 
-	/**
-	 * Runs the application using the provided {@code dispatcherGateway}.
-	 *
-	 * @param dispatcherGateway the dispatcher of the cluster to run the application.
-	 * @param program the {@link PackagedProgram} containing the user's main method.
-	 * @param configuration the configuration used to run the application.
-	 *
-	 * @return a list of the submitted jobs that belong to the provided application.
-	 */
-	List<JobID> run(final DispatcherGateway dispatcherGateway, final PackagedProgram program, final Configuration configuration);
+    /**
+     * Runs the application using the provided {@code dispatcherGateway}.
+     *
+     * @param dispatcherGateway the dispatcher of the cluster to run the application.
+     * @param program the {@link PackagedProgram} containing the user's main method.
+     * @param configuration the configuration used to run the application.
+     * @return a list of the submitted jobs that belong to the provided application.
+     */
+    List<JobID> run(
+            final DispatcherGateway dispatcherGateway,
+            final PackagedProgram program,
+            final Configuration configuration);
 }

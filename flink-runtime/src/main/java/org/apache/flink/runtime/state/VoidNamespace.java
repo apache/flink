@@ -20,51 +20,49 @@ package org.apache.flink.runtime.state;
 
 import java.io.ObjectStreamException;
 
-/**
- * Singleton placeholder class for state without a namespace.
- */
+/** Singleton placeholder class for state without a namespace. */
 public final class VoidNamespace {
 
-	// ------------------------------------------------------------------------
-	//  Singleton instance
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Singleton instance
+    // ------------------------------------------------------------------------
 
-	/** The singleton instance */
-	public static final VoidNamespace INSTANCE = new VoidNamespace();
+    /** The singleton instance */
+    public static final VoidNamespace INSTANCE = new VoidNamespace();
 
-	/** Getter for the singleton instance */
-	public static VoidNamespace get() {
-		return INSTANCE;
-	}
+    /** Getter for the singleton instance */
+    public static VoidNamespace get() {
+        return INSTANCE;
+    }
 
-	/** This class should not be instantiated */
-	private VoidNamespace() {}
+    /** This class should not be instantiated */
+    private VoidNamespace() {}
 
-	// ------------------------------------------------------------------------
-	//  Standard Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Standard Utilities
+    // ------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return 99;
-	}
+    @Override
+    public int hashCode() {
+        return 99;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj == this;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj == this;
+    }
 
-	@Override
-	public String toString() {
-		return getClass().getSimpleName();
-	}
+    @Override
+    public String toString() {
+        return getClass().getSimpleName();
+    }
 
-	// ------------------------------------------------------------------------
-	//  Singleton serialization
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Singleton serialization
+    // ------------------------------------------------------------------------
 
-	// make sure that we preserve the singleton properly on serialization
-	private Object readResolve() throws ObjectStreamException {
-		return INSTANCE;
-	}
+    // make sure that we preserve the singleton properly on serialization
+    private Object readResolve() throws ObjectStreamException {
+        return INSTANCE;
+    }
 }

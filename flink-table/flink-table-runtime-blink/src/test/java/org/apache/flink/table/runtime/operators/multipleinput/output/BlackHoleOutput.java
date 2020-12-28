@@ -25,33 +25,31 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.OutputTag;
 
-/**
- * A {@link Output} for testing which does not output anything.
- */
+/** A {@link Output} for testing which does not output anything. */
 public class BlackHoleOutput implements Output<StreamRecord<RowData>> {
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		// do nothing
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        // do nothing
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		// do nothing
-	}
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        // do nothing
+    }
 
-	@Override
-	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		// do nothing
-	}
+    @Override
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+        // do nothing
+    }
 
-	@Override
-	public void collect(StreamRecord<RowData> record) {
-		// do nothing
-	}
+    @Override
+    public void collect(StreamRecord<RowData> record) {
+        // do nothing
+    }
 
-	@Override
-	public void close() {
-		// do nothing
-	}
+    @Override
+    public void close() {
+        // do nothing
+    }
 }

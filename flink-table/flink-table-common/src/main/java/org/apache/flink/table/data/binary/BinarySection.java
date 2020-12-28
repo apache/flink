@@ -20,61 +20,60 @@ package org.apache.flink.table.data.binary;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegment;
 
-/**
- * A basic implementation of {@link BinaryFormat} which describe a section of memory.
- */
+/** A basic implementation of {@link BinaryFormat} which describe a section of memory. */
 @Internal
 public class BinarySection implements BinaryFormat {
 
-	protected MemorySegment[] segments;
-	protected int offset;
-	protected int sizeInBytes;
+    protected MemorySegment[] segments;
+    protected int offset;
+    protected int sizeInBytes;
 
-	public BinarySection() {}
+    public BinarySection() {}
 
-	public BinarySection(MemorySegment[] segments, int offset, int sizeInBytes) {
-		this.segments = segments;
-		this.offset = offset;
-		this.sizeInBytes = sizeInBytes;
-	}
+    public BinarySection(MemorySegment[] segments, int offset, int sizeInBytes) {
+        this.segments = segments;
+        this.offset = offset;
+        this.sizeInBytes = sizeInBytes;
+    }
 
-	public final void pointTo(MemorySegment segment, int offset, int sizeInBytes) {
-		pointTo(new MemorySegment[] {segment}, offset, sizeInBytes);
-	}
+    public final void pointTo(MemorySegment segment, int offset, int sizeInBytes) {
+        pointTo(new MemorySegment[] {segment}, offset, sizeInBytes);
+    }
 
-	public void pointTo(MemorySegment[] segments, int offset, int sizeInBytes) {
-		this.segments = segments;
-		this.offset = offset;
-		this.sizeInBytes = sizeInBytes;
-	}
+    public void pointTo(MemorySegment[] segments, int offset, int sizeInBytes) {
+        this.segments = segments;
+        this.offset = offset;
+        this.sizeInBytes = sizeInBytes;
+    }
 
-	public MemorySegment[] getSegments() {
-		return segments;
-	}
+    public MemorySegment[] getSegments() {
+        return segments;
+    }
 
-	public int getOffset() {
-		return offset;
-	}
+    public int getOffset() {
+        return offset;
+    }
 
-	public int getSizeInBytes() {
-		return sizeInBytes;
-	}
+    public int getSizeInBytes() {
+        return sizeInBytes;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		final BinarySection that = (BinarySection) o;
-		return sizeInBytes == that.sizeInBytes &&
-			BinarySegmentUtils.equals(segments, offset, that.segments, that.offset, sizeInBytes);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final BinarySection that = (BinarySection) o;
+        return sizeInBytes == that.sizeInBytes
+                && BinarySegmentUtils.equals(
+                        segments, offset, that.segments, that.offset, sizeInBytes);
+    }
 
-	@Override
-	public int hashCode() {
-		return BinarySegmentUtils.hash(segments, offset, sizeInBytes);
-	}
+    @Override
+    public int hashCode() {
+        return BinarySegmentUtils.hash(segments, offset, sizeInBytes);
+    }
 }

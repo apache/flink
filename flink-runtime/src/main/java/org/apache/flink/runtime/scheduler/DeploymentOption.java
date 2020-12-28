@@ -19,17 +19,18 @@
 package org.apache.flink.runtime.scheduler;
 
 /**
- * Deployment option which indicates whether the task should send scheduleOrUpdateConsumer message to master.
+ * Deployment option which indicates whether the task should send scheduleOrUpdateConsumer message
+ * to master.
  */
 public class DeploymentOption {
 
-	private final boolean sendScheduleOrUpdateConsumerMessage;
+    private final boolean sendScheduleOrUpdateConsumerMessage;
 
-	public DeploymentOption(boolean sendScheduleOrUpdateConsumerMessage) {
-		this.sendScheduleOrUpdateConsumerMessage = sendScheduleOrUpdateConsumerMessage;
-	}
+    public DeploymentOption(boolean sendScheduleOrUpdateConsumerMessage) {
+        this.sendScheduleOrUpdateConsumerMessage = sendScheduleOrUpdateConsumerMessage;
+    }
 
-	public boolean sendScheduleOrUpdateConsumerMessage() {
-		return sendScheduleOrUpdateConsumerMessage;
-	}
+    public boolean sendScheduleOrUpdateConsumerMessage() {
+        return sendScheduleOrUpdateConsumerMessage;
+    }
 }

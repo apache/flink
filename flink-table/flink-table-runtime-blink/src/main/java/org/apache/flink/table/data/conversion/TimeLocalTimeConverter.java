@@ -22,21 +22,20 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.types.logical.TimeType;
 
-/**
- * Converter for {@link TimeType} of {@link java.time.LocalTime} external type.
- */
+/** Converter for {@link TimeType} of {@link java.time.LocalTime} external type. */
 @Internal
-public class TimeLocalTimeConverter implements DataStructureConverter<Integer, java.time.LocalTime> {
+public class TimeLocalTimeConverter
+        implements DataStructureConverter<Integer, java.time.LocalTime> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public Integer toInternal(java.time.LocalTime external) {
-		return SqlDateTimeUtils.localTimeToUnixDate(external);
-	}
+    @Override
+    public Integer toInternal(java.time.LocalTime external) {
+        return SqlDateTimeUtils.localTimeToUnixDate(external);
+    }
 
-	@Override
-	public java.time.LocalTime toExternal(Integer internal) {
-		return SqlDateTimeUtils.unixTimeToLocalTime(internal);
-	}
+    @Override
+    public java.time.LocalTime toExternal(Integer internal) {
+        return SqlDateTimeUtils.unixTimeToLocalTime(internal);
+    }
 }

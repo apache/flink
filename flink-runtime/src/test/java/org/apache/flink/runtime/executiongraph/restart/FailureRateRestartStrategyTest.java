@@ -32,97 +32,94 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Unit test for the {@link FailureRateRestartStrategy}.
- */
+/** Unit test for the {@link FailureRateRestartStrategy}. */
 public class FailureRateRestartStrategyTest {
 
-	public final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
+    public final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
 
-	public final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
+    public final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
 
-	@After
-	public void shutdownExecutor() {
-		executorService.shutdownNow();
-	}
+    @After
+    public void shutdownExecutor() {
+        executorService.shutdownNow();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void testManyFailuresWithinRate() throws Exception {
-		final int numAttempts = 10;
-		final int intervalMillis = 1;
+    @Test
+    public void testManyFailuresWithinRate() throws Exception {
+        final int numAttempts = 10;
+        final int intervalMillis = 1;
 
-		final FailureRateRestartStrategy restartStrategy =
-				new FailureRateRestartStrategy(1, Time.milliseconds(intervalMillis), Time.milliseconds(0));
+        final FailureRateRestartStrategy restartStrategy =
+                new FailureRateRestartStrategy(
+                        1, Time.milliseconds(intervalMillis), Time.milliseconds(0));
 
-		for (int attempsLeft = numAttempts; attempsLeft > 0; --attempsLeft) {
-			assertTrue(restartStrategy.canRestart());
-			restartStrategy.restart(new NoOpRestarter(), executor);
-			sleepGuaranteed(2 * intervalMillis);
-		}
+        for (int attempsLeft = numAttempts; attempsLeft > 0; --attempsLeft) {
+            assertTrue(restartStrategy.canRestart());
+            restartStrategy.restart(new NoOpRestarter(), executor);
+            sleepGuaranteed(2 * intervalMillis);
+        }
 
-		assertTrue(restartStrategy.canRestart());
-	}
+        assertTrue(restartStrategy.canRestart());
+    }
 
-	@Test
-	public void testFailuresExceedingRate() throws Exception {
-		final int numFailures = 3;
-		final int intervalMillis = 10_000;
+    @Test
+    public void testFailuresExceedingRate() throws Exception {
+        final int numFailures = 3;
+        final int intervalMillis = 10_000;
 
-		final FailureRateRestartStrategy restartStrategy =
-				new FailureRateRestartStrategy(numFailures, Time.milliseconds(intervalMillis), Time.milliseconds(0));
+        final FailureRateRestartStrategy restartStrategy =
+                new FailureRateRestartStrategy(
+                        numFailures, Time.milliseconds(intervalMillis), Time.milliseconds(0));
 
-		for (int failuresLeft = numFailures; failuresLeft > 0; --failuresLeft) {
-			assertTrue(restartStrategy.canRestart());
-			restartStrategy.restart(new NoOpRestarter(), executor);
-		}
+        for (int failuresLeft = numFailures; failuresLeft > 0; --failuresLeft) {
+            assertTrue(restartStrategy.canRestart());
+            restartStrategy.restart(new NoOpRestarter(), executor);
+        }
 
-		// now the rate should be exceeded
-		assertFalse(restartStrategy.canRestart());
-	}
+        // now the rate should be exceeded
+        assertFalse(restartStrategy.canRestart());
+    }
 
-	@Test
-	public void testDelay() throws Exception {
-		final long restartDelay = 2;
-		final int numberRestarts = 10;
+    @Test
+    public void testDelay() throws Exception {
+        final long restartDelay = 2;
+        final int numberRestarts = 10;
 
-		final FailureRateRestartStrategy strategy =
-			new FailureRateRestartStrategy(numberRestarts + 1, Time.milliseconds(1), Time.milliseconds(restartDelay));
+        final FailureRateRestartStrategy strategy =
+                new FailureRateRestartStrategy(
+                        numberRestarts + 1, Time.milliseconds(1), Time.milliseconds(restartDelay));
 
-		for (int restartsLeft = numberRestarts; restartsLeft > 0; --restartsLeft) {
-			assertTrue(strategy.canRestart());
+        for (int restartsLeft = numberRestarts; restartsLeft > 0; --restartsLeft) {
+            assertTrue(strategy.canRestart());
 
-			final OneShotLatch sync = new OneShotLatch();
-			final RestartCallback restarter = new LatchedRestarter(sync);
+            final OneShotLatch sync = new OneShotLatch();
+            final RestartCallback restarter = new LatchedRestarter(sync);
 
-			final long time = System.nanoTime();
-			strategy.restart(restarter, executor);
-			sync.await();
+            final long time = System.nanoTime();
+            strategy.restart(restarter, executor);
+            sync.await();
 
-			final long elapsed = System.nanoTime() - time;
-			assertTrue("Not enough delay", elapsed >= restartDelay * 1_000_000);
-		}
-	}
+            final long elapsed = System.nanoTime() - time;
+            assertTrue("Not enough delay", elapsed >= restartDelay * 1_000_000);
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * This method makes sure that the actual interval and is not spuriously waking up.
-	 */
-	private static void sleepGuaranteed(long millis) throws InterruptedException {
-		final long deadline = System.nanoTime() + millis * 1_000_000;
+    /** This method makes sure that the actual interval and is not spuriously waking up. */
+    private static void sleepGuaranteed(long millis) throws InterruptedException {
+        final long deadline = System.nanoTime() + millis * 1_000_000;
 
-		long nanosToSleep;
-		while ((nanosToSleep = deadline - System.nanoTime()) > 0) {
-			long millisToSleep = nanosToSleep / 1_000_000;
-			if (nanosToSleep % 1_000_000 != 0) {
-				millisToSleep++;
-			}
+        long nanosToSleep;
+        while ((nanosToSleep = deadline - System.nanoTime()) > 0) {
+            long millisToSleep = nanosToSleep / 1_000_000;
+            if (nanosToSleep % 1_000_000 != 0) {
+                millisToSleep++;
+            }
 
-			Thread.sleep(millisToSleep);
-		}
-	}
-	
-	
+            Thread.sleep(millisToSleep);
+        }
+    }
 }

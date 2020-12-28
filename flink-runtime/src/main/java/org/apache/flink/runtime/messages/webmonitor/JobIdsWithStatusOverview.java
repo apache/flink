@@ -37,125 +37,121 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * An overview of how many jobs are in which status.
- */
+/** An overview of how many jobs are in which status. */
 public class JobIdsWithStatusOverview implements ResponseBody, InfoMessage {
 
-	private static final long serialVersionUID = -3699051943490133183L;
+    private static final long serialVersionUID = -3699051943490133183L;
 
-	public static final String FIELD_NAME_JOBS = "jobs";
+    public static final String FIELD_NAME_JOBS = "jobs";
 
-	@JsonProperty(FIELD_NAME_JOBS)
-	private final Collection<JobIdWithStatus> jobsWithStatus;
+    @JsonProperty(FIELD_NAME_JOBS)
+    private final Collection<JobIdWithStatus> jobsWithStatus;
 
-	@JsonCreator
-	public JobIdsWithStatusOverview(
-			@JsonProperty(FIELD_NAME_JOBS) Collection<JobIdWithStatus> jobsWithStatus) {
-		this.jobsWithStatus = checkNotNull(jobsWithStatus);
-	}
+    @JsonCreator
+    public JobIdsWithStatusOverview(
+            @JsonProperty(FIELD_NAME_JOBS) Collection<JobIdWithStatus> jobsWithStatus) {
+        this.jobsWithStatus = checkNotNull(jobsWithStatus);
+    }
 
-	public JobIdsWithStatusOverview(JobIdsWithStatusOverview first, JobIdsWithStatusOverview second) {
-		this.jobsWithStatus = combine(first.getJobsWithStatus(), second.getJobsWithStatus());
-	}
+    public JobIdsWithStatusOverview(
+            JobIdsWithStatusOverview first, JobIdsWithStatusOverview second) {
+        this.jobsWithStatus = combine(first.getJobsWithStatus(), second.getJobsWithStatus());
+    }
 
-	public Collection<JobIdWithStatus> getJobsWithStatus() {
-		return jobsWithStatus;
-	}
+    public Collection<JobIdWithStatus> getJobsWithStatus() {
+        return jobsWithStatus;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return jobsWithStatus.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return jobsWithStatus.hashCode();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		}
-		else if (obj instanceof JobIdsWithStatusOverview) {
-			JobIdsWithStatusOverview that = (JobIdsWithStatusOverview) obj;
-			return jobsWithStatus.equals(that.getJobsWithStatus());
-		}
-		else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj instanceof JobIdsWithStatusOverview) {
+            JobIdsWithStatusOverview that = (JobIdsWithStatusOverview) obj;
+            return jobsWithStatus.equals(that.getJobsWithStatus());
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public String toString() {
-		return "JobIdsWithStatusesOverview { " + jobsWithStatus + " }";
-	}
+    @Override
+    public String toString() {
+        return "JobIdsWithStatusesOverview { " + jobsWithStatus + " }";
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static Collection<JobIdWithStatus> combine(
-			Collection<JobIdWithStatus> first,
-			Collection<JobIdWithStatus> second) {
-		checkNotNull(first);
-		checkNotNull(second);
+    private static Collection<JobIdWithStatus> combine(
+            Collection<JobIdWithStatus> first, Collection<JobIdWithStatus> second) {
+        checkNotNull(first);
+        checkNotNull(second);
 
-		ArrayList<JobIdWithStatus> result = new ArrayList<>(first.size() + second.size());
+        ArrayList<JobIdWithStatus> result = new ArrayList<>(first.size() + second.size());
 
-		result.addAll(first);
-		result.addAll(second);
+        result.addAll(first);
+        result.addAll(second);
 
-		return result;
-	}
+        return result;
+    }
 
-	// -------------------------------------------------------------------------
-	// Static classes
-	// -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Static classes
+    // -------------------------------------------------------------------------
 
-	public static final class JobIdWithStatus implements Serializable {
+    public static final class JobIdWithStatus implements Serializable {
 
-		private static final long serialVersionUID = -499449819268733026L;
+        private static final long serialVersionUID = -499449819268733026L;
 
-		public static final String FIELD_NAME_JOB_ID = "id";
+        public static final String FIELD_NAME_JOB_ID = "id";
 
-		public static final String FIELD_NAME_JOB_STATUS = "status";
+        public static final String FIELD_NAME_JOB_STATUS = "status";
 
-		@JsonProperty(FIELD_NAME_JOB_ID)
-		@JsonSerialize(using = JobIDSerializer.class)
-		private final JobID jobId;
+        @JsonProperty(FIELD_NAME_JOB_ID)
+        @JsonSerialize(using = JobIDSerializer.class)
+        private final JobID jobId;
 
-		@JsonProperty(FIELD_NAME_JOB_STATUS)
-		private final JobStatus jobStatus;
+        @JsonProperty(FIELD_NAME_JOB_STATUS)
+        private final JobStatus jobStatus;
 
-		@JsonCreator
-		public JobIdWithStatus(
-			@JsonProperty(FIELD_NAME_JOB_ID) @JsonDeserialize(using = JobIDDeserializer.class) JobID jobId,
-			@JsonProperty(FIELD_NAME_JOB_STATUS) JobStatus jobStatus) {
-			this.jobId = Preconditions.checkNotNull(jobId);
-			this.jobStatus = Preconditions.checkNotNull(jobStatus);
-		}
+        @JsonCreator
+        public JobIdWithStatus(
+                @JsonProperty(FIELD_NAME_JOB_ID) @JsonDeserialize(using = JobIDDeserializer.class)
+                        JobID jobId,
+                @JsonProperty(FIELD_NAME_JOB_STATUS) JobStatus jobStatus) {
+            this.jobId = Preconditions.checkNotNull(jobId);
+            this.jobStatus = Preconditions.checkNotNull(jobStatus);
+        }
 
-		public JobID getJobId() {
-			return jobId;
-		}
+        public JobID getJobId() {
+            return jobId;
+        }
 
-		public JobStatus getJobStatus() {
-			return jobStatus;
-		}
+        public JobStatus getJobStatus() {
+            return jobStatus;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			JobIdWithStatus that = (JobIdWithStatus) o;
-			return Objects.equals(jobId, that.jobId) &&
-				jobStatus == that.jobStatus;
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            JobIdWithStatus that = (JobIdWithStatus) o;
+            return Objects.equals(jobId, that.jobId) && jobStatus == that.jobStatus;
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(jobId, jobStatus);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(jobId, jobStatus);
+        }
+    }
 }

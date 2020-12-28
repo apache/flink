@@ -21,12 +21,9 @@ package org.apache.flink.connector.file.sink.utils;
 import org.apache.flink.core.fs.RecoverableWriter;
 
 /**
- * An implementation of the {@link RecoverableWriter.ResumeRecoverable ResumeRecoverable}
- * that does nothing.
+ * An implementation of the {@link RecoverableWriter.ResumeRecoverable ResumeRecoverable} that does
+ * nothing.
  *
- * <p>This is to avoid to have to implement all methods for every implementation
- * used in tests.
+ * <p>This is to avoid to have to implement all methods for every implementation used in tests.
  */
-public class NoOpRecoverable implements RecoverableWriter.ResumeRecoverable {
-
-}
+public class NoOpRecoverable implements RecoverableWriter.ResumeRecoverable {}

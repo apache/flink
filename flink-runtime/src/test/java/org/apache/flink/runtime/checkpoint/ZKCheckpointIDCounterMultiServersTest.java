@@ -36,84 +36,81 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link ZooKeeperCheckpointIDCounter} in a ZooKeeper ensemble.
- */
+/** Tests for {@link ZooKeeperCheckpointIDCounter} in a ZooKeeper ensemble. */
 public final class ZKCheckpointIDCounterMultiServersTest extends TestLogger {
 
-	@Rule
-	public ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+    @Rule public ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
-	/**
-	 * Tests that {@link ZooKeeperCheckpointIDCounter} can be recovered after a
-	 * connection loss exception from ZooKeeper ensemble.
-	 *
-	 * <p>See also FLINK-14091.
-	 */
-	@Test
-	public void testRecoveredAfterConnectionLoss() throws Exception {
+    /**
+     * Tests that {@link ZooKeeperCheckpointIDCounter} can be recovered after a connection loss
+     * exception from ZooKeeper ensemble.
+     *
+     * <p>See also FLINK-14091.
+     */
+    @Test
+    public void testRecoveredAfterConnectionLoss() throws Exception {
 
-		final Configuration configuration = new Configuration();
-		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
-		final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
+        final Configuration configuration = new Configuration();
+        configuration.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+        final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
 
-		try {
-			OneShotLatch connectionLossLatch = new OneShotLatch();
-			OneShotLatch reconnectedLatch = new OneShotLatch();
+        try {
+            OneShotLatch connectionLossLatch = new OneShotLatch();
+            OneShotLatch reconnectedLatch = new OneShotLatch();
 
-			TestingLastStateConnectionStateListener listener = new TestingLastStateConnectionStateListener(
-				connectionLossLatch,
-				reconnectedLatch);
+            TestingLastStateConnectionStateListener listener =
+                    new TestingLastStateConnectionStateListener(
+                            connectionLossLatch, reconnectedLatch);
 
-			ZooKeeperCheckpointIDCounter idCounter = new ZooKeeperCheckpointIDCounter(
-				client,
-				"/checkpoint-id-counter",
-				listener);
-			idCounter.start();
+            ZooKeeperCheckpointIDCounter idCounter =
+                    new ZooKeeperCheckpointIDCounter(client, "/checkpoint-id-counter", listener);
+            idCounter.start();
 
-			AtomicLong localCounter = new AtomicLong(1L);
+            AtomicLong localCounter = new AtomicLong(1L);
 
-			assertThat(
-				"ZooKeeperCheckpointIDCounter doesn't properly work.",
-				idCounter.getAndIncrement(),
-				is(localCounter.getAndIncrement()));
+            assertThat(
+                    "ZooKeeperCheckpointIDCounter doesn't properly work.",
+                    idCounter.getAndIncrement(),
+                    is(localCounter.getAndIncrement()));
 
-			zooKeeperResource.restart();
+            zooKeeperResource.restart();
 
-			connectionLossLatch.await();
-			reconnectedLatch.await();
+            connectionLossLatch.await();
+            reconnectedLatch.await();
 
-			assertThat(
-				"ZooKeeperCheckpointIDCounter doesn't properly work after reconnected.",
-				idCounter.getAndIncrement(),
-				is(localCounter.getAndIncrement()));
-		} finally {
-			client.close();
-		}
-	}
+            assertThat(
+                    "ZooKeeperCheckpointIDCounter doesn't properly work after reconnected.",
+                    idCounter.getAndIncrement(),
+                    is(localCounter.getAndIncrement()));
+        } finally {
+            client.close();
+        }
+    }
 
-	private static final class TestingLastStateConnectionStateListener extends DefaultLastStateConnectionStateListener {
+    private static final class TestingLastStateConnectionStateListener
+            extends DefaultLastStateConnectionStateListener {
 
-		private final OneShotLatch connectionLossLatch;
-		private final OneShotLatch reconnectedLatch;
+        private final OneShotLatch connectionLossLatch;
+        private final OneShotLatch reconnectedLatch;
 
-		private TestingLastStateConnectionStateListener(OneShotLatch connectionLossLatch, OneShotLatch reconnectedLatch) {
-			this.connectionLossLatch = connectionLossLatch;
-			this.reconnectedLatch = reconnectedLatch;
-		}
+        private TestingLastStateConnectionStateListener(
+                OneShotLatch connectionLossLatch, OneShotLatch reconnectedLatch) {
+            this.connectionLossLatch = connectionLossLatch;
+            this.reconnectedLatch = reconnectedLatch;
+        }
 
-		@Override
-		public void stateChanged(CuratorFramework client, ConnectionState newState) {
-			super.stateChanged(client, newState);
+        @Override
+        public void stateChanged(CuratorFramework client, ConnectionState newState) {
+            super.stateChanged(client, newState);
 
-			if (newState == ConnectionState.LOST || newState == ConnectionState.SUSPENDED) {
-				connectionLossLatch.trigger();
-			}
+            if (newState == ConnectionState.LOST || newState == ConnectionState.SUSPENDED) {
+                connectionLossLatch.trigger();
+            }
 
-			if (newState == ConnectionState.RECONNECTED) {
-				reconnectedLatch.trigger();
-			}
-		}
-	}
-
+            if (newState == ConnectionState.RECONNECTED) {
+                reconnectedLatch.trigger();
+            }
+        }
+    }
 }

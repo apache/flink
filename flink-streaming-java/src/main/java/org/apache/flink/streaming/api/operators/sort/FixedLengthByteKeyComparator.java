@@ -29,150 +29,157 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * A comparator used in {@link SortingDataInput} which compares records keys and timestamps.
- * It uses binary format produced by the {@link KeyAndValueSerializer}.
+ * A comparator used in {@link SortingDataInput} which compares records keys and timestamps. It uses
+ * binary format produced by the {@link KeyAndValueSerializer}.
  *
- * <p>It assumes keys are always of a fixed length and thus the length of the record is not serialized.
+ * <p>It assumes keys are always of a fixed length and thus the length of the record is not
+ * serialized.
  */
-final class FixedLengthByteKeyComparator<IN> extends TypeComparator<Tuple2<byte[], StreamRecord<IN>>> {
-	static final int TIMESTAMP_BYTE_SIZE = 8;
-	private final int keyLength;
-	private byte[] keyReference;
-	private long timestampReference;
+final class FixedLengthByteKeyComparator<IN>
+        extends TypeComparator<Tuple2<byte[], StreamRecord<IN>>> {
+    static final int TIMESTAMP_BYTE_SIZE = 8;
+    private final int keyLength;
+    private byte[] keyReference;
+    private long timestampReference;
 
-	FixedLengthByteKeyComparator(int keyLength) {
-		this.keyLength = keyLength;
-	}
+    FixedLengthByteKeyComparator(int keyLength) {
+        this.keyLength = keyLength;
+    }
 
-	@Override
-	public int hash(Tuple2<byte[], StreamRecord<IN>> record) {
-		return record.hashCode();
-	}
+    @Override
+    public int hash(Tuple2<byte[], StreamRecord<IN>> record) {
+        return record.hashCode();
+    }
 
-	@Override
-	public void setReference(Tuple2<byte[], StreamRecord<IN>> toCompare) {
-		this.keyReference = toCompare.f0;
-		this.timestampReference = toCompare.f1.asRecord().getTimestamp();
-	}
+    @Override
+    public void setReference(Tuple2<byte[], StreamRecord<IN>> toCompare) {
+        this.keyReference = toCompare.f0;
+        this.timestampReference = toCompare.f1.asRecord().getTimestamp();
+    }
 
-	@Override
-	public boolean equalToReference(Tuple2<byte[], StreamRecord<IN>> candidate) {
-		return Arrays.equals(keyReference, candidate.f0) &&
-			timestampReference == candidate.f1.asRecord().getTimestamp();
-	}
+    @Override
+    public boolean equalToReference(Tuple2<byte[], StreamRecord<IN>> candidate) {
+        return Arrays.equals(keyReference, candidate.f0)
+                && timestampReference == candidate.f1.asRecord().getTimestamp();
+    }
 
-	@Override
-	public int compareToReference(TypeComparator<Tuple2<byte[], StreamRecord<IN>>> referencedComparator) {
-		byte[] otherKey = ((FixedLengthByteKeyComparator<IN>) referencedComparator).keyReference;
-		long otherTimestamp = ((FixedLengthByteKeyComparator<IN>) referencedComparator).timestampReference;
+    @Override
+    public int compareToReference(
+            TypeComparator<Tuple2<byte[], StreamRecord<IN>>> referencedComparator) {
+        byte[] otherKey = ((FixedLengthByteKeyComparator<IN>) referencedComparator).keyReference;
+        long otherTimestamp =
+                ((FixedLengthByteKeyComparator<IN>) referencedComparator).timestampReference;
 
-		int keyCmp = compare(otherKey, this.keyReference);
-		if (keyCmp != 0) {
-			return keyCmp;
-		}
-		return Long.compare(otherTimestamp, this.timestampReference);
-	}
+        int keyCmp = compare(otherKey, this.keyReference);
+        if (keyCmp != 0) {
+            return keyCmp;
+        }
+        return Long.compare(otherTimestamp, this.timestampReference);
+    }
 
-	@Override
-	public int compare(
-			Tuple2<byte[], StreamRecord<IN>> first,
-			Tuple2<byte[], StreamRecord<IN>> second) {
-		int keyCmp = compare(first.f0, second.f0);
-		if (keyCmp != 0) {
-			return keyCmp;
-		}
-		return Long.compare(first.f1.asRecord().getTimestamp(), second.f1.asRecord().getTimestamp());
-	}
+    @Override
+    public int compare(
+            Tuple2<byte[], StreamRecord<IN>> first, Tuple2<byte[], StreamRecord<IN>> second) {
+        int keyCmp = compare(first.f0, second.f0);
+        if (keyCmp != 0) {
+            return keyCmp;
+        }
+        return Long.compare(
+                first.f1.asRecord().getTimestamp(), second.f1.asRecord().getTimestamp());
+    }
 
-	private int compare(byte[] first, byte[] second) {
-		for (int i = 0; i < keyLength; i++) {
-			int cmp = Byte.compare(first[i], second[i]);
+    private int compare(byte[] first, byte[] second) {
+        for (int i = 0; i < keyLength; i++) {
+            int cmp = Byte.compare(first[i], second[i]);
 
-			if (cmp != 0) {
-				return cmp < 0 ? -1 : 1;
-			}
-		}
+            if (cmp != 0) {
+                return cmp < 0 ? -1 : 1;
+            }
+        }
 
-		return 0;
-	}
+        return 0;
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		int minCount = keyLength;
-		while (minCount-- > 0) {
-			byte firstValue = firstSource.readByte();
-			byte secondValue = secondSource.readByte();
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        int minCount = keyLength;
+        while (minCount-- > 0) {
+            byte firstValue = firstSource.readByte();
+            byte secondValue = secondSource.readByte();
 
-			int cmp = Byte.compare(firstValue, secondValue);
-			if (cmp != 0) {
-				return cmp < 0 ? -1 : 1;
-			}
-		}
+            int cmp = Byte.compare(firstValue, secondValue);
+            if (cmp != 0) {
+                return cmp < 0 ? -1 : 1;
+            }
+        }
 
-		return Long.compare(firstSource.readLong(), secondSource.readLong());
-	}
+        return Long.compare(firstSource.readLong(), secondSource.readLong());
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return true;
-	}
+    @Override
+    public boolean supportsNormalizedKey() {
+        return true;
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return keyLength + TIMESTAMP_BYTE_SIZE;
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return keyLength + TIMESTAMP_BYTE_SIZE;
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return keyBytes < getNormalizeKeyLen();
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return keyBytes < getNormalizeKeyLen();
+    }
 
-	@Override
-	public void putNormalizedKey(Tuple2<byte[], StreamRecord<IN>> record, MemorySegment target, int offset, int numBytes) {
-		BytesKeyNormalizationUtil.putNormalizedKey(record, keyLength, target, offset, numBytes);
-	}
+    @Override
+    public void putNormalizedKey(
+            Tuple2<byte[], StreamRecord<IN>> record,
+            MemorySegment target,
+            int offset,
+            int numBytes) {
+        BytesKeyNormalizationUtil.putNormalizedKey(record, keyLength, target, offset, numBytes);
+    }
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return false;
-	}
+    @Override
+    public boolean invertNormalizedKey() {
+        return false;
+    }
 
-	@Override
-	public TypeComparator<Tuple2<byte[], StreamRecord<IN>>> duplicate() {
-		return new FixedLengthByteKeyComparator<>(this.keyLength);
-	}
+    @Override
+    public TypeComparator<Tuple2<byte[], StreamRecord<IN>>> duplicate() {
+        return new FixedLengthByteKeyComparator<>(this.keyLength);
+    }
 
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
+    @Override
+    public int extractKeys(Object record, Object[] target, int index) {
+        target[index] = record;
+        return 1;
+    }
 
-	@Override
-	public TypeComparator<?>[] getFlatComparators() {
-		return new TypeComparator[] {this};
-	}
+    @Override
+    public TypeComparator<?>[] getFlatComparators() {
+        return new TypeComparator[] {this};
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// unsupported normalization
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // unsupported normalization
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
-	}
+    @Override
+    public boolean supportsSerializationWithKeyNormalization() {
+        return false;
+    }
 
-	@Override
-	public void writeWithKeyNormalization(
-		Tuple2<byte[], StreamRecord<IN>> record,
-		DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void writeWithKeyNormalization(
+            Tuple2<byte[], StreamRecord<IN>> record, DataOutputView target) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Tuple2<byte[], StreamRecord<IN>> readWithKeyDenormalization(
-		Tuple2<byte[], StreamRecord<IN>> reuse,
-		DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public Tuple2<byte[], StreamRecord<IN>> readWithKeyDenormalization(
+            Tuple2<byte[], StreamRecord<IN>> reuse, DataInputView source) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 }

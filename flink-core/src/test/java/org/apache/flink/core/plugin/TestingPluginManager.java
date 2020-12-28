@@ -23,20 +23,18 @@ import org.apache.commons.collections.IteratorUtils;
 import java.util.Iterator;
 import java.util.Map;
 
-/**
- * {@link PluginManager} for testing purpose.
- */
+/** {@link PluginManager} for testing purpose. */
 public class TestingPluginManager implements PluginManager {
 
-	private final Map<Class<?>, Iterator<?>> plugins;
+    private final Map<Class<?>, Iterator<?>> plugins;
 
-	public TestingPluginManager(Map<Class<?>, Iterator<?>> plugins) {
-		this.plugins = plugins;
-	}
+    public TestingPluginManager(Map<Class<?>, Iterator<?>> plugins) {
+        this.plugins = plugins;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <P> Iterator<P> load(Class<P> service) {
-		return (Iterator<P>) plugins.getOrDefault(service, IteratorUtils.emptyIterator());
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <P> Iterator<P> load(Class<P> service) {
+        return (Iterator<P>) plugins.getOrDefault(service, IteratorUtils.emptyIterator());
+    }
 }

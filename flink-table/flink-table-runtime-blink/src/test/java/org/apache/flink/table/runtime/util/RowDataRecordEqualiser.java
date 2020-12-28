@@ -24,22 +24,21 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 
 /**
- * A utility class to check whether two RowData are equal.
- * Note: Only support to compare two BinaryRows or two GenericRows.
+ * A utility class to check whether two RowData are equal. Note: Only support to compare two
+ * BinaryRows or two GenericRows.
  */
 public class RowDataRecordEqualiser implements RecordEqualiser {
 
-	private static final long serialVersionUID = -6706336100425614942L;
+    private static final long serialVersionUID = -6706336100425614942L;
 
-	@Override
-	public boolean equals(RowData row1, RowData row2) {
-		if (row1 instanceof BinaryRowData && row2 instanceof BinaryRowData) {
-			return row1.equals(row2);
-		} else if (row1 instanceof GenericRowData && row2 instanceof GenericRowData) {
-			return row1.equals(row2);
-		} else {
-			throw new UnsupportedOperationException();
-		}
-
-	}
+    @Override
+    public boolean equals(RowData row1, RowData row2) {
+        if (row1 instanceof BinaryRowData && row2 instanceof BinaryRowData) {
+            return row1.equals(row2);
+        } else if (row1 instanceof GenericRowData && row2 instanceof GenericRowData) {
+            return row1.equals(row2);
+        } else {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

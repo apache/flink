@@ -36,136 +36,155 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
-/**
- * Tests for {@link ResourceInformationReflector}.
- */
+/** Tests for {@link ResourceInformationReflector}. */
 public class ResourceInformationReflectorTest extends TestLogger {
 
-	private static final String RESOURCE_NAME = "test";
-	private static final long RESOURCE_VALUE = 1;
+    private static final String RESOURCE_NAME = "test";
+    private static final long RESOURCE_VALUE = 1;
 
-	@Test
-	public void testSetResourceInformationIfMethodPresent() {
-		final ResourceInformationReflector resourceInformationReflector = new ResourceInformationReflector(ResourceWithMethod.class.getName(), ResourceInfoWithMethod.class.getName());
-		final ResourceWithMethod resourceWithMethod = new ResourceWithMethod();
-		resourceInformationReflector.setResourceInformationUnSafe(resourceWithMethod, RESOURCE_NAME, RESOURCE_VALUE);
+    @Test
+    public void testSetResourceInformationIfMethodPresent() {
+        final ResourceInformationReflector resourceInformationReflector =
+                new ResourceInformationReflector(
+                        ResourceWithMethod.class.getName(), ResourceInfoWithMethod.class.getName());
+        final ResourceWithMethod resourceWithMethod = new ResourceWithMethod();
+        resourceInformationReflector.setResourceInformationUnSafe(
+                resourceWithMethod, RESOURCE_NAME, RESOURCE_VALUE);
 
-		assertNotNull(resourceWithMethod.getResourceWithName(RESOURCE_NAME));
-		assertThat(resourceWithMethod.getResourceWithName(RESOURCE_NAME).getName(), is(RESOURCE_NAME));
-		assertThat(resourceWithMethod.getResourceWithName(RESOURCE_NAME).getValue(), is(RESOURCE_VALUE));
-	}
+        assertNotNull(resourceWithMethod.getResourceWithName(RESOURCE_NAME));
+        assertThat(
+                resourceWithMethod.getResourceWithName(RESOURCE_NAME).getName(), is(RESOURCE_NAME));
+        assertThat(
+                resourceWithMethod.getResourceWithName(RESOURCE_NAME).getValue(),
+                is(RESOURCE_VALUE));
+    }
 
-	@Test
-	public void testGetResourceInformationIfMethodPresent() {
-		final ResourceInformationReflector resourceInformationReflector = new ResourceInformationReflector(ResourceWithMethod.class.getName(), ResourceInfoWithMethod.class.getName());
-		final ResourceWithMethod resourceWithMethod = new ResourceWithMethod();
-		resourceWithMethod.setResourceInformation(RESOURCE_NAME, ResourceInfoWithMethod.newInstance(RESOURCE_NAME, RESOURCE_VALUE));
+    @Test
+    public void testGetResourceInformationIfMethodPresent() {
+        final ResourceInformationReflector resourceInformationReflector =
+                new ResourceInformationReflector(
+                        ResourceWithMethod.class.getName(), ResourceInfoWithMethod.class.getName());
+        final ResourceWithMethod resourceWithMethod = new ResourceWithMethod();
+        resourceWithMethod.setResourceInformation(
+                RESOURCE_NAME, ResourceInfoWithMethod.newInstance(RESOURCE_NAME, RESOURCE_VALUE));
 
-		final Map<String, Long> externalResources = resourceInformationReflector.getExternalResourcesUnSafe(resourceWithMethod);
-		assertThat(externalResources.size(), is(1));
-		assertTrue(externalResources.containsKey(RESOURCE_NAME));
-		assertThat(externalResources.get(RESOURCE_NAME), is(RESOURCE_VALUE));
-	}
+        final Map<String, Long> externalResources =
+                resourceInformationReflector.getExternalResourcesUnSafe(resourceWithMethod);
+        assertThat(externalResources.size(), is(1));
+        assertTrue(externalResources.containsKey(RESOURCE_NAME));
+        assertThat(externalResources.get(RESOURCE_NAME), is(RESOURCE_VALUE));
+    }
 
-	@Test
-	public void testSetResourceInformationIfMethodAbsent() {
-		final ResourceInformationReflector resourceInformationReflector = new ResourceInformationReflector(ResourceWithoutMethod.class.getName(), ResourceInfoWithMethod.class.getName());
-		final ResourceWithMethod resourceWithMethod = new ResourceWithMethod();
-		resourceInformationReflector.setResourceInformationUnSafe(resourceWithMethod, RESOURCE_NAME, RESOURCE_VALUE);
+    @Test
+    public void testSetResourceInformationIfMethodAbsent() {
+        final ResourceInformationReflector resourceInformationReflector =
+                new ResourceInformationReflector(
+                        ResourceWithoutMethod.class.getName(),
+                        ResourceInfoWithMethod.class.getName());
+        final ResourceWithMethod resourceWithMethod = new ResourceWithMethod();
+        resourceInformationReflector.setResourceInformationUnSafe(
+                resourceWithMethod, RESOURCE_NAME, RESOURCE_VALUE);
 
-		assertNull(resourceWithMethod.getResourceWithName(RESOURCE_NAME));
-	}
+        assertNull(resourceWithMethod.getResourceWithName(RESOURCE_NAME));
+    }
 
-	@Test
-	public void testGetResourceInformationIfMethodAbsent() {
-		final ResourceInformationReflector resourceInformationReflector = new ResourceInformationReflector(ResourceWithoutMethod.class.getName(), ResourceInfoWithMethod.class.getName());
-		final ResourceWithMethod resourceWithMethod = new ResourceWithMethod();
-		resourceWithMethod.setResourceInformation(RESOURCE_NAME, ResourceInfoWithMethod.newInstance(RESOURCE_NAME, RESOURCE_VALUE));
+    @Test
+    public void testGetResourceInformationIfMethodAbsent() {
+        final ResourceInformationReflector resourceInformationReflector =
+                new ResourceInformationReflector(
+                        ResourceWithoutMethod.class.getName(),
+                        ResourceInfoWithMethod.class.getName());
+        final ResourceWithMethod resourceWithMethod = new ResourceWithMethod();
+        resourceWithMethod.setResourceInformation(
+                RESOURCE_NAME, ResourceInfoWithMethod.newInstance(RESOURCE_NAME, RESOURCE_VALUE));
 
-		final Map<String, Long> externalResources = resourceInformationReflector.getExternalResourcesUnSafe(resourceWithMethod);
-		assertThat(externalResources.entrySet(), is(empty()));
-	}
+        final Map<String, Long> externalResources =
+                resourceInformationReflector.getExternalResourcesUnSafe(resourceWithMethod);
+        assertThat(externalResources.entrySet(), is(empty()));
+    }
 
-	@Test
-	public void testDefaultTwoResourceTypeWithYarnSupport() {
-		assumeTrue(HadoopUtils.isMinHadoopVersion(2, 10));
+    @Test
+    public void testDefaultTwoResourceTypeWithYarnSupport() {
+        assumeTrue(HadoopUtils.isMinHadoopVersion(2, 10));
 
-		final Resource resource = Resource.newInstance(100, 1);
+        final Resource resource = Resource.newInstance(100, 1);
 
-		// make sure that Resource has at least two associated resources (cpu and memory)
-		final Map<String, Long> resourcesResult = ResourceInformationReflector.INSTANCE.getAllResourceInfos(resource);
-		assertThat(resourcesResult.size(), greaterThanOrEqualTo(2));
-	}
+        // make sure that Resource has at least two associated resources (cpu and memory)
+        final Map<String, Long> resourcesResult =
+                ResourceInformationReflector.INSTANCE.getAllResourceInfos(resource);
+        assertThat(resourcesResult.size(), greaterThanOrEqualTo(2));
+    }
 
-	@Test
-	public void testSetAndGetExtendedResourcesWithoutYarnSupport() {
-		assumeTrue(HadoopUtils.isMaxHadoopVersion(2, 10));
+    @Test
+    public void testSetAndGetExtendedResourcesWithoutYarnSupport() {
+        assumeTrue(HadoopUtils.isMaxHadoopVersion(2, 10));
 
-		final Resource resource = Resource.newInstance(100, 1);
+        final Resource resource = Resource.newInstance(100, 1);
 
-		// Should do nothing without leading to failure.
-		ResourceInformationReflector.INSTANCE.setResourceInformation(resource, RESOURCE_NAME, RESOURCE_VALUE);
+        // Should do nothing without leading to failure.
+        ResourceInformationReflector.INSTANCE.setResourceInformation(
+                resource, RESOURCE_NAME, RESOURCE_VALUE);
 
-		final Map<String, Long> externalResourcesResult = ResourceInformationReflector.INSTANCE.getExternalResources(resource);
-		assertTrue(externalResourcesResult.isEmpty());
-	}
+        final Map<String, Long> externalResourcesResult =
+                ResourceInformationReflector.INSTANCE.getExternalResources(resource);
+        assertTrue(externalResourcesResult.isEmpty());
+    }
 
-	/**
-	 * Class which has methods with the same signature as
-	 * {@link org.apache.hadoop.yarn.api.records.Resource} in Hadoop 2.10+ and 3.0+.
-	 */
-	private static class ResourceWithMethod {
-		private final Map<String, ResourceInfoWithMethod> externalResource = new HashMap<>();
+    /**
+     * Class which has methods with the same signature as {@link
+     * org.apache.hadoop.yarn.api.records.Resource} in Hadoop 2.10+ and 3.0+.
+     */
+    private static class ResourceWithMethod {
+        private final Map<String, ResourceInfoWithMethod> externalResource = new HashMap<>();
 
-		public void setResourceInformation(String name, ResourceInfoWithMethod resourceInfoWithMethod) {
-			externalResource.put(name, resourceInfoWithMethod);
-		}
+        public void setResourceInformation(
+                String name, ResourceInfoWithMethod resourceInfoWithMethod) {
+            externalResource.put(name, resourceInfoWithMethod);
+        }
 
-		public ResourceInfoWithMethod[] getResources() {
-			ResourceInfoWithMethod[] resourceInfos = new ResourceInfoWithMethod[2 + externalResource.size()];
-			resourceInfos[0] = ResourceInfoWithMethod.newInstance("cpu", 1);
-			resourceInfos[1] = ResourceInfoWithMethod.newInstance("memory", 1024);
-			int i = 2;
-			for (ResourceInfoWithMethod resourceInfoWithMethod : externalResource.values()) {
-				resourceInfos[i++] = resourceInfoWithMethod;
-			}
-			return resourceInfos;
-		}
+        public ResourceInfoWithMethod[] getResources() {
+            ResourceInfoWithMethod[] resourceInfos =
+                    new ResourceInfoWithMethod[2 + externalResource.size()];
+            resourceInfos[0] = ResourceInfoWithMethod.newInstance("cpu", 1);
+            resourceInfos[1] = ResourceInfoWithMethod.newInstance("memory", 1024);
+            int i = 2;
+            for (ResourceInfoWithMethod resourceInfoWithMethod : externalResource.values()) {
+                resourceInfos[i++] = resourceInfoWithMethod;
+            }
+            return resourceInfos;
+        }
 
-		private ResourceInfoWithMethod getResourceWithName(String name) {
-			return externalResource.get(name);
-		}
-	}
+        private ResourceInfoWithMethod getResourceWithName(String name) {
+            return externalResource.get(name);
+        }
+    }
 
-	/**
-	 * Class which has methods with the same signature as
-	 * {@link org.apache.hadoop.yarn.api.records.ResourceInformation} in Hadoop 2.10+ and 3.0+.
-	 */
-	private static class ResourceInfoWithMethod {
-		private final String name;
-		private final long value;
+    /**
+     * Class which has methods with the same signature as {@link
+     * org.apache.hadoop.yarn.api.records.ResourceInformation} in Hadoop 2.10+ and 3.0+.
+     */
+    private static class ResourceInfoWithMethod {
+        private final String name;
+        private final long value;
 
-		private ResourceInfoWithMethod(String name, long value) {
-			this.name = name;
-			this.value = value;
-		}
+        private ResourceInfoWithMethod(String name, long value) {
+            this.name = name;
+            this.value = value;
+        }
 
-		public String getName() {
-			return name;
-		}
+        public String getName() {
+            return name;
+        }
 
-		public long getValue() {
-			return value;
-		}
+        public long getValue() {
+            return value;
+        }
 
-		public static ResourceInfoWithMethod newInstance(String name, long value) {
-			return new ResourceInfoWithMethod(name, value);
-		}
-	}
+        public static ResourceInfoWithMethod newInstance(String name, long value) {
+            return new ResourceInfoWithMethod(name, value);
+        }
+    }
 
-	/**
-	 * Class which does not has required methods.
-	 */
-	private static class ResourceWithoutMethod {
-	}
+    /** Class which does not has required methods. */
+    private static class ResourceWithoutMethod {}
 }

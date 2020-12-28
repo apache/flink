@@ -23,15 +23,13 @@ import org.apache.orc.RecordReader;
 
 import java.io.IOException;
 
-/**
- * Shim orc for Hive version 2.1.0 and upper versions.
- */
+/** Shim orc for Hive version 2.1.0 and upper versions. */
 public class OrcShimV210 extends OrcShimV200 {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean nextBatch(RecordReader reader, VectorizedRowBatch rowBatch) throws IOException {
-		return reader.nextBatch(rowBatch);
-	}
+    @Override
+    public boolean nextBatch(RecordReader reader, VectorizedRowBatch rowBatch) throws IOException {
+        return reader.nextBatch(rowBatch);
+    }
 }

@@ -20,17 +20,15 @@ package org.apache.flink.runtime.security;
 
 import java.security.GeneralSecurityException;
 
-/**
- * Indicates a problem with installing or uninstalling a security module or context.
- */
+/** Indicates a problem with installing or uninstalling a security module or context. */
 public class SecurityContextInitializeException extends GeneralSecurityException {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SecurityContextInitializeException(String msg) {
-		super(msg);
-	}
+    public SecurityContextInitializeException(String msg) {
+        super(msg);
+    }
 
-	public SecurityContextInitializeException(String msg, Throwable cause) {
-		super(msg, cause);
-	}
+    public SecurityContextInitializeException(String msg, Throwable cause) {
+        super(msg, cause);
+    }
 }

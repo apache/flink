@@ -30,118 +30,117 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * A {@link RestartStrategy} for tests that gives fine-grained control over the point in time when restart actions are
- * performed.
+ * A {@link RestartStrategy} for tests that gives fine-grained control over the point in time when
+ * restart actions are performed.
  */
 public class TestRestartStrategy implements RestartStrategy {
 
-	@Nonnull
-	private final Queue<ExecutorAction> actionsQueue;
+    @Nonnull private final Queue<ExecutorAction> actionsQueue;
 
-	private final int maxRestarts;
+    private final int maxRestarts;
 
-	private int restartAttempts;
+    private int restartAttempts;
 
-	private boolean manuallyTriggeredExecution;
+    private boolean manuallyTriggeredExecution;
 
-	public TestRestartStrategy() {
-		this(true);
-	}
+    public TestRestartStrategy() {
+        this(true);
+    }
 
-	public TestRestartStrategy(boolean manuallyTriggeredExecution) {
-		this(-1, manuallyTriggeredExecution);
-	}
+    public TestRestartStrategy(boolean manuallyTriggeredExecution) {
+        this(-1, manuallyTriggeredExecution);
+    }
 
-	public TestRestartStrategy(int maxRestarts, boolean manuallyTriggeredExecution) {
-		this(new LinkedList<>(), maxRestarts, manuallyTriggeredExecution);
-	}
+    public TestRestartStrategy(int maxRestarts, boolean manuallyTriggeredExecution) {
+        this(new LinkedList<>(), maxRestarts, manuallyTriggeredExecution);
+    }
 
-	public TestRestartStrategy(
-		@Nonnull Queue<ExecutorAction> actionsQueue,
-		int maxRestarts,
-		boolean manuallyTriggeredExecution) {
+    public TestRestartStrategy(
+            @Nonnull Queue<ExecutorAction> actionsQueue,
+            int maxRestarts,
+            boolean manuallyTriggeredExecution) {
 
-		this.actionsQueue = actionsQueue;
-		this.maxRestarts = maxRestarts;
-		this.manuallyTriggeredExecution = manuallyTriggeredExecution;
-	}
+        this.actionsQueue = actionsQueue;
+        this.maxRestarts = maxRestarts;
+        this.manuallyTriggeredExecution = manuallyTriggeredExecution;
+    }
 
-	@Override
-	public boolean canRestart() {
-		return maxRestarts < 0 || maxRestarts - restartAttempts > 0;
-	}
+    @Override
+    public boolean canRestart() {
+        return maxRestarts < 0 || maxRestarts - restartAttempts > 0;
+    }
 
-	@Override
-	public CompletableFuture<Void> restart(RestartCallback restarter, ScheduledExecutor executor) {
+    @Override
+    public CompletableFuture<Void> restart(RestartCallback restarter, ScheduledExecutor executor) {
 
-		++restartAttempts;
-		ExecutorAction executorAction = new ExecutorAction(restarter::triggerFullRecovery, executor);
-		if (manuallyTriggeredExecution) {
-			synchronized (actionsQueue) {
-				actionsQueue.add(executorAction);
-			}
-			return new CompletableFuture<>();
-		} else {
-			return executorAction.trigger();
-		}
-	}
+        ++restartAttempts;
+        ExecutorAction executorAction =
+                new ExecutorAction(restarter::triggerFullRecovery, executor);
+        if (manuallyTriggeredExecution) {
+            synchronized (actionsQueue) {
+                actionsQueue.add(executorAction);
+            }
+            return new CompletableFuture<>();
+        } else {
+            return executorAction.trigger();
+        }
+    }
 
-	public int getNumberOfQueuedActions() {
-		synchronized (actionsQueue) {
-			return actionsQueue.size();
-		}
-	}
+    public int getNumberOfQueuedActions() {
+        synchronized (actionsQueue) {
+            return actionsQueue.size();
+        }
+    }
 
-	public CompletableFuture<Void> triggerNextAction() {
-		synchronized (actionsQueue) {
-			return actionsQueue.remove().trigger();
-		}
-	}
+    public CompletableFuture<Void> triggerNextAction() {
+        synchronized (actionsQueue) {
+            return actionsQueue.remove().trigger();
+        }
+    }
 
-	public CompletableFuture<Void> triggerAll() {
+    public CompletableFuture<Void> triggerAll() {
 
-		synchronized (actionsQueue) {
+        synchronized (actionsQueue) {
+            if (actionsQueue.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
 
-			if (actionsQueue.isEmpty()) {
-				return CompletableFuture.completedFuture(null);
-			}
+            CompletableFuture<?>[] completableFutures = new CompletableFuture[actionsQueue.size()];
+            for (int i = 0; i < completableFutures.length; ++i) {
+                completableFutures[i] = triggerNextAction();
+            }
+            return CompletableFuture.allOf(completableFutures);
+        }
+    }
 
-			CompletableFuture<?>[] completableFutures = new CompletableFuture[actionsQueue.size()];
-			for (int i = 0; i < completableFutures.length; ++i) {
-				completableFutures[i] = triggerNextAction();
-			}
-			return CompletableFuture.allOf(completableFutures);
-		}
-	}
+    public boolean isManuallyTriggeredExecution() {
+        return manuallyTriggeredExecution;
+    }
 
-	public boolean isManuallyTriggeredExecution() {
-		return manuallyTriggeredExecution;
-	}
+    public void setManuallyTriggeredExecution(boolean manuallyTriggeredExecution) {
+        this.manuallyTriggeredExecution = manuallyTriggeredExecution;
+    }
 
-	public void setManuallyTriggeredExecution(boolean manuallyTriggeredExecution) {
-		this.manuallyTriggeredExecution = manuallyTriggeredExecution;
-	}
+    public static TestRestartStrategy manuallyTriggered() {
+        return new TestRestartStrategy(true);
+    }
 
-	public static TestRestartStrategy manuallyTriggered() {
-		return new TestRestartStrategy(true);
-	}
+    public static TestRestartStrategy directExecuting() {
+        return new TestRestartStrategy(false);
+    }
 
-	public static TestRestartStrategy directExecuting() {
-		return new TestRestartStrategy(false);
-	}
+    private static class ExecutorAction {
 
-	private static class ExecutorAction {
+        final Runnable runnable;
+        final Executor executor;
 
-		final Runnable runnable;
-		final Executor executor;
+        ExecutorAction(Runnable runnable, Executor executor) {
+            this.runnable = runnable;
+            this.executor = executor;
+        }
 
-		ExecutorAction(Runnable runnable, Executor executor) {
-			this.runnable = runnable;
-			this.executor = executor;
-		}
-
-		public CompletableFuture<Void> trigger() {
-			return CompletableFuture.runAsync(runnable, executor);
-		}
-	}
+        public CompletableFuture<Void> trigger() {
+            return CompletableFuture.runAsync(runnable, executor);
+        }
+    }
 }

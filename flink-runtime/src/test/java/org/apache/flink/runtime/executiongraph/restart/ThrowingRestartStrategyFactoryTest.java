@@ -30,38 +30,37 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link ThrowingRestartStrategy}.
- */
+/** Tests for {@link ThrowingRestartStrategy}. */
 public class ThrowingRestartStrategyFactoryTest extends TestLogger {
 
-	private RestartStrategy restartStrategy;
+    private RestartStrategy restartStrategy;
 
-	@Before
-	public void setUp() {
-		restartStrategy = new ThrowingRestartStrategy();
-	}
+    @Before
+    public void setUp() {
+        restartStrategy = new ThrowingRestartStrategy();
+    }
 
-	@Test
-	public void restartShouldThrowException() {
-		final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor = new ManuallyTriggeredScheduledExecutor();
+    @Test
+    public void restartShouldThrowException() {
+        final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
 
-		try {
-			restartStrategy.restart(new NoOpRestarter(), manuallyTriggeredScheduledExecutor);
-			fail("Expected exception not thrown");
-		} catch (IllegalStateException e) {
-			assertThat(e.getMessage(), is(equalTo("Unexpected restart() call")));
-			assertThat(manuallyTriggeredScheduledExecutor.numQueuedRunnables(), is(equalTo(0)));
-		}
-	}
+        try {
+            restartStrategy.restart(new NoOpRestarter(), manuallyTriggeredScheduledExecutor);
+            fail("Expected exception not thrown");
+        } catch (IllegalStateException e) {
+            assertThat(e.getMessage(), is(equalTo("Unexpected restart() call")));
+            assertThat(manuallyTriggeredScheduledExecutor.numQueuedRunnables(), is(equalTo(0)));
+        }
+    }
 
-	@Test
-	public void canRestartShouldThrowException() {
-		try {
-			restartStrategy.canRestart();
-			fail("Expected exception not thrown");
-		} catch (IllegalStateException e) {
-			assertThat(e.getMessage(), is(equalTo("Unexpected canRestart() call")));
-		}
-	}
+    @Test
+    public void canRestartShouldThrowException() {
+        try {
+            restartStrategy.canRestart();
+            fail("Expected exception not thrown");
+        } catch (IllegalStateException e) {
+            assertThat(e.getMessage(), is(equalTo("Unexpected canRestart() call")));
+        }
+    }
 }

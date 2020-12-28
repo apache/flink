@@ -24,33 +24,38 @@ import static org.junit.Assert.assertArrayEquals;
 /**
  * Tests PrioritizedDeque.
  *
- * <p>Note that some tests make use of the {@link java.lang.Integer.IntegerCache} for improved readability.
+ * <p>Note that some tests make use of the {@link java.lang.Integer.IntegerCache} for improved
+ * readability.
  */
 public class PrioritizedDequeTest {
 
-	@Test
-	public void testPrioritizeOnAdd() {
-		final PrioritizedDeque<Integer> deque = new PrioritizedDeque<>();
+    @Test
+    public void testPrioritizeOnAdd() {
+        final PrioritizedDeque<Integer> deque = new PrioritizedDeque<>();
 
-		deque.add(0);
-		deque.add(1);
-		deque.add(2);
-		deque.add(3);
-		deque.add(3, true, true);
+        deque.add(0);
+        deque.add(1);
+        deque.add(2);
+        deque.add(3);
+        deque.add(3, true, true);
 
-		assertArrayEquals(new Integer[] { 3, 0, 1, 2 }, deque.asUnmodifiableCollection().toArray(new Integer[0]));
-	}
+        assertArrayEquals(
+                new Integer[] {3, 0, 1, 2},
+                deque.asUnmodifiableCollection().toArray(new Integer[0]));
+    }
 
-	@Test
-	public void testPrioritize() {
-		final PrioritizedDeque<Integer> deque = new PrioritizedDeque<>();
+    @Test
+    public void testPrioritize() {
+        final PrioritizedDeque<Integer> deque = new PrioritizedDeque<>();
 
-		deque.add(0);
-		deque.add(1);
-		deque.add(2);
-		deque.add(3);
-		deque.prioritize(3);
+        deque.add(0);
+        deque.add(1);
+        deque.add(2);
+        deque.add(3);
+        deque.prioritize(3);
 
-		assertArrayEquals(new Integer[] { 3, 0, 1, 2 }, deque.asUnmodifiableCollection().toArray(new Integer[0]));
-	}
+        assertArrayEquals(
+                new Integer[] {3, 0, 1, 2},
+                deque.asUnmodifiableCollection().toArray(new Integer[0]));
+    }
 }

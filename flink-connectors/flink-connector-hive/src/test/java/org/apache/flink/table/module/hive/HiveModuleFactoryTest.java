@@ -28,25 +28,23 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for {@link HiveModuleFactory}.
- */
+/** Test for {@link HiveModuleFactory}. */
 public class HiveModuleFactoryTest {
-	@Test
-	public void test() {
-		final HiveModule expected = new HiveModule();
+    @Test
+    public void test() {
+        final HiveModule expected = new HiveModule();
 
-		final ModuleDescriptor moduleDescriptor = new HiveModuleDescriptor();
+        final ModuleDescriptor moduleDescriptor = new HiveModuleDescriptor();
 
-		final Map<String, String> properties = moduleDescriptor.toProperties();
+        final Map<String, String> properties = moduleDescriptor.toProperties();
 
-		final Module actualModule = TableFactoryService.find(ModuleFactory.class, properties)
-			.createModule(properties);
+        final Module actualModule =
+                TableFactoryService.find(ModuleFactory.class, properties).createModule(properties);
 
-		checkEquals(expected, (HiveModule) actualModule);
-	}
+        checkEquals(expected, (HiveModule) actualModule);
+    }
 
-	private static void checkEquals(HiveModule m1, HiveModule m2) {
-		assertEquals(m1.getHiveVersion(), m2.getHiveVersion());
-	}
+    private static void checkEquals(HiveModule m1, HiveModule m2) {
+        assertEquals(m1.getHiveVersion(), m2.getHiveVersion());
+    }
 }

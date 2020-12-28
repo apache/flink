@@ -41,78 +41,78 @@ import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
 import static java.time.temporal.ChronoField.YEAR;
 
 /**
- * Default {@link PartitionTimeExtractor}.
- * See {@link FileSystemOptions#PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN}.
+ * Default {@link PartitionTimeExtractor}. See {@link
+ * FileSystemOptions#PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN}.
  */
 public class DefaultPartTimeExtractor implements PartitionTimeExtractor {
 
-	private static final DateTimeFormatter TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
-			.appendValue(YEAR, 1, 10, SignStyle.NORMAL)
-			.appendLiteral('-')
-			.appendValue(MONTH_OF_YEAR, 1, 2, SignStyle.NORMAL)
-			.appendLiteral('-')
-			.appendValue(DAY_OF_MONTH, 1, 2, SignStyle.NORMAL)
-			.optionalStart()
-			.appendLiteral(" ")
-			.appendValue(HOUR_OF_DAY, 1, 2, SignStyle.NORMAL)
-			.appendLiteral(':')
-			.appendValue(MINUTE_OF_HOUR, 1, 2, SignStyle.NORMAL)
-			.appendLiteral(':')
-			.appendValue(SECOND_OF_MINUTE, 1, 2, SignStyle.NORMAL)
-			.optionalStart()
-			.appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, true)
-			.optionalEnd()
-			.optionalEnd()
-			.toFormatter()
-			.withResolverStyle(ResolverStyle.LENIENT);
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER =
+            new DateTimeFormatterBuilder()
+                    .appendValue(YEAR, 1, 10, SignStyle.NORMAL)
+                    .appendLiteral('-')
+                    .appendValue(MONTH_OF_YEAR, 1, 2, SignStyle.NORMAL)
+                    .appendLiteral('-')
+                    .appendValue(DAY_OF_MONTH, 1, 2, SignStyle.NORMAL)
+                    .optionalStart()
+                    .appendLiteral(" ")
+                    .appendValue(HOUR_OF_DAY, 1, 2, SignStyle.NORMAL)
+                    .appendLiteral(':')
+                    .appendValue(MINUTE_OF_HOUR, 1, 2, SignStyle.NORMAL)
+                    .appendLiteral(':')
+                    .appendValue(SECOND_OF_MINUTE, 1, 2, SignStyle.NORMAL)
+                    .optionalStart()
+                    .appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, true)
+                    .optionalEnd()
+                    .optionalEnd()
+                    .toFormatter()
+                    .withResolverStyle(ResolverStyle.LENIENT);
 
-	private static final DateTimeFormatter DATE_FORMATTER = new DateTimeFormatterBuilder()
-			.appendValue(YEAR, 1, 10, SignStyle.NORMAL)
-			.appendLiteral('-')
-			.appendValue(MONTH_OF_YEAR, 1, 2, SignStyle.NORMAL)
-			.appendLiteral('-')
-			.appendValue(DAY_OF_MONTH, 1, 2, SignStyle.NORMAL)
-			.toFormatter()
-			.withResolverStyle(ResolverStyle.LENIENT);
+    private static final DateTimeFormatter DATE_FORMATTER =
+            new DateTimeFormatterBuilder()
+                    .appendValue(YEAR, 1, 10, SignStyle.NORMAL)
+                    .appendLiteral('-')
+                    .appendValue(MONTH_OF_YEAR, 1, 2, SignStyle.NORMAL)
+                    .appendLiteral('-')
+                    .appendValue(DAY_OF_MONTH, 1, 2, SignStyle.NORMAL)
+                    .toFormatter()
+                    .withResolverStyle(ResolverStyle.LENIENT);
 
-	@Nullable
-	private final String pattern;
+    @Nullable private final String pattern;
 
-	public DefaultPartTimeExtractor(@Nullable String pattern) {
-		this.pattern = pattern;
-	}
+    public DefaultPartTimeExtractor(@Nullable String pattern) {
+        this.pattern = pattern;
+    }
 
-	@Override
-	public LocalDateTime extract(List<String> partitionKeys, List<String> partitionValues) {
-		String timestampString;
-		if (pattern == null) {
-			timestampString = partitionValues.get(0);
-		} else {
-			timestampString = pattern;
-			for (int i = 0; i < partitionKeys.size(); i++) {
-				timestampString = timestampString.replaceAll(
-						"\\$" + partitionKeys.get(i),
-						partitionValues.get(i));
-			}
-		}
-		return toLocalDateTime(timestampString);
-	}
+    @Override
+    public LocalDateTime extract(List<String> partitionKeys, List<String> partitionValues) {
+        String timestampString;
+        if (pattern == null) {
+            timestampString = partitionValues.get(0);
+        } else {
+            timestampString = pattern;
+            for (int i = 0; i < partitionKeys.size(); i++) {
+                timestampString =
+                        timestampString.replaceAll(
+                                "\\$" + partitionKeys.get(i), partitionValues.get(i));
+            }
+        }
+        return toLocalDateTime(timestampString);
+    }
 
-	public static LocalDateTime toLocalDateTime(String timestampString) {
-		try {
-			return LocalDateTime.parse(timestampString, TIMESTAMP_FORMATTER);
-		} catch (DateTimeParseException e) {
-			return LocalDateTime.of(
-					LocalDate.parse(timestampString, DATE_FORMATTER),
-					LocalTime.MIDNIGHT);
-		}
-	}
+    public static LocalDateTime toLocalDateTime(String timestampString) {
+        try {
+            return LocalDateTime.parse(timestampString, TIMESTAMP_FORMATTER);
+        } catch (DateTimeParseException e) {
+            return LocalDateTime.of(
+                    LocalDate.parse(timestampString, DATE_FORMATTER), LocalTime.MIDNIGHT);
+        }
+    }
 
-	public static long toMills(LocalDateTime dateTime) {
-		return TimestampData.fromLocalDateTime(dateTime).getMillisecond();
-	}
+    public static long toMills(LocalDateTime dateTime) {
+        return TimestampData.fromLocalDateTime(dateTime).getMillisecond();
+    }
 
-	public static long toMills(String timestampString) {
-		return toMills(toLocalDateTime(timestampString));
-	}
+    public static long toMills(String timestampString) {
+        return toMills(toLocalDateTime(timestampString));
+    }
 }

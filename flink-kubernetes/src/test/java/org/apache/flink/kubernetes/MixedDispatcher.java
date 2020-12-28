@@ -29,39 +29,38 @@ import okhttp3.mockwebserver.RecordedRequest;
 import java.util.Map;
 import java.util.Queue;
 
-/**
- * A dispatcher that support both mock response and CRUD response.
- */
+/** A dispatcher that support both mock response and CRUD response. */
 public class MixedDispatcher extends KubernetesCrudDispatcher {
-	private final Map<ServerRequest, Queue<ServerResponse>> responses;
+    private final Map<ServerRequest, Queue<ServerResponse>> responses;
 
-	public MixedDispatcher(Map<ServerRequest, Queue<ServerResponse>> responses) {
-		this.responses = responses;
-	}
+    public MixedDispatcher(Map<ServerRequest, Queue<ServerResponse>> responses) {
+        this.responses = responses;
+    }
 
-	@Override
-	public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
-		HttpMethod method = HttpMethod.valueOf(request.getMethod());
-		String path = request.getPath();
-		SimpleRequest key = new SimpleRequest(method, path);
-		SimpleRequest keyForAnyMethod = new SimpleRequest(path);
-		if (responses.containsKey(key)) {
-			Queue<ServerResponse> queue = responses.get(key);
-			return handleResponse(queue.peek(), queue, request);
-		} else if (responses.containsKey(keyForAnyMethod)) {
-			Queue<ServerResponse> queue = responses.get(keyForAnyMethod);
-			return handleResponse(queue.peek(), queue, request);
-		}
+    @Override
+    public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
+        HttpMethod method = HttpMethod.valueOf(request.getMethod());
+        String path = request.getPath();
+        SimpleRequest key = new SimpleRequest(method, path);
+        SimpleRequest keyForAnyMethod = new SimpleRequest(path);
+        if (responses.containsKey(key)) {
+            Queue<ServerResponse> queue = responses.get(key);
+            return handleResponse(queue.peek(), queue, request);
+        } else if (responses.containsKey(keyForAnyMethod)) {
+            Queue<ServerResponse> queue = responses.get(keyForAnyMethod);
+            return handleResponse(queue.peek(), queue, request);
+        }
 
-		return super.dispatch(request);
-	}
+        return super.dispatch(request);
+    }
 
-	private MockResponse handleResponse(ServerResponse response, Queue<ServerResponse> queue, RecordedRequest request) {
-		if (response == null) {
-			return new MockResponse().setResponseCode(404);
-		} else if (!response.isRepeatable()) {
-			queue.remove();
-		}
-		return response.toMockResponse(request);
-	}
+    private MockResponse handleResponse(
+            ServerResponse response, Queue<ServerResponse> queue, RecordedRequest request) {
+        if (response == null) {
+            return new MockResponse().setResponseCode(404);
+        } else if (!response.isRepeatable()) {
+            queue.remove();
+        }
+        return response.toMockResponse(request);
+    }
 }

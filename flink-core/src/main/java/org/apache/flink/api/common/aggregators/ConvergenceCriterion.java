@@ -16,22 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.aggregators;
-
-import java.io.Serializable;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.Value;
 
-/**
- * Used to check for convergence.
- */
+import java.io.Serializable;
+
+/** Used to check for convergence. */
 @PublicEvolving
 public interface ConvergenceCriterion<T extends Value> extends Serializable {
 
-	/**
-	 * Decide whether the iterative algorithm has converged
-	 */
-	boolean isConverged(int iteration, T value);
+    /** Decide whether the iterative algorithm has converged */
+    boolean isConverged(int iteration, T value);
 }

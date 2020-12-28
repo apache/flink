@@ -27,38 +27,36 @@ import java.util.function.Supplier;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Assertions for availability futures.
- */
+/** Assertions for availability futures. */
 public class AvailabilityUtil {
 
-	public static <E extends Throwable> void assertFutureCompletion(
-			boolean after,
-			Supplier<CompletableFuture<?>> futureSupplier,
-			boolean before,
-			ThrowingRunnable<E> runnable) throws E {
-		final CompletableFuture<?> availableFuture = futureSupplier.get();
-		assertEquals(before, availableFuture.isDone());
-		runnable.run();
-		assertEquals(after, futureSupplier.get().isDone());
-		if (after) {
-			assertTrue(availableFuture.isDone());
-		}
-	}
+    public static <E extends Throwable> void assertFutureCompletion(
+            boolean after,
+            Supplier<CompletableFuture<?>> futureSupplier,
+            boolean before,
+            ThrowingRunnable<E> runnable)
+            throws E {
+        final CompletableFuture<?> availableFuture = futureSupplier.get();
+        assertEquals(before, availableFuture.isDone());
+        runnable.run();
+        assertEquals(after, futureSupplier.get().isDone());
+        if (after) {
+            assertTrue(availableFuture.isDone());
+        }
+    }
 
-	public static <E extends Throwable> void assertAvailability(
-			AvailabilityProvider availabilityProvider,
-			boolean before,
-			boolean after,
-			ThrowingRunnable<E> runnable) throws E {
-		assertFutureCompletion(after, availabilityProvider::getAvailableFuture, before, runnable);
-	}
+    public static <E extends Throwable> void assertAvailability(
+            AvailabilityProvider availabilityProvider,
+            boolean before,
+            boolean after,
+            ThrowingRunnable<E> runnable)
+            throws E {
+        assertFutureCompletion(after, availabilityProvider::getAvailableFuture, before, runnable);
+    }
 
-	public static <E extends Throwable> void assertPriorityAvailability(
-			InputGate inputGate,
-			boolean before,
-			boolean after,
-			ThrowingRunnable<E> runnable) throws E {
-		assertFutureCompletion(after, inputGate::getPriorityEventAvailableFuture, before, runnable);
-	}
+    public static <E extends Throwable> void assertPriorityAvailability(
+            InputGate inputGate, boolean before, boolean after, ThrowingRunnable<E> runnable)
+            throws E {
+        assertFutureCompletion(after, inputGate::getPriorityEventAvailableFuture, before, runnable);
+    }
 }

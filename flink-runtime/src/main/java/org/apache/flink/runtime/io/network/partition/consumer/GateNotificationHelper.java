@@ -25,39 +25,37 @@ import java.util.concurrent.CompletableFuture;
  * <p>Should be created and closed outside of the lock.
  */
 class GateNotificationHelper implements AutoCloseable {
-	private final InputGate inputGate;
-	private final Object availabilityMonitor;
+    private final InputGate inputGate;
+    private final Object availabilityMonitor;
 
-	private CompletableFuture<?> toNotifyPriority;
-	private CompletableFuture<?> toNotify;
+    private CompletableFuture<?> toNotifyPriority;
+    private CompletableFuture<?> toNotify;
 
-	public GateNotificationHelper(InputGate inputGate, Object availabilityMonitor) {
-		this.inputGate = inputGate;
-		this.availabilityMonitor = availabilityMonitor;
-	}
+    public GateNotificationHelper(InputGate inputGate, Object availabilityMonitor) {
+        this.inputGate = inputGate;
+        this.availabilityMonitor = availabilityMonitor;
+    }
 
-	@Override
-	public void close() {
-		if (toNotifyPriority != null) {
-			toNotifyPriority.complete(null);
-		}
-		if (toNotify != null) {
-			toNotify.complete(null);
-		}
-	}
+    @Override
+    public void close() {
+        if (toNotifyPriority != null) {
+            toNotifyPriority.complete(null);
+        }
+        if (toNotify != null) {
+            toNotify.complete(null);
+        }
+    }
 
-	/**
-	 * Must be called under lock to ensure integrity of priorityAvailabilityHelper.
-	 */
-	public void notifyPriority() {
-		toNotifyPriority = inputGate.priorityAvailabilityHelper.getUnavailableToResetAvailable();
-	}
+    /** Must be called under lock to ensure integrity of priorityAvailabilityHelper. */
+    public void notifyPriority() {
+        toNotifyPriority = inputGate.priorityAvailabilityHelper.getUnavailableToResetAvailable();
+    }
 
-	/**
-	 * Must be called under lock to ensure integrity of availabilityHelper and allow notification.
-	 */
-	public void notifyDataAvailable() {
-		availabilityMonitor.notifyAll();
-		toNotify = inputGate.availabilityHelper.getUnavailableToResetAvailable();
-	}
+    /**
+     * Must be called under lock to ensure integrity of availabilityHelper and allow notification.
+     */
+    public void notifyDataAvailable() {
+        availabilityMonitor.notifyAll();
+        toNotify = inputGate.availabilityHelper.getUnavailableToResetAvailable();
+    }
 }

@@ -24,26 +24,21 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import java.io.IOException;
 
 /**
- * An implementation of the {@link RecoverableFsDataOutputStream.Committer committer}
- * that does nothing.
+ * An implementation of the {@link RecoverableFsDataOutputStream.Committer committer} that does
+ * nothing.
  *
- * <p>This is to avoid to have to implement all methods for every implementation
- * used in tests.
+ * <p>This is to avoid to have to implement all methods for every implementation used in tests.
  */
 public class NoOpCommitter implements RecoverableFsDataOutputStream.Committer {
 
-	@Override
-	public void commit() throws IOException {
+    @Override
+    public void commit() throws IOException {}
 
-	}
+    @Override
+    public void commitAfterRecovery() throws IOException {}
 
-	@Override
-	public void commitAfterRecovery() throws IOException {
-
-	}
-
-	@Override
-	public RecoverableWriter.CommitRecoverable getRecoverable() {
-		return null;
-	}
+    @Override
+    public RecoverableWriter.CommitRecoverable getRecoverable() {
+        return null;
+    }
 }

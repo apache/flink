@@ -21,37 +21,35 @@ package org.apache.flink.metrics.datadog;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Json serialization between Flink and Datadog.
- */
+/** Json serialization between Flink and Datadog. */
 public class DSeries {
-	/**
-	 * Names of series field and its getters must not be changed
-	 * since they are mapped to json objects in a Datadog-defined format.
-	 */
-	private final List<DMetric> series;
+    /**
+     * Names of series field and its getters must not be changed since they are mapped to json
+     * objects in a Datadog-defined format.
+     */
+    private final List<DMetric> series;
 
-	public DSeries() {
-		series = new ArrayList<>();
-	}
+    public DSeries() {
+        series = new ArrayList<>();
+    }
 
-	public DSeries(List<DMetric> series) {
-		this.series = series;
-	}
+    public DSeries(List<DMetric> series) {
+        this.series = series;
+    }
 
-	public void addGauge(DGauge gauge) {
-		series.add(gauge);
-	}
+    public void addGauge(DGauge gauge) {
+        series.add(gauge);
+    }
 
-	public void addCounter(DCounter counter) {
-		series.add(counter);
-	}
+    public void addCounter(DCounter counter) {
+        series.add(counter);
+    }
 
-	public void addMeter(DMeter meter) {
-		series.add(meter);
-	}
+    public void addMeter(DMeter meter) {
+        series.add(meter);
+    }
 
-	public List<DMetric> getSeries() {
-		return series;
-	}
+    public List<DMetric> getSeries() {
+        return series;
+    }
 }

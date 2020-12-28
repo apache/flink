@@ -31,89 +31,80 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * Mock {@link IndexedInputGate}.
- */
+/** Mock {@link IndexedInputGate}. */
 public class MockIndexedInputGate extends IndexedInputGate {
-	private final int gateIndex;
-	private final int numberOfInputChannels;
+    private final int gateIndex;
+    private final int numberOfInputChannels;
 
-	public MockIndexedInputGate() {
-		this(0, 1);
-	}
+    public MockIndexedInputGate() {
+        this(0, 1);
+    }
 
-	public MockIndexedInputGate(int gateIndex, int numberOfInputChannels) {
-		this.gateIndex = gateIndex;
-		this.numberOfInputChannels = numberOfInputChannels;
-	}
+    public MockIndexedInputGate(int gateIndex, int numberOfInputChannels) {
+        this.gateIndex = gateIndex;
+        this.numberOfInputChannels = numberOfInputChannels;
+    }
 
-	@Override
-	public void setup() {
-	}
+    @Override
+    public void setup() {}
 
-	@Override
-	public CompletableFuture<Void> getStateConsumedFuture() {
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Void> getStateConsumedFuture() {
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public void finishReadRecoveredState() {
-	}
+    @Override
+    public void finishReadRecoveredState() {}
 
-	@Override
-	public void requestPartitions() {
-	}
+    @Override
+    public void requestPartitions() {}
 
-	@Override
-	public void resumeConsumption(InputChannelInfo channelInfo) {
-	}
+    @Override
+    public void resumeConsumption(InputChannelInfo channelInfo) {}
 
-	@Override
-	public int getNumberOfInputChannels() {
-		return numberOfInputChannels;
-	}
+    @Override
+    public int getNumberOfInputChannels() {
+        return numberOfInputChannels;
+    }
 
-	@Override
-	public InputChannel getChannel(int channelIndex) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public InputChannel getChannel(int channelIndex) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
-	}
+    @Override
+    public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {}
 
-	@Override
-	public List<InputChannelInfo> getChannelInfos() {
-		return IntStream.range(0, numberOfInputChannels)
-				.mapToObj(channelIndex -> new InputChannelInfo(gateIndex, channelIndex))
-				.collect(Collectors.toList());
-	}
+    @Override
+    public List<InputChannelInfo> getChannelInfos() {
+        return IntStream.range(0, numberOfInputChannels)
+                .mapToObj(channelIndex -> new InputChannelInfo(gateIndex, channelIndex))
+                .collect(Collectors.toList());
+    }
 
-	@Override
-	public boolean isFinished() {
-		return false;
-	}
+    @Override
+    public boolean isFinished() {
+        return false;
+    }
 
-	@Override
-	public Optional<BufferOrEvent> getNext() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public Optional<BufferOrEvent> getNext() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Optional<BufferOrEvent> pollNext() {
-		return getNext();
-	}
+    @Override
+    public Optional<BufferOrEvent> pollNext() {
+        return getNext();
+    }
 
-	@Override
-	public void sendTaskEvent(TaskEvent event) {
-	}
+    @Override
+    public void sendTaskEvent(TaskEvent event) {}
 
-	@Override
-	public void close() {
-	}
+    @Override
+    public void close() {}
 
-	@Override
-	public int getGateIndex() {
-		return gateIndex;
-	}
+    @Override
+    public int getGateIndex() {
+        return gateIndex;
+    }
 }

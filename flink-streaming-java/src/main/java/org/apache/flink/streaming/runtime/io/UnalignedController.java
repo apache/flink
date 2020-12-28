@@ -27,57 +27,49 @@ import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 
 import java.io.IOException;
 
-/**
- * Controller for unaligned checkpoints.
- */
+/** Controller for unaligned checkpoints. */
 @Internal
 public class UnalignedController implements CheckpointBarrierBehaviourController {
 
-	private final SubtaskCheckpointCoordinator checkpointCoordinator;
-	private final CheckpointableInput[] inputs;
+    private final SubtaskCheckpointCoordinator checkpointCoordinator;
+    private final CheckpointableInput[] inputs;
 
-	public UnalignedController(
-			SubtaskCheckpointCoordinator checkpointCoordinator,
-			CheckpointableInput... inputs) {
-		this.checkpointCoordinator = checkpointCoordinator;
-		this.inputs = inputs;
-	}
+    public UnalignedController(
+            SubtaskCheckpointCoordinator checkpointCoordinator, CheckpointableInput... inputs) {
+        this.checkpointCoordinator = checkpointCoordinator;
+        this.inputs = inputs;
+    }
 
-	@Override
-	public void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
-	}
+    @Override
+    public void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {}
 
-	@Override
-	public boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException {
-		checkpointCoordinator.initCheckpoint(barrier.getId(), barrier.getCheckpointOptions());
-		for (final CheckpointableInput input : inputs) {
-			input.checkpointStarted(barrier);
-		}
-		return true;
-	}
+    @Override
+    public boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier)
+            throws IOException, CheckpointException {
+        checkpointCoordinator.initCheckpoint(barrier.getId(), barrier.getCheckpointOptions());
+        for (final CheckpointableInput input : inputs) {
+            input.checkpointStarted(barrier);
+        }
+        return true;
+    }
 
-	@Override
-	public boolean postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
-		resetPendingCheckpoint(barrier.getId());
-		return false;
-	}
+    @Override
+    public boolean postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
+        resetPendingCheckpoint(barrier.getId());
+        return false;
+    }
 
-	private void resetPendingCheckpoint(long cancelledId) {
-		for (final CheckpointableInput input : inputs) {
-			input.checkpointStopped(cancelledId);
-		}
-	}
+    private void resetPendingCheckpoint(long cancelledId) {
+        for (final CheckpointableInput input : inputs) {
+            input.checkpointStopped(cancelledId);
+        }
+    }
 
-	@Override
-	public void abortPendingCheckpoint(
-			long cancelledId,
-			CheckpointException exception) {
-		resetPendingCheckpoint(cancelledId);
-	}
+    @Override
+    public void abortPendingCheckpoint(long cancelledId, CheckpointException exception) {
+        resetPendingCheckpoint(cancelledId);
+    }
 
-	@Override
-	public void obsoleteBarrierReceived(
-			InputChannelInfo channelInfo,
-			CheckpointBarrier barrier) {
-	}
+    @Override
+    public void obsoleteBarrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {}
 }

@@ -30,6 +30,5 @@ import java.io.Serializable;
  */
 public interface NiFiDataPacketBuilder<T> extends Function, Serializable {
 
-	NiFiDataPacket createNiFiDataPacket(T t, RuntimeContext ctx);
-
+    NiFiDataPacket createNiFiDataPacket(T t, RuntimeContext ctx);
 }

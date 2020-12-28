@@ -36,109 +36,120 @@ import java.util.Collection;
 import static org.hamcrest.Matchers.is;
 
 /**
- * A {@link TypeSerializerUpgradeTestBase} for {@link TimeWindow.Serializer} and {@link GlobalWindow.Serializer}.
+ * A {@link TypeSerializerUpgradeTestBase} for {@link TimeWindow.Serializer} and {@link
+ * GlobalWindow.Serializer}.
  */
 @RunWith(Parameterized.class)
 public class WindowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-	public WindowSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-		super(testSpecification);
-	}
+    public WindowSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					"time-window-serializer",
-					migrationVersion,
-					TimeWindowSerializerSetup.class,
-					TimeWindowSerializerVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"global-window-serializer",
-					migrationVersion,
-					GlobalWindowSerializerSetup.class,
-					GlobalWindowSerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "time-window-serializer",
+                            migrationVersion,
+                            TimeWindowSerializerSetup.class,
+                            TimeWindowSerializerVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "global-window-serializer",
+                            migrationVersion,
+                            GlobalWindowSerializerSetup.class,
+                            GlobalWindowSerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "time-window-serializer"
-	// ----------------------------------------------------------------------------------------------
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class TimeWindowSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<TimeWindow> {
-		@Override
-		public TypeSerializer<TimeWindow> createPriorSerializer() {
-			return new TimeWindow.Serializer();
-		}
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "time-window-serializer"
+    // ----------------------------------------------------------------------------------------------
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class TimeWindowSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<TimeWindow> {
+        @Override
+        public TypeSerializer<TimeWindow> createPriorSerializer() {
+            return new TimeWindow.Serializer();
+        }
 
-		@Override
-		public TimeWindow createTestData() {
-			return new TimeWindow(12345, 67890);
-		}
-	}
+        @Override
+        public TimeWindow createTestData() {
+            return new TimeWindow(12345, 67890);
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class TimeWindowSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<TimeWindow> {
-		@Override
-		public TypeSerializer<TimeWindow> createUpgradedSerializer() {
-			return new TimeWindow.Serializer();
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class TimeWindowSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<TimeWindow> {
+        @Override
+        public TypeSerializer<TimeWindow> createUpgradedSerializer() {
+            return new TimeWindow.Serializer();
+        }
 
-		@Override
-		public Matcher<TimeWindow> testDataMatcher() {
-			return is(new TimeWindow(12345, 67890));
-		}
+        @Override
+        public Matcher<TimeWindow> testDataMatcher() {
+            return is(new TimeWindow(12345, 67890));
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<TimeWindow>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<TimeWindow>> schemaCompatibilityMatcher(
+                MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "global-window-serializer"
-	// ----------------------------------------------------------------------------------------------
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class GlobalWindowSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<GlobalWindow> {
-		@Override
-		public TypeSerializer<GlobalWindow> createPriorSerializer() {
-			return new GlobalWindow.Serializer();
-		}
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "global-window-serializer"
+    // ----------------------------------------------------------------------------------------------
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class GlobalWindowSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<GlobalWindow> {
+        @Override
+        public TypeSerializer<GlobalWindow> createPriorSerializer() {
+            return new GlobalWindow.Serializer();
+        }
 
-		@Override
-		public GlobalWindow createTestData() {
-			return GlobalWindow.get();
-		}
-	}
+        @Override
+        public GlobalWindow createTestData() {
+            return GlobalWindow.get();
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class GlobalWindowSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<GlobalWindow> {
-		@Override
-		public TypeSerializer<GlobalWindow> createUpgradedSerializer() {
-			return new GlobalWindow.Serializer();
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class GlobalWindowSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<GlobalWindow> {
+        @Override
+        public TypeSerializer<GlobalWindow> createUpgradedSerializer() {
+            return new GlobalWindow.Serializer();
+        }
 
-		@Override
-		public Matcher<GlobalWindow> testDataMatcher() {
-			return is(GlobalWindow.get());
-		}
+        @Override
+        public Matcher<GlobalWindow> testDataMatcher() {
+            return is(GlobalWindow.get());
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<GlobalWindow>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<GlobalWindow>> schemaCompatibilityMatcher(
+                MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 }

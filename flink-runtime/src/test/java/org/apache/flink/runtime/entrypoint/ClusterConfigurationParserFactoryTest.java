@@ -31,46 +31,47 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link ClusterConfigurationParserFactory}.
- */
+/** Tests for the {@link ClusterConfigurationParserFactory}. */
 public class ClusterConfigurationParserFactoryTest extends TestLogger {
 
-	private static final CommandLineParser<ClusterConfiguration> commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
+    private static final CommandLineParser<ClusterConfiguration> commandLineParser =
+            new CommandLineParser<>(new ClusterConfigurationParserFactory());
 
-	@Test
-	public void testEntrypointClusterConfigurationParsing() throws FlinkParseException {
-		final String configDir = "/foo/bar";
-		final String key = "key";
-		final String value = "value";
-		final String arg1 = "arg1";
-		final String arg2 = "arg2";
-		final String[] args = {"--configDir", configDir, String.format("-D%s=%s", key, value), arg1, arg2};
+    @Test
+    public void testEntrypointClusterConfigurationParsing() throws FlinkParseException {
+        final String configDir = "/foo/bar";
+        final String key = "key";
+        final String value = "value";
+        final String arg1 = "arg1";
+        final String arg2 = "arg2";
+        final String[] args = {
+            "--configDir", configDir, String.format("-D%s=%s", key, value), arg1, arg2
+        };
 
-		final ClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+        final ClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 
-		assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
-		final Properties dynamicProperties = clusterConfiguration.getDynamicProperties();
+        assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
+        final Properties dynamicProperties = clusterConfiguration.getDynamicProperties();
 
-		assertThat(dynamicProperties, hasEntry(key, value));
+        assertThat(dynamicProperties, hasEntry(key, value));
 
-		assertThat(clusterConfiguration.getArgs(), arrayContaining(arg1, arg2));
-	}
+        assertThat(clusterConfiguration.getArgs(), arrayContaining(arg1, arg2));
+    }
 
-	@Test
-	public void testOnlyRequiredArguments() throws FlinkParseException {
-		final String configDir = "/foo/bar";
-		final String[] args = {"--configDir", configDir};
+    @Test
+    public void testOnlyRequiredArguments() throws FlinkParseException {
+        final String configDir = "/foo/bar";
+        final String[] args = {"--configDir", configDir};
 
-		final ClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+        final ClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 
-		assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
-	}
+        assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
+    }
 
-	@Test(expected = FlinkParseException.class)
-	public void testMissingRequiredArgument() throws FlinkParseException {
-		final String[] args = {};
+    @Test(expected = FlinkParseException.class)
+    public void testMissingRequiredArgument() throws FlinkParseException {
+        final String[] args = {};
 
-		commandLineParser.parse(args);
-	}
+        commandLineParser.parse(args);
+    }
 }

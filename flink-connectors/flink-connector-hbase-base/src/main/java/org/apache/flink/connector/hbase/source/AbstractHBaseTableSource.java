@@ -44,15 +44,15 @@ import java.util.Arrays;
 /**
  * Creates a TableSource to scan an HBase table.
  *
- * <p>The table name and required HBase configuration is passed during {@link AbstractHBaseTableSource} construction.
- * Use {@link #addColumn(String, String, Class)} to specify the family, qualifier, and type of columns to scan.
+ * <p>The table name and required HBase configuration is passed during {@link
+ * AbstractHBaseTableSource} construction. Use {@link #addColumn(String, String, Class)} to specify
+ * the family, qualifier, and type of columns to scan.
  *
  * <p>The TableSource returns {@link Row} with nested Rows for each column family.
  *
  * <p>The HBaseTableSource is used as shown in the example below.
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * HBaseTableSource hSrc = new HBaseTableSource(conf, "hTable");
  * hSrc.setRowKey("rowkey", String.class);
  * hSrc.addColumn("fam1", "col1", byte[].class);
@@ -63,124 +63,132 @@ import java.util.Arrays;
  * Table res = tableEnv.sqlQuery(
  *   "SELECT t.fam2.col1, SUM(t.fam1.col2) FROM hTable AS t " +
  *   "WHERE t.rowkey LIKE 'flink%' GROUP BY t.fam2.col1");
- * }
- * </pre>
+ * }</pre>
  */
 @Internal
-public abstract class AbstractHBaseTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row>, StreamTableSource<Row>, LookupableTableSource<Row> {
+public abstract class AbstractHBaseTableSource
+        implements BatchTableSource<Row>,
+                ProjectableTableSource<Row>,
+                StreamTableSource<Row>,
+                LookupableTableSource<Row> {
 
-	protected final Configuration conf;
-	protected final String tableName;
-	protected final HBaseTableSchema hbaseSchema;
-	private final int[] projectFields;
+    protected final Configuration conf;
+    protected final String tableName;
+    protected final HBaseTableSchema hbaseSchema;
+    private final int[] projectFields;
 
-	public AbstractHBaseTableSource(Configuration conf, String tableName, HBaseTableSchema hbaseSchema, int[] projectFields) {
-		this.conf = conf;
-		this.tableName = Preconditions.checkNotNull(tableName, "Table  name");
-		this.hbaseSchema = hbaseSchema;
-		this.projectFields = projectFields;
-	}
+    public AbstractHBaseTableSource(
+            Configuration conf,
+            String tableName,
+            HBaseTableSchema hbaseSchema,
+            int[] projectFields) {
+        this.conf = conf;
+        this.tableName = Preconditions.checkNotNull(tableName, "Table  name");
+        this.hbaseSchema = hbaseSchema;
+        this.projectFields = projectFields;
+    }
 
-	/**
-	 * Adds a column defined by family, qualifier, and type to the table schema.
-	 *
-	 * @param family    the family name
-	 * @param qualifier the qualifier name
-	 * @param clazz     the data type of the qualifier
-	 */
-	public void addColumn(String family, String qualifier, Class<?> clazz) {
-		this.hbaseSchema.addColumn(family, qualifier, clazz);
-	}
+    /**
+     * Adds a column defined by family, qualifier, and type to the table schema.
+     *
+     * @param family the family name
+     * @param qualifier the qualifier name
+     * @param clazz the data type of the qualifier
+     */
+    public void addColumn(String family, String qualifier, Class<?> clazz) {
+        this.hbaseSchema.addColumn(family, qualifier, clazz);
+    }
 
-	/**
-	 * Sets row key information in the table schema.
-	 * @param rowKeyName the row key field name
-	 * @param clazz the data type of the row key
-	 */
-	public void setRowKey(String rowKeyName, Class<?> clazz) {
-		this.hbaseSchema.setRowKey(rowKeyName, clazz);
-	}
+    /**
+     * Sets row key information in the table schema.
+     *
+     * @param rowKeyName the row key field name
+     * @param clazz the data type of the row key
+     */
+    public void setRowKey(String rowKeyName, Class<?> clazz) {
+        this.hbaseSchema.setRowKey(rowKeyName, clazz);
+    }
 
-	/**
-	 * Specifies the charset to parse Strings to HBase byte[] keys and String values.
-	 *
-	 * @param charset Name of the charset to use.
-	 */
-	public void setCharset(String charset) {
-		this.hbaseSchema.setCharset(charset);
-	}
+    /**
+     * Specifies the charset to parse Strings to HBase byte[] keys and String values.
+     *
+     * @param charset Name of the charset to use.
+     */
+    public void setCharset(String charset) {
+        this.hbaseSchema.setCharset(charset);
+    }
 
-	@Override
-	public TypeInformation<Row> getReturnType() {
-		HBaseTableSchema projectedSchema = hbaseSchema.getProjectedHBaseTableSchema(projectFields);
-		return projectedSchema.convertsToTableSchema().toRowType();
-	}
+    @Override
+    public TypeInformation<Row> getReturnType() {
+        HBaseTableSchema projectedSchema = hbaseSchema.getProjectedHBaseTableSchema(projectFields);
+        return projectedSchema.convertsToTableSchema().toRowType();
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return hbaseSchema.convertsToTableSchema();
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return hbaseSchema.convertsToTableSchema();
+    }
 
-	@Override
-	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
-		HBaseTableSchema projectedSchema = hbaseSchema.getProjectedHBaseTableSchema(projectFields);
-		return execEnv
-			.createInput(getInputFormat(projectedSchema), getReturnType())
-			.name(explainSource());
-	}
+    @Override
+    public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
+        HBaseTableSchema projectedSchema = hbaseSchema.getProjectedHBaseTableSchema(projectFields);
+        return execEnv.createInput(getInputFormat(projectedSchema), getReturnType())
+                .name(explainSource());
+    }
 
-	@Override
-	public String explainSource() {
-		return "HBaseTableSource[schema=" + Arrays.toString(getTableSchema().getFieldNames())
-			+ ", projectFields=" + Arrays.toString(projectFields) + "]";
-	}
+    @Override
+    public String explainSource() {
+        return "HBaseTableSource[schema="
+                + Arrays.toString(getTableSchema().getFieldNames())
+                + ", projectFields="
+                + Arrays.toString(projectFields)
+                + "]";
+    }
 
-	@Override
-	public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
-		Preconditions.checkArgument(
-			null != lookupKeys && lookupKeys.length == 1,
-			"HBase table can only be retrieved by rowKey for now.");
-		Preconditions.checkState(
-			hbaseSchema.getRowKeyName().isPresent(),
-			"HBase schema must have a row key when used in lookup mode.");
-		Preconditions.checkState(
-			hbaseSchema.getRowKeyName().get().equals(lookupKeys[0]),
-			"The lookup key is not row key of HBase.");
+    @Override
+    public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
+        Preconditions.checkArgument(
+                null != lookupKeys && lookupKeys.length == 1,
+                "HBase table can only be retrieved by rowKey for now.");
+        Preconditions.checkState(
+                hbaseSchema.getRowKeyName().isPresent(),
+                "HBase schema must have a row key when used in lookup mode.");
+        Preconditions.checkState(
+                hbaseSchema.getRowKeyName().get().equals(lookupKeys[0]),
+                "The lookup key is not row key of HBase.");
 
-		return new HBaseLookupFunction(
-			this.conf,
-			this.tableName,
-			hbaseSchema.getProjectedHBaseTableSchema(projectFields));
-	}
+        return new HBaseLookupFunction(
+                this.conf, this.tableName, hbaseSchema.getProjectedHBaseTableSchema(projectFields));
+    }
 
-	@Override
-	public AsyncTableFunction<Row> getAsyncLookupFunction(String[] lookupKeys) {
-		throw new UnsupportedOperationException("HBase table doesn't support async lookup currently.");
-	}
+    @Override
+    public AsyncTableFunction<Row> getAsyncLookupFunction(String[] lookupKeys) {
+        throw new UnsupportedOperationException(
+                "HBase table doesn't support async lookup currently.");
+    }
 
-	@Override
-	public boolean isAsyncEnabled() {
-		return false;
-	}
+    @Override
+    public boolean isAsyncEnabled() {
+        return false;
+    }
 
-	@Override
-	public boolean isBounded() {
-		// HBase source is always bounded.
-		return true;
-	}
+    @Override
+    public boolean isBounded() {
+        // HBase source is always bounded.
+        return true;
+    }
 
-	@Override
-	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		HBaseTableSchema projectedSchema = hbaseSchema.getProjectedHBaseTableSchema(projectFields);
-		return execEnv
-			.createInput(getInputFormat(projectedSchema), getReturnType())
-			.name(explainSource());
-	}
+    @Override
+    public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
+        HBaseTableSchema projectedSchema = hbaseSchema.getProjectedHBaseTableSchema(projectFields);
+        return execEnv.createInput(getInputFormat(projectedSchema), getReturnType())
+                .name(explainSource());
+    }
 
-	protected abstract InputFormat<Row, ?> getInputFormat(HBaseTableSchema projectedSchema);
+    protected abstract InputFormat<Row, ?> getInputFormat(HBaseTableSchema projectedSchema);
 
-	@VisibleForTesting
-	public HBaseTableSchema getHBaseTableSchema() {
-		return this.hbaseSchema;
-	}
+    @VisibleForTesting
+    public HBaseTableSchema getHBaseTableSchema() {
+        return this.hbaseSchema;
+    }
 }

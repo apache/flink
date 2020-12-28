@@ -29,38 +29,36 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Tests for the {@link GenericInMemoryCatalogDescriptor} descriptor.
- */
+/** Tests for the {@link GenericInMemoryCatalogDescriptor} descriptor. */
 public class GenericInMemoryCatalogDescriptorTest extends DescriptorTestBase {
 
-	private static final String TEST_DATABASE = "test";
+    private static final String TEST_DATABASE = "test";
 
-	@Override
-	protected List<Descriptor> descriptors() {
-		final Descriptor withoutDefaultDB = new GenericInMemoryCatalogDescriptor();
+    @Override
+    protected List<Descriptor> descriptors() {
+        final Descriptor withoutDefaultDB = new GenericInMemoryCatalogDescriptor();
 
-		final Descriptor withDefaultDB = new GenericInMemoryCatalogDescriptor(TEST_DATABASE);
+        final Descriptor withDefaultDB = new GenericInMemoryCatalogDescriptor(TEST_DATABASE);
 
-		return Arrays.asList(withoutDefaultDB, withDefaultDB);
-	}
+        return Arrays.asList(withoutDefaultDB, withDefaultDB);
+    }
 
-	@Override
-	protected List<Map<String, String>> properties() {
-		final Map<String, String> props1 = new HashMap<>();
-		props1.put("type", "generic_in_memory");
-		props1.put("property-version", "1");
+    @Override
+    protected List<Map<String, String>> properties() {
+        final Map<String, String> props1 = new HashMap<>();
+        props1.put("type", "generic_in_memory");
+        props1.put("property-version", "1");
 
-		final Map<String, String> props2 = new HashMap<>();
-		props2.put("type", "generic_in_memory");
-		props2.put("property-version", "1");
-		props2.put("default-database", TEST_DATABASE);
+        final Map<String, String> props2 = new HashMap<>();
+        props2.put("type", "generic_in_memory");
+        props2.put("property-version", "1");
+        props2.put("default-database", TEST_DATABASE);
 
-		return Arrays.asList(props1, props2);
-	}
+        return Arrays.asList(props1, props2);
+    }
 
-	@Override
-	protected DescriptorValidator validator() {
-		return new GenericInMemoryCatalogValidator();
-	}
+    @Override
+    protected DescriptorValidator validator() {
+        return new GenericInMemoryCatalogValidator();
+    }
 }

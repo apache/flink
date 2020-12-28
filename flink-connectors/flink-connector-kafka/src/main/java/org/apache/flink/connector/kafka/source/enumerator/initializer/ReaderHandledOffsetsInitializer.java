@@ -29,40 +29,40 @@ import java.util.Map;
 
 /**
  * A initializer that initialize the partitions to the earliest / latest / last-committed offsets.
- * The offsets initialization are taken care of by the {@code KafkaPartitionSplitReader} instead
- * of by the {@code KafkaSourceEnumerator}.
+ * The offsets initialization are taken care of by the {@code KafkaPartitionSplitReader} instead of
+ * by the {@code KafkaSourceEnumerator}.
  *
- * <P>Package private and should be instantiated via {@link OffsetsInitializer}.
+ * <p>Package private and should be instantiated via {@link OffsetsInitializer}.
  */
 class ReaderHandledOffsetsInitializer implements OffsetsInitializer {
-	private static final long serialVersionUID = 172938052008787981L;
-	private final long startingOffset;
-	private final OffsetResetStrategy offsetResetStrategy;
+    private static final long serialVersionUID = 172938052008787981L;
+    private final long startingOffset;
+    private final OffsetResetStrategy offsetResetStrategy;
 
-	/**
-	 * The only valid value for startingOffset is following.
-	 * {@link KafkaPartitionSplit#EARLIEST_OFFSET EARLIEST_OFFSET},
-	 * {@link KafkaPartitionSplit#LATEST_OFFSET LATEST_OFFSET},
-	 * {@link KafkaPartitionSplit#COMMITTED_OFFSET COMMITTED_OFFSET}
-	 */
-	ReaderHandledOffsetsInitializer(long startingOffset, OffsetResetStrategy offsetResetStrategy) {
-		this.startingOffset = startingOffset;
-		this.offsetResetStrategy = offsetResetStrategy;
-	}
+    /**
+     * The only valid value for startingOffset is following. {@link
+     * KafkaPartitionSplit#EARLIEST_OFFSET EARLIEST_OFFSET}, {@link
+     * KafkaPartitionSplit#LATEST_OFFSET LATEST_OFFSET}, {@link KafkaPartitionSplit#COMMITTED_OFFSET
+     * COMMITTED_OFFSET}
+     */
+    ReaderHandledOffsetsInitializer(long startingOffset, OffsetResetStrategy offsetResetStrategy) {
+        this.startingOffset = startingOffset;
+        this.offsetResetStrategy = offsetResetStrategy;
+    }
 
-	@Override
-	public Map<TopicPartition, Long> getPartitionOffsets(
-			Collection<TopicPartition> partitions,
-			PartitionOffsetsRetriever partitionOffsetsRetriever) {
-		Map<TopicPartition, Long> initialOffsets = new HashMap<>();
-		for (TopicPartition tp : partitions) {
-			initialOffsets.put(tp, startingOffset);
-		}
-		return initialOffsets;
-	}
+    @Override
+    public Map<TopicPartition, Long> getPartitionOffsets(
+            Collection<TopicPartition> partitions,
+            PartitionOffsetsRetriever partitionOffsetsRetriever) {
+        Map<TopicPartition, Long> initialOffsets = new HashMap<>();
+        for (TopicPartition tp : partitions) {
+            initialOffsets.put(tp, startingOffset);
+        }
+        return initialOffsets;
+    }
 
-	@Override
-	public OffsetResetStrategy getAutoOffsetResetStrategy() {
-		return offsetResetStrategy;
-	}
+    @Override
+    public OffsetResetStrategy getAutoOffsetResetStrategy() {
+        return offsetResetStrategy;
+    }
 }

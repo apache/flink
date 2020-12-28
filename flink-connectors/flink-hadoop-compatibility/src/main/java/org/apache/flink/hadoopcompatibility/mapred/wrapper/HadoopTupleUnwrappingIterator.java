@@ -29,66 +29,66 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Wraps a Flink Tuple2 (key-value-pair) iterator into an iterator over the second (value) field.
  */
-public class HadoopTupleUnwrappingIterator<KEY, VALUE>
-		extends TupleUnwrappingIterator<VALUE, KEY> implements java.io.Serializable {
+public class HadoopTupleUnwrappingIterator<KEY, VALUE> extends TupleUnwrappingIterator<VALUE, KEY>
+        implements java.io.Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final TypeSerializer<KEY> keySerializer;
+    private final TypeSerializer<KEY> keySerializer;
 
-	private transient Iterator<Tuple2<KEY, VALUE>> iterator;
+    private transient Iterator<Tuple2<KEY, VALUE>> iterator;
 
-	private transient KEY curKey;
-	private transient VALUE firstValue;
-	private transient boolean atFirst;
+    private transient KEY curKey;
+    private transient VALUE firstValue;
+    private transient boolean atFirst;
 
-	public HadoopTupleUnwrappingIterator(TypeSerializer<KEY> keySerializer) {
-		this.keySerializer = checkNotNull(keySerializer);
-	}
+    public HadoopTupleUnwrappingIterator(TypeSerializer<KEY> keySerializer) {
+        this.keySerializer = checkNotNull(keySerializer);
+    }
 
-	/**
-	 * Set the Flink iterator to wrap.
-	 *
-	 * @param iterator The Flink iterator to wrap.
-	 */
-	@Override
-	public void set(final Iterator<Tuple2<KEY, VALUE>> iterator) {
-		this.iterator = iterator;
-		if (this.hasNext()) {
-			final Tuple2<KEY, VALUE> tuple = iterator.next();
-			this.curKey = keySerializer.copy(tuple.f0);
-			this.firstValue = tuple.f1;
-			this.atFirst = true;
-		} else {
-			this.atFirst = false;
-		}
-	}
+    /**
+     * Set the Flink iterator to wrap.
+     *
+     * @param iterator The Flink iterator to wrap.
+     */
+    @Override
+    public void set(final Iterator<Tuple2<KEY, VALUE>> iterator) {
+        this.iterator = iterator;
+        if (this.hasNext()) {
+            final Tuple2<KEY, VALUE> tuple = iterator.next();
+            this.curKey = keySerializer.copy(tuple.f0);
+            this.firstValue = tuple.f1;
+            this.atFirst = true;
+        } else {
+            this.atFirst = false;
+        }
+    }
 
-	@Override
-	public boolean hasNext() {
-		if (this.atFirst) {
-			return true;
-		}
-		return iterator.hasNext();
-	}
+    @Override
+    public boolean hasNext() {
+        if (this.atFirst) {
+            return true;
+        }
+        return iterator.hasNext();
+    }
 
-	@Override
-	public VALUE next() {
-		if (this.atFirst) {
-			this.atFirst = false;
-			return firstValue;
-		}
+    @Override
+    public VALUE next() {
+        if (this.atFirst) {
+            this.atFirst = false;
+            return firstValue;
+        }
 
-		final Tuple2<KEY, VALUE> tuple = iterator.next();
-		return tuple.f1;
-	}
+        final Tuple2<KEY, VALUE> tuple = iterator.next();
+        return tuple.f1;
+    }
 
-	public KEY getCurrentKey() {
-		return this.curKey;
-	}
+    public KEY getCurrentKey() {
+        return this.curKey;
+    }
 
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException();
+    }
 }

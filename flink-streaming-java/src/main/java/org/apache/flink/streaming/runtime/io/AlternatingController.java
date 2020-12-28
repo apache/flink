@@ -27,66 +27,64 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * Controller that can alternate between aligned and unaligned checkpoints.
- */
+/** Controller that can alternate between aligned and unaligned checkpoints. */
 @Internal
 public class AlternatingController implements CheckpointBarrierBehaviourController {
-	private final AlignedController alignedController;
-	private final UnalignedController unalignedController;
-	private  CheckpointBarrierBehaviourController activeController;
+    private final AlignedController alignedController;
+    private final UnalignedController unalignedController;
+    private CheckpointBarrierBehaviourController activeController;
 
-	public AlternatingController(
-			AlignedController alignedController,
-			UnalignedController unalignedController) {
-		this.activeController = this.alignedController = alignedController;
-		this.unalignedController = unalignedController;
-	}
+    public AlternatingController(
+            AlignedController alignedController, UnalignedController unalignedController) {
+        this.activeController = this.alignedController = alignedController;
+        this.unalignedController = unalignedController;
+    }
 
-	@Override
-	public void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
-		checkActiveController(barrier);
-		activeController.barrierReceived(channelInfo, barrier);
-	}
+    @Override
+    public void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
+        checkActiveController(barrier);
+        activeController.barrierReceived(channelInfo, barrier);
+    }
 
-	@Override
-	public boolean preProcessFirstBarrier(
-			InputChannelInfo channelInfo,
-			CheckpointBarrier barrier) throws IOException, CheckpointException {
-		activeController = chooseController(barrier);
-		return activeController.preProcessFirstBarrier(channelInfo, barrier);
-	}
+    @Override
+    public boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier)
+            throws IOException, CheckpointException {
+        activeController = chooseController(barrier);
+        return activeController.preProcessFirstBarrier(channelInfo, barrier);
+    }
 
-	@Override
-	public boolean postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
-		checkActiveController(barrier);
-		return activeController.postProcessLastBarrier(channelInfo, barrier);
-	}
+    @Override
+    public boolean postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier)
+            throws IOException {
+        checkActiveController(barrier);
+        return activeController.postProcessLastBarrier(channelInfo, barrier);
+    }
 
-	@Override
-	public void abortPendingCheckpoint(long cancelledId, CheckpointException exception) throws IOException {
-		activeController.abortPendingCheckpoint(cancelledId, exception);
-	}
+    @Override
+    public void abortPendingCheckpoint(long cancelledId, CheckpointException exception)
+            throws IOException {
+        activeController.abortPendingCheckpoint(cancelledId, exception);
+    }
 
-	@Override
-	public void obsoleteBarrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
-		chooseController(barrier).obsoleteBarrierReceived(channelInfo, barrier);
-	}
+    @Override
+    public void obsoleteBarrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier)
+            throws IOException {
+        chooseController(barrier).obsoleteBarrierReceived(channelInfo, barrier);
+    }
 
-	private void checkActiveController(CheckpointBarrier barrier) {
-		if (isAligned(barrier)) {
-			checkState(activeController == alignedController);
-		}
-		else {
-			checkState(activeController == unalignedController);
-		}
-	}
+    private void checkActiveController(CheckpointBarrier barrier) {
+        if (isAligned(barrier)) {
+            checkState(activeController == alignedController);
+        } else {
+            checkState(activeController == unalignedController);
+        }
+    }
 
-	private boolean isAligned(CheckpointBarrier barrier) {
-		return barrier.getCheckpointOptions().needsAlignment();
-	}
+    private boolean isAligned(CheckpointBarrier barrier) {
+        return barrier.getCheckpointOptions().needsAlignment();
+    }
 
-	private CheckpointBarrierBehaviourController chooseController(CheckpointBarrier barrier) {
-		return isAligned(barrier) ? alignedController : unalignedController;
-	}
+    private CheckpointBarrierBehaviourController chooseController(CheckpointBarrier barrier) {
+        return isAligned(barrier) ? alignedController : unalignedController;
+    }
 }

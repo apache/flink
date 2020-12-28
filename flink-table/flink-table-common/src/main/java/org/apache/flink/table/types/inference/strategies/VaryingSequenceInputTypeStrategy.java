@@ -38,113 +38,116 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Strategy for inferring and validating a varying function signature like {@code f(INT, STRING, NUMERIC...)}
- * or {@code f(i INT, str STRING, num NUMERIC...)} using a sequence of {@link ArgumentTypeStrategy}s. The
- * first n - 1 arguments must be constant. The n-th argument can occur 0, 1, or more times.
+ * Strategy for inferring and validating a varying function signature like {@code f(INT, STRING,
+ * NUMERIC...)} or {@code f(i INT, str STRING, num NUMERIC...)} using a sequence of {@link
+ * ArgumentTypeStrategy}s. The first n - 1 arguments must be constant. The n-th argument can occur
+ * 0, 1, or more times.
  */
 @Internal
 public final class VaryingSequenceInputTypeStrategy implements InputTypeStrategy {
 
-	private final int constantArgumentCount;
+    private final int constantArgumentCount;
 
-	private final List<ArgumentTypeStrategy> constantArgumentStrategies;
+    private final List<ArgumentTypeStrategy> constantArgumentStrategies;
 
-	private final ArgumentTypeStrategy varyingArgumentStrategy;
+    private final ArgumentTypeStrategy varyingArgumentStrategy;
 
-	private final @Nullable List<String> argumentNames;
+    private final @Nullable List<String> argumentNames;
 
-	public VaryingSequenceInputTypeStrategy(
-			List<ArgumentTypeStrategy> argumentStrategies,
-			@Nullable List<String> argumentNames) {
-		Preconditions.checkArgument(argumentStrategies.size() > 0);
-		Preconditions.checkArgument(argumentNames == null || argumentNames.size() == argumentStrategies.size());
-		constantArgumentCount = argumentStrategies.size() - 1;
-		constantArgumentStrategies = argumentStrategies.subList(0, constantArgumentCount);
-		varyingArgumentStrategy = argumentStrategies.get(constantArgumentCount);
-		this.argumentNames = argumentNames;
-	}
+    public VaryingSequenceInputTypeStrategy(
+            List<ArgumentTypeStrategy> argumentStrategies, @Nullable List<String> argumentNames) {
+        Preconditions.checkArgument(argumentStrategies.size() > 0);
+        Preconditions.checkArgument(
+                argumentNames == null || argumentNames.size() == argumentStrategies.size());
+        constantArgumentCount = argumentStrategies.size() - 1;
+        constantArgumentStrategies = argumentStrategies.subList(0, constantArgumentCount);
+        varyingArgumentStrategy = argumentStrategies.get(constantArgumentCount);
+        this.argumentNames = argumentNames;
+    }
 
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.from(constantArgumentCount);
-	}
+    @Override
+    public ArgumentCount getArgumentCount() {
+        return ConstantArgumentCount.from(constantArgumentCount);
+    }
 
-	@Override
-	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
-		final List<DataType> dataTypes = callContext.getArgumentDataTypes();
-		if (dataTypes.size() < constantArgumentCount) {
-			return Optional.empty();
-		}
-		final List<DataType> inferredDataTypes = new ArrayList<>(dataTypes.size());
-		for (int i = 0; i < callContext.getArgumentDataTypes().size(); i++) {
-			final ArgumentTypeStrategy argumentTypeStrategy;
-			if (i < constantArgumentCount) {
-				argumentTypeStrategy = constantArgumentStrategies.get(i);
-			} else {
-				argumentTypeStrategy = varyingArgumentStrategy;
-			}
-			final Optional<DataType> inferredDataType = argumentTypeStrategy.inferArgumentType(
-				callContext,
-				i,
-				throwOnFailure);
-			if (!inferredDataType.isPresent()) {
-				return Optional.empty();
-			}
-			inferredDataTypes.add(inferredDataType.get());
-		}
-		return Optional.of(inferredDataTypes);
-	}
+    @Override
+    public Optional<List<DataType>> inferInputTypes(
+            CallContext callContext, boolean throwOnFailure) {
+        final List<DataType> dataTypes = callContext.getArgumentDataTypes();
+        if (dataTypes.size() < constantArgumentCount) {
+            return Optional.empty();
+        }
+        final List<DataType> inferredDataTypes = new ArrayList<>(dataTypes.size());
+        for (int i = 0; i < callContext.getArgumentDataTypes().size(); i++) {
+            final ArgumentTypeStrategy argumentTypeStrategy;
+            if (i < constantArgumentCount) {
+                argumentTypeStrategy = constantArgumentStrategies.get(i);
+            } else {
+                argumentTypeStrategy = varyingArgumentStrategy;
+            }
+            final Optional<DataType> inferredDataType =
+                    argumentTypeStrategy.inferArgumentType(callContext, i, throwOnFailure);
+            if (!inferredDataType.isPresent()) {
+                return Optional.empty();
+            }
+            inferredDataTypes.add(inferredDataType.get());
+        }
+        return Optional.of(inferredDataTypes);
+    }
 
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		final Signature.Argument varyingArgument = varyingArgumentStrategy.getExpectedArgument(
-			definition,
-			constantArgumentCount);
-		final Signature.Argument newArg;
-		final String type = varyingArgument.getType();
-		if (argumentNames == null) {
-			newArg = Signature.Argument.of(type + "...");
-		} else {
-			newArg = Signature.Argument.of(argumentNames.get(constantArgumentCount), type + "...");
-		}
+    @Override
+    public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+        final Signature.Argument varyingArgument =
+                varyingArgumentStrategy.getExpectedArgument(definition, constantArgumentCount);
+        final Signature.Argument newArg;
+        final String type = varyingArgument.getType();
+        if (argumentNames == null) {
+            newArg = Signature.Argument.of(type + "...");
+        } else {
+            newArg = Signature.Argument.of(argumentNames.get(constantArgumentCount), type + "...");
+        }
 
-		final List<Signature.Argument> arguments = new ArrayList<>();
-		for (int i = 0; i < constantArgumentCount; i++) {
-			if (argumentNames == null) {
-				arguments.add(constantArgumentStrategies.get(i).getExpectedArgument(definition, i));
-			} else {
-				arguments.add(Signature.Argument.of(
-					argumentNames.get(i),
-					constantArgumentStrategies.get(i).getExpectedArgument(definition, i).getType()));
-			}
-		}
+        final List<Signature.Argument> arguments = new ArrayList<>();
+        for (int i = 0; i < constantArgumentCount; i++) {
+            if (argumentNames == null) {
+                arguments.add(constantArgumentStrategies.get(i).getExpectedArgument(definition, i));
+            } else {
+                arguments.add(
+                        Signature.Argument.of(
+                                argumentNames.get(i),
+                                constantArgumentStrategies
+                                        .get(i)
+                                        .getExpectedArgument(definition, i)
+                                        .getType()));
+            }
+        }
 
-		arguments.add(newArg);
+        arguments.add(newArg);
 
-		return Collections.singletonList(Signature.of(arguments));
-	}
+        return Collections.singletonList(Signature.of(arguments));
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		VaryingSequenceInputTypeStrategy that = (VaryingSequenceInputTypeStrategy) o;
-		return constantArgumentCount == that.constantArgumentCount &&
-			Objects.equals(constantArgumentStrategies, that.constantArgumentStrategies) &&
-			Objects.equals(varyingArgumentStrategy, that.varyingArgumentStrategy) &&
-			Objects.equals(argumentNames, that.argumentNames);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        VaryingSequenceInputTypeStrategy that = (VaryingSequenceInputTypeStrategy) o;
+        return constantArgumentCount == that.constantArgumentCount
+                && Objects.equals(constantArgumentStrategies, that.constantArgumentStrategies)
+                && Objects.equals(varyingArgumentStrategy, that.varyingArgumentStrategy)
+                && Objects.equals(argumentNames, that.argumentNames);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(
-			constantArgumentCount,
-			constantArgumentStrategies,
-			varyingArgumentStrategy,
-			argumentNames);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                constantArgumentCount,
+                constantArgumentStrategies,
+                varyingArgumentStrategy,
+                argumentNames);
+    }
 }

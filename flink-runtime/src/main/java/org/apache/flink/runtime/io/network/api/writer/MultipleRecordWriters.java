@@ -28,69 +28,70 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * The specific delegate implementation for the multiple outputs case.
- */
-public class MultipleRecordWriters<T extends IOReadableWritable> implements RecordWriterDelegate<T> {
+/** The specific delegate implementation for the multiple outputs case. */
+public class MultipleRecordWriters<T extends IOReadableWritable>
+        implements RecordWriterDelegate<T> {
 
-	/** The real record writer instances for this delegate. */
-	private final List<RecordWriter<T>> recordWriters;
+    /** The real record writer instances for this delegate. */
+    private final List<RecordWriter<T>> recordWriters;
 
-	/**
-	 * Maintains the respective record writer futures to avoid allocating new arrays every time
-	 * in {@link #getAvailableFuture()}.
-	 */
-	private final CompletableFuture<?>[] futures;
+    /**
+     * Maintains the respective record writer futures to avoid allocating new arrays every time in
+     * {@link #getAvailableFuture()}.
+     */
+    private final CompletableFuture<?>[] futures;
 
-	public MultipleRecordWriters(List<RecordWriter<T>> recordWriters) {
-		this.recordWriters = checkNotNull(recordWriters);
-		this.futures = new CompletableFuture[recordWriters.size()];
-	}
+    public MultipleRecordWriters(List<RecordWriter<T>> recordWriters) {
+        this.recordWriters = checkNotNull(recordWriters);
+        this.futures = new CompletableFuture[recordWriters.size()];
+    }
 
-	@Override
-	public void broadcastEvent(AbstractEvent event) throws IOException {
-		IOException exception = null;
-		for (RecordWriter recordWriter : recordWriters) {
-			try {
-				recordWriter.broadcastEvent(event);
-			} catch (IOException e) {
-				exception = ExceptionUtils.firstOrSuppressed(
-					new IOException("Could not send event to downstream tasks.", e), exception);
-			}
-		}
+    @Override
+    public void broadcastEvent(AbstractEvent event) throws IOException {
+        IOException exception = null;
+        for (RecordWriter recordWriter : recordWriters) {
+            try {
+                recordWriter.broadcastEvent(event);
+            } catch (IOException e) {
+                exception =
+                        ExceptionUtils.firstOrSuppressed(
+                                new IOException("Could not send event to downstream tasks.", e),
+                                exception);
+            }
+        }
 
-		if (exception != null) {
-			throw exception;
-		}
-	}
+        if (exception != null) {
+            throw exception;
+        }
+    }
 
-	@Override
-	public RecordWriter<T> getRecordWriter(int outputIndex) {
-		return recordWriters.get(outputIndex);
-	}
+    @Override
+    public RecordWriter<T> getRecordWriter(int outputIndex) {
+        return recordWriters.get(outputIndex);
+    }
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		for (int i = 0; i < futures.length; i++) {
-			futures[i] = recordWriters.get(i).getAvailableFuture();
-		}
-		return CompletableFuture.allOf(futures);
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        for (int i = 0; i < futures.length; i++) {
+            futures[i] = recordWriters.get(i).getAvailableFuture();
+        }
+        return CompletableFuture.allOf(futures);
+    }
 
-	@Override
-	public boolean isAvailable() {
-		for (RecordWriter recordWriter : recordWriters) {
-			if (!recordWriter.isAvailable()) {
-				return false;
-			}
-		}
-		return true;
-	}
+    @Override
+    public boolean isAvailable() {
+        for (RecordWriter recordWriter : recordWriters) {
+            if (!recordWriter.isAvailable()) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-	@Override
-	public void close() {
-		for (RecordWriter recordWriter : recordWriters) {
-			recordWriter.close();
-		}
-	}
+    @Override
+    public void close() {
+        for (RecordWriter recordWriter : recordWriters) {
+            recordWriter.close();
+        }
+    }
 }

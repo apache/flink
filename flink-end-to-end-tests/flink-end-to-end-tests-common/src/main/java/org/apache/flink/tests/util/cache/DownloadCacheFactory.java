@@ -18,18 +18,16 @@
 
 package org.apache.flink.tests.util.cache;
 
-/**
- * A factory for {@link DownloadCache} implementations.
- */
+/** A factory for {@link DownloadCache} implementations. */
 @FunctionalInterface
 public interface DownloadCacheFactory {
 
-	/**
-	 * Returns a {@link DownloadCache} instance. If the instance could not be instantiated (for example, because a
-	 * mandatory parameter was missing), then an exception should be thrown.
-	 *
-	 * @return DownloadCache instance
-	 * @throws Exception if the instance could not be instantiated
-	 */
-	DownloadCache create() throws Exception;
+    /**
+     * Returns a {@link DownloadCache} instance. If the instance could not be instantiated (for
+     * example, because a mandatory parameter was missing), then an exception should be thrown.
+     *
+     * @return DownloadCache instance
+     * @throws Exception if the instance could not be instantiated
+     */
+    DownloadCache create() throws Exception;
 }

@@ -21,52 +21,50 @@ package org.apache.flink.graph.generator.random;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 
 /**
- * Uses a seeded {@link JDKRandomGenerator} to generate seeds for the
- * distributed collection of {@link JDKRandomGenerator}.
+ * Uses a seeded {@link JDKRandomGenerator} to generate seeds for the distributed collection of
+ * {@link JDKRandomGenerator}.
  */
-public class JDKRandomGeneratorFactory
-extends GeneratorFactoryBase<JDKRandomGenerator> {
+public class JDKRandomGeneratorFactory extends GeneratorFactoryBase<JDKRandomGenerator> {
 
-	public static final long DEFAULT_SEED = 0x4b6f7e18198de7a4L;
+    public static final long DEFAULT_SEED = 0x4b6f7e18198de7a4L;
 
-	public static final int MINIMUM_CYCLES_PER_BLOCK = 1 << 20;
+    public static final int MINIMUM_CYCLES_PER_BLOCK = 1 << 20;
 
-	private final JDKRandomGenerator random = new JDKRandomGenerator();
+    private final JDKRandomGenerator random = new JDKRandomGenerator();
 
-	public JDKRandomGeneratorFactory() {
-		this(DEFAULT_SEED);
-	}
+    public JDKRandomGeneratorFactory() {
+        this(DEFAULT_SEED);
+    }
 
-	public JDKRandomGeneratorFactory(long seed) {
-		random.setSeed(seed);
-	}
+    public JDKRandomGeneratorFactory(long seed) {
+        random.setSeed(seed);
+    }
 
-	@Override
-	protected int getMinimumCyclesPerBlock() {
-		return MINIMUM_CYCLES_PER_BLOCK;
-	}
+    @Override
+    protected int getMinimumCyclesPerBlock() {
+        return MINIMUM_CYCLES_PER_BLOCK;
+    }
 
-	@Override
-	protected JDKRandomGenerable next() {
-		return new JDKRandomGenerable(random.nextLong());
-	}
+    @Override
+    protected JDKRandomGenerable next() {
+        return new JDKRandomGenerable(random.nextLong());
+    }
 
-	private static class JDKRandomGenerable
-	implements RandomGenerable<JDKRandomGenerator> {
+    private static class JDKRandomGenerable implements RandomGenerable<JDKRandomGenerator> {
 
-		private final long seed;
+        private final long seed;
 
-		public JDKRandomGenerable(long seed) {
-			this.seed = seed;
-		}
+        public JDKRandomGenerable(long seed) {
+            this.seed = seed;
+        }
 
-		@Override
-		public JDKRandomGenerator generator() {
-			JDKRandomGenerator random = new JDKRandomGenerator();
+        @Override
+        public JDKRandomGenerator generator() {
+            JDKRandomGenerator random = new JDKRandomGenerator();
 
-			random.setSeed(seed);
+            random.setSeed(seed);
 
-			return random;
-		}
-	}
+            return random;
+        }
+    }
 }

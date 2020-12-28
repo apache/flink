@@ -36,17 +36,16 @@ import java.util.List;
  */
 public class DeadlockBreakupProcessor implements DAGProcessor {
 
-	@Override
-	public List<ExecNode<?, ?>> process(List<ExecNode<?, ?>> rootNodes, DAGProcessContext context) {
-		if (!rootNodes.stream().allMatch(r -> r instanceof BatchExecNode)) {
-			throw new TableException("Only BatchExecNode DAG is supported now");
-		}
+    @Override
+    public List<ExecNode<?, ?>> process(List<ExecNode<?, ?>> rootNodes, DAGProcessContext context) {
+        if (!rootNodes.stream().allMatch(r -> r instanceof BatchExecNode)) {
+            throw new TableException("Only BatchExecNode DAG is supported now");
+        }
 
-		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(
-			rootNodes,
-			ExecEdge.DamBehavior.END_INPUT,
-			ShuffleMode.BATCH);
-		resolver.detectAndResolve();
-		return rootNodes;
-	}
+        InputPriorityConflictResolver resolver =
+                new InputPriorityConflictResolver(
+                        rootNodes, ExecEdge.DamBehavior.END_INPUT, ShuffleMode.BATCH);
+        resolver.detectAndResolve();
+        return rootNodes;
+    }
 }

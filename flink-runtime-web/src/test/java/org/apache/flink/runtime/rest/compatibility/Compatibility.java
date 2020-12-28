@@ -18,33 +18,28 @@
 
 package org.apache.flink.runtime.rest.compatibility;
 
-/**
- * Compatibility-qualifier for the REST API.
- */
+/** Compatibility-qualifier for the REST API. */
 enum Compatibility {
-	/**
-	 * The API is not backward compatible, meaning that the API was modified in a breaking way.
-	 */
-	INCOMPATIBLE,
-	/**
-	 * The API is backward compatible, meaning that the API was modified but not in a breaking way.
-	 */
-	COMPATIBLE,
-	/**
-	 * The API is identical to a previous version. Exists primarily to determine whether the snapshot file must be updated.
-	 */
-	IDENTICAL;
+    /** The API is not backward compatible, meaning that the API was modified in a breaking way. */
+    INCOMPATIBLE,
+    /**
+     * The API is backward compatible, meaning that the API was modified but not in a breaking way.
+     */
+    COMPATIBLE,
+    /**
+     * The API is identical to a previous version. Exists primarily to determine whether the
+     * snapshot file must be updated.
+     */
+    IDENTICAL;
 
-	/**
-	 * Merges 2 compatibilities by prioritizing the most restrictive one.
-	 */
-	Compatibility merge(final Compatibility other) {
-		if (this == INCOMPATIBLE || other == INCOMPATIBLE) {
-			return INCOMPATIBLE;
-		}
-		if (this == COMPATIBLE || other == COMPATIBLE) {
-			return COMPATIBLE;
-		}
-		return IDENTICAL;
-	}
+    /** Merges 2 compatibilities by prioritizing the most restrictive one. */
+    Compatibility merge(final Compatibility other) {
+        if (this == INCOMPATIBLE || other == INCOMPATIBLE) {
+            return INCOMPATIBLE;
+        }
+        if (this == COMPATIBLE || other == COMPATIBLE) {
+            return COMPATIBLE;
+        }
+        return IDENTICAL;
+    }
 }

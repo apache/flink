@@ -45,173 +45,169 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link StatefulSinkWriterOperator}.
- */
+/** Tests for {@link StatefulSinkWriterOperator}. */
 public class StatefulSinkWriterOperatorTest extends SinkWriterOperatorTestBase {
 
-	@Override
-	protected AbstractSinkWriterOperatorFactory createWriterOperator(TestSink sink) {
-		return new StatefulSinkWriterOperatorFactory<>(sink);
-	}
+    @Override
+    protected AbstractSinkWriterOperatorFactory createWriterOperator(TestSink sink) {
+        return new StatefulSinkWriterOperatorFactory<>(sink);
+    }
 
-	@Test
-	public void stateIsRestored() throws Exception {
-		final long initialTime = 0;
+    @Test
+    public void stateIsRestored() throws Exception {
+        final long initialTime = 0;
 
-		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				createTestHarness(TestSink
-						.newBuilder()
-						.setWriter(new SnapshottingBufferingSinkWriter())
-						.withWriterState()
-						.build());
+        final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+                createTestHarness(
+                        TestSink.newBuilder()
+                                .setWriter(new SnapshottingBufferingSinkWriter())
+                                .withWriterState()
+                                .build());
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processWatermark(initialTime);
-		testHarness.processElement(1, initialTime + 1);
-		testHarness.processElement(2, initialTime + 2);
+        testHarness.processWatermark(initialTime);
+        testHarness.processElement(1, initialTime + 1);
+        testHarness.processElement(2, initialTime + 2);
 
-		testHarness.prepareSnapshotPreBarrier(1L);
-		OperatorSubtaskState snapshot = testHarness.snapshot(1L, 1L);
+        testHarness.prepareSnapshotPreBarrier(1L);
+        OperatorSubtaskState snapshot = testHarness.snapshot(1L, 1L);
 
-		// we only see the watermark, so the committables must be stored in state
-		assertThat(
-				testHarness.getOutput(),
-				contains(
-						new Watermark(initialTime)));
+        // we only see the watermark, so the committables must be stored in state
+        assertThat(testHarness.getOutput(), contains(new Watermark(initialTime)));
 
-		testHarness.close();
+        testHarness.close();
 
-		final OneInputStreamOperatorTestHarness<Integer, String> restoredTestHarness =
-				createTestHarness(TestSink
-						.newBuilder()
-						.setWriter(new SnapshottingBufferingSinkWriter())
-						.withWriterState()
-						.build());
+        final OneInputStreamOperatorTestHarness<Integer, String> restoredTestHarness =
+                createTestHarness(
+                        TestSink.newBuilder()
+                                .setWriter(new SnapshottingBufferingSinkWriter())
+                                .withWriterState()
+                                .build());
 
-		restoredTestHarness.initializeState(snapshot);
-		restoredTestHarness.open();
+        restoredTestHarness.initializeState(snapshot);
+        restoredTestHarness.open();
 
-		// this will flush out the committables that were restored
-		restoredTestHarness.endInput();
+        // this will flush out the committables that were restored
+        restoredTestHarness.endInput();
 
-		assertThat(
-				restoredTestHarness.getOutput(),
-				contains(
-						new StreamRecord<>(Tuple3.of(1, initialTime + 1, initialTime).toString()),
-						new StreamRecord<>(Tuple3.of(2, initialTime + 2, initialTime).toString())));
-	}
+        assertThat(
+                restoredTestHarness.getOutput(),
+                contains(
+                        new StreamRecord<>(Tuple3.of(1, initialTime + 1, initialTime).toString()),
+                        new StreamRecord<>(Tuple3.of(2, initialTime + 2, initialTime).toString())));
+    }
 
-	@Test
-	public void loadPreviousSinkState() throws Exception {
-		//1. Build previous sink state
-		final List<String> previousSinkInputs = Arrays.asList("bit", "mention", "thick", "stick", "stir",
-				"easy", "sleep", "forth", "cost", "prompt");
+    @Test
+    public void loadPreviousSinkState() throws Exception {
+        // 1. Build previous sink state
+        final List<String> previousSinkInputs =
+                Arrays.asList(
+                        "bit", "mention", "thick", "stick", "stir", "easy", "sleep", "forth",
+                        "cost", "prompt");
 
-		final OneInputStreamOperatorTestHarness<String, String> previousSink =
-				new OneInputStreamOperatorTestHarness<>(
-						new DummySinkOperator(),
-						StringSerializer.INSTANCE);
+        final OneInputStreamOperatorTestHarness<String, String> previousSink =
+                new OneInputStreamOperatorTestHarness<>(
+                        new DummySinkOperator(), StringSerializer.INSTANCE);
 
-		OperatorSubtaskState previousSinkState = TestHarnessUtil.buildSubtaskState(
-				previousSink,
-				previousSinkInputs);
+        OperatorSubtaskState previousSinkState =
+                TestHarnessUtil.buildSubtaskState(previousSink, previousSinkInputs);
 
-		//2. Load previous sink state and verify the output
-		final OneInputStreamOperatorTestHarness<Integer, String> compatibleWriterOperator =
-				createCompatibleSinkOperator();
+        // 2. Load previous sink state and verify the output
+        final OneInputStreamOperatorTestHarness<Integer, String> compatibleWriterOperator =
+                createCompatibleSinkOperator();
 
-		final List<StreamRecord<String>> expectedOutput1 =
-				previousSinkInputs.stream().map(StreamRecord::new).collect(Collectors.toList());
-		expectedOutput1.add(new StreamRecord<>(Tuple3.of(1, 1, Long.MIN_VALUE).toString()));
+        final List<StreamRecord<String>> expectedOutput1 =
+                previousSinkInputs.stream().map(StreamRecord::new).collect(Collectors.toList());
+        expectedOutput1.add(new StreamRecord<>(Tuple3.of(1, 1, Long.MIN_VALUE).toString()));
 
-		// load the state from previous sink
-		compatibleWriterOperator.initializeState(previousSinkState);
+        // load the state from previous sink
+        compatibleWriterOperator.initializeState(previousSinkState);
 
-		compatibleWriterOperator.open();
+        compatibleWriterOperator.open();
 
-		compatibleWriterOperator.processElement(1, 1);
+        compatibleWriterOperator.processElement(1, 1);
 
-		// this will flush out the committables that were restored from previous sink
-		compatibleWriterOperator.endInput();
+        // this will flush out the committables that were restored from previous sink
+        compatibleWriterOperator.endInput();
 
-		OperatorSubtaskState operatorStateWithoutPreviousState = compatibleWriterOperator.snapshot(
-				1L,
-				1L);
+        OperatorSubtaskState operatorStateWithoutPreviousState =
+                compatibleWriterOperator.snapshot(1L, 1L);
 
-		compatibleWriterOperator.close();
+        compatibleWriterOperator.close();
 
-		assertThat(
-				compatibleWriterOperator.getOutput(),
-				containsInAnyOrder(expectedOutput1.toArray()));
+        assertThat(
+                compatibleWriterOperator.getOutput(),
+                containsInAnyOrder(expectedOutput1.toArray()));
 
-		//3. Restore the sink without previous sink's state
-		final OneInputStreamOperatorTestHarness<Integer, String> restoredSinkOperator =
-				createCompatibleSinkOperator();
-		final List<StreamRecord<String>> expectedOutput2 =
-				Arrays.asList(
-						new StreamRecord<>(Tuple3.of(2, 2, Long.MIN_VALUE).toString()),
-						new StreamRecord<>(Tuple3.of(3, 3, Long.MIN_VALUE).toString()));
+        // 3. Restore the sink without previous sink's state
+        final OneInputStreamOperatorTestHarness<Integer, String> restoredSinkOperator =
+                createCompatibleSinkOperator();
+        final List<StreamRecord<String>> expectedOutput2 =
+                Arrays.asList(
+                        new StreamRecord<>(Tuple3.of(2, 2, Long.MIN_VALUE).toString()),
+                        new StreamRecord<>(Tuple3.of(3, 3, Long.MIN_VALUE).toString()));
 
-		restoredSinkOperator.initializeState(operatorStateWithoutPreviousState);
+        restoredSinkOperator.initializeState(operatorStateWithoutPreviousState);
 
-		restoredSinkOperator.open();
+        restoredSinkOperator.open();
 
-		restoredSinkOperator.processElement(2, 2);
-		restoredSinkOperator.processElement(3, 3);
+        restoredSinkOperator.processElement(2, 2);
+        restoredSinkOperator.processElement(3, 3);
 
-		// this will flush out the committables that were restored
-		restoredSinkOperator.endInput();
+        // this will flush out the committables that were restored
+        restoredSinkOperator.endInput();
 
-		assertThat(restoredSinkOperator.getOutput(), containsInAnyOrder(expectedOutput2.toArray()));
-	}
+        assertThat(restoredSinkOperator.getOutput(), containsInAnyOrder(expectedOutput2.toArray()));
+    }
 
-	/**
-	 * A {@link SinkWriter} buffers elements and snapshots them when asked.
-	 */
-	static class SnapshottingBufferingSinkWriter extends BufferingSinkWriter {
+    /** A {@link SinkWriter} buffers elements and snapshots them when asked. */
+    static class SnapshottingBufferingSinkWriter extends BufferingSinkWriter {
 
-		@Override
-		public List<String> snapshotState() {
-			return elements;
-		}
+        @Override
+        public List<String> snapshotState() {
+            return elements;
+        }
 
-		@Override
-		void restoredFrom(List<String> states) {
-			this.elements = states;
-		}
-	}
+        @Override
+        void restoredFrom(List<String> states) {
+            this.elements = states;
+        }
+    }
 
-	static class DummySinkOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String> {
+    static class DummySinkOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String> {
 
-		static final String DUMMY_SINK_STATE_NAME = "dummy_sink_state";
+        static final String DUMMY_SINK_STATE_NAME = "dummy_sink_state";
 
-		static final ListStateDescriptor<byte[]> SINK_STATE_DESC = new ListStateDescriptor<>(
-				DUMMY_SINK_STATE_NAME,
-				BytePrimitiveArraySerializer.INSTANCE);
-		ListState<String> sinkState;
+        static final ListStateDescriptor<byte[]> SINK_STATE_DESC =
+                new ListStateDescriptor<>(
+                        DUMMY_SINK_STATE_NAME, BytePrimitiveArraySerializer.INSTANCE);
+        ListState<String> sinkState;
 
-		public void initializeState(StateInitializationContext context) throws Exception {
-			super.initializeState(context);
-			sinkState = new SimpleVersionedListState<>(context
-					.getOperatorStateStore()
-					.getListState(SINK_STATE_DESC), TestSink.StringCommittableSerializer.INSTANCE);
-		}
+        public void initializeState(StateInitializationContext context) throws Exception {
+            super.initializeState(context);
+            sinkState =
+                    new SimpleVersionedListState<>(
+                            context.getOperatorStateStore().getListState(SINK_STATE_DESC),
+                            TestSink.StringCommittableSerializer.INSTANCE);
+        }
 
-		@Override
-		public void processElement(StreamRecord<String> element) throws Exception {
-			sinkState.add(element.getValue());
-		}
-	}
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {
+            sinkState.add(element.getValue());
+        }
+    }
 
-	private OneInputStreamOperatorTestHarness<Integer, String> createCompatibleSinkOperator() throws Exception {
-		return new OneInputStreamOperatorTestHarness<>(
-				new StatefulSinkWriterOperatorFactory<>(TestSink
-						.newBuilder()
-						.setWriter(new SnapshottingBufferingSinkWriter())
-						.withWriterState()
-						.build(), DummySinkOperator.DUMMY_SINK_STATE_NAME),
-				IntSerializer.INSTANCE);
-	}
+    private OneInputStreamOperatorTestHarness<Integer, String> createCompatibleSinkOperator()
+            throws Exception {
+        return new OneInputStreamOperatorTestHarness<>(
+                new StatefulSinkWriterOperatorFactory<>(
+                        TestSink.newBuilder()
+                                .setWriter(new SnapshottingBufferingSinkWriter())
+                                .withWriterState()
+                                .build(),
+                        DummySinkOperator.DUMMY_SINK_STATE_NAME),
+                IntSerializer.INSTANCE);
+    }
 }

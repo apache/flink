@@ -27,39 +27,33 @@ import org.apache.flink.table.data.vector.IntColumnVector;
 import org.apache.flink.table.data.vector.LongColumnVector;
 
 /**
- * Parquet write decimal as int32 and int64 and binary, this class wrap the real vector to
- * provide {@link DecimalColumnVector} interface.
+ * Parquet write decimal as int32 and int64 and binary, this class wrap the real vector to provide
+ * {@link DecimalColumnVector} interface.
  */
 public class ParquetDecimalVector implements DecimalColumnVector {
 
-	private final ColumnVector vector;
+    private final ColumnVector vector;
 
-	public ParquetDecimalVector(ColumnVector vector) {
-		this.vector = vector;
-	}
+    public ParquetDecimalVector(ColumnVector vector) {
+        this.vector = vector;
+    }
 
-	@Override
-	public DecimalData getDecimal(int i, int precision, int scale) {
-		if (DecimalDataUtils.is32BitDecimal(precision)) {
-			return DecimalData.fromUnscaledLong(
-				((IntColumnVector) vector).getInt(i),
-				precision,
-				scale);
-		} else if (DecimalDataUtils.is64BitDecimal(precision)) {
-			return DecimalData.fromUnscaledLong(
-				((LongColumnVector) vector).getLong(i),
-				precision,
-				scale);
-		} else {
-			return DecimalData.fromUnscaledBytes(
-				((BytesColumnVector) vector).getBytes(i).getBytes(),
-				precision,
-				scale);
-		}
-	}
+    @Override
+    public DecimalData getDecimal(int i, int precision, int scale) {
+        if (DecimalDataUtils.is32BitDecimal(precision)) {
+            return DecimalData.fromUnscaledLong(
+                    ((IntColumnVector) vector).getInt(i), precision, scale);
+        } else if (DecimalDataUtils.is64BitDecimal(precision)) {
+            return DecimalData.fromUnscaledLong(
+                    ((LongColumnVector) vector).getLong(i), precision, scale);
+        } else {
+            return DecimalData.fromUnscaledBytes(
+                    ((BytesColumnVector) vector).getBytes(i).getBytes(), precision, scale);
+        }
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return vector.isNullAt(i);
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return vector.isNullAt(i);
+    }
 }

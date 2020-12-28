@@ -34,57 +34,49 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link CompressedHeaderlessChannelReaderInputView} and
- * {@link CompressedHeaderlessChannelWriterOutputView}.
+ * Tests for {@link CompressedHeaderlessChannelReaderInputView} and {@link
+ * CompressedHeaderlessChannelWriterOutputView}.
  */
 public class CompressedHeaderlessChannelTest {
-	private static final int BUFFER_SIZE = 256;
+    private static final int BUFFER_SIZE = 256;
 
-	private IOManager ioManager;
+    private IOManager ioManager;
 
-	private BlockCompressionFactory compressionFactory = new Lz4BlockCompressionFactory();
+    private BlockCompressionFactory compressionFactory = new Lz4BlockCompressionFactory();
 
-	public CompressedHeaderlessChannelTest() {
-		ioManager = new IOManagerAsync();
-	}
+    public CompressedHeaderlessChannelTest() {
+        ioManager = new IOManagerAsync();
+    }
 
-	@After
-	public void afterTest() throws Exception {
-		this.ioManager.close();
-	}
+    @After
+    public void afterTest() throws Exception {
+        this.ioManager.close();
+    }
 
-	@Test
-	public void testCompressedView() throws IOException {
-		for (int testTime = 0; testTime < 10; testTime++) {
-			int testRounds = new Random().nextInt(20000);
-			FileIOChannel.ID channel = ioManager.createChannel();
-			BufferFileWriter writer = this.ioManager.createBufferFileWriter(channel);
-			CompressedHeaderlessChannelWriterOutputView outputView =
-					new CompressedHeaderlessChannelWriterOutputView(
-							writer,
-							compressionFactory,
-							BUFFER_SIZE
-					);
+    @Test
+    public void testCompressedView() throws IOException {
+        for (int testTime = 0; testTime < 10; testTime++) {
+            int testRounds = new Random().nextInt(20000);
+            FileIOChannel.ID channel = ioManager.createChannel();
+            BufferFileWriter writer = this.ioManager.createBufferFileWriter(channel);
+            CompressedHeaderlessChannelWriterOutputView outputView =
+                    new CompressedHeaderlessChannelWriterOutputView(
+                            writer, compressionFactory, BUFFER_SIZE);
 
-			for (int i = 0; i < testRounds; i++) {
-				outputView.writeInt(i);
-			}
-			outputView.close();
-			int blockCount = outputView.getBlockCount();
+            for (int i = 0; i < testRounds; i++) {
+                outputView.writeInt(i);
+            }
+            outputView.close();
+            int blockCount = outputView.getBlockCount();
 
-			CompressedHeaderlessChannelReaderInputView inputView =
-					new CompressedHeaderlessChannelReaderInputView(
-							channel,
-							ioManager,
-							compressionFactory,
-							BUFFER_SIZE,
-							blockCount
-					);
+            CompressedHeaderlessChannelReaderInputView inputView =
+                    new CompressedHeaderlessChannelReaderInputView(
+                            channel, ioManager, compressionFactory, BUFFER_SIZE, blockCount);
 
-			for (int i = 0; i < testRounds; i++) {
-				assertEquals(i, inputView.readInt());
-			}
-			inputView.close();
-		}
-	}
+            for (int i = 0; i < testRounds; i++) {
+                assertEquals(i, inputView.readInt());
+            }
+            inputView.close();
+        }
+    }
 }

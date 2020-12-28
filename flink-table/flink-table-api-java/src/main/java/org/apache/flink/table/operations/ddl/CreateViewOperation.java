@@ -27,54 +27,49 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Operation to describe a CREATE VIEW statement.
- */
+/** Operation to describe a CREATE VIEW statement. */
 public class CreateViewOperation implements CreateOperation {
-	private final ObjectIdentifier viewIdentifier;
-	private CatalogView catalogView;
-	private boolean ignoreIfExists;
-	private boolean isTemporary;
+    private final ObjectIdentifier viewIdentifier;
+    private CatalogView catalogView;
+    private boolean ignoreIfExists;
+    private boolean isTemporary;
 
-	public CreateViewOperation(
-			ObjectIdentifier viewIdentifier,
-			CatalogView catalogView,
-			boolean ignoreIfExists,
-			boolean isTemporary) {
-		this.viewIdentifier = viewIdentifier;
-		this.catalogView = catalogView;
-		this.ignoreIfExists = ignoreIfExists;
-		this.isTemporary = isTemporary;
-	}
+    public CreateViewOperation(
+            ObjectIdentifier viewIdentifier,
+            CatalogView catalogView,
+            boolean ignoreIfExists,
+            boolean isTemporary) {
+        this.viewIdentifier = viewIdentifier;
+        this.catalogView = catalogView;
+        this.ignoreIfExists = ignoreIfExists;
+        this.isTemporary = isTemporary;
+    }
 
-	public CatalogView getCatalogView() {
-		return catalogView;
-	}
+    public CatalogView getCatalogView() {
+        return catalogView;
+    }
 
-	public ObjectIdentifier getViewIdentifier() {
-		return viewIdentifier;
-	}
+    public ObjectIdentifier getViewIdentifier() {
+        return viewIdentifier;
+    }
 
-	public boolean isIgnoreIfExists() {
-		return ignoreIfExists;
-	}
+    public boolean isIgnoreIfExists() {
+        return ignoreIfExists;
+    }
 
-	public boolean isTemporary() {
-		return isTemporary;
-	}
+    public boolean isTemporary() {
+        return isTemporary;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("originalQuery", catalogView.getOriginalQuery());
-		params.put("expandedQuery", catalogView.getExpandedQuery());
-		params.put("identifier", viewIdentifier);
-		params.put("ignoreIfExists", ignoreIfExists);
-		params.put("isTemporary", isTemporary);
-		return OperationUtils.formatWithChildren(
-			"CREATE VIEW",
-			params,
-			Collections.emptyList(),
-			Operation::asSummaryString);
-	}
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("originalQuery", catalogView.getOriginalQuery());
+        params.put("expandedQuery", catalogView.getExpandedQuery());
+        params.put("identifier", viewIdentifier);
+        params.put("ignoreIfExists", ignoreIfExists);
+        params.put("isTemporary", isTemporary);
+        return OperationUtils.formatWithChildren(
+                "CREATE VIEW", params, Collections.emptyList(), Operation::asSummaryString);
+    }
 }

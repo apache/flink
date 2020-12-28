@@ -55,134 +55,125 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public final class BridgingSqlFunction extends SqlFunction {
 
-	private final DataTypeFactory dataTypeFactory;
+    private final DataTypeFactory dataTypeFactory;
 
-	private final FlinkTypeFactory typeFactory;
+    private final FlinkTypeFactory typeFactory;
 
-	private final @Nullable FunctionIdentifier identifier;
+    private final @Nullable FunctionIdentifier identifier;
 
-	private final FunctionDefinition definition;
+    private final FunctionDefinition definition;
 
-	private final TypeInference typeInference;
+    private final TypeInference typeInference;
 
-	private BridgingSqlFunction(
-			DataTypeFactory dataTypeFactory,
-			FlinkTypeFactory typeFactory,
-			SqlKind kind,
-			@Nullable FunctionIdentifier identifier,
-			FunctionDefinition definition,
-			TypeInference typeInference) {
-		super(
-			createName(identifier, definition),
-			createSqlIdentifier(identifier),
-			kind,
-			createSqlReturnTypeInference(dataTypeFactory, definition, typeInference),
-			createSqlOperandTypeInference(dataTypeFactory, definition, typeInference),
-			createSqlOperandTypeChecker(dataTypeFactory, definition, typeInference),
-			createParamTypes(typeFactory, typeInference),
-			createSqlFunctionCategory(identifier));
+    private BridgingSqlFunction(
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory,
+            SqlKind kind,
+            @Nullable FunctionIdentifier identifier,
+            FunctionDefinition definition,
+            TypeInference typeInference) {
+        super(
+                createName(identifier, definition),
+                createSqlIdentifier(identifier),
+                kind,
+                createSqlReturnTypeInference(dataTypeFactory, definition, typeInference),
+                createSqlOperandTypeInference(dataTypeFactory, definition, typeInference),
+                createSqlOperandTypeChecker(dataTypeFactory, definition, typeInference),
+                createParamTypes(typeFactory, typeInference),
+                createSqlFunctionCategory(identifier));
 
-		this.dataTypeFactory = dataTypeFactory;
-		this.typeFactory = typeFactory;
-		this.identifier = identifier;
-		this.definition = definition;
-		this.typeInference = typeInference;
-	}
+        this.dataTypeFactory = dataTypeFactory;
+        this.typeFactory = typeFactory;
+        this.identifier = identifier;
+        this.definition = definition;
+        this.typeInference = typeInference;
+    }
 
-	/**
-	 * Creates an instance of a scalar or table function (either a system or user-defined function).
-	 *
-	 * @param dataTypeFactory used for creating {@link DataType}
-	 * @param typeFactory used for bridging to {@link RelDataType}
-	 * @param kind commonly used SQL standard function; use {@link SqlKind#OTHER_FUNCTION} if this function
-	 *             cannot be mapped to a common function kind.
-	 * @param identifier catalog identifier
-	 * @param definition system or user-defined {@link FunctionDefinition}
-	 * @param typeInference type inference logic
-	 */
-	public static BridgingSqlFunction of(
-			DataTypeFactory dataTypeFactory,
-			FlinkTypeFactory typeFactory,
-			SqlKind kind,
-			@Nullable FunctionIdentifier identifier,
-			FunctionDefinition definition,
-			TypeInference typeInference) {
+    /**
+     * Creates an instance of a scalar or table function (either a system or user-defined function).
+     *
+     * @param dataTypeFactory used for creating {@link DataType}
+     * @param typeFactory used for bridging to {@link RelDataType}
+     * @param kind commonly used SQL standard function; use {@link SqlKind#OTHER_FUNCTION} if this
+     *     function cannot be mapped to a common function kind.
+     * @param identifier catalog identifier
+     * @param definition system or user-defined {@link FunctionDefinition}
+     * @param typeInference type inference logic
+     */
+    public static BridgingSqlFunction of(
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory,
+            SqlKind kind,
+            @Nullable FunctionIdentifier identifier,
+            FunctionDefinition definition,
+            TypeInference typeInference) {
 
-		checkState(
-			definition.getKind() == FunctionKind.SCALAR || definition.getKind() == FunctionKind.TABLE,
-			"Scalar or table function kind expected.");
+        checkState(
+                definition.getKind() == FunctionKind.SCALAR
+                        || definition.getKind() == FunctionKind.TABLE,
+                "Scalar or table function kind expected.");
 
-		return new BridgingSqlFunction(
-			dataTypeFactory,
-			typeFactory,
-			kind,
-			identifier,
-			definition,
-			typeInference);
-	}
+        return new BridgingSqlFunction(
+                dataTypeFactory, typeFactory, kind, identifier, definition, typeInference);
+    }
 
-	/**
-	 * Creates an instance of a scalar or table function during translation.
-	 */
-	public static BridgingSqlFunction of(
-			FlinkContext context,
-			FlinkTypeFactory typeFactory,
-			@Nullable FunctionIdentifier identifier,
-			FunctionDefinition definition) {
-		final DataTypeFactory dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
-		final TypeInference typeInference = definition.getTypeInference(dataTypeFactory);
-		return of(
-			dataTypeFactory,
-			typeFactory,
-			SqlKind.OTHER_FUNCTION,
-			identifier,
-			definition,
-			typeInference
-		);
-	}
+    /** Creates an instance of a scalar or table function during translation. */
+    public static BridgingSqlFunction of(
+            FlinkContext context,
+            FlinkTypeFactory typeFactory,
+            @Nullable FunctionIdentifier identifier,
+            FunctionDefinition definition) {
+        final DataTypeFactory dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
+        final TypeInference typeInference = definition.getTypeInference(dataTypeFactory);
+        return of(
+                dataTypeFactory,
+                typeFactory,
+                SqlKind.OTHER_FUNCTION,
+                identifier,
+                definition,
+                typeInference);
+    }
 
-	/**
-	 * Creates an instance of a scalar or table function during translation.
-	 */
-	public static BridgingSqlFunction of(
-			RelOptCluster cluster,
-			@Nullable FunctionIdentifier identifier,
-			FunctionDefinition definition) {
-		final FlinkContext context = ShortcutUtils.unwrapContext(cluster);
-		final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(cluster);
-		return of(context, typeFactory, identifier, definition);
-	}
+    /** Creates an instance of a scalar or table function during translation. */
+    public static BridgingSqlFunction of(
+            RelOptCluster cluster,
+            @Nullable FunctionIdentifier identifier,
+            FunctionDefinition definition) {
+        final FlinkContext context = ShortcutUtils.unwrapContext(cluster);
+        final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(cluster);
+        return of(context, typeFactory, identifier, definition);
+    }
 
-	public DataTypeFactory getDataTypeFactory() {
-		return dataTypeFactory;
-	}
+    public DataTypeFactory getDataTypeFactory() {
+        return dataTypeFactory;
+    }
 
-	public FlinkTypeFactory getTypeFactory() {
-		return typeFactory;
-	}
+    public FlinkTypeFactory getTypeFactory() {
+        return typeFactory;
+    }
 
-	public Optional<FunctionIdentifier> getIdentifier() {
-		return Optional.ofNullable(identifier);
-	}
+    public Optional<FunctionIdentifier> getIdentifier() {
+        return Optional.ofNullable(identifier);
+    }
 
-	public FunctionDefinition getDefinition() {
-		return definition;
-	}
+    public FunctionDefinition getDefinition() {
+        return definition;
+    }
 
-	public TypeInference getTypeInference() {
-		return typeInference;
-	}
+    public TypeInference getTypeInference() {
+        return typeInference;
+    }
 
-	@Override
-	public List<String> getParamNames() {
-		if (typeInference.getNamedArguments().isPresent()) {
-			return typeInference.getNamedArguments().get();
-		}
-		return super.getParamNames();
-	}
+    @Override
+    public List<String> getParamNames() {
+        if (typeInference.getNamedArguments().isPresent()) {
+            return typeInference.getNamedArguments().get();
+        }
+        return super.getParamNames();
+    }
 
-	@Override
-	public boolean isDeterministic() {
-		return definition.isDeterministic();
-	}
+    @Override
+    public boolean isDeterministic() {
+        return definition.isDeterministic();
+    }
 }

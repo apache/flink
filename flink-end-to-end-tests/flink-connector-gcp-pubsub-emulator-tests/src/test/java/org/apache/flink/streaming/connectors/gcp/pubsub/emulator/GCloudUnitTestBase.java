@@ -36,51 +36,49 @@ import static org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudEm
 import static org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudEmulatorManager.getDockerPubSubPort;
 
 /**
- * The base class from which unit tests should inherit if they need to use the Google cloud emulators.
+ * The base class from which unit tests should inherit if they need to use the Google cloud
+ * emulators.
  */
 public class GCloudUnitTestBase extends TestLogger implements Serializable {
-	@BeforeClass
-	public static void launchGCloudEmulator() throws Exception {
-		// Separated out into separate class so the entire test class to be serializable
-		GCloudEmulatorManager.launchDocker();
-	}
+    @BeforeClass
+    public static void launchGCloudEmulator() throws Exception {
+        // Separated out into separate class so the entire test class to be serializable
+        GCloudEmulatorManager.launchDocker();
+    }
 
-	@AfterClass
-	public static void terminateGCloudEmulator() throws DockerException, InterruptedException {
-		channel.shutdownNow();
-		channel.awaitTermination(1, TimeUnit.MINUTES);
-		channel = null;
-		GCloudEmulatorManager.terminateDocker();
-	}
+    @AfterClass
+    public static void terminateGCloudEmulator() throws DockerException, InterruptedException {
+        channel.shutdownNow();
+        channel.awaitTermination(1, TimeUnit.MINUTES);
+        channel = null;
+        GCloudEmulatorManager.terminateDocker();
+    }
 
-	// ====================================================================================
-	// Pubsub helpers
+    // ====================================================================================
+    // Pubsub helpers
 
-	private static ManagedChannel channel = null;
-	private static TransportChannelProvider channelProvider = null;
+    private static ManagedChannel channel = null;
+    private static TransportChannelProvider channelProvider = null;
 
-	public static PubsubHelper getPubsubHelper() {
-		if (channel == null) {
-			//noinspection deprecation
-			channel = ManagedChannelBuilder
-				.forTarget(getPubSubHostPort())
-				.usePlaintext()
-				.build();
-			channelProvider = FixedTransportChannelProvider
-				.create(GrpcTransportChannel.create(channel));
-		}
-		return new PubsubHelper(channelProvider);
-	}
+    public static PubsubHelper getPubsubHelper() {
+        if (channel == null) {
+            //noinspection deprecation
+            channel = ManagedChannelBuilder.forTarget(getPubSubHostPort()).usePlaintext().build();
+            channelProvider =
+                    FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel));
+        }
+        return new PubsubHelper(channelProvider);
+    }
 
-	public static String getPubSubHostPort() {
-		return getDockerIpAddress() + ":" + getDockerPubSubPort();
-	}
+    public static String getPubSubHostPort() {
+        return getDockerIpAddress() + ":" + getDockerPubSubPort();
+    }
 
-	@AfterClass
-	public static void cleanupPubsubChannel() throws InterruptedException {
-		if (channel != null) {
-			channel.shutdownNow().awaitTermination(1, SECONDS);
-			channel = null;
-		}
-	}
+    @AfterClass
+    public static void cleanupPubsubChannel() throws InterruptedException {
+        if (channel != null) {
+            channel.shutdownNow().awaitTermination(1, SECONDS);
+            channel = null;
+        }
+    }
 }

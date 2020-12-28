@@ -24,70 +24,69 @@ import org.apache.flink.types.ByteValue;
 
 import java.util.Random;
 
-/**
- * A test for the {@link ByteValueArraySerializer}.
- */
+/** A test for the {@link ByteValueArraySerializer}. */
 public class ByteValueArraySerializerTest extends ValueArraySerializerTestBase<ByteValueArray> {
 
-	@Override
-	protected TypeSerializer<ByteValueArray> createSerializer() {
-		return new ByteValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<ByteValueArray> createSerializer() {
+        return new ByteValueArraySerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<ByteValueArray> getTypeClass() {
-		return ByteValueArray.class;
-	}
+    @Override
+    protected Class<ByteValueArray> getTypeClass() {
+        return ByteValueArray.class;
+    }
 
-	@Override
-	protected ByteValueArray[] getTestData() {
-		int defaultElements = ByteValueArray.DEFAULT_CAPACITY_IN_BYTES / ByteValueArray.ELEMENT_LENGTH_IN_BYTES;
+    @Override
+    protected ByteValueArray[] getTestData() {
+        int defaultElements =
+                ByteValueArray.DEFAULT_CAPACITY_IN_BYTES / ByteValueArray.ELEMENT_LENGTH_IN_BYTES;
 
-		Random rnd = new Random(874597969123412341L);
-		int rndLong = rnd.nextInt();
+        Random rnd = new Random(874597969123412341L);
+        int rndLong = rnd.nextInt();
 
-		ByteValueArray lva0 = new ByteValueArray();
+        ByteValueArray lva0 = new ByteValueArray();
 
-		ByteValueArray lva1 = new ByteValueArray();
-		lva1.addAll(lva0);
-		lva1.add(new ByteValue((byte) 0));
+        ByteValueArray lva1 = new ByteValueArray();
+        lva1.addAll(lva0);
+        lva1.add(new ByteValue((byte) 0));
 
-		ByteValueArray lva2 = new ByteValueArray();
-		lva2.addAll(lva1);
-		lva2.add(new ByteValue((byte) 1));
+        ByteValueArray lva2 = new ByteValueArray();
+        lva2.addAll(lva1);
+        lva2.add(new ByteValue((byte) 1));
 
-		ByteValueArray lva3 = new ByteValueArray();
-		lva3.addAll(lva2);
-		lva3.add(new ByteValue((byte) -1));
+        ByteValueArray lva3 = new ByteValueArray();
+        lva3.addAll(lva2);
+        lva3.add(new ByteValue((byte) -1));
 
-		ByteValueArray lva4 = new ByteValueArray();
-		lva4.addAll(lva3);
-		lva4.add(new ByteValue(Byte.MAX_VALUE));
+        ByteValueArray lva4 = new ByteValueArray();
+        lva4.addAll(lva3);
+        lva4.add(new ByteValue(Byte.MAX_VALUE));
 
-		ByteValueArray lva5 = new ByteValueArray();
-		lva5.addAll(lva4);
-		lva5.add(new ByteValue(Byte.MIN_VALUE));
+        ByteValueArray lva5 = new ByteValueArray();
+        lva5.addAll(lva4);
+        lva5.add(new ByteValue(Byte.MIN_VALUE));
 
-		ByteValueArray lva6 = new ByteValueArray();
-		lva6.addAll(lva5);
-		lva6.add(new ByteValue((byte) rndLong));
+        ByteValueArray lva6 = new ByteValueArray();
+        lva6.addAll(lva5);
+        lva6.add(new ByteValue((byte) rndLong));
 
-		ByteValueArray lva7 = new ByteValueArray();
-		lva7.addAll(lva6);
-		lva7.add(new ByteValue((byte) -rndLong));
+        ByteValueArray lva7 = new ByteValueArray();
+        lva7.addAll(lva6);
+        lva7.add(new ByteValue((byte) -rndLong));
 
-		ByteValueArray lva8 = new ByteValueArray();
-		lva8.addAll(lva7);
-		for (int i = 0; i < 1.5 * defaultElements; i++) {
-			lva8.add(new ByteValue((byte) i));
-		}
-		lva8.addAll(lva8);
+        ByteValueArray lva8 = new ByteValueArray();
+        lva8.addAll(lva7);
+        for (int i = 0; i < 1.5 * defaultElements; i++) {
+            lva8.add(new ByteValue((byte) i));
+        }
+        lva8.addAll(lva8);
 
-		return new ByteValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
-	}
+        return new ByteValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
+    }
 }

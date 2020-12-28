@@ -25,26 +25,25 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * {@link InputsLocationsRetriever} which filters out only already available input locations.
- */
+/** {@link InputsLocationsRetriever} which filters out only already available input locations. */
 class AvailableInputsLocationsRetriever implements InputsLocationsRetriever {
-	private final InputsLocationsRetriever inputsLocationsRetriever;
+    private final InputsLocationsRetriever inputsLocationsRetriever;
 
-	AvailableInputsLocationsRetriever(InputsLocationsRetriever inputsLocationsRetriever) {
-		this.inputsLocationsRetriever = inputsLocationsRetriever;
-	}
+    AvailableInputsLocationsRetriever(InputsLocationsRetriever inputsLocationsRetriever) {
+        this.inputsLocationsRetriever = inputsLocationsRetriever;
+    }
 
-	@Override
-	public Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(
-			ExecutionVertexID executionVertexId) {
-		return inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
-	}
+    @Override
+    public Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(
+            ExecutionVertexID executionVertexId) {
+        return inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
+    }
 
-	@Override
-	public Optional<CompletableFuture<TaskManagerLocation>> getTaskManagerLocation(ExecutionVertexID executionVertexId) {
-		return inputsLocationsRetriever
-			.getTaskManagerLocation(executionVertexId)
-			.filter(future -> future.isDone() && !future.isCompletedExceptionally());
-	}
+    @Override
+    public Optional<CompletableFuture<TaskManagerLocation>> getTaskManagerLocation(
+            ExecutionVertexID executionVertexId) {
+        return inputsLocationsRetriever
+                .getTaskManagerLocation(executionVertexId)
+                .filter(future -> future.isDone() && !future.isCompletedExceptionally());
+    }
 }

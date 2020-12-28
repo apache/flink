@@ -31,93 +31,97 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-
 public class ExecutionGraphVariousFailuesTest extends TestLogger {
 
-	/**
-	 * Test that failing in state restarting will retrigger the restarting logic. This means that
-	 * it only goes into the state FAILED after the restart strategy says the job is no longer
-	 * restartable.
-	 */
-	@Test
-	public void testFailureWhileRestarting() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(2));
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
+    /**
+     * Test that failing in state restarting will retrigger the restarting logic. This means that it
+     * only goes into the state FAILED after the restart strategy says the job is no longer
+     * restartable.
+     */
+    @Test
+    public void testFailureWhileRestarting() throws Exception {
+        final ExecutionGraph eg =
+                ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(2));
+        eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        eg.scheduleForExecution();
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+        assertEquals(JobStatus.RUNNING, eg.getState());
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-		eg.failGlobal(new Exception("Test 1"));
-		assertEquals(JobStatus.FAILING, eg.getState());
-		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
+        eg.failGlobal(new Exception("Test 1"));
+        assertEquals(JobStatus.FAILING, eg.getState());
+        ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
 
-		// we should restart since we have two restart attempts left
-		assertEquals(JobStatus.RESTARTING, eg.getState());
+        // we should restart since we have two restart attempts left
+        assertEquals(JobStatus.RESTARTING, eg.getState());
 
-		eg.failGlobal(new Exception("Test 2"));
+        eg.failGlobal(new Exception("Test 2"));
 
-		// we should restart since we have one restart attempts left
-		assertEquals(JobStatus.RESTARTING, eg.getState());
+        // we should restart since we have one restart attempts left
+        assertEquals(JobStatus.RESTARTING, eg.getState());
 
-		eg.failGlobal(new Exception("Test 3"));
+        eg.failGlobal(new Exception("Test 3"));
 
-		// after depleting all our restart attempts we should go into Failed
-		assertEquals(JobStatus.FAILED, eg.getState());
-	}
+        // after depleting all our restart attempts we should go into Failed
+        assertEquals(JobStatus.FAILED, eg.getState());
+    }
 
-	/**
-	 * Tests that a {@link SuppressRestartsException} in state RESTARTING stops the restarting
-	 * immediately and sets the execution graph's state to FAILED.
-	 */
-	@Test
-	public void testSuppressRestartFailureWhileRestarting() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
+    /**
+     * Tests that a {@link SuppressRestartsException} in state RESTARTING stops the restarting
+     * immediately and sets the execution graph's state to FAILED.
+     */
+    @Test
+    public void testSuppressRestartFailureWhileRestarting() throws Exception {
+        final ExecutionGraph eg =
+                ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
+        eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        eg.scheduleForExecution();
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+        assertEquals(JobStatus.RUNNING, eg.getState());
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-		eg.failGlobal(new Exception("test"));
-		assertEquals(JobStatus.FAILING, eg.getState());
+        eg.failGlobal(new Exception("test"));
+        assertEquals(JobStatus.FAILING, eg.getState());
 
-		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-		assertEquals(JobStatus.RESTARTING, eg.getState());
+        ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
+        assertEquals(JobStatus.RESTARTING, eg.getState());
 
-		// suppress a possible restart
-		eg.failGlobal(new SuppressRestartsException(new Exception("Test")));
+        // suppress a possible restart
+        eg.failGlobal(new SuppressRestartsException(new Exception("Test")));
 
-		assertEquals(JobStatus.FAILED, eg.getState());
-	}
+        assertEquals(JobStatus.FAILED, eg.getState());
+    }
 
-	/**
-	 * Tests that a failing scheduleOrUpdateConsumers call with a non-existing execution attempt
-	 * id, will not fail the execution graph.
-	 */
-	@Test
-	public void testFailingScheduleOrUpdateConsumers() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
+    /**
+     * Tests that a failing scheduleOrUpdateConsumers call with a non-existing execution attempt id,
+     * will not fail the execution graph.
+     */
+    @Test
+    public void testFailingScheduleOrUpdateConsumers() throws Exception {
+        final ExecutionGraph eg =
+                ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
+        eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        eg.scheduleForExecution();
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+        assertEquals(JobStatus.RUNNING, eg.getState());
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-		IntermediateResultPartitionID intermediateResultPartitionId = new IntermediateResultPartitionID();
-		ExecutionAttemptID producerId = new ExecutionAttemptID();
-		ResultPartitionID resultPartitionId = new ResultPartitionID(intermediateResultPartitionId, producerId);
+        IntermediateResultPartitionID intermediateResultPartitionId =
+                new IntermediateResultPartitionID();
+        ExecutionAttemptID producerId = new ExecutionAttemptID();
+        ResultPartitionID resultPartitionId =
+                new ResultPartitionID(intermediateResultPartitionId, producerId);
 
-		// The execution attempt id does not exist and thus the scheduleOrUpdateConsumers call
-		// should fail
+        // The execution attempt id does not exist and thus the scheduleOrUpdateConsumers call
+        // should fail
 
-		try {
-			eg.scheduleOrUpdateConsumers(resultPartitionId);
-			fail("Expected ExecutionGraphException.");
-		} catch (ExecutionGraphException e) {
-			// we've expected this exception to occur
-		}
+        try {
+            eg.scheduleOrUpdateConsumers(resultPartitionId);
+            fail("Expected ExecutionGraphException.");
+        } catch (ExecutionGraphException e) {
+            // we've expected this exception to occur
+        }
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
-	}
+        assertEquals(JobStatus.RUNNING, eg.getState());
+    }
 }

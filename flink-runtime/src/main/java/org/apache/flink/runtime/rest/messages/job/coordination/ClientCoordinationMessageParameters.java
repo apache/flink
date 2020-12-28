@@ -29,21 +29,19 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * {@link MessageParameters} for {@link ClientCoordinationHandler}.
- */
+/** {@link MessageParameters} for {@link ClientCoordinationHandler}. */
 public class ClientCoordinationMessageParameters extends MessageParameters {
 
-	public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
-	public final OperatorIDPathParameter operatorPathParameter = new OperatorIDPathParameter();
+    public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+    public final OperatorIDPathParameter operatorPathParameter = new OperatorIDPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Arrays.asList(jobPathParameter, operatorPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Arrays.asList(jobPathParameter, operatorPathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
+    }
 }

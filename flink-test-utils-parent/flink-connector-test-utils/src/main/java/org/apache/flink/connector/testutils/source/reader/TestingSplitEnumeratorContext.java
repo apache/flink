@@ -43,134 +43,144 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * @param <SplitT> The generic type of the splits.
  */
-public class TestingSplitEnumeratorContext<SplitT extends SourceSplit> implements SplitEnumeratorContext<SplitT> {
+public class TestingSplitEnumeratorContext<SplitT extends SourceSplit>
+        implements SplitEnumeratorContext<SplitT> {
 
-	private final ManuallyTriggeredScheduledExecutorService executor = new ManuallyTriggeredScheduledExecutorService();
+    private final ManuallyTriggeredScheduledExecutorService executor =
+            new ManuallyTriggeredScheduledExecutorService();
 
-	private final HashMap<Integer, SplitAssignmentState<SplitT>> splitAssignments = new HashMap<>();
+    private final HashMap<Integer, SplitAssignmentState<SplitT>> splitAssignments = new HashMap<>();
 
-	private final HashMap<Integer, List<SourceEvent>> events = new HashMap<>();
+    private final HashMap<Integer, List<SourceEvent>> events = new HashMap<>();
 
-	private final HashMap<Integer, ReaderInfo> registeredReaders = new HashMap<>();
+    private final HashMap<Integer, ReaderInfo> registeredReaders = new HashMap<>();
 
-	private final int parallelism;
+    private final int parallelism;
 
-	public TestingSplitEnumeratorContext(int parallelism) {
-		this.parallelism = parallelism;
-	}
+    public TestingSplitEnumeratorContext(int parallelism) {
+        this.parallelism = parallelism;
+    }
 
-	// ------------------------------------------------------------------------
-	//  access to events / properties / execution
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  access to events / properties / execution
+    // ------------------------------------------------------------------------
 
-	public void triggerAllActions() {
-		executor.triggerPeriodicScheduledTasks();
-		executor.triggerAll();
-	}
+    public void triggerAllActions() {
+        executor.triggerPeriodicScheduledTasks();
+        executor.triggerAll();
+    }
 
-	public ManuallyTriggeredScheduledExecutorService getExecutorService() {
-		return executor;
-	}
+    public ManuallyTriggeredScheduledExecutorService getExecutorService() {
+        return executor;
+    }
 
-	public Map<Integer, SplitAssignmentState<SplitT>> getSplitAssignments() {
-		return splitAssignments;
-	}
+    public Map<Integer, SplitAssignmentState<SplitT>> getSplitAssignments() {
+        return splitAssignments;
+    }
 
-	public Map<Integer, List<SourceEvent>> getSentEvents() {
-		return events;
-	}
+    public Map<Integer, List<SourceEvent>> getSentEvents() {
+        return events;
+    }
 
-	public void registerReader(int subtask, String hostname) {
-		checkState(!registeredReaders.containsKey(subtask), "Reader already registered");
-		registeredReaders.put(subtask, new ReaderInfo(subtask, hostname));
-	}
+    public void registerReader(int subtask, String hostname) {
+        checkState(!registeredReaders.containsKey(subtask), "Reader already registered");
+        registeredReaders.put(subtask, new ReaderInfo(subtask, hostname));
+    }
 
-	// ------------------------------------------------------------------------
-	//  SplitEnumeratorContext methods
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  SplitEnumeratorContext methods
+    // ------------------------------------------------------------------------
 
-	@Override
-	public MetricGroup metricGroup() {
-		return new UnregisteredMetricsGroup();
-	}
+    @Override
+    public MetricGroup metricGroup() {
+        return new UnregisteredMetricsGroup();
+    }
 
-	@Override
-	public void sendEventToSourceReader(int subtaskId, SourceEvent event) {
-		final List<SourceEvent> eventsForSubTask = events.computeIfAbsent(subtaskId, (key) -> new ArrayList<>());
-		eventsForSubTask.add(event);
-	}
+    @Override
+    public void sendEventToSourceReader(int subtaskId, SourceEvent event) {
+        final List<SourceEvent> eventsForSubTask =
+                events.computeIfAbsent(subtaskId, (key) -> new ArrayList<>());
+        eventsForSubTask.add(event);
+    }
 
-	@Override
-	public int currentParallelism() {
-		return parallelism;
-	}
+    @Override
+    public int currentParallelism() {
+        return parallelism;
+    }
 
-	@Override
-	public Map<Integer, ReaderInfo> registeredReaders() {
-		return registeredReaders;
-	}
+    @Override
+    public Map<Integer, ReaderInfo> registeredReaders() {
+        return registeredReaders;
+    }
 
-	@Override
-	public void assignSplits(SplitsAssignment<SplitT> newSplitAssignments) {
-		for (final Map.Entry<Integer, List<SplitT>> entry : newSplitAssignments.assignment().entrySet()) {
-			final SplitAssignmentState<SplitT> assignment = splitAssignments.computeIfAbsent(
-					entry.getKey(),
-					(key) -> new SplitAssignmentState<>());
+    @Override
+    public void assignSplits(SplitsAssignment<SplitT> newSplitAssignments) {
+        for (final Map.Entry<Integer, List<SplitT>> entry :
+                newSplitAssignments.assignment().entrySet()) {
+            final SplitAssignmentState<SplitT> assignment =
+                    splitAssignments.computeIfAbsent(
+                            entry.getKey(), (key) -> new SplitAssignmentState<>());
 
-			assignment.splits.addAll(entry.getValue());
-		}
-	}
+            assignment.splits.addAll(entry.getValue());
+        }
+    }
 
-	@Override
-	public void signalNoMoreSplits(int subtask) {
-		final SplitAssignmentState<?> assignment = splitAssignments.computeIfAbsent(subtask, (key) -> new SplitAssignmentState<>());
-		assignment.noMoreSplits = true;
-	}
+    @Override
+    public void signalNoMoreSplits(int subtask) {
+        final SplitAssignmentState<?> assignment =
+                splitAssignments.computeIfAbsent(subtask, (key) -> new SplitAssignmentState<>());
+        assignment.noMoreSplits = true;
+    }
 
-	@Override
-	public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
-		executor.execute(callableWithResultHandler(callable, handler));
-	}
+    @Override
+    public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
+        executor.execute(callableWithResultHandler(callable, handler));
+    }
 
-	@Override
-	public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler, long initialDelay, long period) {
-		executor.scheduleWithFixedDelay(
-				callableWithResultHandler(callable, handler),
-				initialDelay, period, TimeUnit.MILLISECONDS);
-	}
+    @Override
+    public <T> void callAsync(
+            Callable<T> callable,
+            BiConsumer<T, Throwable> handler,
+            long initialDelay,
+            long period) {
+        executor.scheduleWithFixedDelay(
+                callableWithResultHandler(callable, handler),
+                initialDelay,
+                period,
+                TimeUnit.MILLISECONDS);
+    }
 
-	@Override
-	public void runInCoordinatorThread(Runnable runnable) {
-		executor.execute(runnable);
-	}
+    @Override
+    public void runInCoordinatorThread(Runnable runnable) {
+        executor.execute(runnable);
+    }
 
-	private static <T> Runnable callableWithResultHandler(Callable<T> callable, BiConsumer<T, Throwable> handler) {
-		return () -> {
-			try {
-				final T result = callable.call();
-				handler.accept(result, null);
-			} catch (Throwable t) {
-				handler.accept(null, t);
-			}
-		};
-	}
+    private static <T> Runnable callableWithResultHandler(
+            Callable<T> callable, BiConsumer<T, Throwable> handler) {
+        return () -> {
+            try {
+                final T result = callable.call();
+                handler.accept(result, null);
+            } catch (Throwable t) {
+                handler.accept(null, t);
+            }
+        };
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * The state of the split assignment for a subtask.
-	 */
-	public static final class SplitAssignmentState<SplitT extends SourceSplit> {
+    /** The state of the split assignment for a subtask. */
+    public static final class SplitAssignmentState<SplitT extends SourceSplit> {
 
-		final List<SplitT> splits = new ArrayList<>();
-		boolean noMoreSplits;
+        final List<SplitT> splits = new ArrayList<>();
+        boolean noMoreSplits;
 
-		public List<SplitT> getAssignedSplits() {
-			return splits;
-		}
+        public List<SplitT> getAssignedSplits() {
+            return splits;
+        }
 
-		public boolean hasReceivedNoMoreSplitsSignal() {
-			return noMoreSplits;
-		}
-	}
+        public boolean hasReceivedNoMoreSplitsSignal() {
+            return noMoreSplits;
+        }
+    }
 }

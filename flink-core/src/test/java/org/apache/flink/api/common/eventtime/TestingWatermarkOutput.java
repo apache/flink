@@ -18,31 +18,29 @@
 
 package org.apache.flink.api.common.eventtime;
 
-/**
- * A testing implementation of {@link WatermarkOutput}.
- */
+/** A testing implementation of {@link WatermarkOutput}. */
 final class TestingWatermarkOutput implements WatermarkOutput {
 
-	private Watermark lastWatermark;
+    private Watermark lastWatermark;
 
-	private boolean isIdle;
+    private boolean isIdle;
 
-	@Override
-	public void emitWatermark(Watermark watermark) {
-		lastWatermark = watermark;
-		isIdle = false;
-	}
+    @Override
+    public void emitWatermark(Watermark watermark) {
+        lastWatermark = watermark;
+        isIdle = false;
+    }
 
-	@Override
-	public void markIdle() {
-		isIdle = true;
-	}
+    @Override
+    public void markIdle() {
+        isIdle = true;
+    }
 
-	public Watermark lastWatermark() {
-		return lastWatermark;
-	}
+    public Watermark lastWatermark() {
+        return lastWatermark;
+    }
 
-	public boolean isIdle() {
-		return isIdle;
-	}
+    public boolean isIdle() {
+        return isIdle;
+    }
 }

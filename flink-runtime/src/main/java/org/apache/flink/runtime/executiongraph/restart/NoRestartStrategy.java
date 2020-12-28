@@ -24,43 +24,41 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Restart strategy which does not restart an {@link ExecutionGraph}.
- */
+/** Restart strategy which does not restart an {@link ExecutionGraph}. */
 public class NoRestartStrategy implements RestartStrategy {
 
-	@Override
-	public boolean canRestart() {
-		return false;
-	}
+    @Override
+    public boolean canRestart() {
+        return false;
+    }
 
-	@Override
-	public CompletableFuture<Void> restart(RestartCallback restarter, ScheduledExecutor executor) {
-		throw new UnsupportedOperationException("NoRestartStrategy does not support restart.");
-	}
+    @Override
+    public CompletableFuture<Void> restart(RestartCallback restarter, ScheduledExecutor executor) {
+        throw new UnsupportedOperationException("NoRestartStrategy does not support restart.");
+    }
 
-	/**
-	 * Creates a NoRestartStrategyFactory instance.
-	 *
-	 * @param configuration Configuration object which is ignored
-	 * @return NoRestartStrategyFactory instance
-	 */
-	public static NoRestartStrategyFactory createFactory(Configuration configuration) {
-		return new NoRestartStrategyFactory();
-	}
+    /**
+     * Creates a NoRestartStrategyFactory instance.
+     *
+     * @param configuration Configuration object which is ignored
+     * @return NoRestartStrategyFactory instance
+     */
+    public static NoRestartStrategyFactory createFactory(Configuration configuration) {
+        return new NoRestartStrategyFactory();
+    }
 
-	@Override
-	public String toString() {
-		return "NoRestartStrategy";
-	}
+    @Override
+    public String toString() {
+        return "NoRestartStrategy";
+    }
 
-	public static class NoRestartStrategyFactory extends RestartStrategyFactory {
+    public static class NoRestartStrategyFactory extends RestartStrategyFactory {
 
-		private static final long serialVersionUID = -1809462525812787862L;
+        private static final long serialVersionUID = -1809462525812787862L;
 
-		@Override
-		public RestartStrategy createRestartStrategy() {
-			return new NoRestartStrategy();
-		}
-	}
+        @Override
+        public RestartStrategy createRestartStrategy() {
+            return new NoRestartStrategy();
+        }
+    }
 }

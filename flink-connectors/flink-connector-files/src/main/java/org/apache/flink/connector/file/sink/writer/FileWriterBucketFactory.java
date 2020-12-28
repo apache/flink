@@ -28,23 +28,22 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import java.io.IOException;
 import java.io.Serializable;
 
-/**
- * A factory able to create {@link FileWriterBucket} for the {@link FileSink}.
- */
+/** A factory able to create {@link FileWriterBucket} for the {@link FileSink}. */
 @Internal
 public interface FileWriterBucketFactory<IN> extends Serializable {
 
-	FileWriterBucket<IN> getNewBucket(
-			String bucketId,
-			Path bucketPath,
-			BucketWriter<IN, String> bucketWriter,
-			RollingPolicy<IN, String> rollingPolicy,
-			OutputFileConfig outputFileConfig) throws IOException;
+    FileWriterBucket<IN> getNewBucket(
+            String bucketId,
+            Path bucketPath,
+            BucketWriter<IN, String> bucketWriter,
+            RollingPolicy<IN, String> rollingPolicy,
+            OutputFileConfig outputFileConfig)
+            throws IOException;
 
-	FileWriterBucket<IN> restoreBucket(
-			BucketWriter<IN, String> bucketWriter,
-			RollingPolicy<IN, String> rollingPolicy,
-			FileWriterBucketState bucketState,
-			OutputFileConfig outputFileConfig) throws IOException;
-
+    FileWriterBucket<IN> restoreBucket(
+            BucketWriter<IN, String> bucketWriter,
+            RollingPolicy<IN, String> rollingPolicy,
+            FileWriterBucketState bucketState,
+            OutputFileConfig outputFileConfig)
+            throws IOException;
 }

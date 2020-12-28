@@ -22,6 +22,7 @@ import org.apache.flink.runtime.state.internal.InternalReducingState;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
 import java.util.Collection;
 
 /**
@@ -32,47 +33,48 @@ import java.util.Collection;
  * @param <T> Type of the user value of state with TTL
  */
 class TtlReducingState<K, N, T>
-	extends AbstractTtlState<K, N, T, TtlValue<T>, InternalReducingState<K, N, TtlValue<T>>>
-	implements InternalReducingState<K, N, T> {
-	TtlReducingState(TtlStateContext<InternalReducingState<K, N, TtlValue<T>>, T> tTtlStateContext) {
-		super(tTtlStateContext);
-	}
+        extends AbstractTtlState<K, N, T, TtlValue<T>, InternalReducingState<K, N, TtlValue<T>>>
+        implements InternalReducingState<K, N, T> {
+    TtlReducingState(
+            TtlStateContext<InternalReducingState<K, N, TtlValue<T>>, T> tTtlStateContext) {
+        super(tTtlStateContext);
+    }
 
-	@Override
-	public T get() throws Exception {
-		accessCallback.run();
-		return getInternal();
-	}
+    @Override
+    public T get() throws Exception {
+        accessCallback.run();
+        return getInternal();
+    }
 
-	@Override
-	public void add(T value) throws Exception {
-		accessCallback.run();
-		original.add(wrapWithTs(value));
-	}
+    @Override
+    public void add(T value) throws Exception {
+        accessCallback.run();
+        original.add(wrapWithTs(value));
+    }
 
-	@Nullable
-	@Override
-	public TtlValue<T> getUnexpiredOrNull(@Nonnull TtlValue<T> ttlValue) {
-		return expired(ttlValue) ? null : ttlValue;
-	}
+    @Nullable
+    @Override
+    public TtlValue<T> getUnexpiredOrNull(@Nonnull TtlValue<T> ttlValue) {
+        return expired(ttlValue) ? null : ttlValue;
+    }
 
-	@Override
-	public void clear() {
-		original.clear();
-	}
+    @Override
+    public void clear() {
+        original.clear();
+    }
 
-	@Override
-	public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
-		original.mergeNamespaces(target, sources);
-	}
+    @Override
+    public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
+        original.mergeNamespaces(target, sources);
+    }
 
-	@Override
-	public T getInternal() throws Exception {
-		return getWithTtlCheckAndUpdate(original::getInternal, original::updateInternal);
-	}
+    @Override
+    public T getInternal() throws Exception {
+        return getWithTtlCheckAndUpdate(original::getInternal, original::updateInternal);
+    }
 
-	@Override
-	public void updateInternal(T valueToStore) throws Exception {
-		original.updateInternal(wrapWithTs(valueToStore));
-	}
+    @Override
+    public void updateInternal(T valueToStore) throws Exception {
+        original.updateInternal(wrapWithTs(valueToStore));
+    }
 }

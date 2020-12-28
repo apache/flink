@@ -17,11 +17,9 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-/**
- * State of a slot.
- */
+/** State of a slot. */
 enum SlotState {
-	FREE,
-	PENDING,
-	ALLOCATED
+    FREE,
+    PENDING,
+    ALLOCATED
 }

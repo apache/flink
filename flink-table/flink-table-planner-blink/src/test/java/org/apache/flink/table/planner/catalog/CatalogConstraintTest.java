@@ -42,71 +42,81 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Test for Catalog constraints.
- */
+/** Test for Catalog constraints. */
 public class CatalogConstraintTest {
 
-	private String databaseName = "default_database";
+    private String databaseName = "default_database";
 
-	private TableEnvironment tEnv;
-	private Catalog catalog;
+    private TableEnvironment tEnv;
+    private Catalog catalog;
 
-	@Before
-	public void setup() {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
-		tEnv = TableEnvironment.create(settings);
-		catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
-		assertNotNull(catalog);
-	}
+    @Before
+    public void setup() {
+        EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
+        tEnv = TableEnvironment.create(settings);
+        catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
+        assertNotNull(catalog);
+    }
 
-	@Test
-	public void testWithPrimaryKey() throws Exception {
-		TableSchema tableSchema = TableSchema.builder().fields(
-				new String[] { "a", "b", "c" },
-				new DataType[] { DataTypes.STRING(), DataTypes.BIGINT().notNull(), DataTypes.INT() }
-		).primaryKey("b").build();
-		Map<String, String> properties = buildCatalogTableProperties(tableSchema);
+    @Test
+    public void testWithPrimaryKey() throws Exception {
+        TableSchema tableSchema =
+                TableSchema.builder()
+                        .fields(
+                                new String[] {"a", "b", "c"},
+                                new DataType[] {
+                                    DataTypes.STRING(),
+                                    DataTypes.BIGINT().notNull(),
+                                    DataTypes.INT()
+                                })
+                        .primaryKey("b")
+                        .build();
+        Map<String, String> properties = buildCatalogTableProperties(tableSchema);
 
-		catalog.createTable(
-				new ObjectPath(databaseName, "T1"),
-				new CatalogTableImpl(tableSchema, properties, ""),
-				false);
+        catalog.createTable(
+                new ObjectPath(databaseName, "T1"),
+                new CatalogTableImpl(tableSchema, properties, ""),
+                false);
 
-		RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));
-		FlinkRelMetadataQuery mq = FlinkRelMetadataQuery.reuseOrCreate(t1.getCluster().getMetadataQuery());
-		assertEquals(ImmutableSet.of(ImmutableBitSet.of(1)), mq.getUniqueKeys(t1));
-	}
+        RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));
+        FlinkRelMetadataQuery mq =
+                FlinkRelMetadataQuery.reuseOrCreate(t1.getCluster().getMetadataQuery());
+        assertEquals(ImmutableSet.of(ImmutableBitSet.of(1)), mq.getUniqueKeys(t1));
+    }
 
-	@Test
-	public void testWithoutPrimaryKey() throws Exception {
-		TableSchema tableSchema = TableSchema.builder().fields(
-				new String[] { "a", "b", "c" },
-				new DataType[] { DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.INT() }
-		).build();
-		Map<String, String> properties = buildCatalogTableProperties(tableSchema);
+    @Test
+    public void testWithoutPrimaryKey() throws Exception {
+        TableSchema tableSchema =
+                TableSchema.builder()
+                        .fields(
+                                new String[] {"a", "b", "c"},
+                                new DataType[] {
+                                    DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.INT()
+                                })
+                        .build();
+        Map<String, String> properties = buildCatalogTableProperties(tableSchema);
 
-		catalog.createTable(
-				new ObjectPath(databaseName, "T1"),
-				new CatalogTableImpl(tableSchema, properties, ""),
-				false);
+        catalog.createTable(
+                new ObjectPath(databaseName, "T1"),
+                new CatalogTableImpl(tableSchema, properties, ""),
+                false);
 
-		RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));
-		FlinkRelMetadataQuery mq = FlinkRelMetadataQuery.reuseOrCreate(t1.getCluster().getMetadataQuery());
-		assertEquals(ImmutableSet.of(), mq.getUniqueKeys(t1));
-	}
+        RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));
+        FlinkRelMetadataQuery mq =
+                FlinkRelMetadataQuery.reuseOrCreate(t1.getCluster().getMetadataQuery());
+        assertEquals(ImmutableSet.of(), mq.getUniqueKeys(t1));
+    }
 
-	private Map<String, String> buildCatalogTableProperties(TableSchema tableSchema) {
-		Map<String, String> properties = new HashMap<>();
-		properties.put("connector.type", "filesystem");
-		properties.put("connector.property-version", "1");
-		properties.put("connector.path", "/path/to/csv");
+    private Map<String, String> buildCatalogTableProperties(TableSchema tableSchema) {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("connector.type", "filesystem");
+        properties.put("connector.property-version", "1");
+        properties.put("connector.path", "/path/to/csv");
 
-		properties.put("format.type", "csv");
-		properties.put("format.property-version", "1");
-		properties.put("format.field-delimiter", ";");
+        properties.put("format.type", "csv");
+        properties.put("format.property-version", "1");
+        properties.put("format.field-delimiter", ";");
 
-		return properties;
-	}
-
+        return properties;
+    }
 }

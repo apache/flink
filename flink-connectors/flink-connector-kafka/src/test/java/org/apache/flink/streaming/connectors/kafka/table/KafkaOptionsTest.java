@@ -38,145 +38,150 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
-/**
- * Test for {@link KafkaOptions}.
- */
+/** Test for {@link KafkaOptions}. */
 public class KafkaOptionsTest {
 
-	@Test
-	public void testFormatProjection() {
-		final TableSchema schema = TableSchema.builder()
-				.add(TableColumn.physical("id", DataTypes.INT()))
-				.add(TableColumn.metadata("timestamp", DataTypes.TIMESTAMP(3)))
-				.add(TableColumn.computed("timestamp_converted", DataTypes.STRING(), "CAST(`timestamp` AS STRING)"))
-				.add(TableColumn.physical("name", DataTypes.STRING()))
-				.add(TableColumn.physical("age", DataTypes.INT()))
-				.add(TableColumn.physical("address", DataTypes.STRING()))
-				.build();
-		final Map<String, String> options = createTestOptions();
-		options.put("key.fields", "address; name");
-		options.put("value.fields-include", "EXCEPT_KEY");
+    @Test
+    public void testFormatProjection() {
+        final TableSchema schema =
+                TableSchema.builder()
+                        .add(TableColumn.physical("id", DataTypes.INT()))
+                        .add(TableColumn.metadata("timestamp", DataTypes.TIMESTAMP(3)))
+                        .add(
+                                TableColumn.computed(
+                                        "timestamp_converted",
+                                        DataTypes.STRING(),
+                                        "CAST(`timestamp` AS STRING)"))
+                        .add(TableColumn.physical("name", DataTypes.STRING()))
+                        .add(TableColumn.physical("age", DataTypes.INT()))
+                        .add(TableColumn.physical("address", DataTypes.STRING()))
+                        .build();
+        final Map<String, String> options = createTestOptions();
+        options.put("key.fields", "address; name");
+        options.put("value.fields-include", "EXCEPT_KEY");
 
-		final Configuration config = Configuration.fromMap(options);
-		final DataType dataType = schema.toPhysicalRowDataType();
+        final Configuration config = Configuration.fromMap(options);
+        final DataType dataType = schema.toPhysicalRowDataType();
 
-		assertArrayEquals(new int[]{3, 1}, createKeyFormatProjection(config, dataType));
-		assertArrayEquals(new int[]{0, 2}, createValueFormatProjection(config, dataType));
-	}
+        assertArrayEquals(new int[] {3, 1}, createKeyFormatProjection(config, dataType));
+        assertArrayEquals(new int[] {0, 2}, createValueFormatProjection(config, dataType));
+    }
 
-	@Test
-	public void testMissingKeyFormatProjection() {
-		final TableSchema schema = TableSchema.builder()
-				.add(TableColumn.physical("id", DataTypes.INT()))
-				.build();
-		final Map<String, String> options = createTestOptions();
+    @Test
+    public void testMissingKeyFormatProjection() {
+        final TableSchema schema =
+                TableSchema.builder().add(TableColumn.physical("id", DataTypes.INT())).build();
+        final Map<String, String> options = createTestOptions();
 
-		final Configuration config = Configuration.fromMap(options);
-		final DataType dataType = schema.toPhysicalRowDataType();
+        final Configuration config = Configuration.fromMap(options);
+        final DataType dataType = schema.toPhysicalRowDataType();
 
-		try {
-			createKeyFormatProjection(config, dataType);
-			fail();
-		} catch (ValidationException e) {
-			assertThat(
-					e,
-					hasMessage(
-							equalTo(
-								"A key format 'key.format' requires the declaration of one or more "
-										+ "of key fields using 'key.fields'.")));
-		}
-	}
+        try {
+            createKeyFormatProjection(config, dataType);
+            fail();
+        } catch (ValidationException e) {
+            assertThat(
+                    e,
+                    hasMessage(
+                            equalTo(
+                                    "A key format 'key.format' requires the declaration of one or more "
+                                            + "of key fields using 'key.fields'.")));
+        }
+    }
 
-	@Test
-	public void testInvalidKeyFormatFieldProjection() {
-		final TableSchema schema = TableSchema.builder()
-				.add(TableColumn.physical("id", DataTypes.INT()))
-				.add(TableColumn.physical("name", DataTypes.STRING()))
-				.build();
-		final Map<String, String> options = createTestOptions();
-		options.put("key.fields", "non_existing");
+    @Test
+    public void testInvalidKeyFormatFieldProjection() {
+        final TableSchema schema =
+                TableSchema.builder()
+                        .add(TableColumn.physical("id", DataTypes.INT()))
+                        .add(TableColumn.physical("name", DataTypes.STRING()))
+                        .build();
+        final Map<String, String> options = createTestOptions();
+        options.put("key.fields", "non_existing");
 
-		final Configuration config = Configuration.fromMap(options);
-		final DataType dataType = schema.toPhysicalRowDataType();
+        final Configuration config = Configuration.fromMap(options);
+        final DataType dataType = schema.toPhysicalRowDataType();
 
-		try {
-			createKeyFormatProjection(config, dataType);
-			fail();
-		} catch (ValidationException e) {
-			assertThat(
-					e,
-					hasMessage(
-							equalTo(
-									"Could not find the field 'non_existing' in the table schema for "
-											+ "usage in the key format. A key field must be a regular, "
-											+ "physical column. The following columns can be selected "
-											+ "in the 'key.fields' option:\n"
-											+ "[id, name]")));
-		}
-	}
+        try {
+            createKeyFormatProjection(config, dataType);
+            fail();
+        } catch (ValidationException e) {
+            assertThat(
+                    e,
+                    hasMessage(
+                            equalTo(
+                                    "Could not find the field 'non_existing' in the table schema for "
+                                            + "usage in the key format. A key field must be a regular, "
+                                            + "physical column. The following columns can be selected "
+                                            + "in the 'key.fields' option:\n"
+                                            + "[id, name]")));
+        }
+    }
 
-	@Test
-	public void testInvalidKeyFormatPrefixProjection() {
-		final TableSchema schema = TableSchema.builder()
-				.add(TableColumn.physical("k_part_1", DataTypes.INT()))
-				.add(TableColumn.physical("part_2", DataTypes.STRING()))
-				.add(TableColumn.physical("name", DataTypes.STRING()))
-				.build();
-		final Map<String, String> options = createTestOptions();
-		options.put("key.fields", "k_part_1;part_2");
-		options.put("key.fields-prefix", "k_");
+    @Test
+    public void testInvalidKeyFormatPrefixProjection() {
+        final TableSchema schema =
+                TableSchema.builder()
+                        .add(TableColumn.physical("k_part_1", DataTypes.INT()))
+                        .add(TableColumn.physical("part_2", DataTypes.STRING()))
+                        .add(TableColumn.physical("name", DataTypes.STRING()))
+                        .build();
+        final Map<String, String> options = createTestOptions();
+        options.put("key.fields", "k_part_1;part_2");
+        options.put("key.fields-prefix", "k_");
 
-		final Configuration config = Configuration.fromMap(options);
-		final DataType dataType = schema.toPhysicalRowDataType();
+        final Configuration config = Configuration.fromMap(options);
+        final DataType dataType = schema.toPhysicalRowDataType();
 
-		try {
-			createKeyFormatProjection(config, dataType);
-			fail();
-		} catch (ValidationException e) {
-			assertThat(
-					e,
-					hasMessage(
-							equalTo(
-									"All fields in 'key.fields' must be prefixed with 'k_' when option "
-										+ "'key.fields-prefix' is set but field 'part_2' is not prefixed.")));
-		}
-	}
+        try {
+            createKeyFormatProjection(config, dataType);
+            fail();
+        } catch (ValidationException e) {
+            assertThat(
+                    e,
+                    hasMessage(
+                            equalTo(
+                                    "All fields in 'key.fields' must be prefixed with 'k_' when option "
+                                            + "'key.fields-prefix' is set but field 'part_2' is not prefixed.")));
+        }
+    }
 
-	@Test
-	public void testInvalidValueFormatProjection() {
-		final TableSchema schema = TableSchema.builder()
-				.add(TableColumn.physical("k_id", DataTypes.INT()))
-				.add(TableColumn.physical("id", DataTypes.STRING()))
-				.build();
-		final Map<String, String> options = createTestOptions();
-		options.put("key.fields", "k_id");
-		options.put("key.fields-prefix", "k_");
+    @Test
+    public void testInvalidValueFormatProjection() {
+        final TableSchema schema =
+                TableSchema.builder()
+                        .add(TableColumn.physical("k_id", DataTypes.INT()))
+                        .add(TableColumn.physical("id", DataTypes.STRING()))
+                        .build();
+        final Map<String, String> options = createTestOptions();
+        options.put("key.fields", "k_id");
+        options.put("key.fields-prefix", "k_");
 
-		final Configuration config = Configuration.fromMap(options);
-		final DataType dataType = schema.toPhysicalRowDataType();
+        final Configuration config = Configuration.fromMap(options);
+        final DataType dataType = schema.toPhysicalRowDataType();
 
-		try {
-			createValueFormatProjection(config, dataType);
-			fail();
-		} catch (ValidationException e) {
-			assertThat(
-					e,
-					hasMessage(
-							equalTo(
-									"A key prefix is not allowed when option 'value.fields-include' "
-										+ "is set to 'ALL'. Set it to 'EXCEPT_KEY' instead to avoid field overlaps.")));
-		}
-	}
+        try {
+            createValueFormatProjection(config, dataType);
+            fail();
+        } catch (ValidationException e) {
+            assertThat(
+                    e,
+                    hasMessage(
+                            equalTo(
+                                    "A key prefix is not allowed when option 'value.fields-include' "
+                                            + "is set to 'ALL'. Set it to 'EXCEPT_KEY' instead to avoid field overlaps.")));
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static Map<String, String> createTestOptions() {
-		final Map<String, String> options = new HashMap<>();
-		options.put("key.format", "test-format");
-		options.put("key.test-format.delimiter", ",");
-		options.put("value.format", "test-format");
-		options.put("value.test-format.delimiter", "|");
-		options.put("value.test-format.fail-on-missing", "true");
-		return options;
-	}
+    private static Map<String, String> createTestOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("key.format", "test-format");
+        options.put("key.test-format.delimiter", ",");
+        options.put("value.format", "test-format");
+        options.put("value.test-format.delimiter", "|");
+        options.put("value.test-format.fail-on-missing", "true");
+        return options;
+    }
 }

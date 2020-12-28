@@ -22,28 +22,28 @@ import org.apache.flink.runtime.rpc.FencedMainThreadExecutable;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Wrapper class indicating a message which is not required to match the fencing token
- * as it is used by the {@link FencedMainThreadExecutable} to run code in the main thread without
- * a valid fencing token. This is required for operations which are not scoped by the current
- * fencing token (e.g. leadership grants).
+ * Wrapper class indicating a message which is not required to match the fencing token as it is used
+ * by the {@link FencedMainThreadExecutable} to run code in the main thread without a valid fencing
+ * token. This is required for operations which are not scoped by the current fencing token (e.g.
+ * leadership grants).
  *
  * <p>IMPORTANT: This message is only intended to be send locally.
  *
  * @param <P> type of the payload
  */
 public class UnfencedMessage<P> {
-	private final P payload;
+    private final P payload;
 
-	public UnfencedMessage(P payload) {
-		this.payload = Preconditions.checkNotNull(payload);
-	}
+    public UnfencedMessage(P payload) {
+        this.payload = Preconditions.checkNotNull(payload);
+    }
 
-	public P getPayload() {
-		return payload;
-	}
+    public P getPayload() {
+        return payload;
+    }
 
-	@Override
-	public String toString() {
-		return "UnfencedMessage(" + payload + ')';
-	}
+    @Override
+    public String toString() {
+        return "UnfencedMessage(" + payload + ')';
+    }
 }

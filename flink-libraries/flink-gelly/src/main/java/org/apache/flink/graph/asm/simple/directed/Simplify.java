@@ -33,37 +33,36 @@ import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingGraph;
  * @param <EV> edge value type
  */
 public class Simplify<K extends Comparable<K>, VV, EV>
-extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
+        extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 
-	@Override
-	public Graph<K, VV, EV> runInternal(Graph<K, VV, EV> input)
-			throws Exception {
-		// Edges
-		DataSet<Edge<K, EV>> edges = input
-			.getEdges()
-			.filter(new RemoveSelfLoops<>())
-				.setParallelism(parallelism)
-				.name("Remove self-loops")
-			.distinct(0, 1)
-				.setCombineHint(CombineHint.NONE)
-				.setParallelism(parallelism)
-				.name("Remove duplicate edges");
+    @Override
+    public Graph<K, VV, EV> runInternal(Graph<K, VV, EV> input) throws Exception {
+        // Edges
+        DataSet<Edge<K, EV>> edges =
+                input.getEdges()
+                        .filter(new RemoveSelfLoops<>())
+                        .setParallelism(parallelism)
+                        .name("Remove self-loops")
+                        .distinct(0, 1)
+                        .setCombineHint(CombineHint.NONE)
+                        .setParallelism(parallelism)
+                        .name("Remove duplicate edges");
 
-		// Graph
-		return Graph.fromDataSet(input.getVertices(), edges, input.getContext());
-	}
+        // Graph
+        return Graph.fromDataSet(input.getVertices(), edges, input.getContext());
+    }
 
-	/**
-	 * Filter out edges where the source and target vertex IDs are equal.
-	 *
-	 * @param <T> ID type
-	 * @param <ET> edge value type
-	 */
-	private static class RemoveSelfLoops<T extends Comparable<T>, ET>
-	implements FilterFunction<Edge<T, ET>> {
-		@Override
-		public boolean filter(Edge<T, ET> value) throws Exception {
-			return (value.f0.compareTo(value.f1) != 0);
-		}
-	}
+    /**
+     * Filter out edges where the source and target vertex IDs are equal.
+     *
+     * @param <T> ID type
+     * @param <ET> edge value type
+     */
+    private static class RemoveSelfLoops<T extends Comparable<T>, ET>
+            implements FilterFunction<Edge<T, ET>> {
+        @Override
+        public boolean filter(Edge<T, ET> value) throws Exception {
+            return (value.f0.compareTo(value.f1) != 0);
+        }
+    }
 }

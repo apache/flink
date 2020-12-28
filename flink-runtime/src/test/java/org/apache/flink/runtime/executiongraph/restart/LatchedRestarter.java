@@ -20,19 +20,17 @@ package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 
-/**
- * A testing RestartCallback that triggers a latch when restart is triggered.
- */
+/** A testing RestartCallback that triggers a latch when restart is triggered. */
 class LatchedRestarter implements RestartCallback {
 
-	private final OneShotLatch latch;
+    private final OneShotLatch latch;
 
-	LatchedRestarter(OneShotLatch latch) {
-		this.latch = latch;
-	}
+    LatchedRestarter(OneShotLatch latch) {
+        this.latch = latch;
+    }
 
-	@Override
-	public void triggerFullRecovery() {
-		latch.trigger();
-	}
+    @Override
+    public void triggerFullRecovery() {
+        latch.trigger();
+    }
 }

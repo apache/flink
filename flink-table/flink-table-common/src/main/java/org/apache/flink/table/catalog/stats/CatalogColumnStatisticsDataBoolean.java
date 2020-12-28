@@ -21,42 +21,37 @@ package org.apache.flink.table.catalog.stats;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Column statistics value of boolean type.
- */
+/** Column statistics value of boolean type. */
 public class CatalogColumnStatisticsDataBoolean extends CatalogColumnStatisticsDataBase {
-	/**
-	 * number of "true" values.
-	 */
-	private final Long trueCount;
+    /** number of "true" values. */
+    private final Long trueCount;
 
-	/**
-	 * number of "false" values.
-	 */
-	private final Long falseCount;
+    /** number of "false" values. */
+    private final Long falseCount;
 
-	public CatalogColumnStatisticsDataBoolean(Long trueCount, Long falseCount, Long nullCount) {
-		super(nullCount);
-		this.trueCount = trueCount;
-		this.falseCount = falseCount;
-	}
+    public CatalogColumnStatisticsDataBoolean(Long trueCount, Long falseCount, Long nullCount) {
+        super(nullCount);
+        this.trueCount = trueCount;
+        this.falseCount = falseCount;
+    }
 
-	public CatalogColumnStatisticsDataBoolean(Long trueCount, Long falseCount, Long nullCount, Map<String, String> properties) {
-		super(nullCount, properties);
-		this.trueCount = trueCount;
-		this.falseCount = falseCount;
-	}
+    public CatalogColumnStatisticsDataBoolean(
+            Long trueCount, Long falseCount, Long nullCount, Map<String, String> properties) {
+        super(nullCount, properties);
+        this.trueCount = trueCount;
+        this.falseCount = falseCount;
+    }
 
-	public Long getTrueCount() {
-		return trueCount;
-	}
+    public Long getTrueCount() {
+        return trueCount;
+    }
 
-	public Long getFalseCount() {
-		return falseCount;
-	}
+    public Long getFalseCount() {
+        return falseCount;
+    }
 
-	public CatalogColumnStatisticsDataBoolean copy() {
-		return new CatalogColumnStatisticsDataBoolean(trueCount, falseCount, getNullCount(), new HashMap<>(getProperties()));
-	}
-
+    public CatalogColumnStatisticsDataBoolean copy() {
+        return new CatalogColumnStatisticsDataBoolean(
+                trueCount, falseCount, getNullCount(), new HashMap<>(getProperties()));
+    }
 }

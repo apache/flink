@@ -48,134 +48,140 @@ import java.util.function.Consumer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Components to create a {@link DefaultScheduler} which depends on the
- * configured {@link JobManagerOptions#SCHEDULING_STRATEGY}.
+ * Components to create a {@link DefaultScheduler} which depends on the configured {@link
+ * JobManagerOptions#SCHEDULING_STRATEGY}.
  */
 public class DefaultSchedulerComponents {
 
-	private static final String PIPELINED_REGION_SCHEDULING = "region";
-	private static final String LEGACY_SCHEDULING = "legacy";
+    private static final String PIPELINED_REGION_SCHEDULING = "region";
+    private static final String LEGACY_SCHEDULING = "legacy";
 
-	private final SchedulingStrategyFactory schedulingStrategyFactory;
-	private final Consumer<ComponentMainThreadExecutor> startUpAction;
-	private final ExecutionSlotAllocatorFactory allocatorFactory;
+    private final SchedulingStrategyFactory schedulingStrategyFactory;
+    private final Consumer<ComponentMainThreadExecutor> startUpAction;
+    private final ExecutionSlotAllocatorFactory allocatorFactory;
 
-	private DefaultSchedulerComponents(
-			final SchedulingStrategyFactory schedulingStrategyFactory,
-			final Consumer<ComponentMainThreadExecutor> startUpAction,
-			final ExecutionSlotAllocatorFactory allocatorFactory) {
+    private DefaultSchedulerComponents(
+            final SchedulingStrategyFactory schedulingStrategyFactory,
+            final Consumer<ComponentMainThreadExecutor> startUpAction,
+            final ExecutionSlotAllocatorFactory allocatorFactory) {
 
-		this.schedulingStrategyFactory = schedulingStrategyFactory;
-		this.startUpAction = startUpAction;
-		this.allocatorFactory = allocatorFactory;
-	}
+        this.schedulingStrategyFactory = schedulingStrategyFactory;
+        this.startUpAction = startUpAction;
+        this.allocatorFactory = allocatorFactory;
+    }
 
-	SchedulingStrategyFactory getSchedulingStrategyFactory() {
-		return schedulingStrategyFactory;
-	}
+    SchedulingStrategyFactory getSchedulingStrategyFactory() {
+        return schedulingStrategyFactory;
+    }
 
-	Consumer<ComponentMainThreadExecutor> getStartUpAction() {
-		return startUpAction;
-	}
+    Consumer<ComponentMainThreadExecutor> getStartUpAction() {
+        return startUpAction;
+    }
 
-	ExecutionSlotAllocatorFactory getAllocatorFactory() {
-		return allocatorFactory;
-	}
+    ExecutionSlotAllocatorFactory getAllocatorFactory() {
+        return allocatorFactory;
+    }
 
-	static DefaultSchedulerComponents createSchedulerComponents(
-			final ScheduleMode scheduleMode,
-			final boolean isApproximateLocalRecoveryEnabled,
-			final Configuration jobMasterConfiguration,
-			final SlotPool slotPool,
-			final Time slotRequestTimeout) {
+    static DefaultSchedulerComponents createSchedulerComponents(
+            final ScheduleMode scheduleMode,
+            final boolean isApproximateLocalRecoveryEnabled,
+            final Configuration jobMasterConfiguration,
+            final SlotPool slotPool,
+            final Time slotRequestTimeout) {
 
-		final String schedulingStrategy = jobMasterConfiguration.getString(JobManagerOptions.SCHEDULING_STRATEGY);
-		switch (schedulingStrategy) {
-			case PIPELINED_REGION_SCHEDULING:
-				checkArgument(
-					!isApproximateLocalRecoveryEnabled,
-					"Approximate local recovery can not be used together with PipelinedRegionScheduler for now! " +
-						"Please set %s to legacy.", JobManagerOptions.SCHEDULING_STRATEGY.key());
-				return createPipelinedRegionSchedulerComponents(
-					scheduleMode,
-					jobMasterConfiguration,
-					slotPool,
-					slotRequestTimeout);
-			case LEGACY_SCHEDULING:
-				checkArgument(!isApproximateLocalRecoveryEnabled || !scheduleMode.allowLazyDeployment(),
-					"Approximate local recovery can only be used together with EAGER schedule mode!");
-				return createLegacySchedulerComponents(
-					scheduleMode,
-					jobMasterConfiguration,
-					slotPool,
-					slotRequestTimeout);
-			default:
-				throw new IllegalStateException("Unsupported scheduling strategy " + schedulingStrategy);
-		}
-	}
+        final String schedulingStrategy =
+                jobMasterConfiguration.getString(JobManagerOptions.SCHEDULING_STRATEGY);
+        switch (schedulingStrategy) {
+            case PIPELINED_REGION_SCHEDULING:
+                checkArgument(
+                        !isApproximateLocalRecoveryEnabled,
+                        "Approximate local recovery can not be used together with PipelinedRegionScheduler for now! "
+                                + "Please set %s to legacy.",
+                        JobManagerOptions.SCHEDULING_STRATEGY.key());
+                return createPipelinedRegionSchedulerComponents(
+                        scheduleMode, jobMasterConfiguration, slotPool, slotRequestTimeout);
+            case LEGACY_SCHEDULING:
+                checkArgument(
+                        !isApproximateLocalRecoveryEnabled || !scheduleMode.allowLazyDeployment(),
+                        "Approximate local recovery can only be used together with EAGER schedule mode!");
+                return createLegacySchedulerComponents(
+                        scheduleMode, jobMasterConfiguration, slotPool, slotRequestTimeout);
+            default:
+                throw new IllegalStateException(
+                        "Unsupported scheduling strategy " + schedulingStrategy);
+        }
+    }
 
-	private static DefaultSchedulerComponents createLegacySchedulerComponents(
-			final ScheduleMode scheduleMode,
-			final Configuration jobMasterConfiguration,
-			final SlotPool slotPool,
-			final Time slotRequestTimeout) {
+    private static DefaultSchedulerComponents createLegacySchedulerComponents(
+            final ScheduleMode scheduleMode,
+            final Configuration jobMasterConfiguration,
+            final SlotPool slotPool,
+            final Time slotRequestTimeout) {
 
-		final SlotSelectionStrategy slotSelectionStrategy = selectSlotSelectionStrategy(jobMasterConfiguration);
-		final Scheduler scheduler = new SchedulerImpl(slotSelectionStrategy, slotPool);
-		final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
-			scheduleMode,
-			scheduler,
-			slotRequestTimeout);
-		return new DefaultSchedulerComponents(
-			createLegacySchedulingStrategyFactory(scheduleMode),
-			scheduler::start,
-			new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy));
-	}
+        final SlotSelectionStrategy slotSelectionStrategy =
+                selectSlotSelectionStrategy(jobMasterConfiguration);
+        final Scheduler scheduler = new SchedulerImpl(slotSelectionStrategy, slotPool);
+        final SlotProviderStrategy slotProviderStrategy =
+                SlotProviderStrategy.from(scheduleMode, scheduler, slotRequestTimeout);
+        return new DefaultSchedulerComponents(
+                createLegacySchedulingStrategyFactory(scheduleMode),
+                scheduler::start,
+                new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy));
+    }
 
-	private static SchedulingStrategyFactory createLegacySchedulingStrategyFactory(final ScheduleMode scheduleMode) {
-		switch (scheduleMode) {
-			case EAGER:
-				return new EagerSchedulingStrategy.Factory();
-			case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
-			case LAZY_FROM_SOURCES:
-				return new LazyFromSourcesSchedulingStrategy.Factory();
-			default:
-				throw new IllegalStateException("Unsupported schedule mode " + scheduleMode);
-		}
-	}
+    private static SchedulingStrategyFactory createLegacySchedulingStrategyFactory(
+            final ScheduleMode scheduleMode) {
+        switch (scheduleMode) {
+            case EAGER:
+                return new EagerSchedulingStrategy.Factory();
+            case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
+            case LAZY_FROM_SOURCES:
+                return new LazyFromSourcesSchedulingStrategy.Factory();
+            default:
+                throw new IllegalStateException("Unsupported schedule mode " + scheduleMode);
+        }
+    }
 
-	private static DefaultSchedulerComponents createPipelinedRegionSchedulerComponents(
-			final ScheduleMode scheduleMode,
-			final Configuration jobMasterConfiguration,
-			final SlotPool slotPool,
-			final Time slotRequestTimeout) {
+    private static DefaultSchedulerComponents createPipelinedRegionSchedulerComponents(
+            final ScheduleMode scheduleMode,
+            final Configuration jobMasterConfiguration,
+            final SlotPool slotPool,
+            final Time slotRequestTimeout) {
 
-		final SlotSelectionStrategy slotSelectionStrategy = selectSlotSelectionStrategy(jobMasterConfiguration);
-		final PhysicalSlotRequestBulkChecker bulkChecker = PhysicalSlotRequestBulkCheckerImpl
-			.createFromSlotPool(slotPool, SystemClock.getInstance());
-		final PhysicalSlotProvider physicalSlotProvider = new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
-		final ExecutionSlotAllocatorFactory allocatorFactory = new SlotSharingExecutionSlotAllocatorFactory(
-			physicalSlotProvider,
-			scheduleMode != ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
-			bulkChecker,
-			slotRequestTimeout);
-		return new DefaultSchedulerComponents(
-			new PipelinedRegionSchedulingStrategy.Factory(),
-			bulkChecker::start,
-			allocatorFactory);
-	}
+        final SlotSelectionStrategy slotSelectionStrategy =
+                selectSlotSelectionStrategy(jobMasterConfiguration);
+        final PhysicalSlotRequestBulkChecker bulkChecker =
+                PhysicalSlotRequestBulkCheckerImpl.createFromSlotPool(
+                        slotPool, SystemClock.getInstance());
+        final PhysicalSlotProvider physicalSlotProvider =
+                new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
+        final ExecutionSlotAllocatorFactory allocatorFactory =
+                new SlotSharingExecutionSlotAllocatorFactory(
+                        physicalSlotProvider,
+                        scheduleMode != ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+                        bulkChecker,
+                        slotRequestTimeout);
+        return new DefaultSchedulerComponents(
+                new PipelinedRegionSchedulingStrategy.Factory(),
+                bulkChecker::start,
+                allocatorFactory);
+    }
 
-	private static SlotSelectionStrategy selectSlotSelectionStrategy(final Configuration configuration) {
-		final boolean evenlySpreadOutSlots = configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+    private static SlotSelectionStrategy selectSlotSelectionStrategy(
+            final Configuration configuration) {
+        final boolean evenlySpreadOutSlots =
+                configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
 
-		final SlotSelectionStrategy locationPreferenceSlotSelectionStrategy;
+        final SlotSelectionStrategy locationPreferenceSlotSelectionStrategy;
 
-		locationPreferenceSlotSelectionStrategy = evenlySpreadOutSlots ?
-			LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut() :
-			LocationPreferenceSlotSelectionStrategy.createDefault();
+        locationPreferenceSlotSelectionStrategy =
+                evenlySpreadOutSlots
+                        ? LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut()
+                        : LocationPreferenceSlotSelectionStrategy.createDefault();
 
-		return configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY) ?
-			PreviousAllocationSlotSelectionStrategy.create(locationPreferenceSlotSelectionStrategy) :
-			locationPreferenceSlotSelectionStrategy;
-	}
+        return configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY)
+                ? PreviousAllocationSlotSelectionStrategy.create(
+                        locationPreferenceSlotSelectionStrategy)
+                : locationPreferenceSlotSelectionStrategy;
+    }
 }

@@ -23,57 +23,60 @@ import org.apache.flink.runtime.rest.handler.job.JobVertexAccumulatorsHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobVertexAccumulatorsHandler}.
- */
-public class JobVertexAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, JobVertexAccumulatorsInfo, JobVertexMessageParameters> {
+/** Message headers for the {@link JobVertexAccumulatorsHandler}. */
+public class JobVertexAccumulatorsHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, JobVertexAccumulatorsInfo, JobVertexMessageParameters> {
 
-	private static final JobVertexAccumulatorsHeaders INSTANCE = new JobVertexAccumulatorsHeaders();
+    private static final JobVertexAccumulatorsHeaders INSTANCE = new JobVertexAccumulatorsHeaders();
 
-	public static final String URL = "/jobs" +
-		"/:" + JobIDPathParameter.KEY +
-		"/vertices" +
-		"/:" + JobVertexIdPathParameter.KEY +
-		"/accumulators";
+    public static final String URL =
+            "/jobs"
+                    + "/:"
+                    + JobIDPathParameter.KEY
+                    + "/vertices"
+                    + "/:"
+                    + JobVertexIdPathParameter.KEY
+                    + "/accumulators";
 
-	private JobVertexAccumulatorsHeaders() {}
+    private JobVertexAccumulatorsHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JobVertexAccumulatorsInfo> getResponseClass() {
-		return JobVertexAccumulatorsInfo.class;
-	}
+    @Override
+    public Class<JobVertexAccumulatorsInfo> getResponseClass() {
+        return JobVertexAccumulatorsInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobVertexMessageParameters getUnresolvedMessageParameters() {
-		return new JobVertexMessageParameters();
-	}
+    @Override
+    public JobVertexMessageParameters getUnresolvedMessageParameters() {
+        return new JobVertexMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobVertexAccumulatorsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobVertexAccumulatorsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns user-defined accumulators of a task, aggregated across all subtasks.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns user-defined accumulators of a task, aggregated across all subtasks.";
+    }
 }

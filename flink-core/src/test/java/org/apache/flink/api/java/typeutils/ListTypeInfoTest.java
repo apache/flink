@@ -21,17 +21,15 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link ListTypeInfo}.
- */
+/** Test for {@link ListTypeInfo}. */
 public class ListTypeInfoTest extends TypeInformationTestBase<ListTypeInfo<?>> {
 
-	@Override
-	protected ListTypeInfo<?>[] getTestData() {
-		return new ListTypeInfo<?>[] {
-			new ListTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO),
-			new ListTypeInfo<>(BasicTypeInfo.BOOLEAN_TYPE_INFO),
-			new ListTypeInfo<>(Object.class),
-		};
-	}
+    @Override
+    protected ListTypeInfo<?>[] getTestData() {
+        return new ListTypeInfo<?>[] {
+            new ListTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO),
+            new ListTypeInfo<>(BasicTypeInfo.BOOLEAN_TYPE_INFO),
+            new ListTypeInfo<>(Object.class),
+        };
+    }
 }

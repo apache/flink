@@ -25,35 +25,39 @@ import io.fabric8.kubernetes.api.model.Pod;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Watcher for pods in Kubernetes.
- */
+/** Watcher for pods in Kubernetes. */
 public class KubernetesPodsWatcher extends AbstractKubernetesWatcher<Pod, KubernetesPod> {
 
-	public KubernetesPodsWatcher(FlinkKubeClient.WatchCallbackHandler<KubernetesPod> callbackHandler) {
-		super(callbackHandler);
-	}
+    public KubernetesPodsWatcher(
+            FlinkKubeClient.WatchCallbackHandler<KubernetesPod> callbackHandler) {
+        super(callbackHandler);
+    }
 
-	@Override
-	public void eventReceived(Action action, Pod pod) {
-		logger.debug("Received {} event for pod {}, details: {}", action, pod.getMetadata().getName(), pod.getStatus());
-		final List<KubernetesPod> pods = Collections.singletonList(new KubernetesPod(pod));
-		switch (action) {
-			case ADDED:
-				callbackHandler.onAdded(pods);
-				break;
-			case MODIFIED:
-				callbackHandler.onModified(pods);
-				break;
-			case ERROR:
-				callbackHandler.onError(pods);
-				break;
-			case DELETED:
-				callbackHandler.onDeleted(pods);
-				break;
-			default:
-				logger.debug("Ignore handling {} event for pod {}", action, pod.getMetadata().getName());
-				break;
-		}
-	}
+    @Override
+    public void eventReceived(Action action, Pod pod) {
+        logger.debug(
+                "Received {} event for pod {}, details: {}",
+                action,
+                pod.getMetadata().getName(),
+                pod.getStatus());
+        final List<KubernetesPod> pods = Collections.singletonList(new KubernetesPod(pod));
+        switch (action) {
+            case ADDED:
+                callbackHandler.onAdded(pods);
+                break;
+            case MODIFIED:
+                callbackHandler.onModified(pods);
+                break;
+            case ERROR:
+                callbackHandler.onError(pods);
+                break;
+            case DELETED:
+                callbackHandler.onDeleted(pods);
+                break;
+            default:
+                logger.debug(
+                        "Ignore handling {} event for pod {}", action, pod.getMetadata().getName());
+                break;
+        }
+    }
 }

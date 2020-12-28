@@ -27,8 +27,8 @@ import java.io.Serializable;
 import java.util.Collection;
 
 /**
- * The {@code FileEnumerator}'s task is to discover all files to be read and to split them into
- * a set of {@link FileSourceSplit}.
+ * The {@code FileEnumerator}'s task is to discover all files to be read and to split them into a
+ * set of {@link FileSourceSplit}.
  *
  * <p>This includes possibly, path traversals, file filtering (by name or other patterns) and
  * deciding whether to split files into multiple splits, and how to split them.
@@ -36,22 +36,23 @@ import java.util.Collection;
 @PublicEvolving
 public interface FileEnumerator {
 
-	/**
-	 * Generates all file splits for the relevant files under the given paths.
-	 * The {@code minDesiredSplits} is an optional hint indicating how many splits would be necessary
-	 * to exploit parallelism properly.
-	 */
-	Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits) throws IOException;
+    /**
+     * Generates all file splits for the relevant files under the given paths. The {@code
+     * minDesiredSplits} is an optional hint indicating how many splits would be necessary to
+     * exploit parallelism properly.
+     */
+    Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
+            throws IOException;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Factory for the {@code FileEnumerator}, to allow the {@code FileEnumerator} to be eagerly
-	 * initialized and to not be serializable.
-	 */
-	@FunctionalInterface
-	interface Provider extends Serializable {
+    /**
+     * Factory for the {@code FileEnumerator}, to allow the {@code FileEnumerator} to be eagerly
+     * initialized and to not be serializable.
+     */
+    @FunctionalInterface
+    interface Provider extends Serializable {
 
-		FileEnumerator create();
-	}
+        FileEnumerator create();
+    }
 }

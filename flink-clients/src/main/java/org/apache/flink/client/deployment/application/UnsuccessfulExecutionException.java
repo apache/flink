@@ -27,51 +27,50 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * Exception that signals the failure of an
- * application with a given {@link ApplicationStatus}.
- */
+/** Exception that signals the failure of an application with a given {@link ApplicationStatus}. */
 @Internal
 public class UnsuccessfulExecutionException extends JobExecutionException {
 
-	private final ApplicationStatus status;
+    private final ApplicationStatus status;
 
-	public UnsuccessfulExecutionException(
-			final JobID jobID,
-			final ApplicationStatus status,
-			final String message,
-			final Throwable cause) {
-		super(jobID, message, cause);
-		this.status = checkNotNull(status);
-	}
+    public UnsuccessfulExecutionException(
+            final JobID jobID,
+            final ApplicationStatus status,
+            final String message,
+            final Throwable cause) {
+        super(jobID, message, cause);
+        this.status = checkNotNull(status);
+    }
 
-	public ApplicationStatus getStatus() {
-		return status;
-	}
+    public ApplicationStatus getStatus() {
+        return status;
+    }
 
-	public static UnsuccessfulExecutionException fromJobResult(
-			final JobResult result,
-			final ClassLoader userClassLoader) {
+    public static UnsuccessfulExecutionException fromJobResult(
+            final JobResult result, final ClassLoader userClassLoader) {
 
-		checkState(result != null && !result.isSuccess());
-		checkNotNull(userClassLoader);
+        checkState(result != null && !result.isSuccess());
+        checkNotNull(userClassLoader);
 
-		// We do this to uniformize the behavior of the "ATTACHED" and "DETACHED"
-		// in application mode, while maintaining the expected exceptions thrown in case
-		// of a failed job execution.
+        // We do this to uniformize the behavior of the "ATTACHED" and "DETACHED"
+        // in application mode, while maintaining the expected exceptions thrown in case
+        // of a failed job execution.
 
-		try {
-			result.toJobExecutionResult(userClassLoader);
-			throw new IllegalStateException("No exception thrown although the job execution was not successful.");
+        try {
+            result.toJobExecutionResult(userClassLoader);
+            throw new IllegalStateException(
+                    "No exception thrown although the job execution was not successful.");
 
-		} catch (Throwable t) {
+        } catch (Throwable t) {
 
-			final JobID jobID = result.getJobId();
-			final ApplicationStatus status = result.getApplicationStatus();
+            final JobID jobID = result.getJobId();
+            final ApplicationStatus status = result.getApplicationStatus();
 
-			return status == ApplicationStatus.CANCELED || status == ApplicationStatus.FAILED
-					? new UnsuccessfulExecutionException(jobID, status, "Application Status: " + status.name(), t)
-					: new UnsuccessfulExecutionException(jobID, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", t);
-		}
-	}
+            return status == ApplicationStatus.CANCELED || status == ApplicationStatus.FAILED
+                    ? new UnsuccessfulExecutionException(
+                            jobID, status, "Application Status: " + status.name(), t)
+                    : new UnsuccessfulExecutionException(
+                            jobID, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", t);
+        }
+    }
 }

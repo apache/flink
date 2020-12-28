@@ -48,108 +48,116 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public abstract class CollectStreamResult<C> extends BasicResult<C> implements DynamicResult<C> {
 
-	private final SocketStreamIterator<Tuple2<Boolean, Row>> iterator;
-	private final CollectStreamTableSink collectTableSink;
-	private final ResultRetrievalThread retrievalThread;
-	private CompletableFuture<JobExecutionResult> jobExecutionResultFuture;
+    private final SocketStreamIterator<Tuple2<Boolean, Row>> iterator;
+    private final CollectStreamTableSink collectTableSink;
+    private final ResultRetrievalThread retrievalThread;
+    private CompletableFuture<JobExecutionResult> jobExecutionResultFuture;
 
-	protected final Object resultLock;
-	protected AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
+    protected final Object resultLock;
+    protected AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
 
-	public CollectStreamResult(
-			TableSchema tableSchema,
-			ExecutionConfig config,
-			InetAddress gatewayAddress,
-			int gatewayPort) {
-		resultLock = new Object();
+    public CollectStreamResult(
+            TableSchema tableSchema,
+            ExecutionConfig config,
+            InetAddress gatewayAddress,
+            int gatewayPort) {
+        resultLock = new Object();
 
-		// create socket stream iterator
-		final TypeInformation<Tuple2<Boolean, Row>> socketType = Types.TUPLE(Types.BOOLEAN, tableSchema.toRowType());
-		final TypeSerializer<Tuple2<Boolean, Row>> serializer = socketType.createSerializer(config);
-		try {
-			// pass gateway port and address such that iterator knows where to bind to
-			iterator = new SocketStreamIterator<>(gatewayPort, gatewayAddress, serializer);
-		} catch (IOException e) {
-			throw new SqlClientException("Could not start socket for result retrieval.", e);
-		}
+        // create socket stream iterator
+        final TypeInformation<Tuple2<Boolean, Row>> socketType =
+                Types.TUPLE(Types.BOOLEAN, tableSchema.toRowType());
+        final TypeSerializer<Tuple2<Boolean, Row>> serializer = socketType.createSerializer(config);
+        try {
+            // pass gateway port and address such that iterator knows where to bind to
+            iterator = new SocketStreamIterator<>(gatewayPort, gatewayAddress, serializer);
+        } catch (IOException e) {
+            throw new SqlClientException("Could not start socket for result retrieval.", e);
+        }
 
-		// create table sink
-		// pass binding address and port such that sink knows where to send to
-		collectTableSink = new CollectStreamTableSink(iterator.getBindAddress(), iterator.getPort(), serializer, tableSchema);
-		retrievalThread = new ResultRetrievalThread();
-	}
+        // create table sink
+        // pass binding address and port such that sink knows where to send to
+        collectTableSink =
+                new CollectStreamTableSink(
+                        iterator.getBindAddress(), iterator.getPort(), serializer, tableSchema);
+        retrievalThread = new ResultRetrievalThread();
+    }
 
-	@Override
-	public void startRetrieval(JobClient jobClient) {
-		// start listener thread
-		retrievalThread.start();
+    @Override
+    public void startRetrieval(JobClient jobClient) {
+        // start listener thread
+        retrievalThread.start();
 
-		jobExecutionResultFuture = jobClient.getJobExecutionResult()
-				.whenComplete((unused, throwable) -> {
-					if (throwable != null) {
-						executionException.compareAndSet(
-								null,
-								new SqlExecutionException("Error while retrieving result.", throwable));
-					}
-				});
-	}
+        jobExecutionResultFuture =
+                jobClient
+                        .getJobExecutionResult()
+                        .whenComplete(
+                                (unused, throwable) -> {
+                                    if (throwable != null) {
+                                        executionException.compareAndSet(
+                                                null,
+                                                new SqlExecutionException(
+                                                        "Error while retrieving result.",
+                                                        throwable));
+                                    }
+                                });
+    }
 
-	@Override
-	public TableSink<?> getTableSink() {
-		return collectTableSink;
-	}
+    @Override
+    public TableSink<?> getTableSink() {
+        return collectTableSink;
+    }
 
-	@Override
-	public void close() {
-		retrievalThread.isRunning = false;
-		retrievalThread.interrupt();
-		iterator.close();
-	}
+    @Override
+    public void close() {
+        retrievalThread.isRunning = false;
+        retrievalThread.interrupt();
+        iterator.close();
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	protected <T> TypedResult<T> handleMissingResult() {
+    protected <T> TypedResult<T> handleMissingResult() {
 
-		// check if the monitoring thread is still there
-		// we need to wait until we know what is going on
-		if (!jobExecutionResultFuture.isDone()) {
-			return TypedResult.empty();
-		}
+        // check if the monitoring thread is still there
+        // we need to wait until we know what is going on
+        if (!jobExecutionResultFuture.isDone()) {
+            return TypedResult.empty();
+        }
 
-		if (executionException.get() != null) {
-			throw executionException.get();
-		}
+        if (executionException.get() != null) {
+            throw executionException.get();
+        }
 
-		// we assume that a bounded job finished
-		return TypedResult.endOfStream();
-	}
+        // we assume that a bounded job finished
+        return TypedResult.endOfStream();
+    }
 
-	protected boolean isRetrieving() {
-		return retrievalThread.isRunning;
-	}
+    protected boolean isRetrieving() {
+        return retrievalThread.isRunning;
+    }
 
-	protected abstract void processRecord(Tuple2<Boolean, Row> change);
+    protected abstract void processRecord(Tuple2<Boolean, Row> change);
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private class ResultRetrievalThread extends Thread {
+    private class ResultRetrievalThread extends Thread {
 
-		public volatile boolean isRunning = true;
+        public volatile boolean isRunning = true;
 
-		@Override
-		public void run() {
-			try {
-				while (isRunning && iterator.hasNext()) {
-					final Tuple2<Boolean, Row> change = iterator.next();
-					processRecord(change);
-				}
-			} catch (RuntimeException e) {
-				// ignore socket exceptions
-			}
+        @Override
+        public void run() {
+            try {
+                while (isRunning && iterator.hasNext()) {
+                    final Tuple2<Boolean, Row> change = iterator.next();
+                    processRecord(change);
+                }
+            } catch (RuntimeException e) {
+                // ignore socket exceptions
+            }
 
-			// no result anymore
-			// either the job is done or an error occurred
-			isRunning = false;
-		}
-	}
+            // no result anymore
+            // either the job is done or an error occurred
+            isRunning = false;
+        }
+    }
 }

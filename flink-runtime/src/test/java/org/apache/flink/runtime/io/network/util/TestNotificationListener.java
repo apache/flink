@@ -22,52 +22,50 @@ import org.apache.flink.runtime.util.event.NotificationListener;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * A mock notification listener.
- */
+/** A mock notification listener. */
 public class TestNotificationListener implements NotificationListener {
 
-	final AtomicInteger numberOfNotifications = new AtomicInteger();
+    final AtomicInteger numberOfNotifications = new AtomicInteger();
 
-	@Override
-	public void onNotification() {
-		synchronized (numberOfNotifications) {
-			numberOfNotifications.incrementAndGet();
+    @Override
+    public void onNotification() {
+        synchronized (numberOfNotifications) {
+            numberOfNotifications.incrementAndGet();
 
-			numberOfNotifications.notifyAll();
-		}
-	}
+            numberOfNotifications.notifyAll();
+        }
+    }
 
-	/**
-	 * Waits on a notification.
-	 *
-	 * <p> <strong>Important</strong>: It's necessary to get the current number of notifications
-	 * <em>before</em> registering the listener. Otherwise the wait call may block indefinitely.
-	 *
-	 * <pre>
-	 * MockNotificationListener listener = new MockNotificationListener();
-	 *
-	 * int current = listener.getNumberOfNotifications();
-	 *
-	 * // Register the listener
-	 * register(listener);
-	 *
-	 * listener.waitForNotification(current);
-	 * </pre>
-	 */
-	public void waitForNotification(int current) throws InterruptedException {
-		synchronized (numberOfNotifications) {
-			while (current == numberOfNotifications.get()) {
-				numberOfNotifications.wait();
-			}
-		}
-	}
+    /**
+     * Waits on a notification.
+     *
+     * <p><strong>Important</strong>: It's necessary to get the current number of notifications
+     * <em>before</em> registering the listener. Otherwise the wait call may block indefinitely.
+     *
+     * <pre>
+     * MockNotificationListener listener = new MockNotificationListener();
+     *
+     * int current = listener.getNumberOfNotifications();
+     *
+     * // Register the listener
+     * register(listener);
+     *
+     * listener.waitForNotification(current);
+     * </pre>
+     */
+    public void waitForNotification(int current) throws InterruptedException {
+        synchronized (numberOfNotifications) {
+            while (current == numberOfNotifications.get()) {
+                numberOfNotifications.wait();
+            }
+        }
+    }
 
-	public int getNumberOfNotifications() {
-		return numberOfNotifications.get();
-	}
+    public int getNumberOfNotifications() {
+        return numberOfNotifications.get();
+    }
 
-	public void reset() {
-		numberOfNotifications.set(0);
-	}
+    public void reset() {
+        numberOfNotifications.set(0);
+    }
 }

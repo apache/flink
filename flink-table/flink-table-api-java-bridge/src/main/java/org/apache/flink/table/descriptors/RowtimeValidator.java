@@ -51,126 +51,141 @@ import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED;
 
-/**
- * Validator for {@link Rowtime}.
- */
+/** Validator for {@link Rowtime}. */
 @PublicEvolving
 public class RowtimeValidator implements DescriptorValidator {
 
-	private final boolean supportsSourceTimestamps;
-	private final boolean supportsSourceWatermarks;
-	private final String prefix;
+    private final boolean supportsSourceTimestamps;
+    private final boolean supportsSourceWatermarks;
+    private final String prefix;
 
-	public RowtimeValidator(boolean supportsSourceTimestamps, boolean supportsSourceWatermarks) {
-		this(supportsSourceTimestamps, supportsSourceWatermarks, "");
-	}
+    public RowtimeValidator(boolean supportsSourceTimestamps, boolean supportsSourceWatermarks) {
+        this(supportsSourceTimestamps, supportsSourceWatermarks, "");
+    }
 
-	public RowtimeValidator(boolean supportsSourceTimestamps, boolean supportsSourceWatermarks, String prefix) {
-		this.supportsSourceTimestamps = supportsSourceTimestamps;
-		this.supportsSourceWatermarks = supportsSourceWatermarks;
-		this.prefix = prefix;
-	}
+    public RowtimeValidator(
+            boolean supportsSourceTimestamps, boolean supportsSourceWatermarks, String prefix) {
+        this.supportsSourceTimestamps = supportsSourceTimestamps;
+        this.supportsSourceWatermarks = supportsSourceWatermarks;
+        this.prefix = prefix;
+    }
 
-	@Override
-	public void validate(DescriptorProperties properties) {
-		Consumer<String> timestampExistingField =
-				s -> properties.validateString(prefix + ROWTIME_TIMESTAMPS_FROM, false, 1);
+    @Override
+    public void validate(DescriptorProperties properties) {
+        Consumer<String> timestampExistingField =
+                s -> properties.validateString(prefix + ROWTIME_TIMESTAMPS_FROM, false, 1);
 
-		Consumer<String> timestampCustom = s -> {
-			properties.validateString(prefix + ROWTIME_TIMESTAMPS_CLASS, false, 1);
-			properties.validateString(prefix + ROWTIME_TIMESTAMPS_SERIALIZED, false, 1);
-		};
+        Consumer<String> timestampCustom =
+                s -> {
+                    properties.validateString(prefix + ROWTIME_TIMESTAMPS_CLASS, false, 1);
+                    properties.validateString(prefix + ROWTIME_TIMESTAMPS_SERIALIZED, false, 1);
+                };
 
-		Map<String, Consumer<String>> timestampsValidation = new HashMap<>();
-		if (supportsSourceTimestamps) {
-			timestampsValidation.put(ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD, timestampExistingField);
-			timestampsValidation.put(ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE, DescriptorProperties.noValidation());
-			timestampsValidation.put(ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM, timestampCustom);
-		} else {
-			timestampsValidation.put(ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD, timestampExistingField);
-			timestampsValidation.put(ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM, timestampCustom);
-		}
+        Map<String, Consumer<String>> timestampsValidation = new HashMap<>();
+        if (supportsSourceTimestamps) {
+            timestampsValidation.put(
+                    ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD, timestampExistingField);
+            timestampsValidation.put(
+                    ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE, DescriptorProperties.noValidation());
+            timestampsValidation.put(ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM, timestampCustom);
+        } else {
+            timestampsValidation.put(
+                    ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD, timestampExistingField);
+            timestampsValidation.put(ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM, timestampCustom);
+        }
 
-		properties.validateEnum(prefix + ROWTIME_TIMESTAMPS_TYPE, false, timestampsValidation);
+        properties.validateEnum(prefix + ROWTIME_TIMESTAMPS_TYPE, false, timestampsValidation);
 
-		Consumer<String> watermarkPeriodicBounded =
-				s -> properties.validateLong(prefix + ROWTIME_WATERMARKS_DELAY, false, 0);
+        Consumer<String> watermarkPeriodicBounded =
+                s -> properties.validateLong(prefix + ROWTIME_WATERMARKS_DELAY, false, 0);
 
-		Consumer<String> watermarkCustom = s -> {
-			properties.validateString(prefix + ROWTIME_WATERMARKS_CLASS, false, 1);
-			properties.validateString(prefix + ROWTIME_WATERMARKS_SERIALIZED, false, 1);
-		};
+        Consumer<String> watermarkCustom =
+                s -> {
+                    properties.validateString(prefix + ROWTIME_WATERMARKS_CLASS, false, 1);
+                    properties.validateString(prefix + ROWTIME_WATERMARKS_SERIALIZED, false, 1);
+                };
 
-		Map<String, Consumer<String>> watermarksValidation = new HashMap<>();
-		if (supportsSourceWatermarks) {
-			watermarksValidation.put(ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING, DescriptorProperties.noValidation());
-			watermarksValidation.put(ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED, watermarkPeriodicBounded);
-			watermarksValidation.put(ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE, DescriptorProperties.noValidation());
-			watermarksValidation.put(ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM, watermarkCustom);
-		} else {
-			watermarksValidation.put(ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING, DescriptorProperties.noValidation());
-			watermarksValidation.put(ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED, watermarkPeriodicBounded);
-			watermarksValidation.put(ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM, watermarkCustom);
-		}
+        Map<String, Consumer<String>> watermarksValidation = new HashMap<>();
+        if (supportsSourceWatermarks) {
+            watermarksValidation.put(
+                    ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING,
+                    DescriptorProperties.noValidation());
+            watermarksValidation.put(
+                    ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED, watermarkPeriodicBounded);
+            watermarksValidation.put(
+                    ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE, DescriptorProperties.noValidation());
+            watermarksValidation.put(ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM, watermarkCustom);
+        } else {
+            watermarksValidation.put(
+                    ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING,
+                    DescriptorProperties.noValidation());
+            watermarksValidation.put(
+                    ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED, watermarkPeriodicBounded);
+            watermarksValidation.put(ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM, watermarkCustom);
+        }
 
-		properties.validateEnum(prefix + ROWTIME_WATERMARKS_TYPE, false, watermarksValidation);
-	}
+        properties.validateEnum(prefix + ROWTIME_WATERMARKS_TYPE, false, watermarksValidation);
+    }
 
-	// utilities
+    // utilities
 
-	public static Optional<Tuple2<TimestampExtractor, WatermarkStrategy>> getRowtimeComponents(
-			DescriptorProperties properties, String prefix) {
-		// create timestamp extractor
-		TimestampExtractor extractor;
-		Optional<String> t = properties.getOptionalString(prefix + ROWTIME_TIMESTAMPS_TYPE);
-		if (!t.isPresent()) {
-			return Optional.empty();
-		}
+    public static Optional<Tuple2<TimestampExtractor, WatermarkStrategy>> getRowtimeComponents(
+            DescriptorProperties properties, String prefix) {
+        // create timestamp extractor
+        TimestampExtractor extractor;
+        Optional<String> t = properties.getOptionalString(prefix + ROWTIME_TIMESTAMPS_TYPE);
+        if (!t.isPresent()) {
+            return Optional.empty();
+        }
 
-		switch (t.get()) {
-			case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD:
-				String field = properties.getString(prefix + ROWTIME_TIMESTAMPS_FROM);
-				extractor = new ExistingField(field);
-				break;
-			case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE:
-				extractor = StreamRecordTimestamp.INSTANCE;
-				break;
-			case ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM:
-				Class<TimestampExtractor> clazz = properties.getClass(
-						prefix + ROWTIME_TIMESTAMPS_CLASS, TimestampExtractor.class);
-				extractor = EncodingUtils.decodeStringToObject(
-						properties.getString(prefix + ROWTIME_TIMESTAMPS_SERIALIZED),
-						clazz);
-				break;
-			default:
-				throw new ValidationException("Unsupported rowtime timestamps type: " + t.get());
-		}
+        switch (t.get()) {
+            case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD:
+                String field = properties.getString(prefix + ROWTIME_TIMESTAMPS_FROM);
+                extractor = new ExistingField(field);
+                break;
+            case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE:
+                extractor = StreamRecordTimestamp.INSTANCE;
+                break;
+            case ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM:
+                Class<TimestampExtractor> clazz =
+                        properties.getClass(
+                                prefix + ROWTIME_TIMESTAMPS_CLASS, TimestampExtractor.class);
+                extractor =
+                        EncodingUtils.decodeStringToObject(
+                                properties.getString(prefix + ROWTIME_TIMESTAMPS_SERIALIZED),
+                                clazz);
+                break;
+            default:
+                throw new ValidationException("Unsupported rowtime timestamps type: " + t.get());
+        }
 
-		// create watermark strategy
-		WatermarkStrategy strategy;
-		String s = properties.getString(prefix + ROWTIME_WATERMARKS_TYPE);
-		switch (s) {
-			case ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING:
-				strategy = new AscendingTimestamps();
-				break;
-			case ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED:
-				long delay = properties.getLong(prefix + ROWTIME_WATERMARKS_DELAY);
-				strategy = new BoundedOutOfOrderTimestamps(delay);
-				break;
-			case ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE:
-				strategy = PreserveWatermarks.INSTANCE;
-				break;
-			case ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM:
-				Class<WatermarkStrategy> clazz = properties.getClass(
-						prefix + ROWTIME_WATERMARKS_CLASS, WatermarkStrategy.class);
-				strategy = EncodingUtils.decodeStringToObject(
-						properties.getString(prefix + ROWTIME_WATERMARKS_SERIALIZED),
-						clazz);
-				break;
-			default:
-				throw new RuntimeException("Unsupported rowtime timestamps type: " + s);
-		}
+        // create watermark strategy
+        WatermarkStrategy strategy;
+        String s = properties.getString(prefix + ROWTIME_WATERMARKS_TYPE);
+        switch (s) {
+            case ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING:
+                strategy = new AscendingTimestamps();
+                break;
+            case ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED:
+                long delay = properties.getLong(prefix + ROWTIME_WATERMARKS_DELAY);
+                strategy = new BoundedOutOfOrderTimestamps(delay);
+                break;
+            case ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE:
+                strategy = PreserveWatermarks.INSTANCE;
+                break;
+            case ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM:
+                Class<WatermarkStrategy> clazz =
+                        properties.getClass(
+                                prefix + ROWTIME_WATERMARKS_CLASS, WatermarkStrategy.class);
+                strategy =
+                        EncodingUtils.decodeStringToObject(
+                                properties.getString(prefix + ROWTIME_WATERMARKS_SERIALIZED),
+                                clazz);
+                break;
+            default:
+                throw new RuntimeException("Unsupported rowtime timestamps type: " + s);
+        }
 
-		return Optional.of(new Tuple2<>(extractor, strategy));
-	}
+        return Optional.of(new Tuple2<>(extractor, strategy));
+    }
 }

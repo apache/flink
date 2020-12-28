@@ -24,33 +24,30 @@ import org.apache.flink.table.runtime.util.MemorySegmentPool;
 
 import java.util.List;
 
-/**
- * Test pool.
- */
+/** Test pool. */
 public class TestMemorySegmentPool implements MemorySegmentPool {
 
-	private int pageSize;
+    private int pageSize;
 
-	public TestMemorySegmentPool(int pageSize) {
-		this.pageSize = pageSize;
-	}
+    public TestMemorySegmentPool(int pageSize) {
+        this.pageSize = pageSize;
+    }
 
-	@Override
-	public int pageSize() {
-		return pageSize;
-	}
+    @Override
+    public int pageSize() {
+        return pageSize;
+    }
 
-	@Override
-	public void returnAll(List<MemorySegment> memory) {
-	}
+    @Override
+    public void returnAll(List<MemorySegment> memory) {}
 
-	@Override
-	public int freePages() {
-		return Integer.MAX_VALUE;
-	}
+    @Override
+    public int freePages() {
+        return Integer.MAX_VALUE;
+    }
 
-	@Override
-	public MemorySegment nextSegment() {
-		return MemorySegmentFactory.wrap(new byte[pageSize]);
-	}
+    @Override
+    public MemorySegment nextSegment() {
+        return MemorySegmentFactory.wrap(new byte[pageSize]);
+    }
 }

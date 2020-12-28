@@ -25,90 +25,90 @@ import javax.annotation.Nullable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * {@link LeaderElectionDriver} implementation which provides some convenience functions for testing purposes. Please
- * use {@link #isLeader} and {@link #notLeader()} to manually control the leadership.
+ * {@link LeaderElectionDriver} implementation which provides some convenience functions for testing
+ * purposes. Please use {@link #isLeader} and {@link #notLeader()} to manually control the
+ * leadership.
  */
 public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
-	private final Object lock = new Object();
+    private final Object lock = new Object();
 
-	private final AtomicBoolean isLeader = new AtomicBoolean(false);
-	private final LeaderElectionEventHandler leaderElectionEventHandler;
-	private final FatalErrorHandler fatalErrorHandler;
+    private final AtomicBoolean isLeader = new AtomicBoolean(false);
+    private final LeaderElectionEventHandler leaderElectionEventHandler;
+    private final FatalErrorHandler fatalErrorHandler;
 
-	// Leader information on external storage
-	private LeaderInformation leaderInformation = LeaderInformation.empty();
+    // Leader information on external storage
+    private LeaderInformation leaderInformation = LeaderInformation.empty();
 
-	private TestingLeaderElectionDriver(
-			LeaderElectionEventHandler leaderElectionEventHandler,
-			FatalErrorHandler fatalErrorHandler) {
-		this.leaderElectionEventHandler = leaderElectionEventHandler;
-		this.fatalErrorHandler = fatalErrorHandler;
-	}
+    private TestingLeaderElectionDriver(
+            LeaderElectionEventHandler leaderElectionEventHandler,
+            FatalErrorHandler fatalErrorHandler) {
+        this.leaderElectionEventHandler = leaderElectionEventHandler;
+        this.fatalErrorHandler = fatalErrorHandler;
+    }
 
-	@Override
-	public void writeLeaderInformation(LeaderInformation leaderInformation) {
-		this.leaderInformation = leaderInformation;
-	}
+    @Override
+    public void writeLeaderInformation(LeaderInformation leaderInformation) {
+        this.leaderInformation = leaderInformation;
+    }
 
-	@Override
-	public boolean hasLeadership() {
-		return isLeader.get();
-	}
+    @Override
+    public boolean hasLeadership() {
+        return isLeader.get();
+    }
 
-	@Override
-	public void close() throws Exception {
-		synchronized (lock) {
-			// noop
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        synchronized (lock) {
+            // noop
+        }
+    }
 
-	public LeaderInformation getLeaderInformation() {
-		return leaderInformation;
-	}
+    public LeaderInformation getLeaderInformation() {
+        return leaderInformation;
+    }
 
-	public void isLeader() {
-		synchronized (lock) {
-			isLeader.set(true);
-			leaderElectionEventHandler.onGrantLeadership();
-		}
-	}
+    public void isLeader() {
+        synchronized (lock) {
+            isLeader.set(true);
+            leaderElectionEventHandler.onGrantLeadership();
+        }
+    }
 
-	public void notLeader() {
-		synchronized (lock) {
-			isLeader.set(false);
-			leaderElectionEventHandler.onRevokeLeadership();
-		}
-	}
+    public void notLeader() {
+        synchronized (lock) {
+            isLeader.set(false);
+            leaderElectionEventHandler.onRevokeLeadership();
+        }
+    }
 
-	public void leaderInformationChanged(LeaderInformation newLeader) {
-		leaderInformation = newLeader;
-		leaderElectionEventHandler.onLeaderInformationChange(newLeader);
-	}
+    public void leaderInformationChanged(LeaderInformation newLeader) {
+        leaderInformation = newLeader;
+        leaderElectionEventHandler.onLeaderInformationChange(newLeader);
+    }
 
-	public void onFatalError(Throwable throwable) {
-		fatalErrorHandler.onFatalError(throwable);
-	}
+    public void onFatalError(Throwable throwable) {
+        fatalErrorHandler.onFatalError(throwable);
+    }
 
-	/**
-	 * Factory for create {@link TestingLeaderElectionDriver}.
-	 */
-	public static class TestingLeaderElectionDriverFactory implements LeaderElectionDriverFactory {
+    /** Factory for create {@link TestingLeaderElectionDriver}. */
+    public static class TestingLeaderElectionDriverFactory implements LeaderElectionDriverFactory {
 
-		private TestingLeaderElectionDriver currentLeaderDriver;
+        private TestingLeaderElectionDriver currentLeaderDriver;
 
-		@Override
-		public LeaderElectionDriver createLeaderElectionDriver(
-				LeaderElectionEventHandler leaderEventHandler,
-				FatalErrorHandler fatalErrorHandler,
-				String leaderContenderDescription) {
-			currentLeaderDriver = new TestingLeaderElectionDriver(leaderEventHandler, fatalErrorHandler);
-			return currentLeaderDriver;
-		}
+        @Override
+        public LeaderElectionDriver createLeaderElectionDriver(
+                LeaderElectionEventHandler leaderEventHandler,
+                FatalErrorHandler fatalErrorHandler,
+                String leaderContenderDescription) {
+            currentLeaderDriver =
+                    new TestingLeaderElectionDriver(leaderEventHandler, fatalErrorHandler);
+            return currentLeaderDriver;
+        }
 
-		@Nullable
-		public TestingLeaderElectionDriver getCurrentLeaderDriver() {
-			return currentLeaderDriver;
-		}
-	}
+        @Nullable
+        public TestingLeaderElectionDriver getCurrentLeaderDriver() {
+            return currentLeaderDriver;
+        }
+    }
 }

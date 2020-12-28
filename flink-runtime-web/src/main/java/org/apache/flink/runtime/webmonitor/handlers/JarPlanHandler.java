@@ -41,64 +41,68 @@ import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * This handler handles requests to fetch the plan for a jar.
- */
+/** This handler handles requests to fetch the plan for a jar. */
 public class JarPlanHandler
-		extends AbstractRestHandler<RestfulGateway, JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> {
+        extends AbstractRestHandler<
+                RestfulGateway, JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> {
 
-	private final Path jarDir;
+    private final Path jarDir;
 
-	private final Configuration configuration;
+    private final Configuration configuration;
 
-	private final Executor executor;
+    private final Executor executor;
 
-	private final Function<JobGraph, JobPlanInfo> planGenerator;
+    private final Function<JobGraph, JobPlanInfo> planGenerator;
 
-	public JarPlanHandler(
-			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			final Time timeout,
-			final Map<String, String> responseHeaders,
-			final MessageHeaders<JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> messageHeaders,
-			final Path jarDir,
-			final Configuration configuration,
-			final Executor executor) {
-		this(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders,
-			jarDir,
-			configuration,
-			executor,
-			jobGraph -> new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph)));
-	}
+    public JarPlanHandler(
+            final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            final Time timeout,
+            final Map<String, String> responseHeaders,
+            final MessageHeaders<JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters>
+                    messageHeaders,
+            final Path jarDir,
+            final Configuration configuration,
+            final Executor executor) {
+        this(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                jarDir,
+                configuration,
+                executor,
+                jobGraph -> new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph)));
+    }
 
-	public JarPlanHandler(
-			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			final Time timeout,
-			final Map<String, String> responseHeaders,
-			final MessageHeaders<JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> messageHeaders,
-			final Path jarDir,
-			final Configuration configuration,
-			final Executor executor,
-			final Function<JobGraph, JobPlanInfo> planGenerator) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
-		this.jarDir = requireNonNull(jarDir);
-		this.configuration = requireNonNull(configuration);
-		this.executor = requireNonNull(executor);
-		this.planGenerator = planGenerator;
-	}
+    public JarPlanHandler(
+            final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            final Time timeout,
+            final Map<String, String> responseHeaders,
+            final MessageHeaders<JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters>
+                    messageHeaders,
+            final Path jarDir,
+            final Configuration configuration,
+            final Executor executor,
+            final Function<JobGraph, JobPlanInfo> planGenerator) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+        this.jarDir = requireNonNull(jarDir);
+        this.configuration = requireNonNull(configuration);
+        this.executor = requireNonNull(executor);
+        this.planGenerator = planGenerator;
+    }
 
-	@Override
-	protected CompletableFuture<JobPlanInfo> handleRequest(
-			@Nonnull final HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> request,
-			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
-		final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
+    @Override
+    protected CompletableFuture<JobPlanInfo> handleRequest(
+            @Nonnull final HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> request,
+            @Nonnull final RestfulGateway gateway)
+            throws RestHandlerException {
+        final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
 
-		return CompletableFuture.supplyAsync(() -> {
-			final JobGraph jobGraph = context.toJobGraph(configuration, true);
-			return planGenerator.apply(jobGraph);
-		}, executor);
-	}
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    final JobGraph jobGraph = context.toJobGraph(configuration, true);
+                    return planGenerator.apply(jobGraph);
+                },
+                executor);
+    }
 }

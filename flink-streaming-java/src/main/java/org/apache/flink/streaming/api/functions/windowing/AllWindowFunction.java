@@ -35,14 +35,13 @@ import java.io.Serializable;
 @Public
 public interface AllWindowFunction<IN, OUT, W extends Window> extends Function, Serializable {
 
-	/**
-	 * Evaluates the window and outputs none or several elements.
-	 *
-	 * @param window The window that is being evaluated.
-	 * @param values The elements in the window being evaluated.
-	 * @param out A collector for emitting elements.
-	 *
-	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-	 */
-	void apply(W window, Iterable<IN> values, Collector<OUT> out) throws Exception;
+    /**
+     * Evaluates the window and outputs none or several elements.
+     *
+     * @param window The window that is being evaluated.
+     * @param values The elements in the window being evaluated.
+     * @param out A collector for emitting elements.
+     * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+     */
+    void apply(W window, Iterable<IN> values, Collector<OUT> out) throws Exception;
 }

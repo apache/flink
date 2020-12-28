@@ -25,32 +25,33 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import java.io.IOException;
 
-/**
- * Controls when the checkpoint should be actually triggered.
- */
+/** Controls when the checkpoint should be actually triggered. */
 @Internal
 public interface CheckpointBarrierBehaviourController {
 
-	/**
-	 * Invoked per every received {@link CheckpointBarrier}.
-	 */
-	void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier);
+    /** Invoked per every received {@link CheckpointBarrier}. */
+    void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier);
 
-	/**
-	 * Invoked once per checkpoint, before the first invocation of
-	 * {@link #barrierReceived(InputChannelInfo, CheckpointBarrier)} for that given checkpoint.
-	 * @return {@code true} if checkpoint should be triggered.
-	 */
-	boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException;
+    /**
+     * Invoked once per checkpoint, before the first invocation of {@link
+     * #barrierReceived(InputChannelInfo, CheckpointBarrier)} for that given checkpoint.
+     *
+     * @return {@code true} if checkpoint should be triggered.
+     */
+    boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier)
+            throws IOException, CheckpointException;
 
-	/**
-	 * Invoked once per checkpoint, after the last invocation of
-	 * {@link #barrierReceived(InputChannelInfo, CheckpointBarrier)} for that given checkpoint.
-	 * @return {@code true} if checkpoint should be triggered.
-	 */
-	boolean postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException;
+    /**
+     * Invoked once per checkpoint, after the last invocation of {@link
+     * #barrierReceived(InputChannelInfo, CheckpointBarrier)} for that given checkpoint.
+     *
+     * @return {@code true} if checkpoint should be triggered.
+     */
+    boolean postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier)
+            throws IOException;
 
-	void abortPendingCheckpoint(long cancelledId, CheckpointException exception) throws IOException;
+    void abortPendingCheckpoint(long cancelledId, CheckpointException exception) throws IOException;
 
-	void obsoleteBarrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException;
+    void obsoleteBarrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier)
+            throws IOException;
 }

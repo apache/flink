@@ -34,59 +34,60 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Tests that the {@link JobVertex#finalizeOnMaster(ClassLoader)} is called properly and
- * only when the execution graph reaches the a successful final state.
+ * Tests that the {@link JobVertex#finalizeOnMaster(ClassLoader)} is called properly and only when
+ * the execution graph reaches the a successful final state.
  */
 public class FinalizeOnMasterTest extends TestLogger {
 
-	@Test
-	public void testFinalizeIsCalledUponSuccess() throws Exception {
-		final JobVertex vertex1 = spy(new JobVertex("test vertex 1"));
-		vertex1.setInvokableClass(NoOpInvokable.class);
-		vertex1.setParallelism(3);
+    @Test
+    public void testFinalizeIsCalledUponSuccess() throws Exception {
+        final JobVertex vertex1 = spy(new JobVertex("test vertex 1"));
+        vertex1.setInvokableClass(NoOpInvokable.class);
+        vertex1.setParallelism(3);
 
-		final JobVertex vertex2 = spy(new JobVertex("test vertex 2"));
-		vertex2.setInvokableClass(NoOpInvokable.class);
-		vertex2.setParallelism(2);
+        final JobVertex vertex2 = spy(new JobVertex("test vertex 2"));
+        vertex2.setInvokableClass(NoOpInvokable.class);
+        vertex2.setParallelism(2);
 
-		final ExecutionGraph eg = createSimpleTestGraph(vertex1, vertex2);
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+        final ExecutionGraph eg = createSimpleTestGraph(vertex1, vertex2);
+        eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        eg.scheduleForExecution();
+        assertEquals(JobStatus.RUNNING, eg.getState());
 
-		// move all vertices to finished state
-		ExecutionGraphTestUtils.finishAllVertices(eg);
-		assertEquals(JobStatus.FINISHED, eg.waitUntilTerminal());
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-		verify(vertex1, times(1)).finalizeOnMaster(any(ClassLoader.class));
-		verify(vertex2, times(1)).finalizeOnMaster(any(ClassLoader.class));
+        // move all vertices to finished state
+        ExecutionGraphTestUtils.finishAllVertices(eg);
+        assertEquals(JobStatus.FINISHED, eg.waitUntilTerminal());
 
-		assertEquals(0, eg.getRegisteredExecutions().size());
-	}
+        verify(vertex1, times(1)).finalizeOnMaster(any(ClassLoader.class));
+        verify(vertex2, times(1)).finalizeOnMaster(any(ClassLoader.class));
 
-	@Test
-	public void testFinalizeIsNotCalledUponFailure() throws Exception {
-		final JobVertex vertex = spy(new JobVertex("test vertex 1"));
-		vertex.setInvokableClass(NoOpInvokable.class);
-		vertex.setParallelism(1);
+        assertEquals(0, eg.getRegisteredExecutions().size());
+    }
 
-		final ExecutionGraph eg = createSimpleTestGraph(vertex);
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
-		assertEquals(JobStatus.RUNNING, eg.getState());
+    @Test
+    public void testFinalizeIsNotCalledUponFailure() throws Exception {
+        final JobVertex vertex = spy(new JobVertex("test vertex 1"));
+        vertex.setInvokableClass(NoOpInvokable.class);
+        vertex.setParallelism(1);
 
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+        final ExecutionGraph eg = createSimpleTestGraph(vertex);
+        eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        eg.scheduleForExecution();
+        assertEquals(JobStatus.RUNNING, eg.getState());
 
-		// fail the execution
-		final Execution exec = eg.getJobVertex(vertex.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
-		exec.fail(new Exception("test"));
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-		assertEquals(JobStatus.FAILED, eg.waitUntilTerminal());
+        // fail the execution
+        final Execution exec =
+                eg.getJobVertex(vertex.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
+        exec.fail(new Exception("test"));
 
-		verify(vertex, times(0)).finalizeOnMaster(any(ClassLoader.class));
+        assertEquals(JobStatus.FAILED, eg.waitUntilTerminal());
 
-		assertEquals(0, eg.getRegisteredExecutions().size());
-	}
+        verify(vertex, times(0)).finalizeOnMaster(any(ClassLoader.class));
+
+        assertEquals(0, eg.getRegisteredExecutions().size());
+    }
 }

@@ -37,137 +37,147 @@ import static org.apache.flink.connector.file.src.util.Utils.doWithCleanupOnExce
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * The FormatReaderAdapter turns a {@link FileRecordFormat} into a {@link BulkFormat}.
- */
+/** The FormatReaderAdapter turns a {@link FileRecordFormat} into a {@link BulkFormat}. */
 @Internal
 public final class FileRecordFormatAdapter<T> implements BulkFormat<T, FileSourceSplit> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final FileRecordFormat<T> fileFormat;
+    private final FileRecordFormat<T> fileFormat;
 
-	public FileRecordFormatAdapter(FileRecordFormat<T> fileFormat) {
-		this.fileFormat = checkNotNull(fileFormat);
-	}
+    public FileRecordFormatAdapter(FileRecordFormat<T> fileFormat) {
+        this.fileFormat = checkNotNull(fileFormat);
+    }
 
-	@Override
-	public BulkFormat.Reader<T> createReader(
-			final Configuration config,
-			final FileSourceSplit split) throws IOException {
+    @Override
+    public BulkFormat.Reader<T> createReader(
+            final Configuration config, final FileSourceSplit split) throws IOException {
 
-		final FileRecordFormat.Reader<T> reader =
-				fileFormat.createReader(config, split.path(), split.offset(), split.length());
+        final FileRecordFormat.Reader<T> reader =
+                fileFormat.createReader(config, split.path(), split.offset(), split.length());
 
-		return doWithCleanupOnException(reader, () -> {
-			//noinspection CodeBlock2Expr
-			return wrapReader(reader, config, CheckpointedPosition.NO_OFFSET, 0L);
-		});
-	}
+        return doWithCleanupOnException(
+                reader,
+                () -> {
+                    //noinspection CodeBlock2Expr
+                    return wrapReader(reader, config, CheckpointedPosition.NO_OFFSET, 0L);
+                });
+    }
 
-	@Override
-	public BulkFormat.Reader<T> restoreReader(
-			final Configuration config,
-			final FileSourceSplit split) throws IOException {
+    @Override
+    public BulkFormat.Reader<T> restoreReader(
+            final Configuration config, final FileSourceSplit split) throws IOException {
 
-		assert split.getReaderPosition().isPresent();
-		final CheckpointedPosition checkpointedPosition = split.getReaderPosition().get();
+        assert split.getReaderPosition().isPresent();
+        final CheckpointedPosition checkpointedPosition = split.getReaderPosition().get();
 
-		final Path filePath = split.path();
-		final long splitOffset = split.offset();
-		final long splitLength = split.length();
+        final Path filePath = split.path();
+        final long splitOffset = split.offset();
+        final long splitLength = split.length();
 
-		final FileRecordFormat.Reader<T> reader = checkpointedPosition.getOffset() == CheckpointedPosition.NO_OFFSET
-				? fileFormat.createReader(config, filePath, splitOffset, splitLength)
-				: fileFormat.restoreReader(config, filePath, checkpointedPosition.getOffset(), splitOffset, splitLength);
+        final FileRecordFormat.Reader<T> reader =
+                checkpointedPosition.getOffset() == CheckpointedPosition.NO_OFFSET
+                        ? fileFormat.createReader(config, filePath, splitOffset, splitLength)
+                        : fileFormat.restoreReader(
+                                config,
+                                filePath,
+                                checkpointedPosition.getOffset(),
+                                splitOffset,
+                                splitLength);
 
-		return doWithCleanupOnException(reader, () -> {
-			long remaining = checkpointedPosition.getRecordsAfterOffset();
-			while (remaining > 0 && reader.read() != null) {
-				remaining--;
-			}
+        return doWithCleanupOnException(
+                reader,
+                () -> {
+                    long remaining = checkpointedPosition.getRecordsAfterOffset();
+                    while (remaining > 0 && reader.read() != null) {
+                        remaining--;
+                    }
 
-			return wrapReader(reader, config, checkpointedPosition.getOffset(), checkpointedPosition.getRecordsAfterOffset());
-		});
-	}
+                    return wrapReader(
+                            reader,
+                            config,
+                            checkpointedPosition.getOffset(),
+                            checkpointedPosition.getRecordsAfterOffset());
+                });
+    }
 
-	@Override
-	public boolean isSplittable() {
-		return fileFormat.isSplittable();
-	}
+    @Override
+    public boolean isSplittable() {
+        return fileFormat.isSplittable();
+    }
 
-	@Override
-	public TypeInformation<T> getProducedType() {
-		return fileFormat.getProducedType();
-	}
+    @Override
+    public TypeInformation<T> getProducedType() {
+        return fileFormat.getProducedType();
+    }
 
-	private static <T> Reader<T> wrapReader(
-			final FileRecordFormat.Reader<T> reader,
-			final Configuration config,
-			final long startingOffset,
-			final long startingSkipCount) {
+    private static <T> Reader<T> wrapReader(
+            final FileRecordFormat.Reader<T> reader,
+            final Configuration config,
+            final long startingOffset,
+            final long startingSkipCount) {
 
-		final int numRecordsPerBatch = config.get(FileRecordFormat.RECORDS_PER_FETCH);
-		return new Reader<>(reader, numRecordsPerBatch, startingOffset, startingSkipCount);
-	}
+        final int numRecordsPerBatch = config.get(FileRecordFormat.RECORDS_PER_FETCH);
+        return new Reader<>(reader, numRecordsPerBatch, startingOffset, startingSkipCount);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * The reader adapter, from {@link FileRecordFormat.Reader} to {@link BulkFormat.Reader}.
-	 */
-	public static final class Reader<T> implements BulkFormat.Reader<T> {
+    /** The reader adapter, from {@link FileRecordFormat.Reader} to {@link BulkFormat.Reader}. */
+    public static final class Reader<T> implements BulkFormat.Reader<T> {
 
-		private final FileRecordFormat.Reader<T> reader;
-		private final int numRecordsPerBatch;
+        private final FileRecordFormat.Reader<T> reader;
+        private final int numRecordsPerBatch;
 
-		private long lastOffset;
-		private long lastRecordsAfterOffset;
+        private long lastOffset;
+        private long lastRecordsAfterOffset;
 
-		Reader(
-				final FileRecordFormat.Reader<T> reader,
-				final int numRecordsPerBatch,
-				final long initialOffset,
-				final long initialSkipCount) {
-			checkArgument(numRecordsPerBatch > 0, "numRecordsPerBatch must be > 0");
-			this.reader = checkNotNull(reader);
-			this.numRecordsPerBatch = numRecordsPerBatch;
-			this.lastOffset = initialOffset;
-			this.lastRecordsAfterOffset = initialSkipCount;
-		}
+        Reader(
+                final FileRecordFormat.Reader<T> reader,
+                final int numRecordsPerBatch,
+                final long initialOffset,
+                final long initialSkipCount) {
+            checkArgument(numRecordsPerBatch > 0, "numRecordsPerBatch must be > 0");
+            this.reader = checkNotNull(reader);
+            this.numRecordsPerBatch = numRecordsPerBatch;
+            this.lastOffset = initialOffset;
+            this.lastRecordsAfterOffset = initialSkipCount;
+        }
 
-		@Nullable
-		@Override
-		public RecordIterator<T> readBatch() throws IOException {
-			updateCheckpointablePosition();
+        @Nullable
+        @Override
+        public RecordIterator<T> readBatch() throws IOException {
+            updateCheckpointablePosition();
 
-			final ArrayList<T> result = new ArrayList<>(numRecordsPerBatch);
-			T next;
-			int remaining = numRecordsPerBatch;
-			while (remaining-- > 0 && ((next = reader.read()) != null)) {
-				result.add(next);
-			}
+            final ArrayList<T> result = new ArrayList<>(numRecordsPerBatch);
+            T next;
+            int remaining = numRecordsPerBatch;
+            while (remaining-- > 0 && ((next = reader.read()) != null)) {
+                result.add(next);
+            }
 
-			if (result.isEmpty()) {
-				return null;
-			}
+            if (result.isEmpty()) {
+                return null;
+            }
 
-			final RecordIterator<T> iter = new IteratorResultIterator<>(result.iterator(), lastOffset, lastRecordsAfterOffset);
-			lastRecordsAfterOffset += result.size();
-			return iter;
-		}
+            final RecordIterator<T> iter =
+                    new IteratorResultIterator<>(
+                            result.iterator(), lastOffset, lastRecordsAfterOffset);
+            lastRecordsAfterOffset += result.size();
+            return iter;
+        }
 
-		@Override
-		public void close() throws IOException {
-			reader.close();
-		}
+        @Override
+        public void close() throws IOException {
+            reader.close();
+        }
 
-		private void updateCheckpointablePosition() {
-			final CheckpointedPosition position = reader.getCheckpointedPosition();
-			if (position != null) {
-				this.lastOffset = position.getOffset();
-				this.lastRecordsAfterOffset = position.getRecordsAfterOffset();
-			}
-		}
-	}
+        private void updateCheckpointablePosition() {
+            final CheckpointedPosition position = reader.getCheckpointedPosition();
+            if (position != null) {
+                this.lastOffset = position.getOffset();
+                this.lastRecordsAfterOffset = position.getRecordsAfterOffset();
+            }
+        }
+    }
 }

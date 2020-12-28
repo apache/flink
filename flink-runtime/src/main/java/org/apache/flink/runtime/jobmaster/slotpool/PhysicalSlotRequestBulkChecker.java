@@ -24,25 +24,27 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 /**
  * This class tracks a fulfillability timeout of a bulk of physical slot requests.
  *
- * <p>The check stops when all pending physical slot requests of {@link PhysicalSlotRequestBulk} are fulfilled
- * by available or newly allocated slots. The bulk is fulfillable if all its physical slot requests can be fulfilled
- * either by available or newly allocated slots or slots which currently used by other job subtasks.
- * The bulk gets canceled if the timeout occurs and the bulk is not fulfillable.
- * The timeout timer is not running while the bulk is fulfillable but not fulfilled yet.
+ * <p>The check stops when all pending physical slot requests of {@link PhysicalSlotRequestBulk} are
+ * fulfilled by available or newly allocated slots. The bulk is fulfillable if all its physical slot
+ * requests can be fulfilled either by available or newly allocated slots or slots which currently
+ * used by other job subtasks. The bulk gets canceled if the timeout occurs and the bulk is not
+ * fulfillable. The timeout timer is not running while the bulk is fulfillable but not fulfilled
+ * yet.
  */
 public interface PhysicalSlotRequestBulkChecker {
-	/**
-	 * Starts the bulk checker by initializing the main thread executor.
-	 *
-	 * @param mainThreadExecutor the main thread executor of the job master
-	 */
-	void start(ComponentMainThreadExecutor mainThreadExecutor);
+    /**
+     * Starts the bulk checker by initializing the main thread executor.
+     *
+     * @param mainThreadExecutor the main thread executor of the job master
+     */
+    void start(ComponentMainThreadExecutor mainThreadExecutor);
 
-	/**
-	 * Starts tracking the fulfillability of a {@link PhysicalSlotRequestBulk} with timeout.
-	 *
-	 * @param bulk {@link PhysicalSlotRequestBulk} to track
-	 * @param timeout timeout after which the bulk should be canceled if it is still not fulfillable.
-	 */
-	void schedulePendingRequestBulkTimeoutCheck(PhysicalSlotRequestBulk bulk, Time timeout);
+    /**
+     * Starts tracking the fulfillability of a {@link PhysicalSlotRequestBulk} with timeout.
+     *
+     * @param bulk {@link PhysicalSlotRequestBulk} to track
+     * @param timeout timeout after which the bulk should be canceled if it is still not
+     *     fulfillable.
+     */
+    void schedulePendingRequestBulkTimeoutCheck(PhysicalSlotRequestBulk bulk, Time timeout);
 }

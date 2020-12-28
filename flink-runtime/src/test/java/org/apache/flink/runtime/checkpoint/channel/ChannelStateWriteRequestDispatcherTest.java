@@ -43,87 +43,104 @@ import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteReque
 import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.junit.Assert.fail;
 
-/**
- * {@link ChannelStateWriteRequestDispatcherImpl} tests.
- */
+/** {@link ChannelStateWriteRequestDispatcherImpl} tests. */
 @RunWith(Parameterized.class)
 public class ChannelStateWriteRequestDispatcherTest {
 
-	private final List<ChannelStateWriteRequest> requests;
-	private final Optional<Class<?>> expectedException;
-	public static final long CHECKPOINT_ID = 42L;
+    private final List<ChannelStateWriteRequest> requests;
+    private final Optional<Class<?>> expectedException;
+    public static final long CHECKPOINT_ID = 42L;
 
-	@Parameters
-	public static Object[][] data() {
+    @Parameters
+    public static Object[][] data() {
 
-		return new Object[][]{
-			// valid calls
-			new Object[]{empty(), asList(start(), completeIn(), completeOut())},
-			new Object[]{empty(), asList(start(), writeIn(), completeIn())},
-			new Object[]{empty(), asList(start(), writeOut(), completeOut())},
-			new Object[]{empty(), asList(start(), completeIn(), writeOut())},
-			new Object[]{empty(), asList(start(), completeOut(), writeIn())},
-			// invalid without start
-			new Object[]{of(IllegalArgumentException.class), singletonList(writeIn())},
-			new Object[]{of(IllegalArgumentException.class), singletonList(writeOut())},
-			new Object[]{of(IllegalArgumentException.class), singletonList(completeIn())},
-			new Object[]{of(IllegalArgumentException.class), singletonList(completeOut())},
-			// invalid double complete
-			new Object[]{of(IllegalArgumentException.class), asList(start(), completeIn(), completeIn())},
-			new Object[]{of(IllegalArgumentException.class), asList(start(), completeOut(), completeOut())},
-			// invalid write after complete
-			new Object[]{of(IllegalStateException.class), asList(start(), completeIn(), writeIn())},
-			new Object[]{of(IllegalStateException.class), asList(start(), completeOut(), writeOut())},
-			// invalid double start
-			new Object[]{of(IllegalStateException.class), asList(start(), start())}
-		};
-	}
+        return new Object[][] {
+            // valid calls
+            new Object[] {empty(), asList(start(), completeIn(), completeOut())},
+            new Object[] {empty(), asList(start(), writeIn(), completeIn())},
+            new Object[] {empty(), asList(start(), writeOut(), completeOut())},
+            new Object[] {empty(), asList(start(), completeIn(), writeOut())},
+            new Object[] {empty(), asList(start(), completeOut(), writeIn())},
+            // invalid without start
+            new Object[] {of(IllegalArgumentException.class), singletonList(writeIn())},
+            new Object[] {of(IllegalArgumentException.class), singletonList(writeOut())},
+            new Object[] {of(IllegalArgumentException.class), singletonList(completeIn())},
+            new Object[] {of(IllegalArgumentException.class), singletonList(completeOut())},
+            // invalid double complete
+            new Object[] {
+                of(IllegalArgumentException.class), asList(start(), completeIn(), completeIn())
+            },
+            new Object[] {
+                of(IllegalArgumentException.class), asList(start(), completeOut(), completeOut())
+            },
+            // invalid write after complete
+            new Object[] {
+                of(IllegalStateException.class), asList(start(), completeIn(), writeIn())
+            },
+            new Object[] {
+                of(IllegalStateException.class), asList(start(), completeOut(), writeOut())
+            },
+            // invalid double start
+            new Object[] {of(IllegalStateException.class), asList(start(), start())}
+        };
+    }
 
-	private static CheckpointInProgressRequest completeOut() {
-		return completeOutput(CHECKPOINT_ID);
-	}
+    private static CheckpointInProgressRequest completeOut() {
+        return completeOutput(CHECKPOINT_ID);
+    }
 
-	private static CheckpointInProgressRequest completeIn() {
-		return completeInput(CHECKPOINT_ID);
-	}
+    private static CheckpointInProgressRequest completeIn() {
+        return completeInput(CHECKPOINT_ID);
+    }
 
-	private static ChannelStateWriteRequest writeIn() {
-		return write(CHECKPOINT_ID, new InputChannelInfo(1, 1), CloseableIterator.ofElement(
-			new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1), FreeingBufferRecycler.INSTANCE),
-			Buffer::recycleBuffer
-		));
-	}
+    private static ChannelStateWriteRequest writeIn() {
+        return write(
+                CHECKPOINT_ID,
+                new InputChannelInfo(1, 1),
+                CloseableIterator.ofElement(
+                        new NetworkBuffer(
+                                MemorySegmentFactory.allocateUnpooledSegment(1),
+                                FreeingBufferRecycler.INSTANCE),
+                        Buffer::recycleBuffer));
+    }
 
-	private static ChannelStateWriteRequest writeOut() {
-		return write(CHECKPOINT_ID, new ResultSubpartitionInfo(1, 1), new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1), FreeingBufferRecycler.INSTANCE));
-	}
+    private static ChannelStateWriteRequest writeOut() {
+        return write(
+                CHECKPOINT_ID,
+                new ResultSubpartitionInfo(1, 1),
+                new NetworkBuffer(
+                        MemorySegmentFactory.allocateUnpooledSegment(1),
+                        FreeingBufferRecycler.INSTANCE));
+    }
 
-	private static CheckpointStartRequest start() {
-		return new CheckpointStartRequest(CHECKPOINT_ID, new ChannelStateWriteResult(), new CheckpointStorageLocationReference(new byte[]{1}));
-	}
+    private static CheckpointStartRequest start() {
+        return new CheckpointStartRequest(
+                CHECKPOINT_ID,
+                new ChannelStateWriteResult(),
+                new CheckpointStorageLocationReference(new byte[] {1}));
+    }
 
-	public ChannelStateWriteRequestDispatcherTest(Optional<Class<?>> expectedException, List<ChannelStateWriteRequest> requests) {
-		this.requests = requests;
-		this.expectedException = expectedException;
-	}
+    public ChannelStateWriteRequestDispatcherTest(
+            Optional<Class<?>> expectedException, List<ChannelStateWriteRequest> requests) {
+        this.requests = requests;
+        this.expectedException = expectedException;
+    }
 
-	@Test
-	public void doRun() {
-		ChannelStateWriteRequestDispatcher processor = new ChannelStateWriteRequestDispatcherImpl(
-			0,
-			getStreamFactoryFactory(),
-			new ChannelStateSerializerImpl());
-		try {
-			for (ChannelStateWriteRequest request : requests) {
-				processor.dispatch(request);
-			}
-		} catch (Throwable t) {
-			if (expectedException.filter(e -> e.isInstance(t)).isPresent()) {
-				return;
-			}
-			throw new RuntimeException("unexpected exception", t);
-		}
-		expectedException.ifPresent(e -> fail("expected exception " + e));
-	}
-
+    @Test
+    public void doRun() {
+        ChannelStateWriteRequestDispatcher processor =
+                new ChannelStateWriteRequestDispatcherImpl(
+                        0, getStreamFactoryFactory(), new ChannelStateSerializerImpl());
+        try {
+            for (ChannelStateWriteRequest request : requests) {
+                processor.dispatch(request);
+            }
+        } catch (Throwable t) {
+            if (expectedException.filter(e -> e.isInstance(t)).isPresent()) {
+                return;
+            }
+            throw new RuntimeException("unexpected exception", t);
+        }
+        expectedException.ifPresent(e -> fail("expected exception " + e));
+    }
 }

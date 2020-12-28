@@ -20,18 +20,14 @@ package org.apache.flink.runtime.operators.sort;
 
 import java.io.IOException;
 
-/**
- * A push-based {@link Sorter}. It exposes methods for adding new records to the sorter.
- */
+/** A push-based {@link Sorter}. It exposes methods for adding new records to the sorter. */
 public interface PushSorter<E> extends Sorter<E> {
-	/**
-	 * Writers a new record to the sorter.
-	 */
-	void writeRecord(E record) throws IOException, InterruptedException;
+    /** Writers a new record to the sorter. */
+    void writeRecord(E record) throws IOException, InterruptedException;
 
-	/**
-	 * Finalizes the sorting. The method {@link #getIterator()} will
-	 * not complete until this method is called.
-	 */
-	void finishReading();
+    /**
+     * Finalizes the sorting. The method {@link #getIterator()} will not complete until this method
+     * is called.
+     */
+    void finishReading();
 }

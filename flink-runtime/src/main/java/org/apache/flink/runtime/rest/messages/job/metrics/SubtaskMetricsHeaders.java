@@ -24,34 +24,36 @@ import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 
-/**
- * {@link MessageHeaders} for {@link SubtaskMetricsHandler}.
- */
-public final class SubtaskMetricsHeaders extends
-	AbstractMetricsHeaders<SubtaskMetricsMessageParameters> {
+/** {@link MessageHeaders} for {@link SubtaskMetricsHandler}. */
+public final class SubtaskMetricsHeaders
+        extends AbstractMetricsHeaders<SubtaskMetricsMessageParameters> {
 
-	private static final SubtaskMetricsHeaders INSTANCE = new SubtaskMetricsHeaders();
+    private static final SubtaskMetricsHeaders INSTANCE = new SubtaskMetricsHeaders();
 
-	private SubtaskMetricsHeaders() {
-	}
+    private SubtaskMetricsHeaders() {}
 
-	@Override
-	public SubtaskMetricsMessageParameters getUnresolvedMessageParameters() {
-		return new SubtaskMetricsMessageParameters();
-	}
+    @Override
+    public SubtaskMetricsMessageParameters getUnresolvedMessageParameters() {
+        return new SubtaskMetricsMessageParameters();
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" + JobVertexIdPathParameter.KEY +
-			"/subtasks/:" + SubtaskIndexPathParameter.KEY + "/metrics";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/jobs/:"
+                + JobIDPathParameter.KEY
+                + "/vertices/:"
+                + JobVertexIdPathParameter.KEY
+                + "/subtasks/:"
+                + SubtaskIndexPathParameter.KEY
+                + "/metrics";
+    }
 
-	public static SubtaskMetricsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static SubtaskMetricsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Provides access to subtask metrics.";
-	}
+    @Override
+    public String getDescription() {
+        return "Provides access to subtask metrics.";
+    }
 }
