@@ -20,9 +20,13 @@
 package org.apache.flink.ml.operator.stream;
 
 import org.apache.flink.ml.api.misc.param.Params;
+import org.apache.flink.ml.common.utils.RowTypeDataStream;
+import org.apache.flink.ml.common.utils.TableUtil;
 import org.apache.flink.ml.operator.AlgoOperator;
 import org.apache.flink.ml.operator.stream.source.TableSourceStreamOp;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.types.Row;
 
 /**
  * Base class of stream algorithm operators.
@@ -103,6 +107,50 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	 * @return the linked this object
 	 */
 	public abstract T linkFrom(StreamOperator<?>... inputs);
+
+	/**
+	 * Get the {@link DataStream} that casted from the output table with the type of {@link Row}.
+	 *
+	 * @return the casted {@link DataStream}
+	 */
+	public DataStream<Row> getDataStream() {
+		return RowTypeDataStream.fromTable(getMLEnvironmentId(), getOutput());
+	}
+
+	@Override
+	public StreamOperator select(String clause) {
+		return StreamSqlOperators.select(this, clause);
+	}
+
+	@Override
+	public StreamOperator select(String[] colNames) {
+		return select(TableUtil.columnsToSqlClause(colNames));
+	}
+
+	@Override
+	public StreamOperator as(String clause) {
+		return StreamSqlOperators.as(this, clause);
+	}
+
+	@Override
+	public StreamOperator where(String clause) {
+		return StreamSqlOperators.where(this, clause);
+	}
+
+	@Override
+	public StreamOperator filter(String clause) {
+		return StreamSqlOperators.filter(this, clause);
+	}
+
+	/**
+	 * Union with another <code>StreamOperator</code>, the duplicated records are kept.
+	 *
+	 * @param rightOp Another <code>StreamOperator</code> to union with.
+	 * @return The resulted <code>StreamOperator</code> of the "unionAll" operation.
+	 */
+	public StreamOperator unionAll(StreamOperator rightOp) {
+		return StreamSqlOperators.unionAll(this, rightOp);
+	}
 
 	/**
 	 * create a new StreamOperator from table.

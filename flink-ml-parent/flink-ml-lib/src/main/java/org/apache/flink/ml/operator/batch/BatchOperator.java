@@ -19,10 +19,14 @@
 
 package org.apache.flink.ml.operator.batch;
 
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.ml.api.misc.param.Params;
+import org.apache.flink.ml.common.utils.RowTypeDataSet;
+import org.apache.flink.ml.common.utils.TableUtil;
 import org.apache.flink.ml.operator.AlgoOperator;
 import org.apache.flink.ml.operator.batch.source.TableSourceBatchOp;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.types.Row;
 
 /**
  * Base class of batch algorithm operators.
@@ -101,6 +105,276 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	 * @return the linked this object
 	 */
 	public abstract T linkFrom(BatchOperator<?>... inputs);
+
+	/**
+	 * Get the {@link DataSet} that casted from the output table with the type of {@link Row}.
+	 *
+	 * @return the casted {@link DataSet}
+	 */
+	public DataSet<Row> getDataSet() {
+		return RowTypeDataSet.fromTable(getMLEnvironmentId(), getOutput());
+	}
+
+	@Override
+	public BatchOperator<?> select(String fields) {
+		return BatchSqlOperators.select(this, fields);
+	}
+
+	@Override
+	public BatchOperator<?> select(String[] fields) {
+		return select(TableUtil.columnsToSqlClause(fields));
+	}
+
+	@Override
+	public BatchOperator<?> as(String fields) {
+		return BatchSqlOperators.as(this, fields);
+	}
+
+	@Override
+	public BatchOperator<?> where(String predicate) {
+		return BatchSqlOperators.where(this, predicate);
+	}
+
+	@Override
+	public BatchOperator<?> filter(String predicate) {
+		return BatchSqlOperators.filter(this, predicate);
+	}
+
+	/**
+	 * Remove duplicated records.
+	 *
+	 * @return The resulted <code>BatchOperator</code> of the "distinct" operation.
+	 */
+	public BatchOperator distinct() {
+		return BatchSqlOperators.distinct(this);
+	}
+
+	/**
+	 * Order the records by a specific field.
+	 *
+	 * @param fieldName The name of the field by which the records are ordered.
+	 * @return The resulted <code>BatchOperator</code> of the "orderBy" operation.
+	 */
+	public BatchOperator orderBy(String fieldName) {
+		return BatchSqlOperators.orderBy(this, fieldName);
+	}
+
+	/**
+	 * Order the records by a specific field and keeping a limited number of records.
+	 *
+	 * @param fieldName The name of the field by which the records are ordered.
+	 * @param limit     The maximum number of records to keep.
+	 * @return The resulted <code>BatchOperator</code> of the "orderBy" operation.
+	 */
+	public BatchOperator orderBy(String fieldName, int limit) {
+		return BatchSqlOperators.orderBy(this, fieldName, limit);
+	}
+
+	/**
+	 * Order the records by a specific field and keeping a specific range of records.
+	 *
+	 * @param fieldName The name of the field by which the records are ordered.
+	 * @param offset    The starting position of records to keep.
+	 * @param fetch     The  number of records to keep.
+	 * @return The resulted <code>BatchOperator</code> of the "orderBy" operation.
+	 */
+	public BatchOperator orderBy(String fieldName, int offset, int fetch) {
+		return BatchSqlOperators.orderBy(this, fieldName, offset, fetch);
+	}
+
+	/**
+	 * Apply the "group by" operation.
+	 *
+	 * @param groupByPredicate The predicate specifying the fields from which records are grouped.
+	 * @param selectClause     The clause specifying the fields to select and the aggregation operations.
+	 * @return The resulted <code>BatchOperator</code> of the "groupBy" operation.
+	 */
+	public BatchOperator groupBy(String groupByPredicate, String selectClause) {
+		return BatchSqlOperators.groupBy(this, groupByPredicate, selectClause);
+	}
+
+	/**
+	 * Join with another <code>BatchOperator</code>.
+	 *
+	 * @param rightOp       Another <code>BatchOperator</code> to join with.
+	 * @param joinPredicate The predicate specifying the join conditions.
+	 * @return The resulted <code>BatchOperator</code> of the "join" operation.
+	 */
+	public BatchOperator join(BatchOperator rightOp, String joinPredicate) {
+		return join(rightOp, joinPredicate, "*");
+	}
+
+	/**
+	 * Join with another <code>BatchOperator</code>.
+	 *
+	 * @param rightOp       Another <code>BatchOperator</code> to join with.
+	 * @param joinPredicate The predicate specifying the join conditions.
+	 * @param selectClause  The clause specifying the fields to select.
+	 * @return The resulted <code>BatchOperator</code> of the "join" operation.
+	 */
+	public BatchOperator join(BatchOperator rightOp, String joinPredicate, String selectClause) {
+		return BatchSqlOperators.join(this, rightOp, joinPredicate, selectClause);
+	}
+
+	/**
+	 * Left outer join with another <code>BatchOperator</code>.
+	 *
+	 * @param rightOp       Another <code>BatchOperator</code> to join with.
+	 * @param joinPredicate The predicate specifying the join conditions.
+	 * @return The resulted <code>BatchOperator</code> of the "left outer join" operation.
+	 */
+	public BatchOperator leftOuterJoin(BatchOperator rightOp, String joinPredicate) {
+		return leftOuterJoin(rightOp, joinPredicate, "*");
+	}
+
+	/**
+	 * Left outer join with another <code>BatchOperator</code>.
+	 *
+	 * @param rightOp       Another <code>BatchOperator</code> to join with.
+	 * @param joinPredicate The predicate specifying the join conditions.
+	 * @param selectClause  The clause specifying the fields to select.
+	 * @return The resulted <code>BatchOperator</code> of the "left outer join" operation.
+	 */
+	public BatchOperator leftOuterJoin(BatchOperator rightOp, String joinPredicate, String selectClause) {
+		return BatchSqlOperators.leftOuterJoin(this, rightOp, joinPredicate, selectClause);
+	}
+
+	/**
+	 * Right outer join with another <code>BatchOperator</code>.
+	 *
+	 * @param rightOp       Another <code>BatchOperator</code> to join with.
+	 * @param joinPredicate The predicate specifying the join conditions.
+	 * @return The resulted <code>BatchOperator</code> of the "right outer join" operation.
+	 */
+	public BatchOperator rightOuterJoin(BatchOperator rightOp, String joinPredicate) {
+		return rightOuterJoin(rightOp, joinPredicate, "*");
+	}
+
+	/**
+	 * Right outer join with another <code>BatchOperator</code>.
+	 *
+	 * @param rightOp       Another <code>BatchOperator</code> to join with.
+	 * @param joinPredicate The predicate specifying the join conditions.
+	 * @param selectClause  The clause specifying the fields to select.
+	 * @return The resulted <code>BatchOperator</code> of the "right outer join" operation.
+	 */
+	public BatchOperator rightOuterJoin(BatchOperator rightOp, String joinPredicate, String selectClause) {
+		return BatchSqlOperators.rightOuterJoin(this, rightOp, joinPredicate, selectClause);
+	}
+
+	/**
+	 * Full outer join with another <code>BatchOperator</code>.
+	 *
+	 * @param rightOp       Another <code>BatchOperator</code> to join with.
+	 * @param joinPredicate The predicate specifying the join conditions.
+	 * @return The resulted <code>BatchOperator</code> of the "full outer join" operation.
+	 */
+	public BatchOperator fullOuterJoin(BatchOperator rightOp, String joinPredicate) {
+		return fullOuterJoin(rightOp, joinPredicate, "*");
+	}
+
+	/**
+	 * Full outer join with another <code>BatchOperator</code>.
+	 *
+	 * @param rightOp       Another <code>BatchOperator</code> to join with.
+	 * @param joinPredicate The predicate specifying the join conditions.
+	 * @param selectClause  The clause specifying the fields to select.
+	 * @return The resulted <code>BatchOperator</code> of the "full outer join" operation.
+	 */
+	public BatchOperator fullOuterJoin(BatchOperator rightOp, String joinPredicate, String selectClause) {
+		return BatchSqlOperators.fullOuterJoin(this, rightOp, joinPredicate, selectClause);
+	}
+
+	/**
+	 * Union with another <code>BatchOperator</code>, the duplicated records are removed.
+	 *
+	 * @param rightOp Another <code>BatchOperator</code> to union with.
+	 * @return The resulted <code>BatchOperator</code> of the "union" operation.
+	 */
+	public BatchOperator union(BatchOperator rightOp) {
+		return BatchSqlOperators.union(this, rightOp);
+	}
+
+	/**
+	 * Union with another <code>BatchOperator</code>, the duplicated records are kept.
+	 *
+	 * @param rightOp Another <code>BatchOperator</code> to union with.
+	 * @return The resulted <code>BatchOperator</code> of the "unionAll" operation.
+	 */
+	public BatchOperator unionAll(BatchOperator rightOp) {
+		return BatchSqlOperators.unionAll(this, rightOp);
+	}
+
+	/**
+	 * Intersect with another <code>BatchOperator</code>, the duplicated records are removed.
+	 *
+	 * @param rightOp Another <code>BatchOperator</code> to intersect with.
+	 * @return The resulted <code>BatchOperator</code> of the "intersect" operation.
+	 */
+	public BatchOperator intersect(BatchOperator rightOp) {
+		return BatchSqlOperators.intersect(this, rightOp);
+	}
+
+	/**
+	 * Intersect with another <code>BatchOperator</code>, the duplicated records are kept.
+	 *
+	 * @param rightOp Another <code>BatchOperator</code> to intersect with.
+	 * @return The resulted <code>BatchOperator</code> of the "intersect" operation.
+	 */
+	public BatchOperator intersectAll(BatchOperator rightOp) {
+		return BatchSqlOperators.intersectAll(this, rightOp);
+	}
+
+	/**
+	 * Minus with another <code>BatchOperator</code>, the duplicated records are removed.
+	 *
+	 * @param rightOp Another <code>BatchOperator</code> to minus with.
+	 * @return The resulted <code>BatchOperator</code> of the "minus" operation.
+	 */
+	public BatchOperator minus(BatchOperator rightOp) {
+		return BatchSqlOperators.minus(this, rightOp);
+	}
+
+	/**
+	 * Minus with another <code>BatchOperator</code>, the duplicated records are kept.
+	 *
+	 * @param rightOp Another <code>BatchOperator</code> to minus with.
+	 * @return The resulted <code>BatchOperator</code> of the "minus" operation.
+	 */
+	public BatchOperator minusAll(BatchOperator rightOp) {
+		return BatchSqlOperators.minusAll(this, rightOp);
+	}
+
+
+	/**
+	 * Cross with another BatchOperator.
+	 *
+	 * @param rightOp The BatchOperator to cross with.
+	 * @return The cross result.
+	 */
+	public BatchOperator cross(BatchOperator rightOp) {
+		return BatchSqlOperators.cross(this, rightOp);
+	}
+
+	/**
+	 * Cross with another BatchOperator whose size is tiny.
+	 *
+	 * @param rightOp The BatchOperator to cross with.
+	 * @return The cross result.
+	 */
+	public BatchOperator crossWithTiny(BatchOperator rightOp) {
+		return BatchSqlOperators.crossWithTiny(this, rightOp);
+	}
+
+	/**
+	 * Cross with another BatchOperator whose size is huge.
+	 *
+	 * @param rightOp The BatchOperator to cross with.
+	 * @return The cross result.
+	 */
+	public BatchOperator crossWithHuge(BatchOperator rightOp) {
+		return BatchSqlOperators.crossWithHuge(this, rightOp);
+	}
 
 	/**
 	 * create a new BatchOperator from table.

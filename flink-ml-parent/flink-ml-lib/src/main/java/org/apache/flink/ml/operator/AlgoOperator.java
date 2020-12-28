@@ -176,6 +176,46 @@ public abstract class AlgoOperator<T extends AlgoOperator<T>>
 		return getOutput().toString();
 	}
 
+	/**
+	 * Evaluate the "select" query on the AlgoOperator.
+	 *
+	 * @param fields The fields to select.
+	 * @return The evaluation result as a AlgoOperator.
+	 */
+	public abstract AlgoOperator<?> select(String fields) throws Exception;
+
+	/**
+	 * Select some columns from the AlgoOperator.
+	 *
+	 * @param fields The names of the columns to select.
+	 * @return The evaluation result as a AlgoOperator.
+	 */
+	public abstract AlgoOperator<?> select(String[] fields) throws Exception;
+
+	/**
+	 * Apply the "filter" operation on the AlgoOperator.
+	 *
+	 * @param predicate The filter conditions.
+	 * @return The filter result.
+	 */
+	public abstract AlgoOperator<?> filter(String predicate) throws Exception;
+
+	/**
+	 * Rename the columns.
+	 *
+	 * @param fields Comma separated column names.
+	 * @return The AlgoOperator after renamed.
+	 */
+	public abstract AlgoOperator<?> as(String fields) throws Exception;
+
+	/**
+	 * Apply the "filter" operation on the AlgoOperator.
+	 *
+	 * @param predicate The filter conditions.
+	 * @return The filter result.
+	 */
+	public abstract AlgoOperator<?> where(String predicate) throws Exception;
+
 	protected static void checkOpSize(int size, AlgoOperator<?>... inputs) {
 		Preconditions.checkNotNull(inputs, "Operators should not be null.");
 		Preconditions.checkState(inputs.length == size, "The size of operators should be equal to "
