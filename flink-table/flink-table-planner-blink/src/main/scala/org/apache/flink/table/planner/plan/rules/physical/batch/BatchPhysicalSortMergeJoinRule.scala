@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSortMergeJoin
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSortMergeJoin
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
@@ -40,14 +40,14 @@ import java.lang.{Boolean => JBoolean}
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecSortMergeJoin]]
+  * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalSortMergeJoin]]
   * if there exists at least one equal-join condition and SortMergeJoin is enabled.
   */
-class BatchExecSortMergeJoinRule
+class BatchPhysicalSortMergeJoinRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalJoin],
       operand(classOf[RelNode], any)),
-    "BatchExecSortMergeJoinRule")
+    "BatchPhysicalSortMergeJoinRule")
   with BatchExecJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -96,7 +96,7 @@ class BatchExecSortMergeJoinRule
       val providedTraitSet = call.getPlanner
         .emptyTraitSet()
         .replace(FlinkConventions.BATCH_PHYSICAL)
-      val newJoin = new BatchExecSortMergeJoin(
+      val newJoin = new BatchPhysicalSortMergeJoin(
         join.getCluster,
         providedTraitSet,
         newLeft,
@@ -110,7 +110,7 @@ class BatchExecSortMergeJoinRule
 
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val candidates = if (tableConfig.getConfiguration.getBoolean(
-      BatchExecSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
+      BatchPhysicalSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
       // add more possibility to remove redundant sort, and longer optimization time
       Array((false, false), (true, false), (false, true), (true, true))
     } else {
@@ -143,8 +143,8 @@ class BatchExecSortMergeJoinRule
   }
 }
 
-object BatchExecSortMergeJoinRule {
-  val INSTANCE: RelOptRule = new BatchExecSortMergeJoinRule
+object BatchPhysicalSortMergeJoinRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalSortMergeJoinRule
 
   // It is a experimental config, will may be removed later.
   @Experimental
