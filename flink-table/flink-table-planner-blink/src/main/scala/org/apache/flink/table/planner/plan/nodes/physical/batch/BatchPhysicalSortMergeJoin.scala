@@ -18,24 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.MemorySize
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
-import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator.generateProjection
-import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
-import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
-import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortMergeJoin
+import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinTypeUtil, JoinUtil}
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
@@ -50,7 +39,7 @@ import scala.collection.JavaConversions._
 /**
   * Batch physical RelNode for sort-merge [[Join]].
   */
-class BatchExecSortMergeJoin(
+class BatchPhysicalSortMergeJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     leftRel: RelNode,
@@ -61,8 +50,7 @@ class BatchExecSortMergeJoin(
     val leftSorted: Boolean,
     // true if RHS is sorted by right join key, else false
     val rightSorted: Boolean)
-  extends BatchPhysicalJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType)
-  with LegacyBatchExecNode[RowData] {
+  extends BatchPhysicalJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
 
   protected lazy val (leftAllKey, rightAllKey) =
     JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight)
@@ -81,7 +69,7 @@ class BatchExecSortMergeJoin(
       right: RelNode,
       joinType: JoinRelType,
       semiJoinDone: Boolean): Join = {
-    new BatchExecSortMergeJoin(
+    new BatchPhysicalSortMergeJoin(
       cluster,
       traitSet,
       left,
@@ -186,7 +174,7 @@ class BatchExecSortMergeJoin(
   //~ ExecNode methods -----------------------------------------------------------
 
   // this method must be in sync with the behavior of SortMergeJoinOperator.
-  override def getInputEdges: util.List[ExecEdge] = List(
+  def getInputEdges: util.List[ExecEdge] = List(
     ExecEdge.builder()
       .damBehavior(ExecEdge.DamBehavior.END_INPUT)
       .build(),
@@ -194,71 +182,18 @@ class BatchExecSortMergeJoin(
       .damBehavior(ExecEdge.DamBehavior.END_INPUT)
       .build())
 
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val config = planner.getTableConfig
-    val leftInput = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[RowData]]
-    val rightInput = getInputNodes.get(1).translateToPlan(planner)
-        .asInstanceOf[Transformation[RowData]]
-
-    val leftType = leftInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
-    val rightType = rightInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
-
-    val keyType = RowType.of(leftAllKey.map(leftType.getChildren.get(_)): _*)
-
-    val condFunc = JoinUtil.generateConditionFunction(
-      config,
-      cluster.getRexBuilder,
-      getJoinInfo,
-      leftType,
-      rightType)
-
-    val externalBufferMemory = MemorySize.parse(config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
-    val sortMemory = MemorySize.parse(config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)).getBytes
-    val externalBufferNum = if (flinkJoinType == FlinkJoinType.FULL) 2 else 1
-
-    val managedMemory = externalBufferMemory * externalBufferNum + sortMemory * 2
-
-    def newSortGen(originalKeys: Array[Int], t: RowType): SortCodeGenerator = {
-      val originalOrders = originalKeys.map(_ => true)
-      val (keys, orders, nullsIsLast) = SortUtil.deduplicateSortKeys(
-        originalKeys,
-        originalOrders,
-        SortUtil.getNullDefaultOrders(originalOrders))
-      val types = keys.map(t.getTypeAt)
-      new SortCodeGenerator(config, keys, types, orders, nullsIsLast)
-    }
-
-    val leftSortGen = newSortGen(leftAllKey, leftType)
-    val rightSortGen = newSortGen(rightAllKey, rightType)
-
-    val operator = new SortMergeJoinOperator(
-      externalBufferMemory.toDouble / managedMemory,
-      flinkJoinType,
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecSortMergeJoin(
+      JoinTypeUtil.getFlinkJoinType(joinType),
+      leftAllKey,
+      rightAllKey,
+      filterNulls,
+      condition,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
-      condFunc,
-      generateProjection(
-        CodeGeneratorContext(config), "SMJProjection", leftType, keyType, leftAllKey),
-      generateProjection(
-        CodeGeneratorContext(config), "SMJProjection", rightType, keyType, rightAllKey),
-      leftSortGen.generateNormalizedKeyComputer("LeftComputer"),
-      leftSortGen.generateRecordComparator("LeftComparator"),
-      rightSortGen.generateNormalizedKeyComputer("RightComputer"),
-      rightSortGen.generateRecordComparator("RightComparator"),
-      newSortGen(leftAllKey.indices.toArray, keyType).generateRecordComparator("KeyComparator"),
-      filterNulls)
-
-    ExecNodeUtil.createTwoInputTransformation(
-      leftInput,
-      rightInput,
-      getRelDetailedDescription,
-      SimpleOperatorFactory.of(operator),
-      InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
-      rightInput.getParallelism,
-      managedMemory)
+      getInputEdges,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 
   private def estimateOutputSize(relNode: RelNode): Double = {

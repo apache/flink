@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.plan.stats.TableStats
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortMergeJoinRule
+import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortMergeJoinRule
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
@@ -60,7 +60,7 @@ class RemoveCollationTest extends TableTestBase {
     )
 
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      BatchExecSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED, true)
+      BatchPhysicalSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED, true)
   }
 
   @Test
