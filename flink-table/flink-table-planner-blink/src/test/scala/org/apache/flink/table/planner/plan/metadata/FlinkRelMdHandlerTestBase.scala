@@ -389,18 +389,20 @@ class FlinkRelMdHandlerTestBase {
     val flinkLogicalSortLimit = new FlinkLogicalSort(cluster,
       flinkLogicalTraits.replace(collection), studentFlinkLogicalScan, collection, offset, fetch)
 
-    val batchSortLimit = new BatchExecSortLimit(cluster, batchPhysicalTraits.replace(collection),
+    val batchSortLimit = new BatchPhysicalSortLimit(
+        cluster, batchPhysicalTraits.replace(collection),
       new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), studentBatchScan,
         FlinkRelDistribution.SINGLETON),
       collection, offset, fetch, true)
 
-    val batchSortLocalLimit = new BatchExecSortLimit(cluster,
+    val batchSortLocalLimit = new BatchPhysicalSortLimit(cluster,
       batchPhysicalTraits.replace(collection), studentBatchScan, collection,
       relBuilder.literal(0),
       relBuilder.literal(SortUtil.getLimitEnd(offset, fetch)),
       false)
-    val batchSortGlobal = new BatchExecSortLimit(cluster, batchPhysicalTraits.replace(collection),
+    val batchSortGlobal = new BatchPhysicalSortLimit(
+        cluster, batchPhysicalTraits.replace(collection),
       new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), batchSortLocalLimit,
         FlinkRelDistribution.SINGLETON),

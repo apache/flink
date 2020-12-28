@@ -18,26 +18,17 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
-import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortLimit
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
-import org.apache.flink.table.runtime.operators.sort.SortLimitOperator
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -50,7 +41,7 @@ import scala.collection.JavaConversions._
   * partition will forward elements to a single partition, lastly it take the `limit` elements
   * beginning with the first `offset` elements from the single output partition.
   **/
-class BatchExecSortLimit(
+class BatchPhysicalSortLimit(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -59,14 +50,10 @@ class BatchExecSortLimit(
     fetch: RexNode,
     isGlobal: Boolean)
   extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData] {
+  with BatchPhysicalRel {
 
   private val limitStart: Long = SortUtil.getLimitStart(offset)
   private val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
-
-  private val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(
-    sortCollation.getFieldCollations)
 
   override def copy(
       traitSet: RelTraitSet,
@@ -74,7 +61,7 @@ class BatchExecSortLimit(
       newCollation: RelCollation,
       offset: RexNode,
       fetch: RexNode): Sort = {
-    new BatchExecSortLimit(cluster, traitSet, newInput, newCollation, offset, fetch, isGlobal)
+    new BatchPhysicalSortLimit(cluster, traitSet, newInput, newCollation, offset, fetch, isGlobal)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -111,37 +98,15 @@ class BatchExecSortLimit(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(
-    ExecEdge.builder()
-      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
-      .build())
-
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    if (limitEnd == Long.MaxValue) {
-      throw new TableException("Not support limitEnd is max value now!")
-    }
-
-    val input = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[RowData]]
-    val inputType = input.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
-    val types = inputType.toRowFieldTypes
-
-    // generate comparator
-    val genComparator = ComparatorCodeGenerator.gen(
-      planner.getTableConfig, "SortLimitComparator", keys, keys.map(types(_)), orders, nullsIsLast)
-
-    // TODO If input is ordered, there is no need to use the heap.
-    val operator = new SortLimitOperator(isGlobal, limitStart, limitEnd, genComparator)
-
-    ExecNodeUtil.createOneInputTransformation(
-      input,
-      getRelDetailedDescription,
-      SimpleOperatorFactory.of(operator),
-      inputType,
-      input.getParallelism,
-      0)
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecSortLimit(
+      SortUtil.getSortSpec(sortCollation.getFieldCollations),
+      limitStart,
+      limitEnd,
+      isGlobal,
+      ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build(),
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }

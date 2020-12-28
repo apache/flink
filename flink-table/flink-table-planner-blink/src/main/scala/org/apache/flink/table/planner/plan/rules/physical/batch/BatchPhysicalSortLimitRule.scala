@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSortLimit
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSortLimit
 import org.apache.flink.table.planner.plan.utils.SortUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -33,25 +33,25 @@ import org.apache.calcite.sql.`type`.SqlTypeName
   * Rule that matches [[FlinkLogicalSort]] with non-empty sort fields and non-null fetch or offset,
   * and converts it to
   * {{{
-  * BatchExecSortLimit (global)
+  * BatchPhysicalSortLimit (global)
   * +- BatchPhysicalExchange (singleton)
-  *    +- BatchExecSortLimit (local)
+  *    +- BatchPhysicalSortLimit (local)
   *       +- input of sort
   * }}}
   * when fetch is not null, or
   * {{{
-  * BatchExecSortLimit (global)
+  * BatchPhysicalSortLimit (global)
   * +- BatchPhysicalExchange (singleton)
   *    +- input of sort
   * }}}
   * when fetch is null
   */
-class BatchExecSortLimitRule
+class BatchPhysicalSortLimitRule
   extends ConverterRule(
     classOf[FlinkLogicalSort],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecSortLimitRule") {
+    "BatchPhysicalSortLimitRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
@@ -72,7 +72,7 @@ class BatchExecSortLimitRule
       val intType = rexBuilder.getTypeFactory.createSqlType(SqlTypeName.INTEGER)
       val providedLocalTraitSet = localRequiredTrait.replace(sort.getCollation)
       // for local BatchExecSortLimit, offset is always 0, and fetch is `limit`
-      new BatchExecSortLimit(
+      new BatchPhysicalSortLimit(
         rel.getCluster,
         providedLocalTraitSet,
         localInput,
@@ -92,7 +92,7 @@ class BatchExecSortLimitRule
 
     // create global BatchExecSortLimit
     val providedGlobalTraitSet = requiredTrait.replace(sort.getCollation)
-    new BatchExecSortLimit(
+    new BatchPhysicalSortLimit(
       rel.getCluster,
       providedGlobalTraitSet,
       newInput,
@@ -104,6 +104,6 @@ class BatchExecSortLimitRule
   }
 }
 
-object BatchExecSortLimitRule {
-  val INSTANCE: RelOptRule = new BatchExecSortLimitRule
+object BatchPhysicalSortLimitRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalSortLimitRule
 }

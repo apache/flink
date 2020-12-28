@@ -407,7 +407,7 @@ object FlinkBatchRuleSets {
     // sort
     BatchPhysicalSortRule.INSTANCE,
     BatchPhysicalLimitRule.INSTANCE,
-    BatchExecSortLimitRule.INSTANCE,
+    BatchPhysicalSortLimitRule.INSTANCE,
     // rank
     BatchPhysicalRankRule.INSTANCE,
     RemoveRedundantLocalRankRule.INSTANCE,
