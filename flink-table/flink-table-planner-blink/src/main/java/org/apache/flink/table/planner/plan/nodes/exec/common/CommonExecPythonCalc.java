@@ -66,10 +66,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
     private final RexProgram calcProgram;
 
     public CommonExecPythonCalc(
-            RexProgram calcProgram,
-            ExecEdge inputEdge,
-            LogicalType outputType,
-            String description) {
+            RexProgram calcProgram, ExecEdge inputEdge, RowType outputType, String description) {
         super(Collections.singletonList(inputEdge), outputType, description);
         this.calcProgram = calcProgram;
     }
