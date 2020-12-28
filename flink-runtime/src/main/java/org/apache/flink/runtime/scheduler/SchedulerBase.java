@@ -70,7 +70,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
@@ -148,8 +147,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     private final Configuration jobMasterConfiguration;
 
-    private final SlotProvider slotProvider;
-
     private final ScheduledExecutorService futureExecutor;
 
     private final ClassLoader userCodeLoader;
@@ -168,8 +165,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
-    private final Time slotRequestTimeout;
-
     protected final ExecutionVertexVersioner executionVertexVersioner;
 
     private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
@@ -185,14 +180,12 @@ public abstract class SchedulerBase implements SchedulerNG {
             final BackPressureStatsTracker backPressureStatsTracker,
             final Executor ioExecutor,
             final Configuration jobMasterConfiguration,
-            final SlotProvider slotProvider,
             final ScheduledExecutorService futureExecutor,
             final ClassLoader userCodeLoader,
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
             final Time rpcTimeout,
             final BlobWriter blobWriter,
             final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-            final Time slotRequestTimeout,
             final ShuffleMaster<?> shuffleMaster,
             final JobMasterPartitionTracker partitionTracker,
             final ExecutionVertexVersioner executionVertexVersioner,
@@ -205,7 +198,6 @@ public abstract class SchedulerBase implements SchedulerNG {
         this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker);
         this.ioExecutor = checkNotNull(ioExecutor);
         this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
-        this.slotProvider = checkNotNull(slotProvider);
         this.futureExecutor = checkNotNull(futureExecutor);
         this.userCodeLoader = checkNotNull(userCodeLoader);
         this.checkpointRecoveryFactory = checkNotNull(checkpointRecoveryFactory);
@@ -213,7 +205,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         this.blobWriter = checkNotNull(blobWriter);
         this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
-        this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 
         this.checkpointsCleaner = new CheckpointsCleaner();
@@ -347,7 +338,6 @@ public abstract class SchedulerBase implements SchedulerNG {
                 jobMasterConfiguration,
                 futureExecutor,
                 ioExecutor,
-                slotProvider,
                 userCodeLoader,
                 completedCheckpointStore,
                 checkpointsCleaner,
@@ -355,7 +345,6 @@ public abstract class SchedulerBase implements SchedulerNG {
                 rpcTimeout,
                 currentJobManagerJobMetricGroup,
                 blobWriter,
-                slotRequestTimeout,
                 log,
                 shuffleMaster,
                 partitionTracker,

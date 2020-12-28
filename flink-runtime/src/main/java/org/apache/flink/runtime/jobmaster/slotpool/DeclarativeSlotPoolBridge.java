@@ -283,7 +283,7 @@ public class DeclarativeSlotPoolBridge implements SlotPool {
         }
 
         // we have to first reserve all matching slots before fulfilling the requests
-        // otherwise it can happen that the SchedulerImpl reserves one of the new slots
+        // otherwise it can happen that the scheduler reserves one of the new slots
         // for a request which has been triggered by fulfilling a pending request
         for (PendingRequestSlotMatching pendingRequestSlotMatching : matchingsToFulfill) {
             pendingRequestSlotMatching.fulfillPendingRequest();

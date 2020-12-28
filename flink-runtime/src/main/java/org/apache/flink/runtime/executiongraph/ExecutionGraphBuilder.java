@@ -47,7 +47,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -76,7 +75,6 @@ public class ExecutionGraphBuilder {
             Configuration jobManagerConfig,
             ScheduledExecutorService futureExecutor,
             Executor ioExecutor,
-            SlotProvider slotProvider,
             ClassLoader classLoader,
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointsCleaner checkpointsCleaner,
@@ -84,7 +82,6 @@ public class ExecutionGraphBuilder {
             Time rpcTimeout,
             MetricGroup metrics,
             BlobWriter blobWriter,
-            Time allocationTimeout,
             Logger log,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
@@ -124,10 +121,8 @@ public class ExecutionGraphBuilder {
                             ioExecutor,
                             rpcTimeout,
                             maxPriorAttemptsHistoryLength,
-                            slotProvider,
                             classLoader,
                             blobWriter,
-                            allocationTimeout,
                             partitionReleaseStrategyFactory,
                             shuffleMaster,
                             partitionTracker,

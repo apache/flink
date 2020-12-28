@@ -28,7 +28,7 @@ import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.Optional;
 
-/** Interface for slot selection strategies to be used in the {@link Scheduler}. */
+/** Interface for slot selection strategies. */
 public interface SlotSelectionStrategy {
 
     /**
