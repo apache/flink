@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
@@ -36,18 +36,18 @@ import scala.collection.JavaConversions._
   * Rule that matches [[FlinkLogicalRank]] with rank function and constant rank range,
   * and converts it to
   * {{{
-  * BatchExecRank (global)
+  * BatchPhysicalRank (global)
   * +- BatchPhysicalExchange (singleton if partition keys is empty, else hash)
-  *    +- BatchExecRank (local)
+  *    +- BatchPhysicalRank (local)
   *       +- input of rank
   * }}}
   */
-class BatchExecRankRule
+class BatchPhysicalRankRule
   extends ConverterRule(
     classOf[FlinkLogicalRank],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecRankRule") {
+    "BatchPhysicalRankRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
@@ -70,9 +70,9 @@ class BatchExecRankRule
     val localRequiredTraitSet = emptyTraits.replace(sortCollation)
     val newLocalInput = RelOptRule.convert(rank.getInput, localRequiredTraitSet)
 
-    // create local BatchExecRank
+    // create local BatchPhysicalRank
     val localRankRange = new ConstantRankRange(1, rankEnd) // local rank always start from 1
-    val localRank = new BatchExecRank(
+    val localRank = new BatchPhysicalRank(
       cluster,
       emptyTraits,
       newLocalInput,
@@ -85,7 +85,7 @@ class BatchExecRankRule
       isGlobal = false
     )
 
-    // create local BatchExecRank
+    // create local BatchPhysicalRank
     val globalRequiredDistribution = if (rank.partitionKey.isEmpty) {
       FlinkRelDistribution.SINGLETON
     } else {
@@ -98,7 +98,7 @@ class BatchExecRankRule
 
     // require SINGLETON or HASH exchange
     val newGlobalInput = RelOptRule.convert(localRank, globalRequiredTraitSet)
-    val globalRank = new BatchExecRank(
+    val globalRank = new BatchPhysicalRank(
       cluster,
       emptyTraits,
       newGlobalInput,
@@ -114,6 +114,6 @@ class BatchExecRankRule
   }
 }
 
-object BatchExecRankRule {
-  val INSTANCE: RelOptRule = new BatchExecRankRule
+object BatchPhysicalRankRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalRankRule
 }

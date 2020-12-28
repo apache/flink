@@ -18,23 +18,16 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
-import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecRank
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType}
-import org.apache.flink.table.runtime.operators.sort.RankOperator
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type
@@ -53,7 +46,7 @@ import scala.collection.JavaConversions._
   *
   * This node supports two-stage(local and global) rank to reduce data-shuffling.
   */
-class BatchExecRank(
+class BatchPhysicalRank(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -74,8 +67,7 @@ class BatchExecRank(
     rankRange,
     rankNumberType,
     outputRankNumber)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData] {
+  with BatchPhysicalRel {
 
   require(rankType == RankType.RANK, "Only RANK is supported now")
   val (rankStart, rankEnd) = rankRange match {
@@ -84,7 +76,7 @@ class BatchExecRank(
   }
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecRank(
+    new BatchPhysicalRank(
       cluster,
       traitSet,
       inputs.get(0),
@@ -235,54 +227,16 @@ class BatchExecRank(
     }
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
-
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val input = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[RowData]]
-    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
-    val partitionBySortingKeys = partitionKey.toArray
-    // The collation for the partition-by fields is inessential here, we only use the
-    // comparator to distinguish different groups.
-    // (order[is_asc], null_is_last)
-    val partitionBySortCollation = partitionBySortingKeys.map(_ => (true, true))
-
-    // The collation for the order-by fields is inessential here, we only use the
-    // comparator to distinguish order-by fields change.
-    // (order[is_asc], null_is_last)
-    val orderByCollation = orderKey.getFieldCollations.map(_ => (true, true)).toArray
-    val orderByKeys = orderKey.getFieldCollations.map(_.getFieldIndex).toArray
-
-    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
-    //operator needn't cache data
-    val operator = new RankOperator(
-      ComparatorCodeGenerator.gen(
-        planner.getTableConfig,
-        "PartitionByComparator",
-        partitionBySortingKeys,
-        partitionBySortingKeys.map(inputType.getTypeAt),
-        partitionBySortCollation.map(_._1),
-        partitionBySortCollation.map(_._2)),
-      ComparatorCodeGenerator.gen(
-        planner.getTableConfig,
-        "OrderByComparator",
-        orderByKeys,
-        orderByKeys.map(inputType.getTypeAt),
-        orderByCollation.map(_._1),
-        orderByCollation.map(_._2)),
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecRank(
+      partitionKey.toArray,
+      orderKey.getFieldCollations.map(_.getFieldIndex).toArray,
       rankStart,
       rankEnd,
-      outputRankNumber)
-
-    ExecNodeUtil.createOneInputTransformation(
-      input,
-      getRelDetailedDescription,
-      SimpleOperatorFactory.of(operator),
-      InternalTypeInfo.of(outputType),
-      input.getParallelism,
-      0)
+      outputRankNumber,
+      ExecEdge.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }
