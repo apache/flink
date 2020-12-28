@@ -230,4 +230,29 @@ class PythonCalcSplitRuleTest extends TableTestBase {
     val sqlQuery = "SELECT a + 1 FROM MyTable where RowJavaFunc(pyFunc5(a).f0).f0 is NULL and b > 0"
     util.verifyRelPlan(sqlQuery)
   }
+
+  @Test
+  def testPythonFunctionWithCompositeOutputs(): Unit = {
+    val sqlQuery = "SELECT e.* FROM (SELECT pyFunc5(a) as e FROM MyTable) AS T"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPythonFunctionWithMultipleCompositeOutputs(): Unit = {
+    val sqlQuery = "SELECT e.*, f.* FROM " +
+      "(SELECT pyFunc5(a) as e, pyFunc5(b) as f FROM MyTable) AS T"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPythonFunctionWithCompositeInputsAndOutputs(): Unit = {
+    val sqlQuery = "SELECT e.* FROM (SELECT pyFunc5(d._1) as e FROM MyTable) AS T"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPythonFunctionWithCompositeWhereClause(): Unit = {
+    val sqlQuery = "SELECT a + 1 FROM MyTable where RowJavaFunc(pyFunc5(a).f0).f0 is NULL and b > 0"
+    util.verifyPlan(sqlQuery)
+  }
 }
