@@ -1827,9 +1827,6 @@ under the License.
 					</configuration>
 				</plugin>
 
-				<!-- Due to the Flink build setup, "mvn spotless:apply" and "mvn spotless:check"
-				don't work. You have to use the fully qualified name, i.e.
-				"mvn com.diffplug.spotless:spotless-maven-plugin:apply" -->
 				<plugin>
 					<groupId>com.diffplug.spotless</groupId>
 					<artifactId>spotless-maven-plugin</artifactId>
