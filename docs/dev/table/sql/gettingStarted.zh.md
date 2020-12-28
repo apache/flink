@@ -83,7 +83,7 @@ SELECT CURRENT_TIMESTAMP;
 
 与所有 SQL 引擎一样，Flink 查询操作是在表上进行。与传统数据库不同，Flink 不在本地管理静态数据；相反，它的查询在外部表上连续运行。
 
-Flink 数据处理流水线开始于 source 表。Source 表产生在查询执行期间可以被操作的行；它们是查询时 `FROM` 子句中引用的表。这些表可能是 Kafka 的 topics，数据库，文件系统，或者任何其它 Flink 知道如何消费的系统。
+Flink 数据处理流水线开始于 source 表。source 表产生在查询执行期间可以被操作的行；它们是查询时 `FROM` 子句中引用的表。这些表可能是 Kafka 的 topics，数据库，文件系统，或者任何其它 Flink 知道如何消费的系统。
 
 可以通过 SQL 客户端或使用环境配置文件来定义表。SQL 客户端支持类似于传统 SQL 的 [SQL DDL 命令]({% link dev/table/sql/index.zh.md %})。标准 SQL DDL 用于[创建]({% link dev/table/sql/create.zh.md %})，[修改]({% link dev/table/sql/alter.zh.md %})，[删除]({% link dev/table/sql/drop.zh.md %})表。
 
