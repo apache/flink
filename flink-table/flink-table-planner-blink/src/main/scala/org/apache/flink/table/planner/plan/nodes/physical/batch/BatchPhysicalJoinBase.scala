@@ -39,7 +39,7 @@ import scala.collection.mutable
 /**
   * Batch physical RelNode for [[Join]]
   */
-abstract class BatchExecJoinBase(
+abstract class BatchPhysicalJoinBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     leftRel: RelNode,
@@ -47,8 +47,7 @@ abstract class BatchExecJoinBase(
     condition: RexNode,
     joinType: JoinRelType)
   extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData] {
+  with BatchPhysicalRel {
 
   private[flink] def generateCondition(
       config: TableConfig,
