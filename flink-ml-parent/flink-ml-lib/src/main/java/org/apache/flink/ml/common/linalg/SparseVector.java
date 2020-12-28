@@ -326,6 +326,13 @@ public class SparseVector extends Vector {
 		return d;
 	}
 
+	/**
+	 * If the size of sparse vector is not given, it will be treated as
+	 * a sparse vector with infinite size.
+	 * Extract parts of a sparse vector and return the extracted parts
+	 * in a new sparse vector. If the given indices exceed the
+	 * maximum length of the vector, it will throw exception.
+	 */
 	@Override
 	public SparseVector slice(int[] indices) {
 		SparseVector sliced = new SparseVector(indices.length);
@@ -334,6 +341,9 @@ public class SparseVector extends Vector {
 		sliced.values = new double[indices.length];
 
 		for (int i = 0; i < indices.length; i++) {
+			if (this.n >= 0 && indices[i] >= this.n) {
+				throw new IllegalArgumentException("Index is larger than vector size.");
+			}
 			int pos = Arrays.binarySearch(this.indices, indices[i]);
 			if (pos >= 0) {
 				sliced.indices[nnz] = i;
