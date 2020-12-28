@@ -516,6 +516,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private int numBuffers;
         private int expectedFailures = 0;
         private final DagCreator dagCreator;
+        private int alignmentTimeout = 0;
 
         public UnalignedSettings(DagCreator dagCreator) {
             this.dagCreator = dagCreator;
@@ -561,6 +562,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
+        public UnalignedSettings setAlignmentTimeout(int alignmentTimeout) {
+            this.alignmentTimeout = alignmentTimeout;
+            return this;
+        }
+
         public StreamExecutionEnvironment createEnvironment(File checkpointDir) {
             Configuration conf = new Configuration();
 
@@ -591,7 +597,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             final LocalStreamEnvironment env =
                     StreamExecutionEnvironment.createLocalEnvironment(parallelism, conf);
             env.enableCheckpointing(100);
-            env.getCheckpointConfig().setAlignmentTimeout(1);
+            env.getCheckpointConfig().setAlignmentTimeout(alignmentTimeout);
             env.setParallelism(parallelism);
             env.setRestartStrategy(
                     RestartStrategies.fixedDelayRestart(
