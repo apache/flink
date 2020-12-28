@@ -31,16 +31,19 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.ActionRequest;
+import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
 
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -62,6 +65,7 @@ public class Elasticsearch7DynamicSinkTest {
 	private static final String DOC_TYPE = "MyType";
 	private static final String USERNAME = "username";
 	private static final String PASSWORD = "password";
+	private static final Integer PARALLELISM = 5;
 
 	@Test
 	public void testBuilder() {
@@ -133,7 +137,6 @@ public class Elasticsearch7DynamicSinkTest {
 			schema,
 			provider
 		);
-
 		testSink.getSinkRuntimeProvider(new MockSinkContext()).createSinkFunction();
 
 		verify(provider.builderSpy).setFailureHandler(new NoOpFailureHandler());
@@ -145,19 +148,50 @@ public class Elasticsearch7DynamicSinkTest {
 		verify(provider.sinkSpy, never()).disableFlushOnCheckpoint();
 	}
 
+	@Test
+	public void testParallelismConfig() {
+
+		final TableSchema schema = createTestSchema();
+		Configuration configuration = new Configuration();
+		configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
+		configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
+		configuration.setString(
+			ElasticsearchOptions.HOSTS_OPTION.key(),
+			SCHEMA + "://" + HOSTNAME + ":" + PORT);
+		configuration.setInteger(SINK_PARALLELISM.key(), PARALLELISM);
+		BuilderProvider provider = new BuilderProvider();
+		final Elasticsearch7DynamicSink testSink = new Elasticsearch7DynamicSink(
+			new DummyEncodingFormat(),
+			new Elasticsearch7Configuration(configuration, this.getClass().getClassLoader()),
+			schema,
+			provider
+		);
+		SinkFunctionProvider sinkRuntimeProvider = testSink.getSinkRuntimeProvider(new MockSinkContext());
+		Integer parallelism = sinkRuntimeProvider.getParallelism().get();
+		Assert.assertEquals(parallelism, PARALLELISM);
+	}
+
 	private Configuration getConfig() {
 		Configuration configuration = new Configuration();
 		configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
 		configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
-		configuration.setString(ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
-		configuration.setString(ElasticsearchOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION.key(), "exponential");
+		configuration.setString(
+			ElasticsearchOptions.HOSTS_OPTION.key(),
+			SCHEMA + "://" + HOSTNAME + ":" + PORT);
+		configuration.setString(
+			ElasticsearchOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION.key(),
+			"exponential");
 		configuration.setString(ElasticsearchOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(), "123");
-		configuration.setString(ElasticsearchOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION.key(), "3");
+		configuration.setString(
+			ElasticsearchOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION.key(),
+			"3");
 		configuration.setString(ElasticsearchOptions.BULK_FLUSH_INTERVAL_OPTION.key(), "100");
 		configuration.setString(ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(), "1000");
 		configuration.setString(ElasticsearchOptions.BULK_FLASH_MAX_SIZE_OPTION.key(), "1mb");
 		configuration.setString(ElasticsearchOptions.CONNECTION_PATH_PREFIX.key(), "/myapp");
-		configuration.setString(ElasticsearchOptions.FAILURE_HANDLER_OPTION.key(), DummyFailureHandler.class.getName());
+		configuration.setString(
+			ElasticsearchOptions.FAILURE_HANDLER_OPTION.key(),
+			DummyFailureHandler.class.getName());
 		configuration.setString(ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false");
 		return configuration;
 	}
@@ -177,7 +211,6 @@ public class Elasticsearch7DynamicSinkTest {
 					return sinkSpy;
 				}
 			).when(builderSpy).build();
-
 			return builderSpy;
 		}
 	}

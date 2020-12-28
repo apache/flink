@@ -31,19 +31,23 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.ActionRequest;
+import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
 
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+
 
 /**
  * Tests for {@link Elasticsearch6DynamicSink} parameters.
@@ -62,6 +66,7 @@ public class Elasticsearch6DynamicSinkTest {
 	private static final String DOC_TYPE = "MyType";
 	private static final String USERNAME = "username";
 	private static final String PASSWORD = "password";
+	private static final Integer PARALLELISM = 5;
 
 	@Test
 	public void testBuilder() {
@@ -145,6 +150,27 @@ public class Elasticsearch6DynamicSinkTest {
 		verify(provider.sinkSpy, never()).disableFlushOnCheckpoint();
 	}
 
+	@Test
+	public void testParallelismConfig(){
+
+		final TableSchema schema = createTestSchema();
+		Configuration configuration = new Configuration();
+		configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
+		configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
+		configuration.setString(ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
+		configuration.setInteger(SINK_PARALLELISM.key(), PARALLELISM);
+		BuilderProvider provider = new BuilderProvider();
+		final Elasticsearch6DynamicSink testSink = new Elasticsearch6DynamicSink(
+			new DummyEncodingFormat(),
+			new Elasticsearch6Configuration(configuration, this.getClass().getClassLoader()),
+			schema,
+			provider
+		);
+		SinkFunctionProvider sinkRuntimeProvider = testSink.getSinkRuntimeProvider(new MockSinkContext());
+		Integer parallelism = sinkRuntimeProvider.getParallelism().get();
+		Assert.assertEquals(parallelism, PARALLELISM);
+	}
+
 	private Configuration getConfig() {
 		Configuration configuration = new Configuration();
 		configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
@@ -215,7 +241,7 @@ public class Elasticsearch6DynamicSinkTest {
 		}
 	}
 
-	private static class MockSinkContext implements DynamicTableSink.Context {
+	static class MockSinkContext implements DynamicTableSink.Context {
 		@Override
 		public boolean isBounded() {
 			return false;

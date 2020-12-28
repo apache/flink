@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.elasticsearch7.RestClientFactory;
 import org.apache.flink.table.api.TableSchema;
@@ -47,6 +48,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * A {@link DynamicTableSink} that describes how to create a {@link ElasticsearchSink} from a logical
@@ -115,50 +117,64 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
 
 	@Override
 	public SinkFunctionProvider getSinkRuntimeProvider(Context context) {
-		return () -> {
-			SerializationSchema<RowData> format = this.format.createRuntimeEncoder(context, schema.toRowDataType());
+		return new SinkFunctionProvider() {
+			@Override
+			public SinkFunction<RowData> createSinkFunction() {
+				SerializationSchema<RowData> format = Elasticsearch7DynamicSink.this.format.createRuntimeEncoder(
+					context,
+					schema.toRowDataType());
 
-			final RowElasticsearchSinkFunction upsertFunction =
-				new RowElasticsearchSinkFunction(
-					IndexGeneratorFactory.createIndexGenerator(config.getIndex(), schema),
-					null, // this is deprecated in es 7+
-					format,
-					XContentType.JSON,
-					REQUEST_FACTORY,
-					KeyExtractor.createKeyExtractor(schema, config.getKeyDelimiter())
-				);
+				final RowElasticsearchSinkFunction upsertFunction =
+					new RowElasticsearchSinkFunction(
+						IndexGeneratorFactory.createIndexGenerator(config.getIndex(), schema),
+						null, // this is deprecated in es 7+
+						format,
+						XContentType.JSON,
+						REQUEST_FACTORY,
+						KeyExtractor.createKeyExtractor(schema, config.getKeyDelimiter())
+					);
 
-			final ElasticsearchSink.Builder<RowData> builder = builderProvider.createBuilder(
-				config.getHosts(),
-				upsertFunction);
+				final ElasticsearchSink.Builder<RowData> builder = builderProvider.createBuilder(
+					config.getHosts(),
+					upsertFunction);
 
-			builder.setFailureHandler(config.getFailureHandler());
-			builder.setBulkFlushMaxActions(config.getBulkFlushMaxActions());
-			builder.setBulkFlushMaxSizeMb((int) (config.getBulkFlushMaxByteSize() >> 20));
-			builder.setBulkFlushInterval(config.getBulkFlushInterval());
-			builder.setBulkFlushBackoff(config.isBulkFlushBackoffEnabled());
-			config.getBulkFlushBackoffType().ifPresent(builder::setBulkFlushBackoffType);
-			config.getBulkFlushBackoffRetries().ifPresent(builder::setBulkFlushBackoffRetries);
-			config.getBulkFlushBackoffDelay().ifPresent(builder::setBulkFlushBackoffDelay);
+				builder.setFailureHandler(config.getFailureHandler());
+				builder.setBulkFlushMaxActions(config.getBulkFlushMaxActions());
+				builder.setBulkFlushMaxSizeMb((int) (config.getBulkFlushMaxByteSize() >> 20));
+				builder.setBulkFlushInterval(config.getBulkFlushInterval());
+				builder.setBulkFlushBackoff(config.isBulkFlushBackoffEnabled());
+				config.getBulkFlushBackoffType().ifPresent(builder::setBulkFlushBackoffType);
+				config.getBulkFlushBackoffRetries().ifPresent(builder::setBulkFlushBackoffRetries);
+				config.getBulkFlushBackoffDelay().ifPresent(builder::setBulkFlushBackoffDelay);
 
-			// we must overwrite the default factory which is defined with a lambda because of a bug
-			// in shading lambda serialization shading see FLINK-18006
-			if (config.getUsername().isPresent()
-				&& config.getPassword().isPresent()
-				&& !StringUtils.isNullOrWhitespaceOnly(config.getUsername().get())
-				&& !StringUtils.isNullOrWhitespaceOnly(config.getPassword().get())) {
-				builder.setRestClientFactory(new AuthRestClientFactory(config.getPathPrefix().orElse(null), config.getUsername().get(), config.getPassword().get()));
-			} else {
-				builder.setRestClientFactory(new DefaultRestClientFactory(config.getPathPrefix().orElse(null)));
+				// we must overwrite the default factory which is defined with a lambda because of a bug
+				// in shading lambda serialization shading see FLINK-18006
+				if (config.getUsername().isPresent()
+					&& config.getPassword().isPresent()
+					&& !StringUtils.isNullOrWhitespaceOnly(config.getUsername().get())
+					&& !StringUtils.isNullOrWhitespaceOnly(config.getPassword().get())) {
+					builder.setRestClientFactory(new AuthRestClientFactory(config
+						.getPathPrefix()
+						.orElse(null), config.getUsername().get(), config.getPassword().get()));
+				} else {
+					builder.setRestClientFactory(new DefaultRestClientFactory(config
+						.getPathPrefix()
+						.orElse(null)));
+				}
+
+				final ElasticsearchSink<RowData> sink = builder.build();
+
+				if (config.isDisableFlushOnCheckpoint()) {
+					sink.disableFlushOnCheckpoint();
+				}
+
+				return sink;
 			}
 
-			final ElasticsearchSink<RowData> sink = builder.build();
-
-			if (config.isDisableFlushOnCheckpoint()) {
-				sink.disableFlushOnCheckpoint();
+			@Override
+			public Optional<Integer> getParallelism() {
+				return config.getParellelism();
 			}
-
-			return sink;
 		};
 	}
 
