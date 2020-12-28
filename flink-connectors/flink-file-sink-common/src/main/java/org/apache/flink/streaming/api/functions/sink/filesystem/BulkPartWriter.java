@@ -26,38 +26,39 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * A {@link InProgressFileWriter} for bulk-encoding formats that use an {@link BulkPartWriter}.
- * This also implements the {@link PartFileInfo}.
+ * A {@link InProgressFileWriter} for bulk-encoding formats that use an {@link BulkPartWriter}. This
+ * also implements the {@link PartFileInfo}.
  */
 @Internal
-final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter<IN, BucketID>  {
+final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter<IN, BucketID> {
 
-	private final BulkWriter<IN> writer;
+    private final BulkWriter<IN> writer;
 
-	BulkPartWriter(
-			final BucketID bucketId,
-			final RecoverableFsDataOutputStream currentPartStream,
-			final BulkWriter<IN> writer,
-			final long creationTime) {
-		super(bucketId, currentPartStream, creationTime);
-		this.writer = Preconditions.checkNotNull(writer);
-	}
+    BulkPartWriter(
+            final BucketID bucketId,
+            final RecoverableFsDataOutputStream currentPartStream,
+            final BulkWriter<IN> writer,
+            final long creationTime) {
+        super(bucketId, currentPartStream, creationTime);
+        this.writer = Preconditions.checkNotNull(writer);
+    }
 
-	@Override
-	public void write(IN element, long currentTime) throws IOException {
-		writer.addElement(element);
-		markWrite(currentTime);
-	}
+    @Override
+    public void write(IN element, long currentTime) throws IOException {
+        writer.addElement(element);
+        markWrite(currentTime);
+    }
 
-	@Override
-	public InProgressFileRecoverable persist() {
-		throw new UnsupportedOperationException("Bulk Part Writers do not support \"pause and resume\" operations.");
-	}
+    @Override
+    public InProgressFileRecoverable persist() {
+        throw new UnsupportedOperationException(
+                "Bulk Part Writers do not support \"pause and resume\" operations.");
+    }
 
-	@Override
-	public PendingFileRecoverable closeForCommit() throws IOException {
-		writer.flush();
-		writer.finish();
-		return super.closeForCommit();
-	}
+    @Override
+    public PendingFileRecoverable closeForCommit() throws IOException {
+        writer.flush();
+        writer.finish();
+        return super.closeForCommit();
+    }
 }

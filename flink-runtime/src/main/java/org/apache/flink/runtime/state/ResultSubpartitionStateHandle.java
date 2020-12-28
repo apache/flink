@@ -24,23 +24,35 @@ import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import java.util.List;
 
 /**
- * {@link StateObject Handle} to a {@link org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition} state.
+ * {@link StateObject Handle} to a {@link
+ * org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition} state.
  */
 @Internal
-public class ResultSubpartitionStateHandle extends AbstractChannelStateHandle<ResultSubpartitionInfo> {
+public class ResultSubpartitionStateHandle
+        extends AbstractChannelStateHandle<ResultSubpartitionInfo> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public ResultSubpartitionStateHandle(int subtaskIndex, ResultSubpartitionInfo info, StreamStateHandle delegate, StateContentMetaInfo contentMetaInfo) {
-		this(subtaskIndex, info, delegate, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
-	}
+    public ResultSubpartitionStateHandle(
+            int subtaskIndex,
+            ResultSubpartitionInfo info,
+            StreamStateHandle delegate,
+            StateContentMetaInfo contentMetaInfo) {
+        this(subtaskIndex, info, delegate, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
+    }
 
-	@VisibleForTesting
-	public ResultSubpartitionStateHandle(ResultSubpartitionInfo info, StreamStateHandle delegate, List<Long> offset) {
-		this(0, info, delegate, offset, delegate.getStateSize());
-	}
+    @VisibleForTesting
+    public ResultSubpartitionStateHandle(
+            ResultSubpartitionInfo info, StreamStateHandle delegate, List<Long> offset) {
+        this(0, info, delegate, offset, delegate.getStateSize());
+    }
 
-	public ResultSubpartitionStateHandle(int subtaskIndex, ResultSubpartitionInfo info, StreamStateHandle delegate, List<Long> offset, long size) {
-		super(delegate, offset, subtaskIndex, info, size);
-	}
+    public ResultSubpartitionStateHandle(
+            int subtaskIndex,
+            ResultSubpartitionInfo info,
+            StreamStateHandle delegate,
+            List<Long> offset,
+            long size) {
+        super(delegate, offset, subtaskIndex, info, size);
+    }
 }

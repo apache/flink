@@ -45,110 +45,153 @@ import java.util.Collection;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link ClientUtils}.
- */
+/** Tests for {@link ClientUtils}. */
 public class ClientUtilsTest extends TestLogger {
 
-	@ClassRule
-	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static BlobServer blobServer = null;
+    private static BlobServer blobServer = null;
 
-	@BeforeClass
-	public static void setup() throws IOException {
-		Configuration config = new Configuration();
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
-			temporaryFolder.newFolder().getAbsolutePath());
-		blobServer = new BlobServer(config, new VoidBlobStore());
-		blobServer.start();
-	}
+    @BeforeClass
+    public static void setup() throws IOException {
+        Configuration config = new Configuration();
+        config.setString(
+                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+        blobServer = new BlobServer(config, new VoidBlobStore());
+        blobServer.start();
+    }
 
-	@AfterClass
-	public static void teardown() throws IOException {
-		if (blobServer != null) {
-			blobServer.close();
-		}
-	}
+    @AfterClass
+    public static void teardown() throws IOException {
+        if (blobServer != null) {
+            blobServer.close();
+        }
+    }
 
-	@Test
-	public void uploadAndSetUserJars() throws Exception {
-		java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
-		JobGraph jobGraph = new JobGraph();
+    @Test
+    public void uploadAndSetUserJars() throws Exception {
+        java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
+        JobGraph jobGraph = new JobGraph();
 
-		Collection<Path> jars = Arrays.asList(
-			new Path(Files.createFile(tmpDir.resolve("jar1.jar")).toString()),
-			new Path(Files.createFile(tmpDir.resolve("jar2.jar")).toString()));
+        Collection<Path> jars =
+                Arrays.asList(
+                        new Path(Files.createFile(tmpDir.resolve("jar1.jar")).toString()),
+                        new Path(Files.createFile(tmpDir.resolve("jar2.jar")).toString()));
 
-		jars.forEach(jobGraph::addJar);
+        jars.forEach(jobGraph::addJar);
 
-		assertEquals(jars.size(), jobGraph.getUserJars().size());
-		assertEquals(0, jobGraph.getUserJarBlobKeys().size());
+        assertEquals(jars.size(), jobGraph.getUserJars().size());
+        assertEquals(0, jobGraph.getUserJarBlobKeys().size());
 
-		ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(new InetSocketAddress("localhost", blobServer.getPort()), new Configuration()));
+        ClientUtils.extractAndUploadJobGraphFiles(
+                jobGraph,
+                () ->
+                        new BlobClient(
+                                new InetSocketAddress("localhost", blobServer.getPort()),
+                                new Configuration()));
 
-		assertEquals(jars.size(), jobGraph.getUserJars().size());
-		assertEquals(jars.size(), jobGraph.getUserJarBlobKeys().size());
-		assertEquals(jars.size(), jobGraph.getUserJarBlobKeys().stream().distinct().count());
+        assertEquals(jars.size(), jobGraph.getUserJars().size());
+        assertEquals(jars.size(), jobGraph.getUserJarBlobKeys().size());
+        assertEquals(jars.size(), jobGraph.getUserJarBlobKeys().stream().distinct().count());
 
-		for (PermanentBlobKey blobKey : jobGraph.getUserJarBlobKeys()) {
-			blobServer.getFile(jobGraph.getJobID(), blobKey);
-		}
-	}
+        for (PermanentBlobKey blobKey : jobGraph.getUserJarBlobKeys()) {
+            blobServer.getFile(jobGraph.getJobID(), blobKey);
+        }
+    }
 
-	@Test
-	public void uploadAndSetUserArtifacts() throws Exception {
-		java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
-		JobGraph jobGraph = new JobGraph();
+    @Test
+    public void uploadAndSetUserArtifacts() throws Exception {
+        java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
+        JobGraph jobGraph = new JobGraph();
 
-		Collection<DistributedCache.DistributedCacheEntry> localArtifacts = Arrays.asList(
-			new DistributedCache.DistributedCacheEntry(Files.createFile(tmpDir.resolve("art1")).toString(), true, true),
-			new DistributedCache.DistributedCacheEntry(Files.createFile(tmpDir.resolve("art2")).toString(), true, false),
-			new DistributedCache.DistributedCacheEntry(Files.createFile(tmpDir.resolve("art3")).toString(), false, true),
-			new DistributedCache.DistributedCacheEntry(Files.createFile(tmpDir.resolve("art4")).toString(), true, false)
-		);
+        Collection<DistributedCache.DistributedCacheEntry> localArtifacts =
+                Arrays.asList(
+                        new DistributedCache.DistributedCacheEntry(
+                                Files.createFile(tmpDir.resolve("art1")).toString(), true, true),
+                        new DistributedCache.DistributedCacheEntry(
+                                Files.createFile(tmpDir.resolve("art2")).toString(), true, false),
+                        new DistributedCache.DistributedCacheEntry(
+                                Files.createFile(tmpDir.resolve("art3")).toString(), false, true),
+                        new DistributedCache.DistributedCacheEntry(
+                                Files.createFile(tmpDir.resolve("art4")).toString(), true, false));
 
-		Collection<DistributedCache.DistributedCacheEntry> distributedArtifacts = Arrays.asList(
-			new DistributedCache.DistributedCacheEntry("hdfs://localhost:1234/test", true, false)
-		);
+        Collection<DistributedCache.DistributedCacheEntry> distributedArtifacts =
+                Arrays.asList(
+                        new DistributedCache.DistributedCacheEntry(
+                                "hdfs://localhost:1234/test", true, false));
 
-		for (DistributedCache.DistributedCacheEntry entry : localArtifacts) {
-			jobGraph.addUserArtifact(entry.filePath, entry);
-		}
-		for (DistributedCache.DistributedCacheEntry entry : distributedArtifacts) {
-			jobGraph.addUserArtifact(entry.filePath, entry);
-		}
+        for (DistributedCache.DistributedCacheEntry entry : localArtifacts) {
+            jobGraph.addUserArtifact(entry.filePath, entry);
+        }
+        for (DistributedCache.DistributedCacheEntry entry : distributedArtifacts) {
+            jobGraph.addUserArtifact(entry.filePath, entry);
+        }
 
-		final int totalNumArtifacts = localArtifacts.size() + distributedArtifacts.size();
+        final int totalNumArtifacts = localArtifacts.size() + distributedArtifacts.size();
 
-		assertEquals(totalNumArtifacts, jobGraph.getUserArtifacts().size());
-		assertEquals(0, jobGraph.getUserArtifacts().values().stream().filter(entry -> entry.blobKey != null).count());
+        assertEquals(totalNumArtifacts, jobGraph.getUserArtifacts().size());
+        assertEquals(
+                0,
+                jobGraph.getUserArtifacts().values().stream()
+                        .filter(entry -> entry.blobKey != null)
+                        .count());
 
-		ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(new InetSocketAddress("localhost", blobServer.getPort()), new Configuration()));
+        ClientUtils.extractAndUploadJobGraphFiles(
+                jobGraph,
+                () ->
+                        new BlobClient(
+                                new InetSocketAddress("localhost", blobServer.getPort()),
+                                new Configuration()));
 
-		assertEquals(totalNumArtifacts, jobGraph.getUserArtifacts().size());
-		assertEquals(localArtifacts.size(), jobGraph.getUserArtifacts().values().stream().filter(entry -> entry.blobKey != null).count());
-		assertEquals(distributedArtifacts.size(), jobGraph.getUserArtifacts().values().stream().filter(entry -> entry.blobKey == null).count());
-		// 1 unique key for each local artifact, and null for distributed artifacts
-		assertEquals(localArtifacts.size() + 1, jobGraph.getUserArtifacts().values().stream().map(entry -> entry.blobKey).distinct().count());
-		for (DistributedCache.DistributedCacheEntry original : localArtifacts) {
-			assertState(original, jobGraph.getUserArtifacts().get(original.filePath), false, jobGraph.getJobID());
-		}
-		for (DistributedCache.DistributedCacheEntry original : distributedArtifacts) {
-			assertState(original, jobGraph.getUserArtifacts().get(original.filePath), true, jobGraph.getJobID());
-		}
-	}
+        assertEquals(totalNumArtifacts, jobGraph.getUserArtifacts().size());
+        assertEquals(
+                localArtifacts.size(),
+                jobGraph.getUserArtifacts().values().stream()
+                        .filter(entry -> entry.blobKey != null)
+                        .count());
+        assertEquals(
+                distributedArtifacts.size(),
+                jobGraph.getUserArtifacts().values().stream()
+                        .filter(entry -> entry.blobKey == null)
+                        .count());
+        // 1 unique key for each local artifact, and null for distributed artifacts
+        assertEquals(
+                localArtifacts.size() + 1,
+                jobGraph.getUserArtifacts().values().stream()
+                        .map(entry -> entry.blobKey)
+                        .distinct()
+                        .count());
+        for (DistributedCache.DistributedCacheEntry original : localArtifacts) {
+            assertState(
+                    original,
+                    jobGraph.getUserArtifacts().get(original.filePath),
+                    false,
+                    jobGraph.getJobID());
+        }
+        for (DistributedCache.DistributedCacheEntry original : distributedArtifacts) {
+            assertState(
+                    original,
+                    jobGraph.getUserArtifacts().get(original.filePath),
+                    true,
+                    jobGraph.getJobID());
+        }
+    }
 
-	private static void assertState(DistributedCache.DistributedCacheEntry original, DistributedCache.DistributedCacheEntry actual, boolean isBlobKeyNull, JobID jobId) throws Exception {
-		assertEquals(original.isZipped, actual.isZipped);
-		assertEquals(original.isExecutable, actual.isExecutable);
-		assertEquals(original.filePath, actual.filePath);
-		assertEquals(isBlobKeyNull, actual.blobKey == null);
-		if (!isBlobKeyNull) {
-			blobServer.getFile(
-				jobId,
-				InstantiationUtil.<PermanentBlobKey>deserializeObject(actual.blobKey, ClientUtilsTest.class.getClassLoader()));
-		}
-	}
-
+    private static void assertState(
+            DistributedCache.DistributedCacheEntry original,
+            DistributedCache.DistributedCacheEntry actual,
+            boolean isBlobKeyNull,
+            JobID jobId)
+            throws Exception {
+        assertEquals(original.isZipped, actual.isZipped);
+        assertEquals(original.isExecutable, actual.isExecutable);
+        assertEquals(original.filePath, actual.filePath);
+        assertEquals(isBlobKeyNull, actual.blobKey == null);
+        if (!isBlobKeyNull) {
+            blobServer.getFile(
+                    jobId,
+                    InstantiationUtil.<PermanentBlobKey>deserializeObject(
+                            actual.blobKey, ClientUtilsTest.class.getClassLoader()));
+        }
+    }
 }

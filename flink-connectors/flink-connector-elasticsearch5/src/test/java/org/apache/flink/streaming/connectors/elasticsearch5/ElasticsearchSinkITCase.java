@@ -35,97 +35,102 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * IT cases for the {@link ElasticsearchSink}.
- */
-public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<TransportClient, InetSocketAddress> {
+/** IT cases for the {@link ElasticsearchSink}. */
+public class ElasticsearchSinkITCase
+        extends ElasticsearchSinkTestBase<TransportClient, InetSocketAddress> {
 
-	protected static final String CLUSTER_NAME = "test-cluster";
+    protected static final String CLUSTER_NAME = "test-cluster";
 
-	@ClassRule
-	public static ElasticsearchResource elasticsearchResource = new ElasticsearchResource(CLUSTER_NAME);
+    @ClassRule
+    public static ElasticsearchResource elasticsearchResource =
+            new ElasticsearchResource(CLUSTER_NAME);
 
-	@Override
-	protected String getClusterName() {
-		return CLUSTER_NAME;
-	}
+    @Override
+    protected String getClusterName() {
+        return CLUSTER_NAME;
+    }
 
-	@Override
-	protected final Client getClient() {
-		return elasticsearchResource.getClient();
-	}
+    @Override
+    protected final Client getClient() {
+        return elasticsearchResource.getClient();
+    }
 
-	@Test
-	public void testElasticsearchSink() throws Exception {
-		runElasticsearchSinkTest();
-	}
+    @Test
+    public void testElasticsearchSink() throws Exception {
+        runElasticsearchSinkTest();
+    }
 
-	@Test
-	public void testElasticsearchSinkWithCbor() throws Exception {
-		runElasticsearchSinkCborTest();
-	}
+    @Test
+    public void testElasticsearchSinkWithCbor() throws Exception {
+        runElasticsearchSinkCborTest();
+    }
 
-	@Test
-	public void testElasticsearchSinkWithSmile() throws Exception {
-		runElasticsearchSinkSmileTest();
-	}
+    @Test
+    public void testElasticsearchSinkWithSmile() throws Exception {
+        runElasticsearchSinkSmileTest();
+    }
 
-	@Test
-	public void testElasticsearchSinkWithYaml() throws Exception {
-		runElasticsearchSinkYamlTest();
-	}
+    @Test
+    public void testElasticsearchSinkWithYaml() throws Exception {
+        runElasticsearchSinkYamlTest();
+    }
 
-	@Test
-	public void testNullAddresses() throws Exception {
-		runNullAddressesTest();
-	}
+    @Test
+    public void testNullAddresses() throws Exception {
+        runNullAddressesTest();
+    }
 
-	@Test
-	public void testEmptyAddresses() throws Exception {
-		runEmptyAddressesTest();
-	}
+    @Test
+    public void testEmptyAddresses() throws Exception {
+        runEmptyAddressesTest();
+    }
 
-	@Test
-	public void testInvalidElasticsearchCluster() throws Exception{
-		runInvalidElasticsearchClusterTest();
-	}
+    @Test
+    public void testInvalidElasticsearchCluster() throws Exception {
+        runInvalidElasticsearchClusterTest();
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSink(
-			int bulkFlushMaxActions,
-			String clusterName,
-			List<InetSocketAddress> addresses,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient>
+            createElasticsearchSink(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    List<InetSocketAddress> addresses,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 
-		return new ElasticsearchSink<>(
-				Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
-				addresses,
-				elasticsearchSinkFunction);
-	}
+        return new ElasticsearchSink<>(
+                Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+                addresses,
+                elasticsearchSinkFunction);
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForEmbeddedNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient>
+            createElasticsearchSinkForEmbeddedNode(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction)
+                    throws Exception {
 
-		return createElasticsearchSinkForNode(
-				bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
-	}
+        return createElasticsearchSinkForNode(
+                bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
-			String ipAddress) throws Exception {
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient>
+            createElasticsearchSinkForNode(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+                    String ipAddress)
+                    throws Exception {
 
-		List<InetSocketAddress> transports = new ArrayList<>();
-		transports.add(new InetSocketAddress(InetAddress.getByName(ipAddress), 9300));
+        List<InetSocketAddress> transports = new ArrayList<>();
+        transports.add(new InetSocketAddress(InetAddress.getByName(ipAddress), 9300));
 
-		return new ElasticsearchSink<>(
-				Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
-				transports,
-				elasticsearchSinkFunction);
-	}
+        return new ElasticsearchSink<>(
+                Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+                transports,
+                elasticsearchSinkFunction);
+    }
 }

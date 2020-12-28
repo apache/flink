@@ -30,46 +30,47 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing
- * {@link Committer} in the batch execution mode.
+ * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
+ * Committer} in the batch execution mode.
  *
  * @param <CommT> The committable type of the {@link Committer}.
  */
 final class BatchCommitterOperator<CommT> extends AbstractStreamOperator<CommT>
-		implements OneInputStreamOperator<CommT, CommT>, BoundedOneInput {
+        implements OneInputStreamOperator<CommT, CommT>, BoundedOneInput {
 
-	/** Responsible for committing the committable to the external system. */
-	private final Committer<CommT> committer;
+    /** Responsible for committing the committable to the external system. */
+    private final Committer<CommT> committer;
 
-	/** Record all the committables until the end of the input. */
-	private final List<CommT> allCommittables;
+    /** Record all the committables until the end of the input. */
+    private final List<CommT> allCommittables;
 
-	public BatchCommitterOperator(Committer<CommT> committer) {
-		this.committer = checkNotNull(committer);
-		this.allCommittables = new ArrayList<>();
-	}
+    public BatchCommitterOperator(Committer<CommT> committer) {
+        this.committer = checkNotNull(committer);
+        this.allCommittables = new ArrayList<>();
+    }
 
-	@Override
-	public void processElement(StreamRecord<CommT> element) {
-		allCommittables.add(element.getValue());
-	}
+    @Override
+    public void processElement(StreamRecord<CommT> element) {
+        allCommittables.add(element.getValue());
+    }
 
-	@Override
-	public void endInput() throws Exception {
-		if (!allCommittables.isEmpty()) {
-			final List<CommT> neededRetryCommittables = committer.commit(allCommittables);
-			if (!neededRetryCommittables.isEmpty()) {
-				throw new UnsupportedOperationException("Currently does not support the re-commit!");
-			}
-			for (CommT committable : allCommittables) {
-				output.collect(new StreamRecord<>(committable));
-			}
-		}
-	}
+    @Override
+    public void endInput() throws Exception {
+        if (!allCommittables.isEmpty()) {
+            final List<CommT> neededRetryCommittables = committer.commit(allCommittables);
+            if (!neededRetryCommittables.isEmpty()) {
+                throw new UnsupportedOperationException(
+                        "Currently does not support the re-commit!");
+            }
+            for (CommT committable : allCommittables) {
+                output.collect(new StreamRecord<>(committable));
+            }
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		committer.close();
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        committer.close();
+    }
 }

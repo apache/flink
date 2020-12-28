@@ -29,57 +29,54 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Default implementation of {@link SchedulingPipelinedRegion}.
- */
+/** Default implementation of {@link SchedulingPipelinedRegion}. */
 public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegion {
 
-	private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVertices;
+    private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVertices;
 
-	private Set<DefaultResultPartition> consumedResults;
+    private Set<DefaultResultPartition> consumedResults;
 
-	public DefaultSchedulingPipelinedRegion(Set<DefaultExecutionVertex> defaultExecutionVertices) {
-		Preconditions.checkNotNull(defaultExecutionVertices);
+    public DefaultSchedulingPipelinedRegion(Set<DefaultExecutionVertex> defaultExecutionVertices) {
+        Preconditions.checkNotNull(defaultExecutionVertices);
 
-		this.executionVertices = new HashMap<>();
-		for (DefaultExecutionVertex executionVertex : defaultExecutionVertices) {
-			this.executionVertices.put(executionVertex.getId(), executionVertex);
-		}
-	}
+        this.executionVertices = new HashMap<>();
+        for (DefaultExecutionVertex executionVertex : defaultExecutionVertices) {
+            this.executionVertices.put(executionVertex.getId(), executionVertex);
+        }
+    }
 
-	@Override
-	public Iterable<DefaultExecutionVertex> getVertices() {
-		return Collections.unmodifiableCollection(executionVertices.values());
-	}
+    @Override
+    public Iterable<DefaultExecutionVertex> getVertices() {
+        return Collections.unmodifiableCollection(executionVertices.values());
+    }
 
-	@Override
-	public DefaultExecutionVertex getVertex(final ExecutionVertexID vertexId) {
-		final DefaultExecutionVertex executionVertex = executionVertices.get(vertexId);
-		if (executionVertex == null) {
-			throw new IllegalArgumentException(String.format(
-				"Execution vertex %s not found in pipelined region",
-				vertexId));
-		}
-		return executionVertex;
-	}
+    @Override
+    public DefaultExecutionVertex getVertex(final ExecutionVertexID vertexId) {
+        final DefaultExecutionVertex executionVertex = executionVertices.get(vertexId);
+        if (executionVertex == null) {
+            throw new IllegalArgumentException(
+                    String.format("Execution vertex %s not found in pipelined region", vertexId));
+        }
+        return executionVertex;
+    }
 
-	@Override
-	public Iterable<DefaultResultPartition> getConsumedResults() {
-		if (consumedResults == null) {
-			initializeConsumedResults();
-		}
-		return consumedResults;
-	}
+    @Override
+    public Iterable<DefaultResultPartition> getConsumedResults() {
+        if (consumedResults == null) {
+            initializeConsumedResults();
+        }
+        return consumedResults;
+    }
 
-	private void initializeConsumedResults() {
-		final Set<DefaultResultPartition> consumedResults = new HashSet<>();
-		for (DefaultExecutionVertex executionVertex : executionVertices.values()) {
-			for (DefaultResultPartition resultPartition : executionVertex.getConsumedResults()) {
-				if (!executionVertices.containsKey(resultPartition.getProducer().getId())) {
-					consumedResults.add(resultPartition);
-				}
-			}
-		}
-		this.consumedResults = Collections.unmodifiableSet(consumedResults);
-	}
+    private void initializeConsumedResults() {
+        final Set<DefaultResultPartition> consumedResults = new HashSet<>();
+        for (DefaultExecutionVertex executionVertex : executionVertices.values()) {
+            for (DefaultResultPartition resultPartition : executionVertex.getConsumedResults()) {
+                if (!executionVertices.containsKey(resultPartition.getProducer().getId())) {
+                    consumedResults.add(resultPartition);
+                }
+            }
+        }
+        this.consumedResults = Collections.unmodifiableSet(consumedResults);
+    }
 }

@@ -24,14 +24,13 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
  * Abstract Operation to describe all ALTER TABLE statements such as rename table /set properties.
  */
 public abstract class AlterTableOperation implements AlterOperation {
-	protected final ObjectIdentifier tableIdentifier;
+    protected final ObjectIdentifier tableIdentifier;
 
-	public AlterTableOperation(ObjectIdentifier tableIdentifier) {
-		this.tableIdentifier = tableIdentifier;
-	}
+    public AlterTableOperation(ObjectIdentifier tableIdentifier) {
+        this.tableIdentifier = tableIdentifier;
+    }
 
-	public ObjectIdentifier getTableIdentifier() {
-		return tableIdentifier;
-	}
-
+    public ObjectIdentifier getTableIdentifier() {
+        return tableIdentifier;
+    }
 }

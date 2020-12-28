@@ -33,35 +33,35 @@ import javax.annotation.Nullable;
  * @param <CommT> The committable type of the {@link SinkWriter}.
  * @param <WriterStateT> The type of the {@link SinkWriter Writer's} state.
  */
-public final class StatefulSinkWriterOperatorFactory<InputT, CommT, WriterStateT> extends AbstractSinkWriterOperatorFactory<InputT, CommT> {
+public final class StatefulSinkWriterOperatorFactory<InputT, CommT, WriterStateT>
+        extends AbstractSinkWriterOperatorFactory<InputT, CommT> {
 
-	private final Sink<InputT, CommT, WriterStateT, ?> sink;
+    private final Sink<InputT, CommT, WriterStateT, ?> sink;
 
-	@Nullable
-	private final String previousSinkStateName;
+    @Nullable private final String previousSinkStateName;
 
-	public StatefulSinkWriterOperatorFactory(Sink<InputT, CommT, WriterStateT, ?> sink) {
-		this(sink, null);
-	}
+    public StatefulSinkWriterOperatorFactory(Sink<InputT, CommT, WriterStateT, ?> sink) {
+        this(sink, null);
+    }
 
-	public StatefulSinkWriterOperatorFactory(
-			Sink<InputT, CommT, WriterStateT, ?> sink,
-			@Nullable String previousSinkStateName) {
-		this.sink = sink;
-		this.previousSinkStateName = previousSinkStateName;
-	}
+    public StatefulSinkWriterOperatorFactory(
+            Sink<InputT, CommT, WriterStateT, ?> sink, @Nullable String previousSinkStateName) {
+        this.sink = sink;
+        this.previousSinkStateName = previousSinkStateName;
+    }
 
-	@Override
-	AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(ProcessingTimeService processingTimeService) {
-		return new StatefulSinkWriterOperator<>(
-				previousSinkStateName,
-				processingTimeService,
-				sink,
-				sink.getWriterStateSerializer().get());
-	}
+    @Override
+    AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(
+            ProcessingTimeService processingTimeService) {
+        return new StatefulSinkWriterOperator<>(
+                previousSinkStateName,
+                processingTimeService,
+                sink,
+                sink.getWriterStateSerializer().get());
+    }
 
-	@Override
-	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return StatefulSinkWriterOperator.class;
-	}
+    @Override
+    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+        return StatefulSinkWriterOperator.class;
+    }
 }

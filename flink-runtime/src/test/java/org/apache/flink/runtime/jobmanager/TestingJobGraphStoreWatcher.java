@@ -22,30 +22,28 @@ import org.apache.flink.api.common.JobID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * {@link JobGraphStoreWatcher} implementation for testing purposes.
- */
+/** {@link JobGraphStoreWatcher} implementation for testing purposes. */
 public class TestingJobGraphStoreWatcher implements JobGraphStoreWatcher {
 
-	private JobGraphStore.JobGraphListener jobGraphListener;
+    private JobGraphStore.JobGraphListener jobGraphListener;
 
-	@Override
-	public void start(JobGraphStore.JobGraphListener jobGraphListener) {
-		this.jobGraphListener = jobGraphListener;
-	}
+    @Override
+    public void start(JobGraphStore.JobGraphListener jobGraphListener) {
+        this.jobGraphListener = jobGraphListener;
+    }
 
-	@Override
-	public void stop() {
-		// noop
-	}
+    @Override
+    public void stop() {
+        // noop
+    }
 
-	public void addJobGraph(JobID jobID) {
-		checkNotNull(jobGraphListener, "TestingJobGraphStoreWatcher is not started.");
-		jobGraphListener.onAddedJobGraph(jobID);
-	}
+    public void addJobGraph(JobID jobID) {
+        checkNotNull(jobGraphListener, "TestingJobGraphStoreWatcher is not started.");
+        jobGraphListener.onAddedJobGraph(jobID);
+    }
 
-	public void removeJobGraph(JobID jobID) {
-		checkNotNull(jobGraphListener, "TestingJobGraphStoreWatcher is not started.");
-		jobGraphListener.onRemovedJobGraph(jobID);
-	}
+    public void removeJobGraph(JobID jobID) {
+        checkNotNull(jobGraphListener, "TestingJobGraphStoreWatcher is not started.");
+        jobGraphListener.onRemovedJobGraph(jobID);
+    }
 }

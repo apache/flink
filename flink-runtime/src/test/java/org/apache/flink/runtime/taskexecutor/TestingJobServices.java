@@ -23,54 +23,55 @@ import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 
 import java.util.function.Supplier;
 
-/**
- * Testing implementation of the {@link JobTable.JobServices}.
- */
+/** Testing implementation of the {@link JobTable.JobServices}. */
 public class TestingJobServices implements JobTable.JobServices {
 
-	private final Supplier<LibraryCacheManager.ClassLoaderHandle> classLoaderHandleSupplier;
+    private final Supplier<LibraryCacheManager.ClassLoaderHandle> classLoaderHandleSupplier;
 
-	private final Runnable closeRunnable;
+    private final Runnable closeRunnable;
 
-	private TestingJobServices(
-			Supplier<LibraryCacheManager.ClassLoaderHandle> classLoaderHandleSupplier,
-			Runnable closeRunnable) {
-		this.classLoaderHandleSupplier = classLoaderHandleSupplier;
-		this.closeRunnable = closeRunnable;
-	}
+    private TestingJobServices(
+            Supplier<LibraryCacheManager.ClassLoaderHandle> classLoaderHandleSupplier,
+            Runnable closeRunnable) {
+        this.classLoaderHandleSupplier = classLoaderHandleSupplier;
+        this.closeRunnable = closeRunnable;
+    }
 
-	@Override
-	public LibraryCacheManager.ClassLoaderHandle getClassLoaderHandle() {
-		return classLoaderHandleSupplier.get();
-	}
+    @Override
+    public LibraryCacheManager.ClassLoaderHandle getClassLoaderHandle() {
+        return classLoaderHandleSupplier.get();
+    }
 
-	@Override
-	public void close() {
-		closeRunnable.run();
-	}
+    @Override
+    public void close() {
+        closeRunnable.run();
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	public static final class Builder {
+    public static final class Builder {
 
-		private final TestingClassLoaderLease testingClassLoaderLease = TestingClassLoaderLease.newBuilder().build();
-		private Supplier<LibraryCacheManager.ClassLoaderHandle> classLoaderHandleSupplier = () -> testingClassLoaderLease;
-		private Runnable closeRunnable = () -> {};
+        private final TestingClassLoaderLease testingClassLoaderLease =
+                TestingClassLoaderLease.newBuilder().build();
+        private Supplier<LibraryCacheManager.ClassLoaderHandle> classLoaderHandleSupplier =
+                () -> testingClassLoaderLease;
+        private Runnable closeRunnable = () -> {};
 
-		public Builder setClassLoaderHandleSupplier(Supplier<LibraryCacheManager.ClassLoaderHandle> classLoaderHandleSupplier) {
-			this.classLoaderHandleSupplier = classLoaderHandleSupplier;
-			return this;
-		}
+        public Builder setClassLoaderHandleSupplier(
+                Supplier<LibraryCacheManager.ClassLoaderHandle> classLoaderHandleSupplier) {
+            this.classLoaderHandleSupplier = classLoaderHandleSupplier;
+            return this;
+        }
 
-		public Builder setCloseRunnable(Runnable closeRunnable) {
-			this.closeRunnable = closeRunnable;
-			return this;
-		}
+        public Builder setCloseRunnable(Runnable closeRunnable) {
+            this.closeRunnable = closeRunnable;
+            return this;
+        }
 
-		public TestingJobServices build() {
-			return new TestingJobServices(classLoaderHandleSupplier, closeRunnable);
-		}
-	}
+        public TestingJobServices build() {
+            return new TestingJobServices(classLoaderHandleSupplier, closeRunnable);
+        }
+    }
 }

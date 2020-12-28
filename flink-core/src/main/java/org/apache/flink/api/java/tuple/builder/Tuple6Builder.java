@@ -42,15 +42,16 @@ import java.util.List;
 @Public
 public class Tuple6Builder<T0, T1, T2, T3, T4, T5> {
 
-	private List<Tuple6<T0, T1, T2, T3, T4, T5>> tuples = new ArrayList<>();
+    private List<Tuple6<T0, T1, T2, T3, T4, T5>> tuples = new ArrayList<>();
 
-	public Tuple6Builder<T0, T1, T2, T3, T4, T5> add(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5){
-		tuples.add(new Tuple6<>(value0, value1, value2, value3, value4, value5));
-		return this;
-	}
+    public Tuple6Builder<T0, T1, T2, T3, T4, T5> add(
+            T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5) {
+        tuples.add(new Tuple6<>(value0, value1, value2, value3, value4, value5));
+        return this;
+    }
 
-	@SuppressWarnings("unchecked")
-	public Tuple6<T0, T1, T2, T3, T4, T5>[] build(){
-		return tuples.toArray(new Tuple6[tuples.size()]);
-	}
+    @SuppressWarnings("unchecked")
+    public Tuple6<T0, T1, T2, T3, T4, T5>[] build() {
+        return tuples.toArray(new Tuple6[tuples.size()]);
+    }
 }

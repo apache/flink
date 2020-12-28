@@ -18,44 +18,43 @@
 
 package org.apache.flink.table.operations.ddl;
 
-/**
- * Operation to describe a DROP DATABASE statement.
- */
+/** Operation to describe a DROP DATABASE statement. */
 public class DropDatabaseOperation implements DropOperation {
-	private final String catalogName;
-	private final String databaseName;
-	private final boolean ifExists;
-	private final boolean cascade;
+    private final String catalogName;
+    private final String databaseName;
+    private final boolean ifExists;
+    private final boolean cascade;
 
-	public DropDatabaseOperation(String catalogName, String databaseName, boolean ifExists, boolean cascade) {
-		this.catalogName = catalogName;
-		this.databaseName = databaseName;
-		this.ifExists = ifExists;
-		this.cascade = cascade;
-	}
+    public DropDatabaseOperation(
+            String catalogName, String databaseName, boolean ifExists, boolean cascade) {
+        this.catalogName = catalogName;
+        this.databaseName = databaseName;
+        this.ifExists = ifExists;
+        this.cascade = cascade;
+    }
 
-	public String getCatalogName() {
-		return catalogName;
-	}
+    public String getCatalogName() {
+        return catalogName;
+    }
 
-	public String getDatabaseName() {
-		return databaseName;
-	}
+    public String getDatabaseName() {
+        return databaseName;
+    }
 
-	public boolean isCascade() {
-		return cascade;
-	}
+    public boolean isCascade() {
+        return cascade;
+    }
 
-	public boolean isIfExists() {
-		return ifExists;
-	}
+    public boolean isIfExists() {
+        return ifExists;
+    }
 
-	@Override
-	public String asSummaryString() {
-		StringBuilder summaryString = new StringBuilder("DROP DATABASE");
-		summaryString.append(ifExists ? " IF EXISTS " : "");
-		summaryString.append(" " + catalogName + "." + databaseName);
-		summaryString.append(cascade ?  " CASCADE" : " RESTRICT");
-		return summaryString.toString();
-	}
+    @Override
+    public String asSummaryString() {
+        StringBuilder summaryString = new StringBuilder("DROP DATABASE");
+        summaryString.append(ifExists ? " IF EXISTS " : "");
+        summaryString.append(" " + catalogName + "." + databaseName);
+        summaryString.append(cascade ? " CASCADE" : " RESTRICT");
+        return summaryString.toString();
+    }
 }

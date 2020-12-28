@@ -24,28 +24,24 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.BigIntVector;
 
-/**
- * Arrow column vector for BigInt.
- */
+/** Arrow column vector for BigInt. */
 @Internal
 public final class ArrowBigIntColumnVector implements LongColumnVector {
 
-	/**
-	 * Container which is used to store the sequence of bigint values of a column to read.
-	 */
-	private final BigIntVector bigIntVector;
+    /** Container which is used to store the sequence of bigint values of a column to read. */
+    private final BigIntVector bigIntVector;
 
-	public ArrowBigIntColumnVector(BigIntVector bigIntVector) {
-		this.bigIntVector = Preconditions.checkNotNull(bigIntVector);
-	}
+    public ArrowBigIntColumnVector(BigIntVector bigIntVector) {
+        this.bigIntVector = Preconditions.checkNotNull(bigIntVector);
+    }
 
-	@Override
-	public long getLong(int i) {
-		return bigIntVector.get(i);
-	}
+    @Override
+    public long getLong(int i) {
+        return bigIntVector.get(i);
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return bigIntVector.isNull(i);
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return bigIntVector.isNull(i);
+    }
 }

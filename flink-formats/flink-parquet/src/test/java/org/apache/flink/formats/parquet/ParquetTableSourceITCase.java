@@ -42,77 +42,76 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Integration tests for {@link ParquetTableSource}.
- */
+/** Integration tests for {@link ParquetTableSource}. */
 public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
-	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
-	private static Path testPath;
+    private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
+    private static Path testPath;
 
-	@ClassRule
-	public static TemporaryFolder tempRoot = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder tempRoot = new TemporaryFolder();
 
-	public ParquetTableSourceITCase() {
-		super(TestExecutionMode.COLLECTION);
-	}
+    public ParquetTableSourceITCase() {
+        super(TestExecutionMode.COLLECTION);
+    }
 
-	@BeforeClass
-	public static void setup() throws Exception {
-		testPath = createTestParquetFile(1000);
-	}
+    @BeforeClass
+    public static void setup() throws Exception {
+        testPath = createTestParquetFile(1000);
+    }
 
-	@Test
-	public void testFullScan() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
-		ParquetTableSource tableSource = createParquetTableSource(testPath);
-		((TableEnvironmentInternal) batchTableEnvironment).registerTableSourceInternal("ParquetTable", tableSource);
-		String query =
-			"SELECT foo " +
-			"FROM ParquetTable";
+    @Test
+    public void testFullScan() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
+        ParquetTableSource tableSource = createParquetTableSource(testPath);
+        ((TableEnvironmentInternal) batchTableEnvironment)
+                .registerTableSourceInternal("ParquetTable", tableSource);
+        String query = "SELECT foo " + "FROM ParquetTable";
 
-		Table table = batchTableEnvironment.sqlQuery(query);
-		DataSet<Row> dataSet = batchTableEnvironment.toDataSet(table, Row.class);
-		List<Row> result = dataSet.collect();
+        Table table = batchTableEnvironment.sqlQuery(query);
+        DataSet<Row> dataSet = batchTableEnvironment.toDataSet(table, Row.class);
+        List<Row> result = dataSet.collect();
 
-		assertEquals(1000, result.size());
-	}
+        assertEquals(1000, result.size());
+    }
 
-	@Test
-	public void testScanWithProjectionAndFilter() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
-		ParquetTableSource tableSource = createParquetTableSource(testPath);
-		((TableEnvironmentInternal) batchTableEnvironment).registerTableSourceInternal("ParquetTable", tableSource);
-		String query =
-			"SELECT foo " +
-			"FROM ParquetTable WHERE foo >= 1 AND bar.spam >= 30 AND CARDINALITY(arr) >= 1 AND arr[1] <= 50";
+    @Test
+    public void testScanWithProjectionAndFilter() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
+        ParquetTableSource tableSource = createParquetTableSource(testPath);
+        ((TableEnvironmentInternal) batchTableEnvironment)
+                .registerTableSourceInternal("ParquetTable", tableSource);
+        String query =
+                "SELECT foo "
+                        + "FROM ParquetTable WHERE foo >= 1 AND bar.spam >= 30 AND CARDINALITY(arr) >= 1 AND arr[1] <= 50";
 
-		Table table = batchTableEnvironment.sqlQuery(query);
-		DataSet<Row> dataSet = batchTableEnvironment.toDataSet(table, Row.class);
-		List<Row> result = dataSet.collect();
+        Table table = batchTableEnvironment.sqlQuery(query);
+        DataSet<Row> dataSet = batchTableEnvironment.toDataSet(table, Row.class);
+        List<Row> result = dataSet.collect();
 
-		assertEquals(21, result.size());
-	}
+        assertEquals(21, result.size());
+    }
 
-	/**
-	 * Create test Parquet table source that reads a test file created by {@link #createTestParquetFile(int)}.
-	 */
-	private ParquetTableSource createParquetTableSource(Path path) throws IOException {
-		MessageType nestedSchema = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
-		ParquetTableSource parquetTableSource = ParquetTableSource.builder()
-			.path(path.getPath())
-			.forParquetSchema(nestedSchema)
-			.build();
-		return parquetTableSource;
-	}
+    /**
+     * Create test Parquet table source that reads a test file created by {@link
+     * #createTestParquetFile(int)}.
+     */
+    private ParquetTableSource createParquetTableSource(Path path) throws IOException {
+        MessageType nestedSchema = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
+        ParquetTableSource parquetTableSource =
+                ParquetTableSource.builder()
+                        .path(path.getPath())
+                        .forParquetSchema(nestedSchema)
+                        .build();
+        return parquetTableSource;
+    }
 
-	/**
-	 * Create a test Parquet file with a given number of rows.
-	 */
-	private static Path createTestParquetFile(int numberOfRows) throws Exception {
-		List<IndexedRecord> records = TestUtil.createRecordList(numberOfRows);
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, records, new Configuration());
-		return path;
-	}
+    /** Create a test Parquet file with a given number of rows. */
+    private static Path createTestParquetFile(int numberOfRows) throws Exception {
+        List<IndexedRecord> records = TestUtil.createRecordList(numberOfRows);
+        Path path =
+                TestUtil.createTempParquetFile(
+                        tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, records, new Configuration());
+        return path;
+    }
 }

@@ -25,24 +25,22 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import java.util.Collection;
 import java.util.function.Consumer;
 
-/**
- * Factory for {@link DefaultDeclarativeSlotPool}.
- */
+/** Factory for {@link DefaultDeclarativeSlotPool}. */
 public class DefaultDeclarativeSlotPoolFactory implements DeclarativeSlotPoolFactory {
 
-	@Override
-	public DeclarativeSlotPool create(
-			JobID jobId,
-			Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
-			Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots,
-			Time idleSlotTimeout,
-			Time rpcTimeout) {
-		return new DefaultDeclarativeSlotPool(
-			jobId,
-			new DefaultAllocatedSlotPool(),
-			notifyNewResourceRequirements,
-			notifyNewSlots,
-			idleSlotTimeout,
-			rpcTimeout);
-	}
+    @Override
+    public DeclarativeSlotPool create(
+            JobID jobId,
+            Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
+            Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots,
+            Time idleSlotTimeout,
+            Time rpcTimeout) {
+        return new DefaultDeclarativeSlotPool(
+                jobId,
+                new DefaultAllocatedSlotPool(),
+                notifyNewResourceRequirements,
+                notifyNewSlots,
+                idleSlotTimeout,
+                rpcTimeout);
+    }
 }

@@ -32,137 +32,122 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNul
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
 
-/**
- * built-in sum aggregate function.
- */
+/** built-in sum aggregate function. */
 public abstract class SumAggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression sum = unresolvedRef("sum");
+    private UnresolvedReferenceExpression sum = unresolvedRef("sum");
 
-	@Override
-	public int operandCount() {
-		return 1;
-	}
+    @Override
+    public int operandCount() {
+        return 1;
+    }
 
-	@Override
-	public UnresolvedReferenceExpression[] aggBufferAttributes() {
-		return new UnresolvedReferenceExpression[] { sum };
-	}
+    @Override
+    public UnresolvedReferenceExpression[] aggBufferAttributes() {
+        return new UnresolvedReferenceExpression[] {sum};
+    }
 
-	@Override
-	public DataType[] getAggBufferTypes() {
-		return new DataType[] { getResultType() };
-	}
+    @Override
+    public DataType[] getAggBufferTypes() {
+        return new DataType[] {getResultType()};
+    }
 
-	@Override
-	public Expression[] initialValuesExpressions() {
-		return new Expression[] {
-				/* sum = */ nullOf(getResultType())
-		};
-	}
+    @Override
+    public Expression[] initialValuesExpressions() {
+        return new Expression[] {/* sum = */ nullOf(getResultType())};
+    }
 
-	@Override
-	public Expression[] accumulateExpressions() {
-		return new Expression[] {
-				/* sum = */
-				ifThenElse(isNull(operand(0)), sum,
-						ifThenElse(isNull(sum), operand(0), plus(sum, operand(0))))
-		};
-	}
+    @Override
+    public Expression[] accumulateExpressions() {
+        return new Expression[] {
+            /* sum = */ ifThenElse(
+                    isNull(operand(0)),
+                    sum,
+                    ifThenElse(isNull(sum), operand(0), plus(sum, operand(0))))
+        };
+    }
 
-	@Override
-	public Expression[] retractExpressions() {
-		throw new TableException("This function does not support retraction, Please choose SumWithRetractAggFunction.");
-	}
+    @Override
+    public Expression[] retractExpressions() {
+        throw new TableException(
+                "This function does not support retraction, Please choose SumWithRetractAggFunction.");
+    }
 
-	@Override
-	public Expression[] mergeExpressions() {
-		return new Expression[] {
-				/* sum = */
-				ifThenElse(isNull(mergeOperand(sum)), sum,
-						ifThenElse(isNull(sum), mergeOperand(sum), plus(sum, mergeOperand(sum))))
-		};
-	}
+    @Override
+    public Expression[] mergeExpressions() {
+        return new Expression[] {
+            /* sum = */ ifThenElse(
+                    isNull(mergeOperand(sum)),
+                    sum,
+                    ifThenElse(isNull(sum), mergeOperand(sum), plus(sum, mergeOperand(sum))))
+        };
+    }
 
-	@Override
-	public Expression getValueExpression() {
-		return sum;
-	}
+    @Override
+    public Expression getValueExpression() {
+        return sum;
+    }
 
-	/**
-	 * Built-in Int Sum aggregate function.
-	 */
-	public static class IntSumAggFunction extends SumAggFunction {
+    /** Built-in Int Sum aggregate function. */
+    public static class IntSumAggFunction extends SumAggFunction {
 
-		@Override
-		public DataType getResultType() {
-			return DataTypes.INT();
-		}
-	}
+        @Override
+        public DataType getResultType() {
+            return DataTypes.INT();
+        }
+    }
 
-	/**
-	 * Built-in Byte Sum aggregate function.
-	 */
-	public static class ByteSumAggFunction extends SumAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.TINYINT();
-		}
-	}
+    /** Built-in Byte Sum aggregate function. */
+    public static class ByteSumAggFunction extends SumAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.TINYINT();
+        }
+    }
 
-	/**
-	 * Built-in Short Sum aggregate function.
-	 */
-	public static class ShortSumAggFunction extends SumAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.SMALLINT();
-		}
-	}
+    /** Built-in Short Sum aggregate function. */
+    public static class ShortSumAggFunction extends SumAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.SMALLINT();
+        }
+    }
 
-	/**
-	 * Built-in Long Sum aggregate function.
-	 */
-	public static class LongSumAggFunction extends SumAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.BIGINT();
-		}
-	}
+    /** Built-in Long Sum aggregate function. */
+    public static class LongSumAggFunction extends SumAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.BIGINT();
+        }
+    }
 
-	/**
-	 * Built-in Float Sum aggregate function.
-	 */
-	public static class FloatSumAggFunction extends SumAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.FLOAT();
-		}
-	}
+    /** Built-in Float Sum aggregate function. */
+    public static class FloatSumAggFunction extends SumAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.FLOAT();
+        }
+    }
 
-	/**
-	 * Built-in Double Sum aggregate function.
-	 */
-	public static class DoubleSumAggFunction extends SumAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.DOUBLE();
-		}
-	}
+    /** Built-in Double Sum aggregate function. */
+    public static class DoubleSumAggFunction extends SumAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.DOUBLE();
+        }
+    }
 
-	/**
-	 * Built-in Decimal Sum aggregate function.
-	 */
-	public static class DecimalSumAggFunction extends SumAggFunction {
-		private DecimalType decimalType;
+    /** Built-in Decimal Sum aggregate function. */
+    public static class DecimalSumAggFunction extends SumAggFunction {
+        private DecimalType decimalType;
 
-		public DecimalSumAggFunction(DecimalType decimalType) {
-			this.decimalType = decimalType;
-		}
+        public DecimalSumAggFunction(DecimalType decimalType) {
+            this.decimalType = decimalType;
+        }
 
-		@Override
-		public DataType getResultType() {
-			DecimalType sumType = FlinkTypeSystem.inferAggSumType(decimalType.getScale());
-			return DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
-		}
-	}
+        @Override
+        public DataType getResultType() {
+            DecimalType sumType = FlinkTypeSystem.inferAggSumType(decimalType.getScale());
+            return DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
+        }
+    }
 }

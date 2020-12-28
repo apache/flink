@@ -63,299 +63,302 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </pre>
  */
 public class WindowOperatorBuilder {
-	protected LogicalType[] inputFieldTypes;
-	protected WindowAssigner<?> windowAssigner;
-	protected Trigger<?> trigger;
-	protected LogicalType[] accumulatorTypes;
-	protected LogicalType[] aggResultTypes;
-	protected LogicalType[] windowPropertyTypes;
-	protected long allowedLateness = 0L;
-	protected boolean produceUpdates = false;
-	protected int rowtimeIndex = -1;
+    protected LogicalType[] inputFieldTypes;
+    protected WindowAssigner<?> windowAssigner;
+    protected Trigger<?> trigger;
+    protected LogicalType[] accumulatorTypes;
+    protected LogicalType[] aggResultTypes;
+    protected LogicalType[] windowPropertyTypes;
+    protected long allowedLateness = 0L;
+    protected boolean produceUpdates = false;
+    protected int rowtimeIndex = -1;
 
-	public static WindowOperatorBuilder builder() {
-		return new WindowOperatorBuilder();
-	}
+    public static WindowOperatorBuilder builder() {
+        return new WindowOperatorBuilder();
+    }
 
-	public WindowOperatorBuilder withInputFields(LogicalType[] inputFieldTypes) {
-		this.inputFieldTypes = inputFieldTypes;
-		return this;
-	}
+    public WindowOperatorBuilder withInputFields(LogicalType[] inputFieldTypes) {
+        this.inputFieldTypes = inputFieldTypes;
+        return this;
+    }
 
-	public WindowOperatorBuilder tumble(Duration size) {
-		checkArgument(windowAssigner == null);
-		this.windowAssigner = TumblingWindowAssigner.of(size);
-		return this;
-	}
+    public WindowOperatorBuilder tumble(Duration size) {
+        checkArgument(windowAssigner == null);
+        this.windowAssigner = TumblingWindowAssigner.of(size);
+        return this;
+    }
 
-	public WindowOperatorBuilder sliding(Duration size, Duration slide) {
-		checkArgument(windowAssigner == null);
-		this.windowAssigner = SlidingWindowAssigner.of(size, slide);
-		return this;
-	}
+    public WindowOperatorBuilder sliding(Duration size, Duration slide) {
+        checkArgument(windowAssigner == null);
+        this.windowAssigner = SlidingWindowAssigner.of(size, slide);
+        return this;
+    }
 
-	public WindowOperatorBuilder cumulative(Duration size, Duration step) {
-		checkArgument(windowAssigner == null);
-		this.windowAssigner = CumulativeWindowAssigner.of(size, step);
-		return this;
-	}
+    public WindowOperatorBuilder cumulative(Duration size, Duration step) {
+        checkArgument(windowAssigner == null);
+        this.windowAssigner = CumulativeWindowAssigner.of(size, step);
+        return this;
+    }
 
-	public WindowOperatorBuilder session(Duration sessionGap) {
-		checkArgument(windowAssigner == null);
-		this.windowAssigner = SessionWindowAssigner.withGap(sessionGap);
-		return this;
-	}
+    public WindowOperatorBuilder session(Duration sessionGap) {
+        checkArgument(windowAssigner == null);
+        this.windowAssigner = SessionWindowAssigner.withGap(sessionGap);
+        return this;
+    }
 
-	public WindowOperatorBuilder countWindow(long size) {
-		checkArgument(windowAssigner == null);
-		checkArgument(trigger == null);
-		this.windowAssigner = CountTumblingWindowAssigner.of(size);
-		this.trigger = ElementTriggers.count(size);
-		return this;
-	}
+    public WindowOperatorBuilder countWindow(long size) {
+        checkArgument(windowAssigner == null);
+        checkArgument(trigger == null);
+        this.windowAssigner = CountTumblingWindowAssigner.of(size);
+        this.trigger = ElementTriggers.count(size);
+        return this;
+    }
 
-	public WindowOperatorBuilder countWindow(long size, long slide) {
-		checkArgument(windowAssigner == null);
-		checkArgument(trigger == null);
-		this.windowAssigner = CountSlidingWindowAssigner.of(size, slide);
-		this.trigger = ElementTriggers.count(size);
-		return this;
-	}
+    public WindowOperatorBuilder countWindow(long size, long slide) {
+        checkArgument(windowAssigner == null);
+        checkArgument(trigger == null);
+        this.windowAssigner = CountSlidingWindowAssigner.of(size, slide);
+        this.trigger = ElementTriggers.count(size);
+        return this;
+    }
 
-	public WindowOperatorBuilder assigner(WindowAssigner<?> windowAssigner) {
-		checkArgument(this.windowAssigner == null);
-		checkNotNull(windowAssigner);
-		this.windowAssigner = windowAssigner;
-		return this;
-	}
+    public WindowOperatorBuilder assigner(WindowAssigner<?> windowAssigner) {
+        checkArgument(this.windowAssigner == null);
+        checkNotNull(windowAssigner);
+        this.windowAssigner = windowAssigner;
+        return this;
+    }
 
-	public WindowOperatorBuilder triggering(Trigger<?> trigger) {
-		checkNotNull(trigger);
-		this.trigger = trigger;
-		return this;
-	}
+    public WindowOperatorBuilder triggering(Trigger<?> trigger) {
+        checkNotNull(trigger);
+        this.trigger = trigger;
+        return this;
+    }
 
-	public WindowOperatorBuilder withEventTime(int rowtimeIndex) {
-		checkNotNull(windowAssigner);
-		checkArgument(windowAssigner instanceof InternalTimeWindowAssigner);
-		InternalTimeWindowAssigner timeWindowAssigner = (InternalTimeWindowAssigner) windowAssigner;
-		this.windowAssigner = (WindowAssigner<?>) timeWindowAssigner.withEventTime();
-		this.rowtimeIndex = rowtimeIndex;
-		if (trigger == null) {
-			this.trigger = EventTimeTriggers.afterEndOfWindow();
-		}
-		return this;
-	}
+    public WindowOperatorBuilder withEventTime(int rowtimeIndex) {
+        checkNotNull(windowAssigner);
+        checkArgument(windowAssigner instanceof InternalTimeWindowAssigner);
+        InternalTimeWindowAssigner timeWindowAssigner = (InternalTimeWindowAssigner) windowAssigner;
+        this.windowAssigner = (WindowAssigner<?>) timeWindowAssigner.withEventTime();
+        this.rowtimeIndex = rowtimeIndex;
+        if (trigger == null) {
+            this.trigger = EventTimeTriggers.afterEndOfWindow();
+        }
+        return this;
+    }
 
-	public WindowOperatorBuilder withProcessingTime() {
-		checkNotNull(windowAssigner);
-		checkArgument(windowAssigner instanceof InternalTimeWindowAssigner);
-		InternalTimeWindowAssigner timeWindowAssigner = (InternalTimeWindowAssigner) windowAssigner;
-		this.windowAssigner = (WindowAssigner<?>) timeWindowAssigner.withProcessingTime();
-		if (trigger == null) {
-			this.trigger = ProcessingTimeTriggers.afterEndOfWindow();
-		}
-		return this;
-	}
+    public WindowOperatorBuilder withProcessingTime() {
+        checkNotNull(windowAssigner);
+        checkArgument(windowAssigner instanceof InternalTimeWindowAssigner);
+        InternalTimeWindowAssigner timeWindowAssigner = (InternalTimeWindowAssigner) windowAssigner;
+        this.windowAssigner = (WindowAssigner<?>) timeWindowAssigner.withProcessingTime();
+        if (trigger == null) {
+            this.trigger = ProcessingTimeTriggers.afterEndOfWindow();
+        }
+        return this;
+    }
 
-	public WindowOperatorBuilder withAllowedLateness(Duration allowedLateness) {
-		checkArgument(!allowedLateness.isNegative());
-		if (allowedLateness.toMillis() > 0) {
-			this.allowedLateness = allowedLateness.toMillis();
-		}
-		return this;
-	}
+    public WindowOperatorBuilder withAllowedLateness(Duration allowedLateness) {
+        checkArgument(!allowedLateness.isNegative());
+        if (allowedLateness.toMillis() > 0) {
+            this.allowedLateness = allowedLateness.toMillis();
+        }
+        return this;
+    }
 
-	public WindowOperatorBuilder produceUpdates() {
-		this.produceUpdates = true;
-		return this;
-	}
+    public WindowOperatorBuilder produceUpdates() {
+        this.produceUpdates = true;
+        return this;
+    }
 
-	protected void aggregate(
-		LogicalType[] accumulatorTypes,
-		LogicalType[] aggResultTypes,
-		LogicalType[] windowPropertyTypes) {
-		this.accumulatorTypes = accumulatorTypes;
-		this.aggResultTypes = aggResultTypes;
-		this.windowPropertyTypes = windowPropertyTypes;
-	}
+    protected void aggregate(
+            LogicalType[] accumulatorTypes,
+            LogicalType[] aggResultTypes,
+            LogicalType[] windowPropertyTypes) {
+        this.accumulatorTypes = accumulatorTypes;
+        this.aggResultTypes = aggResultTypes;
+        this.windowPropertyTypes = windowPropertyTypes;
+    }
 
-	public AggregateWindowOperatorBuilder aggregate(
-		NamespaceAggsHandleFunction<?> aggregateFunction,
-		RecordEqualiser equaliser,
-		LogicalType[] accumulatorTypes,
-		LogicalType[] aggResultTypes,
-		LogicalType[] windowPropertyTypes) {
+    public AggregateWindowOperatorBuilder aggregate(
+            NamespaceAggsHandleFunction<?> aggregateFunction,
+            RecordEqualiser equaliser,
+            LogicalType[] accumulatorTypes,
+            LogicalType[] aggResultTypes,
+            LogicalType[] windowPropertyTypes) {
 
-		aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
-		return new AggregateWindowOperatorBuilder(aggregateFunction, equaliser, this);
-	}
+        aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
+        return new AggregateWindowOperatorBuilder(aggregateFunction, equaliser, this);
+    }
 
-	public AggregateWindowOperatorBuilder aggregate(
-		GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction,
-		GeneratedRecordEqualiser generatedEqualiser,
-		LogicalType[] accumulatorTypes,
-		LogicalType[] aggResultTypes,
-		LogicalType[] windowPropertyTypes) {
+    public AggregateWindowOperatorBuilder aggregate(
+            GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction,
+            GeneratedRecordEqualiser generatedEqualiser,
+            LogicalType[] accumulatorTypes,
+            LogicalType[] aggResultTypes,
+            LogicalType[] windowPropertyTypes) {
 
-		aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
-		return new AggregateWindowOperatorBuilder(generatedAggregateFunction, generatedEqualiser, this);
-	}
+        aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
+        return new AggregateWindowOperatorBuilder(
+                generatedAggregateFunction, generatedEqualiser, this);
+    }
 
-	public TableAggregateWindowOperatorBuilder aggregate(
-		NamespaceTableAggsHandleFunction<?> tableAggregateFunction,
-		LogicalType[] accumulatorTypes,
-		LogicalType[] aggResultTypes,
-		LogicalType[] windowPropertyTypes) {
+    public TableAggregateWindowOperatorBuilder aggregate(
+            NamespaceTableAggsHandleFunction<?> tableAggregateFunction,
+            LogicalType[] accumulatorTypes,
+            LogicalType[] aggResultTypes,
+            LogicalType[] windowPropertyTypes) {
 
-		aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
-		return new TableAggregateWindowOperatorBuilder(tableAggregateFunction, this);
-	}
+        aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
+        return new TableAggregateWindowOperatorBuilder(tableAggregateFunction, this);
+    }
 
-	public TableAggregateWindowOperatorBuilder aggregate(
-		GeneratedNamespaceTableAggsHandleFunction<?> generatedTableAggregateFunction,
-		LogicalType[] accumulatorTypes,
-		LogicalType[] aggResultTypes,
-		LogicalType[] windowPropertyTypes) {
+    public TableAggregateWindowOperatorBuilder aggregate(
+            GeneratedNamespaceTableAggsHandleFunction<?> generatedTableAggregateFunction,
+            LogicalType[] accumulatorTypes,
+            LogicalType[] aggResultTypes,
+            LogicalType[] windowPropertyTypes) {
 
-		aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
-		return new TableAggregateWindowOperatorBuilder(generatedTableAggregateFunction, this);
-	}
+        aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
+        return new TableAggregateWindowOperatorBuilder(generatedTableAggregateFunction, this);
+    }
 
-	@VisibleForTesting
-	WindowOperator aggregateAndBuild(
-		NamespaceAggsHandleFunctionBase<?> aggregateFunction,
-		RecordEqualiser equaliser,
-		LogicalType[] accumulatorTypes,
-		LogicalType[] aggResultTypes,
-		LogicalType[] windowPropertyTypes) {
-		aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
-		if (aggregateFunction instanceof NamespaceAggsHandleFunction) {
-			return new AggregateWindowOperatorBuilder(
-				(NamespaceAggsHandleFunction) aggregateFunction, equaliser, this).build();
-		} else {
-			return new TableAggregateWindowOperatorBuilder(
-				(NamespaceTableAggsHandleFunction) aggregateFunction, this).build();
-		}
-	}
+    @VisibleForTesting
+    WindowOperator aggregateAndBuild(
+            NamespaceAggsHandleFunctionBase<?> aggregateFunction,
+            RecordEqualiser equaliser,
+            LogicalType[] accumulatorTypes,
+            LogicalType[] aggResultTypes,
+            LogicalType[] windowPropertyTypes) {
+        aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
+        if (aggregateFunction instanceof NamespaceAggsHandleFunction) {
+            return new AggregateWindowOperatorBuilder(
+                            (NamespaceAggsHandleFunction) aggregateFunction, equaliser, this)
+                    .build();
+        } else {
+            return new TableAggregateWindowOperatorBuilder(
+                            (NamespaceTableAggsHandleFunction) aggregateFunction, this)
+                    .build();
+        }
+    }
 
-	/**
-	 * The builder which is used to build {@link TableAggregateWindowOperator} fluently.
-	 */
-	public static class TableAggregateWindowOperatorBuilder {
-		private NamespaceTableAggsHandleFunction<?> tableAggregateFunction;
-		private GeneratedNamespaceTableAggsHandleFunction<?> generatedTableAggregateFunction;
-		private WindowOperatorBuilder windowOperatorBuilder;
+    /** The builder which is used to build {@link TableAggregateWindowOperator} fluently. */
+    public static class TableAggregateWindowOperatorBuilder {
+        private NamespaceTableAggsHandleFunction<?> tableAggregateFunction;
+        private GeneratedNamespaceTableAggsHandleFunction<?> generatedTableAggregateFunction;
+        private WindowOperatorBuilder windowOperatorBuilder;
 
-		public TableAggregateWindowOperatorBuilder(
-			NamespaceTableAggsHandleFunction<?> tableAggregateFunction,
-			WindowOperatorBuilder windowOperatorBuilder) {
-			this.tableAggregateFunction = tableAggregateFunction;
-			this.windowOperatorBuilder = windowOperatorBuilder;
-		}
+        public TableAggregateWindowOperatorBuilder(
+                NamespaceTableAggsHandleFunction<?> tableAggregateFunction,
+                WindowOperatorBuilder windowOperatorBuilder) {
+            this.tableAggregateFunction = tableAggregateFunction;
+            this.windowOperatorBuilder = windowOperatorBuilder;
+        }
 
-		public TableAggregateWindowOperatorBuilder(
-			GeneratedNamespaceTableAggsHandleFunction<?> generatedTableAggregateFunction,
-			WindowOperatorBuilder windowOperatorBuilder) {
-			this.generatedTableAggregateFunction = generatedTableAggregateFunction;
-			this.windowOperatorBuilder = windowOperatorBuilder;
-		}
+        public TableAggregateWindowOperatorBuilder(
+                GeneratedNamespaceTableAggsHandleFunction<?> generatedTableAggregateFunction,
+                WindowOperatorBuilder windowOperatorBuilder) {
+            this.generatedTableAggregateFunction = generatedTableAggregateFunction;
+            this.windowOperatorBuilder = windowOperatorBuilder;
+        }
 
-		public WindowOperator build() {
-			checkNotNull(windowOperatorBuilder.trigger, "trigger is not set");
-			if (generatedTableAggregateFunction != null) {
-				//noinspection unchecked
-				return new TableAggregateWindowOperator(
-					generatedTableAggregateFunction,
-					windowOperatorBuilder.windowAssigner,
-					windowOperatorBuilder.trigger,
-					windowOperatorBuilder.windowAssigner.getWindowSerializer(new ExecutionConfig()),
-					windowOperatorBuilder.inputFieldTypes,
-					windowOperatorBuilder.accumulatorTypes,
-					windowOperatorBuilder.aggResultTypes,
-					windowOperatorBuilder.windowPropertyTypes,
-					windowOperatorBuilder.rowtimeIndex,
-					windowOperatorBuilder.produceUpdates,
-					windowOperatorBuilder.allowedLateness);
-			} else {
-				//noinspection unchecked
-				return new TableAggregateWindowOperator(
-					tableAggregateFunction,
-					windowOperatorBuilder.windowAssigner,
-					windowOperatorBuilder.trigger,
-					windowOperatorBuilder.windowAssigner.getWindowSerializer(new ExecutionConfig()),
-					windowOperatorBuilder.inputFieldTypes,
-					windowOperatorBuilder.accumulatorTypes,
-					windowOperatorBuilder.aggResultTypes,
-					windowOperatorBuilder.windowPropertyTypes,
-					windowOperatorBuilder.rowtimeIndex,
-					windowOperatorBuilder.produceUpdates,
-					windowOperatorBuilder.allowedLateness);
-			}
-		}
-	}
+        public WindowOperator build() {
+            checkNotNull(windowOperatorBuilder.trigger, "trigger is not set");
+            if (generatedTableAggregateFunction != null) {
+                //noinspection unchecked
+                return new TableAggregateWindowOperator(
+                        generatedTableAggregateFunction,
+                        windowOperatorBuilder.windowAssigner,
+                        windowOperatorBuilder.trigger,
+                        windowOperatorBuilder.windowAssigner.getWindowSerializer(
+                                new ExecutionConfig()),
+                        windowOperatorBuilder.inputFieldTypes,
+                        windowOperatorBuilder.accumulatorTypes,
+                        windowOperatorBuilder.aggResultTypes,
+                        windowOperatorBuilder.windowPropertyTypes,
+                        windowOperatorBuilder.rowtimeIndex,
+                        windowOperatorBuilder.produceUpdates,
+                        windowOperatorBuilder.allowedLateness);
+            } else {
+                //noinspection unchecked
+                return new TableAggregateWindowOperator(
+                        tableAggregateFunction,
+                        windowOperatorBuilder.windowAssigner,
+                        windowOperatorBuilder.trigger,
+                        windowOperatorBuilder.windowAssigner.getWindowSerializer(
+                                new ExecutionConfig()),
+                        windowOperatorBuilder.inputFieldTypes,
+                        windowOperatorBuilder.accumulatorTypes,
+                        windowOperatorBuilder.aggResultTypes,
+                        windowOperatorBuilder.windowPropertyTypes,
+                        windowOperatorBuilder.rowtimeIndex,
+                        windowOperatorBuilder.produceUpdates,
+                        windowOperatorBuilder.allowedLateness);
+            }
+        }
+    }
 
-	/**
-	 * The builder which is used to build {@link AggregateWindowOperator} fluently.
-	 */
-	public static class AggregateWindowOperatorBuilder {
-		private NamespaceAggsHandleFunction<?> aggregateFunction;
-		private GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction;
-		private RecordEqualiser equaliser;
-		private GeneratedRecordEqualiser generatedEqualiser;
-		private WindowOperatorBuilder windowOperatorBuilder;
+    /** The builder which is used to build {@link AggregateWindowOperator} fluently. */
+    public static class AggregateWindowOperatorBuilder {
+        private NamespaceAggsHandleFunction<?> aggregateFunction;
+        private GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction;
+        private RecordEqualiser equaliser;
+        private GeneratedRecordEqualiser generatedEqualiser;
+        private WindowOperatorBuilder windowOperatorBuilder;
 
-		public AggregateWindowOperatorBuilder(
-			GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction,
-			GeneratedRecordEqualiser generatedEqualiser,
-			WindowOperatorBuilder windowOperatorBuilder) {
-			this.generatedAggregateFunction = generatedAggregateFunction;
-			this.generatedEqualiser = generatedEqualiser;
-			this.windowOperatorBuilder = windowOperatorBuilder;
-		}
+        public AggregateWindowOperatorBuilder(
+                GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction,
+                GeneratedRecordEqualiser generatedEqualiser,
+                WindowOperatorBuilder windowOperatorBuilder) {
+            this.generatedAggregateFunction = generatedAggregateFunction;
+            this.generatedEqualiser = generatedEqualiser;
+            this.windowOperatorBuilder = windowOperatorBuilder;
+        }
 
-		public AggregateWindowOperatorBuilder(
-			NamespaceAggsHandleFunction<?> aggregateFunction,
-			RecordEqualiser equaliser,
-			WindowOperatorBuilder windowOperatorBuilder) {
-			this.aggregateFunction = aggregateFunction;
-			this.equaliser = equaliser;
-			this.windowOperatorBuilder = windowOperatorBuilder;
-		}
+        public AggregateWindowOperatorBuilder(
+                NamespaceAggsHandleFunction<?> aggregateFunction,
+                RecordEqualiser equaliser,
+                WindowOperatorBuilder windowOperatorBuilder) {
+            this.aggregateFunction = aggregateFunction;
+            this.equaliser = equaliser;
+            this.windowOperatorBuilder = windowOperatorBuilder;
+        }
 
-		public AggregateWindowOperator build() {
-			checkNotNull(windowOperatorBuilder.trigger, "trigger is not set");
-			if (generatedAggregateFunction != null && generatedEqualiser != null) {
-				//noinspection unchecked
-				return new AggregateWindowOperator(
-					generatedAggregateFunction,
-					generatedEqualiser,
-					windowOperatorBuilder.windowAssigner,
-					windowOperatorBuilder.trigger,
-					windowOperatorBuilder.windowAssigner.getWindowSerializer(new ExecutionConfig()),
-					windowOperatorBuilder.inputFieldTypes,
-					windowOperatorBuilder.accumulatorTypes,
-					windowOperatorBuilder.aggResultTypes,
-					windowOperatorBuilder.windowPropertyTypes,
-					windowOperatorBuilder.rowtimeIndex,
-					windowOperatorBuilder.produceUpdates,
-					windowOperatorBuilder.allowedLateness);
-			} else {
-				//noinspection unchecked
-				return new AggregateWindowOperator(
-					aggregateFunction,
-					equaliser,
-					windowOperatorBuilder.windowAssigner,
-					windowOperatorBuilder.trigger,
-					windowOperatorBuilder.windowAssigner.getWindowSerializer(new ExecutionConfig()),
-					windowOperatorBuilder.inputFieldTypes,
-					windowOperatorBuilder.accumulatorTypes,
-					windowOperatorBuilder.aggResultTypes,
-					windowOperatorBuilder.windowPropertyTypes,
-					windowOperatorBuilder.rowtimeIndex,
-					windowOperatorBuilder.produceUpdates,
-					windowOperatorBuilder.allowedLateness);
-			}
-		}
-	}
+        public AggregateWindowOperator build() {
+            checkNotNull(windowOperatorBuilder.trigger, "trigger is not set");
+            if (generatedAggregateFunction != null && generatedEqualiser != null) {
+                //noinspection unchecked
+                return new AggregateWindowOperator(
+                        generatedAggregateFunction,
+                        generatedEqualiser,
+                        windowOperatorBuilder.windowAssigner,
+                        windowOperatorBuilder.trigger,
+                        windowOperatorBuilder.windowAssigner.getWindowSerializer(
+                                new ExecutionConfig()),
+                        windowOperatorBuilder.inputFieldTypes,
+                        windowOperatorBuilder.accumulatorTypes,
+                        windowOperatorBuilder.aggResultTypes,
+                        windowOperatorBuilder.windowPropertyTypes,
+                        windowOperatorBuilder.rowtimeIndex,
+                        windowOperatorBuilder.produceUpdates,
+                        windowOperatorBuilder.allowedLateness);
+            } else {
+                //noinspection unchecked
+                return new AggregateWindowOperator(
+                        aggregateFunction,
+                        equaliser,
+                        windowOperatorBuilder.windowAssigner,
+                        windowOperatorBuilder.trigger,
+                        windowOperatorBuilder.windowAssigner.getWindowSerializer(
+                                new ExecutionConfig()),
+                        windowOperatorBuilder.inputFieldTypes,
+                        windowOperatorBuilder.accumulatorTypes,
+                        windowOperatorBuilder.aggResultTypes,
+                        windowOperatorBuilder.windowPropertyTypes,
+                        windowOperatorBuilder.rowtimeIndex,
+                        windowOperatorBuilder.produceUpdates,
+                        windowOperatorBuilder.allowedLateness);
+            }
+        }
+    }
 }

@@ -26,38 +26,38 @@ import java.util.Objects;
 
 /** Base class for state TTL test context. */
 public abstract class TtlStateTestContextBase<S extends InternalKvState<?, String, ?>, UV, GV> {
-	public S ttlState;
+    public S ttlState;
 
-	public UV updateEmpty;
-	public UV updateUnexpired;
-	public UV updateExpired;
+    public UV updateEmpty;
+    public UV updateUnexpired;
+    public UV updateExpired;
 
-	public GV getUpdateEmpty;
-	public GV getUnexpired;
-	GV getUpdateExpired;
+    public GV getUpdateEmpty;
+    public GV getUnexpired;
+    GV getUpdateExpired;
 
-	public GV emptyValue = null;
+    public GV emptyValue = null;
 
-	abstract void initTestValues();
+    abstract void initTestValues();
 
-	public abstract <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor();
+    public abstract <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor();
 
-	public abstract void update(UV value) throws Exception;
+    public abstract void update(UV value) throws Exception;
 
-	public abstract GV get() throws Exception;
+    public abstract GV get() throws Exception;
 
-	public abstract Object getOriginal() throws Exception;
+    public abstract Object getOriginal() throws Exception;
 
-	public boolean isOriginalEmptyValue() throws Exception {
-		return Objects.equals(emptyValue, getOriginal());
-	}
+    public boolean isOriginalEmptyValue() throws Exception {
+        return Objects.equals(emptyValue, getOriginal());
+    }
 
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
+    public String getName() {
+        return this.getClass().getSimpleName();
+    }
 
-	@Override
-	public String toString() {
-		return this.getClass().getSimpleName();
-	}
+    @Override
+    public String toString() {
+        return this.getClass().getSimpleName();
+    }
 }

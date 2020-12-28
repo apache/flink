@@ -40,210 +40,234 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link SupervisorActor}.
- */
+/** Tests for the {@link SupervisorActor}. */
 public class SupervisorActorTest extends TestLogger {
 
-	@Rule
-	public final ActorSystemResource actorSystemResource = ActorSystemResource.defaultConfiguration();
+    @Rule
+    public final ActorSystemResource actorSystemResource =
+            ActorSystemResource.defaultConfiguration();
 
-	@Test
-	public void completesTerminationFutureIfActorStops() {
-		final ActorSystem actorSystem = actorSystemResource.getActorSystem();
+    @Test
+    public void completesTerminationFutureIfActorStops() {
+        final ActorSystem actorSystem = actorSystemResource.getActorSystem();
 
-		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
+        final ActorRef supervisor =
+                SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
 
-		final SupervisorActor.ActorRegistration actorRegistration = startAkkaRpcActor(supervisor, "foobar");
+        final SupervisorActor.ActorRegistration actorRegistration =
+                startAkkaRpcActor(supervisor, "foobar");
 
-		final CompletableFuture<Void> terminationFuture = actorRegistration.getTerminationFuture();
-		assertThat(terminationFuture.isDone(), is(false));
+        final CompletableFuture<Void> terminationFuture = actorRegistration.getTerminationFuture();
+        assertThat(terminationFuture.isDone(), is(false));
 
-		actorRegistration.getActorRef().tell(TerminateWithFutureCompletion.normal(), ActorRef.noSender());
+        actorRegistration
+                .getActorRef()
+                .tell(TerminateWithFutureCompletion.normal(), ActorRef.noSender());
 
-		terminationFuture.join();
-	}
+        terminationFuture.join();
+    }
 
-	@Test
-	public void completesTerminationFutureExceptionallyIfActorStopsExceptionally() throws Exception {
-		final ActorSystem actorSystem = actorSystemResource.getActorSystem();
+    @Test
+    public void completesTerminationFutureExceptionallyIfActorStopsExceptionally()
+            throws Exception {
+        final ActorSystem actorSystem = actorSystemResource.getActorSystem();
 
-		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
+        final ActorRef supervisor =
+                SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
 
-		final SupervisorActor.ActorRegistration actorRegistration = startAkkaRpcActor(supervisor, "foobar");
+        final SupervisorActor.ActorRegistration actorRegistration =
+                startAkkaRpcActor(supervisor, "foobar");
 
-		final CompletableFuture<Void> terminationFuture = actorRegistration.getTerminationFuture();
-		assertThat(terminationFuture.isDone(), is(false));
+        final CompletableFuture<Void> terminationFuture = actorRegistration.getTerminationFuture();
+        assertThat(terminationFuture.isDone(), is(false));
 
-		final FlinkException cause = new FlinkException("Test cause.");
-		actorRegistration.getActorRef().tell(TerminateWithFutureCompletion.exceptionally(cause), ActorRef.noSender());
+        final FlinkException cause = new FlinkException("Test cause.");
+        actorRegistration
+                .getActorRef()
+                .tell(TerminateWithFutureCompletion.exceptionally(cause), ActorRef.noSender());
 
-		try {
-			terminationFuture.get();
-			fail("Expected the termination future being completed exceptionally");
-		} catch (ExecutionException expected) {
-			ExceptionUtils.findThrowable(expected, e -> e.equals(cause))
-				.orElseThrow(() -> new FlinkException("Unexpected exception", expected));
-		}
-	}
+        try {
+            terminationFuture.get();
+            fail("Expected the termination future being completed exceptionally");
+        } catch (ExecutionException expected) {
+            ExceptionUtils.findThrowable(expected, e -> e.equals(cause))
+                    .orElseThrow(() -> new FlinkException("Unexpected exception", expected));
+        }
+    }
 
-	@Test
-	public void completesTerminationFutureExceptionallyIfActorStopsWithoutReason() throws InterruptedException {
-		final ActorSystem actorSystem = actorSystemResource.getActorSystem();
+    @Test
+    public void completesTerminationFutureExceptionallyIfActorStopsWithoutReason()
+            throws InterruptedException {
+        final ActorSystem actorSystem = actorSystemResource.getActorSystem();
 
-		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
+        final ActorRef supervisor =
+                SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
 
-		final SupervisorActor.ActorRegistration actorRegistration = startAkkaRpcActor(supervisor, "foobar");
+        final SupervisorActor.ActorRegistration actorRegistration =
+                startAkkaRpcActor(supervisor, "foobar");
 
-		final CompletableFuture<Void> terminationFuture = actorRegistration.getTerminationFuture();
-		assertThat(terminationFuture.isDone(), is(false));
+        final CompletableFuture<Void> terminationFuture = actorRegistration.getTerminationFuture();
+        assertThat(terminationFuture.isDone(), is(false));
 
-		actorRegistration.getActorRef().tell(Terminate.INSTANCE, ActorRef.noSender());
+        actorRegistration.getActorRef().tell(Terminate.INSTANCE, ActorRef.noSender());
 
-		try {
-			terminationFuture.get();
-			fail("Expected the termination future being completed exceptionally");
-		} catch (ExecutionException expected) {}
-	}
+        try {
+            terminationFuture.get();
+            fail("Expected the termination future being completed exceptionally");
+        } catch (ExecutionException expected) {
+        }
+    }
 
-	@Test
-	public void completesTerminationFutureExceptionallyIfActorFails() throws Exception {
-		final ActorSystem actorSystem = actorSystemResource.getActorSystem();
+    @Test
+    public void completesTerminationFutureExceptionallyIfActorFails() throws Exception {
+        final ActorSystem actorSystem = actorSystemResource.getActorSystem();
 
-		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
+        final ActorRef supervisor =
+                SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
 
-		final SupervisorActor.ActorRegistration actorRegistration = startAkkaRpcActor(supervisor, "foobar");
+        final SupervisorActor.ActorRegistration actorRegistration =
+                startAkkaRpcActor(supervisor, "foobar");
 
-		final CompletableFuture<Void> terminationFuture = actorRegistration.getTerminationFuture();
-		assertThat(terminationFuture.isDone(), is(false));
+        final CompletableFuture<Void> terminationFuture = actorRegistration.getTerminationFuture();
+        assertThat(terminationFuture.isDone(), is(false));
 
-		final CompletableFuture<Terminated> actorSystemTerminationFuture = actorSystem.getWhenTerminated().toCompletableFuture();
+        final CompletableFuture<Terminated> actorSystemTerminationFuture =
+                actorSystem.getWhenTerminated().toCompletableFuture();
 
-		final FlinkException cause = new FlinkException("Test cause.");
-		actorRegistration.getActorRef().tell(Fail.exceptionally(cause), ActorRef.noSender());
+        final FlinkException cause = new FlinkException("Test cause.");
+        actorRegistration.getActorRef().tell(Fail.exceptionally(cause), ActorRef.noSender());
 
-		try {
-			terminationFuture.get();
-			fail("Expected the termination future being completed exceptionally");
-		} catch (ExecutionException expected) {
-			ExceptionUtils.findThrowable(expected, e -> e.equals(cause))
-				.orElseThrow(() -> new FlinkException("Unexpected exception", expected));
-		}
+        try {
+            terminationFuture.get();
+            fail("Expected the termination future being completed exceptionally");
+        } catch (ExecutionException expected) {
+            ExceptionUtils.findThrowable(expected, e -> e.equals(cause))
+                    .orElseThrow(() -> new FlinkException("Unexpected exception", expected));
+        }
 
-		// make sure that the supervisor actor has stopped --> terminating the actor system
-		actorSystemTerminationFuture.join();
-	}
+        // make sure that the supervisor actor has stopped --> terminating the actor system
+        actorSystemTerminationFuture.join();
+    }
 
-	@Test
-	public void completesTerminationFutureOfSiblingsIfActorFails() throws Exception {
-		final ActorSystem actorSystem = actorSystemResource.getActorSystem();
+    @Test
+    public void completesTerminationFutureOfSiblingsIfActorFails() throws Exception {
+        final ActorSystem actorSystem = actorSystemResource.getActorSystem();
 
-		final ActorRef supervisor = SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
+        final ActorRef supervisor =
+                SupervisorActor.startSupervisorActor(actorSystem, actorSystem.getDispatcher());
 
-		final SupervisorActor.ActorRegistration actorRegistration1 = startAkkaRpcActor(supervisor, "foobar1");
-		final SupervisorActor.ActorRegistration actorRegistration2 = startAkkaRpcActor(supervisor, "foobar2");
+        final SupervisorActor.ActorRegistration actorRegistration1 =
+                startAkkaRpcActor(supervisor, "foobar1");
+        final SupervisorActor.ActorRegistration actorRegistration2 =
+                startAkkaRpcActor(supervisor, "foobar2");
 
-		final CompletableFuture<Void> terminationFuture = actorRegistration2.getTerminationFuture();
-		assertThat(terminationFuture.isDone(), is(false));
+        final CompletableFuture<Void> terminationFuture = actorRegistration2.getTerminationFuture();
+        assertThat(terminationFuture.isDone(), is(false));
 
-		final FlinkException cause = new FlinkException("Test cause.");
-		actorRegistration1.getActorRef().tell(Fail.exceptionally(cause), ActorRef.noSender());
+        final FlinkException cause = new FlinkException("Test cause.");
+        actorRegistration1.getActorRef().tell(Fail.exceptionally(cause), ActorRef.noSender());
 
-		try {
-			terminationFuture.get();
-			fail("Expected the termination future being completed exceptionally");
-		} catch (ExecutionException expected) {}
-	}
+        try {
+            terminationFuture.get();
+            fail("Expected the termination future being completed exceptionally");
+        } catch (ExecutionException expected) {
+        }
+    }
 
-	private SupervisorActor.ActorRegistration startAkkaRpcActor(ActorRef supervisor, String endpointId) {
-		final SupervisorActor.StartAkkaRpcActorResponse startResponse = SupervisorActor.startAkkaRpcActor(
-			supervisor,
-			terminationFuture -> Props.create(SimpleActor.class, terminationFuture),
-			endpointId);
+    private SupervisorActor.ActorRegistration startAkkaRpcActor(
+            ActorRef supervisor, String endpointId) {
+        final SupervisorActor.StartAkkaRpcActorResponse startResponse =
+                SupervisorActor.startAkkaRpcActor(
+                        supervisor,
+                        terminationFuture -> Props.create(SimpleActor.class, terminationFuture),
+                        endpointId);
 
-		return startResponse.orElseThrow(cause -> new AssertionError("Expected the start to succeed.", cause));
-	}
+        return startResponse.orElseThrow(
+                cause -> new AssertionError("Expected the start to succeed.", cause));
+    }
 
-	private static final class SimpleActor extends AbstractActor {
+    private static final class SimpleActor extends AbstractActor {
 
-		private final CompletableFuture<Void> terminationFuture;
+        private final CompletableFuture<Void> terminationFuture;
 
-		private SimpleActor(CompletableFuture<Void> terminationFuture) {
-			this.terminationFuture = terminationFuture;
-		}
+        private SimpleActor(CompletableFuture<Void> terminationFuture) {
+            this.terminationFuture = terminationFuture;
+        }
 
-		@Override
-		public Receive createReceive() {
-			return ReceiveBuilder.create()
-				.match(Terminate.class, this::terminate)
-				.match(TerminateWithFutureCompletion.class, this::terminateActorWithFutureCompletion)
-				.match(Fail.class, this::fail)
-				.build();
-		}
+        @Override
+        public Receive createReceive() {
+            return ReceiveBuilder.create()
+                    .match(Terminate.class, this::terminate)
+                    .match(
+                            TerminateWithFutureCompletion.class,
+                            this::terminateActorWithFutureCompletion)
+                    .match(Fail.class, this::fail)
+                    .build();
+        }
 
-		private void fail(Fail fail) {
-			throw new RuntimeException(fail.getCause());
-		}
+        private void fail(Fail fail) {
+            throw new RuntimeException(fail.getCause());
+        }
 
-		private void terminate(Terminate terminate) {
-			terminateActor();
-		}
+        private void terminate(Terminate terminate) {
+            terminateActor();
+        }
 
-		private void terminateActor() {
-			getContext().stop(getSelf());
-		}
+        private void terminateActor() {
+            getContext().stop(getSelf());
+        }
 
-		private void terminateActorWithFutureCompletion(TerminateWithFutureCompletion terminateWithFutureCompletion) {
-			final Throwable terminationError = terminateWithFutureCompletion.getTerminationError();
-			if (terminationError == null) {
-				terminationFuture.complete(null);
-			} else {
-				terminationFuture.completeExceptionally(terminationError);
-			}
+        private void terminateActorWithFutureCompletion(
+                TerminateWithFutureCompletion terminateWithFutureCompletion) {
+            final Throwable terminationError = terminateWithFutureCompletion.getTerminationError();
+            if (terminationError == null) {
+                terminationFuture.complete(null);
+            } else {
+                terminationFuture.completeExceptionally(terminationError);
+            }
 
-			terminateActor();
-		}
-	}
+            terminateActor();
+        }
+    }
 
-	private static final class Terminate {
-		private static final Terminate INSTANCE = new Terminate();
-	}
+    private static final class Terminate {
+        private static final Terminate INSTANCE = new Terminate();
+    }
 
-	private static final class TerminateWithFutureCompletion {
-		@Nullable
-		private final Throwable terminationError;
+    private static final class TerminateWithFutureCompletion {
+        @Nullable private final Throwable terminationError;
 
-		private TerminateWithFutureCompletion(@Nullable Throwable terminationError) {
-			this.terminationError = terminationError;
-		}
+        private TerminateWithFutureCompletion(@Nullable Throwable terminationError) {
+            this.terminationError = terminationError;
+        }
 
-		@Nullable
-		private Throwable getTerminationError() {
-			return terminationError;
-		}
+        @Nullable
+        private Throwable getTerminationError() {
+            return terminationError;
+        }
 
-		private static TerminateWithFutureCompletion normal() {
-			return new TerminateWithFutureCompletion(null);
-		}
+        private static TerminateWithFutureCompletion normal() {
+            return new TerminateWithFutureCompletion(null);
+        }
 
-		private static TerminateWithFutureCompletion exceptionally(Throwable cause) {
-			return new TerminateWithFutureCompletion(cause);
-		}
-	}
+        private static TerminateWithFutureCompletion exceptionally(Throwable cause) {
+            return new TerminateWithFutureCompletion(cause);
+        }
+    }
 
-	private static final class Fail {
-		private final Throwable cause;
+    private static final class Fail {
+        private final Throwable cause;
 
-		private Fail(Throwable cause) {
-			this.cause = cause;
-		}
+        private Fail(Throwable cause) {
+            this.cause = cause;
+        }
 
-		private Throwable getCause() {
-			return cause;
-		}
+        private Throwable getCause() {
+            return cause;
+        }
 
-		private static Fail exceptionally(Throwable cause) {
-			return new Fail(cause);
-		}
-	}
+        private static Fail exceptionally(Throwable cause) {
+            return new Fail(cause);
+        }
+    }
 }

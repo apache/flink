@@ -20,23 +20,21 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
 
-/**
- * Interface for querying the state of a job and the timestamps of state transitions.
- */
+/** Interface for querying the state of a job and the timestamps of state transitions. */
 public interface JobStatusProvider {
 
-	/**
-	 * Returns the current {@link JobStatus} for this execution graph.
-	 *
-	 * @return job status for this execution graph
-	 */
-	JobStatus getState();
+    /**
+     * Returns the current {@link JobStatus} for this execution graph.
+     *
+     * @return job status for this execution graph
+     */
+    JobStatus getState();
 
-	/**
-	 * Returns the timestamp for the given {@link JobStatus}.
-	 *
-	 * @param status status for which the timestamp should be returned
-	 * @return timestamp for the given job status
-	 */
-	long getStatusTimestamp(JobStatus status);
+    /**
+     * Returns the timestamp for the given {@link JobStatus}.
+     *
+     * @param status status for which the timestamp should be returned
+     * @return timestamp for the given job status
+     */
+    long getStatusTimestamp(JobStatus status);
 }

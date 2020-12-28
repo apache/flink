@@ -37,60 +37,60 @@ import java.util.List;
 import static org.apache.flink.orc.shim.OrcShimV200.computeProjectionMask;
 import static org.apache.flink.orc.shim.OrcShimV200.getOffsetAndLengthForSplit;
 
-/**
- * Shim for orc reader without hive dependents.
- */
+/** Shim for orc reader without hive dependents. */
 public class OrcNoHiveShim implements OrcShim<VectorizedRowBatch> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public RecordReader createRecordReader(
-			Configuration conf,
-			TypeDescription schema,
-			int[] selectedFields,
-			List<OrcFilters.Predicate> conjunctPredicates,
-			org.apache.flink.core.fs.Path path,
-			long splitStart,
-			long splitLength) throws IOException {
-		// open ORC file and create reader
-		org.apache.hadoop.fs.Path hPath = new org.apache.hadoop.fs.Path(path.toUri());
+    @Override
+    public RecordReader createRecordReader(
+            Configuration conf,
+            TypeDescription schema,
+            int[] selectedFields,
+            List<OrcFilters.Predicate> conjunctPredicates,
+            org.apache.flink.core.fs.Path path,
+            long splitStart,
+            long splitLength)
+            throws IOException {
+        // open ORC file and create reader
+        org.apache.hadoop.fs.Path hPath = new org.apache.hadoop.fs.Path(path.toUri());
 
-		Reader orcReader = OrcFile.createReader(hPath, OrcFile.readerOptions(conf));
+        Reader orcReader = OrcFile.createReader(hPath, OrcFile.readerOptions(conf));
 
-		// get offset and length for the stripes that start in the split
-		Tuple2<Long, Long> offsetAndLength = getOffsetAndLengthForSplit(
-				splitStart, splitLength, orcReader.getStripes());
+        // get offset and length for the stripes that start in the split
+        Tuple2<Long, Long> offsetAndLength =
+                getOffsetAndLengthForSplit(splitStart, splitLength, orcReader.getStripes());
 
-		// create ORC row reader configuration
-		Reader.Options options = new Reader.Options()
-				.schema(schema)
-				.range(offsetAndLength.f0, offsetAndLength.f1)
-				.useZeroCopy(OrcConf.USE_ZEROCOPY.getBoolean(conf))
-				.skipCorruptRecords(OrcConf.SKIP_CORRUPT_DATA.getBoolean(conf))
-				.tolerateMissingSchema(OrcConf.TOLERATE_MISSING_SCHEMA.getBoolean(conf));
+        // create ORC row reader configuration
+        Reader.Options options =
+                new Reader.Options()
+                        .schema(schema)
+                        .range(offsetAndLength.f0, offsetAndLength.f1)
+                        .useZeroCopy(OrcConf.USE_ZEROCOPY.getBoolean(conf))
+                        .skipCorruptRecords(OrcConf.SKIP_CORRUPT_DATA.getBoolean(conf))
+                        .tolerateMissingSchema(OrcConf.TOLERATE_MISSING_SCHEMA.getBoolean(conf));
 
-		// TODO configure filters
+        // TODO configure filters
 
-		// configure selected fields
-		options.include(computeProjectionMask(schema, selectedFields));
+        // configure selected fields
+        options.include(computeProjectionMask(schema, selectedFields));
 
-		// create ORC row reader
-		RecordReader orcRowsReader = orcReader.rows(options);
+        // create ORC row reader
+        RecordReader orcRowsReader = orcReader.rows(options);
 
-		// assign ids
-		schema.getId();
+        // assign ids
+        schema.getId();
 
-		return orcRowsReader;
-	}
+        return orcRowsReader;
+    }
 
-	@Override
-	public OrcNoHiveBatchWrapper createBatchWrapper(TypeDescription schema, int batchSize) {
-		return new OrcNoHiveBatchWrapper(schema.createRowBatch(batchSize));
-	}
+    @Override
+    public OrcNoHiveBatchWrapper createBatchWrapper(TypeDescription schema, int batchSize) {
+        return new OrcNoHiveBatchWrapper(schema.createRowBatch(batchSize));
+    }
 
-	@Override
-	public boolean nextBatch(RecordReader reader, VectorizedRowBatch rowBatch) throws IOException {
-		return reader.nextBatch(rowBatch);
-	}
+    @Override
+    public boolean nextBatch(RecordReader reader, VectorizedRowBatch rowBatch) throws IOException {
+        return reader.nextBatch(rowBatch);
+    }
 }

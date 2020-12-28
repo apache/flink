@@ -30,21 +30,23 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
  * @param <InputT> The input type of the {@link SinkWriter}.
  * @param <CommT> The committable type of the {@link SinkWriter}.
  */
-public final class StatelessSinkWriterOperatorFactory<InputT, CommT> extends AbstractSinkWriterOperatorFactory<InputT, CommT> {
+public final class StatelessSinkWriterOperatorFactory<InputT, CommT>
+        extends AbstractSinkWriterOperatorFactory<InputT, CommT> {
 
-	private final Sink<InputT, CommT, ?, ?> sink;
+    private final Sink<InputT, CommT, ?, ?> sink;
 
-	public StatelessSinkWriterOperatorFactory(Sink<InputT, CommT, ?, ?> sink) {
-		this.sink = sink;
-	}
+    public StatelessSinkWriterOperatorFactory(Sink<InputT, CommT, ?, ?> sink) {
+        this.sink = sink;
+    }
 
-	@Override
-	AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(ProcessingTimeService processingTimeService) {
-		return new StatelessSinkWriterOperator<>(processingTimeService, sink);
-	}
+    @Override
+    AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(
+            ProcessingTimeService processingTimeService) {
+        return new StatelessSinkWriterOperator<>(processingTimeService, sink);
+    }
 
-	@Override
-	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return StatelessSinkWriterOperator.class;
-	}
+    @Override
+    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+        return StatelessSinkWriterOperator.class;
+    }
 }

@@ -38,59 +38,58 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.Optional;
 
-/**
- * Base {@link ExecNode} which matches along with join a Java/Scala user defined table function.
- */
+/** Base {@link ExecNode} which matches along with join a Java/Scala user defined table function. */
 public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
-	private final FlinkJoinType joinType;
-	private final RexCall invocation;
-	@Nullable
-	private final RexNode condition;
-	private final Class<?> operatorBaseClass;
-	private final boolean retainHeader;
+    private final FlinkJoinType joinType;
+    private final RexCall invocation;
+    @Nullable private final RexNode condition;
+    private final Class<?> operatorBaseClass;
+    private final boolean retainHeader;
 
-	public CommonExecCorrelate(
-			FlinkJoinType joinType,
-			RexCall invocation,
-			@Nullable RexNode condition,
-			Class<?> operatorBaseClass,
-			boolean retainHeader,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-		this.joinType = joinType;
-		this.invocation = invocation;
-		this.condition = condition;
-		this.operatorBaseClass = operatorBaseClass;
-		this.retainHeader = retainHeader;
-	}
+    public CommonExecCorrelate(
+            FlinkJoinType joinType,
+            RexCall invocation,
+            @Nullable RexNode condition,
+            Class<?> operatorBaseClass,
+            boolean retainHeader,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputEdge), outputType, description);
+        this.joinType = joinType;
+        this.invocation = invocation;
+        this.condition = condition;
+        this.operatorBaseClass = operatorBaseClass;
+        this.retainHeader = retainHeader;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-		final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
-		final CodeGeneratorContext ctx = new CodeGeneratorContext(planner.getTableConfig())
-				.setOperatorBaseClass(operatorBaseClass);
-		final Transformation<RowData> transform = CorrelateCodeGenerator.generateCorrelateTransformation(
-				planner.getTableConfig(),
-				ctx,
-				inputTransform,
-				(RowType) inputNode.getOutputType(),
-				invocation,
-				JavaScalaConversionUtil.toScala(Optional.ofNullable(condition)),
-				(RowType) getOutputType(),
-				joinType,
-				inputTransform.getParallelism(),
-				retainHeader,
-				getClass().getSimpleName(),
-				getDesc());
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
+        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final CodeGeneratorContext ctx =
+                new CodeGeneratorContext(planner.getTableConfig())
+                        .setOperatorBaseClass(operatorBaseClass);
+        final Transformation<RowData> transform =
+                CorrelateCodeGenerator.generateCorrelateTransformation(
+                        planner.getTableConfig(),
+                        ctx,
+                        inputTransform,
+                        (RowType) inputNode.getOutputType(),
+                        invocation,
+                        JavaScalaConversionUtil.toScala(Optional.ofNullable(condition)),
+                        (RowType) getOutputType(),
+                        joinType,
+                        inputTransform.getParallelism(),
+                        retainHeader,
+                        getClass().getSimpleName(),
+                        getDesc());
 
-		if (inputsContainSingleton()) {
-			transform.setParallelism(1);
-			transform.setMaxParallelism(1);
-		}
-		return transform;
-	}
+        if (inputsContainSingleton()) {
+            transform.setParallelism(1);
+            transform.setMaxParallelism(1);
+        }
+        return transform;
+    }
 }

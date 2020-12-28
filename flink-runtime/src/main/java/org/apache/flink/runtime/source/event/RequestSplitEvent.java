@@ -32,53 +32,48 @@ import java.util.Objects;
  */
 public final class RequestSplitEvent implements OperatorEvent {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Nullable
-	private final String hostName;
+    @Nullable private final String hostName;
 
-	/**
-	 * Creates a new {@code RequestSplitEvent} with no host information.
-	 */
-	public RequestSplitEvent() {
-		this(null);
-	}
+    /** Creates a new {@code RequestSplitEvent} with no host information. */
+    public RequestSplitEvent() {
+        this(null);
+    }
 
-	/**
-	 * Creates a new {@code RequestSplitEvent} with a hostname.
-	 */
-	public RequestSplitEvent(@Nullable String hostName) {
-		this.hostName = hostName;
-	}
+    /** Creates a new {@code RequestSplitEvent} with a hostname. */
+    public RequestSplitEvent(@Nullable String hostName) {
+        this.hostName = hostName;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Nullable
-	public String hostName() {
-		return hostName;
-	}
+    @Nullable
+    public String hostName() {
+        return hostName;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return 65932633 + Objects.hashCode(hostName);
-	}
+    @Override
+    public int hashCode() {
+        return 65932633 + Objects.hashCode(hostName);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		final RequestSplitEvent that = (RequestSplitEvent) o;
-		return Objects.equals(hostName, that.hostName);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final RequestSplitEvent that = (RequestSplitEvent) o;
+        return Objects.equals(hostName, that.hostName);
+    }
 
-	@Override
-	public String toString() {
-		return String.format("RequestSplitEvent (host='%s')", hostName);
-	}
+    @Override
+    public String toString() {
+        return String.format("RequestSplitEvent (host='%s')", hostName);
+    }
 }

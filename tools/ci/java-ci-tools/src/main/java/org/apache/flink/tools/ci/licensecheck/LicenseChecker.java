@@ -24,32 +24,32 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.nio.file.Paths;
 
-/**
- * Utility for checking all things related to License and Notice files.
- */
+/** Utility for checking all things related to License and Notice files. */
 public class LicenseChecker {
-	// ---------------------------------------- Launcher ---------------------------------------- //
+    // ---------------------------------------- Launcher ---------------------------------------- //
 
-	private static final Logger LOG = LoggerFactory.getLogger(LicenseChecker.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LicenseChecker.class);
 
-	public static void main(String[] args) throws Exception {
-		if (args.length < 2) {
-			System.out.println("Usage: LicenseChecker <pathMavenBuildOutput> <pathFlinkRoot> <pathFlinkDeployed>");
-			System.exit(1);
-		}
-		LOG.warn("THIS UTILITY IS ONLY CHECKING FOR COMMON LICENSING MISTAKES. A MANUAL CHECK OF THE NOTICE FILES, DEPLOYED ARTIFACTS, ETC. IS STILL NEEDED!");
+    public static void main(String[] args) throws Exception {
+        if (args.length < 2) {
+            System.out.println(
+                    "Usage: LicenseChecker <pathMavenBuildOutput> <pathFlinkRoot> <pathFlinkDeployed>");
+            System.exit(1);
+        }
+        LOG.warn(
+                "THIS UTILITY IS ONLY CHECKING FOR COMMON LICENSING MISTAKES. A MANUAL CHECK OF THE NOTICE FILES, DEPLOYED ARTIFACTS, ETC. IS STILL NEEDED!");
 
-		NoticeFileChecker noticeChecker = new NoticeFileChecker();
-		int severeIssueCount = noticeChecker.run(new File(args[0]), Paths.get(args[1]));
+        NoticeFileChecker noticeChecker = new NoticeFileChecker();
+        int severeIssueCount = noticeChecker.run(new File(args[0]), Paths.get(args[1]));
 
-		JarFileChecker jarChecker = new JarFileChecker();
-		severeIssueCount += jarChecker.checkPath(Paths.get(args[2]));
+        JarFileChecker jarChecker = new JarFileChecker();
+        severeIssueCount += jarChecker.checkPath(Paths.get(args[2]));
 
-		if (severeIssueCount > 0) {
-			LOG.warn("Found a total of {} severe license issues", severeIssueCount);
+        if (severeIssueCount > 0) {
+            LOG.warn("Found a total of {} severe license issues", severeIssueCount);
 
-			System.exit(1);
-		}
-		LOG.info("License check completed without severe issues.");
-	}
+            System.exit(1);
+        }
+        LOG.info("License check completed without severe issues.");
+    }
 }

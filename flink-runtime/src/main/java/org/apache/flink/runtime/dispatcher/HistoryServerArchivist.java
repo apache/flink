@@ -29,28 +29,29 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-/**
- * Writer for an {@link AccessExecutionGraph}.
- */
+/** Writer for an {@link AccessExecutionGraph}. */
 public interface HistoryServerArchivist {
 
-	/**
-	 * Archives the given {@link AccessExecutionGraph} on the history server.
-	 *
-	 * @param executionGraph to store on the history server
-	 * @return Future which is completed once the archiving has been completed.
-	 */
-	CompletableFuture<Acknowledge> archiveExecutionGraph(AccessExecutionGraph executionGraph);
+    /**
+     * Archives the given {@link AccessExecutionGraph} on the history server.
+     *
+     * @param executionGraph to store on the history server
+     * @return Future which is completed once the archiving has been completed.
+     */
+    CompletableFuture<Acknowledge> archiveExecutionGraph(AccessExecutionGraph executionGraph);
 
-	static HistoryServerArchivist createHistoryServerArchivist(Configuration configuration, JsonArchivist jsonArchivist, Executor ioExecutor) {
-		final String configuredArchivePath = configuration.getString(JobManagerOptions.ARCHIVE_DIR);
+    static HistoryServerArchivist createHistoryServerArchivist(
+            Configuration configuration, JsonArchivist jsonArchivist, Executor ioExecutor) {
+        final String configuredArchivePath = configuration.getString(JobManagerOptions.ARCHIVE_DIR);
 
-		if (configuredArchivePath != null) {
-			final Path archivePath = WebMonitorUtils.validateAndNormalizeUri(new Path(configuredArchivePath).toUri());
+        if (configuredArchivePath != null) {
+            final Path archivePath =
+                    WebMonitorUtils.validateAndNormalizeUri(
+                            new Path(configuredArchivePath).toUri());
 
-			return new JsonResponseHistoryServerArchivist(jsonArchivist, archivePath, ioExecutor);
-		} else {
-			return VoidHistoryServerArchivist.INSTANCE;
-		}
-	}
+            return new JsonResponseHistoryServerArchivist(jsonArchivist, archivePath, ioExecutor);
+        } else {
+            return VoidHistoryServerArchivist.INSTANCE;
+        }
+    }
 }

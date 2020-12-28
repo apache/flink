@@ -27,36 +27,36 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * {@link AbstractMultipleInputTransformation} implementation for keyed streams.
- */
+/** {@link AbstractMultipleInputTransformation} implementation for keyed streams. */
 @Internal
-public class KeyedMultipleInputTransformation<OUT> extends AbstractMultipleInputTransformation<OUT> {
-	private final List<KeySelector<?, ?>> stateKeySelectors = new ArrayList<>();
-	protected final TypeInformation<?> stateKeyType;
+public class KeyedMultipleInputTransformation<OUT>
+        extends AbstractMultipleInputTransformation<OUT> {
+    private final List<KeySelector<?, ?>> stateKeySelectors = new ArrayList<>();
+    protected final TypeInformation<?> stateKeyType;
 
-	public KeyedMultipleInputTransformation(
-			String name,
-			StreamOperatorFactory<OUT> operatorFactory,
-			TypeInformation<OUT> outputType,
-			int parallelism,
-			TypeInformation<?> stateKeyType) {
-		super(name, operatorFactory, outputType, parallelism);
-		this.stateKeyType = stateKeyType;
-		updateManagedMemoryStateBackendUseCase(true);
-	}
+    public KeyedMultipleInputTransformation(
+            String name,
+            StreamOperatorFactory<OUT> operatorFactory,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            TypeInformation<?> stateKeyType) {
+        super(name, operatorFactory, outputType, parallelism);
+        this.stateKeyType = stateKeyType;
+        updateManagedMemoryStateBackendUseCase(true);
+    }
 
-	public KeyedMultipleInputTransformation<OUT> addInput(Transformation<?> input, KeySelector<?, ?> keySelector) {
-		inputs.add(input);
-		getStateKeySelectors().add(keySelector);
-		return this;
-	}
+    public KeyedMultipleInputTransformation<OUT> addInput(
+            Transformation<?> input, KeySelector<?, ?> keySelector) {
+        inputs.add(input);
+        getStateKeySelectors().add(keySelector);
+        return this;
+    }
 
-	public TypeInformation<?> getStateKeyType() {
-		return stateKeyType;
-	}
+    public TypeInformation<?> getStateKeyType() {
+        return stateKeyType;
+    }
 
-	public List<KeySelector<?, ?>> getStateKeySelectors() {
-		return stateKeySelectors;
-	}
+    public List<KeySelector<?, ?>> getStateKeySelectors() {
+        return stateKeySelectors;
+    }
 }

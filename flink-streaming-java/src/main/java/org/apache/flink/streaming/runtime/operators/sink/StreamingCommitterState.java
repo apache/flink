@@ -35,37 +35,37 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 final class StreamingCommitterState<CommT> {
 
-	private final List<CommT> committables;
+    private final List<CommT> committables;
 
-	StreamingCommitterState(List<CommT> committables) {
-		this.committables = checkNotNull(committables);
-	}
+    StreamingCommitterState(List<CommT> committables) {
+        this.committables = checkNotNull(committables);
+    }
 
-	StreamingCommitterState(NavigableMap<Long, List<CommT>> committablesPerCheckpoint) {
-		committables = new ArrayList<>();
-		for (Map.Entry<Long, List<CommT>> item : committablesPerCheckpoint.entrySet()) {
-			committables.addAll(item.getValue());
-		}
-	}
+    StreamingCommitterState(NavigableMap<Long, List<CommT>> committablesPerCheckpoint) {
+        committables = new ArrayList<>();
+        for (Map.Entry<Long, List<CommT>> item : committablesPerCheckpoint.entrySet()) {
+            committables.addAll(item.getValue());
+        }
+    }
 
-	public List<CommT> getCommittables() {
-		return committables;
-	}
+    public List<CommT> getCommittables() {
+        return committables;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		StreamingCommitterState<?> that = (StreamingCommitterState<?>) o;
-		return committables.equals(that.committables);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        StreamingCommitterState<?> that = (StreamingCommitterState<?>) o;
+        return committables.equals(that.committables);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(committables);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(committables);
+    }
 }

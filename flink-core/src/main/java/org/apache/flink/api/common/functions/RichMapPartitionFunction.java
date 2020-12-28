@@ -22,19 +22,20 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
- * Rich variant of the {@link MapPartitionFunction}. As a {@link RichFunction}, it gives access to the
- * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
- * {@link RichFunction#close()}.
+ * Rich variant of the {@link MapPartitionFunction}. As a {@link RichFunction}, it gives access to
+ * the {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
+ * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#close()}.
  *
  * @param <I> Type of the input elements.
  * @param <O> Type of the returned elements.
  */
 @Public
-public abstract class RichMapPartitionFunction<I, O> extends AbstractRichFunction implements MapPartitionFunction<I, O> {
+public abstract class RichMapPartitionFunction<I, O> extends AbstractRichFunction
+        implements MapPartitionFunction<I, O> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public abstract void mapPartition(Iterable<I> values, Collector<O> out) throws Exception;
+    @Override
+    public abstract void mapPartition(Iterable<I> values, Collector<O> out) throws Exception;
 }

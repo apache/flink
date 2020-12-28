@@ -28,72 +28,69 @@ import org.junit.rules.ExternalResource;
 
 import javax.annotation.Nonnull;
 
-/**
- * {@link ExternalResource} which provides a {@link SlotPoolImpl}.
- */
+/** {@link ExternalResource} which provides a {@link SlotPoolImpl}. */
 public class SlotPoolResource extends ExternalResource {
 
-	@Nonnull
-	private final SlotSelectionStrategy schedulingStrategy;
+    @Nonnull private final SlotSelectionStrategy schedulingStrategy;
 
-	private SlotPoolImpl slotPool;
+    private SlotPoolImpl slotPool;
 
-	private Scheduler scheduler;
+    private Scheduler scheduler;
 
-	private TestingResourceManagerGateway testingResourceManagerGateway;
+    private TestingResourceManagerGateway testingResourceManagerGateway;
 
-	private final ComponentMainThreadExecutor mainThreadExecutor;
+    private final ComponentMainThreadExecutor mainThreadExecutor;
 
-	public SlotPoolResource(@Nonnull SlotSelectionStrategy schedulingStrategy) {
-		this.schedulingStrategy = schedulingStrategy;
-		this.mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
-		slotPool = null;
-		testingResourceManagerGateway = null;
-	}
+    public SlotPoolResource(@Nonnull SlotSelectionStrategy schedulingStrategy) {
+        this.schedulingStrategy = schedulingStrategy;
+        this.mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
+        slotPool = null;
+        testingResourceManagerGateway = null;
+    }
 
-	public SlotProvider getSlotProvider() {
-		checkInitialized();
-		return scheduler;
-	}
+    public SlotProvider getSlotProvider() {
+        checkInitialized();
+        return scheduler;
+    }
 
-	public TestingResourceManagerGateway getTestingResourceManagerGateway() {
-		checkInitialized();
-		return testingResourceManagerGateway;
-	}
+    public TestingResourceManagerGateway getTestingResourceManagerGateway() {
+        checkInitialized();
+        return testingResourceManagerGateway;
+    }
 
-	public SlotPoolImpl getSlotPool() {
-		checkInitialized();
-		return slotPool;
-	}
+    public SlotPoolImpl getSlotPool() {
+        checkInitialized();
+        return slotPool;
+    }
 
-	private void checkInitialized() {
-		assert(slotPool != null);
-	}
+    private void checkInitialized() {
+        assert (slotPool != null);
+    }
 
-	@Override
-	protected void before() throws Throwable {
-		if (slotPool != null) {
-			terminateSlotPool();
-		}
+    @Override
+    protected void before() throws Throwable {
+        if (slotPool != null) {
+            terminateSlotPool();
+        }
 
-		testingResourceManagerGateway = new TestingResourceManagerGateway();
+        testingResourceManagerGateway = new TestingResourceManagerGateway();
 
-		slotPool = new TestingSlotPoolImpl(new JobID());
-		scheduler = new SchedulerImpl(schedulingStrategy, slotPool);
-		slotPool.start(JobMasterId.generate(), "foobar", mainThreadExecutor);
-		scheduler.start(mainThreadExecutor);
-		slotPool.connectToResourceManager(testingResourceManagerGateway);
-	}
+        slotPool = new TestingSlotPoolImpl(new JobID());
+        scheduler = new SchedulerImpl(schedulingStrategy, slotPool);
+        slotPool.start(JobMasterId.generate(), "foobar", mainThreadExecutor);
+        scheduler.start(mainThreadExecutor);
+        slotPool.connectToResourceManager(testingResourceManagerGateway);
+    }
 
-	@Override
-	protected void after() {
-		if (slotPool != null) {
-			terminateSlotPool();
-			slotPool = null;
-		}
-	}
+    @Override
+    protected void after() {
+        if (slotPool != null) {
+            terminateSlotPool();
+            slotPool = null;
+        }
+    }
 
-	private void terminateSlotPool() {
-		slotPool.close();
-	}
+    private void terminateSlotPool() {
+        slotPool.close();
+    }
 }

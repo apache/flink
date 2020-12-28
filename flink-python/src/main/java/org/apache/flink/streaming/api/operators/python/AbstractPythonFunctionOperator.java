@@ -40,283 +40,265 @@ import java.util.concurrent.ScheduledFuture;
 
 import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
 
-/**
- * Base class for all stream operators to execute Python functions.
- */
+/** Base class for all stream operators to execute Python functions. */
 @Internal
-public abstract class AbstractPythonFunctionOperator<OUT>
-	extends AbstractStreamOperator<OUT> {
+public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStreamOperator<OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The {@link PythonFunctionRunner} which is responsible for Python user-defined function execution.
-	 */
-	protected transient PythonFunctionRunner pythonFunctionRunner;
+    /**
+     * The {@link PythonFunctionRunner} which is responsible for Python user-defined function
+     * execution.
+     */
+    protected transient PythonFunctionRunner pythonFunctionRunner;
 
-	/**
-	 * Max number of elements to include in a bundle.
-	 */
-	protected transient int maxBundleSize;
+    /** Max number of elements to include in a bundle. */
+    protected transient int maxBundleSize;
 
-	/**
-	 * Number of processed elements in the current bundle.
-	 */
-	protected transient int elementCount;
+    /** Number of processed elements in the current bundle. */
+    protected transient int elementCount;
 
-	/**
-	 * Max duration of a bundle.
-	 */
-	private transient long maxBundleTimeMills;
+    /** Max duration of a bundle. */
+    private transient long maxBundleTimeMills;
 
-	/**
-	 * Time that the last bundle was finished.
-	 */
-	private transient long lastFinishBundleTime;
+    /** Time that the last bundle was finished. */
+    private transient long lastFinishBundleTime;
 
-	/**
-	 * A timer that finishes the current bundle after a fixed amount of time.
-	 */
-	private transient ScheduledFuture<?> checkFinishBundleTimer;
+    /** A timer that finishes the current bundle after a fixed amount of time. */
+    private transient ScheduledFuture<?> checkFinishBundleTimer;
 
-	/**
-	 * Callback to be executed after the current bundle was finished.
-	 */
-	private transient Runnable bundleFinishedCallback;
+    /** Callback to be executed after the current bundle was finished. */
+    private transient Runnable bundleFinishedCallback;
 
-	/**
-	 * The python config.
-	 */
-	private PythonConfig config;
+    /** The python config. */
+    private PythonConfig config;
 
-	public AbstractPythonFunctionOperator(Configuration config) {
-		this.config = new PythonConfig(Preconditions.checkNotNull(config));
-		this.chainingStrategy = ChainingStrategy.ALWAYS;
-	}
+    public AbstractPythonFunctionOperator(Configuration config) {
+        this.config = new PythonConfig(Preconditions.checkNotNull(config));
+        this.chainingStrategy = ChainingStrategy.ALWAYS;
+    }
 
-	public PythonConfig getPythonConfig() {
-		return config;
-	}
+    public PythonConfig getPythonConfig() {
+        return config;
+    }
 
-	@Override
-	public void open() throws Exception {
-		try {
-			this.maxBundleSize = config.getMaxBundleSize();
-			if (this.maxBundleSize <= 0) {
-				this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
-				LOG.error("Invalid value for the maximum bundle size. Using default value of " +
-					this.maxBundleSize + '.');
-			} else {
-				LOG.info("The maximum bundle size is configured to {}.", this.maxBundleSize);
-			}
+    @Override
+    public void open() throws Exception {
+        try {
+            this.maxBundleSize = config.getMaxBundleSize();
+            if (this.maxBundleSize <= 0) {
+                this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
+                LOG.error(
+                        "Invalid value for the maximum bundle size. Using default value of "
+                                + this.maxBundleSize
+                                + '.');
+            } else {
+                LOG.info("The maximum bundle size is configured to {}.", this.maxBundleSize);
+            }
 
-			this.maxBundleTimeMills = config.getMaxBundleTimeMills();
-			if (this.maxBundleTimeMills <= 0L) {
-				this.maxBundleTimeMills = PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue();
-				LOG.error("Invalid value for the maximum bundle time. Using default value of " +
-					this.maxBundleTimeMills + '.');
-			} else {
-				LOG.info("The maximum bundle time is configured to {} milliseconds.", this.maxBundleTimeMills);
-			}
+            this.maxBundleTimeMills = config.getMaxBundleTimeMills();
+            if (this.maxBundleTimeMills <= 0L) {
+                this.maxBundleTimeMills = PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue();
+                LOG.error(
+                        "Invalid value for the maximum bundle time. Using default value of "
+                                + this.maxBundleTimeMills
+                                + '.');
+            } else {
+                LOG.info(
+                        "The maximum bundle time is configured to {} milliseconds.",
+                        this.maxBundleTimeMills);
+            }
 
-			this.pythonFunctionRunner = createPythonFunctionRunner();
-			this.pythonFunctionRunner.open(config);
+            this.pythonFunctionRunner = createPythonFunctionRunner();
+            this.pythonFunctionRunner.open(config);
 
-			this.elementCount = 0;
-			this.lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
+            this.elementCount = 0;
+            this.lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 
-			// Schedule timer to check timeout of finish bundle.
-			long bundleCheckPeriod = Math.max(this.maxBundleTimeMills, 1);
-			this.checkFinishBundleTimer =
-				getProcessingTimeService()
-					.scheduleAtFixedRate(
-						// ProcessingTimeService callbacks are executed under the checkpointing lock
-						timestamp -> checkInvokeFinishBundleByTime(), bundleCheckPeriod, bundleCheckPeriod);
-		} finally {
-			super.open();
-		}
-	}
+            // Schedule timer to check timeout of finish bundle.
+            long bundleCheckPeriod = Math.max(this.maxBundleTimeMills, 1);
+            this.checkFinishBundleTimer =
+                    getProcessingTimeService()
+                            .scheduleAtFixedRate(
+                                    // ProcessingTimeService callbacks are executed under the
+                                    // checkpointing lock
+                                    timestamp -> checkInvokeFinishBundleByTime(),
+                                    bundleCheckPeriod,
+                                    bundleCheckPeriod);
+        } finally {
+            super.open();
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		try {
-			invokeFinishBundle();
-		} finally {
-			super.close();
+    @Override
+    public void close() throws Exception {
+        try {
+            invokeFinishBundle();
+        } finally {
+            super.close();
 
-			try {
-				cleanUpLeakingClasses(this.getClass().getClassLoader());
-			} catch (Throwable t) {
-				LOG.warn("Failed to clean up the leaking objects.", t);
-			}
-		}
-	}
+            try {
+                cleanUpLeakingClasses(this.getClass().getClassLoader());
+            } catch (Throwable t) {
+                LOG.warn("Failed to clean up the leaking objects.", t);
+            }
+        }
+    }
 
-	@Override
-	public void dispose() throws Exception {
-		try {
-			if (checkFinishBundleTimer != null) {
-				checkFinishBundleTimer.cancel(true);
-				checkFinishBundleTimer = null;
-			}
-			if (pythonFunctionRunner != null) {
-				pythonFunctionRunner.close();
-				pythonFunctionRunner = null;
-			}
-		} finally {
-			super.dispose();
-		}
-	}
+    @Override
+    public void dispose() throws Exception {
+        try {
+            if (checkFinishBundleTimer != null) {
+                checkFinishBundleTimer.cancel(true);
+                checkFinishBundleTimer = null;
+            }
+            if (pythonFunctionRunner != null) {
+                pythonFunctionRunner.close();
+                pythonFunctionRunner = null;
+            }
+        } finally {
+            super.dispose();
+        }
+    }
 
-	@Override
-	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
-		try {
-			invokeFinishBundle();
-		} finally {
-			super.prepareSnapshotPreBarrier(checkpointId);
-		}
-	}
+    @Override
+    public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+        try {
+            invokeFinishBundle();
+        } finally {
+            super.prepareSnapshotPreBarrier(checkpointId);
+        }
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		// Due to the asynchronous communication with the SDK harness,
-		// a bundle might still be in progress and not all items have
-		// yet been received from the SDK harness. If we just set this
-		// watermark as the new output watermark, we could violate the
-		// order of the records, i.e. pending items in the SDK harness
-		// could become "late" although they were "on time".
-		//
-		// We can solve this problem using one of the following options:
-		//
-		// 1) Finish the current bundle and emit this watermark as the
-		//    new output watermark. Finishing the bundle ensures that
-		//    all the items have been processed by the SDK harness and
-		//    the execution results sent to the downstream operator.
-		//
-		// 2) Hold on the output watermark for as long as the current
-		//    bundle has not been finished. We have to remember to manually
-		//    finish the bundle in case we receive the final watermark.
-		//    To avoid latency, we should process this watermark again as
-		//    soon as the current bundle is finished.
-		//
-		// Approach 1) is the easiest and gives better latency, yet 2)
-		// gives better throughput due to the bundle not getting cut on
-		// every watermark. So we have implemented 2) below.
-		if (mark.getTimestamp() == Long.MAX_VALUE) {
-			invokeFinishBundle();
-			super.processWatermark(mark);
-		} else if (isBundleFinished()) {
-			// forward the watermark immediately if the bundle is already finished.
-			super.processWatermark(mark);
-		} else {
-			// It is not safe to advance the output watermark yet, so add a hold on the current
-			// output watermark.
-			bundleFinishedCallback =
-				() -> {
-					try {
-						// at this point the bundle is finished, allow the watermark to pass
-						super.processWatermark(mark);
-					} catch (Exception e) {
-						throw new RuntimeException(
-							"Failed to process watermark after finished bundle.", e);
-					}
-				};
-		}
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        // Due to the asynchronous communication with the SDK harness,
+        // a bundle might still be in progress and not all items have
+        // yet been received from the SDK harness. If we just set this
+        // watermark as the new output watermark, we could violate the
+        // order of the records, i.e. pending items in the SDK harness
+        // could become "late" although they were "on time".
+        //
+        // We can solve this problem using one of the following options:
+        //
+        // 1) Finish the current bundle and emit this watermark as the
+        //    new output watermark. Finishing the bundle ensures that
+        //    all the items have been processed by the SDK harness and
+        //    the execution results sent to the downstream operator.
+        //
+        // 2) Hold on the output watermark for as long as the current
+        //    bundle has not been finished. We have to remember to manually
+        //    finish the bundle in case we receive the final watermark.
+        //    To avoid latency, we should process this watermark again as
+        //    soon as the current bundle is finished.
+        //
+        // Approach 1) is the easiest and gives better latency, yet 2)
+        // gives better throughput due to the bundle not getting cut on
+        // every watermark. So we have implemented 2) below.
+        if (mark.getTimestamp() == Long.MAX_VALUE) {
+            invokeFinishBundle();
+            super.processWatermark(mark);
+        } else if (isBundleFinished()) {
+            // forward the watermark immediately if the bundle is already finished.
+            super.processWatermark(mark);
+        } else {
+            // It is not safe to advance the output watermark yet, so add a hold on the current
+            // output watermark.
+            bundleFinishedCallback =
+                    () -> {
+                        try {
+                            // at this point the bundle is finished, allow the watermark to pass
+                            super.processWatermark(mark);
+                        } catch (Exception e) {
+                            throw new RuntimeException(
+                                    "Failed to process watermark after finished bundle.", e);
+                        }
+                    };
+        }
+    }
 
-	/**
-	 * Returns whether the bundle is finished.
-	 */
-	public boolean isBundleFinished() {
-		return elementCount == 0;
-	}
+    /** Returns whether the bundle is finished. */
+    public boolean isBundleFinished() {
+        return elementCount == 0;
+    }
 
-	/**
-	 * Reset the {@link PythonConfig} if needed.
-	 * */
-	public void setPythonConfig(PythonConfig pythonConfig) {
-		this.config = pythonConfig;
-	}
+    /** Reset the {@link PythonConfig} if needed. */
+    public void setPythonConfig(PythonConfig pythonConfig) {
+        this.config = pythonConfig;
+    }
 
-	/**
-	 * Returns the {@link PythonConfig}.
-	 * */
-	public PythonConfig getConfig() {
-		return config;
-	}
+    /** Returns the {@link PythonConfig}. */
+    public PythonConfig getConfig() {
+        return config;
+    }
 
-	/**
-	 * Creates the {@link PythonFunctionRunner} which is responsible for Python user-defined function execution.
-	 */
-	public abstract PythonFunctionRunner createPythonFunctionRunner() throws Exception;
+    /**
+     * Creates the {@link PythonFunctionRunner} which is responsible for Python user-defined
+     * function execution.
+     */
+    public abstract PythonFunctionRunner createPythonFunctionRunner() throws Exception;
 
-	/**
-	 * Returns the {@link PythonEnv} used to create PythonEnvironmentManager..
-	 */
-	public abstract PythonEnv getPythonEnv();
+    /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager.. */
+    public abstract PythonEnv getPythonEnv();
 
-	/**
-	 * Sends the execution result to the downstream operator.
-	 */
-	public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
+    /** Sends the execution result to the downstream operator. */
+    public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
 
-	protected void emitResults() throws Exception {
-		Tuple2<byte[], Integer> resultTuple;
-		while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
-			emitResult(resultTuple);
-		}
-	}
+    protected void emitResults() throws Exception {
+        Tuple2<byte[], Integer> resultTuple;
+        while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
+            emitResult(resultTuple);
+        }
+    }
 
-	/**
-	 * Checks whether to invoke finishBundle by elements count. Called in processElement.
-	 */
-	protected void checkInvokeFinishBundleByCount() throws Exception {
-		if (elementCount >= maxBundleSize) {
-			invokeFinishBundle();
-		}
-	}
+    /** Checks whether to invoke finishBundle by elements count. Called in processElement. */
+    protected void checkInvokeFinishBundleByCount() throws Exception {
+        if (elementCount >= maxBundleSize) {
+            invokeFinishBundle();
+        }
+    }
 
-	/**
-	 * Checks whether to invoke finishBundle by timeout.
-	 */
-	private void checkInvokeFinishBundleByTime() throws Exception {
-		long now = getProcessingTimeService().getCurrentProcessingTime();
-		if (now - lastFinishBundleTime >= maxBundleTimeMills) {
-			invokeFinishBundle();
-		}
-	}
+    /** Checks whether to invoke finishBundle by timeout. */
+    private void checkInvokeFinishBundleByTime() throws Exception {
+        long now = getProcessingTimeService().getCurrentProcessingTime();
+        if (now - lastFinishBundleTime >= maxBundleTimeMills) {
+            invokeFinishBundle();
+        }
+    }
 
-	protected void invokeFinishBundle() throws Exception {
-		if (elementCount > 0) {
-			pythonFunctionRunner.flush();
-			elementCount = 0;
-			emitResults();
-			lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
-			// callback only after current bundle was fully finalized
-			if (bundleFinishedCallback != null) {
-				bundleFinishedCallback.run();
-				bundleFinishedCallback = null;
-			}
-		}
-	}
+    protected void invokeFinishBundle() throws Exception {
+        if (elementCount > 0) {
+            pythonFunctionRunner.flush();
+            elementCount = 0;
+            emitResults();
+            lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
+            // callback only after current bundle was fully finalized
+            if (bundleFinishedCallback != null) {
+                bundleFinishedCallback.run();
+                bundleFinishedCallback = null;
+            }
+        }
+    }
 
-	protected PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
-		PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(
-			config, getRuntimeContext().getDistributedCache());
-		PythonEnv pythonEnv = getPythonEnv();
-		if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
-			return new ProcessPythonEnvironmentManager(
-				dependencyInfo,
-				getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),
-				new HashMap<>(System.getenv()));
-		} else {
-			throw new UnsupportedOperationException(String.format(
-				"Execution type '%s' is not supported.", pythonEnv.getExecType()));
-		}
-	}
+    protected PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
+        PythonDependencyInfo dependencyInfo =
+                PythonDependencyInfo.create(config, getRuntimeContext().getDistributedCache());
+        PythonEnv pythonEnv = getPythonEnv();
+        if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
+            return new ProcessPythonEnvironmentManager(
+                    dependencyInfo,
+                    getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),
+                    new HashMap<>(System.getenv()));
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Execution type '%s' is not supported.", pythonEnv.getExecType()));
+        }
+    }
 
-	protected FlinkMetricContainer getFlinkMetricContainer() {
-		return this.config.isMetricEnabled() ?
-			new FlinkMetricContainer(getRuntimeContext().getMetricGroup()) : null;
-	}
+    protected FlinkMetricContainer getFlinkMetricContainer() {
+        return this.config.isMetricEnabled()
+                ? new FlinkMetricContainer(getRuntimeContext().getMetricGroup())
+                : null;
+    }
 }

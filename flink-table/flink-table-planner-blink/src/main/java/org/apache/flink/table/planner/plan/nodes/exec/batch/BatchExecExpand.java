@@ -28,16 +28,14 @@ import org.apache.calcite.rex.RexNode;
 
 import java.util.List;
 
-/**
- * Batch {@link ExecNode} that can expand one row to multiple rows based on given projects.
- */
+/** Batch {@link ExecNode} that can expand one row to multiple rows based on given projects. */
 public class BatchExecExpand extends CommonExecExpand implements BatchExecNode<RowData> {
 
-	public BatchExecExpand(
-			List<List<RexNode>> projects,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(projects, false, inputEdge, outputType, description);
-	}
+    public BatchExecExpand(
+            List<List<RexNode>> projects,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(projects, false, inputEdge, outputType, description);
+    }
 }

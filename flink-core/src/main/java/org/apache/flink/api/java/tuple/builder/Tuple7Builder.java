@@ -43,15 +43,16 @@ import java.util.List;
 @Public
 public class Tuple7Builder<T0, T1, T2, T3, T4, T5, T6> {
 
-	private List<Tuple7<T0, T1, T2, T3, T4, T5, T6>> tuples = new ArrayList<>();
+    private List<Tuple7<T0, T1, T2, T3, T4, T5, T6>> tuples = new ArrayList<>();
 
-	public Tuple7Builder<T0, T1, T2, T3, T4, T5, T6> add(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6){
-		tuples.add(new Tuple7<>(value0, value1, value2, value3, value4, value5, value6));
-		return this;
-	}
+    public Tuple7Builder<T0, T1, T2, T3, T4, T5, T6> add(
+            T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6) {
+        tuples.add(new Tuple7<>(value0, value1, value2, value3, value4, value5, value6));
+        return this;
+    }
 
-	@SuppressWarnings("unchecked")
-	public Tuple7<T0, T1, T2, T3, T4, T5, T6>[] build(){
-		return tuples.toArray(new Tuple7[tuples.size()]);
-	}
+    @SuppressWarnings("unchecked")
+    public Tuple7<T0, T1, T2, T3, T4, T5, T6>[] build() {
+        return tuples.toArray(new Tuple7[tuples.size()]);
+    }
 }

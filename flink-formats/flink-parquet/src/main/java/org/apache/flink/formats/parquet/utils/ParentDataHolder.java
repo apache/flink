@@ -18,10 +18,8 @@
 
 package org.apache.flink.formats.parquet.utils;
 
-/**
- * Interface for {@link RowConverter} for extracting nested value from parquet record.
- */
+/** Interface for {@link RowConverter} for extracting nested value from parquet record. */
 public interface ParentDataHolder {
 
-	void add(int fieldIndex, Object object);
+    void add(int fieldIndex, Object object);
 }

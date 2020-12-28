@@ -42,85 +42,91 @@ import java.util.function.Consumer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Components to create a {@link DefaultScheduler}. Currently only supports {@link PipelinedRegionSchedulingStrategy}.
+ * Components to create a {@link DefaultScheduler}. Currently only supports {@link
+ * PipelinedRegionSchedulingStrategy}.
  */
 public class DefaultSchedulerComponents {
 
-	private final SchedulingStrategyFactory schedulingStrategyFactory;
-	private final Consumer<ComponentMainThreadExecutor> startUpAction;
-	private final ExecutionSlotAllocatorFactory allocatorFactory;
+    private final SchedulingStrategyFactory schedulingStrategyFactory;
+    private final Consumer<ComponentMainThreadExecutor> startUpAction;
+    private final ExecutionSlotAllocatorFactory allocatorFactory;
 
-	private DefaultSchedulerComponents(
-			final SchedulingStrategyFactory schedulingStrategyFactory,
-			final Consumer<ComponentMainThreadExecutor> startUpAction,
-			final ExecutionSlotAllocatorFactory allocatorFactory) {
+    private DefaultSchedulerComponents(
+            final SchedulingStrategyFactory schedulingStrategyFactory,
+            final Consumer<ComponentMainThreadExecutor> startUpAction,
+            final ExecutionSlotAllocatorFactory allocatorFactory) {
 
-		this.schedulingStrategyFactory = schedulingStrategyFactory;
-		this.startUpAction = startUpAction;
-		this.allocatorFactory = allocatorFactory;
-	}
+        this.schedulingStrategyFactory = schedulingStrategyFactory;
+        this.startUpAction = startUpAction;
+        this.allocatorFactory = allocatorFactory;
+    }
 
-	SchedulingStrategyFactory getSchedulingStrategyFactory() {
-		return schedulingStrategyFactory;
-	}
+    SchedulingStrategyFactory getSchedulingStrategyFactory() {
+        return schedulingStrategyFactory;
+    }
 
-	Consumer<ComponentMainThreadExecutor> getStartUpAction() {
-		return startUpAction;
-	}
+    Consumer<ComponentMainThreadExecutor> getStartUpAction() {
+        return startUpAction;
+    }
 
-	ExecutionSlotAllocatorFactory getAllocatorFactory() {
-		return allocatorFactory;
-	}
+    ExecutionSlotAllocatorFactory getAllocatorFactory() {
+        return allocatorFactory;
+    }
 
-	static DefaultSchedulerComponents createSchedulerComponents(
-			final ScheduleMode scheduleMode,
-			final boolean isApproximateLocalRecoveryEnabled,
-			final Configuration jobMasterConfiguration,
-			final SlotPool slotPool,
-			final Time slotRequestTimeout) {
+    static DefaultSchedulerComponents createSchedulerComponents(
+            final ScheduleMode scheduleMode,
+            final boolean isApproximateLocalRecoveryEnabled,
+            final Configuration jobMasterConfiguration,
+            final SlotPool slotPool,
+            final Time slotRequestTimeout) {
 
-		checkArgument(
-			!isApproximateLocalRecoveryEnabled,
-			"Approximate local recovery can not be used together with PipelinedRegionScheduler for now! ");
-		return createPipelinedRegionSchedulerComponents(
-			scheduleMode,
-			jobMasterConfiguration,
-			slotPool,
-			slotRequestTimeout);
-	}
+        checkArgument(
+                !isApproximateLocalRecoveryEnabled,
+                "Approximate local recovery can not be used together with PipelinedRegionScheduler for now! ");
+        return createPipelinedRegionSchedulerComponents(
+                scheduleMode, jobMasterConfiguration, slotPool, slotRequestTimeout);
+    }
 
-	private static DefaultSchedulerComponents createPipelinedRegionSchedulerComponents(
-			final ScheduleMode scheduleMode,
-			final Configuration jobMasterConfiguration,
-			final SlotPool slotPool,
-			final Time slotRequestTimeout) {
+    private static DefaultSchedulerComponents createPipelinedRegionSchedulerComponents(
+            final ScheduleMode scheduleMode,
+            final Configuration jobMasterConfiguration,
+            final SlotPool slotPool,
+            final Time slotRequestTimeout) {
 
-		final SlotSelectionStrategy slotSelectionStrategy = selectSlotSelectionStrategy(jobMasterConfiguration);
-		final PhysicalSlotRequestBulkChecker bulkChecker = PhysicalSlotRequestBulkCheckerImpl
-			.createFromSlotPool(slotPool, SystemClock.getInstance());
-		final PhysicalSlotProvider physicalSlotProvider = new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
-		final ExecutionSlotAllocatorFactory allocatorFactory = new SlotSharingExecutionSlotAllocatorFactory(
-			physicalSlotProvider,
-			scheduleMode != ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
-			bulkChecker,
-			slotRequestTimeout);
-		return new DefaultSchedulerComponents(
-			new PipelinedRegionSchedulingStrategy.Factory(),
-			bulkChecker::start,
-			allocatorFactory);
-	}
+        final SlotSelectionStrategy slotSelectionStrategy =
+                selectSlotSelectionStrategy(jobMasterConfiguration);
+        final PhysicalSlotRequestBulkChecker bulkChecker =
+                PhysicalSlotRequestBulkCheckerImpl.createFromSlotPool(
+                        slotPool, SystemClock.getInstance());
+        final PhysicalSlotProvider physicalSlotProvider =
+                new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
+        final ExecutionSlotAllocatorFactory allocatorFactory =
+                new SlotSharingExecutionSlotAllocatorFactory(
+                        physicalSlotProvider,
+                        scheduleMode != ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+                        bulkChecker,
+                        slotRequestTimeout);
+        return new DefaultSchedulerComponents(
+                new PipelinedRegionSchedulingStrategy.Factory(),
+                bulkChecker::start,
+                allocatorFactory);
+    }
 
-	private static SlotSelectionStrategy selectSlotSelectionStrategy(final Configuration configuration) {
-		final boolean evenlySpreadOutSlots = configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+    private static SlotSelectionStrategy selectSlotSelectionStrategy(
+            final Configuration configuration) {
+        final boolean evenlySpreadOutSlots =
+                configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
 
-		final SlotSelectionStrategy locationPreferenceSlotSelectionStrategy;
+        final SlotSelectionStrategy locationPreferenceSlotSelectionStrategy;
 
-		locationPreferenceSlotSelectionStrategy = evenlySpreadOutSlots ?
-			LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut() :
-			LocationPreferenceSlotSelectionStrategy.createDefault();
+        locationPreferenceSlotSelectionStrategy =
+                evenlySpreadOutSlots
+                        ? LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut()
+                        : LocationPreferenceSlotSelectionStrategy.createDefault();
 
-		return configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY) ?
-			PreviousAllocationSlotSelectionStrategy.create(locationPreferenceSlotSelectionStrategy) :
-			locationPreferenceSlotSelectionStrategy;
-	}
+        return configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY)
+                ? PreviousAllocationSlotSelectionStrategy.create(
+                        locationPreferenceSlotSelectionStrategy)
+                : locationPreferenceSlotSelectionStrategy;
+    }
 }

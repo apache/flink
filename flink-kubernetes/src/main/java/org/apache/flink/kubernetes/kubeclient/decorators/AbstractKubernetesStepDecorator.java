@@ -27,65 +27,60 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * An abstract {@link KubernetesStepDecorator} contains common implementations for different plug-in features.
+ * An abstract {@link KubernetesStepDecorator} contains common implementations for different plug-in
+ * features.
  */
 public abstract class AbstractKubernetesStepDecorator implements KubernetesStepDecorator {
 
-	/**
-	 * Apply transformations on the given FlinkPod in accordance to this feature.
-	 * Note that we should return a FlinkPod that keeps all of the properties of the passed FlinkPod object.
-	 *
-	 * <p>So this is correct:
-	 *
-	 * <pre>
-	 * {@code
-	 *
-	 * Pod decoratedPod = new PodBuilder(pod) // Keeps the original state
-	 *     ...
-	 *     .build()
-	 *
-	 * Container decoratedContainer = new ContainerBuilder(container) // Keeps the original state
-	 *     ...
-	 *     .build()
-	 *
-	 * FlinkPod decoratedFlinkPod = new FlinkPodBuilder(flinkPod) // Keeps the original state
-	 *     ...
-	 *     .build()
-	 *
-	 * }
-	 * </pre>
-	 *
-	 * <p>And this is the incorrect:
-	 *
-	 * <pre>
-	 * {@code
-	 *
-	 * Pod decoratedPod = new PodBuilder() // Loses the original state
-	 *     ...
-	 *     .build()
-	 *
-	 * Container decoratedContainer = new ContainerBuilder() // Loses the original state
-	 *     ...
-	 *     .build()
-	 *
-	 * FlinkPod decoratedFlinkPod = new FlinkPodBuilder() // Loses the original state
-	 *     ...
-	 *     .build()
-	 *
-	 * }
-	 * </pre>
-	 */
-	@Override
-	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-		return flinkPod;
-	}
+    /**
+     * Apply transformations on the given FlinkPod in accordance to this feature. Note that we
+     * should return a FlinkPod that keeps all of the properties of the passed FlinkPod object.
+     *
+     * <p>So this is correct:
+     *
+     * <pre>{@code
+     * Pod decoratedPod = new PodBuilder(pod) // Keeps the original state
+     *     ...
+     *     .build()
+     *
+     * Container decoratedContainer = new ContainerBuilder(container) // Keeps the original state
+     *     ...
+     *     .build()
+     *
+     * FlinkPod decoratedFlinkPod = new FlinkPodBuilder(flinkPod) // Keeps the original state
+     *     ...
+     *     .build()
+     *
+     * }</pre>
+     *
+     * <p>And this is the incorrect:
+     *
+     * <pre>{@code
+     * Pod decoratedPod = new PodBuilder() // Loses the original state
+     *     ...
+     *     .build()
+     *
+     * Container decoratedContainer = new ContainerBuilder() // Loses the original state
+     *     ...
+     *     .build()
+     *
+     * FlinkPod decoratedFlinkPod = new FlinkPodBuilder() // Loses the original state
+     *     ...
+     *     .build()
+     *
+     * }</pre>
+     */
+    @Override
+    public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
+        return flinkPod;
+    }
 
-	/**
-	 * Note that the method could have a side effect of modifying the Flink Configuration object, such as
-	 * update the JobManager address.
-	 */
-	@Override
-	public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
-		return Collections.emptyList();
-	}
+    /**
+     * Note that the method could have a side effect of modifying the Flink Configuration object,
+     * such as update the JobManager address.
+     */
+    @Override
+    public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
+        return Collections.emptyList();
+    }
 }

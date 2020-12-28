@@ -28,154 +28,140 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Tests the behavior of {@link Pipeline}.
- */
+/** Tests the behavior of {@link Pipeline}. */
 public class PipelineTest {
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testPipelineBehavior() {
-		Pipeline pipeline = new Pipeline();
-		pipeline.appendStage(new MockTransformer("a"));
-		pipeline.appendStage(new MockEstimator("b"));
-		pipeline.appendStage(new MockEstimator("c"));
-		pipeline.appendStage(new MockTransformer("d"));
-		assert describePipeline(pipeline).equals("a_b_c_d");
+    @Test
+    public void testPipelineBehavior() {
+        Pipeline pipeline = new Pipeline();
+        pipeline.appendStage(new MockTransformer("a"));
+        pipeline.appendStage(new MockEstimator("b"));
+        pipeline.appendStage(new MockEstimator("c"));
+        pipeline.appendStage(new MockTransformer("d"));
+        assert describePipeline(pipeline).equals("a_b_c_d");
 
-		Pipeline pipelineModel = pipeline.fit(null, null);
-		assert describePipeline(pipelineModel).equals("a_mb_mc_d");
+        Pipeline pipelineModel = pipeline.fit(null, null);
+        assert describePipeline(pipelineModel).equals("a_mb_mc_d");
 
-		thrown.expect(RuntimeException.class);
-		thrown.expectMessage("Pipeline contains Estimator, need to fit first.");
-		pipeline.transform(null, null);
-	}
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("Pipeline contains Estimator, need to fit first.");
+        pipeline.transform(null, null);
+    }
 
-	@Test
-	public void testPipelineRestore() {
-		Pipeline pipeline = new Pipeline();
-		pipeline.appendStage(new MockTransformer("a"));
-		pipeline.appendStage(new MockEstimator("b"));
-		pipeline.appendStage(new MockEstimator("c"));
-		pipeline.appendStage(new MockTransformer("d"));
-		String pipelineJson = pipeline.toJson();
+    @Test
+    public void testPipelineRestore() {
+        Pipeline pipeline = new Pipeline();
+        pipeline.appendStage(new MockTransformer("a"));
+        pipeline.appendStage(new MockEstimator("b"));
+        pipeline.appendStage(new MockEstimator("c"));
+        pipeline.appendStage(new MockTransformer("d"));
+        String pipelineJson = pipeline.toJson();
 
-		Pipeline restoredPipeline = new Pipeline(pipelineJson);
-		assert describePipeline(restoredPipeline).equals("a_b_c_d");
+        Pipeline restoredPipeline = new Pipeline(pipelineJson);
+        assert describePipeline(restoredPipeline).equals("a_b_c_d");
 
-		Pipeline pipelineModel = pipeline.fit(null, null);
-		String modelJson = pipelineModel.toJson();
+        Pipeline pipelineModel = pipeline.fit(null, null);
+        String modelJson = pipelineModel.toJson();
 
-		Pipeline restoredPipelineModel = new Pipeline(modelJson);
-		assert describePipeline(restoredPipelineModel).equals("a_mb_mc_d");
-	}
+        Pipeline restoredPipelineModel = new Pipeline(modelJson);
+        assert describePipeline(restoredPipelineModel).equals("a_mb_mc_d");
+    }
 
-	private static String describePipeline(Pipeline p) {
-		StringBuilder res = new StringBuilder();
-		for (PipelineStage s : p.getStages()) {
-			if (res.length() != 0) {
-				res.append("_");
-			}
-			res.append(((SelfDescribe) s).describe());
-		}
-		return res.toString();
-	}
+    private static String describePipeline(Pipeline p) {
+        StringBuilder res = new StringBuilder();
+        for (PipelineStage s : p.getStages()) {
+            if (res.length() != 0) {
+                res.append("_");
+            }
+            res.append(((SelfDescribe) s).describe());
+        }
+        return res.toString();
+    }
 
-	/**
-	 * Interface to describe a class with a string, only for pipeline test.
-	 */
-	private interface SelfDescribe {
-		ParamInfo<String> DESCRIPTION = ParamInfoFactory.createParamInfo("description",
-			String.class).build();
+    /** Interface to describe a class with a string, only for pipeline test. */
+    private interface SelfDescribe {
+        ParamInfo<String> DESCRIPTION =
+                ParamInfoFactory.createParamInfo("description", String.class).build();
 
-		String describe();
-	}
+        String describe();
+    }
 
-	/**
-	 * Mock estimator for pipeline test.
-	 */
-	public static class MockEstimator implements Estimator<MockEstimator, MockModel>, SelfDescribe {
-		private final Params params = new Params();
+    /** Mock estimator for pipeline test. */
+    public static class MockEstimator implements Estimator<MockEstimator, MockModel>, SelfDescribe {
+        private final Params params = new Params();
 
-		public MockEstimator() {
-		}
+        public MockEstimator() {}
 
-		MockEstimator(String description) {
-			set(DESCRIPTION, description);
-		}
+        MockEstimator(String description) {
+            set(DESCRIPTION, description);
+        }
 
-		@Override
-		public MockModel fit(TableEnvironment tEnv, Table input) {
-			return new MockModel("m" + describe());
-		}
+        @Override
+        public MockModel fit(TableEnvironment tEnv, Table input) {
+            return new MockModel("m" + describe());
+        }
 
-		@Override
-		public Params getParams() {
-			return params;
-		}
+        @Override
+        public Params getParams() {
+            return params;
+        }
 
-		@Override
-		public String describe() {
-			return get(DESCRIPTION);
-		}
-	}
+        @Override
+        public String describe() {
+            return get(DESCRIPTION);
+        }
+    }
 
-	/**
-	 * Mock transformer for pipeline test.
-	 */
-	public static class MockTransformer implements Transformer<MockTransformer>, SelfDescribe {
-		private final Params params = new Params();
+    /** Mock transformer for pipeline test. */
+    public static class MockTransformer implements Transformer<MockTransformer>, SelfDescribe {
+        private final Params params = new Params();
 
-		public MockTransformer() {
-		}
+        public MockTransformer() {}
 
-		MockTransformer(String description) {
-			set(DESCRIPTION, description);
-		}
+        MockTransformer(String description) {
+            set(DESCRIPTION, description);
+        }
 
-		@Override
-		public Table transform(TableEnvironment tEnv, Table input) {
-			return input;
-		}
+        @Override
+        public Table transform(TableEnvironment tEnv, Table input) {
+            return input;
+        }
 
-		@Override
-		public Params getParams() {
-			return params;
-		}
+        @Override
+        public Params getParams() {
+            return params;
+        }
 
-		@Override
-		public String describe() {
-			return get(DESCRIPTION);
-		}
-	}
+        @Override
+        public String describe() {
+            return get(DESCRIPTION);
+        }
+    }
 
-	/**
-	 * Mock model for pipeline test.
-	 */
-	public static class MockModel implements Model<MockModel>, SelfDescribe {
-		private final Params params = new Params();
+    /** Mock model for pipeline test. */
+    public static class MockModel implements Model<MockModel>, SelfDescribe {
+        private final Params params = new Params();
 
-		public MockModel() {
-		}
+        public MockModel() {}
 
-		MockModel(String description) {
-			set(DESCRIPTION, description);
-		}
+        MockModel(String description) {
+            set(DESCRIPTION, description);
+        }
 
-		@Override
-		public Table transform(TableEnvironment tEnv, Table input) {
-			return input;
-		}
+        @Override
+        public Table transform(TableEnvironment tEnv, Table input) {
+            return input;
+        }
 
-		@Override
-		public Params getParams() {
-			return params;
-		}
+        @Override
+        public Params getParams() {
+            return params;
+        }
 
-		@Override
-		public String describe() {
-			return get(DESCRIPTION);
-		}
-	}
+        @Override
+        public String describe() {
+            return get(DESCRIPTION);
+        }
+    }
 }

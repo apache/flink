@@ -30,41 +30,43 @@ import org.apache.flink.connector.file.src.util.RecordAndPosition;
 
 import java.util.Map;
 
-/**
- * A {@link SourceReader} that read records from {@link FileSourceSplit}.
- */
+/** A {@link SourceReader} that read records from {@link FileSourceSplit}. */
 @Internal
 public final class FileSourceReader<T, SplitT extends FileSourceSplit>
-		extends SingleThreadMultiplexSourceReaderBase<RecordAndPosition<T>, T, SplitT, FileSourceSplitState<SplitT>> {
+        extends SingleThreadMultiplexSourceReaderBase<
+                RecordAndPosition<T>, T, SplitT, FileSourceSplitState<SplitT>> {
 
-	public FileSourceReader(SourceReaderContext readerContext, BulkFormat<T, SplitT> readerFormat, Configuration config) {
-		super(
-			() -> new FileSourceSplitReader<>(config, readerFormat),
-			new FileSourceRecordEmitter<>(),
-			config,
-			readerContext);
-	}
+    public FileSourceReader(
+            SourceReaderContext readerContext,
+            BulkFormat<T, SplitT> readerFormat,
+            Configuration config) {
+        super(
+                () -> new FileSourceSplitReader<>(config, readerFormat),
+                new FileSourceRecordEmitter<>(),
+                config,
+                readerContext);
+    }
 
-	@Override
-	public void start() {
-		// we request a split only if we did not get splits during the checkpoint restore
-		if (getNumberOfCurrentlyAssignedSplits() == 0) {
-			context.sendSplitRequest();
-		}
-	}
+    @Override
+    public void start() {
+        // we request a split only if we did not get splits during the checkpoint restore
+        if (getNumberOfCurrentlyAssignedSplits() == 0) {
+            context.sendSplitRequest();
+        }
+    }
 
-	@Override
-	protected void onSplitFinished(Map<String, FileSourceSplitState<SplitT>> finishedSplitIds) {
-		context.sendSplitRequest();
-	}
+    @Override
+    protected void onSplitFinished(Map<String, FileSourceSplitState<SplitT>> finishedSplitIds) {
+        context.sendSplitRequest();
+    }
 
-	@Override
-	protected FileSourceSplitState<SplitT> initializedState(SplitT split) {
-		return new FileSourceSplitState<>(split);
-	}
+    @Override
+    protected FileSourceSplitState<SplitT> initializedState(SplitT split) {
+        return new FileSourceSplitState<>(split);
+    }
 
-	@Override
-	protected SplitT toSplitType(String splitId, FileSourceSplitState<SplitT> splitState) {
-		return splitState.toFileSourceSplit();
-	}
+    @Override
+    protected SplitT toSplitType(String splitId, FileSourceSplitState<SplitT> splitState) {
+        return splitState.toFileSourceSplit();
+    }
 }

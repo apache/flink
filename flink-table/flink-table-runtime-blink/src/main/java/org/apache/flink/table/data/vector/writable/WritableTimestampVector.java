@@ -21,18 +21,12 @@ package org.apache.flink.table.data.vector.writable;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.vector.TimestampColumnVector;
 
-/**
- * Writable {@link TimestampColumnVector}.
- */
+/** Writable {@link TimestampColumnVector}. */
 public interface WritableTimestampVector extends WritableColumnVector, TimestampColumnVector {
 
-	/**
-	 * Set {@link TimestampData} at rowId with the provided value.
-	 */
-	void setTimestamp(int rowId, TimestampData timestamp);
+    /** Set {@link TimestampData} at rowId with the provided value. */
+    void setTimestamp(int rowId, TimestampData timestamp);
 
-	/**
-	 * Fill the column vector with the provided value.
-	 */
-	void fill(TimestampData value);
+    /** Fill the column vector with the provided value. */
+    void fill(TimestampData value);
 }

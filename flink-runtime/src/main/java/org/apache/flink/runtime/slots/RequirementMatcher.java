@@ -24,18 +24,20 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-/**
- * A matcher for resource profiles to requirements.
- */
+/** A matcher for resource profiles to requirements. */
 public interface RequirementMatcher {
 
-	/**
-	 * Attempts to match the given resource profile with one of the given requirements.
-	 *
-	 * @param resourceProfile resource profile to match
-	 * @param totalRequirements the total requirements
-	 * @param numAssignedResourcesLookup a lookup for how many resources have already been assigned to a requirement
-	 * @return matching requirement profile, if one exists
-	 */
-	Optional<ResourceProfile> match(ResourceProfile resourceProfile, Collection<Map.Entry<ResourceProfile, Integer>> totalRequirements, Function<ResourceProfile, Integer> numAssignedResourcesLookup);
+    /**
+     * Attempts to match the given resource profile with one of the given requirements.
+     *
+     * @param resourceProfile resource profile to match
+     * @param totalRequirements the total requirements
+     * @param numAssignedResourcesLookup a lookup for how many resources have already been assigned
+     *     to a requirement
+     * @return matching requirement profile, if one exists
+     */
+    Optional<ResourceProfile> match(
+            ResourceProfile resourceProfile,
+            Collection<Map.Entry<ResourceProfile, Integer>> totalRequirements,
+            Function<ResourceProfile, Integer> numAssignedResourcesLookup);
 }

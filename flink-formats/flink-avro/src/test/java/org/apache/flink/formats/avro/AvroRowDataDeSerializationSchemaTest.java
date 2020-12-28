@@ -69,140 +69,149 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.junit.Assert.assertArrayEquals;
 
-/**
- * Test for the Avro serialization and deserialization schema.
- */
+/** Test for the Avro serialization and deserialization schema. */
 public class AvroRowDataDeSerializationSchemaTest {
 
-	@Test
-	public void testSerializeDeserialize() throws Exception {
-		final DataType dataType = ROW(
-			FIELD("bool", BOOLEAN()),
-			FIELD("tinyint", TINYINT()),
-			FIELD("smallint", SMALLINT()),
-			FIELD("int", INT()),
-			FIELD("bigint", BIGINT()),
-			FIELD("float", FLOAT()),
-			FIELD("double", DOUBLE()),
-			FIELD("name", STRING()),
-			FIELD("bytes", BYTES()),
-			FIELD("decimal", DECIMAL(19, 6)),
-			FIELD("doubles", ARRAY(DOUBLE())),
-			FIELD("time", TIME(0)),
-			FIELD("date", DATE()),
-			FIELD("timestamp3", TIMESTAMP(3)),
-			FIELD("timestamp3_2", TIMESTAMP(3)),
-			FIELD("map", MAP(STRING(), BIGINT())),
-			FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))),
-			FIELD("map2array", MAP(STRING(), ARRAY(INT()))),
-			FIELD("nullEntryMap", MAP(STRING(), STRING())))
-			.notNull();
-		final RowType rowType = (RowType) dataType.getLogicalType();
-		final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
+    @Test
+    public void testSerializeDeserialize() throws Exception {
+        final DataType dataType =
+                ROW(
+                                FIELD("bool", BOOLEAN()),
+                                FIELD("tinyint", TINYINT()),
+                                FIELD("smallint", SMALLINT()),
+                                FIELD("int", INT()),
+                                FIELD("bigint", BIGINT()),
+                                FIELD("float", FLOAT()),
+                                FIELD("double", DOUBLE()),
+                                FIELD("name", STRING()),
+                                FIELD("bytes", BYTES()),
+                                FIELD("decimal", DECIMAL(19, 6)),
+                                FIELD("doubles", ARRAY(DOUBLE())),
+                                FIELD("time", TIME(0)),
+                                FIELD("date", DATE()),
+                                FIELD("timestamp3", TIMESTAMP(3)),
+                                FIELD("timestamp3_2", TIMESTAMP(3)),
+                                FIELD("map", MAP(STRING(), BIGINT())),
+                                FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))),
+                                FIELD("map2array", MAP(STRING(), ARRAY(INT()))),
+                                FIELD("nullEntryMap", MAP(STRING(), STRING())))
+                        .notNull();
+        final RowType rowType = (RowType) dataType.getLogicalType();
+        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
 
-		final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
-		final GenericRecord record = new GenericData.Record(schema);
-		record.put(0, true);
-		record.put(1, (int) Byte.MAX_VALUE);
-		record.put(2, (int) Short.MAX_VALUE);
-		record.put(3, 33);
-		record.put(4, 44L);
-		record.put(5, 12.34F);
-		record.put(6, 23.45);
-		record.put(7, "hello avro");
-		record.put(8, ByteBuffer.wrap(new byte[]{1, 2, 4, 5, 6, 7, 8, 12}));
+        final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+        final GenericRecord record = new GenericData.Record(schema);
+        record.put(0, true);
+        record.put(1, (int) Byte.MAX_VALUE);
+        record.put(2, (int) Short.MAX_VALUE);
+        record.put(3, 33);
+        record.put(4, 44L);
+        record.put(5, 12.34F);
+        record.put(6, 23.45);
+        record.put(7, "hello avro");
+        record.put(8, ByteBuffer.wrap(new byte[] {1, 2, 4, 5, 6, 7, 8, 12}));
 
-		record.put(9, ByteBuffer.wrap(
-				BigDecimal.valueOf(123456789, 6).unscaledValue().toByteArray()));
+        record.put(
+                9, ByteBuffer.wrap(BigDecimal.valueOf(123456789, 6).unscaledValue().toByteArray()));
 
-		List<Double> doubles = new ArrayList<>();
-		doubles.add(1.2);
-		doubles.add(3.4);
-		doubles.add(567.8901);
-		record.put(10, doubles);
+        List<Double> doubles = new ArrayList<>();
+        doubles.add(1.2);
+        doubles.add(3.4);
+        doubles.add(567.8901);
+        record.put(10, doubles);
 
-		record.put(11, 18397);
-		record.put(12, 10087);
-		record.put(13, 1589530213123L);
-		record.put(14, 1589530213122L);
+        record.put(11, 18397);
+        record.put(12, 10087);
+        record.put(13, 1589530213123L);
+        record.put(14, 1589530213122L);
 
-		Map<String, Long> map = new HashMap<>();
-		map.put("flink", 12L);
-		map.put("avro", 23L);
-		record.put(15, map);
+        Map<String, Long> map = new HashMap<>();
+        map.put("flink", 12L);
+        map.put("avro", 23L);
+        record.put(15, map);
 
-		Map<String, Map<String, Integer>> map2map = new HashMap<>();
-		Map<String, Integer> innerMap = new HashMap<>();
-		innerMap.put("inner_key1", 123);
-		innerMap.put("inner_key2", 234);
-		map2map.put("outer_key", innerMap);
-		record.put(16, map2map);
+        Map<String, Map<String, Integer>> map2map = new HashMap<>();
+        Map<String, Integer> innerMap = new HashMap<>();
+        innerMap.put("inner_key1", 123);
+        innerMap.put("inner_key2", 234);
+        map2map.put("outer_key", innerMap);
+        record.put(16, map2map);
 
-		List<Integer> list1 = Arrays.asList(1, 2, 3, 4, 5, 6);
-		List<Integer> list2 = Arrays.asList(11, 22, 33, 44, 55);
-		Map<String, List<Integer>> map2list = new HashMap<>();
-		map2list.put("list1", list1);
-		map2list.put("list2", list2);
-		record.put(17, map2list);
+        List<Integer> list1 = Arrays.asList(1, 2, 3, 4, 5, 6);
+        List<Integer> list2 = Arrays.asList(11, 22, 33, 44, 55);
+        Map<String, List<Integer>> map2list = new HashMap<>();
+        map2list.put("list1", list1);
+        map2list.put("list2", list2);
+        record.put(17, map2list);
 
-		Map<String, String> map2 = new HashMap<>();
-		map2.put("key1", null);
-		record.put(18, map2);
+        Map<String, String> map2 = new HashMap<>();
+        map2.put("key1", null);
+        record.put(18, map2);
 
-		AvroRowDataSerializationSchema serializationSchema = new AvroRowDataSerializationSchema(rowType);
-		serializationSchema.open(null);
-		AvroRowDataDeserializationSchema deserializationSchema =
-			new AvroRowDataDeserializationSchema(rowType, typeInfo);
-		deserializationSchema.open(null);
+        AvroRowDataSerializationSchema serializationSchema =
+                new AvroRowDataSerializationSchema(rowType);
+        serializationSchema.open(null);
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(rowType, typeInfo);
+        deserializationSchema.open(null);
 
-		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-		GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
-		Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
-		datumWriter.write(record, encoder);
-		encoder.flush();
-		byte[] input = byteArrayOutputStream.toByteArray();
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
+        Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+        datumWriter.write(record, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
 
-		RowData rowData = deserializationSchema.deserialize(input);
-		byte[] output = serializationSchema.serialize(rowData);
+        RowData rowData = deserializationSchema.deserialize(input);
+        byte[] output = serializationSchema.serialize(rowData);
 
-		assertArrayEquals(input, output);
-	}
+        assertArrayEquals(input, output);
+    }
 
-	@Test
-	public void testSpecificType() throws Exception {
-		LogicalTimeRecord record = new LogicalTimeRecord();
-		Instant timestamp = Instant.parse("2010-06-30T01:20:20Z");
-		record.setTypeTimestampMillis(timestamp);
-		record.setTypeDate(LocalDate.parse("2014-03-01"));
-		record.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-		SpecificDatumWriter<LogicalTimeRecord> datumWriter = new SpecificDatumWriter<>(LogicalTimeRecord.class);
-		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-		Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
-		datumWriter.write(record, encoder);
-		encoder.flush();
-		byte[] input = byteArrayOutputStream.toByteArray();
+    @Test
+    public void testSpecificType() throws Exception {
+        LogicalTimeRecord record = new LogicalTimeRecord();
+        Instant timestamp = Instant.parse("2010-06-30T01:20:20Z");
+        record.setTypeTimestampMillis(timestamp);
+        record.setTypeDate(LocalDate.parse("2014-03-01"));
+        record.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+        SpecificDatumWriter<LogicalTimeRecord> datumWriter =
+                new SpecificDatumWriter<>(LogicalTimeRecord.class);
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+        datumWriter.write(record, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
 
-		DataType dataType = ROW(
-				FIELD("type_timestamp_millis", TIMESTAMP(3).notNull()),
-				FIELD("type_date", DATE().notNull()),
-				FIELD("type_time_millis", TIME(3).notNull()))
-			.notNull();
-		final RowType rowType = (RowType) dataType.getLogicalType();
-		final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
-		AvroRowDataSerializationSchema serializationSchema = new AvroRowDataSerializationSchema(rowType);
-		serializationSchema.open(null);
-		AvroRowDataDeserializationSchema deserializationSchema =
-				new AvroRowDataDeserializationSchema(rowType, typeInfo);
-		deserializationSchema.open(null);
+        DataType dataType =
+                ROW(
+                                FIELD("type_timestamp_millis", TIMESTAMP(3).notNull()),
+                                FIELD("type_date", DATE().notNull()),
+                                FIELD("type_time_millis", TIME(3).notNull()))
+                        .notNull();
+        final RowType rowType = (RowType) dataType.getLogicalType();
+        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
+        AvroRowDataSerializationSchema serializationSchema =
+                new AvroRowDataSerializationSchema(rowType);
+        serializationSchema.open(null);
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(rowType, typeInfo);
+        deserializationSchema.open(null);
 
-		RowData rowData = deserializationSchema.deserialize(input);
-		byte[] output = serializationSchema.serialize(rowData);
-		RowData rowData2 = deserializationSchema.deserialize(output);
-		Assert.assertEquals(rowData, rowData2);
-		Assert.assertEquals(timestamp, rowData.getTimestamp(0, 3).toInstant());
-		Assert.assertEquals("2014-03-01", DataFormatConverters.LocalDateConverter.INSTANCE.toExternal(
-				rowData.getInt(1)).toString());
-		Assert.assertEquals("12:12:12", DataFormatConverters.LocalTimeConverter.INSTANCE.toExternal(
-				rowData.getInt(2)).toString());
-	}
+        RowData rowData = deserializationSchema.deserialize(input);
+        byte[] output = serializationSchema.serialize(rowData);
+        RowData rowData2 = deserializationSchema.deserialize(output);
+        Assert.assertEquals(rowData, rowData2);
+        Assert.assertEquals(timestamp, rowData.getTimestamp(0, 3).toInstant());
+        Assert.assertEquals(
+                "2014-03-01",
+                DataFormatConverters.LocalDateConverter.INSTANCE
+                        .toExternal(rowData.getInt(1))
+                        .toString());
+        Assert.assertEquals(
+                "12:12:12",
+                DataFormatConverters.LocalTimeConverter.INSTANCE
+                        .toExternal(rowData.getInt(2))
+                        .toString());
+    }
 }

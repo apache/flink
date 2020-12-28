@@ -30,18 +30,18 @@ import java.util.UUID;
  */
 @PublicEvolving
 public final class RandomKinesisPartitioner<T> extends KinesisPartitioner<T> {
-	@Override
-	public String getPartitionId(T element) {
-		return UUID.randomUUID().toString();
-	}
+    @Override
+    public String getPartitionId(T element) {
+        return UUID.randomUUID().toString();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		return o instanceof RandomKinesisPartitioner;
-	}
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof RandomKinesisPartitioner;
+    }
 
-	@Override
-	public int hashCode() {
-		return RandomKinesisPartitioner.class.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return RandomKinesisPartitioner.class.hashCode();
+    }
 }

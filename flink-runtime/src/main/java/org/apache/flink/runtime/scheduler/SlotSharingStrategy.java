@@ -25,21 +25,18 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 
 import java.util.Set;
 
-/**
- * Strategy which determines {@link ExecutionSlotSharingGroup} for each execution vertex.
- */
+/** Strategy which determines {@link ExecutionSlotSharingGroup} for each execution vertex. */
 interface SlotSharingStrategy {
 
-	ExecutionSlotSharingGroup getExecutionSlotSharingGroup(
-		ExecutionVertexID executionVertexId);
+    ExecutionSlotSharingGroup getExecutionSlotSharingGroup(ExecutionVertexID executionVertexId);
 
-	Set<ExecutionSlotSharingGroup> getExecutionSlotSharingGroups();
+    Set<ExecutionSlotSharingGroup> getExecutionSlotSharingGroups();
 
-	@FunctionalInterface
-	interface Factory {
-		SlotSharingStrategy create(
-			SchedulingTopology topology,
-			Set<SlotSharingGroup> logicalSlotSharingGroups,
-			Set<CoLocationGroupDesc> coLocationGroups);
-	}
+    @FunctionalInterface
+    interface Factory {
+        SlotSharingStrategy create(
+                SchedulingTopology topology,
+                Set<SlotSharingGroup> logicalSlotSharingGroups,
+                Set<CoLocationGroupDesc> coLocationGroups);
+    }
 }

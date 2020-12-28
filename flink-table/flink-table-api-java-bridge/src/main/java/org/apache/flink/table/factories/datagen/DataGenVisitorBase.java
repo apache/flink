@@ -44,67 +44,70 @@ import static java.time.temporal.ChronoField.MILLI_OF_DAY;
  */
 public abstract class DataGenVisitorBase extends LogicalTypeDefaultVisitor<DataGeneratorContainer> {
 
-	protected final String name;
+    protected final String name;
 
-	protected final ReadableConfig config;
+    protected final ReadableConfig config;
 
-	protected DataGenVisitorBase(String name, ReadableConfig config) {
-		this.name = name;
-		this.config = config;
-	}
+    protected DataGenVisitorBase(String name, ReadableConfig config) {
+        this.name = name;
+        this.config = config;
+    }
 
-	@Override
-	public DataGeneratorContainer visit(DateType dateType) {
-		return DataGeneratorContainer.of(TimeGenerator.of(() -> (int) LocalDate.now().toEpochDay()));
-	}
+    @Override
+    public DataGeneratorContainer visit(DateType dateType) {
+        return DataGeneratorContainer.of(
+                TimeGenerator.of(() -> (int) LocalDate.now().toEpochDay()));
+    }
 
-	@Override
-	public DataGeneratorContainer visit(TimeType timeType) {
-		return DataGeneratorContainer.of(TimeGenerator.of(() -> LocalTime.now().get(MILLI_OF_DAY)));
-	}
+    @Override
+    public DataGeneratorContainer visit(TimeType timeType) {
+        return DataGeneratorContainer.of(TimeGenerator.of(() -> LocalTime.now().get(MILLI_OF_DAY)));
+    }
 
-	@Override
-	public DataGeneratorContainer visit(TimestampType timestampType) {
-		return DataGeneratorContainer.of(TimeGenerator.of(() -> TimestampData.fromEpochMillis(System.currentTimeMillis())));
-	}
+    @Override
+    public DataGeneratorContainer visit(TimestampType timestampType) {
+        return DataGeneratorContainer.of(
+                TimeGenerator.of(() -> TimestampData.fromEpochMillis(System.currentTimeMillis())));
+    }
 
-	@Override
-	public DataGeneratorContainer visit(ZonedTimestampType zonedTimestampType) {
-		return DataGeneratorContainer.of(TimeGenerator.of(() -> TimestampData.fromEpochMillis(System.currentTimeMillis())));
-	}
+    @Override
+    public DataGeneratorContainer visit(ZonedTimestampType zonedTimestampType) {
+        return DataGeneratorContainer.of(
+                TimeGenerator.of(() -> TimestampData.fromEpochMillis(System.currentTimeMillis())));
+    }
 
-	@Override
-	public DataGeneratorContainer visit(LocalZonedTimestampType localZonedTimestampType) {
-		return DataGeneratorContainer.of(TimeGenerator.of(() -> TimestampData.fromEpochMillis(System.currentTimeMillis())));
-	}
+    @Override
+    public DataGeneratorContainer visit(LocalZonedTimestampType localZonedTimestampType) {
+        return DataGeneratorContainer.of(
+                TimeGenerator.of(() -> TimestampData.fromEpochMillis(System.currentTimeMillis())));
+    }
 
-	@Override
-	protected DataGeneratorContainer defaultMethod(LogicalType logicalType) {
-		throw new ValidationException("Unsupported type: " + logicalType);
-	}
+    @Override
+    protected DataGeneratorContainer defaultMethod(LogicalType logicalType) {
+        throw new ValidationException("Unsupported type: " + logicalType);
+    }
 
-	private interface SerializableSupplier<T> extends Supplier<T>, Serializable { }
+    private interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
 
-	private abstract static class TimeGenerator<T> implements DataGenerator<T> {
+    private abstract static class TimeGenerator<T> implements DataGenerator<T> {
 
-		public static <T> TimeGenerator<T> of(SerializableSupplier<T> supplier) {
-			return new TimeGenerator<T>() {
-				@Override
-				public T next() {
-					return supplier.get();
-				}
-			};
-		}
+        public static <T> TimeGenerator<T> of(SerializableSupplier<T> supplier) {
+            return new TimeGenerator<T>() {
+                @Override
+                public T next() {
+                    return supplier.get();
+                }
+            };
+        }
 
-		@Override
-		public void open(
-			String name,
-			FunctionInitializationContext context,
-			RuntimeContext runtimeContext) throws Exception { }
+        @Override
+        public void open(
+                String name, FunctionInitializationContext context, RuntimeContext runtimeContext)
+                throws Exception {}
 
-		@Override
-		public boolean hasNext() {
-			return true;
-		}
-	}
+        @Override
+        public boolean hasNext() {
+            return true;
+        }
+    }
 }

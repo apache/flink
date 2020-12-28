@@ -22,24 +22,23 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 
-/**
- * {@link LeaderRetrievalDriverFactory} implementation for Zookeeper.
- */
+/** {@link LeaderRetrievalDriverFactory} implementation for Zookeeper. */
 public class ZooKeeperLeaderRetrievalDriverFactory implements LeaderRetrievalDriverFactory {
 
-	private final CuratorFramework client;
+    private final CuratorFramework client;
 
-	private final String retrievalPath;
+    private final String retrievalPath;
 
-	public ZooKeeperLeaderRetrievalDriverFactory(CuratorFramework client, String retrievalPath) {
-		this.client = client;
-		this.retrievalPath = retrievalPath;
-	}
+    public ZooKeeperLeaderRetrievalDriverFactory(CuratorFramework client, String retrievalPath) {
+        this.client = client;
+        this.retrievalPath = retrievalPath;
+    }
 
-	@Override
-	public ZooKeeperLeaderRetrievalDriver createLeaderRetrievalDriver(
-			LeaderRetrievalEventHandler leaderEventHandler,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
-		return new ZooKeeperLeaderRetrievalDriver(client, retrievalPath, leaderEventHandler, fatalErrorHandler);
-	}
+    @Override
+    public ZooKeeperLeaderRetrievalDriver createLeaderRetrievalDriver(
+            LeaderRetrievalEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler)
+            throws Exception {
+        return new ZooKeeperLeaderRetrievalDriver(
+                client, retrievalPath, leaderEventHandler, fatalErrorHandler);
+    }
 }

@@ -26,44 +26,62 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Tests for {@link ConnectedComponents}.
- */
+/** Tests for {@link ConnectedComponents}. */
 @RunWith(Parameterized.class)
 public class ConnectedComponentsITCase extends NonTransformableDriverBaseITCase {
 
-	public ConnectedComponentsITCase(String idType, TestExecutionMode mode) {
-		super(idType, mode);
-	}
+    public ConnectedComponentsITCase(String idType, TestExecutionMode mode) {
+        super(idType, mode);
+    }
 
-	private String[] parameters(int scale, String output) {
-		return new String[] {
-			"--algorithm", "ConnectedComponents",
-			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", "undirected",
-				"--edge_factor", "1", "--a", "0.25", "--b", "0.25", "--c", "0.25", "--noise_enabled", "--noise", "1.0",
-			"--output", output};
-	}
+    private String[] parameters(int scale, String output) {
+        return new String[] {
+            "--algorithm",
+            "ConnectedComponents",
+            "--input",
+            "RMatGraph",
+            "--scale",
+            Integer.toString(scale),
+            "--type",
+            idType,
+            "--simplify",
+            "undirected",
+            "--edge_factor",
+            "1",
+            "--a",
+            "0.25",
+            "--b",
+            "0.25",
+            "--c",
+            "0.25",
+            "--noise_enabled",
+            "--noise",
+            "1.0",
+            "--output",
+            output
+        };
+    }
 
-	@Test
-	public void testLongDescription() throws Exception {
-		String expected = regexSubstring(new ConnectedComponents().getLongDescription());
+    @Test
+    public void testLongDescription() throws Exception {
+        String expected = regexSubstring(new ConnectedComponents().getLongDescription());
 
-		expectedOutputFromException(
-			new String[]{"--algorithm", "ConnectedComponents"},
-			expected,
-			ProgramParametrizationException.class);
-	}
+        expectedOutputFromException(
+                new String[] {"--algorithm", "ConnectedComponents"},
+                expected,
+                ProgramParametrizationException.class);
+    }
 
-	@Test
-	public void testHashWithRMatGraph() throws Exception {
-		expectedChecksum(parameters(7, "hash"), 106, 0x0000000000033e88L);
-	}
+    @Test
+    public void testHashWithRMatGraph() throws Exception {
+        expectedChecksum(parameters(7, "hash"), 106, 0x0000000000033e88L);
+    }
 
-	@Test
-	public void testPrintWithRMatGraph() throws Exception {
-		// skip 'char' since it is not printed as a number
-		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+    @Test
+    public void testPrintWithRMatGraph() throws Exception {
+        // skip 'char' since it is not printed as a number
+        Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(parameters(7, "print"), new Checksum(106, 0x00000024edd0568dL));
-	}
+        expectedOutputChecksum(parameters(7, "print"), new Checksum(106, 0x00000024edd0568dL));
+    }
 }

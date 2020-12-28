@@ -20,9 +20,7 @@ package org.apache.flink.table.data.vector;
 
 import org.apache.flink.table.data.ColumnarRowData;
 
-/**
- * Row column vector.
- */
+/** Row column vector. */
 public interface RowColumnVector extends ColumnVector {
-	ColumnarRowData getRow(int i);
+    ColumnarRowData getRow(int i);
 }

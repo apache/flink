@@ -29,49 +29,50 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Adapter to turn a {@link SerializationSchema} into a {@link Encoder}.
- */
+/** Adapter to turn a {@link SerializationSchema} into a {@link Encoder}. */
 @Internal
 public class SerializationSchemaAdapter implements Encoder<RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	static final byte LINE_DELIMITER = "\n".getBytes(StandardCharsets.UTF_8)[0];
+    static final byte LINE_DELIMITER = "\n".getBytes(StandardCharsets.UTF_8)[0];
 
-	private final SerializationSchema<RowData> serializationSchema;
+    private final SerializationSchema<RowData> serializationSchema;
 
-	private transient boolean open;
+    private transient boolean open;
 
-	public SerializationSchemaAdapter(SerializationSchema<RowData> serializationSchema) {
-		this.serializationSchema = serializationSchema;
-	}
+    public SerializationSchemaAdapter(SerializationSchema<RowData> serializationSchema) {
+        this.serializationSchema = serializationSchema;
+    }
 
-	@Override
-	public void encode(RowData element, OutputStream stream) throws IOException {
-		checkOpened();
-		stream.write(serializationSchema.serialize(element));
-		stream.write(LINE_DELIMITER);
-	}
+    @Override
+    public void encode(RowData element, OutputStream stream) throws IOException {
+        checkOpened();
+        stream.write(serializationSchema.serialize(element));
+        stream.write(LINE_DELIMITER);
+    }
 
-	private void checkOpened() throws IOException {
-		if (!open) {
-			try {
-				serializationSchema.open(new SerializationSchema.InitializationContext() {
-					@Override
-					public MetricGroup getMetricGroup() {
-						throw new UnsupportedOperationException("MetricGroup is unsupported in BulkFormat.");
-					}
+    private void checkOpened() throws IOException {
+        if (!open) {
+            try {
+                serializationSchema.open(
+                        new SerializationSchema.InitializationContext() {
+                            @Override
+                            public MetricGroup getMetricGroup() {
+                                throw new UnsupportedOperationException(
+                                        "MetricGroup is unsupported in BulkFormat.");
+                            }
 
-					@Override
-					public UserCodeClassLoader getUserCodeClassLoader() {
-						return (UserCodeClassLoader) Thread.currentThread().getContextClassLoader();
-					}
-				});
-			} catch (Exception e) {
-				throw new IOException(e);
-			}
-			open = true;
-		}
-	}
+                            @Override
+                            public UserCodeClassLoader getUserCodeClassLoader() {
+                                return (UserCodeClassLoader)
+                                        Thread.currentThread().getContextClassLoader();
+                            }
+                        });
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+            open = true;
+        }
+    }
 }

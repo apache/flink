@@ -54,114 +54,120 @@ import scala.Tuple3;
 import scala.collection.Seq;
 
 /**
- * The physical rule is responsible for convert {@link FlinkLogicalWindowAggregate} to
- * {@link BatchExecPythonGroupWindowAggregate}.
+ * The physical rule is responsible for convert {@link FlinkLogicalWindowAggregate} to {@link
+ * BatchExecPythonGroupWindowAggregate}.
  */
 public class BatchExecPythonWindowAggregateRule extends RelOptRule {
 
-	public static final RelOptRule INSTANCE = new BatchExecPythonWindowAggregateRule();
+    public static final RelOptRule INSTANCE = new BatchExecPythonWindowAggregateRule();
 
-	private BatchExecPythonWindowAggregateRule() {
-		super(operand(FlinkLogicalWindowAggregate.class,
-			operand(RelNode.class, any())),
-			FlinkRelFactories.LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE(),
-			"BatchExecPythonWindowAggregateRule");
-	}
+    private BatchExecPythonWindowAggregateRule() {
+        super(
+                operand(FlinkLogicalWindowAggregate.class, operand(RelNode.class, any())),
+                FlinkRelFactories.LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE(),
+                "BatchExecPythonWindowAggregateRule");
+    }
 
-	@Override
-	public boolean matches(RelOptRuleCall call) {
-		FlinkLogicalWindowAggregate agg = call.rel(0);
-		List<AggregateCall> aggCalls = agg.getAggCallList();
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        FlinkLogicalWindowAggregate agg = call.rel(0);
+        List<AggregateCall> aggCalls = agg.getAggCallList();
 
-		boolean existGeneralPythonFunction =
-			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
-		boolean existPandasFunction =
-			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
-		boolean existJavaFunction =
-			aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
-		if (existPandasFunction || existGeneralPythonFunction) {
-			if (existJavaFunction) {
-				throw new TableException("Python UDAF and Java/Scala UDAF cannot be used together.");
-			}
-			if (existPandasFunction && existGeneralPythonFunction) {
-				throw new TableException("Pandas UDAF and non-Pandas UDAF cannot be used together.");
-			}
-			return true;
-		} else {
-			return false;
-		}
+        boolean existGeneralPythonFunction =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
+        boolean existPandasFunction =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
+        boolean existJavaFunction =
+                aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
+        if (existPandasFunction || existGeneralPythonFunction) {
+            if (existJavaFunction) {
+                throw new TableException(
+                        "Python UDAF and Java/Scala UDAF cannot be used together.");
+            }
+            if (existPandasFunction && existGeneralPythonFunction) {
+                throw new TableException(
+                        "Pandas UDAF and non-Pandas UDAF cannot be used together.");
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
 
-	}
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+        FlinkLogicalWindowAggregate agg = call.rel(0);
+        RelNode input = agg.getInput();
+        LogicalWindow window = agg.getWindow();
 
-	@Override
-	public void onMatch(RelOptRuleCall call) {
-		FlinkLogicalWindowAggregate agg = call.rel(0);
-		RelNode input = agg.getInput();
-		LogicalWindow window = agg.getWindow();
+        if (!(window instanceof TumblingGroupWindow
+                        && AggregateUtil.hasTimeIntervalType(((TumblingGroupWindow) window).size())
+                || window instanceof SlidingGroupWindow
+                        && AggregateUtil.hasTimeIntervalType(((SlidingGroupWindow) window).size())
+                || window instanceof SessionGroupWindow)) {
+            // sliding & tumbling count window and session window not supported
+            throw new TableException("Window " + window + " is not supported right now.");
+        }
 
-		if (!(window instanceof TumblingGroupWindow &&
-			AggregateUtil.hasTimeIntervalType(((TumblingGroupWindow) window).size())
-			|| window instanceof SlidingGroupWindow &&
-			AggregateUtil.hasTimeIntervalType(((SlidingGroupWindow) window).size())
-			|| window instanceof SessionGroupWindow)) {
-			// sliding & tumbling count window and session window not supported
-			throw new TableException("Window " + window + " is not supported right now.");
-		}
+        int[] groupSet = agg.getGroupSet().toArray();
+        RelTraitSet traitSet = agg.getTraitSet().replace(FlinkConventions.BATCH_PHYSICAL());
 
-		int[] groupSet = agg.getGroupSet().toArray();
-		RelTraitSet traitSet = agg.getTraitSet().replace(FlinkConventions.BATCH_PHYSICAL());
+        Tuple2<int[], Seq<AggregateCall>> auxGroupSetAndCallsTuple =
+                AggregateUtil.checkAndSplitAggCalls(agg);
+        int[] auxGroupSet = auxGroupSetAndCallsTuple._1;
+        Seq<AggregateCall> aggCallsWithoutAuxGroupCalls = auxGroupSetAndCallsTuple._2;
 
-		Tuple2<int[], Seq<AggregateCall>> auxGroupSetAndCallsTuple = AggregateUtil.checkAndSplitAggCalls(agg);
-		int[] auxGroupSet = auxGroupSetAndCallsTuple._1;
-		Seq<AggregateCall> aggCallsWithoutAuxGroupCalls = auxGroupSetAndCallsTuple._2;
+        Tuple3<int[][], DataType[][], UserDefinedFunction[]> aggBufferTypesAndFunctions =
+                AggregateUtil.transformToBatchAggregateFunctions(
+                        aggCallsWithoutAuxGroupCalls, input.getRowType(), null);
+        UserDefinedFunction[] aggFunctions = aggBufferTypesAndFunctions._3();
 
-		Tuple3<int[][], DataType[][], UserDefinedFunction[]> aggBufferTypesAndFunctions =
-			AggregateUtil.transformToBatchAggregateFunctions(
-				aggCallsWithoutAuxGroupCalls, input.getRowType(), null);
-		UserDefinedFunction[] aggFunctions = aggBufferTypesAndFunctions._3();
+        int inputTimeFieldIndex =
+                AggregateUtil.timeFieldIndex(
+                        input.getRowType(), call.builder(), window.timeAttribute());
+        RelDataType inputTimeFieldType =
+                input.getRowType().getFieldList().get(inputTimeFieldIndex).getType();
+        boolean inputTimeIsDate = inputTimeFieldType.getSqlTypeName() == SqlTypeName.DATE;
 
-		int inputTimeFieldIndex = AggregateUtil.timeFieldIndex(
-			input.getRowType(), call.builder(), window.timeAttribute());
-		RelDataType inputTimeFieldType = input.getRowType().getFieldList().get(inputTimeFieldIndex).getType();
-		boolean inputTimeIsDate = inputTimeFieldType.getSqlTypeName() == SqlTypeName.DATE;
+        RelTraitSet requiredTraitSet = agg.getTraitSet().replace(FlinkConventions.BATCH_PHYSICAL());
+        if (groupSet.length != 0) {
+            FlinkRelDistribution requiredDistribution = FlinkRelDistribution.hash(groupSet, false);
+            requiredTraitSet = requiredTraitSet.replace(requiredDistribution);
+        } else {
+            requiredTraitSet = requiredTraitSet.replace(FlinkRelDistribution.SINGLETON());
+        }
 
-		RelTraitSet requiredTraitSet = agg.getTraitSet().replace(FlinkConventions.BATCH_PHYSICAL());
-		if (groupSet.length != 0) {
-			FlinkRelDistribution requiredDistribution =
-				FlinkRelDistribution.hash(groupSet, false);
-			requiredTraitSet = requiredTraitSet.replace(requiredDistribution);
-		} else {
-			requiredTraitSet = requiredTraitSet.replace(FlinkRelDistribution.SINGLETON());
-		}
+        RelCollation sortCollation = createRelCollation(groupSet, inputTimeFieldIndex);
+        requiredTraitSet = requiredTraitSet.replace(sortCollation);
 
-		RelCollation sortCollation = createRelCollation(groupSet, inputTimeFieldIndex);
-		requiredTraitSet = requiredTraitSet.replace(sortCollation);
+        RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
+        BatchExecPythonGroupWindowAggregate windowAgg =
+                new BatchExecPythonGroupWindowAggregate(
+                        agg.getCluster(),
+                        call.builder(),
+                        traitSet,
+                        newInput,
+                        agg.getRowType(),
+                        newInput.getRowType(),
+                        groupSet,
+                        auxGroupSet,
+                        aggCallsWithoutAuxGroupCalls,
+                        aggFunctions,
+                        window,
+                        inputTimeFieldIndex,
+                        inputTimeIsDate,
+                        agg.getNamedProperties());
+        call.transformTo(windowAgg);
+    }
 
-		RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
-		BatchExecPythonGroupWindowAggregate windowAgg = new BatchExecPythonGroupWindowAggregate(
-			agg.getCluster(),
-			call.builder(),
-			traitSet,
-			newInput,
-			agg.getRowType(),
-			newInput.getRowType(),
-			groupSet,
-			auxGroupSet,
-			aggCallsWithoutAuxGroupCalls,
-			aggFunctions,
-			window,
-			inputTimeFieldIndex,
-			inputTimeIsDate,
-			agg.getNamedProperties());
-		call.transformTo(windowAgg);
-	}
-
-	private RelCollation createRelCollation(int[] groupSet, int timeIndex) {
-		List<RelFieldCollation> fields = new LinkedList<>();
-		for (int value : groupSet) {
-			fields.add(FlinkRelOptUtil.ofRelFieldCollation(value));
-		}
-		fields.add(FlinkRelOptUtil.ofRelFieldCollation(timeIndex));
-		return RelCollations.of(fields);
-	}
+    private RelCollation createRelCollation(int[] groupSet, int timeIndex) {
+        List<RelFieldCollation> fields = new LinkedList<>();
+        for (int value : groupSet) {
+            fields.add(FlinkRelOptUtil.ofRelFieldCollation(value));
+        }
+        fields.add(FlinkRelOptUtil.ofRelFieldCollation(timeIndex));
+        return RelCollations.of(fields);
+    }
 }

@@ -25,38 +25,31 @@ import org.apache.hadoop.fs.Path;
 import java.io.IOException;
 
 /**
- * The committer publishes an intermediate Hadoop file to the target path after
- * it finishes writing.
+ * The committer publishes an intermediate Hadoop file to the target path after it finishes writing.
  */
 @Internal
 public interface HadoopFileCommitter {
 
-	/**
-	 * Gets the target path to commit to.
-	 *
-	 * @return The target path to commit to.
-	 */
-	Path getTargetFilePath();
+    /**
+     * Gets the target path to commit to.
+     *
+     * @return The target path to commit to.
+     */
+    Path getTargetFilePath();
 
-	/**
-	 * Gets the path of the intermediate file to commit.
-	 *
-	 * @return The path of the intermediate file to commit.
-	 */
-	Path getTempFilePath();
+    /**
+     * Gets the path of the intermediate file to commit.
+     *
+     * @return The path of the intermediate file to commit.
+     */
+    Path getTempFilePath();
 
-	/**
-	 * Prepares the intermediates file for committing.
-	 */
-	void preCommit() throws IOException;
+    /** Prepares the intermediates file for committing. */
+    void preCommit() throws IOException;
 
-	/**
-	 * Commits the in-progress file to the target path.
-	 */
-	void commit() throws IOException;
+    /** Commits the in-progress file to the target path. */
+    void commit() throws IOException;
 
-	/**
-	 * Re-commits the in-progress file to the target path after fail-over.
-	 */
-	void commitAfterRecovery() throws IOException;
+    /** Re-commits the in-progress file to the target path after fail-over. */
+    void commitAfterRecovery() throws IOException;
 }

@@ -26,21 +26,22 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * {@link MessageParameters} for {@link JarRunHandler}.
- */
+/** {@link MessageParameters} for {@link JarRunHandler}. */
 public class JarRunMessageParameters extends JarMessageParameters {
 
-	final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter = new AllowNonRestoredStateQueryParameter();
+    final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter =
+            new AllowNonRestoredStateQueryParameter();
 
-	final SavepointPathQueryParameter savepointPathQueryParameter = new SavepointPathQueryParameter();
+    final SavepointPathQueryParameter savepointPathQueryParameter =
+            new SavepointPathQueryParameter();
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		Collection<MessageQueryParameter<?>> pars = new ArrayList<>(Arrays.asList(
-			allowNonRestoredStateQueryParameter,
-			savepointPathQueryParameter));
-		pars.addAll(super.getQueryParameters());
-		return Collections.unmodifiableCollection(pars);
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        Collection<MessageQueryParameter<?>> pars =
+                new ArrayList<>(
+                        Arrays.asList(
+                                allowNonRestoredStateQueryParameter, savepointPathQueryParameter));
+        pars.addAll(super.getQueryParameters());
+        return Collections.unmodifiableCollection(pars);
+    }
 }

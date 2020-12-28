@@ -37,43 +37,37 @@ import java.io.IOException;
  */
 public abstract class StateMapSnapshot<K, N, S, T extends StateMap<K, N, S>> {
 
-	/**
-	 * The {@link StateMap} from which this snapshot was created.
-	 */
-	protected final T owningStateMap;
+    /** The {@link StateMap} from which this snapshot was created. */
+    protected final T owningStateMap;
 
-	public StateMapSnapshot(T stateMap) {
-		this.owningStateMap = Preconditions.checkNotNull(stateMap);
-	}
+    public StateMapSnapshot(T stateMap) {
+        this.owningStateMap = Preconditions.checkNotNull(stateMap);
+    }
 
-	/**
-	 * Returns true iff the given state map is the owner of this snapshot object.
-	 */
-	public boolean isOwner(T stateMap) {
-		return owningStateMap == stateMap;
-	}
+    /** Returns true iff the given state map is the owner of this snapshot object. */
+    public boolean isOwner(T stateMap) {
+        return owningStateMap == stateMap;
+    }
 
-	/**
-	 * Release the snapshot.
-	 */
-	public void release() {
-	}
+    /** Release the snapshot. */
+    public void release() {}
 
-	/**
-	 * Writes the state in this snapshot to output. The state need to be transformed
-	 * with the given transformer if the transformer is non-null.
-	 *
-	 * @param keySerializer the key serializer.
-	 * @param namespaceSerializer the namespace serializer.
-	 * @param stateSerializer the state serializer.
-	 * @param dov the output.
-	 * @param stateSnapshotTransformer state transformer, and can be null.
-	 * @throws IOException on write-related problems.
-	 */
-	public abstract void writeState(
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		TypeSerializer<S> stateSerializer,
-		@Nonnull DataOutputView dov,
-		@Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) throws IOException;
+    /**
+     * Writes the state in this snapshot to output. The state need to be transformed with the given
+     * transformer if the transformer is non-null.
+     *
+     * @param keySerializer the key serializer.
+     * @param namespaceSerializer the namespace serializer.
+     * @param stateSerializer the state serializer.
+     * @param dov the output.
+     * @param stateSnapshotTransformer state transformer, and can be null.
+     * @throws IOException on write-related problems.
+     */
+    public abstract void writeState(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<S> stateSerializer,
+            @Nonnull DataOutputView dov,
+            @Nullable StateSnapshotTransformer<S> stateSnapshotTransformer)
+            throws IOException;
 }

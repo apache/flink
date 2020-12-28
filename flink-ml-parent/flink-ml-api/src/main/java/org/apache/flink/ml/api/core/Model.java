@@ -27,13 +27,11 @@ import org.apache.flink.table.api.Table;
  * Estimator} when {@link Estimator#fit(org.apache.flink.table.api.TableEnvironment, Table)} is
  * invoked.
  *
- * <p>We separate Model from {@link Transformer} in order to support potential
- * model specific logic such as linking a Model to the {@link Estimator} from which the model was
- * generated.
+ * <p>We separate Model from {@link Transformer} in order to support potential model specific logic
+ * such as linking a Model to the {@link Estimator} from which the model was generated.
  *
  * @param <M> The class type of the Model implementation itself, used by {@link
- *            org.apache.flink.ml.api.misc.param.WithParams}
+ *     org.apache.flink.ml.api.misc.param.WithParams}
  */
 @PublicEvolving
-public interface Model<M extends Model<M>> extends Transformer<M> {
-}
+public interface Model<M extends Model<M>> extends Transformer<M> {}

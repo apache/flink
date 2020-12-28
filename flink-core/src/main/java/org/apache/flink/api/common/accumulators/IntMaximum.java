@@ -20,74 +20,70 @@ package org.apache.flink.api.common.accumulators;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * An accumulator that finds the maximum {@code integer} value.
- */
+/** An accumulator that finds the maximum {@code integer} value. */
 @PublicEvolving
 public class IntMaximum implements SimpleAccumulator<Integer> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private int max = Integer.MIN_VALUE;
+    private int max = Integer.MIN_VALUE;
 
-	public IntMaximum() {}
+    public IntMaximum() {}
 
-	public IntMaximum(int value) {
-		this.max = value;
-	}
+    public IntMaximum(int value) {
+        this.max = value;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Accumulator
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Accumulator
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Consider using {@link #add(int)} instead for primitive integer values
-	 */
-	@Override
-	public void add(Integer value) {
-		this.max = Math.max(this.max, value);
-	}
+    /** Consider using {@link #add(int)} instead for primitive integer values */
+    @Override
+    public void add(Integer value) {
+        this.max = Math.max(this.max, value);
+    }
 
-	@Override
-	public Integer getLocalValue() {
-		return this.max;
-	}
+    @Override
+    public Integer getLocalValue() {
+        return this.max;
+    }
 
-	@Override
-	public void merge(Accumulator<Integer, Integer> other) {
-		this.max = Math.max(this.max, other.getLocalValue());
-	}
+    @Override
+    public void merge(Accumulator<Integer, Integer> other) {
+        this.max = Math.max(this.max, other.getLocalValue());
+    }
 
-	@Override
-	public void resetLocal() {
-		this.max = Integer.MIN_VALUE;
-	}
+    @Override
+    public void resetLocal() {
+        this.max = Integer.MIN_VALUE;
+    }
 
-	@Override
-	public IntMaximum clone() {
-		IntMaximum clone = new IntMaximum();
-		clone.max = this.max;
-		return clone;
-	}
+    @Override
+    public IntMaximum clone() {
+        IntMaximum clone = new IntMaximum();
+        clone.max = this.max;
+        return clone;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Primitive Specializations
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Primitive Specializations
+    // ------------------------------------------------------------------------
 
-	public void add(int value) {
-		this.max = Math.max(this.max, value);
-	}
+    public void add(int value) {
+        this.max = Math.max(this.max, value);
+    }
 
-	public int getLocalValuePrimitive() {
-		return this.max;
-	}
+    public int getLocalValuePrimitive() {
+        return this.max;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "IntMaximum " + this.max;
-	}
+    @Override
+    public String toString() {
+        return "IntMaximum " + this.max;
+    }
 }

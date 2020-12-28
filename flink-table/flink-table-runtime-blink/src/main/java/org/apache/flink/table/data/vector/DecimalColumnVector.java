@@ -20,9 +20,7 @@ package org.apache.flink.table.data.vector;
 
 import org.apache.flink.table.data.DecimalData;
 
-/**
- * Decimal column vector.
- */
+/** Decimal column vector. */
 public interface DecimalColumnVector extends ColumnVector {
-	DecimalData getDecimal(int i, int precision, int scale);
+    DecimalData getDecimal(int i, int precision, int scale);
 }

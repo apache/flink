@@ -26,17 +26,16 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
  * Defines an external stream table and provides write access to its data.
  *
  * @param <T> Type of the {@link DataStream} created by this {@link TableSink}.
- *
- * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface consumes
- *             internal data structures and only works with the Blink planner. See FLIP-95 for more
- *             information.
+ * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface
+ *     consumes internal data structures and only works with the Blink planner. See FLIP-95 for more
+ *     information.
  */
 @Deprecated
 public interface StreamTableSink<T> extends TableSink<T> {
 
-	/**
-	 * Consumes the DataStream and return the sink transformation {@link DataStreamSink}.
-	 * The returned {@link DataStreamSink} will be used to set resources for the sink operator.
-	 */
-	DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
+    /**
+     * Consumes the DataStream and return the sink transformation {@link DataStreamSink}. The
+     * returned {@link DataStreamSink} will be used to set resources for the sink operator.
+     */
+    DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
 }

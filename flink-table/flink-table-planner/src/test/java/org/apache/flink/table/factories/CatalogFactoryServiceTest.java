@@ -32,49 +32,49 @@ import static org.apache.flink.table.factories.utils.TestCatalogFactory.CATALOG_
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for testing external catalog discovery using {@link TableFactoryService}.
- * The tests assume the catalog factory {@link CatalogFactory} is registered.
+ * Tests for testing external catalog discovery using {@link TableFactoryService}. The tests assume
+ * the catalog factory {@link CatalogFactory} is registered.
  */
 public class CatalogFactoryServiceTest {
-	@Test
-	public void testValidProperties() {
-		Map<String, String> props = properties();
+    @Test
+    public void testValidProperties() {
+        Map<String, String> props = properties();
 
-		assertEquals(
-			TableFactoryService.find(CatalogFactory.class, props).getClass(),
-			TestCatalogFactory.class);
-	}
+        assertEquals(
+                TableFactoryService.find(CatalogFactory.class, props).getClass(),
+                TestCatalogFactory.class);
+    }
 
-	@Test(expected = NoMatchingTableFactoryException.class)
-	public void testInvalidContext() {
-		Map<String, String> props = properties();
-		props.put(CATALOG_TYPE, "unknown-catalog-type");
-		TableFactoryService.find(CatalogFactory.class, props);
-	}
+    @Test(expected = NoMatchingTableFactoryException.class)
+    public void testInvalidContext() {
+        Map<String, String> props = properties();
+        props.put(CATALOG_TYPE, "unknown-catalog-type");
+        TableFactoryService.find(CatalogFactory.class, props);
+    }
 
-	@Test
-	public void testDifferentContextVersion() {
-		Map<String, String> props = properties();
-		props.put(CATALOG_PROPERTY_VERSION, "2");
+    @Test
+    public void testDifferentContextVersion() {
+        Map<String, String> props = properties();
+        props.put(CATALOG_PROPERTY_VERSION, "2");
 
-		// the catalog should still be found
-		assertEquals(
-			TableFactoryService.find(CatalogFactory.class, props).getClass(),
-			TestCatalogFactory.class);
-	}
+        // the catalog should still be found
+        assertEquals(
+                TableFactoryService.find(CatalogFactory.class, props).getClass(),
+                TestCatalogFactory.class);
+    }
 
-	@Test(expected = NoMatchingTableFactoryException.class)
-	public void testUnsupportedProperty() {
-		Map<String, String> props = properties();
-		props.put("unknown-property", "/new/path");
-		TableFactoryService.find(CatalogFactory.class, props);
-	}
+    @Test(expected = NoMatchingTableFactoryException.class)
+    public void testUnsupportedProperty() {
+        Map<String, String> props = properties();
+        props.put("unknown-property", "/new/path");
+        TableFactoryService.find(CatalogFactory.class, props);
+    }
 
-	private Map<String, String> properties() {
-		Map<String, String> properties = new HashMap<>();
+    private Map<String, String> properties() {
+        Map<String, String> properties = new HashMap<>();
 
-		properties.put(CATALOG_TYPE, CATALOG_TYPE_TEST);
-		properties.put(CATALOG_PROPERTY_VERSION, "1");
-		return properties;
-	}
+        properties.put(CATALOG_TYPE, CATALOG_TYPE_TEST);
+        properties.put(CATALOG_PROPERTY_VERSION, "1");
+        return properties;
+    }
 }

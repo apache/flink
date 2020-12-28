@@ -30,47 +30,50 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
  *
  * @see ClusterDataSetDeleteStatusHeaders
  */
-public class ClusterDataSetDeleteStatusHeaders extends AsynchronousOperationStatusMessageHeaders<AsynchronousOperationInfo, ClusterDataSetDeleteStatusMessageParameters> {
+public class ClusterDataSetDeleteStatusHeaders
+        extends AsynchronousOperationStatusMessageHeaders<
+                AsynchronousOperationInfo, ClusterDataSetDeleteStatusMessageParameters> {
 
-	public static final ClusterDataSetDeleteStatusHeaders INSTANCE = new ClusterDataSetDeleteStatusHeaders();
+    public static final ClusterDataSetDeleteStatusHeaders INSTANCE =
+            new ClusterDataSetDeleteStatusHeaders();
 
-	private static final String URL = ClusterDataSetListHeaders.URL + "/delete/:" + TriggerIdPathParameter.KEY;
+    private static final String URL =
+            ClusterDataSetListHeaders.URL + "/delete/:" + TriggerIdPathParameter.KEY;
 
-	private ClusterDataSetDeleteStatusHeaders() {
-	}
+    private ClusterDataSetDeleteStatusHeaders() {}
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the status for the delete operation of a cluster data set.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the status for the delete operation of a cluster data set.";
+    }
 
-	@Override
-	public Class<AsynchronousOperationInfo> getValueClass() {
-		return AsynchronousOperationInfo.class;
-	}
+    @Override
+    public Class<AsynchronousOperationInfo> getValueClass() {
+        return AsynchronousOperationInfo.class;
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public ClusterDataSetDeleteStatusMessageParameters getUnresolvedMessageParameters() {
-		return new ClusterDataSetDeleteStatusMessageParameters();
-	}
+    @Override
+    public ClusterDataSetDeleteStatusMessageParameters getUnresolvedMessageParameters() {
+        return new ClusterDataSetDeleteStatusMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 }

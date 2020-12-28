@@ -38,131 +38,141 @@ import java.util.regex.Matcher;
 import java.util.stream.Stream;
 
 /**
- * Base-class for {@link DownloadCache} implementations. This class handles the download and caching of files and
- * provides hooks for encoding/decoding a time-to-live into the file name.
+ * Base-class for {@link DownloadCache} implementations. This class handles the download and caching
+ * of files and provides hooks for encoding/decoding a time-to-live into the file name.
  */
 abstract class AbstractDownloadCache implements DownloadCache {
 
-	protected final Logger log = LoggerFactory.getLogger(getClass());
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	private static final ParameterProperty<Duration> DOWNLOAD_ATTEMPT_TIMEOUT = new ParameterProperty<>("cache-download-attempt-timeout", TimeUtils::parseDuration);
-	private static final ParameterProperty<Duration> DOWNLOAD_GLOBAL_TIMEOUT = new ParameterProperty<>("cache-download-global-timeout", TimeUtils::parseDuration);
-	private static final ParameterProperty<Integer> DOWNLOAD_MAX_RETRIES = new ParameterProperty<>("cache-download-max-retries", Integer::parseInt);
+    private static final ParameterProperty<Duration> DOWNLOAD_ATTEMPT_TIMEOUT =
+            new ParameterProperty<>("cache-download-attempt-timeout", TimeUtils::parseDuration);
+    private static final ParameterProperty<Duration> DOWNLOAD_GLOBAL_TIMEOUT =
+            new ParameterProperty<>("cache-download-global-timeout", TimeUtils::parseDuration);
+    private static final ParameterProperty<Integer> DOWNLOAD_MAX_RETRIES =
+            new ParameterProperty<>("cache-download-max-retries", Integer::parseInt);
 
-	private final Path tmpDir;
-	private final Path downloadsDir;
-	private final Path cacheFilesDir;
+    private final Path tmpDir;
+    private final Path downloadsDir;
+    private final Path cacheFilesDir;
 
-	private final Duration downloadAttemptTimeout;
-	private final Duration downloadGlobalTimeout;
-	private final int downloadMaxRetries;
+    private final Duration downloadAttemptTimeout;
+    private final Duration downloadGlobalTimeout;
+    private final int downloadMaxRetries;
 
-	AbstractDownloadCache(final Path tmpDir) {
-		this.tmpDir = tmpDir;
-		this.downloadsDir = tmpDir.resolve("downloads");
-		this.cacheFilesDir = tmpDir.resolve("cachefiles");
+    AbstractDownloadCache(final Path tmpDir) {
+        this.tmpDir = tmpDir;
+        this.downloadsDir = tmpDir.resolve("downloads");
+        this.cacheFilesDir = tmpDir.resolve("cachefiles");
 
-		this.downloadAttemptTimeout = DOWNLOAD_ATTEMPT_TIMEOUT.get(Duration.ofMinutes(2));
-		this.downloadGlobalTimeout = DOWNLOAD_GLOBAL_TIMEOUT.get(Duration.ofMinutes(2));
-		this.downloadMaxRetries = DOWNLOAD_MAX_RETRIES.get(3);
+        this.downloadAttemptTimeout = DOWNLOAD_ATTEMPT_TIMEOUT.get(Duration.ofMinutes(2));
+        this.downloadGlobalTimeout = DOWNLOAD_GLOBAL_TIMEOUT.get(Duration.ofMinutes(2));
+        this.downloadMaxRetries = DOWNLOAD_MAX_RETRIES.get(3);
 
-		log.info("Download configuration: maxRetries={}, attemptTimeout={}, globalTimeout={}", downloadMaxRetries, downloadAttemptTimeout, downloadGlobalTimeout);
-	}
+        log.info(
+                "Download configuration: maxRetries={}, attemptTimeout={}, globalTimeout={}",
+                downloadMaxRetries,
+                downloadAttemptTimeout,
+                downloadGlobalTimeout);
+    }
 
-	@Override
-	public void before() throws IOException {
-		Files.createDirectories(tmpDir);
-		Files.createDirectories(downloadsDir);
-		Files.createDirectories(cacheFilesDir);
+    @Override
+    public void before() throws IOException {
+        Files.createDirectories(tmpDir);
+        Files.createDirectories(downloadsDir);
+        Files.createDirectories(cacheFilesDir);
 
-		try (Stream<Path> cacheFiles = Files.list(cacheFilesDir)) {
-			final Iterator<Path> iterator = cacheFiles.iterator();
-			while (iterator.hasNext()) {
-				final Path cacheFile = iterator.next();
-				final String cacheFileName = cacheFile.getFileName().toString();
+        try (Stream<Path> cacheFiles = Files.list(cacheFilesDir)) {
+            final Iterator<Path> iterator = cacheFiles.iterator();
+            while (iterator.hasNext()) {
+                final Path cacheFile = iterator.next();
+                final String cacheFileName = cacheFile.getFileName().toString();
 
-				final Matcher matcher = createCacheFileMatcher(cacheFileName);
+                final Matcher matcher = createCacheFileMatcher(cacheFileName);
 
-				if (matcher.matches()) {
-					if (exceedsTimeToLive(matcher)) {
-						log.info("Invalidating cache entry {}.", regenerateOriginalFileName(matcher));
-						Files.delete(cacheFile);
-					}
-				}
-			}
-		}
-	}
+                if (matcher.matches()) {
+                    if (exceedsTimeToLive(matcher)) {
+                        log.info(
+                                "Invalidating cache entry {}.",
+                                regenerateOriginalFileName(matcher));
+                        Files.delete(cacheFile);
+                    }
+                }
+            }
+        }
+    }
 
-	@Override
-	public void afterTestSuccess() {
-	}
+    @Override
+    public void afterTestSuccess() {}
 
-	abstract Matcher createCacheFileMatcher(String cacheFileName);
+    abstract Matcher createCacheFileMatcher(String cacheFileName);
 
-	abstract String generateCacheFileName(String url, String fileName);
+    abstract String generateCacheFileName(String url, String fileName);
 
-	abstract String regenerateOriginalFileName(Matcher matcher);
+    abstract String regenerateOriginalFileName(Matcher matcher);
 
-	abstract boolean exceedsTimeToLive(Matcher matcher);
+    abstract boolean exceedsTimeToLive(Matcher matcher);
 
-	abstract boolean matchesCachedFile(Matcher matcher, String url);
+    abstract boolean matchesCachedFile(Matcher matcher, String url);
 
-	@Override
-	public Path getOrDownload(final String url, final Path targetDir) throws IOException {
-		final Optional<Path> cachedFile = getCachedFile(url);
+    @Override
+    public Path getOrDownload(final String url, final Path targetDir) throws IOException {
+        final Optional<Path> cachedFile = getCachedFile(url);
 
-		final Path cacheFile;
-		if (cachedFile.isPresent()) {
-			cacheFile = cachedFile.get();
-			log.info("Using cached version of {} from {}", url, cacheFile.toAbsolutePath());
-		} else {
-			final Path scopedDownloadDir = downloadsDir.resolve(String.valueOf(url.hashCode()));
-			Files.createDirectories(scopedDownloadDir);
-			log.info("Downloading {}.", url);
-			AutoClosableProcess
-				.create(
-					CommandLineWrapper.wget(url)
-						.targetDir(scopedDownloadDir)
-						.build())
-				.runBlockingWithRetry(downloadMaxRetries, downloadAttemptTimeout, downloadGlobalTimeout);
+        final Path cacheFile;
+        if (cachedFile.isPresent()) {
+            cacheFile = cachedFile.get();
+            log.info("Using cached version of {} from {}", url, cacheFile.toAbsolutePath());
+        } else {
+            final Path scopedDownloadDir = downloadsDir.resolve(String.valueOf(url.hashCode()));
+            Files.createDirectories(scopedDownloadDir);
+            log.info("Downloading {}.", url);
+            AutoClosableProcess.create(
+                            CommandLineWrapper.wget(url).targetDir(scopedDownloadDir).build())
+                    .runBlockingWithRetry(
+                            downloadMaxRetries, downloadAttemptTimeout, downloadGlobalTimeout);
 
-			final Path download;
-			try (Stream<Path> files = Files.list(scopedDownloadDir)) {
-				final Optional<Path> any = files.findAny();
-				download = any.orElseThrow(() -> new IOException("Failed to download " + url + '.'));
-			}
+            final Path download;
+            try (Stream<Path> files = Files.list(scopedDownloadDir)) {
+                final Optional<Path> any = files.findAny();
+                download =
+                        any.orElseThrow(() -> new IOException("Failed to download " + url + '.'));
+            }
 
-			final String cacheFileName = generateCacheFileName(url, download.getFileName().toString());
+            final String cacheFileName =
+                    generateCacheFileName(url, download.getFileName().toString());
 
-			cacheFile = cacheFilesDir.resolve(cacheFileName);
-			if (Files.isDirectory(download)) {
-				FileUtils.moveDirectory(download.toFile(), cacheFile.toFile());
-			} else {
-				Files.move(download, cacheFile);
-			}
-		}
+            cacheFile = cacheFilesDir.resolve(cacheFileName);
+            if (Files.isDirectory(download)) {
+                FileUtils.moveDirectory(download.toFile(), cacheFile.toFile());
+            } else {
+                Files.move(download, cacheFile);
+            }
+        }
 
-		final String cacheFileName = cacheFile.getFileName().toString();
+        final String cacheFileName = cacheFile.getFileName().toString();
 
-		final Matcher matcher = createCacheFileMatcher(cacheFileName);
-		if (!matcher.matches()) {
-			// this indicates an implementation error or corrupted cache
-			throw new RuntimeException("Cache file matcher did not accept file retrieved from cache.");
-		}
-		final String originalFileName = regenerateOriginalFileName(matcher);
+        final Matcher matcher = createCacheFileMatcher(cacheFileName);
+        if (!matcher.matches()) {
+            // this indicates an implementation error or corrupted cache
+            throw new RuntimeException(
+                    "Cache file matcher did not accept file retrieved from cache.");
+        }
+        final String originalFileName = regenerateOriginalFileName(matcher);
 
-		return TestUtils.copyDirectory(cacheFile, targetDir.resolve(originalFileName));
-	}
+        return TestUtils.copyDirectory(cacheFile, targetDir.resolve(originalFileName));
+    }
 
-	private Optional<Path> getCachedFile(final String url) throws IOException {
-		try (Stream<Path> cacheFiles = Files.list(cacheFilesDir)) {
-			return cacheFiles
-				.filter(cacheFile -> {
-					final String cacheFileName = cacheFile.getFileName().toString();
-					final Matcher matcher = createCacheFileMatcher(cacheFileName);
-					return matcher.matches() && matchesCachedFile(matcher, url);
-				})
-				.findAny();
-		}
-	}
+    private Optional<Path> getCachedFile(final String url) throws IOException {
+        try (Stream<Path> cacheFiles = Files.list(cacheFilesDir)) {
+            return cacheFiles
+                    .filter(
+                            cacheFile -> {
+                                final String cacheFileName = cacheFile.getFileName().toString();
+                                final Matcher matcher = createCacheFileMatcher(cacheFileName);
+                                return matcher.matches() && matchesCachedFile(matcher, url);
+                            })
+                    .findAny();
+        }
+    }
 }

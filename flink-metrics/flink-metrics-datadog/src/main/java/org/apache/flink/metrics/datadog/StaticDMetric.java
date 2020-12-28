@@ -17,18 +17,16 @@
 
 package org.apache.flink.metrics.datadog;
 
-/**
- * A {@link DMetric} that returns a fixed value.
- */
+/** A {@link DMetric} that returns a fixed value. */
 public class StaticDMetric extends DMetric {
-	private final Number value;
+    private final Number value;
 
-	public StaticDMetric(Number value, MetricMetaData metaData) {
-		super(metaData);
-		this.value = value;
-	}
+    public StaticDMetric(Number value, MetricMetaData metaData) {
+        super(metaData);
+        this.value = value;
+    }
 
-	public Number getMetricValue() {
-		return value;
-	}
+    public Number getMetricValue() {
+        return value;
+    }
 }

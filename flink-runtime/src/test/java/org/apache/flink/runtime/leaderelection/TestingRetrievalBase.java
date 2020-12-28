@@ -32,99 +32,104 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Base class which provides some convenience functions for testing purposes of {@link LeaderRetrievalListener} and
- * {@link org.apache.flink.runtime.leaderretrieval.LeaderRetrievalEventHandler}.
+ * Base class which provides some convenience functions for testing purposes of {@link
+ * LeaderRetrievalListener} and {@link
+ * org.apache.flink.runtime.leaderretrieval.LeaderRetrievalEventHandler}.
  */
 public class TestingRetrievalBase {
 
-	private final BlockingQueue<LeaderInformation> leaderEventQueue = new LinkedBlockingQueue<>();
-	private final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<LeaderInformation> leaderEventQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<>();
 
-	private LeaderInformation leader = LeaderInformation.empty();
-	private String oldAddress;
-	private Throwable error;
+    private LeaderInformation leader = LeaderInformation.empty();
+    private String oldAddress;
+    private Throwable error;
 
-	public String waitForNewLeader(long timeout) throws Exception {
-		throwExceptionIfNotNull();
+    public String waitForNewLeader(long timeout) throws Exception {
+        throwExceptionIfNotNull();
 
-		final String errorMsg = "Listener was not notified about a new leader within " + timeout + "ms";
-		CommonTestUtils.waitUntilCondition(
-			() -> {
-				leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
-				return leader != null && !leader.isEmpty() && !leader.getLeaderAddress().equals(oldAddress);
-			},
-			Deadline.fromNow(Duration.ofMillis(timeout)),
-			errorMsg);
+        final String errorMsg =
+                "Listener was not notified about a new leader within " + timeout + "ms";
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
+                    return leader != null
+                            && !leader.isEmpty()
+                            && !leader.getLeaderAddress().equals(oldAddress);
+                },
+                Deadline.fromNow(Duration.ofMillis(timeout)),
+                errorMsg);
 
-		oldAddress = leader.getLeaderAddress();
+        oldAddress = leader.getLeaderAddress();
 
-		return leader.getLeaderAddress();
-	}
+        return leader.getLeaderAddress();
+    }
 
-	public void waitForEmptyLeaderInformation(long timeout) throws Exception {
-		throwExceptionIfNotNull();
+    public void waitForEmptyLeaderInformation(long timeout) throws Exception {
+        throwExceptionIfNotNull();
 
-		final String errorMsg = "Listener was not notified about an empty leader within " + timeout + "ms";
-		CommonTestUtils.waitUntilCondition(
-			() -> {
-				leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
-				return leader != null && leader.isEmpty();
-			},
-			Deadline.fromNow(Duration.ofMillis(timeout)),
-			errorMsg);
+        final String errorMsg =
+                "Listener was not notified about an empty leader within " + timeout + "ms";
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
+                    return leader != null && leader.isEmpty();
+                },
+                Deadline.fromNow(Duration.ofMillis(timeout)),
+                errorMsg);
 
-		oldAddress = null;
-	}
+        oldAddress = null;
+    }
 
-	public void waitForError(long timeout) throws Exception {
-		final String errorMsg = "Listener did not see an exception with " + timeout + "ms";
-		CommonTestUtils.waitUntilCondition(
-			() -> {
-				error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
-				return error != null;
-			},
-			Deadline.fromNow(Duration.ofMillis(timeout)),
-			errorMsg);
-	}
+    public void waitForError(long timeout) throws Exception {
+        final String errorMsg = "Listener did not see an exception with " + timeout + "ms";
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
+                    return error != null;
+                },
+                Deadline.fromNow(Duration.ofMillis(timeout)),
+                errorMsg);
+    }
 
-	public void handleError(Throwable ex) {
-		errorQueue.offer(ex);
-	}
+    public void handleError(Throwable ex) {
+        errorQueue.offer(ex);
+    }
 
-	public LeaderInformation getLeader() {
-		return leader;
-	}
+    public LeaderInformation getLeader() {
+        return leader;
+    }
 
-	public String getAddress() {
-		return leader.getLeaderAddress();
-	}
+    public String getAddress() {
+        return leader.getLeaderAddress();
+    }
 
-	public UUID getLeaderSessionID() {
-		return leader.getLeaderSessionID();
-	}
+    public UUID getLeaderSessionID() {
+        return leader.getLeaderSessionID();
+    }
 
-	public void offerToLeaderQueue(LeaderInformation leaderInformation) {
-		leaderEventQueue.offer(leaderInformation);
-		this.leader = leaderInformation;
-	}
+    public void offerToLeaderQueue(LeaderInformation leaderInformation) {
+        leaderEventQueue.offer(leaderInformation);
+        this.leader = leaderInformation;
+    }
 
-	public int getLeaderEventQueueSize() {
-		return leaderEventQueue.size();
-	}
+    public int getLeaderEventQueueSize() {
+        return leaderEventQueue.size();
+    }
 
-	/**
-	 * Please use {@link #waitForError} before get the error.
-	 *
-	 * @return the error has been handled.
-	 */
-	@Nullable
-	public Throwable getError() {
-		return this.error;
-	}
+    /**
+     * Please use {@link #waitForError} before get the error.
+     *
+     * @return the error has been handled.
+     */
+    @Nullable
+    public Throwable getError() {
+        return this.error;
+    }
 
-	private void throwExceptionIfNotNull() throws Exception {
-		if (error != null) {
-			ExceptionUtils.rethrowException(error);
-		}
-	}
+    private void throwExceptionIfNotNull() throws Exception {
+        if (error != null) {
+            ExceptionUtils.rethrowException(error);
+        }
+    }
 }

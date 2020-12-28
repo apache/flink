@@ -31,45 +31,44 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Collections;
 
-/**
- * Batch {@link ExecNode} for Limit.
- */
+/** Batch {@link ExecNode} for Limit. */
 public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNode<RowData> {
 
-	private final long limitStart;
-	private final long limitEnd;
-	private final boolean isGlobal;
+    private final long limitStart;
+    private final long limitEnd;
+    private final boolean isGlobal;
 
-	public BatchExecLimit(
-		long limitStart,
-		long limitEnd,
-		boolean isGlobal,
-		ExecEdge inputEdge,
-		LogicalType outputType,
-		String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-		this.isGlobal = isGlobal;
-		this.limitStart = limitStart;
-		this.limitEnd = limitEnd;
-	}
+    public BatchExecLimit(
+            long limitStart,
+            long limitEnd,
+            boolean isGlobal,
+            ExecEdge inputEdge,
+            LogicalType outputType,
+            String description) {
+        super(Collections.singletonList(inputEdge), outputType, description);
+        this.isGlobal = isGlobal;
+        this.limitStart = limitStart;
+        this.limitEnd = limitEnd;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		Transformation<RowData> input =
-				(Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
-		LimitOperator operator = new LimitOperator(isGlobal, limitStart, limitEnd);
-		Transformation<RowData> transformation = ExecNodeUtil.createOneInputTransformation(
-			input,
-			getDesc(),
-			SimpleOperatorFactory.of(operator),
-			input.getOutputType(),
-			input.getParallelism(),
-			0);
-		if (inputsContainSingleton()) {
-			transformation.setParallelism(1);
-			transformation.setMaxParallelism(1);
-		}
-		return transformation;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        Transformation<RowData> input =
+                (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
+        LimitOperator operator = new LimitOperator(isGlobal, limitStart, limitEnd);
+        Transformation<RowData> transformation =
+                ExecNodeUtil.createOneInputTransformation(
+                        input,
+                        getDesc(),
+                        SimpleOperatorFactory.of(operator),
+                        input.getOutputType(),
+                        input.getParallelism(),
+                        0);
+        if (inputsContainSingleton()) {
+            transformation.setParallelism(1);
+            transformation.setMaxParallelism(1);
+        }
+        return transformation;
+    }
 }

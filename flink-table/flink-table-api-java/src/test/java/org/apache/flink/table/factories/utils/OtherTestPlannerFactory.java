@@ -21,8 +21,5 @@ package org.apache.flink.table.factories.utils;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.factories.ComponentFactoryServiceTest;
 
-/**
- * Test {@link Planner} factory used in {@link ComponentFactoryServiceTest}.
- */
-public class OtherTestPlannerFactory extends TestPlannerFactory {
-}
+/** Test {@link Planner} factory used in {@link ComponentFactoryServiceTest}. */
+public class OtherTestPlannerFactory extends TestPlannerFactory {}

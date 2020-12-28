@@ -27,58 +27,55 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the {@link PythonDriverOptionsParserFactory}.
- */
+/** Tests for the {@link PythonDriverOptionsParserFactory}. */
 public class PythonDriverOptionsParserFactoryTest {
 
-	private static final CommandLineParser<PythonDriverOptions> commandLineParser = new CommandLineParser<>(
-		new PythonDriverOptionsParserFactory());
+    private static final CommandLineParser<PythonDriverOptions> commandLineParser =
+            new CommandLineParser<>(new PythonDriverOptionsParserFactory());
 
-	@Test
-	public void testPythonDriverOptionsParsing() throws FlinkParseException {
-		final String[] args = {"--python", "xxx.py", "--input", "in.txt"};
-		verifyPythonDriverOptionsParsing(args);
-	}
+    @Test
+    public void testPythonDriverOptionsParsing() throws FlinkParseException {
+        final String[] args = {"--python", "xxx.py", "--input", "in.txt"};
+        verifyPythonDriverOptionsParsing(args);
+    }
 
-	@Test
-	public void testPymoduleOptionParsing() throws FlinkParseException {
-		final String[] args = {"--pyModule", "xxx", "--input", "in.txt"};
-		verifyPythonDriverOptionsParsing(args);
-	}
+    @Test
+    public void testPymoduleOptionParsing() throws FlinkParseException {
+        final String[] args = {"--pyModule", "xxx", "--input", "in.txt"};
+        verifyPythonDriverOptionsParsing(args);
+    }
 
-	@Test
-	public void testShortOptions() throws FlinkParseException {
-		final String[] args = {"-py", "xxx.py", "--input", "in.txt"};
-		verifyPythonDriverOptionsParsing(args);
-	}
+    @Test
+    public void testShortOptions() throws FlinkParseException {
+        final String[] args = {"-py", "xxx.py", "--input", "in.txt"};
+        verifyPythonDriverOptionsParsing(args);
+    }
 
-	@Test(expected = FlinkParseException.class)
-	public void testMultipleEntrypointsSpecified() throws FlinkParseException {
-		final String[] args = {
-			"--python", "xxx.py", "--pyModule", "yyy", "--input", "in.txt"};
-		commandLineParser.parse(args);
-	}
+    @Test(expected = FlinkParseException.class)
+    public void testMultipleEntrypointsSpecified() throws FlinkParseException {
+        final String[] args = {"--python", "xxx.py", "--pyModule", "yyy", "--input", "in.txt"};
+        commandLineParser.parse(args);
+    }
 
-	@Test(expected = FlinkParseException.class)
-	public void testEntrypointNotSpecified() throws FlinkParseException {
-		final String[] args = {"--input", "in.txt"};
-		commandLineParser.parse(args);
-	}
+    @Test(expected = FlinkParseException.class)
+    public void testEntrypointNotSpecified() throws FlinkParseException {
+        final String[] args = {"--input", "in.txt"};
+        commandLineParser.parse(args);
+    }
 
-	private void verifyPythonDriverOptionsParsing(final String[] args) throws FlinkParseException {
-		final PythonDriverOptions pythonCommandOptions = commandLineParser.parse(args);
+    private void verifyPythonDriverOptionsParsing(final String[] args) throws FlinkParseException {
+        final PythonDriverOptions pythonCommandOptions = commandLineParser.parse(args);
 
-		if (pythonCommandOptions.getEntryPointScript().isPresent()){
-			assertEquals("xxx.py", pythonCommandOptions.getEntryPointScript().get());
-		} else {
-			assertEquals("xxx", pythonCommandOptions.getEntryPointModule());
-		}
+        if (pythonCommandOptions.getEntryPointScript().isPresent()) {
+            assertEquals("xxx.py", pythonCommandOptions.getEntryPointScript().get());
+        } else {
+            assertEquals("xxx", pythonCommandOptions.getEntryPointModule());
+        }
 
-		// verify the python program arguments
-		final List<String> programArgs = pythonCommandOptions.getProgramArgs();
-		assertEquals(2, programArgs.size());
-		assertEquals("--input", programArgs.get(0));
-		assertEquals("in.txt", programArgs.get(1));
-	}
+        // verify the python program arguments
+        final List<String> programArgs = pythonCommandOptions.getProgramArgs();
+        assertEquals(2, programArgs.size());
+        assertEquals("--input", programArgs.get(0));
+        assertEquals("in.txt", programArgs.get(1));
+    }
 }

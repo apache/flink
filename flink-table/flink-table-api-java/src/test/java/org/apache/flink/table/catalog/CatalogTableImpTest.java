@@ -32,45 +32,39 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for {@link CatalogTableImpl}.
- */
+/** Test for {@link CatalogTableImpl}. */
 public class CatalogTableImpTest {
-	private static final String TEST = "test";
+    private static final String TEST = "test";
 
-	@Test
-	public void testToProperties() {
-		TableSchema schema = createTableSchema();
-		Map<String, String> prop = createProperties();
-		CatalogTable table = new CatalogTableImpl(
-			schema,
-			createPartitionKeys(),
-			prop,
-			TEST
-		);
+    @Test
+    public void testToProperties() {
+        TableSchema schema = createTableSchema();
+        Map<String, String> prop = createProperties();
+        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
 
-		DescriptorProperties descriptorProperties = new DescriptorProperties();
-		descriptorProperties.putProperties(table.toProperties());
+        DescriptorProperties descriptorProperties = new DescriptorProperties();
+        descriptorProperties.putProperties(table.toProperties());
 
-		assertEquals(schema, descriptorProperties.getTableSchema(Schema.SCHEMA));
-	}
+        assertEquals(schema, descriptorProperties.getTableSchema(Schema.SCHEMA));
+    }
 
-	private static Map<String, String> createProperties() {
-		return new HashMap<String, String>() {{
-			put("k", "v");
-		}};
-	}
+    private static Map<String, String> createProperties() {
+        return new HashMap<String, String>() {
+            {
+                put("k", "v");
+            }
+        };
+    }
 
-	private static TableSchema createTableSchema() {
-		return TableSchema.builder()
-			.field("first", DataTypes.STRING())
-			.field("second", DataTypes.INT())
-			.field("third", DataTypes.DOUBLE())
-			.build();
-	}
+    private static TableSchema createTableSchema() {
+        return TableSchema.builder()
+                .field("first", DataTypes.STRING())
+                .field("second", DataTypes.INT())
+                .field("third", DataTypes.DOUBLE())
+                .build();
+    }
 
-	private static List<String> createPartitionKeys() {
-		return Arrays.asList("second", "third");
-	}
-
+    private static List<String> createPartitionKeys() {
+        return Arrays.asList("second", "third");
+    }
 }

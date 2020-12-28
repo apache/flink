@@ -31,52 +31,52 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import javax.annotation.Nullable;
 
 class SharedSlotTestingUtils {
-	private SharedSlotTestingUtils() {}
+    private SharedSlotTestingUtils() {}
 
-	static ExecutionSlotSharingGroup createExecutionSlotSharingGroup(ExecutionVertexID... executions) {
-		ExecutionSlotSharingGroup group = new ExecutionSlotSharingGroup();
-		for (ExecutionVertexID execution : executions) {
-			group.addVertex(execution);
-		}
-		return group;
-	}
+    static ExecutionSlotSharingGroup createExecutionSlotSharingGroup(
+            ExecutionVertexID... executions) {
+        ExecutionSlotSharingGroup group = new ExecutionSlotSharingGroup();
+        for (ExecutionVertexID execution : executions) {
+            group.addVertex(execution);
+        }
+        return group;
+    }
 
-	static class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSlot {
-		@Nullable
-		private Payload payload;
+    static class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSlot {
+        @Nullable private Payload payload;
 
-		TestingPhysicalSlot(ResourceProfile resourceProfile, AllocationID allocationId) {
-			this(
-				allocationId,
-				new LocalTaskManagerLocation(),
-				0,
-				new SimpleAckingTaskManagerGateway(),
-				resourceProfile);
-		}
+        TestingPhysicalSlot(ResourceProfile resourceProfile, AllocationID allocationId) {
+            this(
+                    allocationId,
+                    new LocalTaskManagerLocation(),
+                    0,
+                    new SimpleAckingTaskManagerGateway(),
+                    resourceProfile);
+        }
 
-		TestingPhysicalSlot(
-				AllocationID allocationId,
-				TaskManagerLocation taskManagerLocation,
-				int physicalSlotNumber,
-				TaskManagerGateway taskManagerGateway,
-				ResourceProfile resourceProfile) {
-			super(
-				allocationId,
-				taskManagerLocation,
-				physicalSlotNumber,
-				taskManagerGateway,
-				resourceProfile);
-		}
+        TestingPhysicalSlot(
+                AllocationID allocationId,
+                TaskManagerLocation taskManagerLocation,
+                int physicalSlotNumber,
+                TaskManagerGateway taskManagerGateway,
+                ResourceProfile resourceProfile) {
+            super(
+                    allocationId,
+                    taskManagerLocation,
+                    physicalSlotNumber,
+                    taskManagerGateway,
+                    resourceProfile);
+        }
 
-		@Override
-		public boolean tryAssignPayload(Payload payload) {
-			this.payload = payload;
-			return true;
-		}
+        @Override
+        public boolean tryAssignPayload(Payload payload) {
+            this.payload = payload;
+            return true;
+        }
 
-		@Nullable
-		Payload getPayload() {
-			return payload;
-		}
-	}
+        @Nullable
+        Payload getPayload() {
+            return payload;
+        }
+    }
 }

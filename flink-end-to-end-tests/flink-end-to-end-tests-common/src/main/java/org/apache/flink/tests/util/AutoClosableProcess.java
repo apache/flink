@@ -49,170 +49,192 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class AutoClosableProcess implements AutoCloseable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AutoClosableProcess.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AutoClosableProcess.class);
 
-	private final Process process;
+    private final Process process;
 
-	private AutoClosableProcess(final Process process) {
-		Preconditions.checkNotNull(process);
-		this.process = process;
-	}
+    private AutoClosableProcess(final Process process) {
+        Preconditions.checkNotNull(process);
+        this.process = process;
+    }
 
-	public Process getProcess() {
-		return process;
-	}
+    public Process getProcess() {
+        return process;
+    }
 
-	public static AutoClosableProcess runNonBlocking(String... commands) throws IOException {
-		return create(commands).runNonBlocking();
-	}
+    public static AutoClosableProcess runNonBlocking(String... commands) throws IOException {
+        return create(commands).runNonBlocking();
+    }
 
-	public static void runBlocking(String... commands) throws IOException {
-		create(commands).runBlocking();
-	}
+    public static void runBlocking(String... commands) throws IOException {
+        create(commands).runBlocking();
+    }
 
-	public static AutoClosableProcessBuilder create(String... commands) {
-		return new AutoClosableProcessBuilder(commands);
-	}
+    public static AutoClosableProcessBuilder create(String... commands) {
+        return new AutoClosableProcessBuilder(commands);
+    }
 
-	/**
-	 * Builder for most sophisticated processes.
-	 */
-	public static final class AutoClosableProcessBuilder {
-		private final String[] commands;
-		private Consumer<String> stdoutProcessor = LOG::debug;
-		private Consumer<String> stderrProcessor = LOG::debug;
-		private @Nullable String[] stdInputs;
+    /** Builder for most sophisticated processes. */
+    public static final class AutoClosableProcessBuilder {
+        private final String[] commands;
+        private Consumer<String> stdoutProcessor = LOG::debug;
+        private Consumer<String> stderrProcessor = LOG::debug;
+        private @Nullable String[] stdInputs;
 
-		AutoClosableProcessBuilder(final String... commands) {
-			this.commands = commands;
-		}
+        AutoClosableProcessBuilder(final String... commands) {
+            this.commands = commands;
+        }
 
-		public AutoClosableProcessBuilder setStdoutProcessor(final Consumer<String> stdoutProcessor) {
-			this.stdoutProcessor = stdoutProcessor;
-			return this;
-		}
+        public AutoClosableProcessBuilder setStdoutProcessor(
+                final Consumer<String> stdoutProcessor) {
+            this.stdoutProcessor = stdoutProcessor;
+            return this;
+        }
 
-		public AutoClosableProcessBuilder setStderrProcessor(final Consumer<String> stderrProcessor) {
-			this.stderrProcessor = stderrProcessor;
-			return this;
-		}
+        public AutoClosableProcessBuilder setStderrProcessor(
+                final Consumer<String> stderrProcessor) {
+            this.stderrProcessor = stderrProcessor;
+            return this;
+        }
 
-		public AutoClosableProcessBuilder setStdInputs(final String... inputLines) {
-			checkNotNull(inputLines);
-			checkArgument(inputLines.length >= 1);
-			this.stdInputs = inputLines;
-			return this;
-		}
+        public AutoClosableProcessBuilder setStdInputs(final String... inputLines) {
+            checkNotNull(inputLines);
+            checkArgument(inputLines.length >= 1);
+            this.stdInputs = inputLines;
+            return this;
+        }
 
-		public void runBlocking() throws IOException {
-			runBlocking(Duration.ofSeconds(30));
-		}
+        public void runBlocking() throws IOException {
+            runBlocking(Duration.ofSeconds(30));
+        }
 
-		public void runBlocking(final Duration timeout) throws IOException {
-			final StringWriter sw = new StringWriter();
-			try (final PrintWriter printer = new PrintWriter(sw)) {
-				final Process process = createProcess(commands, stdoutProcessor, line -> {
-						stderrProcessor.accept(line);
-						printer.println(line);
-					},
-					stdInputs);
+        public void runBlocking(final Duration timeout) throws IOException {
+            final StringWriter sw = new StringWriter();
+            try (final PrintWriter printer = new PrintWriter(sw)) {
+                final Process process =
+                        createProcess(
+                                commands,
+                                stdoutProcessor,
+                                line -> {
+                                    stderrProcessor.accept(line);
+                                    printer.println(line);
+                                },
+                                stdInputs);
 
-				try (AutoClosableProcess autoProcess = new AutoClosableProcess(process)) {
-					final boolean success = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
-					if (!success) {
-						throw new TimeoutException("Process exceeded timeout of " + timeout.getSeconds() + "seconds.");
-					}
+                try (AutoClosableProcess autoProcess = new AutoClosableProcess(process)) {
+                    final boolean success =
+                            process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+                    if (!success) {
+                        throw new TimeoutException(
+                                "Process exceeded timeout of " + timeout.getSeconds() + "seconds.");
+                    }
 
-					if (process.exitValue() != 0) {
-						throw new IOException("Process execution failed due error. Error output:" + sw);
-					}
-				} catch (TimeoutException | InterruptedException e) {
-					throw new IOException("Process failed due to timeout.");
-				}
-			}
-		}
+                    if (process.exitValue() != 0) {
+                        throw new IOException(
+                                "Process execution failed due error. Error output:" + sw);
+                    }
+                } catch (TimeoutException | InterruptedException e) {
+                    throw new IOException("Process failed due to timeout.");
+                }
+            }
+        }
 
-		public void runBlockingWithRetry(final int maxRetries, final Duration attemptTimeout, final Duration globalTimeout) throws IOException {
-			int retries = 0;
-			final Deadline globalDeadline = Deadline.fromNow(globalTimeout);
+        public void runBlockingWithRetry(
+                final int maxRetries, final Duration attemptTimeout, final Duration globalTimeout)
+                throws IOException {
+            int retries = 0;
+            final Deadline globalDeadline = Deadline.fromNow(globalTimeout);
 
-			while (true) {
-				try {
-					runBlocking(attemptTimeout);
-					break;
-				} catch (Exception e) {
-					if (++retries > maxRetries || !globalDeadline.hasTimeLeft()) {
-						String errMsg = String.format(
-							"Process (%s) exceeded timeout (%s) or number of retries (%s).",
-							Arrays.toString(commands), globalTimeout.toMillis(), maxRetries);
-						throw new IOException(errMsg, e);
-					}
-				}
-			}
-		}
+            while (true) {
+                try {
+                    runBlocking(attemptTimeout);
+                    break;
+                } catch (Exception e) {
+                    if (++retries > maxRetries || !globalDeadline.hasTimeLeft()) {
+                        String errMsg =
+                                String.format(
+                                        "Process (%s) exceeded timeout (%s) or number of retries (%s).",
+                                        Arrays.toString(commands),
+                                        globalTimeout.toMillis(),
+                                        maxRetries);
+                        throw new IOException(errMsg, e);
+                    }
+                }
+            }
+        }
 
-		public AutoClosableProcess runNonBlocking() throws IOException {
-			return new AutoClosableProcess(createProcess(commands, stdoutProcessor, stderrProcessor, stdInputs));
-		}
-	}
+        public AutoClosableProcess runNonBlocking() throws IOException {
+            return new AutoClosableProcess(
+                    createProcess(commands, stdoutProcessor, stderrProcessor, stdInputs));
+        }
+    }
 
-	private static Process createProcess(
-			final String[] commands,
-			Consumer<String> stdoutProcessor,
-			Consumer<String> stderrProcessor,
-			@Nullable String[] stdInputs) throws IOException {
-		final ProcessBuilder processBuilder = new ProcessBuilder();
-		LOG.debug("Creating process: {}", Arrays.toString(commands));
-		processBuilder.command(commands);
+    private static Process createProcess(
+            final String[] commands,
+            Consumer<String> stdoutProcessor,
+            Consumer<String> stderrProcessor,
+            @Nullable String[] stdInputs)
+            throws IOException {
+        final ProcessBuilder processBuilder = new ProcessBuilder();
+        LOG.debug("Creating process: {}", Arrays.toString(commands));
+        processBuilder.command(commands);
 
-		final Process process = processBuilder.start();
+        final Process process = processBuilder.start();
 
-		consumeOutput(process.getInputStream(), stdoutProcessor);
-		consumeOutput(process.getErrorStream(), stderrProcessor);
-		if (stdInputs != null) {
-			produceInput(process.getOutputStream(), stdInputs);
-		}
+        consumeOutput(process.getInputStream(), stdoutProcessor);
+        consumeOutput(process.getErrorStream(), stderrProcessor);
+        if (stdInputs != null) {
+            produceInput(process.getOutputStream(), stdInputs);
+        }
 
-		return process;
-	}
+        return process;
+    }
 
-	private static void consumeOutput(final InputStream stream, final Consumer<String> streamConsumer) {
-		new Thread(() -> {
-			try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
-				String line;
-				while ((line = bufferedReader.readLine()) != null) {
-					streamConsumer.accept(line);
-				}
-			} catch (IOException e) {
-				LOG.error("Failure while processing process stdout/stderr.", e);
-			}
-		}
-		).start();
-	}
+    private static void consumeOutput(
+            final InputStream stream, final Consumer<String> streamConsumer) {
+        new Thread(
+                        () -> {
+                            try (BufferedReader bufferedReader =
+                                    new BufferedReader(
+                                            new InputStreamReader(
+                                                    stream, StandardCharsets.UTF_8))) {
+                                String line;
+                                while ((line = bufferedReader.readLine()) != null) {
+                                    streamConsumer.accept(line);
+                                }
+                            } catch (IOException e) {
+                                LOG.error("Failure while processing process stdout/stderr.", e);
+                            }
+                        })
+                .start();
+    }
 
-	private static void produceInput(final OutputStream stream, final String[] inputLines) {
-		new Thread(() -> {
-			// try with resource will close the OutputStream automatically,
-			// usually the process terminal will also be finished then.
-			try (PrintStream printStream = new PrintStream(stream, true, StandardCharsets.UTF_8.name())) {
-				for (String line : inputLines) {
-					printStream.println(line);
-				}
-			} catch (IOException e) {
-				LOG.error("Failure while processing process stdin.", e);
-			}
-		}).start();
-	}
+    private static void produceInput(final OutputStream stream, final String[] inputLines) {
+        new Thread(
+                        () -> {
+                            // try with resource will close the OutputStream automatically,
+                            // usually the process terminal will also be finished then.
+                            try (PrintStream printStream =
+                                    new PrintStream(stream, true, StandardCharsets.UTF_8.name())) {
+                                for (String line : inputLines) {
+                                    printStream.println(line);
+                                }
+                            } catch (IOException e) {
+                                LOG.error("Failure while processing process stdin.", e);
+                            }
+                        })
+                .start();
+    }
 
-	@Override
-	public void close() throws IOException {
-		if (process.isAlive()) {
-			process.destroy();
-			try {
-				process.waitFor(10, TimeUnit.SECONDS);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		}
-	}
+    @Override
+    public void close() throws IOException {
+        if (process.isAlive()) {
+            process.destroy();
+            try {
+                process.waitFor(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 }

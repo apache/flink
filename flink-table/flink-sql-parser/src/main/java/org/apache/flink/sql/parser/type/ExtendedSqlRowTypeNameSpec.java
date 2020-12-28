@@ -39,122 +39,125 @@ import java.util.stream.Collectors;
  * A sql type name specification of ROW type.
  *
  * <p>The difference with {@link SqlRowTypeNameSpec}:
+ *
  * <ul>
- *   <li>Support comment syntax for every field</li>
- *   <li>Field data type default is nullable</li>
- *   <li>Support ROW type with empty fields, e.g. ROW()</li>
+ *   <li>Support comment syntax for every field
+ *   <li>Field data type default is nullable
+ *   <li>Support ROW type with empty fields, e.g. ROW()
  * </ul>
  */
 public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
 
-	private final List<SqlIdentifier> fieldNames;
-	private final List<SqlDataTypeSpec> fieldTypes;
-	private final List<SqlCharStringLiteral> comments;
+    private final List<SqlIdentifier> fieldNames;
+    private final List<SqlDataTypeSpec> fieldTypes;
+    private final List<SqlCharStringLiteral> comments;
 
-	private final boolean unparseAsStandard;
+    private final boolean unparseAsStandard;
 
-	/**
-	 * Creates a ROW type specification.
-	 *
-	 * @param pos               parser position
-	 * @param fieldNames        field names
-	 * @param fieldTypes        field data types
-	 * @param comments          field comments
-	 * @param unparseAsStandard whether to unparse as standard SQL style
-	 */
-	public ExtendedSqlRowTypeNameSpec(SqlParserPos pos,
-			List<SqlIdentifier> fieldNames,
-			List<SqlDataTypeSpec> fieldTypes,
-			List<SqlCharStringLiteral> comments,
-			boolean unparseAsStandard) {
-		super(new SqlIdentifier(SqlTypeName.ROW.getName(), pos), pos);
-		this.fieldNames = fieldNames;
-		this.fieldTypes = fieldTypes;
-		this.comments = comments;
-		this.unparseAsStandard = unparseAsStandard;
-	}
+    /**
+     * Creates a ROW type specification.
+     *
+     * @param pos parser position
+     * @param fieldNames field names
+     * @param fieldTypes field data types
+     * @param comments field comments
+     * @param unparseAsStandard whether to unparse as standard SQL style
+     */
+    public ExtendedSqlRowTypeNameSpec(
+            SqlParserPos pos,
+            List<SqlIdentifier> fieldNames,
+            List<SqlDataTypeSpec> fieldTypes,
+            List<SqlCharStringLiteral> comments,
+            boolean unparseAsStandard) {
+        super(new SqlIdentifier(SqlTypeName.ROW.getName(), pos), pos);
+        this.fieldNames = fieldNames;
+        this.fieldTypes = fieldTypes;
+        this.comments = comments;
+        this.unparseAsStandard = unparseAsStandard;
+    }
 
-	public List<SqlIdentifier> getFieldNames() {
-		return fieldNames;
-	}
+    public List<SqlIdentifier> getFieldNames() {
+        return fieldNames;
+    }
 
-	public List<SqlDataTypeSpec> getFieldTypes() {
-		return fieldTypes;
-	}
+    public List<SqlDataTypeSpec> getFieldTypes() {
+        return fieldTypes;
+    }
 
-	public List<SqlCharStringLiteral> getComments() {
-		return comments;
-	}
+    public List<SqlCharStringLiteral> getComments() {
+        return comments;
+    }
 
-	public boolean unparseAsStandard() {
-		return unparseAsStandard;
-	}
+    public boolean unparseAsStandard() {
+        return unparseAsStandard;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.print("ROW");
-		if (getFieldNames().size() == 0) {
-			if (unparseAsStandard) {
-				writer.print("()");
-			} else {
-				writer.print("<>");
-			}
-		} else {
-			SqlWriter.Frame frame;
-			if (unparseAsStandard) {
-				frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "(", ")");
-			} else {
-				frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
-			}
-			int i = 0;
-			for (Pair<SqlIdentifier, SqlDataTypeSpec> p : Pair.zip(this.fieldNames, this.fieldTypes)) {
-				writer.sep(",", false);
-				p.left.unparse(writer, 0, 0);
-				p.right.unparse(writer, leftPrec, rightPrec);
-				if (p.right.getNullable() != null && !p.right.getNullable()) {
-					writer.keyword("NOT NULL");
-				}
-				if (comments.get(i) != null) {
-					comments.get(i).unparse(writer, leftPrec, rightPrec);
-				}
-				i += 1;
-			}
-			writer.endList(frame);
-		}
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.print("ROW");
+        if (getFieldNames().size() == 0) {
+            if (unparseAsStandard) {
+                writer.print("()");
+            } else {
+                writer.print("<>");
+            }
+        } else {
+            SqlWriter.Frame frame;
+            if (unparseAsStandard) {
+                frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "(", ")");
+            } else {
+                frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
+            }
+            int i = 0;
+            for (Pair<SqlIdentifier, SqlDataTypeSpec> p :
+                    Pair.zip(this.fieldNames, this.fieldTypes)) {
+                writer.sep(",", false);
+                p.left.unparse(writer, 0, 0);
+                p.right.unparse(writer, leftPrec, rightPrec);
+                if (p.right.getNullable() != null && !p.right.getNullable()) {
+                    writer.keyword("NOT NULL");
+                }
+                if (comments.get(i) != null) {
+                    comments.get(i).unparse(writer, leftPrec, rightPrec);
+                }
+                i += 1;
+            }
+            writer.endList(frame);
+        }
+    }
 
-	@Override public boolean equalsDeep(SqlTypeNameSpec node, Litmus litmus) {
-		if (!(node instanceof SqlRowTypeNameSpec)) {
-			return litmus.fail("{} != {}", this, node);
-		}
-		ExtendedSqlRowTypeNameSpec that = (ExtendedSqlRowTypeNameSpec) node;
-		if (this.fieldNames.size() != that.fieldNames.size()) {
-			return litmus.fail("{} != {}", this, node);
-		}
-		for (int i = 0; i < fieldNames.size(); i++) {
-			if (!this.fieldNames.get(i).equalsDeep(that.fieldNames.get(i), litmus)) {
-				return litmus.fail("{} != {}", this, node);
-			}
-		}
-		if (this.fieldTypes.size() != that.fieldTypes.size()) {
-			return litmus.fail("{} != {}", this, node);
-		}
-		for (int i = 0; i < fieldTypes.size(); i++) {
-			if (!this.fieldTypes.get(i).equals(that.fieldTypes.get(i))) {
-				return litmus.fail("{} != {}", this, node);
-			}
-		}
-		return litmus.succeed();
-	}
+    @Override
+    public boolean equalsDeep(SqlTypeNameSpec node, Litmus litmus) {
+        if (!(node instanceof SqlRowTypeNameSpec)) {
+            return litmus.fail("{} != {}", this, node);
+        }
+        ExtendedSqlRowTypeNameSpec that = (ExtendedSqlRowTypeNameSpec) node;
+        if (this.fieldNames.size() != that.fieldNames.size()) {
+            return litmus.fail("{} != {}", this, node);
+        }
+        for (int i = 0; i < fieldNames.size(); i++) {
+            if (!this.fieldNames.get(i).equalsDeep(that.fieldNames.get(i), litmus)) {
+                return litmus.fail("{} != {}", this, node);
+            }
+        }
+        if (this.fieldTypes.size() != that.fieldTypes.size()) {
+            return litmus.fail("{} != {}", this, node);
+        }
+        for (int i = 0; i < fieldTypes.size(); i++) {
+            if (!this.fieldTypes.get(i).equals(that.fieldTypes.get(i))) {
+                return litmus.fail("{} != {}", this, node);
+            }
+        }
+        return litmus.succeed();
+    }
 
-	@Override public RelDataType deriveType(SqlValidator sqlValidator) {
-		final RelDataTypeFactory typeFactory = sqlValidator.getTypeFactory();
-		return typeFactory.createStructType(
-			fieldTypes.stream()
-				.map(dt -> dt.deriveType(sqlValidator))
-				.collect(Collectors.toList()),
-			fieldNames.stream()
-				.map(SqlIdentifier::toString)
-				.collect(Collectors.toList()));
-	}
+    @Override
+    public RelDataType deriveType(SqlValidator sqlValidator) {
+        final RelDataTypeFactory typeFactory = sqlValidator.getTypeFactory();
+        return typeFactory.createStructType(
+                fieldTypes.stream()
+                        .map(dt -> dt.deriveType(sqlValidator))
+                        .collect(Collectors.toList()),
+                fieldNames.stream().map(SqlIdentifier::toString).collect(Collectors.toList()));
+    }
 }

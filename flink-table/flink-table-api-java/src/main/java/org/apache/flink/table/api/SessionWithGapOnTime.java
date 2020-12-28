@@ -23,41 +23,39 @@ import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 
-/**
- * Session window on time.
- */
+/** Session window on time. */
 @PublicEvolving
 public final class SessionWithGapOnTime {
 
-	private final Expression timeField;
-	private final Expression gap;
+    private final Expression timeField;
+    private final Expression gap;
 
-	SessionWithGapOnTime(Expression timeField, Expression gap) {
-		this.timeField = ApiExpressionUtils.unwrapFromApi(timeField);
-		this.gap = ApiExpressionUtils.unwrapFromApi(gap);
-	}
+    SessionWithGapOnTime(Expression timeField, Expression gap) {
+        this.timeField = ApiExpressionUtils.unwrapFromApi(timeField);
+        this.gap = ApiExpressionUtils.unwrapFromApi(gap);
+    }
 
-	/**
-	 * Assigns an alias for this window that the following {@code groupBy()} and {@code select()}
-	 * clause can refer to. {@code select()} statement can access window properties such as window
-	 * start or end time.
-	 *
-	 * @param alias alias for this window
-	 * @return this window
-	 */
-	public SessionWithGapOnTimeWithAlias as(String alias) {
-		return as(ExpressionParser.parseExpression(alias));
-	}
+    /**
+     * Assigns an alias for this window that the following {@code groupBy()} and {@code select()}
+     * clause can refer to. {@code select()} statement can access window properties such as window
+     * start or end time.
+     *
+     * @param alias alias for this window
+     * @return this window
+     */
+    public SessionWithGapOnTimeWithAlias as(String alias) {
+        return as(ExpressionParser.parseExpression(alias));
+    }
 
-	/**
-	 * Assigns an alias for this window that the following {@code groupBy()} and {@code select()}
-	 * clause can refer to. {@code select()} statement can access window properties such as window
-	 * start or end time.
-	 *
-	 * @param alias alias for this window
-	 * @return this window
-	 */
-	public SessionWithGapOnTimeWithAlias as(Expression alias) {
-		return new SessionWithGapOnTimeWithAlias(alias, timeField, gap);
-	}
+    /**
+     * Assigns an alias for this window that the following {@code groupBy()} and {@code select()}
+     * clause can refer to. {@code select()} statement can access window properties such as window
+     * start or end time.
+     *
+     * @param alias alias for this window
+     * @return this window
+     */
+    public SessionWithGapOnTimeWithAlias as(Expression alias) {
+        return new SessionWithGapOnTimeWithAlias(alias, timeField, gap);
+    }
 }

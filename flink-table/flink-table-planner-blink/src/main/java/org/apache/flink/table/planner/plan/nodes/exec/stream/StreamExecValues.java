@@ -27,12 +27,10 @@ import org.apache.calcite.rex.RexLiteral;
 
 import java.util.List;
 
-/**
- * Stream {@link ExecNode} that read records from given values.
- */
-public class StreamExecValues extends CommonExecValues implements StreamExecNode<RowData>  {
+/** Stream {@link ExecNode} that read records from given values. */
+public class StreamExecValues extends CommonExecValues implements StreamExecNode<RowData> {
 
-	public StreamExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
-		super(tuples, outputType, description);
-	}
+    public StreamExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
+        super(tuples, outputType, description);
+    }
 }

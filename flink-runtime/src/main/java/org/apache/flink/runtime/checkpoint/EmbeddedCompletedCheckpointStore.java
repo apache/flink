@@ -28,79 +28,82 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * An embedded in-memory checkpoint store, which supports shutdown and suspend.
- * You can use this to test HA as long as the factory always returns the same store instance.
+ * An embedded in-memory checkpoint store, which supports shutdown and suspend. You can use this to
+ * test HA as long as the factory always returns the same store instance.
  */
 public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStore {
 
-	private final ArrayDeque<CompletedCheckpoint> checkpoints = new ArrayDeque<>(2);
+    private final ArrayDeque<CompletedCheckpoint> checkpoints = new ArrayDeque<>(2);
 
-	private final Collection<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
+    private final Collection<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
 
-	private final int maxRetainedCheckpoints;
+    private final int maxRetainedCheckpoints;
 
-	public EmbeddedCompletedCheckpointStore() {
-		this(1);
-	}
+    public EmbeddedCompletedCheckpointStore() {
+        this(1);
+    }
 
-	EmbeddedCompletedCheckpointStore(int maxRetainedCheckpoints) {
-		Preconditions.checkArgument(maxRetainedCheckpoints > 0);
-		this.maxRetainedCheckpoints = maxRetainedCheckpoints;
-	}
+    EmbeddedCompletedCheckpointStore(int maxRetainedCheckpoints) {
+        Preconditions.checkArgument(maxRetainedCheckpoints > 0);
+        this.maxRetainedCheckpoints = maxRetainedCheckpoints;
+    }
 
-	@Override
-	public void recover() {
-		checkpoints.addAll(suspended);
-		suspended.clear();
-	}
+    @Override
+    public void recover() {
+        checkpoints.addAll(suspended);
+        suspended.clear();
+    }
 
-	@Override
-	public void addCheckpoint(
-			CompletedCheckpoint checkpoint,
-			CheckpointsCleaner checkpointsCleaner,
-			Runnable postCleanup) throws Exception {
-		checkpoints.addLast(checkpoint);
+    @Override
+    public void addCheckpoint(
+            CompletedCheckpoint checkpoint,
+            CheckpointsCleaner checkpointsCleaner,
+            Runnable postCleanup)
+            throws Exception {
+        checkpoints.addLast(checkpoint);
 
-		if (checkpoints.size() > maxRetainedCheckpoints) {
-			removeOldestCheckpoint();
-		}
-	}
+        if (checkpoints.size() > maxRetainedCheckpoints) {
+            removeOldestCheckpoint();
+        }
+    }
 
-	@VisibleForTesting
-	void removeOldestCheckpoint() throws Exception {
-		CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
-		checkpointToSubsume.discardOnSubsume();
-	}
+    @VisibleForTesting
+    void removeOldestCheckpoint() throws Exception {
+        CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
+        checkpointToSubsume.discardOnSubsume();
+    }
 
-	@Override
-	public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
-		if (jobStatus.isGloballyTerminalState()) {
-			checkpoints.clear();
-			suspended.clear();
-		} else {
-			suspended.clear();
-			suspended.addAll(checkpoints);
-			checkpoints.clear();
-		}
-	}
+    @Override
+    public void shutdown(
+            JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup)
+            throws Exception {
+        if (jobStatus.isGloballyTerminalState()) {
+            checkpoints.clear();
+            suspended.clear();
+        } else {
+            suspended.clear();
+            suspended.addAll(checkpoints);
+            checkpoints.clear();
+        }
+    }
 
-	@Override
-	public List<CompletedCheckpoint> getAllCheckpoints() {
-		return new ArrayList<>(checkpoints);
-	}
+    @Override
+    public List<CompletedCheckpoint> getAllCheckpoints() {
+        return new ArrayList<>(checkpoints);
+    }
 
-	@Override
-	public int getNumberOfRetainedCheckpoints() {
-		return checkpoints.size();
-	}
+    @Override
+    public int getNumberOfRetainedCheckpoints() {
+        return checkpoints.size();
+    }
 
-	@Override
-	public int getMaxNumberOfRetainedCheckpoints() {
-		return maxRetainedCheckpoints;
-	}
+    @Override
+    public int getMaxNumberOfRetainedCheckpoints() {
+        return maxRetainedCheckpoints;
+    }
 
-	@Override
-	public boolean requiresExternalizedCheckpoints() {
-		return false;
-	}
+    @Override
+    public boolean requiresExternalizedCheckpoints() {
+        return false;
+    }
 }

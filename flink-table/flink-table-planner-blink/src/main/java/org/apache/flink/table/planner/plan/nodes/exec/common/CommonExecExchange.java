@@ -31,10 +31,7 @@ import java.util.Collections;
  * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
  */
 public abstract class CommonExecExchange extends ExecNodeBase<RowData> {
-	public CommonExecExchange(
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-	}
+    public CommonExecExchange(ExecEdge inputEdge, RowType outputType, String description) {
+        super(Collections.singletonList(inputEdge), outputType, description);
+    }
 }

@@ -27,36 +27,40 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Collection;
 
-/**
- * Unit tests for the {@link BlockSplittingRecursiveEnumerator}.
- */
+/** Unit tests for the {@link BlockSplittingRecursiveEnumerator}. */
 public class BlockSplittingRecursiveEnumeratorTest extends NonSplittingRecursiveEnumeratorTest {
 
-	@Test
-	@Override
-	public void testFileWithMultipleBlocks() throws Exception {
-		final Path testPath = new Path("testfs:///dir/file");
-		testFs = TestingFileSystem.createForFileStatus(
-				"testfs",
-				TestingFileSystem.TestFileStatus.forFileWithBlocks(testPath, 1000L,
-						new TestingFileSystem.TestBlockLocation(0L, 100L, "host1", "host2"),
-						new TestingFileSystem.TestBlockLocation(100L, 520L, "host2", "host3"),
-						new TestingFileSystem.TestBlockLocation(620L, 380L, "host3", "host4")));
-		testFs.register();
+    @Test
+    @Override
+    public void testFileWithMultipleBlocks() throws Exception {
+        final Path testPath = new Path("testfs:///dir/file");
+        testFs =
+                TestingFileSystem.createForFileStatus(
+                        "testfs",
+                        TestingFileSystem.TestFileStatus.forFileWithBlocks(
+                                testPath,
+                                1000L,
+                                new TestingFileSystem.TestBlockLocation(0L, 100L, "host1", "host2"),
+                                new TestingFileSystem.TestBlockLocation(
+                                        100L, 520L, "host2", "host3"),
+                                new TestingFileSystem.TestBlockLocation(
+                                        620L, 380L, "host3", "host4")));
+        testFs.register();
 
-		final BlockSplittingRecursiveEnumerator enumerator = createEnumerator();
-		final Collection<FileSourceSplit> splits = enumerator.enumerateSplits(
-			new Path[] { new Path("testfs:///dir")}, 0);
+        final BlockSplittingRecursiveEnumerator enumerator = createEnumerator();
+        final Collection<FileSourceSplit> splits =
+                enumerator.enumerateSplits(new Path[] {new Path("testfs:///dir")}, 0);
 
-		final Collection<FileSourceSplit> expected = Arrays.asList(
-				new FileSourceSplit("ignoredId", testPath, 0L, 100L, "host1", "host2"),
-				new FileSourceSplit("ignoredId", testPath, 100L, 520L, "host1", "host2"),
-				new FileSourceSplit("ignoredId", testPath, 620L, 380L, "host1", "host2"));
+        final Collection<FileSourceSplit> expected =
+                Arrays.asList(
+                        new FileSourceSplit("ignoredId", testPath, 0L, 100L, "host1", "host2"),
+                        new FileSourceSplit("ignoredId", testPath, 100L, 520L, "host1", "host2"),
+                        new FileSourceSplit("ignoredId", testPath, 620L, 380L, "host1", "host2"));
 
-		assertSplitsEqual(expected, splits);
-	}
+        assertSplitsEqual(expected, splits);
+    }
 
-	protected BlockSplittingRecursiveEnumerator createEnumerator() {
-		return new BlockSplittingRecursiveEnumerator();
-	}
+    protected BlockSplittingRecursiveEnumerator createEnumerator() {
+        return new BlockSplittingRecursiveEnumerator();
+    }
 }

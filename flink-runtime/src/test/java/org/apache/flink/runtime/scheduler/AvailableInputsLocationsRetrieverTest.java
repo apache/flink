@@ -30,61 +30,69 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link AvailableInputsLocationsRetriever}.
- */
+/** Tests for {@link AvailableInputsLocationsRetriever}. */
 public class AvailableInputsLocationsRetrieverTest extends TestLogger {
-	private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
-	private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
+    private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
+    private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
 
-	@Test
-	public void testNoInputLocation() {
-		TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
-		InputsLocationsRetriever availableInputsLocationsRetriever =
-			new AvailableInputsLocationsRetriever(originalLocationRetriever);
-		assertThat(availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(), is(false));
-	}
+    @Test
+    public void testNoInputLocation() {
+        TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
+        InputsLocationsRetriever availableInputsLocationsRetriever =
+                new AvailableInputsLocationsRetriever(originalLocationRetriever);
+        assertThat(
+                availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(),
+                is(false));
+    }
 
-	@Test
-	public void testNoInputLocationIfNotDone() {
-		TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
-		originalLocationRetriever.markScheduled(EV1);
-		InputsLocationsRetriever availableInputsLocationsRetriever =
-			new AvailableInputsLocationsRetriever(originalLocationRetriever);
-		assertThat(availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(), is(false));
-	}
+    @Test
+    public void testNoInputLocationIfNotDone() {
+        TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
+        originalLocationRetriever.markScheduled(EV1);
+        InputsLocationsRetriever availableInputsLocationsRetriever =
+                new AvailableInputsLocationsRetriever(originalLocationRetriever);
+        assertThat(
+                availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(),
+                is(false));
+    }
 
-	@Test
-	public void testNoInputLocationIfFailed() {
-		TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
-		originalLocationRetriever.failTaskManagerLocation(EV1, new Throwable());
-		InputsLocationsRetriever availableInputsLocationsRetriever =
-			new AvailableInputsLocationsRetriever(originalLocationRetriever);
-		assertThat(availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(), is(false));
-	}
+    @Test
+    public void testNoInputLocationIfFailed() {
+        TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
+        originalLocationRetriever.failTaskManagerLocation(EV1, new Throwable());
+        InputsLocationsRetriever availableInputsLocationsRetriever =
+                new AvailableInputsLocationsRetriever(originalLocationRetriever);
+        assertThat(
+                availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(),
+                is(false));
+    }
 
-	@Test
-	public void testInputLocationIfDone() {
-		TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
-		originalLocationRetriever.assignTaskManagerLocation(EV1);
-		InputsLocationsRetriever availableInputsLocationsRetriever =
-			new AvailableInputsLocationsRetriever(originalLocationRetriever);
-		assertThat(availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(), is(true));
-	}
+    @Test
+    public void testInputLocationIfDone() {
+        TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
+        originalLocationRetriever.assignTaskManagerLocation(EV1);
+        InputsLocationsRetriever availableInputsLocationsRetriever =
+                new AvailableInputsLocationsRetriever(originalLocationRetriever);
+        assertThat(
+                availableInputsLocationsRetriever.getTaskManagerLocation(EV1).isPresent(),
+                is(true));
+    }
 
-	@Test
-	public void testConsumedResultPartitionsProducers() {
-		TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
-		InputsLocationsRetriever availableInputsLocationsRetriever =
-			new AvailableInputsLocationsRetriever(originalLocationRetriever);
-		Collection<Collection<ExecutionVertexID>> producers =
-			availableInputsLocationsRetriever.getConsumedResultPartitionsProducers(EV2);
-		assertThat(producers.size(), is(1));
-		Collection<ExecutionVertexID> resultProducers = producers.iterator().next();
-		assertThat(resultProducers, contains(EV1));
-	}
+    @Test
+    public void testConsumedResultPartitionsProducers() {
+        TestingInputsLocationsRetriever originalLocationRetriever = getOriginalLocationRetriever();
+        InputsLocationsRetriever availableInputsLocationsRetriever =
+                new AvailableInputsLocationsRetriever(originalLocationRetriever);
+        Collection<Collection<ExecutionVertexID>> producers =
+                availableInputsLocationsRetriever.getConsumedResultPartitionsProducers(EV2);
+        assertThat(producers.size(), is(1));
+        Collection<ExecutionVertexID> resultProducers = producers.iterator().next();
+        assertThat(resultProducers, contains(EV1));
+    }
 
-	private static TestingInputsLocationsRetriever getOriginalLocationRetriever() {
-		return new TestingInputsLocationsRetriever.Builder().connectConsumerToProducer(EV2, EV1).build();
-	}
+    private static TestingInputsLocationsRetriever getOriginalLocationRetriever() {
+        return new TestingInputsLocationsRetriever.Builder()
+                .connectConsumerToProducer(EV2, EV1)
+                .build();
+    }
 }

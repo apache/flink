@@ -24,72 +24,106 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 import org.apache.flink.core.fs.Path;
 
-/**
- * Input format that reads csv into tuples.
- */
+/** Input format that reads csv into tuples. */
 @Internal
 public class TupleCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private TupleSerializerBase<OUT> tupleSerializer;
+    private TupleSerializerBase<OUT> tupleSerializer;
 
-	public TupleCsvInputFormat(Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo) {
-		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo);
-	}
+    public TupleCsvInputFormat(Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo) {
+        this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo);
+    }
 
-	public TupleCsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, TupleTypeInfoBase<OUT> tupleTypeInfo) {
-		this(filePath, lineDelimiter, fieldDelimiter, tupleTypeInfo, createDefaultMask(tupleTypeInfo.getArity()));
-	}
+    public TupleCsvInputFormat(
+            Path filePath,
+            String lineDelimiter,
+            String fieldDelimiter,
+            TupleTypeInfoBase<OUT> tupleTypeInfo) {
+        this(
+                filePath,
+                lineDelimiter,
+                fieldDelimiter,
+                tupleTypeInfo,
+                createDefaultMask(tupleTypeInfo.getArity()));
+    }
 
-	public TupleCsvInputFormat(Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo, int[] includedFieldsMask) {
-		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo, includedFieldsMask);
-	}
+    public TupleCsvInputFormat(
+            Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo, int[] includedFieldsMask) {
+        this(
+                filePath,
+                DEFAULT_LINE_DELIMITER,
+                DEFAULT_FIELD_DELIMITER,
+                tupleTypeInfo,
+                includedFieldsMask);
+    }
 
-	public TupleCsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, TupleTypeInfoBase<OUT> tupleTypeInfo, int[] includedFieldsMask) {
-		super(filePath);
-		boolean[] mask = (includedFieldsMask == null)
-				? createDefaultMask(tupleTypeInfo.getArity())
-				: toBooleanMask(includedFieldsMask);
-		configure(lineDelimiter, fieldDelimiter, tupleTypeInfo, mask);
-	}
+    public TupleCsvInputFormat(
+            Path filePath,
+            String lineDelimiter,
+            String fieldDelimiter,
+            TupleTypeInfoBase<OUT> tupleTypeInfo,
+            int[] includedFieldsMask) {
+        super(filePath);
+        boolean[] mask =
+                (includedFieldsMask == null)
+                        ? createDefaultMask(tupleTypeInfo.getArity())
+                        : toBooleanMask(includedFieldsMask);
+        configure(lineDelimiter, fieldDelimiter, tupleTypeInfo, mask);
+    }
 
-	public TupleCsvInputFormat(Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo, boolean[] includedFieldsMask) {
-		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo, includedFieldsMask);
-	}
+    public TupleCsvInputFormat(
+            Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo, boolean[] includedFieldsMask) {
+        this(
+                filePath,
+                DEFAULT_LINE_DELIMITER,
+                DEFAULT_FIELD_DELIMITER,
+                tupleTypeInfo,
+                includedFieldsMask);
+    }
 
-	public TupleCsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, TupleTypeInfoBase<OUT> tupleTypeInfo, boolean[] includedFieldsMask) {
-		super(filePath);
-		configure(lineDelimiter, fieldDelimiter, tupleTypeInfo, includedFieldsMask);
-	}
+    public TupleCsvInputFormat(
+            Path filePath,
+            String lineDelimiter,
+            String fieldDelimiter,
+            TupleTypeInfoBase<OUT> tupleTypeInfo,
+            boolean[] includedFieldsMask) {
+        super(filePath);
+        configure(lineDelimiter, fieldDelimiter, tupleTypeInfo, includedFieldsMask);
+    }
 
-	private void configure(String lineDelimiter, String fieldDelimiter,
-			TupleTypeInfoBase<OUT> tupleTypeInfo, boolean[] includedFieldsMask) {
+    private void configure(
+            String lineDelimiter,
+            String fieldDelimiter,
+            TupleTypeInfoBase<OUT> tupleTypeInfo,
+            boolean[] includedFieldsMask) {
 
-		if (tupleTypeInfo.getArity() == 0) {
-			throw new IllegalArgumentException("Tuple size must be greater than 0.");
-		}
+        if (tupleTypeInfo.getArity() == 0) {
+            throw new IllegalArgumentException("Tuple size must be greater than 0.");
+        }
 
-		if (includedFieldsMask == null) {
-			includedFieldsMask = createDefaultMask(tupleTypeInfo.getArity());
-		}
+        if (includedFieldsMask == null) {
+            includedFieldsMask = createDefaultMask(tupleTypeInfo.getArity());
+        }
 
-		tupleSerializer = (TupleSerializerBase<OUT>) tupleTypeInfo.createSerializer(new ExecutionConfig());
+        tupleSerializer =
+                (TupleSerializerBase<OUT>) tupleTypeInfo.createSerializer(new ExecutionConfig());
 
-		setDelimiter(lineDelimiter);
-		setFieldDelimiter(fieldDelimiter);
+        setDelimiter(lineDelimiter);
+        setFieldDelimiter(fieldDelimiter);
 
-		Class<?>[] classes = new Class<?>[tupleTypeInfo.getArity()];
+        Class<?>[] classes = new Class<?>[tupleTypeInfo.getArity()];
 
-		for (int i = 0; i < tupleTypeInfo.getArity(); i++) {
-			classes[i] = tupleTypeInfo.getTypeAt(i).getTypeClass();
-		}
+        for (int i = 0; i < tupleTypeInfo.getArity(); i++) {
+            classes[i] = tupleTypeInfo.getTypeAt(i).getTypeClass();
+        }
 
-		setFieldsGeneric(includedFieldsMask, classes);
-	}
+        setFieldsGeneric(includedFieldsMask, classes);
+    }
 
-	@Override
-	public OUT fillRecord(OUT reuse, Object[] parsedValues) {
-		return tupleSerializer.createOrReuseInstance(parsedValues, reuse);
-	}
+    @Override
+    public OUT fillRecord(OUT reuse, Object[] parsedValues) {
+        return tupleSerializer.createOrReuseInstance(parsedValues, reuse);
+    }
 }

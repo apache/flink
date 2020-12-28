@@ -31,65 +31,65 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link ConfigurationUtils}.
- */
+/** Tests for the {@link ConfigurationUtils}. */
 public class ConfigurationUtilsTest extends TestLogger {
 
-	@Test
-	public void testPropertiesToConfiguration() {
-		final Properties properties = new Properties();
-		final int entries = 10;
+    @Test
+    public void testPropertiesToConfiguration() {
+        final Properties properties = new Properties();
+        final int entries = 10;
 
-		for (int i = 0; i < entries; i++) {
-			properties.setProperty("key" + i, "value" + i);
-		}
+        for (int i = 0; i < entries; i++) {
+            properties.setProperty("key" + i, "value" + i);
+        }
 
-		final Configuration configuration = ConfigurationUtils.createConfiguration(properties);
+        final Configuration configuration = ConfigurationUtils.createConfiguration(properties);
 
-		for (String key : properties.stringPropertyNames()) {
-			assertThat(configuration.getString(key, ""), is(equalTo(properties.getProperty(key))));
-		}
+        for (String key : properties.stringPropertyNames()) {
+            assertThat(configuration.getString(key, ""), is(equalTo(properties.getProperty(key))));
+        }
 
-		assertThat(configuration.toMap().size(), is(properties.size()));
-	}
+        assertThat(configuration.toMap().size(), is(properties.size()));
+    }
 
-	@Test
-	public void testHideSensitiveValues() {
-		final Map<String, String> keyValuePairs = new HashMap<>();
-		keyValuePairs.put("foobar", "barfoo");
-		final String secretKey1 = "secret.key";
-		keyValuePairs.put(secretKey1, "12345");
-		final String secretKey2 = "my.password";
-		keyValuePairs.put(secretKey2, "12345");
+    @Test
+    public void testHideSensitiveValues() {
+        final Map<String, String> keyValuePairs = new HashMap<>();
+        keyValuePairs.put("foobar", "barfoo");
+        final String secretKey1 = "secret.key";
+        keyValuePairs.put(secretKey1, "12345");
+        final String secretKey2 = "my.password";
+        keyValuePairs.put(secretKey2, "12345");
 
-		final Map<String, String> expectedKeyValuePairs = new HashMap<>(keyValuePairs);
+        final Map<String, String> expectedKeyValuePairs = new HashMap<>(keyValuePairs);
 
-		for (String secretKey : Arrays.asList(secretKey1, secretKey2)) {
-			expectedKeyValuePairs.put(secretKey, GlobalConfiguration.HIDDEN_CONTENT);
-		}
+        for (String secretKey : Arrays.asList(secretKey1, secretKey2)) {
+            expectedKeyValuePairs.put(secretKey, GlobalConfiguration.HIDDEN_CONTENT);
+        }
 
-		final Map<String, String> hiddenSensitiveValues = ConfigurationUtils.hideSensitiveValues(keyValuePairs);
+        final Map<String, String> hiddenSensitiveValues =
+                ConfigurationUtils.hideSensitiveValues(keyValuePairs);
 
-		assertThat(hiddenSensitiveValues, is(equalTo(expectedKeyValuePairs)));
-	}
+        assertThat(hiddenSensitiveValues, is(equalTo(expectedKeyValuePairs)));
+    }
 
-	@Test
-	public void testGetPrefixedKeyValuePairs() {
-		final String prefix = "test.prefix.";
-		final Map<String, String> expectedKeyValuePairs = new HashMap<String, String>() {
-			{
-				put("k1", "v1");
-				put("k2", "v2");
-			}
-		};
+    @Test
+    public void testGetPrefixedKeyValuePairs() {
+        final String prefix = "test.prefix.";
+        final Map<String, String> expectedKeyValuePairs =
+                new HashMap<String, String>() {
+                    {
+                        put("k1", "v1");
+                        put("k2", "v2");
+                    }
+                };
 
-		final Configuration configuration =  new Configuration();
-		expectedKeyValuePairs.forEach((k, v) -> configuration.setString(prefix + k, v));
+        final Configuration configuration = new Configuration();
+        expectedKeyValuePairs.forEach((k, v) -> configuration.setString(prefix + k, v));
 
-		final Map<String, String> resultKeyValuePairs = ConfigurationUtils.getPrefixedKeyValuePairs(prefix, configuration);
+        final Map<String, String> resultKeyValuePairs =
+                ConfigurationUtils.getPrefixedKeyValuePairs(prefix, configuration);
 
-		assertThat(resultKeyValuePairs, is(equalTo(expectedKeyValuePairs)));
-	}
-
+        assertThat(resultKeyValuePairs, is(equalTo(expectedKeyValuePairs)));
+    }
 }

@@ -34,207 +34,207 @@ import java.nio.channels.WritableByteChannel;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This class represents a chunk of data in a file channel. Its purpose is to be passed
- * to the netty code and to be written to the socket via the zero-copy direct transfer
- * capabilities of {@link FileChannel#transferTo(long, long, WritableByteChannel)}.
+ * This class represents a chunk of data in a file channel. Its purpose is to be passed to the netty
+ * code and to be written to the socket via the zero-copy direct transfer capabilities of {@link
+ * FileChannel#transferTo(long, long, WritableByteChannel)}.
  *
- * <p>This class implements {@link Buffer} mainly for compatible with existing usages.
- * It can be thought of as a "lazy buffer" that does not hold the data directly, although
- * the data can be fetches as a read-only {@code ByteBuffer} when needed, for example
- * in local input channels. See {@link #readInto(MemorySegment)} and
- * {@link #getNioBufferReadable()}. Because this buffer is read-only, the modification
- * methods (and methods that give a writable buffer) throw {@link UnsupportedOperationException}.
+ * <p>This class implements {@link Buffer} mainly for compatible with existing usages. It can be
+ * thought of as a "lazy buffer" that does not hold the data directly, although the data can be
+ * fetches as a read-only {@code ByteBuffer} when needed, for example in local input channels. See
+ * {@link #readInto(MemorySegment)} and {@link #getNioBufferReadable()}. Because this buffer is
+ * read-only, the modification methods (and methods that give a writable buffer) throw {@link
+ * UnsupportedOperationException}.
  *
- * <p>This class extends from Netty's {@link DefaultFileRegion}, similar as the
- * {@link NetworkBuffer} extends from Netty's {@link ByteBuf}. That way we can pass both
- * of them to Netty in the same way, and Netty will internally treat them appropriately.
+ * <p>This class extends from Netty's {@link DefaultFileRegion}, similar as the {@link
+ * NetworkBuffer} extends from Netty's {@link ByteBuf}. That way we can pass both of them to Netty
+ * in the same way, and Netty will internally treat them appropriately.
  */
 public class FileRegionBuffer extends DefaultFileRegion implements Buffer {
 
-	private final FileChannel fileChannel;
+    private final FileChannel fileChannel;
 
-	/** The {@link DataType} this buffer represents. */
-	private final DataType dataType;
+    /** The {@link DataType} this buffer represents. */
+    private final DataType dataType;
 
-	/** Whether the buffer is compressed or not. */
-	private final boolean isCompressed;
+    /** Whether the buffer is compressed or not. */
+    private final boolean isCompressed;
 
-	public FileRegionBuffer(
-			FileChannel fileChannel,
-			long fileChannelPosition,
-			int bufferSize,
-			DataType dataType,
-			boolean isCompressed) {
+    public FileRegionBuffer(
+            FileChannel fileChannel,
+            long fileChannelPosition,
+            int bufferSize,
+            DataType dataType,
+            boolean isCompressed) {
 
-		super(fileChannel, fileChannelPosition, bufferSize);
+        super(fileChannel, fileChannelPosition, bufferSize);
 
-		this.fileChannel = checkNotNull(fileChannel);
-		this.dataType = checkNotNull(dataType);
-		this.isCompressed = isCompressed;
-	}
+        this.fileChannel = checkNotNull(fileChannel);
+        this.dataType = checkNotNull(dataType);
+        this.isCompressed = isCompressed;
+    }
 
-	private int bufferSize() {
-		// this is guaranteed to not be lossy, because we initialize this from
-		// an int in the constructor.
-		return (int) count();
-	}
+    private int bufferSize() {
+        // this is guaranteed to not be lossy, because we initialize this from
+        // an int in the constructor.
+        return (int) count();
+    }
 
-	// ------------------------------------------------------------------------
-	// Buffer override methods
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // Buffer override methods
+    // ------------------------------------------------------------------------
 
-	@Override
-	public boolean isBuffer() {
-		return dataType.isBuffer();
-	}
+    @Override
+    public boolean isBuffer() {
+        return dataType.isBuffer();
+    }
 
-	@Override
-	public MemorySegment getMemorySegment() {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public MemorySegment getMemorySegment() {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	@Override
-	public int getMemorySegmentOffset() {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public int getMemorySegmentOffset() {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	@Override
-	public ReadOnlySlicedNetworkBuffer readOnlySlice() {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public ReadOnlySlicedNetworkBuffer readOnlySlice() {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	@Override
-	public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	@Override
-	public int getMaxCapacity() {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public int getMaxCapacity() {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	@Override
-	public int getReaderIndex() {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public int getReaderIndex() {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	@Override
-	public void setReaderIndex(int readerIndex) throws IndexOutOfBoundsException {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public void setReaderIndex(int readerIndex) throws IndexOutOfBoundsException {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	/**
-	 * This method is only called by tests and by event-deserialization, like
-	 * checkpoint barriers. Because such events are not used for bounded intermediate
-	 * results, this method currently executes only in tests.
-	 */
-	@Override
-	public ByteBuffer getNioBufferReadable() {
-		try {
-			final ByteBuffer buffer = ByteBuffer.allocateDirect(bufferSize());
-			BufferReaderWriterUtil.readByteBufferFully(fileChannel, buffer, position());
-			buffer.flip();
-			return buffer;
-		} catch (IOException e) {
-			// this is not very pretty, but given that this code runs only in tests
-			// the exception wrapping here is simpler than updating the method signature
-			// to declare IOExceptions, as would be necessary for a proper "lazy buffer".
-			throw new FlinkRuntimeException(e.getMessage(), e);
-		}
-	}
+    /**
+     * This method is only called by tests and by event-deserialization, like checkpoint barriers.
+     * Because such events are not used for bounded intermediate results, this method currently
+     * executes only in tests.
+     */
+    @Override
+    public ByteBuffer getNioBufferReadable() {
+        try {
+            final ByteBuffer buffer = ByteBuffer.allocateDirect(bufferSize());
+            BufferReaderWriterUtil.readByteBufferFully(fileChannel, buffer, position());
+            buffer.flip();
+            return buffer;
+        } catch (IOException e) {
+            // this is not very pretty, but given that this code runs only in tests
+            // the exception wrapping here is simpler than updating the method signature
+            // to declare IOExceptions, as would be necessary for a proper "lazy buffer".
+            throw new FlinkRuntimeException(e.getMessage(), e);
+        }
+    }
 
-	@Override
-	public ByteBuffer getNioBuffer(int index, int length) throws IndexOutOfBoundsException {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public ByteBuffer getNioBuffer(int index, int length) throws IndexOutOfBoundsException {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	@Override
-	public ByteBuf asByteBuf() {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public ByteBuf asByteBuf() {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	@Override
-	public void setSize(int writerIndex) {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public void setSize(int writerIndex) {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	@Override
-	public int getSize() {
-		return bufferSize();
-	}
+    @Override
+    public int getSize() {
+        return bufferSize();
+    }
 
-	@Override
-	public int readableBytes() {
-		return bufferSize();
-	}
+    @Override
+    public int readableBytes() {
+        return bufferSize();
+    }
 
-	@Override
-	public void setAllocator(ByteBufAllocator allocator) {
-		// nothing to do
-	}
+    @Override
+    public void setAllocator(ByteBufAllocator allocator) {
+        // nothing to do
+    }
 
-	@Override
-	public BufferRecycler getRecycler() {
-		return null;
-	}
+    @Override
+    public BufferRecycler getRecycler() {
+        return null;
+    }
 
-	@Override
-	public void recycleBuffer() {
-		// nothing to do
-	}
+    @Override
+    public void recycleBuffer() {
+        // nothing to do
+    }
 
-	@Override
-	public boolean isRecycled() {
-		return false;
-	}
+    @Override
+    public boolean isRecycled() {
+        return false;
+    }
 
-	@Override
-	public FileRegionBuffer retainBuffer() {
-		return (FileRegionBuffer) super.retain();
-	}
+    @Override
+    public FileRegionBuffer retainBuffer() {
+        return (FileRegionBuffer) super.retain();
+    }
 
-	@Override
-	public boolean isCompressed() {
-		return isCompressed;
-	}
+    @Override
+    public boolean isCompressed() {
+        return isCompressed;
+    }
 
-	@Override
-	public void setCompressed(boolean isCompressed) {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public void setCompressed(boolean isCompressed) {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	@Override
-	public DataType getDataType() {
-		return dataType;
-	}
+    @Override
+    public DataType getDataType() {
+        return dataType;
+    }
 
-	@Override
-	public void setDataType(DataType dataType) {
-		throw new UnsupportedOperationException("Method should never be called.");
-	}
+    @Override
+    public void setDataType(DataType dataType) {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
 
-	// ------------------------------------------------------------------------
-	// File region override methods
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // File region override methods
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void deallocate() {
-		// nothing to do
-	}
+    @Override
+    public void deallocate() {
+        // nothing to do
+    }
 
-	// ------------------------------------------------------------------------
-	// Utils
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // Utils
+    // ------------------------------------------------------------------------
 
-	public Buffer readInto(MemorySegment segment) throws IOException {
-		final ByteBuffer buffer = segment.wrap(0, bufferSize());
-		BufferReaderWriterUtil.readByteBufferFully(fileChannel, buffer, position());
+    public Buffer readInto(MemorySegment segment) throws IOException {
+        final ByteBuffer buffer = segment.wrap(0, bufferSize());
+        BufferReaderWriterUtil.readByteBufferFully(fileChannel, buffer, position());
 
-		return new NetworkBuffer(
-			segment,
-			BufferRecycler.DummyBufferRecycler.INSTANCE,
-			dataType,
-			isCompressed,
-			bufferSize());
-	}
+        return new NetworkBuffer(
+                segment,
+                BufferRecycler.DummyBufferRecycler.INSTANCE,
+                dataType,
+                isCompressed,
+                bufferSize());
+    }
 }

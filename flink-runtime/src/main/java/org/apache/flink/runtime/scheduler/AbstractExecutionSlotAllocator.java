@@ -40,92 +40,97 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Base class for all {@link ExecutionSlotAllocator}. It is responsible to allocate slots for tasks and
- * keep the unfulfilled slot requests for further cancellation.
+ * Base class for all {@link ExecutionSlotAllocator}. It is responsible to allocate slots for tasks
+ * and keep the unfulfilled slot requests for further cancellation.
  */
 abstract class AbstractExecutionSlotAllocator implements ExecutionSlotAllocator {
 
-	private final Map<ExecutionVertexID, SlotExecutionVertexAssignment> pendingSlotAssignments;
+    private final Map<ExecutionVertexID, SlotExecutionVertexAssignment> pendingSlotAssignments;
 
-	private final PreferredLocationsRetriever preferredLocationsRetriever;
+    private final PreferredLocationsRetriever preferredLocationsRetriever;
 
-	AbstractExecutionSlotAllocator(final PreferredLocationsRetriever preferredLocationsRetriever) {
-		this.preferredLocationsRetriever = checkNotNull(preferredLocationsRetriever);
-		this.pendingSlotAssignments = new HashMap<>();
-	}
+    AbstractExecutionSlotAllocator(final PreferredLocationsRetriever preferredLocationsRetriever) {
+        this.preferredLocationsRetriever = checkNotNull(preferredLocationsRetriever);
+        this.pendingSlotAssignments = new HashMap<>();
+    }
 
-	@Override
-	public void cancel(final ExecutionVertexID executionVertexId) {
-		final SlotExecutionVertexAssignment slotExecutionVertexAssignment = pendingSlotAssignments.get(executionVertexId);
-		if (slotExecutionVertexAssignment != null) {
-			slotExecutionVertexAssignment.getLogicalSlotFuture().cancel(false);
-		}
-	}
+    @Override
+    public void cancel(final ExecutionVertexID executionVertexId) {
+        final SlotExecutionVertexAssignment slotExecutionVertexAssignment =
+                pendingSlotAssignments.get(executionVertexId);
+        if (slotExecutionVertexAssignment != null) {
+            slotExecutionVertexAssignment.getLogicalSlotFuture().cancel(false);
+        }
+    }
 
-	void validateSchedulingRequirements(final Collection<ExecutionVertexSchedulingRequirements> schedulingRequirements) {
-		schedulingRequirements.stream()
-			.map(ExecutionVertexSchedulingRequirements::getExecutionVertexId)
-			.forEach(id -> checkState(
-				!pendingSlotAssignments.containsKey(id),
-				"BUG: vertex %s tries to allocate a slot when its previous slot request is still pending", id));
-	}
+    void validateSchedulingRequirements(
+            final Collection<ExecutionVertexSchedulingRequirements> schedulingRequirements) {
+        schedulingRequirements.stream()
+                .map(ExecutionVertexSchedulingRequirements::getExecutionVertexId)
+                .forEach(
+                        id ->
+                                checkState(
+                                        !pendingSlotAssignments.containsKey(id),
+                                        "BUG: vertex %s tries to allocate a slot when its previous slot request is still pending",
+                                        id));
+    }
 
-	SlotExecutionVertexAssignment createAndRegisterSlotExecutionVertexAssignment(
-			final ExecutionVertexID executionVertexId,
-			final CompletableFuture<LogicalSlot> logicalSlotFuture,
-			final Consumer<Throwable> slotRequestFailureHandler) {
+    SlotExecutionVertexAssignment createAndRegisterSlotExecutionVertexAssignment(
+            final ExecutionVertexID executionVertexId,
+            final CompletableFuture<LogicalSlot> logicalSlotFuture,
+            final Consumer<Throwable> slotRequestFailureHandler) {
 
-		final SlotExecutionVertexAssignment slotExecutionVertexAssignment =
-			new SlotExecutionVertexAssignment(executionVertexId, logicalSlotFuture);
+        final SlotExecutionVertexAssignment slotExecutionVertexAssignment =
+                new SlotExecutionVertexAssignment(executionVertexId, logicalSlotFuture);
 
-		// add to map first in case the slot future is already completed
-		pendingSlotAssignments.put(executionVertexId, slotExecutionVertexAssignment);
+        // add to map first in case the slot future is already completed
+        pendingSlotAssignments.put(executionVertexId, slotExecutionVertexAssignment);
 
-		logicalSlotFuture.whenComplete(
-			(ignored, throwable) -> {
-				pendingSlotAssignments.remove(executionVertexId);
-				if (throwable != null) {
-					slotRequestFailureHandler.accept(throwable);
-				}
-			});
+        logicalSlotFuture.whenComplete(
+                (ignored, throwable) -> {
+                    pendingSlotAssignments.remove(executionVertexId);
+                    if (throwable != null) {
+                        slotRequestFailureHandler.accept(throwable);
+                    }
+                });
 
-		return slotExecutionVertexAssignment;
-	}
+        return slotExecutionVertexAssignment;
+    }
 
-	CompletableFuture<SlotProfile> getSlotProfileFuture(
-			final ExecutionVertexSchedulingRequirements schedulingRequirements,
-			final ResourceProfile physicalSlotResourceProfile,
-			final Set<ExecutionVertexID> producersToIgnore,
-			final Set<AllocationID> allPreviousAllocationIds) {
+    CompletableFuture<SlotProfile> getSlotProfileFuture(
+            final ExecutionVertexSchedulingRequirements schedulingRequirements,
+            final ResourceProfile physicalSlotResourceProfile,
+            final Set<ExecutionVertexID> producersToIgnore,
+            final Set<AllocationID> allPreviousAllocationIds) {
 
-		final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture =
-			preferredLocationsRetriever.getPreferredLocations(
-				schedulingRequirements.getExecutionVertexId(),
-				producersToIgnore);
+        final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture =
+                preferredLocationsRetriever.getPreferredLocations(
+                        schedulingRequirements.getExecutionVertexId(), producersToIgnore);
 
-		return preferredLocationsFuture.thenApply(
-			preferredLocations ->
-				SlotProfile.priorAllocation(
-					schedulingRequirements.getTaskResourceProfile(),
-					physicalSlotResourceProfile,
-					preferredLocations,
-					Collections.singletonList(schedulingRequirements.getPreviousAllocationId()),
-					allPreviousAllocationIds));
-	}
+        return preferredLocationsFuture.thenApply(
+                preferredLocations ->
+                        SlotProfile.priorAllocation(
+                                schedulingRequirements.getTaskResourceProfile(),
+                                physicalSlotResourceProfile,
+                                preferredLocations,
+                                Collections.singletonList(
+                                        schedulingRequirements.getPreviousAllocationId()),
+                                allPreviousAllocationIds));
+    }
 
-	@VisibleForTesting
-	static Set<AllocationID> computeAllPriorAllocationIds(
-			final Collection<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
+    @VisibleForTesting
+    static Set<AllocationID> computeAllPriorAllocationIds(
+            final Collection<ExecutionVertexSchedulingRequirements>
+                    executionVertexSchedulingRequirements) {
 
-		return executionVertexSchedulingRequirements
-			.stream()
-			.map(ExecutionVertexSchedulingRequirements::getPreviousAllocationId)
-			.filter(Objects::nonNull)
-			.collect(Collectors.toSet());
-	}
+        return executionVertexSchedulingRequirements.stream()
+                .map(ExecutionVertexSchedulingRequirements::getPreviousAllocationId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
 
-	@VisibleForTesting
-	Map<ExecutionVertexID, SlotExecutionVertexAssignment> getPendingSlotAssignments() {
-		return Collections.unmodifiableMap(pendingSlotAssignments);
-	}
+    @VisibleForTesting
+    Map<ExecutionVertexID, SlotExecutionVertexAssignment> getPendingSlotAssignments() {
+        return Collections.unmodifiableMap(pendingSlotAssignments);
+    }
 }

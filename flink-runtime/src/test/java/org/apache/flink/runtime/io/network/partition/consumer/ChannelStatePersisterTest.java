@@ -32,42 +32,41 @@ import java.util.Collections;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * {@link ChannelStatePersister} test.
- */
+/** {@link ChannelStatePersister} test. */
 public class ChannelStatePersisterTest {
 
-	@Test
-	public void testNewBarrierNotOverwrittenByStopPersisting() throws IOException {
-		ChannelStatePersister persister = new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
+    @Test
+    public void testNewBarrierNotOverwrittenByStopPersisting() throws IOException {
+        ChannelStatePersister persister =
+                new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
 
-		persister.checkForBarrier(barrier(1L));
-		persister.startPersisting(1L, Collections.emptyList());
+        persister.checkForBarrier(barrier(1L));
+        persister.startPersisting(1L, Collections.emptyList());
 
-		// meanwhile, checkpoint coordinator timed out the 1st checkpoint and started the 2nd
-		// now task thread is picking up the barrier and aborts the 1st:
-		persister.checkForBarrier(barrier(2L));
-		persister.stopPersisting(1L);
+        // meanwhile, checkpoint coordinator timed out the 1st checkpoint and started the 2nd
+        // now task thread is picking up the barrier and aborts the 1st:
+        persister.checkForBarrier(barrier(2L));
+        persister.stopPersisting(1L);
 
-		assertTrue(persister.hasBarrierReceived());
-	}
+        assertTrue(persister.hasBarrierReceived());
+    }
 
-	@Test
-	public void testNewBarrierNotOverwrittenByCheckForBarrier() throws IOException {
-		ChannelStatePersister persister = new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
+    @Test
+    public void testNewBarrierNotOverwrittenByCheckForBarrier() throws IOException {
+        ChannelStatePersister persister =
+                new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
 
-		persister.startPersisting(1L, Collections.emptyList());
-		persister.startPersisting(2L, Collections.emptyList());
+        persister.startPersisting(1L, Collections.emptyList());
+        persister.startPersisting(2L, Collections.emptyList());
 
-		assertFalse(persister.checkForBarrier(barrier(1L)).isPresent());
+        assertFalse(persister.checkForBarrier(barrier(1L)).isPresent());
 
-		assertFalse(persister.hasBarrierReceived());
-	}
+        assertFalse(persister.hasBarrierReceived());
+    }
 
-	private static Buffer barrier(long id) throws IOException {
-		return EventSerializer.toBuffer(
-			new CheckpointBarrier(id, 1L, CheckpointOptions.forCheckpointWithDefaultLocation()),
-			true
-		);
-	}
+    private static Buffer barrier(long id) throws IOException {
+        return EventSerializer.toBuffer(
+                new CheckpointBarrier(id, 1L, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                true);
+    }
 }

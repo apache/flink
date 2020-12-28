@@ -27,42 +27,40 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Simple {@link CheckpointRecoveryFactory} which creates and keeps separate
- * {@link CompletedCheckpointStore} and {@link CheckpointIDCounter} for each {@link JobID}.
+ * Simple {@link CheckpointRecoveryFactory} which creates and keeps separate {@link
+ * CompletedCheckpointStore} and {@link CheckpointIDCounter} for each {@link JobID}.
  */
 public class PerJobCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
-	private final Function<Integer, CompletedCheckpointStore> completedCheckpointStorePerJobFactory;
-	private final Supplier<CheckpointIDCounter> checkpointIDCounterPerJobFactory;
-	private final Map<JobID, CompletedCheckpointStore> store;
-	private final Map<JobID, CheckpointIDCounter> counter;
+    private final Function<Integer, CompletedCheckpointStore> completedCheckpointStorePerJobFactory;
+    private final Supplier<CheckpointIDCounter> checkpointIDCounterPerJobFactory;
+    private final Map<JobID, CompletedCheckpointStore> store;
+    private final Map<JobID, CheckpointIDCounter> counter;
 
-	public PerJobCheckpointRecoveryFactory(
-			Function<Integer, CompletedCheckpointStore> completedCheckpointStorePerJobFactory,
-			Supplier<CheckpointIDCounter> checkpointIDCounterPerJobFactory) {
-		this.completedCheckpointStorePerJobFactory = completedCheckpointStorePerJobFactory;
-		this.checkpointIDCounterPerJobFactory = checkpointIDCounterPerJobFactory;
-		this.store = new HashMap<>();
-		this.counter = new HashMap<>();
-	}
+    public PerJobCheckpointRecoveryFactory(
+            Function<Integer, CompletedCheckpointStore> completedCheckpointStorePerJobFactory,
+            Supplier<CheckpointIDCounter> checkpointIDCounterPerJobFactory) {
+        this.completedCheckpointStorePerJobFactory = completedCheckpointStorePerJobFactory;
+        this.checkpointIDCounterPerJobFactory = checkpointIDCounterPerJobFactory;
+        this.store = new HashMap<>();
+        this.counter = new HashMap<>();
+    }
 
-	@Override
-	public CompletedCheckpointStore createCheckpointStore(
-			JobID jobId,
-			int maxNumberOfCheckpointsToRetain,
-			ClassLoader userClassLoader) {
-		return store.computeIfAbsent(jobId, jId ->
-			completedCheckpointStorePerJobFactory.apply(maxNumberOfCheckpointsToRetain));
-	}
+    @Override
+    public CompletedCheckpointStore createCheckpointStore(
+            JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) {
+        return store.computeIfAbsent(
+                jobId,
+                jId -> completedCheckpointStorePerJobFactory.apply(maxNumberOfCheckpointsToRetain));
+    }
 
-	@Override
-	public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) {
-		return counter.computeIfAbsent(jobId, jId -> checkpointIDCounterPerJobFactory.get());
-	}
+    @Override
+    public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) {
+        return counter.computeIfAbsent(jobId, jId -> checkpointIDCounterPerJobFactory.get());
+    }
 
-	@VisibleForTesting
-	public static CheckpointRecoveryFactory useSameServicesForAllJobs(
-			CompletedCheckpointStore store,
-			CheckpointIDCounter counter) {
-		return new PerJobCheckpointRecoveryFactory(n -> store, () -> counter);
-	}
+    @VisibleForTesting
+    public static CheckpointRecoveryFactory useSameServicesForAllJobs(
+            CompletedCheckpointStore store, CheckpointIDCounter counter) {
+        return new PerJobCheckpointRecoveryFactory(n -> store, () -> counter);
+    }
 }

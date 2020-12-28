@@ -36,21 +36,21 @@ import javax.annotation.Nullable;
  */
 public class StreamExecCorrelate extends CommonExecCorrelate implements StreamExecNode<RowData> {
 
-	public StreamExecCorrelate(
-			FlinkJoinType joinType,
-			RexCall invocation,
-			@Nullable RexNode condition,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(
-				joinType,
-				invocation,
-				condition,
-				AbstractProcessStreamOperator.class,
-				true,
-				inputEdge,
-				outputType,
-				description);
-	}
+    public StreamExecCorrelate(
+            FlinkJoinType joinType,
+            RexCall invocation,
+            @Nullable RexNode condition,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(
+                joinType,
+                invocation,
+                condition,
+                AbstractProcessStreamOperator.class,
+                true,
+                inputEdge,
+                outputType,
+                description);
+    }
 }

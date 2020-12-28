@@ -34,99 +34,118 @@ import java.util.Collections;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Transpose {@link StreamPhysicalWatermarkAssigner} past into {@link StreamPhysicalChangelogNormalize}.
+ * Transpose {@link StreamPhysicalWatermarkAssigner} past into {@link
+ * StreamPhysicalChangelogNormalize}.
  */
 public class WatermarkAssignerChangelogNormalizeTransposeRule
-	extends RelRule<WatermarkAssignerChangelogNormalizeTransposeRule.Config> {
+        extends RelRule<WatermarkAssignerChangelogNormalizeTransposeRule.Config> {
 
-	public static final RelOptRule WITH_CALC = Config.EMPTY
-		.withDescription("WatermarkAssignerChangelogNormalizeTransposeRuleWithCalc")
-		.as(Config.class)
-		.withCalc()
-		.toRule();
+    public static final RelOptRule WITH_CALC =
+            Config.EMPTY
+                    .withDescription("WatermarkAssignerChangelogNormalizeTransposeRuleWithCalc")
+                    .as(Config.class)
+                    .withCalc()
+                    .toRule();
 
-	public static final RelOptRule WITHOUT_CALC = Config.EMPTY
-		.withDescription("WatermarkAssignerChangelogNormalizeTransposeRuleWithoutCalc")
-		.as(Config.class)
-		.withoutCalc()
-		.toRule();
+    public static final RelOptRule WITHOUT_CALC =
+            Config.EMPTY
+                    .withDescription("WatermarkAssignerChangelogNormalizeTransposeRuleWithoutCalc")
+                    .as(Config.class)
+                    .withoutCalc()
+                    .toRule();
 
-	public WatermarkAssignerChangelogNormalizeTransposeRule(Config config) {
-		super(config);
-	}
+    public WatermarkAssignerChangelogNormalizeTransposeRule(Config config) {
+        super(config);
+    }
 
-	@Override
-	public void onMatch(RelOptRuleCall call) {
-		final StreamPhysicalWatermarkAssigner watermark = call.rel(0);
-		final RelNode node = call.rel(1);
-		if (node instanceof StreamPhysicalCalc) {
-			// with calc
-			final StreamPhysicalCalc calc = call.rel(1);
-			final StreamPhysicalChangelogNormalize changelogNormalize = call.rel(2);
-			final StreamPhysicalExchange exchange = call.rel(3);
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+        final StreamPhysicalWatermarkAssigner watermark = call.rel(0);
+        final RelNode node = call.rel(1);
+        if (node instanceof StreamPhysicalCalc) {
+            // with calc
+            final StreamPhysicalCalc calc = call.rel(1);
+            final StreamPhysicalChangelogNormalize changelogNormalize = call.rel(2);
+            final StreamPhysicalExchange exchange = call.rel(3);
 
-			final RelNode newTree = buildTreeInOrder(
-				changelogNormalize,
-				exchange,
-				watermark,
-				calc,
-				exchange.getInput());
-			call.transformTo(newTree);
-		} else if (node instanceof StreamPhysicalChangelogNormalize) {
-			// without calc
-			final StreamPhysicalChangelogNormalize changelogNormalize = call.rel(1);
-			final StreamPhysicalExchange exchange = call.rel(2);
+            final RelNode newTree =
+                    buildTreeInOrder(
+                            changelogNormalize, exchange, watermark, calc, exchange.getInput());
+            call.transformTo(newTree);
+        } else if (node instanceof StreamPhysicalChangelogNormalize) {
+            // without calc
+            final StreamPhysicalChangelogNormalize changelogNormalize = call.rel(1);
+            final StreamPhysicalExchange exchange = call.rel(2);
 
-			final RelNode newTree = buildTreeInOrder(
-				changelogNormalize,
-				exchange,
-				watermark,
-				exchange.getInput());
-			call.transformTo(newTree);
-		} else {
-			throw new IllegalStateException(this.getClass().getName() +
-				" matches a wrong relation tree: " + RelOptUtil.toString(watermark));
-		}
-	}
+            final RelNode newTree =
+                    buildTreeInOrder(changelogNormalize, exchange, watermark, exchange.getInput());
+            call.transformTo(newTree);
+        } else {
+            throw new IllegalStateException(
+                    this.getClass().getName()
+                            + " matches a wrong relation tree: "
+                            + RelOptUtil.toString(watermark));
+        }
+    }
 
-	/**
-	 * Build a new {@link RelNode} tree in the given nodes order which is in root-down direction.
-	 */
-	private RelNode buildTreeInOrder(RelNode... nodes) {
-		checkArgument(nodes.length >= 2);
-		RelNode root = nodes[nodes.length - 1];
-		for (int i = nodes.length - 2; i >= 0; i--) {
-			RelNode node = nodes[i];
-			root = node.copy(node.getTraitSet(), Collections.singletonList(root));
-		}
-		return root;
-	}
+    /**
+     * Build a new {@link RelNode} tree in the given nodes order which is in root-down direction.
+     */
+    private RelNode buildTreeInOrder(RelNode... nodes) {
+        checkArgument(nodes.length >= 2);
+        RelNode root = nodes[nodes.length - 1];
+        for (int i = nodes.length - 2; i >= 0; i--) {
+            RelNode node = nodes[i];
+            root = node.copy(node.getTraitSet(), Collections.singletonList(root));
+        }
+        return root;
+    }
 
-	/**
-	 * Rule configuration.
-	 */
-	public interface Config extends RelRule.Config {
+    /** Rule configuration. */
+    public interface Config extends RelRule.Config {
 
-		@Override
-		default WatermarkAssignerChangelogNormalizeTransposeRule toRule() {
-			return new WatermarkAssignerChangelogNormalizeTransposeRule(this);
-		}
+        @Override
+        default WatermarkAssignerChangelogNormalizeTransposeRule toRule() {
+            return new WatermarkAssignerChangelogNormalizeTransposeRule(this);
+        }
 
-		default Config withCalc() {
-			return withOperandSupplier(b0 ->
-				b0.operand(StreamPhysicalWatermarkAssigner.class).oneInput(
-					b1 -> b1.operand(StreamPhysicalCalc.class).oneInput(
-						b2 -> b2.operand(StreamPhysicalChangelogNormalize.class).oneInput(
-							b3 -> b3.operand(StreamPhysicalExchange.class).anyInputs()))))
-				.as(Config.class);
-		}
+        default Config withCalc() {
+            return withOperandSupplier(
+                            b0 ->
+                                    b0.operand(StreamPhysicalWatermarkAssigner.class)
+                                            .oneInput(
+                                                    b1 ->
+                                                            b1.operand(StreamPhysicalCalc.class)
+                                                                    .oneInput(
+                                                                            b2 ->
+                                                                                    b2.operand(
+                                                                                                    StreamPhysicalChangelogNormalize
+                                                                                                            .class)
+                                                                                            .oneInput(
+                                                                                                    b3 ->
+                                                                                                            b3.operand(
+                                                                                                                            StreamPhysicalExchange
+                                                                                                                                    .class)
+                                                                                                                    .anyInputs()))))
+                    .as(Config.class);
+        }
 
-		default Config withoutCalc() {
-			return withOperandSupplier(b0 ->
-				b0.operand(StreamPhysicalWatermarkAssigner.class).oneInput(
-					b1 -> b1.operand(StreamPhysicalChangelogNormalize.class).oneInput(
-						b2 -> b2.operand(StreamPhysicalExchange.class).anyInputs())))
-				.as(Config.class);
-		}
-	}
+        default Config withoutCalc() {
+            return withOperandSupplier(
+                            b0 ->
+                                    b0.operand(StreamPhysicalWatermarkAssigner.class)
+                                            .oneInput(
+                                                    b1 ->
+                                                            b1.operand(
+                                                                            StreamPhysicalChangelogNormalize
+                                                                                    .class)
+                                                                    .oneInput(
+                                                                            b2 ->
+                                                                                    b2.operand(
+                                                                                                    StreamPhysicalExchange
+                                                                                                            .class)
+                                                                                            .anyInputs())))
+                    .as(Config.class);
+        }
+    }
 }

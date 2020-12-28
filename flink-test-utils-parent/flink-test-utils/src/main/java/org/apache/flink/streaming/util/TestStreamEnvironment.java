@@ -28,78 +28,67 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}.
- */
+/** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
-	public TestStreamEnvironment(
-			MiniCluster miniCluster,
-			int parallelism,
-			Collection<Path> jarFiles,
-			Collection<URL> classPaths) {
-		super(
-				new MiniClusterPipelineExecutorServiceLoader(miniCluster),
-				MiniClusterPipelineExecutorServiceLoader.createConfiguration(jarFiles, classPaths),
-				null);
+    public TestStreamEnvironment(
+            MiniCluster miniCluster,
+            int parallelism,
+            Collection<Path> jarFiles,
+            Collection<URL> classPaths) {
+        super(
+                new MiniClusterPipelineExecutorServiceLoader(miniCluster),
+                MiniClusterPipelineExecutorServiceLoader.createConfiguration(jarFiles, classPaths),
+                null);
 
-		setParallelism(parallelism);
-	}
+        setParallelism(parallelism);
+    }
 
-	public TestStreamEnvironment(
-			MiniCluster miniCluster,
-			int parallelism) {
-		this(miniCluster, parallelism, Collections.emptyList(), Collections.emptyList());
-	}
+    public TestStreamEnvironment(MiniCluster miniCluster, int parallelism) {
+        this(miniCluster, parallelism, Collections.emptyList(), Collections.emptyList());
+    }
 
-	/**
-	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
-	 * the given cluster with the given default parallelism and the specified jar files and class
-	 * paths.
-	 *
-	 * @param miniCluster The MiniCluster to execute jobs on.
-	 * @param parallelism The default parallelism for the test programs.
-	 * @param jarFiles Additional jar files to execute the job with
-	 * @param classpaths Additional class paths to execute the job with
-	 */
-	public static void setAsContext(
-			final MiniCluster miniCluster,
-			final int parallelism,
-			final Collection<Path> jarFiles,
-			final Collection<URL> classpaths) {
+    /**
+     * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
+     * the given cluster with the given default parallelism and the specified jar files and class
+     * paths.
+     *
+     * @param miniCluster The MiniCluster to execute jobs on.
+     * @param parallelism The default parallelism for the test programs.
+     * @param jarFiles Additional jar files to execute the job with
+     * @param classpaths Additional class paths to execute the job with
+     */
+    public static void setAsContext(
+            final MiniCluster miniCluster,
+            final int parallelism,
+            final Collection<Path> jarFiles,
+            final Collection<URL> classpaths) {
 
-		StreamExecutionEnvironmentFactory factory = conf -> {
-			TestStreamEnvironment env = new TestStreamEnvironment(
-				miniCluster,
-				parallelism,
-				jarFiles,
-				classpaths);
-			env.configure(conf, env.getUserClassloader());
-			return env;
-		};
+        StreamExecutionEnvironmentFactory factory =
+                conf -> {
+                    TestStreamEnvironment env =
+                            new TestStreamEnvironment(
+                                    miniCluster, parallelism, jarFiles, classpaths);
+                    env.configure(conf, env.getUserClassloader());
+                    return env;
+                };
 
-		initializeContextEnvironment(factory);
-	}
+        initializeContextEnvironment(factory);
+    }
 
-	/**
-	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
-	 * the given cluster with the given default parallelism.
-	 *
-	 * @param miniCluster The MiniCluster to execute jobs on.
-	 * @param parallelism The default parallelism for the test programs.
-	 */
-	public static void setAsContext(final MiniCluster miniCluster, final int parallelism) {
-		setAsContext(
-				miniCluster,
-				parallelism,
-				Collections.emptyList(),
-				Collections.emptyList());
-	}
+    /**
+     * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
+     * the given cluster with the given default parallelism.
+     *
+     * @param miniCluster The MiniCluster to execute jobs on.
+     * @param parallelism The default parallelism for the test programs.
+     */
+    public static void setAsContext(final MiniCluster miniCluster, final int parallelism) {
+        setAsContext(miniCluster, parallelism, Collections.emptyList(), Collections.emptyList());
+    }
 
-	/**
-	 * Resets the streaming context environment to null.
-	 */
-	public static void unsetAsContext() {
-		resetContextEnvironment();
-	}
+    /** Resets the streaming context environment to null. */
+    public static void unsetAsContext() {
+        resetContextEnvironment();
+    }
 }

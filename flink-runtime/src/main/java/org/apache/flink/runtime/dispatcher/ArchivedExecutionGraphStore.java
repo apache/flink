@@ -29,55 +29,53 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 
-/**
- * Interface for a {@link ArchivedExecutionGraph} store.
- */
+/** Interface for a {@link ArchivedExecutionGraph} store. */
 public interface ArchivedExecutionGraphStore extends Closeable {
 
-	/**
-	 * Returns the current number of stored {@link ArchivedExecutionGraph}.
-	 *
-	 * @return Current number of stored {@link ArchivedExecutionGraph}
-	 */
-	int size();
+    /**
+     * Returns the current number of stored {@link ArchivedExecutionGraph}.
+     *
+     * @return Current number of stored {@link ArchivedExecutionGraph}
+     */
+    int size();
 
-	/**
-	 * Get the {@link ArchivedExecutionGraph} for the given job id. Null if it isn't stored.
-	 *
-	 * @param jobId identifying the serializable execution graph to retrieve
-	 * @return The stored serializable execution graph or null
-	 */
-	@Nullable
-	ArchivedExecutionGraph get(JobID jobId);
+    /**
+     * Get the {@link ArchivedExecutionGraph} for the given job id. Null if it isn't stored.
+     *
+     * @param jobId identifying the serializable execution graph to retrieve
+     * @return The stored serializable execution graph or null
+     */
+    @Nullable
+    ArchivedExecutionGraph get(JobID jobId);
 
-	/**
-	 * Store the given {@link ArchivedExecutionGraph} in the store.
-	 *
-	 * @param archivedExecutionGraph to store
-	 * @throws IOException if the serializable execution graph could not be stored in the store
-	 */
-	void put(ArchivedExecutionGraph archivedExecutionGraph) throws IOException;
+    /**
+     * Store the given {@link ArchivedExecutionGraph} in the store.
+     *
+     * @param archivedExecutionGraph to store
+     * @throws IOException if the serializable execution graph could not be stored in the store
+     */
+    void put(ArchivedExecutionGraph archivedExecutionGraph) throws IOException;
 
-	/**
-	 * Return the {@link JobsOverview} for all stored/past jobs.
-	 *
-	 * @return Jobs overview for all stored/past jobs
-	 */
-	JobsOverview getStoredJobsOverview();
+    /**
+     * Return the {@link JobsOverview} for all stored/past jobs.
+     *
+     * @return Jobs overview for all stored/past jobs
+     */
+    JobsOverview getStoredJobsOverview();
 
-	/**
-	 * Return the collection of {@link JobDetails} of all currently stored jobs.
-	 *
-	 * @return Collection of job details of all currently stored jobs
-	 */
-	Collection<JobDetails> getAvailableJobDetails();
+    /**
+     * Return the collection of {@link JobDetails} of all currently stored jobs.
+     *
+     * @return Collection of job details of all currently stored jobs
+     */
+    Collection<JobDetails> getAvailableJobDetails();
 
-	/**
-	 * Return the {@link JobDetails}} for the given job.
-	 *
-	 * @param jobId identifying the job for which to retrieve the {@link JobDetails}
-	 * @return {@link JobDetails} of the requested job or null if the job is not available
-	 */
-	@Nullable
-	JobDetails getAvailableJobDetails(JobID jobId);
+    /**
+     * Return the {@link JobDetails}} for the given job.
+     *
+     * @param jobId identifying the job for which to retrieve the {@link JobDetails}
+     * @return {@link JobDetails} of the requested job or null if the job is not available
+     */
+    @Nullable
+    JobDetails getAvailableJobDetails(JobID jobId);
 }

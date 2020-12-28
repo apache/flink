@@ -33,39 +33,37 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link ChecksumHashCode}.
- */
+/** Tests for {@link ChecksumHashCode}. */
 public class ChecksumHashCodeTest {
 
-	private ExecutionEnvironment env;
+    private ExecutionEnvironment env;
 
-	@Before
-	public void setup() throws Exception {
-		env = ExecutionEnvironment.createCollectionsEnvironment();
-		env.getConfig().enableObjectReuse();
-	}
+    @Before
+    public void setup() throws Exception {
+        env = ExecutionEnvironment.createCollectionsEnvironment();
+        env.getConfig().enableObjectReuse();
+    }
 
-	@Test
-	public void testList() throws Exception {
-		List<Long> list = Arrays.asList(ArrayUtils.toObject(
-			new long[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }));
+    @Test
+    public void testList() throws Exception {
+        List<Long> list =
+                Arrays.asList(ArrayUtils.toObject(new long[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));
 
-		DataSet<Long> dataset = env.fromCollection(list);
+        DataSet<Long> dataset = env.fromCollection(list);
 
-		Checksum checksum = new ChecksumHashCode<Long>().run(dataset).execute();
+        Checksum checksum = new ChecksumHashCode<Long>().run(dataset).execute();
 
-		assertEquals(list.size(), checksum.getCount());
-		assertEquals(list.size() * (list.size() - 1) / 2, checksum.getChecksum());
-	}
+        assertEquals(list.size(), checksum.getCount());
+        assertEquals(list.size() * (list.size() - 1) / 2, checksum.getChecksum());
+    }
 
-	@Test
-	public void testEmptyList() throws Exception {
-		DataSet<Long> dataset = env.fromCollection(Collections.emptyList(), Types.LONG);
+    @Test
+    public void testEmptyList() throws Exception {
+        DataSet<Long> dataset = env.fromCollection(Collections.emptyList(), Types.LONG);
 
-		Checksum checksum = new ChecksumHashCode<Long>().run(dataset).execute();
+        Checksum checksum = new ChecksumHashCode<Long>().run(dataset).execute();
 
-		assertEquals(0, checksum.getCount());
-		assertEquals(0, checksum.getChecksum());
-	}
+        assertEquals(0, checksum.getCount());
+        assertEquals(0, checksum.getChecksum());
+    }
 }

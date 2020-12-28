@@ -48,90 +48,97 @@ import scala.Tuple3;
 import scala.collection.Seq;
 
 /**
- * The physical rule which is responsible for converting {@link FlinkLogicalAggregate} to
- * {@link BatchExecPythonGroupAggregate}.
+ * The physical rule which is responsible for converting {@link FlinkLogicalAggregate} to {@link
+ * BatchExecPythonGroupAggregate}.
  */
 public class BatchExecPythonAggregateRule extends ConverterRule {
 
-	public static final RelOptRule INSTANCE = new BatchExecPythonAggregateRule();
+    public static final RelOptRule INSTANCE = new BatchExecPythonAggregateRule();
 
-	private BatchExecPythonAggregateRule() {
-		super(FlinkLogicalAggregate.class, FlinkConventions.LOGICAL(), FlinkConventions.BATCH_PHYSICAL(),
-			"BatchExecPythonAggregateRule");
-	}
+    private BatchExecPythonAggregateRule() {
+        super(
+                FlinkLogicalAggregate.class,
+                FlinkConventions.LOGICAL(),
+                FlinkConventions.BATCH_PHYSICAL(),
+                "BatchExecPythonAggregateRule");
+    }
 
-	@Override
-	public boolean matches(RelOptRuleCall call) {
-		FlinkLogicalAggregate agg = call.rel(0);
-		List<AggregateCall> aggCalls = agg.getAggCallList();
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        FlinkLogicalAggregate agg = call.rel(0);
+        List<AggregateCall> aggCalls = agg.getAggCallList();
 
-		boolean existGeneralPythonFunction =
-			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
-		boolean existPandasFunction =
-			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
-		boolean existJavaFunction =
-			aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
-		if (existPandasFunction || existGeneralPythonFunction) {
-			if (existGeneralPythonFunction) {
-				throw new TableException("non-Pandas UDAFs are not supported in batch mode currently.");
-			}
-			if (existJavaFunction) {
-				throw new TableException("Python UDAF and Java/Scala UDAF cannot be used together.");
-			}
-			return true;
-		} else {
-			return false;
-		}
-	}
+        boolean existGeneralPythonFunction =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
+        boolean existPandasFunction =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
+        boolean existJavaFunction =
+                aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
+        if (existPandasFunction || existGeneralPythonFunction) {
+            if (existGeneralPythonFunction) {
+                throw new TableException(
+                        "non-Pandas UDAFs are not supported in batch mode currently.");
+            }
+            if (existJavaFunction) {
+                throw new TableException(
+                        "Python UDAF and Java/Scala UDAF cannot be used together.");
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public RelNode convert(RelNode relNode) {
-		FlinkLogicalAggregate agg = (FlinkLogicalAggregate) relNode;
-		RelNode input = agg.getInput();
+    @Override
+    public RelNode convert(RelNode relNode) {
+        FlinkLogicalAggregate agg = (FlinkLogicalAggregate) relNode;
+        RelNode input = agg.getInput();
 
-		int[] groupSet = agg.getGroupSet().toArray();
-		RelTraitSet traitSet = relNode.getTraitSet().replace(FlinkConventions.BATCH_PHYSICAL());
+        int[] groupSet = agg.getGroupSet().toArray();
+        RelTraitSet traitSet = relNode.getTraitSet().replace(FlinkConventions.BATCH_PHYSICAL());
 
-		Tuple2<int[], Seq<AggregateCall>> auxGroupSetAndCallsTuple = AggregateUtil.checkAndSplitAggCalls(agg);
-		int[] auxGroupSet = auxGroupSetAndCallsTuple._1;
-		Seq<AggregateCall> aggCallsWithoutAuxGroupCalls = auxGroupSetAndCallsTuple._2;
+        Tuple2<int[], Seq<AggregateCall>> auxGroupSetAndCallsTuple =
+                AggregateUtil.checkAndSplitAggCalls(agg);
+        int[] auxGroupSet = auxGroupSetAndCallsTuple._1;
+        Seq<AggregateCall> aggCallsWithoutAuxGroupCalls = auxGroupSetAndCallsTuple._2;
 
-		Tuple3<int[][], DataType[][], UserDefinedFunction[]> aggBufferTypesAndFunctions =
-			AggregateUtil.transformToBatchAggregateFunctions(
-				aggCallsWithoutAuxGroupCalls, input.getRowType(), null);
-		UserDefinedFunction[] aggFunctions = aggBufferTypesAndFunctions._3();
+        Tuple3<int[][], DataType[][], UserDefinedFunction[]> aggBufferTypesAndFunctions =
+                AggregateUtil.transformToBatchAggregateFunctions(
+                        aggCallsWithoutAuxGroupCalls, input.getRowType(), null);
+        UserDefinedFunction[] aggFunctions = aggBufferTypesAndFunctions._3();
 
-		RelTraitSet requiredTraitSet = input.getTraitSet()
-			.replace(FlinkConventions.BATCH_PHYSICAL());
-		if (groupSet.length != 0) {
-			FlinkRelDistribution requiredDistribution =
-				FlinkRelDistribution.hash(groupSet, false);
-			requiredTraitSet = requiredTraitSet.replace(requiredDistribution);
-			RelCollation sortCollation = createRelCollation(groupSet);
-			requiredTraitSet = requiredTraitSet.replace(sortCollation);
-		} else {
-			requiredTraitSet = requiredTraitSet.replace(FlinkRelDistribution.SINGLETON());
-		}
-		RelNode convInput = RelOptRule.convert(input, requiredTraitSet);
+        RelTraitSet requiredTraitSet =
+                input.getTraitSet().replace(FlinkConventions.BATCH_PHYSICAL());
+        if (groupSet.length != 0) {
+            FlinkRelDistribution requiredDistribution = FlinkRelDistribution.hash(groupSet, false);
+            requiredTraitSet = requiredTraitSet.replace(requiredDistribution);
+            RelCollation sortCollation = createRelCollation(groupSet);
+            requiredTraitSet = requiredTraitSet.replace(sortCollation);
+        } else {
+            requiredTraitSet = requiredTraitSet.replace(FlinkRelDistribution.SINGLETON());
+        }
+        RelNode convInput = RelOptRule.convert(input, requiredTraitSet);
 
-		return new BatchExecPythonGroupAggregate(
-			relNode.getCluster(),
-			traitSet,
-			convInput,
-			agg.getRowType(),
-			convInput.getRowType(),
-			convInput.getRowType(),
-			groupSet,
-			auxGroupSet,
-			aggCallsWithoutAuxGroupCalls,
-			aggFunctions);
-	}
+        return new BatchExecPythonGroupAggregate(
+                relNode.getCluster(),
+                traitSet,
+                convInput,
+                agg.getRowType(),
+                convInput.getRowType(),
+                convInput.getRowType(),
+                groupSet,
+                auxGroupSet,
+                aggCallsWithoutAuxGroupCalls,
+                aggFunctions);
+    }
 
-	private RelCollation createRelCollation(int[] groupSet) {
-		List<RelFieldCollation> fields = new LinkedList<>();
-		for (int value : groupSet) {
-			fields.add(FlinkRelOptUtil.ofRelFieldCollation(value));
-		}
-		return RelCollations.of(fields);
-	}
+    private RelCollation createRelCollation(int[] groupSet) {
+        List<RelFieldCollation> fields = new LinkedList<>();
+        for (int value : groupSet) {
+            fields.add(FlinkRelOptUtil.ofRelFieldCollation(value));
+        }
+        return RelCollations.of(fields);
+    }
 }

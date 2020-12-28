@@ -30,79 +30,81 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Base class which provides some convenience functions for testing purposes of {@link LeaderContender} and
- * {@link LeaderElectionEventHandler}.
+ * Base class which provides some convenience functions for testing purposes of {@link
+ * LeaderContender} and {@link LeaderElectionEventHandler}.
  */
 public class TestingLeaderBase {
-	// The queues will be offered by subclasses
-	protected final BlockingQueue<LeaderInformation> leaderEventQueue = new LinkedBlockingQueue<>();
-	private final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<>();
+    // The queues will be offered by subclasses
+    protected final BlockingQueue<LeaderInformation> leaderEventQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<>();
 
-	private boolean isLeader = false;
-	private Throwable error;
+    private boolean isLeader = false;
+    private Throwable error;
 
-	public void waitForLeader(long timeout) throws Exception {
-		throwExceptionIfNotNull();
+    public void waitForLeader(long timeout) throws Exception {
+        throwExceptionIfNotNull();
 
-		final String errorMsg = "Contender was not elected as the leader within " + timeout + "ms";
-		CommonTestUtils.waitUntilCondition(
-			() -> {
-				final LeaderInformation leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
-				return leader != null && !leader.isEmpty();
-			},
-			Deadline.fromNow(Duration.ofMillis(timeout)),
-			errorMsg);
+        final String errorMsg = "Contender was not elected as the leader within " + timeout + "ms";
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    final LeaderInformation leader =
+                            leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
+                    return leader != null && !leader.isEmpty();
+                },
+                Deadline.fromNow(Duration.ofMillis(timeout)),
+                errorMsg);
 
-		isLeader = true;
-	}
+        isLeader = true;
+    }
 
-	public void waitForRevokeLeader(long timeout) throws Exception {
-		throwExceptionIfNotNull();
+    public void waitForRevokeLeader(long timeout) throws Exception {
+        throwExceptionIfNotNull();
 
-		final String errorMsg = "Contender was not revoked within " + timeout + "ms";
-		CommonTestUtils.waitUntilCondition(
-			() -> {
-				final LeaderInformation leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
-				return leader != null && leader.isEmpty();
-			},
-			Deadline.fromNow(Duration.ofMillis(timeout)),
-			errorMsg);
+        final String errorMsg = "Contender was not revoked within " + timeout + "ms";
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    final LeaderInformation leader =
+                            leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
+                    return leader != null && leader.isEmpty();
+                },
+                Deadline.fromNow(Duration.ofMillis(timeout)),
+                errorMsg);
 
-		isLeader = false;
-	}
+        isLeader = false;
+    }
 
-	public void waitForError(long timeout) throws Exception {
-		final String errorMsg = "Contender did not see an exception with " + timeout + "ms";
-		CommonTestUtils.waitUntilCondition(
-			() -> {
-				error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
-				return error != null;
-			},
-			Deadline.fromNow(Duration.ofMillis(timeout)),
-			errorMsg);
-	}
+    public void waitForError(long timeout) throws Exception {
+        final String errorMsg = "Contender did not see an exception with " + timeout + "ms";
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
+                    return error != null;
+                },
+                Deadline.fromNow(Duration.ofMillis(timeout)),
+                errorMsg);
+    }
 
-	public void handleError(Throwable ex) {
-		errorQueue.offer(ex);
-	}
+    public void handleError(Throwable ex) {
+        errorQueue.offer(ex);
+    }
 
-	/**
-	 * Please use {@link #waitForError} before get the error.
-	 *
-	 * @return the error has been handled.
-	 */
-	@Nullable
-	public Throwable getError() {
-		return this.error;
-	}
+    /**
+     * Please use {@link #waitForError} before get the error.
+     *
+     * @return the error has been handled.
+     */
+    @Nullable
+    public Throwable getError() {
+        return this.error;
+    }
 
-	public boolean isLeader() {
-		return isLeader;
-	}
+    public boolean isLeader() {
+        return isLeader;
+    }
 
-	private void throwExceptionIfNotNull() throws Exception {
-		if (error != null) {
-			ExceptionUtils.rethrowException(error);
-		}
-	}
+    private void throwExceptionIfNotNull() throws Exception {
+        if (error != null) {
+            ExceptionUtils.rethrowException(error);
+        }
+    }
 }

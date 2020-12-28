@@ -23,29 +23,26 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Implement of {@link ExecNodeVisitor}.
- * All nodes are visited exactly once.
- */
+/** Implement of {@link ExecNodeVisitor}. All nodes are visited exactly once. */
 public abstract class AbstractExecNodeExactlyOnceVisitor implements ExecNodeVisitor {
 
-	private final Set<ExecNode<?>> visited;
+    private final Set<ExecNode<?>> visited;
 
-	public AbstractExecNodeExactlyOnceVisitor() {
-		this.visited = new HashSet<>();
-	}
+    public AbstractExecNodeExactlyOnceVisitor() {
+        this.visited = new HashSet<>();
+    }
 
-	public void visit(ExecNode<?> node) {
-		if (visited.contains(node)) {
-			return;
-		}
-		visited.add(node);
-		visitNode(node);
-	}
+    public void visit(ExecNode<?> node) {
+        if (visited.contains(node)) {
+            return;
+        }
+        visited.add(node);
+        visitNode(node);
+    }
 
-	protected abstract void visitNode(ExecNode<?> node);
+    protected abstract void visitNode(ExecNode<?> node);
 
-	protected void visitInputs(ExecNode<?> node) {
-		node.getInputNodes().forEach(n -> n.accept(this));
-	}
+    protected void visitInputs(ExecNode<?> node) {
+        node.getInputNodes().forEach(n -> n.accept(this));
+    }
 }

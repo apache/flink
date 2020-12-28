@@ -35,77 +35,76 @@ import java.io.IOException;
 @Internal
 public final class VoidNamespaceSerializer extends TypeSerializerSingleton<VoidNamespace> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final VoidNamespaceSerializer INSTANCE = new VoidNamespaceSerializer();
+    public static final VoidNamespaceSerializer INSTANCE = new VoidNamespaceSerializer();
 
-	@Override
-	public boolean isImmutableType() {
-		return true;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return true;
+    }
 
-	@Override
-	public VoidNamespace createInstance() {
-		return VoidNamespace.get();
-	}
+    @Override
+    public VoidNamespace createInstance() {
+        return VoidNamespace.get();
+    }
 
-	@Override
-	public VoidNamespace copy(VoidNamespace from) {
-		return VoidNamespace.get();
-	}
+    @Override
+    public VoidNamespace copy(VoidNamespace from) {
+        return VoidNamespace.get();
+    }
 
-	@Override
-	public VoidNamespace copy(VoidNamespace from, VoidNamespace reuse) {
-		return VoidNamespace.get();
-	}
+    @Override
+    public VoidNamespace copy(VoidNamespace from, VoidNamespace reuse) {
+        return VoidNamespace.get();
+    }
 
-	@Override
-	public int getLength() {
-		return 0;
-	}
+    @Override
+    public int getLength() {
+        return 0;
+    }
 
-	@Override
-	public void serialize(VoidNamespace record, DataOutputView target) throws IOException {
-		// Make progress in the stream, write one byte.
-		//
-		// We could just skip writing anything here, because of the way this is
-		// used with the state backends, but if it is ever used somewhere else
-		// (even though it is unlikely to happen), it would be a problem.
-		target.write(0);
-	}
+    @Override
+    public void serialize(VoidNamespace record, DataOutputView target) throws IOException {
+        // Make progress in the stream, write one byte.
+        //
+        // We could just skip writing anything here, because of the way this is
+        // used with the state backends, but if it is ever used somewhere else
+        // (even though it is unlikely to happen), it would be a problem.
+        target.write(0);
+    }
 
-	@Override
-	public VoidNamespace deserialize(DataInputView source) throws IOException {
-		source.readByte();
-		return VoidNamespace.get();
-	}
+    @Override
+    public VoidNamespace deserialize(DataInputView source) throws IOException {
+        source.readByte();
+        return VoidNamespace.get();
+    }
 
-	@Override
-	public VoidNamespace deserialize(VoidNamespace reuse, DataInputView source) throws IOException {
-		source.readByte();
-		return VoidNamespace.get();
-	}
+    @Override
+    public VoidNamespace deserialize(VoidNamespace reuse, DataInputView source) throws IOException {
+        source.readByte();
+        return VoidNamespace.get();
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.write(source.readByte());
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.write(source.readByte());
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public TypeSerializerSnapshot<VoidNamespace> snapshotConfiguration() {
-		return new VoidNamespaceSerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<VoidNamespace> snapshotConfiguration() {
+        return new VoidNamespaceSerializerSnapshot();
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public class VoidNamespaceSerializerSnapshot extends SimpleTypeSerializerSnapshot<VoidNamespace> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public class VoidNamespaceSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<VoidNamespace> {
 
-		public VoidNamespaceSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+        public VoidNamespaceSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

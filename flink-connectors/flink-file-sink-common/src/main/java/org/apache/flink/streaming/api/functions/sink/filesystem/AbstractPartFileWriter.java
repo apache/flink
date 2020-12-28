@@ -20,39 +20,41 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 /**
  * An abstract writer for the currently open part file in a specific {@link Bucket}.
+ *
  * @param <IN> the element type.
  * @param <BucketID> the bucket id type.
  */
-public abstract class AbstractPartFileWriter<IN, BucketID> implements InProgressFileWriter<IN, BucketID> {
+public abstract class AbstractPartFileWriter<IN, BucketID>
+        implements InProgressFileWriter<IN, BucketID> {
 
-	private final BucketID bucketID;
+    private final BucketID bucketID;
 
-	private final long creationTime;
+    private final long creationTime;
 
-	private long lastUpdateTime;
+    private long lastUpdateTime;
 
-	public AbstractPartFileWriter(final BucketID bucketID, final long createTime) {
-		this.bucketID = bucketID;
-		this.creationTime = createTime;
-		this.lastUpdateTime = createTime;
-	}
+    public AbstractPartFileWriter(final BucketID bucketID, final long createTime) {
+        this.bucketID = bucketID;
+        this.creationTime = createTime;
+        this.lastUpdateTime = createTime;
+    }
 
-	@Override
-	public BucketID getBucketId() {
-		return bucketID;
-	}
+    @Override
+    public BucketID getBucketId() {
+        return bucketID;
+    }
 
-	@Override
-	public long getCreationTime() {
-		return creationTime;
-	}
+    @Override
+    public long getCreationTime() {
+        return creationTime;
+    }
 
-	@Override
-	public long getLastUpdateTime() {
-		return lastUpdateTime;
-	}
+    @Override
+    public long getLastUpdateTime() {
+        return lastUpdateTime;
+    }
 
-	protected void markWrite(long now) {
-		this.lastUpdateTime = now;
-	}
+    protected void markWrite(long now) {
+        this.lastUpdateTime = now;
+    }
 }

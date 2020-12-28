@@ -33,71 +33,70 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A test subpartition producer.
  *
- * <p> The behaviour of the producer is customizable by specifying a source.
+ * <p>The behaviour of the producer is customizable by specifying a source.
  *
  * @see TestProducerSource
  */
 public class TestSubpartitionProducer implements Callable<Boolean> {
 
-	public static final int MAX_SLEEP_TIME_MS = 20;
+    public static final int MAX_SLEEP_TIME_MS = 20;
 
-	/** The subpartition to add data to. */
-	private final ResultSubpartition subpartition;
+    /** The subpartition to add data to. */
+    private final ResultSubpartition subpartition;
 
-	/**
-	 * Flag indicating whether the consumer is slow. If true, the consumer will sleep a random
-	 * number of milliseconds between adding data.
-	 */
-	private final boolean isSlowProducer;
+    /**
+     * Flag indicating whether the consumer is slow. If true, the consumer will sleep a random
+     * number of milliseconds between adding data.
+     */
+    private final boolean isSlowProducer;
 
-	/** The source data. */
-	private final TestProducerSource source;
+    /** The source data. */
+    private final TestProducerSource source;
 
-	/** Random source for sleeps. */
-	private final Random random;
+    /** Random source for sleeps. */
+    private final Random random;
 
-	public TestSubpartitionProducer(
-			ResultSubpartition subpartition,
-			boolean isSlowProducer,
-			TestProducerSource source) {
+    public TestSubpartitionProducer(
+            ResultSubpartition subpartition, boolean isSlowProducer, TestProducerSource source) {
 
-		this.subpartition = checkNotNull(subpartition);
-		this.isSlowProducer = isSlowProducer;
-		this.random = isSlowProducer ? new Random() : null;
-		this.source = checkNotNull(source);
-	}
+        this.subpartition = checkNotNull(subpartition);
+        this.isSlowProducer = isSlowProducer;
+        this.random = isSlowProducer ? new Random() : null;
+        this.source = checkNotNull(source);
+    }
 
-	@Override
-	public Boolean call() throws Exception {
+    @Override
+    public Boolean call() throws Exception {
 
-		boolean success = false;
+        boolean success = false;
 
-		try {
-			BufferAndChannel bufferAndChannel;
+        try {
+            BufferAndChannel bufferAndChannel;
 
-			while ((bufferAndChannel = source.getNextBuffer()) != null) {
-				MemorySegment segment = MemorySegmentFactory.wrap(bufferAndChannel.getBuffer());
-				subpartition.add(new BufferConsumer(segment, MemorySegment::free, Buffer.DataType.DATA_BUFFER));
+            while ((bufferAndChannel = source.getNextBuffer()) != null) {
+                MemorySegment segment = MemorySegmentFactory.wrap(bufferAndChannel.getBuffer());
+                subpartition.add(
+                        new BufferConsumer(
+                                segment, MemorySegment::free, Buffer.DataType.DATA_BUFFER));
 
-				// Check for interrupted flag after adding data to prevent resource leaks
-				if (Thread.interrupted()) {
-					throw new InterruptedException();
-				}
+                // Check for interrupted flag after adding data to prevent resource leaks
+                if (Thread.interrupted()) {
+                    throw new InterruptedException();
+                }
 
-				if (isSlowProducer) {
-					Thread.sleep(random.nextInt(MAX_SLEEP_TIME_MS + 1));
-				}
-			}
+                if (isSlowProducer) {
+                    Thread.sleep(random.nextInt(MAX_SLEEP_TIME_MS + 1));
+                }
+            }
 
-			subpartition.finish();
+            subpartition.finish();
 
-			success = true;
-			return true;
-		}
-		finally {
-			if (!success) {
-				subpartition.release();
-			}
-		}
-	}
+            success = true;
+            return true;
+        } finally {
+            if (!success) {
+                subpartition.release();
+            }
+        }
+    }
 }

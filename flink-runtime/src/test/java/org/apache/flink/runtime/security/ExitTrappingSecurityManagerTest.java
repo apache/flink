@@ -40,109 +40,119 @@ import static org.junit.Assert.assertThat;
 /** Unit tests for {@link ExitTrappingSecurityManager}. */
 public class ExitTrappingSecurityManagerTest extends TestLogger {
 
-	private SecurityManager existingManager;
+    private SecurityManager existingManager;
 
-	@Before
-	public void before() {
-		existingManager = System.getSecurityManager();
-	}
+    @Before
+    public void before() {
+        existingManager = System.getSecurityManager();
+    }
 
-	@After
-	public void after() {
-		System.setSecurityManager(existingManager);
-	}
+    @After
+    public void after() {
+        System.setSecurityManager(existingManager);
+    }
 
-	@Test
-	public void testExitWithNoExistingSecurityManager() {
-		AtomicInteger customExitExecuted = new AtomicInteger(0);
-		ExitTrappingSecurityManager exitTrappingSecurityManager =
-			new ExitTrappingSecurityManager(customExitExecuted::set, null);
+    @Test
+    public void testExitWithNoExistingSecurityManager() {
+        AtomicInteger customExitExecuted = new AtomicInteger(0);
+        ExitTrappingSecurityManager exitTrappingSecurityManager =
+                new ExitTrappingSecurityManager(customExitExecuted::set, null);
 
-		exitTrappingSecurityManager.checkExit(42);
+        exitTrappingSecurityManager.checkExit(42);
 
-		assertThat(customExitExecuted.get(), is(42));
-	}
+        assertThat(customExitExecuted.get(), is(42));
+    }
 
-	@Test
-	public void testExistingSecurityManagerRespected() {
-		SecurityManager securityManager = new SecurityManager() {
-			@Override
-			public void checkPermission(Permission perm) {
-				throw new SecurityException("not allowed");
-			}
-		};
+    @Test
+    public void testExistingSecurityManagerRespected() {
+        SecurityManager securityManager =
+                new SecurityManager() {
+                    @Override
+                    public void checkPermission(Permission perm) {
+                        throw new SecurityException("not allowed");
+                    }
+                };
 
-		ExitTrappingSecurityManager exitTrappingSecurityManager =
-			new ExitTrappingSecurityManager(status -> Assert.fail(), securityManager);
+        ExitTrappingSecurityManager exitTrappingSecurityManager =
+                new ExitTrappingSecurityManager(status -> Assert.fail(), securityManager);
 
-		assertThrows("not allowed", SecurityException.class, () -> {
-			exitTrappingSecurityManager.checkExit(42);
-			return null;
-		});
-	}
+        assertThrows(
+                "not allowed",
+                SecurityException.class,
+                () -> {
+                    exitTrappingSecurityManager.checkExit(42);
+                    return null;
+                });
+    }
 
-	@Test
-	public void testExitCodeHandling() {
-		AtomicInteger exitingSecurityManagerCalled = new AtomicInteger(0);
-		SecurityManager securityManager = new SecurityManager() {
-			@Override
-			public void checkExit(int status) {
-				exitingSecurityManagerCalled.set(status);
-			}
-		};
+    @Test
+    public void testExitCodeHandling() {
+        AtomicInteger exitingSecurityManagerCalled = new AtomicInteger(0);
+        SecurityManager securityManager =
+                new SecurityManager() {
+                    @Override
+                    public void checkExit(int status) {
+                        exitingSecurityManagerCalled.set(status);
+                    }
+                };
 
-		AtomicInteger customExitExecuted = new AtomicInteger(0);
-		ExitTrappingSecurityManager exitTrappingSecurityManager =
-			new ExitTrappingSecurityManager(customExitExecuted::set, securityManager);
+        AtomicInteger customExitExecuted = new AtomicInteger(0);
+        ExitTrappingSecurityManager exitTrappingSecurityManager =
+                new ExitTrappingSecurityManager(customExitExecuted::set, securityManager);
 
-		exitTrappingSecurityManager.checkExit(42);
+        exitTrappingSecurityManager.checkExit(42);
 
-		assertThat(exitingSecurityManagerCalled.get(), is(42));
-		assertThat(customExitExecuted.get(), is(42));
-	}
+        assertThat(exitingSecurityManagerCalled.get(), is(42));
+        assertThat(customExitExecuted.get(), is(42));
+    }
 
-	@Test
-	public void testNotRegisteredByDefault() {
-		ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured(new Configuration());
+    @Test
+    public void testNotRegisteredByDefault() {
+        ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured(new Configuration());
 
-		assertThat(System.getSecurityManager(), not(instanceOf(ExitTrappingSecurityManager.class)));
-	}
+        assertThat(System.getSecurityManager(), not(instanceOf(ExitTrappingSecurityManager.class)));
+    }
 
-	@Test
-	public void testRegisteredWhenConfigValueSet() {
-		Configuration configuration = new Configuration();
-		configuration.set(ClusterOptions.HALT_ON_FATAL_ERROR, true);
+    @Test
+    public void testRegisteredWhenConfigValueSet() {
+        Configuration configuration = new Configuration();
+        configuration.set(ClusterOptions.HALT_ON_FATAL_ERROR, true);
 
-		ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured(configuration);
+        ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured(configuration);
 
-		assertThat(System.getSecurityManager(), is(instanceOf(ExitTrappingSecurityManager.class)));
-	}
+        assertThat(System.getSecurityManager(), is(instanceOf(ExitTrappingSecurityManager.class)));
+    }
 
-	@Test
-	public void testRegistrationNotAllowedByExistingSecurityManager() {
-		Configuration configuration = new Configuration();
-		configuration.set(ClusterOptions.HALT_ON_FATAL_ERROR, true);
+    @Test
+    public void testRegistrationNotAllowedByExistingSecurityManager() {
+        Configuration configuration = new Configuration();
+        configuration.set(ClusterOptions.HALT_ON_FATAL_ERROR, true);
 
-		System.setSecurityManager(new SecurityManager() {
+        System.setSecurityManager(
+                new SecurityManager() {
 
-			private boolean fired;
+                    private boolean fired;
 
-			@Override
-			public void checkPermission(Permission perm) {
-				if (!fired && perm.getName().equals("setSecurityManager")) {
-					try {
-						throw new SecurityException("not allowed");
-					} finally {
-						// Allow removing this manager again
-						fired = true;
-					}
-				}
-			}
-		});
+                    @Override
+                    public void checkPermission(Permission perm) {
+                        if (!fired && perm.getName().equals("setSecurityManager")) {
+                            try {
+                                throw new SecurityException("not allowed");
+                            } finally {
+                                // Allow removing this manager again
+                                fired = true;
+                            }
+                        }
+                    }
+                });
 
-		assertThrows("Could not register forceful shutdown handler.", IllegalConfigurationException.class, () -> {
-			ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured(configuration);
-			return null;
-		});
-	}
+        assertThrows(
+                "Could not register forceful shutdown handler.",
+                IllegalConfigurationException.class,
+                () -> {
+                    ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured(
+                            configuration);
+                    return null;
+                });
+    }
 }

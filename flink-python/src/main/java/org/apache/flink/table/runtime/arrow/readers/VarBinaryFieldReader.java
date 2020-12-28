@@ -22,18 +22,16 @@ import org.apache.flink.annotation.Internal;
 
 import org.apache.arrow.vector.VarBinaryVector;
 
-/**
- * {@link ArrowFieldReader} for VarBinary.
- */
+/** {@link ArrowFieldReader} for VarBinary. */
 @Internal
 public final class VarBinaryFieldReader extends ArrowFieldReader<byte[]> {
 
-	public VarBinaryFieldReader(VarBinaryVector varBinaryVector) {
-		super(varBinaryVector);
-	}
+    public VarBinaryFieldReader(VarBinaryVector varBinaryVector) {
+        super(varBinaryVector);
+    }
 
-	@Override
-	public byte[] read(int index) {
-		return ((VarBinaryVector) getValueVector()).get(index);
-	}
+    @Override
+    public byte[] read(int index) {
+        return ((VarBinaryVector) getValueVector()).get(index);
+    }
 }

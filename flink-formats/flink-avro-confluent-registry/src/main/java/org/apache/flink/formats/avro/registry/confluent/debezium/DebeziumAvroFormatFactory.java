@@ -46,102 +46,95 @@ import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptio
 import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_URL;
 
 /**
- * Format factory for providing configured instances of Debezium Avro to RowData {@link DeserializationSchema}.
+ * Format factory for providing configured instances of Debezium Avro to RowData {@link
+ * DeserializationSchema}.
  */
-public class DebeziumAvroFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
+public class DebeziumAvroFormatFactory
+        implements DeserializationFormatFactory, SerializationFormatFactory {
 
-	public static final String IDENTIFIER = "debezium-avro-confluent";
+    public static final String IDENTIFIER = "debezium-avro-confluent";
 
-	@Override
-	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
+    @Override
+    public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
 
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
-		String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
+        String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
 
-		return new DecodingFormat<DeserializationSchema<RowData>>() {
-			@Override
-			public DeserializationSchema<RowData> createRuntimeDecoder(
-					DynamicTableSource.Context context,
-					DataType producedDataType) {
-				final RowType rowType = (RowType) producedDataType.getLogicalType();
-				final TypeInformation<RowData> producedTypeInfo =
-					context.createTypeInformation(producedDataType);
-				return new DebeziumAvroDeserializationSchema(
-					rowType,
-					producedTypeInfo,
-					schemaRegistryURL);
-			}
+        return new DecodingFormat<DeserializationSchema<RowData>>() {
+            @Override
+            public DeserializationSchema<RowData> createRuntimeDecoder(
+                    DynamicTableSource.Context context, DataType producedDataType) {
+                final RowType rowType = (RowType) producedDataType.getLogicalType();
+                final TypeInformation<RowData> producedTypeInfo =
+                        context.createTypeInformation(producedDataType);
+                return new DebeziumAvroDeserializationSchema(
+                        rowType, producedTypeInfo, schemaRegistryURL);
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.newBuilder()
-					.addContainedKind(RowKind.INSERT)
-					.addContainedKind(RowKind.UPDATE_BEFORE)
-					.addContainedKind(RowKind.UPDATE_AFTER)
-					.addContainedKind(RowKind.DELETE)
-					.build();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.INSERT)
+                        .addContainedKind(RowKind.UPDATE_BEFORE)
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
+            }
+        };
+    }
 
-	@Override
-	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
+    @Override
+    public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
 
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
-		String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
-		Optional<String> subject = formatOptions.getOptional(SCHEMA_REGISTRY_SUBJECT);
-		if (!subject.isPresent()) {
-			throw new ValidationException(String.format(
-				"Option '%s.%s' is required for serialization",
-				IDENTIFIER,
-				SCHEMA_REGISTRY_SUBJECT.key()));
-		}
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
+        String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
+        Optional<String> subject = formatOptions.getOptional(SCHEMA_REGISTRY_SUBJECT);
+        if (!subject.isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Option '%s.%s' is required for serialization",
+                            IDENTIFIER, SCHEMA_REGISTRY_SUBJECT.key()));
+        }
 
-		return new EncodingFormat<SerializationSchema<RowData>>() {
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.newBuilder()
-					.addContainedKind(RowKind.INSERT)
-					.addContainedKind(RowKind.UPDATE_BEFORE)
-					.addContainedKind(RowKind.UPDATE_AFTER)
-					.addContainedKind(RowKind.DELETE)
-					.build();
-			}
+        return new EncodingFormat<SerializationSchema<RowData>>() {
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.INSERT)
+                        .addContainedKind(RowKind.UPDATE_BEFORE)
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
+            }
 
-			@Override
-			public SerializationSchema<RowData> createRuntimeEncoder(
-					DynamicTableSink.Context context,
-					DataType consumedDataType) {
-				final RowType rowType = (RowType) consumedDataType.getLogicalType();
-				return new DebeziumAvroSerializationSchema(
-					rowType,
-					schemaRegistryURL,
-					subject.get());
-			}
-		};
-	}
+            @Override
+            public SerializationSchema<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType consumedDataType) {
+                final RowType rowType = (RowType) consumedDataType.getLogicalType();
+                return new DebeziumAvroSerializationSchema(
+                        rowType, schemaRegistryURL, subject.get());
+            }
+        };
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(SCHEMA_REGISTRY_URL);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(SCHEMA_REGISTRY_URL);
+        return options;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(SCHEMA_REGISTRY_SUBJECT);
-		return options;
-	}
-
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(SCHEMA_REGISTRY_SUBJECT);
+        return options;
+    }
 }

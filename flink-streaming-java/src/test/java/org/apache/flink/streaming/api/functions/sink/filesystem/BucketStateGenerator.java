@@ -31,143 +31,151 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-/**
- * Utilities to generate sample bucket states so that we could test migration of bucket states.
- */
+/** Utilities to generate sample bucket states so that we could test migration of bucket states. */
 public class BucketStateGenerator {
-	private final String bucketId;
-	private final String inProgressContent;
-	private final String pendingContent;
-	private final BucketStatePathResolver pathResolver;
+    private final String bucketId;
+    private final String inProgressContent;
+    private final String pendingContent;
+    private final BucketStatePathResolver pathResolver;
 
-	public BucketStateGenerator(
-			String bucketId,
-			String inProgressContent,
-			String pendingContent,
-			java.nio.file.Path basePath,
-			int currentVersion) {
-		this.bucketId = bucketId;
-		this.inProgressContent = inProgressContent;
-		this.pendingContent = pendingContent;
-		this.pathResolver = new BucketStatePathResolver(basePath, currentVersion);
-	}
+    public BucketStateGenerator(
+            String bucketId,
+            String inProgressContent,
+            String pendingContent,
+            java.nio.file.Path basePath,
+            int currentVersion) {
+        this.bucketId = bucketId;
+        this.inProgressContent = inProgressContent;
+        this.pendingContent = pendingContent;
+        this.pathResolver = new BucketStatePathResolver(basePath, currentVersion);
+    }
 
-	public void prepareDeserializationEmpty() throws IOException {
-		final String scenarioName = "empty";
-		final java.nio.file.Path scenarioPath = pathResolver.getResourcePath(scenarioName);
+    public void prepareDeserializationEmpty() throws IOException {
+        final String scenarioName = "empty";
+        final java.nio.file.Path scenarioPath = pathResolver.getResourcePath(scenarioName);
 
-		FileUtils.deleteDirectory(scenarioPath.toFile());
-		Files.createDirectories(scenarioPath);
+        FileUtils.deleteDirectory(scenarioPath.toFile());
+        Files.createDirectories(scenarioPath);
 
-		final java.nio.file.Path outputPath = pathResolver.getOutputPath(scenarioName);
-		final Path testBucketPath = new Path(outputPath.resolve(bucketId).toString());
+        final java.nio.file.Path outputPath = pathResolver.getOutputPath(scenarioName);
+        final Path testBucketPath = new Path(outputPath.resolve(bucketId).toString());
 
-		final Bucket<String, String> bucket = createNewBucket(testBucketPath);
+        final Bucket<String, String> bucket = createNewBucket(testBucketPath);
 
-		final BucketState<String> bucketState = bucket.onReceptionOfCheckpoint(0);
+        final BucketState<String> bucketState = bucket.onReceptionOfCheckpoint(0);
 
-		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(
-				bucketStateSerializer(),
-				bucketState);
-		Files.write(pathResolver.getSnapshotPath(scenarioName), bytes);
-	}
+        byte[] bytes =
+                SimpleVersionedSerialization.writeVersionAndSerialize(
+                        bucketStateSerializer(), bucketState);
+        Files.write(pathResolver.getSnapshotPath(scenarioName), bytes);
+    }
 
-	public void prepareDeserializationOnlyInProgress() throws IOException {
-		final String scenarioName = "only-in-progress";
-		final java.nio.file.Path scenarioPath = pathResolver.getResourcePath(scenarioName);
-		FileUtils.deleteDirectory(scenarioPath.toFile());
-		Files.createDirectories(scenarioPath);
+    public void prepareDeserializationOnlyInProgress() throws IOException {
+        final String scenarioName = "only-in-progress";
+        final java.nio.file.Path scenarioPath = pathResolver.getResourcePath(scenarioName);
+        FileUtils.deleteDirectory(scenarioPath.toFile());
+        Files.createDirectories(scenarioPath);
 
-		final java.nio.file.Path outputPath = pathResolver.getOutputPath(scenarioName);
-		final Path testBucketPath = new Path(outputPath.resolve(bucketId).toString());
+        final java.nio.file.Path outputPath = pathResolver.getOutputPath(scenarioName);
+        final Path testBucketPath = new Path(outputPath.resolve(bucketId).toString());
 
-		final Bucket<String, String> bucket =
-				createNewBucket(testBucketPath);
+        final Bucket<String, String> bucket = createNewBucket(testBucketPath);
 
-		bucket.write(inProgressContent, System.currentTimeMillis());
+        bucket.write(inProgressContent, System.currentTimeMillis());
 
-		final BucketState<String> bucketState = bucket.onReceptionOfCheckpoint(0);
+        final BucketState<String> bucketState = bucket.onReceptionOfCheckpoint(0);
 
-		final byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(
-				bucketStateSerializer(), bucketState);
+        final byte[] bytes =
+                SimpleVersionedSerialization.writeVersionAndSerialize(
+                        bucketStateSerializer(), bucketState);
 
-		Files.write(pathResolver.getSnapshotPath(scenarioName), bytes);
-	}
+        Files.write(pathResolver.getSnapshotPath(scenarioName), bytes);
+    }
 
-	public void prepareDeserializationFull() throws IOException {
-		prepareDeserializationFull(true, "full");
-	}
+    public void prepareDeserializationFull() throws IOException {
+        prepareDeserializationFull(true, "full");
+    }
 
-	public void prepareDeserializationNullInProgress() throws IOException {
-		prepareDeserializationFull(false, "full-no-in-progress");
-	}
+    public void prepareDeserializationNullInProgress() throws IOException {
+        prepareDeserializationFull(false, "full-no-in-progress");
+    }
 
-	private void prepareDeserializationFull(final boolean withInProgress, final String scenarioName) throws IOException {
-		final java.nio.file.Path scenarioPath = pathResolver.getResourcePath(scenarioName);
-		FileUtils.deleteDirectory(Paths.get(scenarioPath.toString() + "-template").toFile());
-		Files.createDirectories(scenarioPath);
+    private void prepareDeserializationFull(final boolean withInProgress, final String scenarioName)
+            throws IOException {
+        final java.nio.file.Path scenarioPath = pathResolver.getResourcePath(scenarioName);
+        FileUtils.deleteDirectory(Paths.get(scenarioPath.toString() + "-template").toFile());
+        Files.createDirectories(scenarioPath);
 
-		final int noOfPendingCheckpoints = 5;
+        final int noOfPendingCheckpoints = 5;
 
-		final java.nio.file.Path outputPath = pathResolver.getOutputPath(scenarioName);
+        final java.nio.file.Path outputPath = pathResolver.getOutputPath(scenarioName);
 
-		final Path testBucketPath = new Path(outputPath.resolve(bucketId).toString());
+        final Path testBucketPath = new Path(outputPath.resolve(bucketId).toString());
 
-		final Bucket<String, String> bucket = createNewBucket(testBucketPath);
+        final Bucket<String, String> bucket = createNewBucket(testBucketPath);
 
-		BucketState<String> bucketState = null;
-		// pending for checkpoints
-		for (int i = 0; i < noOfPendingCheckpoints; i++) {
-			// write 10 bytes to the in progress file
-			bucket.write(pendingContent, System.currentTimeMillis());
-			bucket.write(pendingContent, System.currentTimeMillis());
-			// every checkpoint would produce a pending file
-			bucketState = bucket.onReceptionOfCheckpoint(i);
-		}
+        BucketState<String> bucketState = null;
+        // pending for checkpoints
+        for (int i = 0; i < noOfPendingCheckpoints; i++) {
+            // write 10 bytes to the in progress file
+            bucket.write(pendingContent, System.currentTimeMillis());
+            bucket.write(pendingContent, System.currentTimeMillis());
+            // every checkpoint would produce a pending file
+            bucketState = bucket.onReceptionOfCheckpoint(i);
+        }
 
-		if (withInProgress) {
-			// create a in progress file
-			bucket.write(inProgressContent, System.currentTimeMillis());
+        if (withInProgress) {
+            // create a in progress file
+            bucket.write(inProgressContent, System.currentTimeMillis());
 
-			// 5 pending files and 1 in progress file
-			bucketState = bucket.onReceptionOfCheckpoint(noOfPendingCheckpoints);
-		}
+            // 5 pending files and 1 in progress file
+            bucketState = bucket.onReceptionOfCheckpoint(noOfPendingCheckpoints);
+        }
 
-		final byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(bucketStateSerializer(), bucketState);
+        final byte[] bytes =
+                SimpleVersionedSerialization.writeVersionAndSerialize(
+                        bucketStateSerializer(), bucketState);
 
-		Files.write(pathResolver.getSnapshotPath(scenarioName), bytes);
+        Files.write(pathResolver.getSnapshotPath(scenarioName), bytes);
 
-		// copy the scenario file to a template directory.
-		// it is because that the test `testSerializationFull` would change the in progress file to pending files.
-		moveToTemplateDirectory(scenarioPath);
-	}
+        // copy the scenario file to a template directory.
+        // it is because that the test `testSerializationFull` would change the in progress file to
+        // pending files.
+        moveToTemplateDirectory(scenarioPath);
+    }
 
-	private static RowWiseBucketWriter<String, String> createBucketWriter() throws IOException {
-		return new RowWiseBucketWriter<>(FileSystem.getLocalFileSystem().createRecoverableWriter(), new SimpleStringEncoder<>());
-	}
+    private static RowWiseBucketWriter<String, String> createBucketWriter() throws IOException {
+        return new RowWiseBucketWriter<>(
+                FileSystem.getLocalFileSystem().createRecoverableWriter(),
+                new SimpleStringEncoder<>());
+    }
 
-	private static SimpleVersionedSerializer<BucketState<String>> bucketStateSerializer() throws IOException {
-		final RowWiseBucketWriter bucketWriter = createBucketWriter();
-		return new BucketStateSerializer<>(
-				bucketWriter.getProperties().getInProgressFileRecoverableSerializer(),
-				bucketWriter.getProperties().getPendingFileRecoverableSerializer(),
-				SimpleVersionedStringSerializer.INSTANCE);
-	}
+    private static SimpleVersionedSerializer<BucketState<String>> bucketStateSerializer()
+            throws IOException {
+        final RowWiseBucketWriter bucketWriter = createBucketWriter();
+        return new BucketStateSerializer<>(
+                bucketWriter.getProperties().getInProgressFileRecoverableSerializer(),
+                bucketWriter.getProperties().getPendingFileRecoverableSerializer(),
+                SimpleVersionedStringSerializer.INSTANCE);
+    }
 
-	private Bucket<String, String> createNewBucket(Path bucketPath) throws IOException {
-		return Bucket.getNew(
-				0,
-				bucketId,
-				bucketPath,
-				0,
-				createBucketWriter(),
-				DefaultRollingPolicy.builder().withMaxPartSize(10).build(),
-				null,
-				OutputFileConfig.builder().build());
-	}
+    private Bucket<String, String> createNewBucket(Path bucketPath) throws IOException {
+        return Bucket.getNew(
+                0,
+                bucketId,
+                bucketPath,
+                0,
+                createBucketWriter(),
+                DefaultRollingPolicy.builder().withMaxPartSize(10).build(),
+                null,
+                OutputFileConfig.builder().build());
+    }
 
-	private void moveToTemplateDirectory(java.nio.file.Path scenarioPath) throws IOException {
-		FileUtils.copy(new Path(scenarioPath.toString()), new Path(scenarioPath.toString() + "-template"), false);
-		FileUtils.deleteDirectory(scenarioPath.toFile());
-	}
+    private void moveToTemplateDirectory(java.nio.file.Path scenarioPath) throws IOException {
+        FileUtils.copy(
+                new Path(scenarioPath.toString()),
+                new Path(scenarioPath.toString() + "-template"),
+                false);
+        FileUtils.deleteDirectory(scenarioPath.toFile());
+    }
 }

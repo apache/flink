@@ -28,54 +28,53 @@ import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 
-/**
- * A utility class which extracts key from RowData.
- */
+/** A utility class which extracts key from RowData. */
 public class BinaryRowDataKeySelector implements RowDataKeySelector {
 
-	private static final long serialVersionUID = -2327761762415377059L;
+    private static final long serialVersionUID = -2327761762415377059L;
 
-	private final int[] keyFields;
-	private final LogicalType[] inputFieldTypes;
-	private final LogicalType[] keyFieldTypes;
-	private final TypeSerializer[] keySers;
-	private final RowData.FieldGetter[] fieldGetters;
+    private final int[] keyFields;
+    private final LogicalType[] inputFieldTypes;
+    private final LogicalType[] keyFieldTypes;
+    private final TypeSerializer[] keySers;
+    private final RowData.FieldGetter[] fieldGetters;
 
-	public BinaryRowDataKeySelector(int[] keyFields, LogicalType[] inputFieldTypes) {
-		this.keyFields = keyFields;
-		this.inputFieldTypes = inputFieldTypes;
-		this.keyFieldTypes = new LogicalType[keyFields.length];
-		this.keySers = new TypeSerializer[keyFields.length];
-		this.fieldGetters = new RowData.FieldGetter[keyFields.length];
-		for (int i = 0; i < keyFields.length; ++i) {
-			keyFieldTypes[i] = inputFieldTypes[keyFields[i]];
-			keySers[i] = InternalSerializers.create(keyFieldTypes[i]);
-			fieldGetters[i] = RowData.createFieldGetter(inputFieldTypes[keyFields[i]], keyFields[i]);
-		}
-	}
+    public BinaryRowDataKeySelector(int[] keyFields, LogicalType[] inputFieldTypes) {
+        this.keyFields = keyFields;
+        this.inputFieldTypes = inputFieldTypes;
+        this.keyFieldTypes = new LogicalType[keyFields.length];
+        this.keySers = new TypeSerializer[keyFields.length];
+        this.fieldGetters = new RowData.FieldGetter[keyFields.length];
+        for (int i = 0; i < keyFields.length; ++i) {
+            keyFieldTypes[i] = inputFieldTypes[keyFields[i]];
+            keySers[i] = InternalSerializers.create(keyFieldTypes[i]);
+            fieldGetters[i] =
+                    RowData.createFieldGetter(inputFieldTypes[keyFields[i]], keyFields[i]);
+        }
+    }
 
-	@Override
-	public RowData getKey(RowData value) throws Exception {
-		BinaryRowData ret = new BinaryRowData(keyFields.length);
-		BinaryRowWriter writer = new BinaryRowWriter(ret);
-		for (int i = 0; i < keyFields.length; i++) {
-			if (value.isNullAt(i)) {
-				writer.setNullAt(i);
-			} else {
-				BinaryWriter.write(
-						writer,
-						i,
-						fieldGetters[i].getFieldOrNull(value),
-						inputFieldTypes[keyFields[i]],
-						keySers[i]);
-			}
-		}
-		writer.complete();
-		return ret;
-	}
+    @Override
+    public RowData getKey(RowData value) throws Exception {
+        BinaryRowData ret = new BinaryRowData(keyFields.length);
+        BinaryRowWriter writer = new BinaryRowWriter(ret);
+        for (int i = 0; i < keyFields.length; i++) {
+            if (value.isNullAt(i)) {
+                writer.setNullAt(i);
+            } else {
+                BinaryWriter.write(
+                        writer,
+                        i,
+                        fieldGetters[i].getFieldOrNull(value),
+                        inputFieldTypes[keyFields[i]],
+                        keySers[i]);
+            }
+        }
+        writer.complete();
+        return ret;
+    }
 
-	@Override
-	public InternalTypeInfo<RowData> getProducedType() {
-		return InternalTypeInfo.ofFields(keyFieldTypes);
-	}
+    @Override
+    public InternalTypeInfo<RowData> getProducedType() {
+        return InternalTypeInfo.ofFields(keyFieldTypes);
+    }
 }

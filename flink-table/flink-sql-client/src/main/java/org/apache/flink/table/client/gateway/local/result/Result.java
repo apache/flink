@@ -25,9 +25,9 @@ package org.apache.flink.table.client.gateway.local.result;
  */
 public interface Result<C> {
 
-	/**
-	 * Sets the cluster information of the cluster this result comes from. This method should only be called once.
-	 */
-	void setClusterInformation(C clusterId, String webInterfaceUrl);
-
+    /**
+     * Sets the cluster information of the cluster this result comes from. This method should only
+     * be called once.
+     */
+    void setClusterInformation(C clusterId, String webInterfaceUrl);
 }

@@ -17,37 +17,34 @@
 
 package org.apache.flink.table.runtime.util.collections;
 
-/**
- * Byte hash set.
- */
+/** Byte hash set. */
 public class ByteHashSet {
 
-	protected boolean containsNull;
+    protected boolean containsNull;
 
-	protected boolean[] used;
+    protected boolean[] used;
 
-	// Do not remove the param "dummy", it is needed to simplify
-	// the code generation, see CodeGeneratorContext.addReusableHashSet.
-	public ByteHashSet(final int dummy) {
-		used = new boolean[Byte.MAX_VALUE - Byte.MIN_VALUE + 1];
-	}
+    // Do not remove the param "dummy", it is needed to simplify
+    // the code generation, see CodeGeneratorContext.addReusableHashSet.
+    public ByteHashSet(final int dummy) {
+        used = new boolean[Byte.MAX_VALUE - Byte.MIN_VALUE + 1];
+    }
 
-	public boolean add(final byte k) {
-		return !used[k - Byte.MIN_VALUE] && (used[k - Byte.MIN_VALUE] = true);
-	}
+    public boolean add(final byte k) {
+        return !used[k - Byte.MIN_VALUE] && (used[k - Byte.MIN_VALUE] = true);
+    }
 
-	public void addNull() {
-		this.containsNull = true;
-	}
+    public void addNull() {
+        this.containsNull = true;
+    }
 
-	public boolean contains(final byte k) {
-		return used[k - Byte.MIN_VALUE];
-	}
+    public boolean contains(final byte k) {
+        return used[k - Byte.MIN_VALUE];
+    }
 
-	public boolean containsNull() {
-		return containsNull;
-	}
+    public boolean containsNull() {
+        return containsNull;
+    }
 
-	public void optimize() {
-	}
+    public void optimize() {}
 }

@@ -21,18 +21,19 @@ package org.apache.flink.queryablestate.network.messages;
 import org.apache.flink.annotation.Internal;
 
 /**
- * The base class for every message exchanged during the communication between
- * {@link org.apache.flink.queryablestate.network.Client client} and
- * {@link org.apache.flink.queryablestate.network.AbstractServerBase server}.
+ * The base class for every message exchanged during the communication between {@link
+ * org.apache.flink.queryablestate.network.Client client} and {@link
+ * org.apache.flink.queryablestate.network.AbstractServerBase server}.
  *
  * <p>Every such message should also have a {@link MessageDeserializer}.
  */
 @Internal
 public abstract class MessageBody {
 
-	/**
-	 * Serializes the message into a byte array.
-	 * @return A byte array with the serialized content of the message.
-	 */
-	public abstract byte[] serialize();
+    /**
+     * Serializes the message into a byte array.
+     *
+     * @return A byte array with the serialized content of the message.
+     */
+    public abstract byte[] serialize();
 }

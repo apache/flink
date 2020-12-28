@@ -23,17 +23,17 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.util.event.EventListener;
 
 /**
- * The task event publisher is used for publishing the event to the registered
- * {@link EventListener} instances.
+ * The task event publisher is used for publishing the event to the registered {@link EventListener}
+ * instances.
  */
 public interface TaskEventPublisher {
 
-	/**
-	 * Publishes the event to the registered {@link EventListener} instances.
-	 *
-	 * @param partitionId the partition ID to get registered handlers
-	 * @param event the task event to be published to the handlers
-	 * @return whether the event was published to a registered event handler or not
-	 */
-	boolean publish(ResultPartitionID partitionId, TaskEvent event);
+    /**
+     * Publishes the event to the registered {@link EventListener} instances.
+     *
+     * @param partitionId the partition ID to get registered handlers
+     * @param event the task event to be published to the handlers
+     * @return whether the event was published to a registered event handler or not
+     */
+    boolean publish(ResultPartitionID partitionId, TaskEvent event);
 }

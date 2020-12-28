@@ -53,118 +53,150 @@ import static org.junit.Assert.assertThat;
  */
 public class MergingSharedSlotProfileRetrieverTest {
 
-	private static final SyncPreferredLocationsRetriever EMPTY_PREFERRED_LOCATIONS_RETRIEVER =
-		(executionVertexId, producersToIgnore) -> Collections.emptyList();
+    private static final SyncPreferredLocationsRetriever EMPTY_PREFERRED_LOCATIONS_RETRIEVER =
+            (executionVertexId, producersToIgnore) -> Collections.emptyList();
 
-	@Test
-	public void testGetEmptySlotProfile() throws ExecutionException, InterruptedException {
-		SharedSlotProfileRetriever sharedSlotProfileRetriever = new MergingSharedSlotProfileRetrieverFactory(
-			EMPTY_PREFERRED_LOCATIONS_RETRIEVER,
-			executionVertexID -> new AllocationID()
-		).createFromBulk(Collections.emptySet());
+    @Test
+    public void testGetEmptySlotProfile() throws ExecutionException, InterruptedException {
+        SharedSlotProfileRetriever sharedSlotProfileRetriever =
+                new MergingSharedSlotProfileRetrieverFactory(
+                                EMPTY_PREFERRED_LOCATIONS_RETRIEVER,
+                                executionVertexID -> new AllocationID())
+                        .createFromBulk(Collections.emptySet());
 
-		SlotProfile slotProfile = sharedSlotProfileRetriever
-			.getSlotProfile(new ExecutionSlotSharingGroup(), ResourceProfile.ZERO);
+        SlotProfile slotProfile =
+                sharedSlotProfileRetriever.getSlotProfile(
+                        new ExecutionSlotSharingGroup(), ResourceProfile.ZERO);
 
-		assertThat(slotProfile.getTaskResourceProfile(), is(ResourceProfile.ZERO));
-		assertThat(slotProfile.getPhysicalSlotResourceProfile(), is(ResourceProfile.ZERO));
-		assertThat(slotProfile.getPreferredLocations(), hasSize(0));
-		assertThat(slotProfile.getPreferredAllocations(), hasSize(0));
-		assertThat(slotProfile.getPreviousExecutionGraphAllocations(), hasSize(0));
-	}
+        assertThat(slotProfile.getTaskResourceProfile(), is(ResourceProfile.ZERO));
+        assertThat(slotProfile.getPhysicalSlotResourceProfile(), is(ResourceProfile.ZERO));
+        assertThat(slotProfile.getPreferredLocations(), hasSize(0));
+        assertThat(slotProfile.getPreferredAllocations(), hasSize(0));
+        assertThat(slotProfile.getPreviousExecutionGraphAllocations(), hasSize(0));
+    }
 
-	@Test
-	public void testResourceProfileOfSlotProfile() throws ExecutionException, InterruptedException {
-		ResourceProfile resourceProfile = ResourceProfile
-			.newBuilder()
-			.setCpuCores(1.0)
-			.setTaskHeapMemory(MemorySize.ofMebiBytes(1))
-			.build();
-		SlotProfile slotProfile = getSlotProfile(
-			resourceProfile,
-			Collections.nCopies(3, new AllocationID()),
-			2);
+    @Test
+    public void testResourceProfileOfSlotProfile() throws ExecutionException, InterruptedException {
+        ResourceProfile resourceProfile =
+                ResourceProfile.newBuilder()
+                        .setCpuCores(1.0)
+                        .setTaskHeapMemory(MemorySize.ofMebiBytes(1))
+                        .build();
+        SlotProfile slotProfile =
+                getSlotProfile(resourceProfile, Collections.nCopies(3, new AllocationID()), 2);
 
-		assertThat(slotProfile.getTaskResourceProfile(), is(resourceProfile));
-		assertThat(slotProfile.getPhysicalSlotResourceProfile(), is(resourceProfile));
-	}
+        assertThat(slotProfile.getTaskResourceProfile(), is(resourceProfile));
+        assertThat(slotProfile.getPhysicalSlotResourceProfile(), is(resourceProfile));
+    }
 
-	@Test
-	public void testPreferredLocationsOfSlotProfile() throws ExecutionException, InterruptedException {
-		// preferred locations
-		List<ExecutionVertexID> executions = IntStream
-			.range(0, 3)
-			.mapToObj(i -> new ExecutionVertexID(new JobVertexID(), 0))
-			.collect(Collectors.toList());
+    @Test
+    public void testPreferredLocationsOfSlotProfile()
+            throws ExecutionException, InterruptedException {
+        // preferred locations
+        List<ExecutionVertexID> executions =
+                IntStream.range(0, 3)
+                        .mapToObj(i -> new ExecutionVertexID(new JobVertexID(), 0))
+                        .collect(Collectors.toList());
 
-		List<TaskManagerLocation> allLocations = executions.stream().map(e -> createTaskManagerLocation()).collect(Collectors.toList());
-		Map<ExecutionVertexID, Collection<TaskManagerLocation>> locations = new HashMap<>();
-		locations.put(executions.get(0), Arrays.asList(allLocations.get(0), allLocations.get(1)));
-		locations.put(executions.get(1), Arrays.asList(allLocations.get(1), allLocations.get(2)));
+        List<TaskManagerLocation> allLocations =
+                executions.stream()
+                        .map(e -> createTaskManagerLocation())
+                        .collect(Collectors.toList());
+        Map<ExecutionVertexID, Collection<TaskManagerLocation>> locations = new HashMap<>();
+        locations.put(executions.get(0), Arrays.asList(allLocations.get(0), allLocations.get(1)));
+        locations.put(executions.get(1), Arrays.asList(allLocations.get(1), allLocations.get(2)));
 
-		SlotProfile slotProfile = getSlotProfile(
-			(executionVertexId, producersToIgnore) -> {
-				assertThat(producersToIgnore, containsInAnyOrder(executions.toArray()));
-				return locations.get(executionVertexId);
-			},
-			executions,
-			ResourceProfile.ZERO,
-			Collections.nCopies(3, new AllocationID()),
-			2);
+        SlotProfile slotProfile =
+                getSlotProfile(
+                        (executionVertexId, producersToIgnore) -> {
+                            assertThat(producersToIgnore, containsInAnyOrder(executions.toArray()));
+                            return locations.get(executionVertexId);
+                        },
+                        executions,
+                        ResourceProfile.ZERO,
+                        Collections.nCopies(3, new AllocationID()),
+                        2);
 
-		assertThat(slotProfile.getPreferredLocations().stream().filter(allLocations.get(0)::equals).count(), is(1L));
-		assertThat(slotProfile.getPreferredLocations().stream().filter(allLocations.get(1)::equals).count(), is(2L));
-		assertThat(slotProfile.getPreferredLocations().stream().filter(allLocations.get(2)::equals).count(), is(1L));
-	}
+        assertThat(
+                slotProfile.getPreferredLocations().stream()
+                        .filter(allLocations.get(0)::equals)
+                        .count(),
+                is(1L));
+        assertThat(
+                slotProfile.getPreferredLocations().stream()
+                        .filter(allLocations.get(1)::equals)
+                        .count(),
+                is(2L));
+        assertThat(
+                slotProfile.getPreferredLocations().stream()
+                        .filter(allLocations.get(2)::equals)
+                        .count(),
+                is(1L));
+    }
 
-	@Test
-	public void testAllocationIdsOfSlotProfile() throws ExecutionException, InterruptedException {
-		AllocationID prevAllocationID1 = new AllocationID();
-		AllocationID prevAllocationID2 = new AllocationID();
-		List<AllocationID> prevAllocationIDs = Arrays.asList(prevAllocationID1, prevAllocationID2, new AllocationID());
+    @Test
+    public void testAllocationIdsOfSlotProfile() throws ExecutionException, InterruptedException {
+        AllocationID prevAllocationID1 = new AllocationID();
+        AllocationID prevAllocationID2 = new AllocationID();
+        List<AllocationID> prevAllocationIDs =
+                Arrays.asList(prevAllocationID1, prevAllocationID2, new AllocationID());
 
-		SlotProfile slotProfile = getSlotProfile(ResourceProfile.ZERO, prevAllocationIDs, 2);
+        SlotProfile slotProfile = getSlotProfile(ResourceProfile.ZERO, prevAllocationIDs, 2);
 
-		assertThat(slotProfile.getPreferredAllocations(), containsInAnyOrder(prevAllocationID1, prevAllocationID2));
-		assertThat(slotProfile.getPreviousExecutionGraphAllocations(), containsInAnyOrder(prevAllocationIDs.toArray()));
-	}
+        assertThat(
+                slotProfile.getPreferredAllocations(),
+                containsInAnyOrder(prevAllocationID1, prevAllocationID2));
+        assertThat(
+                slotProfile.getPreviousExecutionGraphAllocations(),
+                containsInAnyOrder(prevAllocationIDs.toArray()));
+    }
 
-	private static SlotProfile getSlotProfile(
-			ResourceProfile resourceProfile,
-			List<AllocationID> prevAllocationIDs,
-			int executionSlotSharingGroupSize) throws ExecutionException, InterruptedException {
-		List<ExecutionVertexID> executions = prevAllocationIDs.stream()
-			.map(stub -> new ExecutionVertexID(new JobVertexID(), 0))
-			.collect(Collectors.toList());
-		return getSlotProfile(
-			EMPTY_PREFERRED_LOCATIONS_RETRIEVER,
-			executions,
-			resourceProfile,
-			prevAllocationIDs,
-			executionSlotSharingGroupSize);
-	}
+    private static SlotProfile getSlotProfile(
+            ResourceProfile resourceProfile,
+            List<AllocationID> prevAllocationIDs,
+            int executionSlotSharingGroupSize)
+            throws ExecutionException, InterruptedException {
+        List<ExecutionVertexID> executions =
+                prevAllocationIDs.stream()
+                        .map(stub -> new ExecutionVertexID(new JobVertexID(), 0))
+                        .collect(Collectors.toList());
+        return getSlotProfile(
+                EMPTY_PREFERRED_LOCATIONS_RETRIEVER,
+                executions,
+                resourceProfile,
+                prevAllocationIDs,
+                executionSlotSharingGroupSize);
+    }
 
-	private static SlotProfile getSlotProfile(
-			SyncPreferredLocationsRetriever preferredLocationsRetriever,
-			List<ExecutionVertexID> executions,
-			ResourceProfile resourceProfile,
-			List<AllocationID> prevAllocationIDs,
-			int executionSlotSharingGroupSize) throws ExecutionException, InterruptedException {
-		SharedSlotProfileRetriever sharedSlotProfileRetriever = new MergingSharedSlotProfileRetrieverFactory(
-			preferredLocationsRetriever,
-			executionVertexID -> prevAllocationIDs.get(executions.indexOf(executionVertexID))
-		).createFromBulk(new HashSet<>(executions));
+    private static SlotProfile getSlotProfile(
+            SyncPreferredLocationsRetriever preferredLocationsRetriever,
+            List<ExecutionVertexID> executions,
+            ResourceProfile resourceProfile,
+            List<AllocationID> prevAllocationIDs,
+            int executionSlotSharingGroupSize)
+            throws ExecutionException, InterruptedException {
+        SharedSlotProfileRetriever sharedSlotProfileRetriever =
+                new MergingSharedSlotProfileRetrieverFactory(
+                                preferredLocationsRetriever,
+                                executionVertexID ->
+                                        prevAllocationIDs.get(
+                                                executions.indexOf(executionVertexID)))
+                        .createFromBulk(new HashSet<>(executions));
 
-		ExecutionSlotSharingGroup executionSlotSharingGroup = new ExecutionSlotSharingGroup();
-		executions.stream().limit(executionSlotSharingGroupSize).forEach(executionSlotSharingGroup::addVertex);
-		return sharedSlotProfileRetriever.getSlotProfile(executionSlotSharingGroup, resourceProfile);
-	}
+        ExecutionSlotSharingGroup executionSlotSharingGroup = new ExecutionSlotSharingGroup();
+        executions.stream()
+                .limit(executionSlotSharingGroupSize)
+                .forEach(executionSlotSharingGroup::addVertex);
+        return sharedSlotProfileRetriever.getSlotProfile(
+                executionSlotSharingGroup, resourceProfile);
+    }
 
-	private static TaskManagerLocation createTaskManagerLocation() {
-		try {
-			return new TaskManagerLocation(ResourceID.generate(), InetAddress.getByAddress(new byte[] {1, 2, 3, 4}), 8888);
-		} catch (UnknownHostException e) {
-			throw new FlinkRuntimeException("unexpected", e);
-		}
-	}
+    private static TaskManagerLocation createTaskManagerLocation() {
+        try {
+            return new TaskManagerLocation(
+                    ResourceID.generate(), InetAddress.getByAddress(new byte[] {1, 2, 3, 4}), 8888);
+        } catch (UnknownHostException e) {
+            throw new FlinkRuntimeException("unexpected", e);
+        }
+    }
 }

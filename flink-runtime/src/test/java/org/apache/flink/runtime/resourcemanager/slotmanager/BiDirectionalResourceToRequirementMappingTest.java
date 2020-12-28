@@ -27,44 +27,44 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Test for the {@link BiDirectionalResourceToRequirementMapping}.
- */
+/** Test for the {@link BiDirectionalResourceToRequirementMapping}. */
 public class BiDirectionalResourceToRequirementMappingTest extends TestLogger {
 
-	@Test
-	public void testIncrement() {
-		BiDirectionalResourceToRequirementMapping mapping = new BiDirectionalResourceToRequirementMapping();
+    @Test
+    public void testIncrement() {
+        BiDirectionalResourceToRequirementMapping mapping =
+                new BiDirectionalResourceToRequirementMapping();
 
-		ResourceProfile requirement = ResourceProfile.UNKNOWN;
-		ResourceProfile resource = ResourceProfile.ANY;
+        ResourceProfile requirement = ResourceProfile.UNKNOWN;
+        ResourceProfile resource = ResourceProfile.ANY;
 
-		mapping.incrementCount(requirement, resource, 1);
+        mapping.incrementCount(requirement, resource, 1);
 
-		assertThat(mapping.getRequirementsFulfilledBy(resource).get(requirement), is(1));
-		assertThat(mapping.getResourcesFulfilling(requirement).get(resource), is(1));
+        assertThat(mapping.getRequirementsFulfilledBy(resource).get(requirement), is(1));
+        assertThat(mapping.getResourcesFulfilling(requirement).get(resource), is(1));
 
-		assertThat(mapping.getAllRequirementProfiles(), contains(requirement));
-		assertThat(mapping.getAllResourceProfiles(), contains(resource));
-	}
+        assertThat(mapping.getAllRequirementProfiles(), contains(requirement));
+        assertThat(mapping.getAllResourceProfiles(), contains(resource));
+    }
 
-	@Test
-	public void testDecrement() {
-		BiDirectionalResourceToRequirementMapping mapping = new BiDirectionalResourceToRequirementMapping();
+    @Test
+    public void testDecrement() {
+        BiDirectionalResourceToRequirementMapping mapping =
+                new BiDirectionalResourceToRequirementMapping();
 
-		ResourceProfile requirement = ResourceProfile.UNKNOWN;
-		ResourceProfile resource = ResourceProfile.ANY;
+        ResourceProfile requirement = ResourceProfile.UNKNOWN;
+        ResourceProfile resource = ResourceProfile.ANY;
 
-		mapping.incrementCount(requirement, resource, 1);
-		mapping.decrementCount(requirement, resource, 1);
+        mapping.incrementCount(requirement, resource, 1);
+        mapping.decrementCount(requirement, resource, 1);
 
-		assertThat(mapping.getRequirementsFulfilledBy(resource).getOrDefault(requirement, 0), is(0));
-		assertThat(mapping.getResourcesFulfilling(requirement).getOrDefault(resource, 0), is(0));
+        assertThat(
+                mapping.getRequirementsFulfilledBy(resource).getOrDefault(requirement, 0), is(0));
+        assertThat(mapping.getResourcesFulfilling(requirement).getOrDefault(resource, 0), is(0));
 
-		assertThat(mapping.getAllRequirementProfiles(), empty());
-		assertThat(mapping.getAllResourceProfiles(), empty());
+        assertThat(mapping.getAllRequirementProfiles(), empty());
+        assertThat(mapping.getAllResourceProfiles(), empty());
 
-		assertThat(mapping.isEmpty(), is(true));
-	}
-
+        assertThat(mapping.isEmpty(), is(true));
+    }
 }

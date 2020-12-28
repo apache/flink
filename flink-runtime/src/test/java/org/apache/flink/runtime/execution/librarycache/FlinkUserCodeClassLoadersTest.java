@@ -42,196 +42,209 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 
-/**
- * Tests for classloading and class loader utilities.
- */
+/** Tests for classloading and class loader utilities. */
 public class FlinkUserCodeClassLoadersTest extends TestLogger {
 
-	@ClassRule
-	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	@Test
-	public void testMessageDecodingWithUnavailableClass() throws Exception {
-		final ClassLoader systemClassLoader = getClass().getClassLoader();
+    @Test
+    public void testMessageDecodingWithUnavailableClass() throws Exception {
+        final ClassLoader systemClassLoader = getClass().getClassLoader();
 
-		final String className = "UserClass";
-		final URLClassLoader userClassLoader = ClassLoaderUtils.compileAndLoadJava(
-			temporaryFolder.newFolder(),
-			className + ".java",
-			"import java.io.Serializable;\n"
-				+ "public class " + className + " implements Serializable {}");
+        final String className = "UserClass";
+        final URLClassLoader userClassLoader =
+                ClassLoaderUtils.compileAndLoadJava(
+                        temporaryFolder.newFolder(),
+                        className + ".java",
+                        "import java.io.Serializable;\n"
+                                + "public class "
+                                + className
+                                + " implements Serializable {}");
 
-		RemoteRpcInvocation method = new RemoteRpcInvocation(
-			"test",
-			new Class<?>[] {
-				int.class,
-				Class.forName(className, false, userClassLoader)},
-			new Object[] {
-				1,
-				Class.forName(className, false, userClassLoader).newInstance()});
+        RemoteRpcInvocation method =
+                new RemoteRpcInvocation(
+                        "test",
+                        new Class<?>[] {
+                            int.class, Class.forName(className, false, userClassLoader)
+                        },
+                        new Object[] {
+                            1, Class.forName(className, false, userClassLoader).newInstance()
+                        });
 
-		SerializedValue<RemoteRpcInvocation> serializedMethod = new SerializedValue<>(method);
+        SerializedValue<RemoteRpcInvocation> serializedMethod = new SerializedValue<>(method);
 
-		expectedException.expect(ClassNotFoundException.class);
-		expectedException.expect(
-			allOf(
-				isA(ClassNotFoundException.class),
-				hasProperty("suppressed",
-					hasItemInArray(
-						allOf(
-							isA(ClassNotFoundException.class),
-							hasProperty("message",
-								containsString("Could not deserialize 1th parameter type of method test(int, ...).")))))));
+        expectedException.expect(ClassNotFoundException.class);
+        expectedException.expect(
+                allOf(
+                        isA(ClassNotFoundException.class),
+                        hasProperty(
+                                "suppressed",
+                                hasItemInArray(
+                                        allOf(
+                                                isA(ClassNotFoundException.class),
+                                                hasProperty(
+                                                        "message",
+                                                        containsString(
+                                                                "Could not deserialize 1th parameter type of method test(int, ...).")))))));
 
-		RemoteRpcInvocation deserializedMethod = serializedMethod.deserializeValue(systemClassLoader);
-		deserializedMethod.getMethodName();
+        RemoteRpcInvocation deserializedMethod =
+                serializedMethod.deserializeValue(systemClassLoader);
+        deserializedMethod.getMethodName();
 
-		userClassLoader.close();
-	}
+        userClassLoader.close();
+    }
 
-	@Test
-	public void testParentFirstClassLoading() throws Exception {
-		final ClassLoader parentClassLoader = getClass().getClassLoader();
+    @Test
+    public void testParentFirstClassLoading() throws Exception {
+        final ClassLoader parentClassLoader = getClass().getClassLoader();
 
-		// collect the libraries / class folders with RocksDB related code: the state backend and RocksDB itself
-		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
+        // collect the libraries / class folders with RocksDB related code: the state backend and
+        // RocksDB itself
+        final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-		final URLClassLoader childClassLoader1 = createParentFirstClassLoader(childCodePath, parentClassLoader);
+        final URLClassLoader childClassLoader1 =
+                createParentFirstClassLoader(childCodePath, parentClassLoader);
 
-		final URLClassLoader childClassLoader2 = createParentFirstClassLoader(childCodePath, parentClassLoader);
+        final URLClassLoader childClassLoader2 =
+                createParentFirstClassLoader(childCodePath, parentClassLoader);
 
-		final String className = FlinkUserCodeClassLoadersTest.class.getName();
+        final String className = FlinkUserCodeClassLoadersTest.class.getName();
 
-		final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
-		final Class<?> clazz2 = Class.forName(className, false, childClassLoader1);
-		final Class<?> clazz3 = Class.forName(className, false, childClassLoader2);
+        final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
+        final Class<?> clazz2 = Class.forName(className, false, childClassLoader1);
+        final Class<?> clazz3 = Class.forName(className, false, childClassLoader2);
 
-		assertEquals(clazz1, clazz2);
-		assertEquals(clazz1, clazz3);
+        assertEquals(clazz1, clazz2);
+        assertEquals(clazz1, clazz3);
 
-		childClassLoader1.close();
-		childClassLoader2.close();
-	}
+        childClassLoader1.close();
+        childClassLoader2.close();
+    }
 
-	@Test
-	public void testChildFirstClassLoading() throws Exception {
-		final ClassLoader parentClassLoader = getClass().getClassLoader();
+    @Test
+    public void testChildFirstClassLoading() throws Exception {
+        final ClassLoader parentClassLoader = getClass().getClassLoader();
 
-		// collect the libraries / class folders with RocksDB related code: the state backend and RocksDB itself
-		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
+        // collect the libraries / class folders with RocksDB related code: the state backend and
+        // RocksDB itself
+        final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-		final URLClassLoader childClassLoader1 = createChildFirstClassLoader(childCodePath, parentClassLoader);
+        final URLClassLoader childClassLoader1 =
+                createChildFirstClassLoader(childCodePath, parentClassLoader);
 
-		final URLClassLoader childClassLoader2 = createChildFirstClassLoader(childCodePath, parentClassLoader);
+        final URLClassLoader childClassLoader2 =
+                createChildFirstClassLoader(childCodePath, parentClassLoader);
 
-		final String className = FlinkUserCodeClassLoadersTest.class.getName();
+        final String className = FlinkUserCodeClassLoadersTest.class.getName();
 
-		final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
-		final Class<?> clazz2 = Class.forName(className, false, childClassLoader1);
-		final Class<?> clazz3 = Class.forName(className, false, childClassLoader2);
+        final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
+        final Class<?> clazz2 = Class.forName(className, false, childClassLoader1);
+        final Class<?> clazz3 = Class.forName(className, false, childClassLoader2);
 
-		assertNotEquals(clazz1, clazz2);
-		assertNotEquals(clazz1, clazz3);
-		assertNotEquals(clazz2, clazz3);
+        assertNotEquals(clazz1, clazz2);
+        assertNotEquals(clazz1, clazz3);
+        assertNotEquals(clazz2, clazz3);
 
-		childClassLoader1.close();
-		childClassLoader2.close();
-	}
+        childClassLoader1.close();
+        childClassLoader2.close();
+    }
 
-	@Test
-	public void testRepeatedChildFirstClassLoading() throws Exception {
-		final ClassLoader parentClassLoader = getClass().getClassLoader();
+    @Test
+    public void testRepeatedChildFirstClassLoading() throws Exception {
+        final ClassLoader parentClassLoader = getClass().getClassLoader();
 
-		// collect the libraries / class folders with RocksDB related code: the state backend and RocksDB itself
-		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
+        // collect the libraries / class folders with RocksDB related code: the state backend and
+        // RocksDB itself
+        final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-		final URLClassLoader childClassLoader = createChildFirstClassLoader(childCodePath, parentClassLoader);
+        final URLClassLoader childClassLoader =
+                createChildFirstClassLoader(childCodePath, parentClassLoader);
 
-		final String className = FlinkUserCodeClassLoadersTest.class.getName();
+        final String className = FlinkUserCodeClassLoadersTest.class.getName();
 
-		final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
-		final Class<?> clazz2 = Class.forName(className, false, childClassLoader);
-		final Class<?> clazz3 = Class.forName(className, false, childClassLoader);
-		final Class<?> clazz4 = Class.forName(className, false, childClassLoader);
+        final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
+        final Class<?> clazz2 = Class.forName(className, false, childClassLoader);
+        final Class<?> clazz3 = Class.forName(className, false, childClassLoader);
+        final Class<?> clazz4 = Class.forName(className, false, childClassLoader);
 
-		assertNotEquals(clazz1, clazz2);
+        assertNotEquals(clazz1, clazz2);
 
-		assertEquals(clazz2, clazz3);
-		assertEquals(clazz2, clazz4);
+        assertEquals(clazz2, clazz3);
+        assertEquals(clazz2, clazz4);
 
-		childClassLoader.close();
-	}
+        childClassLoader.close();
+    }
 
-	@Test
-	public void testRepeatedParentFirstPatternClass() throws Exception {
-		final String className = FlinkUserCodeClassLoadersTest.class.getName();
-		final String parentFirstPattern = className.substring(0, className.lastIndexOf('.'));
+    @Test
+    public void testRepeatedParentFirstPatternClass() throws Exception {
+        final String className = FlinkUserCodeClassLoadersTest.class.getName();
+        final String parentFirstPattern = className.substring(0, className.lastIndexOf('.'));
 
-		final ClassLoader parentClassLoader = getClass().getClassLoader();
+        final ClassLoader parentClassLoader = getClass().getClassLoader();
 
-		// collect the libraries / class folders with RocksDB related code: the state backend and RocksDB itself
-		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
+        // collect the libraries / class folders with RocksDB related code: the state backend and
+        // RocksDB itself
+        final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-		final URLClassLoader childClassLoader = FlinkUserCodeClassLoaders.childFirst(
-			new URL[] { childCodePath },
-			parentClassLoader,
-			new String[] { parentFirstPattern },
-			NOOP_EXCEPTION_HANDLER,
-			true);
+        final URLClassLoader childClassLoader =
+                FlinkUserCodeClassLoaders.childFirst(
+                        new URL[] {childCodePath},
+                        parentClassLoader,
+                        new String[] {parentFirstPattern},
+                        NOOP_EXCEPTION_HANDLER,
+                        true);
 
-		final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
-		final Class<?> clazz2 = Class.forName(className, false, childClassLoader);
-		final Class<?> clazz3 = Class.forName(className, false, childClassLoader);
-		final Class<?> clazz4 = Class.forName(className, false, childClassLoader);
+        final Class<?> clazz1 = Class.forName(className, false, parentClassLoader);
+        final Class<?> clazz2 = Class.forName(className, false, childClassLoader);
+        final Class<?> clazz3 = Class.forName(className, false, childClassLoader);
+        final Class<?> clazz4 = Class.forName(className, false, childClassLoader);
 
-		assertEquals(clazz1, clazz2);
-		assertEquals(clazz1, clazz3);
-		assertEquals(clazz1, clazz4);
+        assertEquals(clazz1, clazz2);
+        assertEquals(clazz1, clazz3);
+        assertEquals(clazz1, clazz4);
 
-		childClassLoader.close();
-	}
+        childClassLoader.close();
+    }
 
-	private static URLClassLoader createParentFirstClassLoader(URL childCodePath, ClassLoader parentClassLoader) {
-		return FlinkUserCodeClassLoaders.parentFirst(
-			new URL[] { childCodePath },
-			parentClassLoader,
-			NOOP_EXCEPTION_HANDLER,
-			true);
-	}
+    private static URLClassLoader createParentFirstClassLoader(
+            URL childCodePath, ClassLoader parentClassLoader) {
+        return FlinkUserCodeClassLoaders.parentFirst(
+                new URL[] {childCodePath}, parentClassLoader, NOOP_EXCEPTION_HANDLER, true);
+    }
 
-	private static URLClassLoader createChildFirstClassLoader(URL childCodePath, ClassLoader parentClassLoader) {
-		return FlinkUserCodeClassLoaders.childFirst(
-			new URL[] { childCodePath },
-			parentClassLoader,
-			new String[0],
-			NOOP_EXCEPTION_HANDLER,
-			true);
-	}
+    private static URLClassLoader createChildFirstClassLoader(
+            URL childCodePath, ClassLoader parentClassLoader) {
+        return FlinkUserCodeClassLoaders.childFirst(
+                new URL[] {childCodePath},
+                parentClassLoader,
+                new String[0],
+                NOOP_EXCEPTION_HANDLER,
+                true);
+    }
 
-	@Test
-	public void testClosingOfClassloader() throws Exception {
-		final String className = ClassToLoad.class.getName();
+    @Test
+    public void testClosingOfClassloader() throws Exception {
+        final String className = ClassToLoad.class.getName();
 
-		final ClassLoader parentClassLoader = ClassLoader.getSystemClassLoader().getParent();
+        final ClassLoader parentClassLoader = ClassLoader.getSystemClassLoader().getParent();
 
-		final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
+        final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-		final URLClassLoader childClassLoader = createChildFirstClassLoader(childCodePath, parentClassLoader);
+        final URLClassLoader childClassLoader =
+                createChildFirstClassLoader(childCodePath, parentClassLoader);
 
-		final Class<?> loadedClass = childClassLoader.loadClass(className);
+        final Class<?> loadedClass = childClassLoader.loadClass(className);
 
-		assertNotSame(ClassToLoad.class, loadedClass);
+        assertNotSame(ClassToLoad.class, loadedClass);
 
-		childClassLoader.close();
+        childClassLoader.close();
 
-		// after closing, no loaded class should be reachable anymore
-		expectedException.expect(isA(IllegalStateException.class));
-		childClassLoader.loadClass(className);
-	}
+        // after closing, no loaded class should be reachable anymore
+        expectedException.expect(isA(IllegalStateException.class));
+        childClassLoader.loadClass(className);
+    }
 
-	private static class ClassToLoad {
-	}
+    private static class ClassToLoad {}
 }

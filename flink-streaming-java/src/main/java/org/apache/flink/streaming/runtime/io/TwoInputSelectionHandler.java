@@ -24,57 +24,57 @@ import org.apache.flink.streaming.api.operators.InputSelection;
 import javax.annotation.Nullable;
 
 /**
- * This handler is mainly used for selecting the next available input index
- * in {@link StreamTwoInputProcessor}.
+ * This handler is mainly used for selecting the next available input index in {@link
+ * StreamTwoInputProcessor}.
  */
 @Internal
 public class TwoInputSelectionHandler {
 
-	@Nullable
-	private final InputSelectable inputSelectable;
+    @Nullable private final InputSelectable inputSelectable;
 
-	private InputSelection inputSelection;
+    private InputSelection inputSelection;
 
-	private int availableInputsMask;
+    private int availableInputsMask;
 
-	public TwoInputSelectionHandler(@Nullable InputSelectable inputSelectable) {
-		this.inputSelectable = inputSelectable;
-		this.availableInputsMask = (int) new InputSelection.Builder().select(1).select(2).build().getInputMask();
-	}
+    public TwoInputSelectionHandler(@Nullable InputSelectable inputSelectable) {
+        this.inputSelectable = inputSelectable;
+        this.availableInputsMask =
+                (int) new InputSelection.Builder().select(1).select(2).build().getInputMask();
+    }
 
-	void nextSelection() {
-		if (inputSelectable == null) {
-			inputSelection = InputSelection.ALL;
-		} else {
-			inputSelection = inputSelectable.nextSelection();
-		}
-	}
+    void nextSelection() {
+        if (inputSelectable == null) {
+            inputSelection = InputSelection.ALL;
+        } else {
+            inputSelection = inputSelectable.nextSelection();
+        }
+    }
 
-	int selectNextInputIndex(int lastReadInputIndex) {
-		return inputSelection.fairSelectNextIndexOutOf2(availableInputsMask, lastReadInputIndex);
-	}
+    int selectNextInputIndex(int lastReadInputIndex) {
+        return inputSelection.fairSelectNextIndexOutOf2(availableInputsMask, lastReadInputIndex);
+    }
 
-	boolean shouldSetAvailableForAnotherInput() {
-		return availableInputsMask < 3 && inputSelection.areAllInputsSelected();
-	}
+    boolean shouldSetAvailableForAnotherInput() {
+        return availableInputsMask < 3 && inputSelection.areAllInputsSelected();
+    }
 
-	void setAvailableInput(int inputIndex) {
-		availableInputsMask |= 1 << inputIndex;
-	}
+    void setAvailableInput(int inputIndex) {
+        availableInputsMask |= 1 << inputIndex;
+    }
 
-	void setUnavailableInput(int inputIndex) {
-		availableInputsMask &= ~(1 << inputIndex);
-	}
+    void setUnavailableInput(int inputIndex) {
+        availableInputsMask &= ~(1 << inputIndex);
+    }
 
-	boolean areAllInputsSelected() {
-		return inputSelection.areAllInputsSelected();
-	}
+    boolean areAllInputsSelected() {
+        return inputSelection.areAllInputsSelected();
+    }
 
-	boolean isFirstInputSelected() {
-		return inputSelection.isInputSelected(1);
-	}
+    boolean isFirstInputSelected() {
+        return inputSelection.isInputSelected(1);
+    }
 
-	boolean isSecondInputSelected() {
-		return inputSelection.isInputSelected(2);
-	}
+    boolean isSecondInputSelected() {
+        return inputSelection.isInputSelected(2);
+    }
 }

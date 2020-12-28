@@ -32,29 +32,30 @@ import org.apache.calcite.rex.RexLiteral;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Base {@link ExecNode} that read records from given values.
- */
+/** Base {@link ExecNode} that read records from given values. */
 public abstract class CommonExecValues extends ExecNodeBase<RowData> {
-	private final List<List<RexLiteral>> tuples;
+    private final List<List<RexLiteral>> tuples;
 
-	public CommonExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
-		super(Collections.emptyList(), outputType, description);
-		this.tuples = tuples;
-	}
+    public CommonExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
+        super(Collections.emptyList(), outputType, description);
+        this.tuples = tuples;
+    }
 
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final ValuesInputFormat inputFormat = ValuesCodeGenerator.generatorInputFormat(
-				planner.getTableConfig(),
-				(RowType) getOutputType(),
-				tuples,
-				getClass().getSimpleName());
-		final Transformation<RowData> transformation =
-				planner.getExecEnv().createInput(inputFormat, inputFormat.getProducedType()).getTransformation();
-		transformation.setName(getDesc());
-		transformation.setParallelism(1);
-		transformation.setMaxParallelism(1);
-		return transformation;
-	}
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final ValuesInputFormat inputFormat =
+                ValuesCodeGenerator.generatorInputFormat(
+                        planner.getTableConfig(),
+                        (RowType) getOutputType(),
+                        tuples,
+                        getClass().getSimpleName());
+        final Transformation<RowData> transformation =
+                planner.getExecEnv()
+                        .createInput(inputFormat, inputFormat.getProducedType())
+                        .getTransformation();
+        transformation.setName(getDesc());
+        transformation.setParallelism(1);
+        transformation.setMaxParallelism(1);
+        return transformation;
+    }
 }

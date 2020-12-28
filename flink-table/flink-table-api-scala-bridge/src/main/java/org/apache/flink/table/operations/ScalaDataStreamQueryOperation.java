@@ -34,85 +34,80 @@ import java.util.Optional;
 /**
  * Describes a relational operation that reads from a {@link DataStream}.
  *
- * <p>This operation may expose only part, or change the order of the fields available in a
- * {@link org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}.
- * The {@link ScalaDataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of the
- * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
+ * <p>This operation may expose only part, or change the order of the fields available in a {@link
+ * org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}. The
+ * {@link ScalaDataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of
+ * the {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
 public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
 
-	/**
-	 * The table identifier registered under the environment. The identifier might be null when
-	 * the it is from {@code StreamTableEnvironment#fromDataStream(DataStream)}. But the identifier
-	 * should be not null if is from {@code StreamTableEnvironment#createTemporaryView(String, DataStream)}
-	 * with a registered name.
-	 */
-	@Nullable
-	private final ObjectIdentifier identifier;
-	private final DataStream<E> dataStream;
-	private final int[] fieldIndices;
-	private final TableSchema tableSchema;
+    /**
+     * The table identifier registered under the environment. The identifier might be null when the
+     * it is from {@code StreamTableEnvironment#fromDataStream(DataStream)}. But the identifier
+     * should be not null if is from {@code StreamTableEnvironment#createTemporaryView(String,
+     * DataStream)} with a registered name.
+     */
+    @Nullable private final ObjectIdentifier identifier;
 
-	public ScalaDataStreamQueryOperation(
-			DataStream<E> dataStream,
-			int[] fieldIndices,
-			TableSchema tableSchema) {
-		this(null, dataStream, fieldIndices, tableSchema);
-	}
+    private final DataStream<E> dataStream;
+    private final int[] fieldIndices;
+    private final TableSchema tableSchema;
 
-	public ScalaDataStreamQueryOperation(
-			ObjectIdentifier identifier,
-			DataStream<E> dataStream,
-			int[] fieldIndices,
-			TableSchema tableSchema) {
-		this.identifier = identifier;
-		this.dataStream = dataStream;
-		this.tableSchema = tableSchema;
-		this.fieldIndices = fieldIndices;
-	}
+    public ScalaDataStreamQueryOperation(
+            DataStream<E> dataStream, int[] fieldIndices, TableSchema tableSchema) {
+        this(null, dataStream, fieldIndices, tableSchema);
+    }
 
-	public DataStream<E> getDataStream() {
-		return dataStream;
-	}
+    public ScalaDataStreamQueryOperation(
+            ObjectIdentifier identifier,
+            DataStream<E> dataStream,
+            int[] fieldIndices,
+            TableSchema tableSchema) {
+        this.identifier = identifier;
+        this.dataStream = dataStream;
+        this.tableSchema = tableSchema;
+        this.fieldIndices = fieldIndices;
+    }
 
-	public int[] getFieldIndices() {
-		return fieldIndices;
-	}
+    public DataStream<E> getDataStream() {
+        return dataStream;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    public int[] getFieldIndices() {
+        return fieldIndices;
+    }
 
-	public Optional<ObjectIdentifier> getIdentifier() {
-		return Optional.ofNullable(identifier);
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> args = new LinkedHashMap<>();
-		if (identifier != null) {
-			args.put("id", identifier.asSummaryString());
-		} else {
-			args.put("id", dataStream.getId());
-		}
-		args.put("fields", tableSchema.getFieldNames());
+    public Optional<ObjectIdentifier> getIdentifier() {
+        return Optional.ofNullable(identifier);
+    }
 
-		return OperationUtils.formatWithChildren(
-			"DataStream",
-			args,
-			getChildren(),
-			Operation::asSummaryString);
-	}
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> args = new LinkedHashMap<>();
+        if (identifier != null) {
+            args.put("id", identifier.asSummaryString());
+        } else {
+            args.put("id", dataStream.getId());
+        }
+        args.put("fields", tableSchema.getFieldNames());
 
-	@Override
-	public List<QueryOperation> getChildren() {
-		return Collections.emptyList();
-	}
+        return OperationUtils.formatWithChildren(
+                "DataStream", args, getChildren(), Operation::asSummaryString);
+    }
 
-	@Override
-	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public List<QueryOperation> getChildren() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public <T> T accept(QueryOperationVisitor<T> visitor) {
+        return visitor.visit(this);
+    }
 }

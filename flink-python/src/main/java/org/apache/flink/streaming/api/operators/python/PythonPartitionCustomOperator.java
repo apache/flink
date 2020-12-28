@@ -30,51 +30,53 @@ import java.util.Map;
 
 /**
  * The {@link PythonPartitionCustomOperator} enables us to set the number of partitions for current
- * operator dynamically when generating the {@link org.apache.flink.streaming.api.graph.StreamGraph} before executing
- * the job. The number of partitions will be set in environment variables for python Worker, so that we can obtain the
- * number of partitions when executing user defined partitioner function.
+ * operator dynamically when generating the {@link org.apache.flink.streaming.api.graph.StreamGraph}
+ * before executing the job. The number of partitions will be set in environment variables for
+ * python Worker, so that we can obtain the number of partitions when executing user defined
+ * partitioner function.
  */
 @Internal
-public class PythonPartitionCustomOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
+public class PythonPartitionCustomOperator<IN, OUT>
+        extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final String NUM_PARTITIONS = "NUM_PARTITIONS";
+    private static final String NUM_PARTITIONS = "NUM_PARTITIONS";
 
-	private static final String MAP_CODER_URN = "flink:coder:map:v1";
+    private static final String MAP_CODER_URN = "flink:coder:map:v1";
 
-	private int numPartitions = CoreOptions.DEFAULT_PARALLELISM.defaultValue();
+    private int numPartitions = CoreOptions.DEFAULT_PARALLELISM.defaultValue();
 
-	public PythonPartitionCustomOperator(
-		Configuration config,
-		TypeInformation<IN> inputTypeInfo,
-		TypeInformation<OUT> outputTypeInfo,
-		DataStreamPythonFunctionInfo pythonFunctionInfo) {
-		super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
-	}
+    public PythonPartitionCustomOperator(
+            Configuration config,
+            TypeInformation<IN> inputTypeInfo,
+            TypeInformation<OUT> outputTypeInfo,
+            DataStreamPythonFunctionInfo pythonFunctionInfo) {
+        super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
+    }
 
-	@Override
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-		byte[] rawResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		bais.setBuffer(rawResult, 0, length);
-		collector.setAbsoluteTimestamp(bufferedTimestamp.poll());
-		collector.collect(runnerOutputTypeSerializer.deserialize(baisWrapper));
-	}
+    @Override
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+        byte[] rawResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        bais.setBuffer(rawResult, 0, length);
+        collector.setAbsoluteTimestamp(bufferedTimestamp.poll());
+        collector.collect(runnerOutputTypeSerializer.deserialize(baisWrapper));
+    }
 
-	@Override
-	public Map<String, String> getInternalParameters() {
-		Map<String, String> internalParameters = new HashMap<>();
-		internalParameters.put(NUM_PARTITIONS, String.valueOf(this.numPartitions));
-		return internalParameters;
-	}
+    @Override
+    public Map<String, String> getInternalParameters() {
+        Map<String, String> internalParameters = new HashMap<>();
+        internalParameters.put(NUM_PARTITIONS, String.valueOf(this.numPartitions));
+        return internalParameters;
+    }
 
-	@Override
-	public String getCoderUrn() {
-		return MAP_CODER_URN;
-	}
+    @Override
+    public String getCoderUrn() {
+        return MAP_CODER_URN;
+    }
 
-	public void setNumPartitions(int numPartitions) {
-		this.numPartitions = numPartitions;
-	}
+    public void setNumPartitions(int numPartitions) {
+        this.numPartitions = numPartitions;
+    }
 }

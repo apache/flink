@@ -25,21 +25,20 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.stream.StreamSupport;
 
-/**
- * A wrapper function for reading an evicting window with no pre-aggregation.
- */
+/** A wrapper function for reading an evicting window with no pre-aggregation. */
 @Internal
-public class ProcessEvictingWindowReader<IN, OUT, KEY, W extends Window> extends EvictingWindowReaderFunction<IN, IN, OUT, KEY, W> {
+public class ProcessEvictingWindowReader<IN, OUT, KEY, W extends Window>
+        extends EvictingWindowReaderFunction<IN, IN, OUT, KEY, W> {
 
-	public ProcessEvictingWindowReader(WindowReaderFunction<IN, OUT, KEY, W> wrappedFunction) {
-		super(wrappedFunction);
-	}
+    public ProcessEvictingWindowReader(WindowReaderFunction<IN, OUT, KEY, W> wrappedFunction) {
+        super(wrappedFunction);
+    }
 
-	@Override
-	public Iterable<IN> transform(Iterable<StreamRecord<IN>> elements) throws Exception {
-		return () -> StreamSupport
-			.stream(elements.spliterator(), false)
-			.map(StreamRecord::getValue)
-			.iterator();
-	}
+    @Override
+    public Iterable<IN> transform(Iterable<StreamRecord<IN>> elements) throws Exception {
+        return () ->
+                StreamSupport.stream(elements.spliterator(), false)
+                        .map(StreamRecord::getValue)
+                        .iterator();
+    }
 }

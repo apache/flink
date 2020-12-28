@@ -33,35 +33,39 @@ import org.slf4j.LoggerFactory;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An entity responsible for submitting an application for execution in "Application Mode",
- * i.e. on a dedicated cluster that is created on application submission and torn down upon
- * application termination, and with its {@code main()} executed on the cluster, rather than
- * the client.
+ * An entity responsible for submitting an application for execution in "Application Mode", i.e. on
+ * a dedicated cluster that is created on application submission and torn down upon application
+ * termination, and with its {@code main()} executed on the cluster, rather than the client.
  */
 @Internal
 public class ApplicationClusterDeployer implements ApplicationDeployer {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ApplicationClusterDeployer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ApplicationClusterDeployer.class);
 
-	private final ClusterClientServiceLoader clientServiceLoader;
+    private final ClusterClientServiceLoader clientServiceLoader;
 
-	public ApplicationClusterDeployer(final ClusterClientServiceLoader clientServiceLoader) {
-		this.clientServiceLoader = checkNotNull(clientServiceLoader);
-	}
+    public ApplicationClusterDeployer(final ClusterClientServiceLoader clientServiceLoader) {
+        this.clientServiceLoader = checkNotNull(clientServiceLoader);
+    }
 
-	public <ClusterID> void run(
-			final Configuration configuration,
-			final ApplicationConfiguration applicationConfiguration) throws Exception {
-		checkNotNull(configuration);
-		checkNotNull(applicationConfiguration);
+    public <ClusterID> void run(
+            final Configuration configuration,
+            final ApplicationConfiguration applicationConfiguration)
+            throws Exception {
+        checkNotNull(configuration);
+        checkNotNull(applicationConfiguration);
 
-		LOG.info("Submitting application in 'Application Mode'.");
+        LOG.info("Submitting application in 'Application Mode'.");
 
-		final ClusterClientFactory<ClusterID> clientFactory = clientServiceLoader.getClusterClientFactory(configuration);
-		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clientFactory.createClusterDescriptor(configuration)) {
-			final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(configuration);
+        final ClusterClientFactory<ClusterID> clientFactory =
+                clientServiceLoader.getClusterClientFactory(configuration);
+        try (final ClusterDescriptor<ClusterID> clusterDescriptor =
+                clientFactory.createClusterDescriptor(configuration)) {
+            final ClusterSpecification clusterSpecification =
+                    clientFactory.getClusterSpecification(configuration);
 
-			clusterDescriptor.deployApplicationCluster(clusterSpecification, applicationConfiguration);
-		}
-	}
+            clusterDescriptor.deployApplicationCluster(
+                    clusterSpecification, applicationConfiguration);
+        }
+    }
 }

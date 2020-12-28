@@ -43,68 +43,75 @@ import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * Sometimes users only add hive connector deps on client side but forget to add them on JM/TM.
- * This test is to make sure users get a clear message when that happens.
+ * Sometimes users only add hive connector deps on client side but forget to add them on JM/TM. This
+ * test is to make sure users get a clear message when that happens.
  */
 @RunWith(Parameterized.class)
 public class HiveDeserializeExceptionTest {
 
-	@Parameterized.Parameters(name = "{1}")
-	public static Object[] parameters() {
-		HiveWriterFactory writerFactory = new HiveWriterFactory(
-				new JobConf(),
-				HiveIgnoreKeyTextOutputFormat.class,
-				new SerDeInfo(),
-				TableSchema.builder().build(),
-				new String[0],
-				new Properties(),
-				HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()),
-				false
-		);
+    @Parameterized.Parameters(name = "{1}")
+    public static Object[] parameters() {
+        HiveWriterFactory writerFactory =
+                new HiveWriterFactory(
+                        new JobConf(),
+                        HiveIgnoreKeyTextOutputFormat.class,
+                        new SerDeInfo(),
+                        TableSchema.builder().build(),
+                        new String[0],
+                        new Properties(),
+                        HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()),
+                        false);
 
-		HiveCompactReaderFactory compactReaderFactory = new HiveCompactReaderFactory(
-				new StorageDescriptor(),
-				new Properties(),
-				new JobConf(),
-				new CatalogTableImpl(TableSchema.builder().build(), Collections.emptyMap(), null),
-				HiveShimLoader.getHiveVersion(),
-				RowType.of(DataTypes.INT().getLogicalType()),
-				false
-		);
+        HiveCompactReaderFactory compactReaderFactory =
+                new HiveCompactReaderFactory(
+                        new StorageDescriptor(),
+                        new Properties(),
+                        new JobConf(),
+                        new CatalogTableImpl(
+                                TableSchema.builder().build(), Collections.emptyMap(), null),
+                        HiveShimLoader.getHiveVersion(),
+                        RowType.of(DataTypes.INT().getLogicalType()),
+                        false);
 
-		HiveSource hiveSource = new HiveSource.HiveSourceBuilder(
-				new JobConf(),
-				new ObjectPath("default", "foo"),
-				new CatalogTableImpl(TableSchema.builder().field("i", DataTypes.INT()).build(), Collections.emptyMap(), null),
-				Collections.singletonList(new HiveTablePartition(new StorageDescriptor(), new Properties())),
-				null,
-				HiveShimLoader.getHiveVersion(),
-				false,
-				RowType.of(DataTypes.INT().getLogicalType())).build();
+        HiveSource hiveSource =
+                new HiveSource.HiveSourceBuilder(
+                                new JobConf(),
+                                new ObjectPath("default", "foo"),
+                                new CatalogTableImpl(
+                                        TableSchema.builder().field("i", DataTypes.INT()).build(),
+                                        Collections.emptyMap(),
+                                        null),
+                                Collections.singletonList(
+                                        new HiveTablePartition(
+                                                new StorageDescriptor(), new Properties())),
+                                null,
+                                HiveShimLoader.getHiveVersion(),
+                                false,
+                                RowType.of(DataTypes.INT().getLogicalType()))
+                        .build();
 
-		return new Object[][]{
-				new Object[]{writerFactory, writerFactory.getClass().getSimpleName()},
-				new Object[]{compactReaderFactory, compactReaderFactory.getClass().getSimpleName()},
-				new Object[]{hiveSource, hiveSource.getClass().getSimpleName()}
-		};
-	}
+        return new Object[][] {
+            new Object[] {writerFactory, writerFactory.getClass().getSimpleName()},
+            new Object[] {compactReaderFactory, compactReaderFactory.getClass().getSimpleName()},
+            new Object[] {hiveSource, hiveSource.getClass().getSimpleName()}
+        };
+    }
 
-	@Parameterized.Parameter
-	public Object object;
+    @Parameterized.Parameter public Object object;
 
-	@Parameterized.Parameter(1)
-	public String name;
+    @Parameterized.Parameter(1)
+    public String name;
 
-	@Test
-	public void test() throws Exception {
-		ClassLoader parentLoader = object.getClass().getClassLoader().getParent();
-		assumeTrue(parentLoader != null);
-		byte[] bytes = InstantiationUtil.serializeObject(object);
-		try {
-			InstantiationUtil.deserializeObject(bytes, parentLoader);
-			fail("Exception not thrown");
-		} catch (ClassNotFoundException e) {
-			// expected
-		}
-	}
+    @Test
+    public void test() throws Exception {
+        ClassLoader parentLoader = object.getClass().getClassLoader().getParent();
+        assumeTrue(parentLoader != null);
+        byte[] bytes = InstantiationUtil.serializeObject(object);
+        try {
+            InstantiationUtil.deserializeObject(bytes, parentLoader);
+            fail("Exception not thrown");
+        } catch (ClassNotFoundException e) {
+            // expected
+        }
+    }
 }

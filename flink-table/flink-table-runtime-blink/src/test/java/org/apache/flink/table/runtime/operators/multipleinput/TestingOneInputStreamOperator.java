@@ -30,103 +30,101 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A {@link OneInputStreamOperator} for testing.
- */
+/** A {@link OneInputStreamOperator} for testing. */
 public class TestingOneInputStreamOperator extends AbstractStreamOperator<RowData>
-		implements OneInputStreamOperator<RowData, RowData>, BoundedOneInput {
+        implements OneInputStreamOperator<RowData, RowData>, BoundedOneInput {
 
-	private final boolean emitDataInEndInput;
+    private final boolean emitDataInEndInput;
 
-	private boolean isOpened = false;
-	private StreamRecord<RowData> currentElement = null;
-	private Watermark currentWatermark = null;
-	private LatencyMarker currentLatencyMarker = null;
-	private boolean isEnd = false;
-	private boolean isDisposed = false;
-	private boolean isClosed = false;
-	private final List<StreamRecord<RowData>> receivedElements = new ArrayList<>();
+    private boolean isOpened = false;
+    private StreamRecord<RowData> currentElement = null;
+    private Watermark currentWatermark = null;
+    private LatencyMarker currentLatencyMarker = null;
+    private boolean isEnd = false;
+    private boolean isDisposed = false;
+    private boolean isClosed = false;
+    private final List<StreamRecord<RowData>> receivedElements = new ArrayList<>();
 
-	public TestingOneInputStreamOperator() {
-		this(false);
-	}
+    public TestingOneInputStreamOperator() {
+        this(false);
+    }
 
-	public TestingOneInputStreamOperator(boolean emitDataInEndInput) {
-		this.emitDataInEndInput = emitDataInEndInput;
-	}
+    public TestingOneInputStreamOperator(boolean emitDataInEndInput) {
+        this.emitDataInEndInput = emitDataInEndInput;
+    }
 
-	@Override
-	public void open() throws Exception {
-		isOpened = true;
-	}
+    @Override
+    public void open() throws Exception {
+        isOpened = true;
+    }
 
-	@Override
-	public void processElement(StreamRecord<RowData> element) throws Exception {
-		currentElement = element;
-		if (emitDataInEndInput) {
-			receivedElements.add(element);
-		} else {
-			output.collect(element);
-		}
-	}
+    @Override
+    public void processElement(StreamRecord<RowData> element) throws Exception {
+        currentElement = element;
+        if (emitDataInEndInput) {
+            receivedElements.add(element);
+        } else {
+            output.collect(element);
+        }
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		currentWatermark = mark;
-		output.emitWatermark(mark);
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        currentWatermark = mark;
+        output.emitWatermark(mark);
+    }
 
-	@Override
-	public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
-		currentLatencyMarker = latencyMarker;
-		output.emitLatencyMarker(latencyMarker);
-	}
+    @Override
+    public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+        currentLatencyMarker = latencyMarker;
+        output.emitLatencyMarker(latencyMarker);
+    }
 
-	@Override
-	public void endInput() throws Exception {
-		isEnd = true;
-		if (emitDataInEndInput) {
-			receivedElements.forEach(output::collect);
-		} else {
-			Preconditions.checkArgument(receivedElements.isEmpty());
-		}
-	}
+    @Override
+    public void endInput() throws Exception {
+        isEnd = true;
+        if (emitDataInEndInput) {
+            receivedElements.forEach(output::collect);
+        } else {
+            Preconditions.checkArgument(receivedElements.isEmpty());
+        }
+    }
 
-	@Override
-	public void dispose() throws Exception {
-		this.isDisposed = true;
-	}
+    @Override
+    public void dispose() throws Exception {
+        this.isDisposed = true;
+    }
 
-	@Override
-	public void close() throws Exception {
-		isClosed = true;
-	}
+    @Override
+    public void close() throws Exception {
+        isClosed = true;
+    }
 
-	public boolean isOpened() {
-		return isOpened;
-	}
+    public boolean isOpened() {
+        return isOpened;
+    }
 
-	public StreamRecord<RowData> getCurrentElement() {
-		return currentElement;
-	}
+    public StreamRecord<RowData> getCurrentElement() {
+        return currentElement;
+    }
 
-	public Watermark getCurrentWatermark() {
-		return currentWatermark;
-	}
+    public Watermark getCurrentWatermark() {
+        return currentWatermark;
+    }
 
-	public LatencyMarker getCurrentLatencyMarker() {
-		return currentLatencyMarker;
-	}
+    public LatencyMarker getCurrentLatencyMarker() {
+        return currentLatencyMarker;
+    }
 
-	public boolean isEnd() {
-		return isEnd;
-	}
+    public boolean isEnd() {
+        return isEnd;
+    }
 
-	public boolean isDisposed() {
-		return isDisposed;
-	}
+    public boolean isDisposed() {
+        return isDisposed;
+    }
 
-	public boolean isClosed() {
-		return isClosed;
-	}
+    public boolean isClosed() {
+        return isClosed;
+    }
 }

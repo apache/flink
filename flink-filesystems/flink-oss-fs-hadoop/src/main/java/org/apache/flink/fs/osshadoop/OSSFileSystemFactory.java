@@ -33,79 +33,81 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.Set;
 
-/**
- * Simple factory for the OSS file system.
- */
+/** Simple factory for the OSS file system. */
 public class OSSFileSystemFactory implements FileSystemFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(OSSFileSystemFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(OSSFileSystemFactory.class);
 
-	private Configuration flinkConfig;
+    private Configuration flinkConfig;
 
-	private org.apache.hadoop.conf.Configuration hadoopConfig;
+    private org.apache.hadoop.conf.Configuration hadoopConfig;
 
-	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.singleton("fs.oss.credentials.provider");
+    private static final Set<String> CONFIG_KEYS_TO_SHADE =
+            Collections.singleton("fs.oss.credentials.provider");
 
-	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.osshadoop.shaded.";
+    private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.osshadoop.shaded.";
 
-	/**
-	 * In order to simplify, we make flink oss configuration keys same with hadoop oss module.
-	 * So, we add all configuration key with prefix `fs.oss` in flink conf to hadoop conf
-	 */
-	private static final String[] FLINK_CONFIG_PREFIXES = { "fs.oss."};
+    /**
+     * In order to simplify, we make flink oss configuration keys same with hadoop oss module. So,
+     * we add all configuration key with prefix `fs.oss` in flink conf to hadoop conf
+     */
+    private static final String[] FLINK_CONFIG_PREFIXES = {"fs.oss."};
 
-	@Override
-	public String getScheme() {
-		return "oss";
-	}
+    @Override
+    public String getScheme() {
+        return "oss";
+    }
 
-	@Override
-	public void configure(Configuration config) {
-		flinkConfig = config;
-		hadoopConfig = null;
-	}
+    @Override
+    public void configure(Configuration config) {
+        flinkConfig = config;
+        hadoopConfig = null;
+    }
 
-	@Override
-	public FileSystem create(URI fsUri) throws IOException {
-		this.hadoopConfig = getHadoopConfiguration();
+    @Override
+    public FileSystem create(URI fsUri) throws IOException {
+        this.hadoopConfig = getHadoopConfiguration();
 
-		final String scheme = fsUri.getScheme();
-		final String authority = fsUri.getAuthority();
+        final String scheme = fsUri.getScheme();
+        final String authority = fsUri.getAuthority();
 
-		if (scheme == null && authority == null) {
-			fsUri = org.apache.hadoop.fs.FileSystem.getDefaultUri(hadoopConfig);
-		} else if (scheme != null && authority == null) {
-			URI defaultUri = org.apache.hadoop.fs.FileSystem.getDefaultUri(hadoopConfig);
-			if (scheme.equals(defaultUri.getScheme()) && defaultUri.getAuthority() != null) {
-				fsUri = defaultUri;
-			}
-		}
+        if (scheme == null && authority == null) {
+            fsUri = org.apache.hadoop.fs.FileSystem.getDefaultUri(hadoopConfig);
+        } else if (scheme != null && authority == null) {
+            URI defaultUri = org.apache.hadoop.fs.FileSystem.getDefaultUri(hadoopConfig);
+            if (scheme.equals(defaultUri.getScheme()) && defaultUri.getAuthority() != null) {
+                fsUri = defaultUri;
+            }
+        }
 
-		final AliyunOSSFileSystem fs = new AliyunOSSFileSystem();
-		fs.initialize(fsUri, hadoopConfig);
-		return new HadoopFileSystem(fs);
-	}
+        final AliyunOSSFileSystem fs = new AliyunOSSFileSystem();
+        fs.initialize(fsUri, hadoopConfig);
+        return new HadoopFileSystem(fs);
+    }
 
-	@VisibleForTesting
-	org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
-		org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
-		if (flinkConfig == null) {
-			return conf;
-		}
+    @VisibleForTesting
+    org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
+        org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
+        if (flinkConfig == null) {
+            return conf;
+        }
 
-		// read all configuration with prefix 'FLINK_CONFIG_PREFIXES'
-		for (String key : flinkConfig.keySet()) {
-			for (String prefix : FLINK_CONFIG_PREFIXES) {
-				if (key.startsWith(prefix)) {
-					String value = flinkConfig.getString(key, null);
-					conf.set(key, value);
-					if (CONFIG_KEYS_TO_SHADE.contains(key)) {
-						conf.set(key, FLINK_SHADING_PREFIX + value);
-					}
+        // read all configuration with prefix 'FLINK_CONFIG_PREFIXES'
+        for (String key : flinkConfig.keySet()) {
+            for (String prefix : FLINK_CONFIG_PREFIXES) {
+                if (key.startsWith(prefix)) {
+                    String value = flinkConfig.getString(key, null);
+                    conf.set(key, value);
+                    if (CONFIG_KEYS_TO_SHADE.contains(key)) {
+                        conf.set(key, FLINK_SHADING_PREFIX + value);
+                    }
 
-					LOG.debug("Adding Flink config entry for {} as {} to Hadoop config", key, conf.get(key));
-				}
-			}
-		}
-		return conf;
-	}
+                    LOG.debug(
+                            "Adding Flink config entry for {} as {} to Hadoop config",
+                            key,
+                            conf.get(key));
+                }
+            }
+        }
+        return conf;
+    }
 }

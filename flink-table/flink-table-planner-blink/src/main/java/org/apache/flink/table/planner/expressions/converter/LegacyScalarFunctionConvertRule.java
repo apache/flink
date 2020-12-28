@@ -32,26 +32,24 @@ import java.util.Optional;
 
 import static org.apache.flink.table.planner.expressions.converter.ExpressionConverter.toRexNodes;
 
-/**
- * {@link CallExpressionConvertRule} to convert {@link ScalarFunctionDefinition}.
- */
+/** {@link CallExpressionConvertRule} to convert {@link ScalarFunctionDefinition}. */
 public class LegacyScalarFunctionConvertRule implements CallExpressionConvertRule {
 
-	@Override
-	public Optional<RexNode> convert(CallExpression call, ConvertContext context) {
-		FunctionDefinition def = call.getFunctionDefinition();
-		if (def instanceof ScalarFunctionDefinition) {
-			ScalarFunction scalaFunc = ((ScalarFunctionDefinition) def).getScalarFunction();
-			FunctionIdentifier identifier = call.getFunctionIdentifier()
-				.orElse(FunctionIdentifier.of(scalaFunc.functionIdentifier()));
-			SqlFunction sqlFunction = UserDefinedFunctionUtils.createScalarSqlFunction(
-				identifier,
-				scalaFunc.toString(),
-				scalaFunc,
-				context.getTypeFactory());
-			return Optional.of(context.getRelBuilder()
-				.call(sqlFunction, toRexNodes(context, call.getChildren())));
-		}
-		return Optional.empty();
-	}
+    @Override
+    public Optional<RexNode> convert(CallExpression call, ConvertContext context) {
+        FunctionDefinition def = call.getFunctionDefinition();
+        if (def instanceof ScalarFunctionDefinition) {
+            ScalarFunction scalaFunc = ((ScalarFunctionDefinition) def).getScalarFunction();
+            FunctionIdentifier identifier =
+                    call.getFunctionIdentifier()
+                            .orElse(FunctionIdentifier.of(scalaFunc.functionIdentifier()));
+            SqlFunction sqlFunction =
+                    UserDefinedFunctionUtils.createScalarSqlFunction(
+                            identifier, scalaFunc.toString(), scalaFunc, context.getTypeFactory());
+            return Optional.of(
+                    context.getRelBuilder()
+                            .call(sqlFunction, toRexNodes(context, call.getChildren())));
+        }
+        return Optional.empty();
+    }
 }

@@ -20,19 +20,16 @@ package org.apache.flink.table.catalog.exceptions;
 
 import org.apache.flink.table.catalog.ObjectPath;
 
-/**
- * Exception for trying to operate on a function that doesn't exist.
- */
+/** Exception for trying to operate on a function that doesn't exist. */
 public class FunctionNotExistException extends Exception {
 
-	private static final String MSG = "Function %s does not exist in Catalog %s.";
+    private static final String MSG = "Function %s does not exist in Catalog %s.";
 
-	public FunctionNotExistException(String catalogName, ObjectPath functionPath) {
-		this(catalogName, functionPath, null);
-	}
+    public FunctionNotExistException(String catalogName, ObjectPath functionPath) {
+        this(catalogName, functionPath, null);
+    }
 
-	public FunctionNotExistException(String catalogName, ObjectPath functionPath, Throwable cause) {
-		super(String.format(MSG, functionPath.getFullName(), catalogName), cause);
-	}
-
+    public FunctionNotExistException(String catalogName, ObjectPath functionPath, Throwable cause) {
+        super(String.format(MSG, functionPath.getFullName(), catalogName), cause);
+    }
 }

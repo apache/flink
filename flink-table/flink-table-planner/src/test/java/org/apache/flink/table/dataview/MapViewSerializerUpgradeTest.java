@@ -38,78 +38,87 @@ import java.util.Collection;
 
 import static org.hamcrest.Matchers.is;
 
-/**
- * A {@link TypeSerializerUpgradeTestBase} for {@link MapViewSerializer}.
- */
+/** A {@link TypeSerializerUpgradeTestBase} for {@link MapViewSerializer}. */
 @RunWith(Parameterized.class)
-public class MapViewSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<MapView<Integer, String>, MapView<Integer, String>> {
+public class MapViewSerializerUpgradeTest
+        extends TypeSerializerUpgradeTestBase<MapView<Integer, String>, MapView<Integer, String>> {
 
-	private static final String SPEC_NAME = "map-view-serializer";
+    private static final String SPEC_NAME = "map-view-serializer";
 
-	public MapViewSerializerUpgradeTest(TestSpecification<MapView<Integer, String>, MapView<Integer, String>> testSpecification) {
-		super(testSpecification);
-	}
+    public MapViewSerializerUpgradeTest(
+            TestSpecification<MapView<Integer, String>, MapView<Integer, String>>
+                    testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					SPEC_NAME,
-					migrationVersion,
-					MapViewSerializerSetup.class,
-					MapViewSerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            SPEC_NAME,
+                            migrationVersion,
+                            MapViewSerializerSetup.class,
+                            MapViewSerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "map-view-serializer"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "map-view-serializer"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class MapViewSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<MapView<Integer, String>> {
-		@Override
-		public TypeSerializer<MapView<Integer, String>> createPriorSerializer() {
-			return new MapViewSerializer<>(new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE));
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class MapViewSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<MapView<Integer, String>> {
+        @Override
+        public TypeSerializer<MapView<Integer, String>> createPriorSerializer() {
+            return new MapViewSerializer<>(
+                    new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE));
+        }
 
-		@Override
-		public MapView<Integer, String> createTestData() {
-			return mockTestData();
-		}
-	}
+        @Override
+        public MapView<Integer, String> createTestData() {
+            return mockTestData();
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class MapViewSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<MapView<Integer, String>> {
-		@Override
-		public TypeSerializer<MapView<Integer, String>> createUpgradedSerializer() {
-			return new MapViewSerializer<>(new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE));
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class MapViewSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<MapView<Integer, String>> {
+        @Override
+        public TypeSerializer<MapView<Integer, String>> createUpgradedSerializer() {
+            return new MapViewSerializer<>(
+                    new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE));
+        }
 
-		@Override
-		public Matcher<MapView<Integer, String>> testDataMatcher() {
-			return is(mockTestData());
-		}
+        @Override
+        public Matcher<MapView<Integer, String>> testDataMatcher() {
+            return is(mockTestData());
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<MapView<Integer, String>>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<MapView<Integer, String>>>
+                schemaCompatibilityMatcher(MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 
-	public static MapView<Integer, String> mockTestData() {
-		MapView<Integer, String> view = new MapView<>(TypeInformation.of(Integer.class), TypeInformation.of(String.class));
-		try {
-			view.put(1, "1");
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-		return view;
-	}
+    public static MapView<Integer, String> mockTestData() {
+        MapView<Integer, String> view =
+                new MapView<>(TypeInformation.of(Integer.class), TypeInformation.of(String.class));
+        try {
+            view.put(1, "1");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return view;
+    }
 }

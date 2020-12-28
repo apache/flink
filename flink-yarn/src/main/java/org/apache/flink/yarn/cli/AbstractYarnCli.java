@@ -31,40 +31,49 @@ import org.apache.commons.cli.Options;
 
 abstract class AbstractYarnCli extends AbstractCustomCommandLine {
 
-	public static final String ID = "yarn-cluster";
+    public static final String ID = "yarn-cluster";
 
-	protected final Option applicationId;
+    protected final Option applicationId;
 
-	protected final Option addressOption =
-		new Option("m", "jobmanager", true, "Set to " + ID + " to use YARN execution mode.");
+    protected final Option addressOption =
+            new Option("m", "jobmanager", true, "Set to " + ID + " to use YARN execution mode.");
 
-	protected final Configuration configuration;
+    protected final Configuration configuration;
 
-	protected AbstractYarnCli(Configuration configuration, String shortPrefix, String longPrefix) {
-		this.configuration = configuration;
-		this.applicationId = new Option(shortPrefix + "id", longPrefix + "applicationId", true, "Attach to running YARN session");
-	}
+    protected AbstractYarnCli(Configuration configuration, String shortPrefix, String longPrefix) {
+        this.configuration = configuration;
+        this.applicationId =
+                new Option(
+                        shortPrefix + "id",
+                        longPrefix + "applicationId",
+                        true,
+                        "Attach to running YARN session");
+    }
 
-	@Override
-	public boolean isActive(CommandLine commandLine) {
-		final String jobManagerOption = commandLine.getOptionValue(addressOption.getOpt(), null);
-		final boolean yarnJobManager = ID.equals(jobManagerOption);
-		final boolean hasYarnAppId = commandLine.hasOption(applicationId.getOpt())
-			|| configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent();
-		final boolean hasYarnExecutor = YarnSessionClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET))
-			|| YarnJobClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
-		return hasYarnExecutor || yarnJobManager || hasYarnAppId;
-	}
+    @Override
+    public boolean isActive(CommandLine commandLine) {
+        final String jobManagerOption = commandLine.getOptionValue(addressOption.getOpt(), null);
+        final boolean yarnJobManager = ID.equals(jobManagerOption);
+        final boolean hasYarnAppId =
+                commandLine.hasOption(applicationId.getOpt())
+                        || configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent();
+        final boolean hasYarnExecutor =
+                YarnSessionClusterExecutor.NAME.equalsIgnoreCase(
+                                configuration.get(DeploymentOptions.TARGET))
+                        || YarnJobClusterExecutor.NAME.equalsIgnoreCase(
+                                configuration.get(DeploymentOptions.TARGET));
+        return hasYarnExecutor || yarnJobManager || hasYarnAppId;
+    }
 
-	@Override
-	public void addGeneralOptions(Options baseOptions) {
-		super.addGeneralOptions(baseOptions);
-		baseOptions.addOption(applicationId);
-		baseOptions.addOption(addressOption);
-	}
+    @Override
+    public void addGeneralOptions(Options baseOptions) {
+        super.addGeneralOptions(baseOptions);
+        baseOptions.addOption(applicationId);
+        baseOptions.addOption(addressOption);
+    }
 
-	@Override
-	public String getId() {
-		return ID;
-	}
+    @Override
+    public String getId() {
+        return ID;
+    }
 }

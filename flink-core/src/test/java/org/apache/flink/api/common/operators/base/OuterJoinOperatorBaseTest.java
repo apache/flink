@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -48,154 +49,231 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("serial")
 public class OuterJoinOperatorBaseTest implements Serializable {
 
-	private MockRichFlatJoinFunction joiner;
+    private MockRichFlatJoinFunction joiner;
 
-	private OuterJoinOperatorBase<String, String, String, FlatJoinFunction<String, String, String>> baseOperator;
+    private OuterJoinOperatorBase<String, String, String, FlatJoinFunction<String, String, String>>
+            baseOperator;
 
-	private ExecutionConfig executionConfig;
+    private ExecutionConfig executionConfig;
 
-	private RuntimeContext runtimeContext;
+    private RuntimeContext runtimeContext;
 
-	@SuppressWarnings({"rawtypes", "unchecked"})
-	@Before
-	public void setup() {
-		joiner = new MockRichFlatJoinFunction();
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    @Before
+    public void setup() {
+        joiner = new MockRichFlatJoinFunction();
 
-		baseOperator =
-			new OuterJoinOperatorBase(joiner,
-				new BinaryOperatorInformation(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
-					BasicTypeInfo.STRING_TYPE_INFO), new int[0], new int[0], "TestJoiner", null);
+        baseOperator =
+                new OuterJoinOperatorBase(
+                        joiner,
+                        new BinaryOperatorInformation(
+                                BasicTypeInfo.STRING_TYPE_INFO,
+                                BasicTypeInfo.STRING_TYPE_INFO,
+                                BasicTypeInfo.STRING_TYPE_INFO),
+                        new int[0],
+                        new int[0],
+                        "TestJoiner",
+                        null);
 
-		executionConfig = new ExecutionConfig();
+        executionConfig = new ExecutionConfig();
 
-		String taskName = "Test rich outer join function";
-		TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
-		HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
-		HashMap<String, Future<Path>> cpTasks = new HashMap<>();
+        String taskName = "Test rich outer join function";
+        TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+        HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
+        HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 
-		runtimeContext = new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks,
-			accumulatorMap, new UnregisteredMetricsGroup());
-	}
+        runtimeContext =
+                new RuntimeUDFContext(
+                        taskInfo,
+                        null,
+                        executionConfig,
+                        cpTasks,
+                        accumulatorMap,
+                        new UnregisteredMetricsGroup());
+    }
 
-	@Test
-	public void testFullOuterJoinWithoutMatchingPartners() throws Exception {
-		final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
-		final List<String> rightInput = Arrays.asList("oof", "rab", "raboof");
-		baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
-		List<String> expected = Arrays.asList("bar,null", "foo,null", "foobar,null", "null,oof", "null,rab", "null,raboof");
-		testOuterJoin(leftInput, rightInput, expected);
-	}
+    @Test
+    public void testFullOuterJoinWithoutMatchingPartners() throws Exception {
+        final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
+        final List<String> rightInput = Arrays.asList("oof", "rab", "raboof");
+        baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
+        List<String> expected =
+                Arrays.asList(
+                        "bar,null",
+                        "foo,null",
+                        "foobar,null",
+                        "null,oof",
+                        "null,rab",
+                        "null,raboof");
+        testOuterJoin(leftInput, rightInput, expected);
+    }
 
-	@Test
-	public void testFullOuterJoinWithFullMatchingKeys() throws Exception {
-		final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
-		final List<String> rightInput = Arrays.asList("bar", "foobar", "foo");
-		baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
-		List<String> expected = Arrays.asList("bar,bar", "foo,foo", "foobar,foobar");
-		testOuterJoin(leftInput, rightInput, expected);
-	}
+    @Test
+    public void testFullOuterJoinWithFullMatchingKeys() throws Exception {
+        final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
+        final List<String> rightInput = Arrays.asList("bar", "foobar", "foo");
+        baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
+        List<String> expected = Arrays.asList("bar,bar", "foo,foo", "foobar,foobar");
+        testOuterJoin(leftInput, rightInput, expected);
+    }
 
-	@Test
-	public void testFullOuterJoinWithEmptyLeftInput() throws Exception {
-		final List<String> leftInput = Collections.emptyList();
-		final List<String> rightInput = Arrays.asList("foo", "bar", "foobar");
-		baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
-		List<String> expected = Arrays.asList("null,bar", "null,foo", "null,foobar");
-		testOuterJoin(leftInput, rightInput, expected);
-	}
+    @Test
+    public void testFullOuterJoinWithEmptyLeftInput() throws Exception {
+        final List<String> leftInput = Collections.emptyList();
+        final List<String> rightInput = Arrays.asList("foo", "bar", "foobar");
+        baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
+        List<String> expected = Arrays.asList("null,bar", "null,foo", "null,foobar");
+        testOuterJoin(leftInput, rightInput, expected);
+    }
 
-	@Test
-	public void testFullOuterJoinWithEmptyRightInput() throws Exception {
-		final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
-		final List<String> rightInput = Collections.emptyList();
-		baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
-		List<String> expected = Arrays.asList("bar,null", "foo,null", "foobar,null");
-		testOuterJoin(leftInput, rightInput, expected);
-	}
+    @Test
+    public void testFullOuterJoinWithEmptyRightInput() throws Exception {
+        final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
+        final List<String> rightInput = Collections.emptyList();
+        baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
+        List<String> expected = Arrays.asList("bar,null", "foo,null", "foobar,null");
+        testOuterJoin(leftInput, rightInput, expected);
+    }
 
-	@Test
-	public void testFullOuterJoinWithPartialMatchingKeys() throws Exception {
-		final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
-		final List<String> rightInput = Arrays.asList("bar", "foo", "barfoo");
-		baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
-		List<String> expected = Arrays.asList("bar,bar", "null,barfoo", "foo,foo", "foobar,null");
-		testOuterJoin(leftInput, rightInput, expected);
-	}
+    @Test
+    public void testFullOuterJoinWithPartialMatchingKeys() throws Exception {
+        final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
+        final List<String> rightInput = Arrays.asList("bar", "foo", "barfoo");
+        baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
+        List<String> expected = Arrays.asList("bar,bar", "null,barfoo", "foo,foo", "foobar,null");
+        testOuterJoin(leftInput, rightInput, expected);
+    }
 
-	@Test
-	public void testFullOuterJoinBuildingCorrectCrossProducts() throws Exception {
-		final List<String> leftInput = Arrays.asList("foo", "foo", "foo", "bar","bar", "foobar", "foobar");
-		final List<String> rightInput = Arrays.asList("foo", "foo", "bar", "bar", "bar", "barfoo", "barfoo");
-		baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
-		List<String> expected = Arrays.asList("bar,bar", "bar,bar", "bar,bar", "bar,bar", "bar,bar", "bar,bar",
-				"null,barfoo", "null,barfoo", "foo,foo", "foo,foo", "foo,foo", "foo,foo", "foo,foo", "foo,foo",
-				"foobar,null", "foobar,null");
-		testOuterJoin(leftInput, rightInput, expected);
-	}
+    @Test
+    public void testFullOuterJoinBuildingCorrectCrossProducts() throws Exception {
+        final List<String> leftInput =
+                Arrays.asList("foo", "foo", "foo", "bar", "bar", "foobar", "foobar");
+        final List<String> rightInput =
+                Arrays.asList("foo", "foo", "bar", "bar", "bar", "barfoo", "barfoo");
+        baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
+        List<String> expected =
+                Arrays.asList(
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "null,barfoo",
+                        "null,barfoo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foobar,null",
+                        "foobar,null");
+        testOuterJoin(leftInput, rightInput, expected);
+    }
 
-	@Test
-	public void testLeftOuterJoin() throws Exception {
-		final List<String> leftInput = Arrays.asList("foo", "foo", "foo", "bar","bar", "foobar", "foobar");
-		final List<String> rightInput = Arrays.asList("foo", "foo", "bar", "bar", "bar", "barfoo", "barfoo");
-		baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.LEFT);
-		List<String> expected = Arrays.asList("bar,bar", "bar,bar", "bar,bar", "bar,bar", "bar,bar", "bar,bar",
-				"foo,foo", "foo,foo", "foo,foo", "foo,foo", "foo,foo", "foo,foo", "foobar,null", "foobar,null");
-		testOuterJoin(leftInput, rightInput, expected);
-	}
+    @Test
+    public void testLeftOuterJoin() throws Exception {
+        final List<String> leftInput =
+                Arrays.asList("foo", "foo", "foo", "bar", "bar", "foobar", "foobar");
+        final List<String> rightInput =
+                Arrays.asList("foo", "foo", "bar", "bar", "bar", "barfoo", "barfoo");
+        baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.LEFT);
+        List<String> expected =
+                Arrays.asList(
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foobar,null",
+                        "foobar,null");
+        testOuterJoin(leftInput, rightInput, expected);
+    }
 
-	@Test
-	public void testRightOuterJoin() throws Exception {
-		final List<String> leftInput = Arrays.asList("foo", "foo", "foo", "bar","bar", "foobar", "foobar");
-		final List<String> rightInput = Arrays.asList("foo", "foo", "bar", "bar", "bar", "barfoo", "barfoo");
-		baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.RIGHT);
-		List<String> expected = Arrays.asList("bar,bar", "bar,bar", "bar,bar", "bar,bar", "bar,bar", "bar,bar",
-				"null,barfoo", "null,barfoo", "foo,foo", "foo,foo", "foo,foo", "foo,foo", "foo,foo", "foo,foo");
-		testOuterJoin(leftInput, rightInput, expected);
-	}
+    @Test
+    public void testRightOuterJoin() throws Exception {
+        final List<String> leftInput =
+                Arrays.asList("foo", "foo", "foo", "bar", "bar", "foobar", "foobar");
+        final List<String> rightInput =
+                Arrays.asList("foo", "foo", "bar", "bar", "bar", "barfoo", "barfoo");
+        baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.RIGHT);
+        List<String> expected =
+                Arrays.asList(
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "bar,bar",
+                        "null,barfoo",
+                        "null,barfoo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo",
+                        "foo,foo");
+        testOuterJoin(leftInput, rightInput, expected);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testThatExceptionIsThrownForOuterJoinTypeNull() throws Exception {
-		final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
-		final List<String> rightInput = Arrays.asList("bar", "foobar", "foo");
+    @Test(expected = IllegalArgumentException.class)
+    public void testThatExceptionIsThrownForOuterJoinTypeNull() throws Exception {
+        final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
+        final List<String> rightInput = Arrays.asList("bar", "foobar", "foo");
 
-		baseOperator.setOuterJoinType(null);
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.disableObjectReuse();
-		baseOperator.executeOnCollections(leftInput, rightInput, runtimeContext, executionConfig);
-	}
+        baseOperator.setOuterJoinType(null);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.disableObjectReuse();
+        baseOperator.executeOnCollections(leftInput, rightInput, runtimeContext, executionConfig);
+    }
 
-	private void testOuterJoin(List<String> leftInput, List<String> rightInput, List<String> expected) throws Exception {
-		executionConfig.disableObjectReuse();
-		List<String> resultSafe = baseOperator.executeOnCollections(leftInput, rightInput, runtimeContext, executionConfig);
-		executionConfig.enableObjectReuse();
-		List<String> resultRegular = baseOperator.executeOnCollections(leftInput, rightInput, runtimeContext, executionConfig);
+    private void testOuterJoin(
+            List<String> leftInput, List<String> rightInput, List<String> expected)
+            throws Exception {
+        executionConfig.disableObjectReuse();
+        List<String> resultSafe =
+                baseOperator.executeOnCollections(
+                        leftInput, rightInput, runtimeContext, executionConfig);
+        executionConfig.enableObjectReuse();
+        List<String> resultRegular =
+                baseOperator.executeOnCollections(
+                        leftInput, rightInput, runtimeContext, executionConfig);
 
-		assertEquals(expected, resultSafe);
-		assertEquals(expected, resultRegular);
+        assertEquals(expected, resultSafe);
+        assertEquals(expected, resultRegular);
 
-		assertTrue(joiner.opened.get());
-		assertTrue(joiner.closed.get());
-	}
+        assertTrue(joiner.opened.get());
+        assertTrue(joiner.closed.get());
+    }
 
-	private static class MockRichFlatJoinFunction extends RichFlatJoinFunction<String, String, String> {
-		final AtomicBoolean opened = new AtomicBoolean(false);
-		final AtomicBoolean closed = new AtomicBoolean(false);
+    private static class MockRichFlatJoinFunction
+            extends RichFlatJoinFunction<String, String, String> {
+        final AtomicBoolean opened = new AtomicBoolean(false);
+        final AtomicBoolean closed = new AtomicBoolean(false);
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			opened.compareAndSet(false, true);
-			assertEquals(0, getRuntimeContext().getIndexOfThisSubtask());
-			assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            opened.compareAndSet(false, true);
+            assertEquals(0, getRuntimeContext().getIndexOfThisSubtask());
+            assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+        }
 
-		@Override
-		public void close() throws Exception{
-			closed.compareAndSet(false, true);
-		}
+        @Override
+        public void close() throws Exception {
+            closed.compareAndSet(false, true);
+        }
 
-		@Override
-		public void join(String first, String second, Collector<String> out) throws Exception {
-			out.collect(String.valueOf(first) + ',' + String.valueOf(second));
-		}
-	}
+        @Override
+        public void join(String first, String second, Collector<String> out) throws Exception {
+            out.collect(String.valueOf(first) + ',' + String.valueOf(second));
+        }
+    }
 }

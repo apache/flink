@@ -27,8 +27,8 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * State of the reader, essentially a mutable version of the {@link FileSourceSplit}.
- * Has a modifiable offset and records-to-skip-count.
+ * State of the reader, essentially a mutable version of the {@link FileSourceSplit}. Has a
+ * modifiable offset and records-to-skip-count.
  *
  * <p>The {@link FileSourceSplit} assigned to the reader or stored in the checkpoint points to the
  * position from where to start reading (after recovery), so the current offset and records-to-skip
@@ -37,79 +37,80 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public final class FileSourceSplitState<SplitT extends FileSourceSplit> {
 
-	private final SplitT split;
+    private final SplitT split;
 
-	private long offset;
+    private long offset;
 
-	private long recordsToSkipAfterOffset;
+    private long recordsToSkipAfterOffset;
 
-	public FileSourceSplitState(SplitT split) {
-		this.split = checkNotNull(split);
+    public FileSourceSplitState(SplitT split) {
+        this.split = checkNotNull(split);
 
-		final Optional<CheckpointedPosition> readerPosition = split.getReaderPosition();
-		if (readerPosition.isPresent()) {
-			this.offset = readerPosition.get().getOffset();
-			this.recordsToSkipAfterOffset = readerPosition.get().getRecordsAfterOffset();
-		} else {
-			this.offset = CheckpointedPosition.NO_OFFSET;
-			this.recordsToSkipAfterOffset = 0L;
-		}
-	}
+        final Optional<CheckpointedPosition> readerPosition = split.getReaderPosition();
+        if (readerPosition.isPresent()) {
+            this.offset = readerPosition.get().getOffset();
+            this.recordsToSkipAfterOffset = readerPosition.get().getRecordsAfterOffset();
+        } else {
+            this.offset = CheckpointedPosition.NO_OFFSET;
+            this.recordsToSkipAfterOffset = 0L;
+        }
+    }
 
-	public long getOffset() {
-		return offset;
-	}
+    public long getOffset() {
+        return offset;
+    }
 
-	public long getRecordsToSkipAfterOffset() {
-		return recordsToSkipAfterOffset;
-	}
+    public long getRecordsToSkipAfterOffset() {
+        return recordsToSkipAfterOffset;
+    }
 
-	public void setOffset(long offset) {
-		// we skip sanity / boundary checks here for efficiency.
-		// illegal boundaries will eventually be caught when constructing the split on checkpoint.
-		this.offset = offset;
-	}
+    public void setOffset(long offset) {
+        // we skip sanity / boundary checks here for efficiency.
+        // illegal boundaries will eventually be caught when constructing the split on checkpoint.
+        this.offset = offset;
+    }
 
-	public void setRecordsToSkipAfterOffset(long recordsToSkipAfterOffset) {
-		// we skip sanity / boundary checks here for efficiency.
-		// illegal boundaries will eventually be caught when constructing the split on checkpoint.
-		this.recordsToSkipAfterOffset = recordsToSkipAfterOffset;
-	}
+    public void setRecordsToSkipAfterOffset(long recordsToSkipAfterOffset) {
+        // we skip sanity / boundary checks here for efficiency.
+        // illegal boundaries will eventually be caught when constructing the split on checkpoint.
+        this.recordsToSkipAfterOffset = recordsToSkipAfterOffset;
+    }
 
-	public void setPosition(long offset, long recordsToSkipAfterOffset) {
-		// we skip sanity / boundary checks here for efficiency.
-		// illegal boundaries will eventually be caught when constructing the split on checkpoint.
-		this.offset = offset;
-		this.recordsToSkipAfterOffset = recordsToSkipAfterOffset;
-	}
+    public void setPosition(long offset, long recordsToSkipAfterOffset) {
+        // we skip sanity / boundary checks here for efficiency.
+        // illegal boundaries will eventually be caught when constructing the split on checkpoint.
+        this.offset = offset;
+        this.recordsToSkipAfterOffset = recordsToSkipAfterOffset;
+    }
 
-	public void setPosition(CheckpointedPosition position) {
-		this.offset = position.getOffset();
-		this.recordsToSkipAfterOffset = position.getRecordsAfterOffset();
-	}
+    public void setPosition(CheckpointedPosition position) {
+        this.offset = position.getOffset();
+        this.recordsToSkipAfterOffset = position.getRecordsAfterOffset();
+    }
 
-	/**
-	 * Use the current row count as the starting row count to create a new FileSourceSplit.
-	 */
-	@SuppressWarnings("unchecked")
-	public SplitT toFileSourceSplit() {
-		final CheckpointedPosition position =
-				(offset == CheckpointedPosition.NO_OFFSET && recordsToSkipAfterOffset == 0) ?
-						null : new CheckpointedPosition(offset, recordsToSkipAfterOffset);
+    /** Use the current row count as the starting row count to create a new FileSourceSplit. */
+    @SuppressWarnings("unchecked")
+    public SplitT toFileSourceSplit() {
+        final CheckpointedPosition position =
+                (offset == CheckpointedPosition.NO_OFFSET && recordsToSkipAfterOffset == 0)
+                        ? null
+                        : new CheckpointedPosition(offset, recordsToSkipAfterOffset);
 
-		final FileSourceSplit updatedSplit = split.updateWithCheckpointedPosition(position);
+        final FileSourceSplit updatedSplit = split.updateWithCheckpointedPosition(position);
 
-		// some sanity checks to avoid surprises and not accidentally lose split information
-		if (updatedSplit == null) {
-			throw new FlinkRuntimeException("Split returned 'null' in updateWithCheckpointedPosition(): " + split);
-		}
-		if (updatedSplit.getClass() != split.getClass()) {
-			throw new FlinkRuntimeException(String.format(
-					"Split returned different type in updateWithCheckpointedPosition(). " +
-					"Split type is %s, returned type is %s",
-					split.getClass().getName(), updatedSplit.getClass().getName()));
-		}
+        // some sanity checks to avoid surprises and not accidentally lose split information
+        if (updatedSplit == null) {
+            throw new FlinkRuntimeException(
+                    "Split returned 'null' in updateWithCheckpointedPosition(): " + split);
+        }
+        if (updatedSplit.getClass() != split.getClass()) {
+            throw new FlinkRuntimeException(
+                    String.format(
+                            "Split returned different type in updateWithCheckpointedPosition(). "
+                                    + "Split type is %s, returned type is %s",
+                            split.getClass().getName(), updatedSplit.getClass().getName()));
+        }
 
-		return (SplitT) updatedSplit;
-	}
+        return (SplitT) updatedSplit;
+    }
 }

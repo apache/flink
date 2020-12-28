@@ -36,65 +36,65 @@ import org.apache.flink.util.OutputTag;
 
 /**
  * These tests verify that {@link EvictingWindowOperator} correctly interacts with the other
- * windowing components: {@link WindowAssigner},
- * {@link Trigger}.
- * {@link org.apache.flink.streaming.api.functions.windowing.WindowFunction} and window state.
+ * windowing components: {@link WindowAssigner}, {@link Trigger}. {@link
+ * org.apache.flink.streaming.api.functions.windowing.WindowFunction} and window state.
  *
  * <p>These tests document the implicit contract that exists between the windowing components.
  */
 public class EvictingWindowOperatorContractTest extends WindowOperatorContractTest {
 
-	protected <W extends Window, OUT> KeyedOneInputStreamOperatorTestHarness<Integer, Integer, OUT> createWindowOperator(
-			WindowAssigner<Integer, W> assigner,
-			Trigger<Integer, W> trigger,
-			long allowedLatenss,
-			InternalWindowFunction<Iterable<Integer>, OUT, Integer, W> windowFunction,
-			OutputTag<Integer> lateOutputTag) throws Exception {
+    protected <W extends Window, OUT>
+            KeyedOneInputStreamOperatorTestHarness<Integer, Integer, OUT> createWindowOperator(
+                    WindowAssigner<Integer, W> assigner,
+                    Trigger<Integer, W> trigger,
+                    long allowedLatenss,
+                    InternalWindowFunction<Iterable<Integer>, OUT, Integer, W> windowFunction,
+                    OutputTag<Integer> lateOutputTag)
+                    throws Exception {
 
-		KeySelector<Integer, Integer> keySelector = new KeySelector<Integer, Integer>() {
-			private static final long serialVersionUID = 1L;
+        KeySelector<Integer, Integer> keySelector =
+                new KeySelector<Integer, Integer>() {
+                    private static final long serialVersionUID = 1L;
 
-			@Override
-			public Integer getKey(Integer value) throws Exception {
-				return value;
-			}
-		};
+                    @Override
+                    public Integer getKey(Integer value) throws Exception {
+                        return value;
+                    }
+                };
 
-		ListStateDescriptor<StreamRecord<Integer>> intListDescriptor =
-				new ListStateDescriptor<>(
-						"int-list",
-						(TypeSerializer<StreamRecord<Integer>>) new StreamElementSerializer(IntSerializer.INSTANCE));
+        ListStateDescriptor<StreamRecord<Integer>> intListDescriptor =
+                new ListStateDescriptor<>(
+                        "int-list",
+                        (TypeSerializer<StreamRecord<Integer>>)
+                                new StreamElementSerializer(IntSerializer.INSTANCE));
 
-		@SuppressWarnings("unchecked")
-		EvictingWindowOperator<Integer, Integer, OUT, W> operator = new EvictingWindowOperator<>(
-				assigner,
-				assigner.getWindowSerializer(new ExecutionConfig()),
-				keySelector,
-				IntSerializer.INSTANCE,
-				intListDescriptor,
-				windowFunction,
-				trigger,
-				CountEvictor.<W>of(100),
-				allowedLatenss,
-				lateOutputTag);
+        @SuppressWarnings("unchecked")
+        EvictingWindowOperator<Integer, Integer, OUT, W> operator =
+                new EvictingWindowOperator<>(
+                        assigner,
+                        assigner.getWindowSerializer(new ExecutionConfig()),
+                        keySelector,
+                        IntSerializer.INSTANCE,
+                        intListDescriptor,
+                        windowFunction,
+                        trigger,
+                        CountEvictor.<W>of(100),
+                        allowedLatenss,
+                        lateOutputTag);
 
-		return new KeyedOneInputStreamOperatorTestHarness<>(
-				operator,
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
-	}
+        return new KeyedOneInputStreamOperatorTestHarness<>(
+                operator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
+    }
 
-	protected <W extends Window, OUT> KeyedOneInputStreamOperatorTestHarness<Integer, Integer, OUT> createWindowOperator(
-			WindowAssigner<Integer, W> assigner,
-			Trigger<Integer, W> trigger,
-			long allowedLatenss,
-			InternalWindowFunction<Iterable<Integer>, OUT, Integer, W> windowFunction) throws Exception {
+    protected <W extends Window, OUT>
+            KeyedOneInputStreamOperatorTestHarness<Integer, Integer, OUT> createWindowOperator(
+                    WindowAssigner<Integer, W> assigner,
+                    Trigger<Integer, W> trigger,
+                    long allowedLatenss,
+                    InternalWindowFunction<Iterable<Integer>, OUT, Integer, W> windowFunction)
+                    throws Exception {
 
-		return createWindowOperator(
-				assigner,
-				trigger,
-				allowedLatenss,
-				windowFunction,
-				null /* late output tag */);
-	}
+        return createWindowOperator(
+                assigner, trigger, allowedLatenss, windowFunction, null /* late output tag */);
+    }
 }

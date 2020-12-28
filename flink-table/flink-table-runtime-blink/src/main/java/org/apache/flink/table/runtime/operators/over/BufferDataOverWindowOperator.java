@@ -36,105 +36,108 @@ import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 
 /**
- * the operator for OVER window need cache data by ResettableExternalBuffer for {@link OverWindowFrame}.
+ * the operator for OVER window need cache data by ResettableExternalBuffer for {@link
+ * OverWindowFrame}.
  */
 public class BufferDataOverWindowOperator extends TableStreamOperator<RowData>
-		implements OneInputStreamOperator<RowData, RowData>, BoundedOneInput {
+        implements OneInputStreamOperator<RowData, RowData>, BoundedOneInput {
 
-	private final OverWindowFrame[] overWindowFrames;
-	private GeneratedRecordComparator genComparator;
-	private final boolean isRowAllInFixedPart;
+    private final OverWindowFrame[] overWindowFrames;
+    private GeneratedRecordComparator genComparator;
+    private final boolean isRowAllInFixedPart;
 
-	private RecordComparator partitionComparator;
-	private RowData lastInput;
-	private JoinedRowData[] joinedRows;
-	private StreamRecordCollector<RowData> collector;
-	private AbstractRowDataSerializer<RowData> serializer;
-	private ResettableExternalBuffer currentData;
+    private RecordComparator partitionComparator;
+    private RowData lastInput;
+    private JoinedRowData[] joinedRows;
+    private StreamRecordCollector<RowData> collector;
+    private AbstractRowDataSerializer<RowData> serializer;
+    private ResettableExternalBuffer currentData;
 
-	/**
-	 * @param overWindowFrames     the window frames belong to this operator.
-	 * @param genComparator       the generated sort which is used for generating the comparator among
-	 */
-	public BufferDataOverWindowOperator(
-			OverWindowFrame[] overWindowFrames,
-			GeneratedRecordComparator genComparator,
-			boolean isRowAllInFixedPart) {
-		this.overWindowFrames = overWindowFrames;
-		this.genComparator = genComparator;
-		this.isRowAllInFixedPart = isRowAllInFixedPart;
-	}
+    /**
+     * @param overWindowFrames the window frames belong to this operator.
+     * @param genComparator the generated sort which is used for generating the comparator among
+     */
+    public BufferDataOverWindowOperator(
+            OverWindowFrame[] overWindowFrames,
+            GeneratedRecordComparator genComparator,
+            boolean isRowAllInFixedPart) {
+        this.overWindowFrames = overWindowFrames;
+        this.genComparator = genComparator;
+        this.isRowAllInFixedPart = isRowAllInFixedPart;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
+    @Override
+    public void open() throws Exception {
+        super.open();
 
-		ClassLoader cl = getUserCodeClassloader();
-		serializer = (AbstractRowDataSerializer) getOperatorConfig().getTypeSerializerIn1(cl);
-		partitionComparator = genComparator.newInstance(cl);
-		genComparator = null;
+        ClassLoader cl = getUserCodeClassloader();
+        serializer = (AbstractRowDataSerializer) getOperatorConfig().getTypeSerializerIn1(cl);
+        partitionComparator = genComparator.newInstance(cl);
+        genComparator = null;
 
-		MemoryManager memManager = getContainingTask().getEnvironment().getMemoryManager();
-		LazyMemorySegmentPool pool = new LazyMemorySegmentPool(
-				this,
-				memManager,
-				(int) (computeMemorySize() / memManager.getPageSize()));
-		this.currentData = new ResettableExternalBuffer(
-				getContainingTask().getEnvironment().getIOManager(),
-				pool,
-				serializer, isRowAllInFixedPart);
+        MemoryManager memManager = getContainingTask().getEnvironment().getMemoryManager();
+        LazyMemorySegmentPool pool =
+                new LazyMemorySegmentPool(
+                        this, memManager, (int) (computeMemorySize() / memManager.getPageSize()));
+        this.currentData =
+                new ResettableExternalBuffer(
+                        getContainingTask().getEnvironment().getIOManager(),
+                        pool,
+                        serializer,
+                        isRowAllInFixedPart);
 
-		collector = new StreamRecordCollector<>(output);
-		joinedRows = new JoinedRowData[overWindowFrames.length];
-		for (int i = 0; i < overWindowFrames.length; i++) {
-			overWindowFrames[i].open(new ExecutionContextImpl(this, getRuntimeContext()));
-			joinedRows[i] = new JoinedRowData();
-		}
-	}
+        collector = new StreamRecordCollector<>(output);
+        joinedRows = new JoinedRowData[overWindowFrames.length];
+        for (int i = 0; i < overWindowFrames.length; i++) {
+            overWindowFrames[i].open(new ExecutionContextImpl(this, getRuntimeContext()));
+            joinedRows[i] = new JoinedRowData();
+        }
+    }
 
-	@Override
-	public void processElement(StreamRecord<RowData> element) throws Exception {
-		RowData input = element.getValue();
-		if (lastInput != null && partitionComparator.compare(lastInput, input) != 0) {
-			processCurrentData();
-		}
-		lastInput = serializer.copy(input);
-		currentData.add(lastInput);
-	}
+    @Override
+    public void processElement(StreamRecord<RowData> element) throws Exception {
+        RowData input = element.getValue();
+        if (lastInput != null && partitionComparator.compare(lastInput, input) != 0) {
+            processCurrentData();
+        }
+        lastInput = serializer.copy(input);
+        currentData.add(lastInput);
+    }
 
-	@Override
-	public void endInput() throws Exception {
-		if (currentData.size() > 0) {
-			processCurrentData();
-		}
-	}
+    @Override
+    public void endInput() throws Exception {
+        if (currentData.size() > 0) {
+            processCurrentData();
+        }
+    }
 
-	private void processCurrentData() throws Exception {
-		currentData.complete();
-		for (OverWindowFrame frame : overWindowFrames) {
-			frame.prepare(currentData);
-		}
-		int rowIndex = 0;
-		ResettableExternalBuffer.BufferIterator bufferIterator = currentData.newIterator();
-		while (bufferIterator.advanceNext()) {
-			BinaryRowData currentRow = bufferIterator.getRow();
-			RowData output = currentRow;
-			// TODO Reform AggsHandleFunction.getValue instead of use JoinedRowData. Multilayer JoinedRowData is slow.
-			for (int i = 0; i < overWindowFrames.length; i++) {
-				OverWindowFrame frame = overWindowFrames[i];
-				RowData value = frame.process(rowIndex, currentRow);
-				output = joinedRows[i].replace(output, value);
-			}
-			collector.collect(output);
-			rowIndex += 1;
-		}
-		bufferIterator.close();
-		currentData.reset();
-	}
+    private void processCurrentData() throws Exception {
+        currentData.complete();
+        for (OverWindowFrame frame : overWindowFrames) {
+            frame.prepare(currentData);
+        }
+        int rowIndex = 0;
+        ResettableExternalBuffer.BufferIterator bufferIterator = currentData.newIterator();
+        while (bufferIterator.advanceNext()) {
+            BinaryRowData currentRow = bufferIterator.getRow();
+            RowData output = currentRow;
+            // TODO Reform AggsHandleFunction.getValue instead of use JoinedRowData. Multilayer
+            // JoinedRowData is slow.
+            for (int i = 0; i < overWindowFrames.length; i++) {
+                OverWindowFrame frame = overWindowFrames[i];
+                RowData value = frame.process(rowIndex, currentRow);
+                output = joinedRows[i].replace(output, value);
+            }
+            collector.collect(output);
+            rowIndex += 1;
+        }
+        bufferIterator.close();
+        currentData.reset();
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		this.currentData.close();
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        this.currentData.close();
+    }
 }

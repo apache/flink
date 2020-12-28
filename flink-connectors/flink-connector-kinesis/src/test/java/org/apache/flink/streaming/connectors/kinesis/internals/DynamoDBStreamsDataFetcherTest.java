@@ -36,34 +36,33 @@ import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequen
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-/**
- * Tests for {@link DynamoDBStreamsDataFetcher}.
- */
+/** Tests for {@link DynamoDBStreamsDataFetcher}. */
 public class DynamoDBStreamsDataFetcherTest {
 
-	@Test
-	public void testCreateRecordPublisherRespectsShardIteratorTypeLatest() throws Exception {
-		RuntimeContext runtimeContext = TestUtils.getMockedRuntimeContext(1, 0);
-		KinesisProxyInterface kinesis = mock(KinesisProxyInterface.class);
+    @Test
+    public void testCreateRecordPublisherRespectsShardIteratorTypeLatest() throws Exception {
+        RuntimeContext runtimeContext = TestUtils.getMockedRuntimeContext(1, 0);
+        KinesisProxyInterface kinesis = mock(KinesisProxyInterface.class);
 
-		DynamoDBStreamsDataFetcher<String> fetcher = new DynamoDBStreamsDataFetcher<>(
-			singletonList("fakeStream"),
-			new TestSourceContext<>(),
-			runtimeContext,
-			TestUtils.getStandardProperties(),
-			new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
-			DEFAULT_SHARD_ASSIGNER,
-			config -> kinesis);
+        DynamoDBStreamsDataFetcher<String> fetcher =
+                new DynamoDBStreamsDataFetcher<>(
+                        singletonList("fakeStream"),
+                        new TestSourceContext<>(),
+                        runtimeContext,
+                        TestUtils.getStandardProperties(),
+                        new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+                        DEFAULT_SHARD_ASSIGNER,
+                        config -> kinesis);
 
-		StreamShardHandle dummyStreamShardHandle = TestUtils.createDummyStreamShardHandle("dummy-stream", "0");
+        StreamShardHandle dummyStreamShardHandle =
+                TestUtils.createDummyStreamShardHandle("dummy-stream", "0");
 
-		fetcher.createRecordPublisher(
-			SENTINEL_LATEST_SEQUENCE_NUM.get(),
-			new Properties(),
-			runtimeContext.getMetricGroup(),
-			dummyStreamShardHandle);
+        fetcher.createRecordPublisher(
+                SENTINEL_LATEST_SEQUENCE_NUM.get(),
+                new Properties(),
+                runtimeContext.getMetricGroup(),
+                dummyStreamShardHandle);
 
-		verify(kinesis).getShardIterator(dummyStreamShardHandle, LATEST.toString(), null);
-	}
-
+        verify(kinesis).getShardIterator(dummyStreamShardHandle, LATEST.toString(), null);
+    }
 }

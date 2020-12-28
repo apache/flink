@@ -20,19 +20,15 @@ package org.apache.flink.table.data.vector.writable;
 
 import org.apache.flink.table.data.vector.BytesColumnVector;
 
-/**
- * Writable {@link BytesColumnVector}.
- */
+/** Writable {@link BytesColumnVector}. */
 public interface WritableBytesVector extends WritableColumnVector, BytesColumnVector {
 
-	/**
-	 * Append byte[] at rowId with the provided value.
-	 * Note: Must append values according to the order of rowId, can not random append.
-	 */
-	void appendBytes(int rowId, byte[] value, int offset, int length);
+    /**
+     * Append byte[] at rowId with the provided value. Note: Must append values according to the
+     * order of rowId, can not random append.
+     */
+    void appendBytes(int rowId, byte[] value, int offset, int length);
 
-	/**
-	 * Fill the column vector with the provided value.
-	 */
-	void fill(byte[] value);
+    /** Fill the column vector with the provided value. */
+    void fill(byte[] value);
 }

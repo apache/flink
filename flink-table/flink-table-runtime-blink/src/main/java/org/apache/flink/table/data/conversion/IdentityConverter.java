@@ -20,26 +20,24 @@ package org.apache.flink.table.data.conversion;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * No-op converter that just forwards its input.
- */
+/** No-op converter that just forwards its input. */
 @Internal
 public class IdentityConverter<I> implements DataStructureConverter<I, I> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public I toInternal(I external) {
-		return external;
-	}
+    @Override
+    public I toInternal(I external) {
+        return external;
+    }
 
-	@Override
-	public I toExternal(I internal) {
-		return internal;
-	}
+    @Override
+    public I toExternal(I internal) {
+        return internal;
+    }
 
-	@Override
-	public boolean isIdentityConversion() {
-		return true;
-	}
+    @Override
+    public boolean isIdentityConversion() {
+        return true;
+    }
 }

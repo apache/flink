@@ -47,128 +47,131 @@ import org.slf4j.LoggerFactory;
  */
 public class RetryRule implements TestRule {
 
-	public static final Logger LOG = LoggerFactory.getLogger(RetryRule.class);
+    public static final Logger LOG = LoggerFactory.getLogger(RetryRule.class);
 
-	@Override
-	public Statement apply(Statement statement, Description description) {
-		RetryOnFailure retryOnFailure = description.getAnnotation(RetryOnFailure.class);
-		RetryOnException retryOnException = description.getAnnotation(RetryOnException.class);
+    @Override
+    public Statement apply(Statement statement, Description description) {
+        RetryOnFailure retryOnFailure = description.getAnnotation(RetryOnFailure.class);
+        RetryOnException retryOnException = description.getAnnotation(RetryOnException.class);
 
-		// sanity check that we don't use expected exceptions with the RetryOnX annotations
-		if (retryOnFailure != null || retryOnException != null) {
-			Test test = description.getAnnotation(Test.class);
-			if (test.expected() != Test.None.class) {
-				throw new IllegalArgumentException("You cannot combine the RetryOnFailure " +
-						"annotation with the Test(expected) annotation.");
-			}
-		}
+        // sanity check that we don't use expected exceptions with the RetryOnX annotations
+        if (retryOnFailure != null || retryOnException != null) {
+            Test test = description.getAnnotation(Test.class);
+            if (test.expected() != Test.None.class) {
+                throw new IllegalArgumentException(
+                        "You cannot combine the RetryOnFailure "
+                                + "annotation with the Test(expected) annotation.");
+            }
+        }
 
-		// sanity check that we don't use both annotations
-		if (retryOnFailure != null && retryOnException != null) {
-			throw new IllegalArgumentException(
-					"You cannot combine the RetryOnFailure and RetryOnException annotations.");
-		}
+        // sanity check that we don't use both annotations
+        if (retryOnFailure != null && retryOnException != null) {
+            throw new IllegalArgumentException(
+                    "You cannot combine the RetryOnFailure and RetryOnException annotations.");
+        }
 
-		if (retryOnFailure != null) {
-			return new RetryOnFailureStatement(retryOnFailure.times(), statement);
-		}
-		else if (retryOnException != null) {
-			return new RetryOnExceptionStatement(retryOnException.times(), retryOnException.exception(), statement);
-		}
-		else {
-			return statement;
-		}
-	}
+        if (retryOnFailure != null) {
+            return new RetryOnFailureStatement(retryOnFailure.times(), statement);
+        } else if (retryOnException != null) {
+            return new RetryOnExceptionStatement(
+                    retryOnException.times(), retryOnException.exception(), statement);
+        } else {
+            return statement;
+        }
+    }
 
-	/**
-	 * Retries a test in case of a failure.
-	 */
-	private static class RetryOnFailureStatement extends Statement {
+    /** Retries a test in case of a failure. */
+    private static class RetryOnFailureStatement extends Statement {
 
-		private final int timesOnFailure;
+        private final int timesOnFailure;
 
-		private int currentRun;
+        private int currentRun;
 
-		private final Statement statement;
+        private final Statement statement;
 
-		private RetryOnFailureStatement(int timesOnFailure, Statement statement) {
-			if (timesOnFailure < 0) {
-				throw new IllegalArgumentException("Negatives number of retries on failure");
-			}
-			this.timesOnFailure = timesOnFailure;
-			this.statement = statement;
-		}
+        private RetryOnFailureStatement(int timesOnFailure, Statement statement) {
+            if (timesOnFailure < 0) {
+                throw new IllegalArgumentException("Negatives number of retries on failure");
+            }
+            this.timesOnFailure = timesOnFailure;
+            this.statement = statement;
+        }
 
-		/**
-		 * Retry a test in case of a failure.
-		 *
-		 * @throws Throwable
-		 */
-		@Override
-		public void evaluate() throws Throwable {
-			for (currentRun = 0; currentRun <= timesOnFailure; currentRun++) {
-				try {
-					statement.evaluate();
-					break; // success
-				}
-				catch (Throwable t) {
-					LOG.warn(String.format("Test run failed (%d/%d).",
-							currentRun, timesOnFailure + 1), t);
+        /**
+         * Retry a test in case of a failure.
+         *
+         * @throws Throwable
+         */
+        @Override
+        public void evaluate() throws Throwable {
+            for (currentRun = 0; currentRun <= timesOnFailure; currentRun++) {
+                try {
+                    statement.evaluate();
+                    break; // success
+                } catch (Throwable t) {
+                    LOG.warn(
+                            String.format(
+                                    "Test run failed (%d/%d).", currentRun, timesOnFailure + 1),
+                            t);
 
-					// Throw the failure if retried too often
-					if (currentRun == timesOnFailure) {
-						throw t;
-					}
-				}
-			}
-		}
-	}
+                    // Throw the failure if retried too often
+                    if (currentRun == timesOnFailure) {
+                        throw t;
+                    }
+                }
+            }
+        }
+    }
 
-	/**
-	 * Retries a test in case of a failure.
-	 */
-	private static class RetryOnExceptionStatement extends Statement {
+    /** Retries a test in case of a failure. */
+    private static class RetryOnExceptionStatement extends Statement {
 
-		private final Class<? extends Throwable> exceptionClass;
-		private final int timesOnFailure;
-		private final Statement statement;
+        private final Class<? extends Throwable> exceptionClass;
+        private final int timesOnFailure;
+        private final Statement statement;
 
-		private int currentRun;
+        private int currentRun;
 
-		private RetryOnExceptionStatement(int timesOnFailure, Class<? extends Throwable> exceptionClass, Statement statement) {
-			if (timesOnFailure < 0) {
-				throw new IllegalArgumentException("Negatives number of retries on failure");
-			}
-			if (exceptionClass == null) {
-				throw new NullPointerException("exceptionClass");
-			}
+        private RetryOnExceptionStatement(
+                int timesOnFailure,
+                Class<? extends Throwable> exceptionClass,
+                Statement statement) {
+            if (timesOnFailure < 0) {
+                throw new IllegalArgumentException("Negatives number of retries on failure");
+            }
+            if (exceptionClass == null) {
+                throw new NullPointerException("exceptionClass");
+            }
 
-			this.exceptionClass = (exceptionClass);
-			this.timesOnFailure = timesOnFailure;
-			this.statement = statement;
-		}
+            this.exceptionClass = (exceptionClass);
+            this.timesOnFailure = timesOnFailure;
+            this.statement = statement;
+        }
 
-		/**
-		 * Retry a test in case of a failure with a specific exception.
-		 *
-		 * @throws Throwable
-		 */
-		@Override
-		public void evaluate() throws Throwable {
-			for (currentRun = 0; currentRun <= timesOnFailure; currentRun++) {
-				try {
-					statement.evaluate();
-					break; // success
-				}
-				catch (Throwable t) {
-					LOG.warn(String.format("Test run failed (%d/%d).", currentRun, timesOnFailure + 1), t);
+        /**
+         * Retry a test in case of a failure with a specific exception.
+         *
+         * @throws Throwable
+         */
+        @Override
+        public void evaluate() throws Throwable {
+            for (currentRun = 0; currentRun <= timesOnFailure; currentRun++) {
+                try {
+                    statement.evaluate();
+                    break; // success
+                } catch (Throwable t) {
+                    LOG.warn(
+                            String.format(
+                                    "Test run failed (%d/%d).", currentRun, timesOnFailure + 1),
+                            t);
 
-					if (!exceptionClass.isAssignableFrom(t.getClass()) || currentRun >= timesOnFailure) {
-						// Throw the failure if retried too often, or if it is the wrong exception
-						throw t;
-					}
-				}
-			}
-		}
-	}
+                    if (!exceptionClass.isAssignableFrom(t.getClass())
+                            || currentRun >= timesOnFailure) {
+                        // Throw the failure if retried too often, or if it is the wrong exception
+                        throw t;
+                    }
+                }
+            }
+        }
+    }
 }

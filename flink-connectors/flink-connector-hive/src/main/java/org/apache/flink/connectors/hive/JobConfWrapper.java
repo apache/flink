@@ -30,50 +30,51 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-/**
- * Wrap {@link JobConf} to a serializable class.
- */
+/** Wrap {@link JobConf} to a serializable class. */
 public class JobConfWrapper implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient JobConf jobConf;
+    private transient JobConf jobConf;
 
-	public JobConfWrapper(JobConf jobConf) {
-		this.jobConf = jobConf;
-	}
+    public JobConfWrapper(JobConf jobConf) {
+        this.jobConf = jobConf;
+    }
 
-	public JobConf conf() {
-		return jobConf;
-	}
+    public JobConf conf() {
+        return jobConf;
+    }
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		out.defaultWriteObject();
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        out.defaultWriteObject();
 
-		// we write the jobConf through a separate serializer to avoid cryptic exceptions when it
-		// corrupts the serialization stream
-		final DataOutputSerializer ser = new DataOutputSerializer(256);
-		jobConf.write(ser);
-		out.writeInt(ser.length());
-		out.write(ser.getSharedBuffer(), 0, ser.length());
-	}
+        // we write the jobConf through a separate serializer to avoid cryptic exceptions when it
+        // corrupts the serialization stream
+        final DataOutputSerializer ser = new DataOutputSerializer(256);
+        jobConf.write(ser);
+        out.writeInt(ser.length());
+        out.write(ser.getSharedBuffer(), 0, ser.length());
+    }
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
 
-		final byte[] data = new byte[in.readInt()];
-		in.readFully(data);
-		final DataInputDeserializer deser = new DataInputDeserializer(data);
-		this.jobConf = new JobConf();
-		try {
-			jobConf.readFields(deser);
-		} catch (IOException e) {
-			throw new IOException(
-					"Could not deserialize JobConf, the serialized and de-serialized don't match.", e);
-		}
-		Credentials currentUserCreds = HadoopInputFormatCommonBase.getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
-		if (currentUserCreds != null) {
-			jobConf.getCredentials().addAll(currentUserCreds);
-		}
-	}
+        final byte[] data = new byte[in.readInt()];
+        in.readFully(data);
+        final DataInputDeserializer deser = new DataInputDeserializer(data);
+        this.jobConf = new JobConf();
+        try {
+            jobConf.readFields(deser);
+        } catch (IOException e) {
+            throw new IOException(
+                    "Could not deserialize JobConf, the serialized and de-serialized don't match.",
+                    e);
+        }
+        Credentials currentUserCreds =
+                HadoopInputFormatCommonBase.getCredentialsFromUGI(
+                        UserGroupInformation.getCurrentUser());
+        if (currentUserCreds != null) {
+            jobConf.getCredentials().addAll(currentUserCreds);
+        }
+    }
 }

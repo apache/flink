@@ -23,24 +23,22 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Mocking {@link ConnectorDescriptor} for tests.
- */
+/** Mocking {@link ConnectorDescriptor} for tests. */
 public class ConnectorDescriptorMock extends ConnectorDescriptor {
 
-	private Map<String, String> connectorProperties = new HashMap<>();
+    private Map<String, String> connectorProperties = new HashMap<>();
 
-	public ConnectorDescriptorMock(String type, int version, boolean formatNeeded) {
-		super(type, version, formatNeeded);
-	}
+    public ConnectorDescriptorMock(String type, int version, boolean formatNeeded) {
+        super(type, version, formatNeeded);
+    }
 
-	public ConnectorDescriptorMock property(String key, String value) {
-		connectorProperties.put(key, value);
-		return this;
-	}
+    public ConnectorDescriptorMock property(String key, String value) {
+        connectorProperties.put(key, value);
+        return this;
+    }
 
-	@Override
-	protected Map<String, String> toConnectorProperties() {
-		return connectorProperties;
-	}
+    @Override
+    protected Map<String, String> toConnectorProperties() {
+        return connectorProperties;
+    }
 }

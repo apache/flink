@@ -16,20 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
 
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-/**
- * The root of all descriptions of an operator to the optimizer.
- */
+/** The root of all descriptions of an operator to the optimizer. */
 public interface AbstractOperatorDescriptor {
-	
-	/**
-	 * Gets the runtime strategy to be executed by this operator.
-	 * 
-	 * @return The runtime strategy.
-	 */
-	DriverStrategy getStrategy();
+
+    /**
+     * Gets the runtime strategy to be executed by this operator.
+     *
+     * @return The runtime strategy.
+     */
+    DriverStrategy getStrategy();
 }

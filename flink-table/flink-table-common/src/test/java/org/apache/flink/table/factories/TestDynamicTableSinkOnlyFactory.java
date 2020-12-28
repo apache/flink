@@ -27,28 +27,27 @@ import java.util.Set;
 /**
  * Test implementations for {@link DynamicTableSinkFactory} which only supports to be used as sink.
  */
-public final class TestDynamicTableSinkOnlyFactory implements  DynamicTableSinkFactory {
+public final class TestDynamicTableSinkOnlyFactory implements DynamicTableSinkFactory {
 
-	public static final String IDENTIFIER = "sink-only";
+    public static final String IDENTIFIER = "sink-only";
 
-	@Override
-	public DynamicTableSink createDynamicTableSink(Context context) {
-		return null;
-	}
+    @Override
+    public DynamicTableSink createDynamicTableSink(Context context) {
+        return null;
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		return Collections.emptySet();
-	}
-
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return Collections.emptySet();
+    }
 }

@@ -25,24 +25,24 @@ import org.apache.hadoop.fs.azure.KeyProviderException;
 /**
  * An implementation of {@link org.apache.hadoop.fs.azure.KeyProvider}, which reads the Azure
  * storage key from an environment variable named "AZURE_STORAGE_KEY".
- *
  */
 public class EnvironmentVariableKeyProvider implements KeyProvider {
 
-	public static final String AZURE_STORAGE_KEY_ENV_VARIABLE = "AZURE_STORAGE_KEY";
+    public static final String AZURE_STORAGE_KEY_ENV_VARIABLE = "AZURE_STORAGE_KEY";
 
-	@Override
-	public String getStorageAccountKey(
-			final String s,
-			final Configuration configuration) throws KeyProviderException {
+    @Override
+    public String getStorageAccountKey(final String s, final Configuration configuration)
+            throws KeyProviderException {
 
-		String azureStorageKey = System.getenv(AZURE_STORAGE_KEY_ENV_VARIABLE);
+        String azureStorageKey = System.getenv(AZURE_STORAGE_KEY_ENV_VARIABLE);
 
-		if (azureStorageKey != null) {
-			return azureStorageKey;
-		} else {
-			throw new KeyProviderException("Unable to retrieve Azure storage key from environment. \""
-					+ AZURE_STORAGE_KEY_ENV_VARIABLE + "\" not set.");
-		}
-	}
+        if (azureStorageKey != null) {
+            return azureStorageKey;
+        } else {
+            throw new KeyProviderException(
+                    "Unable to retrieve Azure storage key from environment. \""
+                            + AZURE_STORAGE_KEY_ENV_VARIABLE
+                            + "\" not set.");
+        }
+    }
 }

@@ -27,14 +27,12 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.List;
 
 /**
- * Batch {@link ExecNode} that is not a physical node and just union the inputs' records into one node.
+ * Batch {@link ExecNode} that is not a physical node and just union the inputs' records into one
+ * node.
  */
 public class BatchExecUnion extends CommonExecUnion implements BatchExecNode<RowData> {
 
-	public BatchExecUnion(
-			List<ExecEdge> inputEdges,
-			RowType outputType,
-			String description) {
-		super(inputEdges, outputType, description);
-	}
+    public BatchExecUnion(List<ExecEdge> inputEdges, RowType outputType, String description) {
+        super(inputEdges, outputType, description);
+    }
 }

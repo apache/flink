@@ -26,35 +26,34 @@ import org.apache.flink.core.fs.local.LocalFileSystem;
 
 import java.net.URI;
 
-/**
- * A test file system that implements {@link EntropyInjectingFileSystem}.
- */
-public class EntropyInjectingTestFileSystem extends LocalFileSystem implements EntropyInjectingFileSystem {
+/** A test file system that implements {@link EntropyInjectingFileSystem}. */
+public class EntropyInjectingTestFileSystem extends LocalFileSystem
+        implements EntropyInjectingFileSystem {
 
-	public static final String ENTROPY_INJECTION_KEY = "_entropy_";
+    public static final String ENTROPY_INJECTION_KEY = "_entropy_";
 
-	public static final String ENTROPY = "_resolved_";
+    public static final String ENTROPY = "_resolved_";
 
-	@Override
-	public String getEntropyInjectionKey() {
-		return ENTROPY_INJECTION_KEY;
-	}
+    @Override
+    public String getEntropyInjectionKey() {
+        return ENTROPY_INJECTION_KEY;
+    }
 
-	@Override
-	public String generateEntropy() {
-		return ENTROPY;
-	}
+    @Override
+    public String generateEntropy() {
+        return ENTROPY;
+    }
 
-	public static class EntropyInjectingTestFileSystemFactory implements FileSystemFactory {
+    public static class EntropyInjectingTestFileSystemFactory implements FileSystemFactory {
 
-		@Override
-		public String getScheme() {
-			return "test-entropy";
-		}
+        @Override
+        public String getScheme() {
+            return "test-entropy";
+        }
 
-		@Override
-		public FileSystem create(final URI fsUri) {
-			return new EntropyInjectingTestFileSystem();
-		}
-	}
+        @Override
+        public FileSystem create(final URI fsUri) {
+            return new EntropyInjectingTestFileSystem();
+        }
+    }
 }

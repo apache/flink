@@ -22,41 +22,39 @@ import org.apache.flink.table.data.vector.writable.WritableShortVector;
 
 import java.util.Arrays;
 
-/**
- * This class represents a nullable short column vector.
- */
+/** This class represents a nullable short column vector. */
 public class HeapShortVector extends AbstractHeapVector implements WritableShortVector {
 
-	private static final long serialVersionUID = -8278486456144676292L;
+    private static final long serialVersionUID = -8278486456144676292L;
 
-	public short[] vector;
+    public short[] vector;
 
-	/**
-	 * Don't use this except for testing purposes.
-	 *
-	 * @param len the number of rows
-	 */
-	public HeapShortVector(int len) {
-		super(len);
-		vector = new short[len];
-	}
+    /**
+     * Don't use this except for testing purposes.
+     *
+     * @param len the number of rows
+     */
+    public HeapShortVector(int len) {
+        super(len);
+        vector = new short[len];
+    }
 
-	@Override
-	public short getShort(int i) {
-		if (dictionary == null) {
-			return vector[i];
-		} else {
-			return (short) dictionary.decodeToInt(dictionaryIds.vector[i]);
-		}
-	}
+    @Override
+    public short getShort(int i) {
+        if (dictionary == null) {
+            return vector[i];
+        } else {
+            return (short) dictionary.decodeToInt(dictionaryIds.vector[i]);
+        }
+    }
 
-	@Override
-	public void setShort(int i, short value) {
-		vector[i] = value;
-	}
+    @Override
+    public void setShort(int i, short value) {
+        vector[i] = value;
+    }
 
-	@Override
-	public void fill(short value) {
-		Arrays.fill(vector, value);
-	}
+    @Override
+    public void fill(short value) {
+        Arrays.fill(vector, value);
+    }
 }

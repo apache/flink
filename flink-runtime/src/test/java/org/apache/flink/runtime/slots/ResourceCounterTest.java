@@ -25,39 +25,37 @@ import org.junit.Test;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link ResourceCounter}.
- */
+/** Tests for the {@link ResourceCounter}. */
 public class ResourceCounterTest extends TestLogger {
 
-	@Test
-	public void testIncrement() {
-		ResourceCounter counter = new ResourceCounter();
+    @Test
+    public void testIncrement() {
+        ResourceCounter counter = new ResourceCounter();
 
-		counter.incrementCount(ResourceProfile.ANY, 1);
-		assertThat(counter.getResourceCount(ResourceProfile.ANY), is(1));
-	}
+        counter.incrementCount(ResourceProfile.ANY, 1);
+        assertThat(counter.getResourceCount(ResourceProfile.ANY), is(1));
+    }
 
-	@Test
-	public void testDecrement() {
-		ResourceCounter counter = new ResourceCounter();
+    @Test
+    public void testDecrement() {
+        ResourceCounter counter = new ResourceCounter();
 
-		counter.incrementCount(ResourceProfile.ANY, 1);
-		counter.decrementCount(ResourceProfile.ANY, 1);
-		assertThat(counter.getResourceCount(ResourceProfile.ANY), is(0));
+        counter.incrementCount(ResourceProfile.ANY, 1);
+        counter.decrementCount(ResourceProfile.ANY, 1);
+        assertThat(counter.getResourceCount(ResourceProfile.ANY), is(0));
 
-		assertThat(counter.isEmpty(), is(true));
-	}
+        assertThat(counter.isEmpty(), is(true));
+    }
 
-	@Test
-	public void testCopy() {
-		ResourceCounter counter = new ResourceCounter();
-		counter.incrementCount(ResourceProfile.ANY, 1);
+    @Test
+    public void testCopy() {
+        ResourceCounter counter = new ResourceCounter();
+        counter.incrementCount(ResourceProfile.ANY, 1);
 
-		ResourceCounter copy = counter.copy();
-		counter.decrementCount(ResourceProfile.ANY, 1);
+        ResourceCounter copy = counter.copy();
+        counter.decrementCount(ResourceProfile.ANY, 1);
 
-		// check that copy is independent from original
-		assertThat(copy.getResourceCount(ResourceProfile.ANY), is(1));
-	}
+        // check that copy is independent from original
+        assertThat(copy.getResourceCount(ResourceProfile.ANY), is(1));
+    }
 }

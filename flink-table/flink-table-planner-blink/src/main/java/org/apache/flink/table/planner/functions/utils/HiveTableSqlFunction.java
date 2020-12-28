@@ -57,135 +57,147 @@ import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType;
 
 /**
- * Hive {@link TableSqlFunction}.
- * Override getFunction to clone function and invoke {@code HiveGenericUDTF#setArgumentTypesAndConstants}.
- * Override SqlReturnTypeInference to invoke {@code HiveGenericUDTF#getHiveResultType} instead of
- * {@code HiveGenericUDTF#getResultType(Object[], Class[])}.
+ * Hive {@link TableSqlFunction}. Override getFunction to clone function and invoke {@code
+ * HiveGenericUDTF#setArgumentTypesAndConstants}. Override SqlReturnTypeInference to invoke {@code
+ * HiveGenericUDTF#getHiveResultType} instead of {@code HiveGenericUDTF#getResultType(Object[],
+ * Class[])}.
  *
  * @deprecated TODO hack code, its logical should be integrated to TableSqlFunction
  */
 @Deprecated
 public class HiveTableSqlFunction extends TableSqlFunction {
 
-	private final TableFunction hiveUdtf;
-	private final HiveOperandTypeChecker operandTypeChecker;
+    private final TableFunction hiveUdtf;
+    private final HiveOperandTypeChecker operandTypeChecker;
 
-	public HiveTableSqlFunction(
-			FunctionIdentifier identifier,
-			TableFunction hiveUdtf,
-			DataType implicitResultType,
-			FlinkTypeFactory typeFactory,
-			FlinkTableFunction functionImpl,
-			HiveOperandTypeChecker operandTypeChecker) {
-		super(identifier, identifier.toString(), hiveUdtf, implicitResultType, typeFactory,
-				functionImpl, scala.Option.apply(operandTypeChecker));
-		this.hiveUdtf = hiveUdtf;
-		this.operandTypeChecker = operandTypeChecker;
-	}
+    public HiveTableSqlFunction(
+            FunctionIdentifier identifier,
+            TableFunction hiveUdtf,
+            DataType implicitResultType,
+            FlinkTypeFactory typeFactory,
+            FlinkTableFunction functionImpl,
+            HiveOperandTypeChecker operandTypeChecker) {
+        super(
+                identifier,
+                identifier.toString(),
+                hiveUdtf,
+                implicitResultType,
+                typeFactory,
+                functionImpl,
+                scala.Option.apply(operandTypeChecker));
+        this.hiveUdtf = hiveUdtf;
+        this.operandTypeChecker = operandTypeChecker;
+    }
 
-	@Override
-	public TableFunction makeFunction(Object[] constantArguments, LogicalType[] argTypes) {
-		TableFunction clone;
-		try {
-			clone = InstantiationUtil.clone(hiveUdtf);
-		} catch (IOException | ClassNotFoundException e) {
-			throw new RuntimeException(e);
-		}
-		return (TableFunction) invokeSetArgs(clone, constantArguments, argTypes);
-	}
+    @Override
+    public TableFunction makeFunction(Object[] constantArguments, LogicalType[] argTypes) {
+        TableFunction clone;
+        try {
+            clone = InstantiationUtil.clone(hiveUdtf);
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        return (TableFunction) invokeSetArgs(clone, constantArguments, argTypes);
+    }
 
-	@Override
-	public RelDataType getRowType(RelDataTypeFactory typeFactory, List<Object> arguments) {
-		Preconditions.checkNotNull(operandTypeChecker.previousArgTypes);
-		FlinkTypeFactory factory = (FlinkTypeFactory) typeFactory;
-		Object[] argumentsArray = convertArguments(
-				Arrays.stream(operandTypeChecker.previousArgTypes)
-						.map(factory::createFieldTypeFromLogicalType)
-						.collect(Collectors.toList()),
-				arguments);
-		DataType resultType = fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(
-				invokeGetResultType(hiveUdtf, argumentsArray,
-					operandTypeChecker.previousArgTypes, (FlinkTypeFactory) typeFactory)));
-		Tuple3<String[], int[], LogicalType[]> fieldInfo = UserDefinedFunctionUtils.getFieldInfo(resultType);
-		return buildRelDataType(typeFactory, fromDataTypeToLogicalType(resultType), fieldInfo._1(), fieldInfo._2());
-	}
+    @Override
+    public RelDataType getRowType(RelDataTypeFactory typeFactory, List<Object> arguments) {
+        Preconditions.checkNotNull(operandTypeChecker.previousArgTypes);
+        FlinkTypeFactory factory = (FlinkTypeFactory) typeFactory;
+        Object[] argumentsArray =
+                convertArguments(
+                        Arrays.stream(operandTypeChecker.previousArgTypes)
+                                .map(factory::createFieldTypeFromLogicalType)
+                                .collect(Collectors.toList()),
+                        arguments);
+        DataType resultType =
+                fromLogicalTypeToDataType(
+                        FlinkTypeFactory.toLogicalType(
+                                invokeGetResultType(
+                                        hiveUdtf,
+                                        argumentsArray,
+                                        operandTypeChecker.previousArgTypes,
+                                        (FlinkTypeFactory) typeFactory)));
+        Tuple3<String[], int[], LogicalType[]> fieldInfo =
+                UserDefinedFunctionUtils.getFieldInfo(resultType);
+        return buildRelDataType(
+                typeFactory, fromDataTypeToLogicalType(resultType), fieldInfo._1(), fieldInfo._2());
+    }
 
-	/**
-	 * This method is copied from calcite, and modify it to not rely on Function.
-	 * TODO FlinkTableFunction need implement getElementType.
-	 */
-	private static Object[] convertArguments(
-			List<RelDataType> operandTypes,
-			List<Object> arguments0) {
-		List<Object> arguments = new ArrayList<>(arguments0.size());
-		// Construct a list of arguments, if they are all constants.
-		for (Pair<RelDataType, Object> pair : Pair.zip(operandTypes, arguments0)) {
-			arguments.add(coerce(pair.right, pair.left));
-		}
-		return arguments.toArray();
-	}
+    /**
+     * This method is copied from calcite, and modify it to not rely on Function. TODO
+     * FlinkTableFunction need implement getElementType.
+     */
+    private static Object[] convertArguments(
+            List<RelDataType> operandTypes, List<Object> arguments0) {
+        List<Object> arguments = new ArrayList<>(arguments0.size());
+        // Construct a list of arguments, if they are all constants.
+        for (Pair<RelDataType, Object> pair : Pair.zip(operandTypes, arguments0)) {
+            arguments.add(coerce(pair.right, pair.left));
+        }
+        return arguments.toArray();
+    }
 
-	private static Object coerce(Object value, RelDataType type) {
-		if (value == null) {
-			return null;
-		}
-		switch (type.getSqlTypeName()) {
-			case CHAR:
-				return ((NlsString) value).getValue();
-			case BINARY:
-				return ((BitString) value).getAsByteArray();
-			case DECIMAL:
-				return value;
-			case BIGINT:
-				return ((BigDecimal) value).longValue();
-			case INTEGER:
-				return ((BigDecimal) value).intValue();
-			case SMALLINT:
-				return ((BigDecimal) value).shortValue();
-			case TINYINT:
-				return ((BigDecimal) value).byteValue();
-			case DOUBLE:
-				return ((BigDecimal) value).doubleValue();
-			case REAL:
-				return ((BigDecimal) value).floatValue();
-			case FLOAT:
-				return ((BigDecimal) value).floatValue();
-			case DATE:
-				return LocalDate.ofEpochDay(((DateString) value).getDaysSinceEpoch());
-			case TIME:
-				return LocalTime.ofNanoOfDay(((TimeString) value).getMillisOfDay() * 1000_000);
-			case TIMESTAMP:
-				return SqlDateTimeUtils.unixTimestampToLocalDateTime(((TimestampString) value).getMillisSinceEpoch());
-			default:
-				throw new RuntimeException("Not support type: " + type);
-		}
-	}
+    private static Object coerce(Object value, RelDataType type) {
+        if (value == null) {
+            return null;
+        }
+        switch (type.getSqlTypeName()) {
+            case CHAR:
+                return ((NlsString) value).getValue();
+            case BINARY:
+                return ((BitString) value).getAsByteArray();
+            case DECIMAL:
+                return value;
+            case BIGINT:
+                return ((BigDecimal) value).longValue();
+            case INTEGER:
+                return ((BigDecimal) value).intValue();
+            case SMALLINT:
+                return ((BigDecimal) value).shortValue();
+            case TINYINT:
+                return ((BigDecimal) value).byteValue();
+            case DOUBLE:
+                return ((BigDecimal) value).doubleValue();
+            case REAL:
+                return ((BigDecimal) value).floatValue();
+            case FLOAT:
+                return ((BigDecimal) value).floatValue();
+            case DATE:
+                return LocalDate.ofEpochDay(((DateString) value).getDaysSinceEpoch());
+            case TIME:
+                return LocalTime.ofNanoOfDay(((TimeString) value).getMillisOfDay() * 1000_000);
+            case TIMESTAMP:
+                return SqlDateTimeUtils.unixTimestampToLocalDateTime(
+                        ((TimestampString) value).getMillisSinceEpoch());
+            default:
+                throw new RuntimeException("Not support type: " + type);
+        }
+    }
 
-	public static HiveOperandTypeChecker operandTypeChecker(
-			String name, TableFunction udtf) {
-		return new HiveOperandTypeChecker(
-				name, udtf, UserDefinedFunctionUtils.checkAndExtractMethods(udtf, "eval"));
-	}
+    public static HiveOperandTypeChecker operandTypeChecker(String name, TableFunction udtf) {
+        return new HiveOperandTypeChecker(
+                name, udtf, UserDefinedFunctionUtils.checkAndExtractMethods(udtf, "eval"));
+    }
 
-	/**
-	 * Checker for remember previousArgTypes.
-	 *
-	 * @deprecated TODO hack code, should modify calcite getRowType to pass operand types
-	 */
-	@Deprecated
-	public static class HiveOperandTypeChecker extends OperandMetadata {
+    /**
+     * Checker for remember previousArgTypes.
+     *
+     * @deprecated TODO hack code, should modify calcite getRowType to pass operand types
+     */
+    @Deprecated
+    public static class HiveOperandTypeChecker extends OperandMetadata {
 
-		private LogicalType[] previousArgTypes;
+        private LogicalType[] previousArgTypes;
 
-		private HiveOperandTypeChecker(
-				String name, TableFunction udtf, Method[] methods) {
-			super(name, udtf, methods);
-		}
+        private HiveOperandTypeChecker(String name, TableFunction udtf, Method[] methods) {
+            super(name, udtf, methods);
+        }
 
-		@Override
-		public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-			previousArgTypes = UserDefinedFunctionUtils.getOperandTypeArray(callBinding);
-			return super.checkOperandTypes(callBinding, throwOnFailure);
-		}
-	}
+        @Override
+        public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
+            previousArgTypes = UserDefinedFunctionUtils.getOperandTypeArray(callBinding);
+            return super.checkOperandTypes(callBinding, throwOnFailure);
+        }
+    }
 }

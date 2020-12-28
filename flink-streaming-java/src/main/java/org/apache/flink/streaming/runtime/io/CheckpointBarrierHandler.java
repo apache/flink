@@ -35,138 +35,139 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The {@link CheckpointBarrierHandler} reacts to checkpoint barrier arriving from the input channels.
- * Different implementations may either simply track barriers, or block certain inputs on
+ * The {@link CheckpointBarrierHandler} reacts to checkpoint barrier arriving from the input
+ * channels. Different implementations may either simply track barriers, or block certain inputs on
  * barriers.
  */
 public abstract class CheckpointBarrierHandler implements Closeable {
-	private static final long OUTSIDE_OF_ALIGNMENT = Long.MIN_VALUE;
+    private static final long OUTSIDE_OF_ALIGNMENT = Long.MIN_VALUE;
 
-	/** The listener to be notified on complete checkpoints. */
-	private final AbstractInvokable toNotifyOnCheckpoint;
+    /** The listener to be notified on complete checkpoints. */
+    private final AbstractInvokable toNotifyOnCheckpoint;
 
-	/** The time (in nanoseconds) that the latest alignment took. */
-	private CompletableFuture<Long> latestAlignmentDurationNanos = new CompletableFuture<>();
+    /** The time (in nanoseconds) that the latest alignment took. */
+    private CompletableFuture<Long> latestAlignmentDurationNanos = new CompletableFuture<>();
 
-	/**
-	 * The time (in nanoseconds) between creation of the checkpoint's first checkpoint barrier
-	 * and receiving it by this task.
-	 */
-	private long latestCheckpointStartDelayNanos;
+    /**
+     * The time (in nanoseconds) between creation of the checkpoint's first checkpoint barrier and
+     * receiving it by this task.
+     */
+    private long latestCheckpointStartDelayNanos;
 
-	/** The timestamp as in {@link System#nanoTime()} at which the last alignment started. */
-	private long startOfAlignmentTimestamp = OUTSIDE_OF_ALIGNMENT;
+    /** The timestamp as in {@link System#nanoTime()} at which the last alignment started. */
+    private long startOfAlignmentTimestamp = OUTSIDE_OF_ALIGNMENT;
 
-	/**
-	 * Cumulative counter of bytes processed during alignment. Once we complete alignment, we will
-	 * put this value into the {@link #latestBytesProcessedDuringAlignment}.
-	 */
-	private long bytesProcessedDuringAlignment;
-	private CompletableFuture<Long> latestBytesProcessedDuringAlignment = new CompletableFuture<>();
+    /**
+     * Cumulative counter of bytes processed during alignment. Once we complete alignment, we will
+     * put this value into the {@link #latestBytesProcessedDuringAlignment}.
+     */
+    private long bytesProcessedDuringAlignment;
 
-	public CheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint) {
-		this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
-	}
+    private CompletableFuture<Long> latestBytesProcessedDuringAlignment = new CompletableFuture<>();
 
-	@Override
-	public void close() throws IOException {
-	}
+    public CheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint) {
+        this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
+    }
 
-	public abstract void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException;
+    @Override
+    public void close() throws IOException {}
 
-	public abstract void processBarrierAnnouncement(
-			CheckpointBarrier announcedBarrier,
-			int sequenceNumber,
-			InputChannelInfo channelInfo) throws IOException;
+    public abstract void processBarrier(
+            CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException;
 
-	public abstract void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws IOException;
+    public abstract void processBarrierAnnouncement(
+            CheckpointBarrier announcedBarrier, int sequenceNumber, InputChannelInfo channelInfo)
+            throws IOException;
 
-	public abstract void processEndOfPartition() throws IOException;
+    public abstract void processCancellationBarrier(CancelCheckpointMarker cancelBarrier)
+            throws IOException;
 
-	public abstract long getLatestCheckpointId();
+    public abstract void processEndOfPartition() throws IOException;
 
-	public long getAlignmentDurationNanos() {
-		if (isDuringAlignment()) {
-			return System.nanoTime() - startOfAlignmentTimestamp;
-		} else {
-			return FutureUtils.getOrDefault(latestAlignmentDurationNanos, 0L);
-		}
-	}
+    public abstract long getLatestCheckpointId();
 
-	public long getCheckpointStartDelayNanos() {
-		return latestCheckpointStartDelayNanos;
-	}
+    public long getAlignmentDurationNanos() {
+        if (isDuringAlignment()) {
+            return System.nanoTime() - startOfAlignmentTimestamp;
+        } else {
+            return FutureUtils.getOrDefault(latestAlignmentDurationNanos, 0L);
+        }
+    }
 
-	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
-		return CompletableFuture.completedFuture(null);
-	}
+    public long getCheckpointStartDelayNanos() {
+        return latestCheckpointStartDelayNanos;
+    }
 
-	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier) throws IOException {
-		CheckpointMetaData checkpointMetaData =
-			new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
+    public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
+        return CompletableFuture.completedFuture(null);
+    }
 
-		CheckpointMetricsBuilder checkpointMetrics = new CheckpointMetricsBuilder()
-			.setAlignmentDurationNanos(latestAlignmentDurationNanos)
-			.setBytesProcessedDuringAlignment(latestBytesProcessedDuringAlignment)
-			.setCheckpointStartDelayNanos(latestCheckpointStartDelayNanos);
+    protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier) throws IOException {
+        CheckpointMetaData checkpointMetaData =
+                new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
 
-		toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
-			checkpointMetaData,
-			checkpointBarrier.getCheckpointOptions(),
-			checkpointMetrics);
-	}
+        CheckpointMetricsBuilder checkpointMetrics =
+                new CheckpointMetricsBuilder()
+                        .setAlignmentDurationNanos(latestAlignmentDurationNanos)
+                        .setBytesProcessedDuringAlignment(latestBytesProcessedDuringAlignment)
+                        .setCheckpointStartDelayNanos(latestCheckpointStartDelayNanos);
 
-	protected void notifyAbortOnCancellationBarrier(long checkpointId) throws IOException {
-		notifyAbort(checkpointId,
-			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
-	}
+        toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
+                checkpointMetaData, checkpointBarrier.getCheckpointOptions(), checkpointMetrics);
+    }
 
-	protected void notifyAbort(long checkpointId, CheckpointException cause) throws IOException {
-		resetAlignment();
-		toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
-	}
+    protected void notifyAbortOnCancellationBarrier(long checkpointId) throws IOException {
+        notifyAbort(
+                checkpointId,
+                new CheckpointException(
+                        CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
+    }
 
-	protected void markAlignmentStartAndEnd(long checkpointCreationTimestamp) {
-		markAlignmentStart(checkpointCreationTimestamp);
-		markAlignmentEnd(0);
-	}
+    protected void notifyAbort(long checkpointId, CheckpointException cause) throws IOException {
+        resetAlignment();
+        toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
+    }
 
-	protected void markAlignmentStart(long checkpointCreationTimestamp) {
-		latestCheckpointStartDelayNanos = 1_000_000 * Math.max(
-			0,
-			System.currentTimeMillis() - checkpointCreationTimestamp);
+    protected void markAlignmentStartAndEnd(long checkpointCreationTimestamp) {
+        markAlignmentStart(checkpointCreationTimestamp);
+        markAlignmentEnd(0);
+    }
 
-		resetAlignment();
-		startOfAlignmentTimestamp = System.nanoTime();
-	}
+    protected void markAlignmentStart(long checkpointCreationTimestamp) {
+        latestCheckpointStartDelayNanos =
+                1_000_000 * Math.max(0, System.currentTimeMillis() - checkpointCreationTimestamp);
 
-	protected void markAlignmentEnd() {
-		markAlignmentEnd(System.nanoTime() - startOfAlignmentTimestamp);
-	}
+        resetAlignment();
+        startOfAlignmentTimestamp = System.nanoTime();
+    }
 
-	protected void markAlignmentEnd(long alignmentDuration) {
-		latestAlignmentDurationNanos.complete(alignmentDuration);
-		latestBytesProcessedDuringAlignment.complete(bytesProcessedDuringAlignment);
+    protected void markAlignmentEnd() {
+        markAlignmentEnd(System.nanoTime() - startOfAlignmentTimestamp);
+    }
 
-		startOfAlignmentTimestamp = OUTSIDE_OF_ALIGNMENT;
-		bytesProcessedDuringAlignment = 0;
-	}
+    protected void markAlignmentEnd(long alignmentDuration) {
+        latestAlignmentDurationNanos.complete(alignmentDuration);
+        latestBytesProcessedDuringAlignment.complete(bytesProcessedDuringAlignment);
 
-	private void resetAlignment() {
-		markAlignmentEnd(0);
-		latestAlignmentDurationNanos = new CompletableFuture<>();
-		latestBytesProcessedDuringAlignment = new CompletableFuture<>();
-	}
+        startOfAlignmentTimestamp = OUTSIDE_OF_ALIGNMENT;
+        bytesProcessedDuringAlignment = 0;
+    }
 
-	protected abstract boolean isCheckpointPending();
+    private void resetAlignment() {
+        markAlignmentEnd(0);
+        latestAlignmentDurationNanos = new CompletableFuture<>();
+        latestBytesProcessedDuringAlignment = new CompletableFuture<>();
+    }
 
-	public void addProcessedBytes(int bytes) {
-		if (isDuringAlignment()) {
-			bytesProcessedDuringAlignment += bytes;
-		}
-	}
+    protected abstract boolean isCheckpointPending();
 
-	private boolean isDuringAlignment() {
-		return startOfAlignmentTimestamp > OUTSIDE_OF_ALIGNMENT;
-	}
+    public void addProcessedBytes(int bytes) {
+        if (isDuringAlignment()) {
+            bytesProcessedDuringAlignment += bytes;
+        }
+    }
+
+    private boolean isDuringAlignment() {
+        return startOfAlignmentTimestamp > OUTSIDE_OF_ALIGNMENT;
+    }
 }

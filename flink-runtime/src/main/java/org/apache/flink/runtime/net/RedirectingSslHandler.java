@@ -45,67 +45,71 @@ import java.util.concurrent.CompletableFuture;
 
 /** SSL handler which automatically redirects Non-SSL requests to SSL address. */
 public class RedirectingSslHandler extends ByteToMessageDecoder {
-	private static final Logger log = LoggerFactory.getLogger(RedirectingSslHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(RedirectingSslHandler.class);
 
-	private static final String SSL_HANDLER_NAME = "ssl";
-	private static final String HTTP_CODEC_HANDLER_NAME = "http-codec";
-	private static final String NON_SSL_HANDLER_NAME = "redirecting-non-ssl";
+    private static final String SSL_HANDLER_NAME = "ssl";
+    private static final String HTTP_CODEC_HANDLER_NAME = "http-codec";
+    private static final String NON_SSL_HANDLER_NAME = "redirecting-non-ssl";
 
-	/** the length of the ssl record header (in bytes). */
-	private static final int SSL_RECORD_HEADER_LENGTH = 5;
+    /** the length of the ssl record header (in bytes). */
+    private static final int SSL_RECORD_HEADER_LENGTH = 5;
 
-	@Nonnull private final String confRedirectBaseUrl;
-	@Nonnull private final CompletableFuture<String> redirectBaseUrl;
-	@Nonnull private final SSLHandlerFactory sslHandlerFactory;
+    @Nonnull private final String confRedirectBaseUrl;
+    @Nonnull private final CompletableFuture<String> redirectBaseUrl;
+    @Nonnull private final SSLHandlerFactory sslHandlerFactory;
 
-	public RedirectingSslHandler(
-		@Nonnull String confRedirectHost,
-		@Nonnull CompletableFuture<String> redirectBaseUrl,
-		@Nonnull SSLHandlerFactory sslHandlerFactory) {
-		this.confRedirectBaseUrl = "https://" + confRedirectHost + ":";
-		this.redirectBaseUrl = redirectBaseUrl;
-		this.sslHandlerFactory = sslHandlerFactory;
-	}
+    public RedirectingSslHandler(
+            @Nonnull String confRedirectHost,
+            @Nonnull CompletableFuture<String> redirectBaseUrl,
+            @Nonnull SSLHandlerFactory sslHandlerFactory) {
+        this.confRedirectBaseUrl = "https://" + confRedirectHost + ":";
+        this.redirectBaseUrl = redirectBaseUrl;
+        this.sslHandlerFactory = sslHandlerFactory;
+    }
 
-	@Override
-	protected void decode(ChannelHandlerContext context, ByteBuf in, List<Object> out) {
-		if (in.readableBytes() >= SSL_RECORD_HEADER_LENGTH && SslHandler.isEncrypted(in)) {
-			handleSsl(context);
-		} else {
-			context.pipeline().replace(this, HTTP_CODEC_HANDLER_NAME, new HttpServerCodec());
-			context.pipeline().addAfter(HTTP_CODEC_HANDLER_NAME, NON_SSL_HANDLER_NAME, new NonSslHandler());
-		}
-	}
+    @Override
+    protected void decode(ChannelHandlerContext context, ByteBuf in, List<Object> out) {
+        if (in.readableBytes() >= SSL_RECORD_HEADER_LENGTH && SslHandler.isEncrypted(in)) {
+            handleSsl(context);
+        } else {
+            context.pipeline().replace(this, HTTP_CODEC_HANDLER_NAME, new HttpServerCodec());
+            context.pipeline()
+                    .addAfter(HTTP_CODEC_HANDLER_NAME, NON_SSL_HANDLER_NAME, new NonSslHandler());
+        }
+    }
 
-	private void handleSsl(ChannelHandlerContext context) {
-		SslHandler sslHandler = sslHandlerFactory.createNettySSLHandler(context.alloc());
-		try {
-			context.pipeline().replace(this, SSL_HANDLER_NAME, sslHandler);
-		} catch (Throwable t) {
-			ReferenceCountUtil.safeRelease(sslHandler.engine());
-			throw t;
-		}
-	}
+    private void handleSsl(ChannelHandlerContext context) {
+        SslHandler sslHandler = sslHandlerFactory.createNettySSLHandler(context.alloc());
+        try {
+            context.pipeline().replace(this, SSL_HANDLER_NAME, sslHandler);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(sslHandler.engine());
+            throw t;
+        }
+    }
 
-	private class NonSslHandler extends ChannelInboundHandlerAdapter {
-		@Override
-		public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-			HttpRequest request = msg instanceof HttpRequest ? (HttpRequest) msg : null;
-			String path = request == null ? "" : request.uri();
-			String redirectAddress = getRedirectAddress(ctx);
-			log.trace("Received non-SSL request, redirecting to {}{}", redirectAddress, path);
-			HttpResponse response = HandlerRedirectUtils.getRedirectResponse(
-				redirectAddress, path, HttpResponseStatus.MOVED_PERMANENTLY);
-			if (request != null) {
-				KeepAliveWrite.flush(ctx, request, response);
-			} else {
-				ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
-			}
-		}
+    private class NonSslHandler extends ChannelInboundHandlerAdapter {
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            HttpRequest request = msg instanceof HttpRequest ? (HttpRequest) msg : null;
+            String path = request == null ? "" : request.uri();
+            String redirectAddress = getRedirectAddress(ctx);
+            log.trace("Received non-SSL request, redirecting to {}{}", redirectAddress, path);
+            HttpResponse response =
+                    HandlerRedirectUtils.getRedirectResponse(
+                            redirectAddress, path, HttpResponseStatus.MOVED_PERMANENTLY);
+            if (request != null) {
+                KeepAliveWrite.flush(ctx, request, response);
+            } else {
+                ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+            }
+        }
 
-		private String getRedirectAddress(ChannelHandlerContext ctx) throws Exception {
-			return redirectBaseUrl.isDone() ? redirectBaseUrl.get() :
-				confRedirectBaseUrl + ((InetSocketAddress) (ctx.channel()).localAddress()).getPort();
-		}
-	}
+        private String getRedirectAddress(ChannelHandlerContext ctx) throws Exception {
+            return redirectBaseUrl.isDone()
+                    ? redirectBaseUrl.get()
+                    : confRedirectBaseUrl
+                            + ((InetSocketAddress) (ctx.channel()).localAddress()).getPort();
+        }
+    }
 }

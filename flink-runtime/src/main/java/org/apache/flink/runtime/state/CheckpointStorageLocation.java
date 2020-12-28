@@ -24,34 +24,34 @@ import java.io.IOException;
  * A storage location for one particular checkpoint, offering data persistent, metadata persistence,
  * and lifecycle/cleanup methods.
  *
- * <p>CheckpointStorageLocations are typically created and initialized via
- * {@link CheckpointStorageAccess#initializeLocationForCheckpoint(long)} or
- * {@link CheckpointStorageAccess#initializeLocationForSavepoint(long, String)}.
+ * <p>CheckpointStorageLocations are typically created and initialized via {@link
+ * CheckpointStorageAccess#initializeLocationForCheckpoint(long)} or {@link
+ * CheckpointStorageAccess#initializeLocationForSavepoint(long, String)}.
  */
 public interface CheckpointStorageLocation extends CheckpointStreamFactory {
 
-	/**
-	 * Creates the output stream to persist the checkpoint metadata to.
-	 *
-	 * @return The output stream to persist the checkpoint metadata to.
-	 * @throws IOException Thrown, if the stream cannot be opened due to an I/O error.
-	 */
-	CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException;
+    /**
+     * Creates the output stream to persist the checkpoint metadata to.
+     *
+     * @return The output stream to persist the checkpoint metadata to.
+     * @throws IOException Thrown, if the stream cannot be opened due to an I/O error.
+     */
+    CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException;
 
-	/**
-	 * Disposes the checkpoint location in case the checkpoint has failed.
-	 * This method disposes all the data at that location, not just the data written
-	 * by the particular node or process that calls this method.
-	 */
-	void disposeOnFailure() throws IOException;
+    /**
+     * Disposes the checkpoint location in case the checkpoint has failed. This method disposes all
+     * the data at that location, not just the data written by the particular node or process that
+     * calls this method.
+     */
+    void disposeOnFailure() throws IOException;
 
-	/**
-	 * Gets a reference to the storage location. This reference is sent to the
-	 * target storage location via checkpoint RPC messages and checkpoint barriers,
-	 * in a format avoiding backend-specific classes.
-	 *
-	 * <p>If there is no custom location information that needs to be communicated,
-	 * this method can simply return {@link CheckpointStorageLocationReference#getDefault()}.
-	 */
-	CheckpointStorageLocationReference getLocationReference();
+    /**
+     * Gets a reference to the storage location. This reference is sent to the target storage
+     * location via checkpoint RPC messages and checkpoint barriers, in a format avoiding
+     * backend-specific classes.
+     *
+     * <p>If there is no custom location information that needs to be communicated, this method can
+     * simply return {@link CheckpointStorageLocationReference#getDefault()}.
+     */
+    CheckpointStorageLocationReference getLocationReference();
 }

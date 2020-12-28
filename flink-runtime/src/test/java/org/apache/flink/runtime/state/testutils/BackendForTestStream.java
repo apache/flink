@@ -36,96 +36,99 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A test backends that allows you to supply a specific test stream.
- */
+/** A test backends that allows you to supply a specific test stream. */
 @SuppressWarnings({"serial"})
 public class BackendForTestStream extends MemoryStateBackend {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final TestFactory streamFactory;
+    private final TestFactory streamFactory;
 
-	public BackendForTestStream(TestFactory streamFactory) {
-		this.streamFactory = checkNotNull(streamFactory);
-	}
+    public BackendForTestStream(TestFactory streamFactory) {
+        this.streamFactory = checkNotNull(streamFactory);
+    }
 
-	public BackendForTestStream(StreamFactory streamSupplier) {
-		this(new TestFactory(streamSupplier));
-	}
+    public BackendForTestStream(StreamFactory streamSupplier) {
+        this(new TestFactory(streamSupplier));
+    }
 
-	// make no reconfiguration!
-	@Override
-	public MemoryStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
-		return this;
-	}
+    // make no reconfiguration!
+    @Override
+    public MemoryStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
+        return this;
+    }
 
-	@Override
-	public CheckpointStorageAccess createCheckpointStorage(JobID jobId) {
-		return new TestCheckpointStorageAccess();
-	}
+    @Override
+    public CheckpointStorageAccess createCheckpointStorage(JobID jobId) {
+        return new TestCheckpointStorageAccess();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public interface StreamFactory
-			extends SupplierWithException<CheckpointStateOutputStream, IOException>, java.io.Serializable {}
+    public interface StreamFactory
+            extends SupplierWithException<CheckpointStateOutputStream, IOException>,
+                    java.io.Serializable {}
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private final class TestCheckpointStorageAccess implements CheckpointStorageAccess {
+    private final class TestCheckpointStorageAccess implements CheckpointStorageAccess {
 
-		@Override
-		public boolean supportsHighlyAvailableStorage() {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public boolean supportsHighlyAvailableStorage() {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public boolean hasDefaultSavepointLocation() {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public boolean hasDefaultSavepointLocation() {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public void initializeBaseLocations() {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public void initializeBaseLocations() {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public CheckpointStorageLocation initializeLocationForSavepoint(long checkpointId, @Nullable String externalLocationPointer) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public CheckpointStorageLocation initializeLocationForSavepoint(
+                long checkpointId, @Nullable String externalLocationPointer) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public CheckpointStreamFactory resolveCheckpointStorageLocation(long checkpointId, CheckpointStorageLocationReference reference) {
-			return streamFactory;
-		}
+        @Override
+        public CheckpointStreamFactory resolveCheckpointStorageLocation(
+                long checkpointId, CheckpointStorageLocationReference reference) {
+            return streamFactory;
+        }
 
-		@Override
-		public CheckpointStateOutputStream createTaskOwnedStateStream() {
-			throw new UnsupportedOperationException();
-		}
-	}
+        @Override
+        public CheckpointStateOutputStream createTaskOwnedStateStream() {
+            throw new UnsupportedOperationException();
+        }
+    }
 
-	private static final class TestFactory implements CheckpointStreamFactory, java.io.Serializable {
+    private static final class TestFactory
+            implements CheckpointStreamFactory, java.io.Serializable {
 
-		private final StreamFactory streamFactory;
+        private final StreamFactory streamFactory;
 
-		TestFactory(StreamFactory streamFactory) {
-			this.streamFactory = streamFactory;
-		}
+        TestFactory(StreamFactory streamFactory) {
+            this.streamFactory = streamFactory;
+        }
 
-		@Override
-		public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
-			return streamFactory.get();
-		}
-	}
+        @Override
+        public CheckpointStateOutputStream createCheckpointStateOutputStream(
+                CheckpointedStateScope scope) throws IOException {
+            return streamFactory.get();
+        }
+    }
 }

@@ -27,18 +27,16 @@ import java.io.Closeable;
  * responsible for keyed state management and the {@link SnapshotStrategy} which tells the system
  * how to snapshot the underlying state.
  *
- * <p><b>NOTE:</b> State backends that need to be notified of completed checkpoints can additionally implement
- * the {@link CheckpointListener} interface.
+ * <p><b>NOTE:</b> State backends that need to be notified of completed checkpoints can additionally
+ * implement the {@link CheckpointListener} interface.
  *
  * @param <K> Type of the key by which state is keyed.
  */
-public interface CheckpointableKeyedStateBackend<K> extends
-		KeyedStateBackend<K>,
-		SnapshotStrategy<SnapshotResult<KeyedStateHandle>>,
-		Closeable {
+public interface CheckpointableKeyedStateBackend<K>
+        extends KeyedStateBackend<K>,
+                SnapshotStrategy<SnapshotResult<KeyedStateHandle>>,
+                Closeable {
 
-	/**
-	 * Returns the key groups which this state backend is responsible for.
-	 */
-	KeyGroupRange getKeyGroupRange();
+    /** Returns the key groups which this state backend is responsible for. */
+    KeyGroupRange getKeyGroupRange();
 }

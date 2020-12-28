@@ -27,81 +27,83 @@ import java.io.Serializable;
 
 public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializable {
 
-	private static final long serialVersionUID = -6708241535015028576L;
+    private static final long serialVersionUID = -6708241535015028576L;
 
-	private final int subTaskIndex;
+    private final int subTaskIndex;
 
-	private final EvictingBoundedList<ArchivedExecution> priorExecutions;
+    private final EvictingBoundedList<ArchivedExecution> priorExecutions;
 
-	/** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations */
-	private final String taskNameWithSubtask;
+    /** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations */
+    private final String taskNameWithSubtask;
 
-	private final ArchivedExecution currentExecution;    // this field must never be null
+    private final ArchivedExecution currentExecution; // this field must never be null
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public ArchivedExecutionVertex(ExecutionVertex vertex) {
-		this.subTaskIndex = vertex.getParallelSubtaskIndex();
-		this.priorExecutions = vertex.getCopyOfPriorExecutionsList();
-		this.taskNameWithSubtask = vertex.getTaskNameWithSubtaskIndex();
-		this.currentExecution = vertex.getCurrentExecutionAttempt().archive();
-	}
+    public ArchivedExecutionVertex(ExecutionVertex vertex) {
+        this.subTaskIndex = vertex.getParallelSubtaskIndex();
+        this.priorExecutions = vertex.getCopyOfPriorExecutionsList();
+        this.taskNameWithSubtask = vertex.getTaskNameWithSubtaskIndex();
+        this.currentExecution = vertex.getCurrentExecutionAttempt().archive();
+    }
 
-	public ArchivedExecutionVertex(
-			int subTaskIndex, String taskNameWithSubtask,
-			ArchivedExecution currentExecution, EvictingBoundedList<ArchivedExecution> priorExecutions) {
-		this.subTaskIndex = subTaskIndex;
-		this.taskNameWithSubtask = taskNameWithSubtask;
-		this.currentExecution = currentExecution;
-		this.priorExecutions = priorExecutions;
-	}
+    public ArchivedExecutionVertex(
+            int subTaskIndex,
+            String taskNameWithSubtask,
+            ArchivedExecution currentExecution,
+            EvictingBoundedList<ArchivedExecution> priorExecutions) {
+        this.subTaskIndex = subTaskIndex;
+        this.taskNameWithSubtask = taskNameWithSubtask;
+        this.currentExecution = currentExecution;
+        this.priorExecutions = priorExecutions;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//   Accessors
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //   Accessors
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public String getTaskNameWithSubtaskIndex() {
-		return this.taskNameWithSubtask;
-	}
+    @Override
+    public String getTaskNameWithSubtaskIndex() {
+        return this.taskNameWithSubtask;
+    }
 
-	@Override
-	public int getParallelSubtaskIndex() {
-		return this.subTaskIndex;
-	}
+    @Override
+    public int getParallelSubtaskIndex() {
+        return this.subTaskIndex;
+    }
 
-	@Override
-	public ArchivedExecution getCurrentExecutionAttempt() {
-		return currentExecution;
-	}
+    @Override
+    public ArchivedExecution getCurrentExecutionAttempt() {
+        return currentExecution;
+    }
 
-	@Override
-	public ExecutionState getExecutionState() {
-		return currentExecution.getState();
-	}
+    @Override
+    public ExecutionState getExecutionState() {
+        return currentExecution.getState();
+    }
 
-	@Override
-	public long getStateTimestamp(ExecutionState state) {
-		return currentExecution.getStateTimestamp(state);
-	}
+    @Override
+    public long getStateTimestamp(ExecutionState state) {
+        return currentExecution.getStateTimestamp(state);
+    }
 
-	@Override
-	public String getFailureCauseAsString() {
-		return currentExecution.getFailureCauseAsString();
-	}
+    @Override
+    public String getFailureCauseAsString() {
+        return currentExecution.getFailureCauseAsString();
+    }
 
-	@Override
-	public TaskManagerLocation getCurrentAssignedResourceLocation() {
-		return currentExecution.getAssignedResourceLocation();
-	}
+    @Override
+    public TaskManagerLocation getCurrentAssignedResourceLocation() {
+        return currentExecution.getAssignedResourceLocation();
+    }
 
-	@Nullable
-	@Override
-	public ArchivedExecution getPriorExecutionAttempt(int attemptNumber) {
-		if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
-			return priorExecutions.get(attemptNumber);
-		} else {
-			throw new IllegalArgumentException("attempt does not exist");
-		}
-	}
+    @Nullable
+    @Override
+    public ArchivedExecution getPriorExecutionAttempt(int attemptNumber) {
+        if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
+            return priorExecutions.get(attemptNumber);
+        } else {
+            throw new IllegalArgumentException("attempt does not exist");
+        }
+    }
 }

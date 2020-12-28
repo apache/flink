@@ -29,62 +29,57 @@ import java.util.Optional;
  *
  * @param <P> The type to describe a partition.
  */
-
 @Internal
 @FunctionalInterface
 public interface PartitionFetcher<P> extends Serializable {
 
-	/**
-	 * Fetch the suitable partitions, call this method should guarantee the fetcher has opened.
-	 */
-	List<P> fetch(Context<P> context) throws Exception;
+    /** Fetch the suitable partitions, call this method should guarantee the fetcher has opened. */
+    List<P> fetch(Context<P> context) throws Exception;
 
-	/**
-	 * Context for fetch partitions, partition information is stored in hive meta store.
-	 */
-	interface Context<P> extends Serializable {
+    /** Context for fetch partitions, partition information is stored in hive meta store. */
+    interface Context<P> extends Serializable {
 
-		/**
-		 * open the resources of the Context, this method should first call before call other methods.
-		 */
-		void open() throws Exception;
+        /**
+         * open the resources of the Context, this method should first call before call other
+         * methods.
+         */
+        void open() throws Exception;
 
-		/**
-		 * Get partition by file partition values.
-		 */
-		Optional<P> getPartition(List<String> partValues) throws Exception;
+        /** Get partition by file partition values. */
+        Optional<P> getPartition(List<String> partValues) throws Exception;
 
-		/**
-		 * Get list that contains partition with comparable object.
-		 *
-		 * <p>For 'create-time' and 'partition-time',the comparable object type is Long which
-		 * represents time in milliseconds, for 'partition-name', the comparable object type is String
-		 * which represents the partition names string.
-		 */
-		List<ComparablePartitionValue> getComparablePartitionValueList() throws Exception;
+        /**
+         * Get list that contains partition with comparable object.
+         *
+         * <p>For 'create-time' and 'partition-time',the comparable object type is Long which
+         * represents time in milliseconds, for 'partition-name', the comparable object type is
+         * String which represents the partition names string.
+         */
+        List<ComparablePartitionValue> getComparablePartitionValueList() throws Exception;
 
-		/**
-		 * close the resources of the Context, this method should call when the context do not need any more.
-		 */
-		void close() throws Exception;
+        /**
+         * close the resources of the Context, this method should call when the context do not need
+         * any more.
+         */
+        void close() throws Exception;
 
-		/**
-		 * A comparable partition value that can compare order by using its comparator.
-		 * @param <P> The type of partition value.
-		 * @param <T> The tye of the partition offset, the partition offset is comparable.
-		 */
-		interface ComparablePartitionValue<P, T extends Comparable<T>> extends Serializable {
+        /**
+         * A comparable partition value that can compare order by using its comparator.
+         *
+         * @param <P> The type of partition value.
+         * @param <T> The tye of the partition offset, the partition offset is comparable.
+         */
+        interface ComparablePartitionValue<P, T extends Comparable<T>> extends Serializable {
 
-			/**
-			 * Get the partition value.
-			 */
-			P getPartitionValue();
+            /** Get the partition value. */
+            P getPartitionValue();
 
-			/**
-			 * Get the comparator.
-			 * @return
-			 */
-			T getComparator();
-		}
-	}
+            /**
+             * Get the comparator.
+             *
+             * @return
+             */
+            T getComparator();
+        }
+    }
 }

@@ -21,16 +21,13 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.Public;
 
 /**
- * This interface must be implemented by functions/operations that want to receive
- * a commit notification once a checkpoint has been completely acknowledged by all
- * participants.
+ * This interface must be implemented by functions/operations that want to receive a commit
+ * notification once a checkpoint has been completely acknowledged by all participants.
  *
- * @deprecated This interface has been moved to
- * {@link org.apache.flink.api.common.state.CheckpointListener}. This class is kept
- * to maintain backwards compatibility and will be removed in future releases.
+ * @deprecated This interface has been moved to {@link
+ *     org.apache.flink.api.common.state.CheckpointListener}. This class is kept to maintain
+ *     backwards compatibility and will be removed in future releases.
  */
 @Public
 @Deprecated
-public interface CheckpointListener extends org.apache.flink.api.common.state.CheckpointListener {
-
-}
+public interface CheckpointListener extends org.apache.flink.api.common.state.CheckpointListener {}

@@ -41,65 +41,74 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * Request handler for the job vertex back pressure.
- */
-public class JobVertexBackPressureHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, JobVertexBackPressureInfo, JobVertexMessageParameters> {
+/** Request handler for the job vertex back pressure. */
+public class JobVertexBackPressureHandler
+        extends AbstractRestHandler<
+                RestfulGateway,
+                EmptyRequestBody,
+                JobVertexBackPressureInfo,
+                JobVertexMessageParameters> {
 
-	public JobVertexBackPressureHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, JobVertexBackPressureInfo, JobVertexMessageParameters> messageHeaders) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
-	}
+    public JobVertexBackPressureHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, JobVertexBackPressureInfo, JobVertexMessageParameters>
+                    messageHeaders) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    }
 
-	@Override
-	protected CompletableFuture<JobVertexBackPressureInfo> handleRequest(
-			@Nonnull HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
-			@Nonnull RestfulGateway gateway) throws RestHandlerException {
-		final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-		final JobVertexID jobVertexId = request.getPathParameter(JobVertexIdPathParameter.class);
-		return gateway
-			.requestOperatorBackPressureStats(jobId, jobVertexId)
-			.thenApply(
-				operatorBackPressureStats ->
-					operatorBackPressureStats.getOperatorBackPressureStats().map(
-						JobVertexBackPressureHandler::createJobVertexBackPressureInfo).orElse(
-						JobVertexBackPressureInfo.deprecated()));
-	}
+    @Override
+    protected CompletableFuture<JobVertexBackPressureInfo> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
+            @Nonnull RestfulGateway gateway)
+            throws RestHandlerException {
+        final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
+        final JobVertexID jobVertexId = request.getPathParameter(JobVertexIdPathParameter.class);
+        return gateway.requestOperatorBackPressureStats(jobId, jobVertexId)
+                .thenApply(
+                        operatorBackPressureStats ->
+                                operatorBackPressureStats
+                                        .getOperatorBackPressureStats()
+                                        .map(
+                                                JobVertexBackPressureHandler
+                                                        ::createJobVertexBackPressureInfo)
+                                        .orElse(JobVertexBackPressureInfo.deprecated()));
+    }
 
-	private static JobVertexBackPressureInfo createJobVertexBackPressureInfo(
-			final OperatorBackPressureStats operatorBackPressureStats) {
-		return new JobVertexBackPressureInfo(
-			JobVertexBackPressureInfo.VertexBackPressureStatus.OK,
-			getBackPressureLevel(operatorBackPressureStats.getMaxBackPressureRatio()),
-			operatorBackPressureStats.getEndTimestamp(),
-			IntStream.range(0, operatorBackPressureStats.getNumberOfSubTasks())
-				.mapToObj(subtask -> {
-					final double backPressureRatio = operatorBackPressureStats.getBackPressureRatio(subtask);
-					return new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
-						subtask,
-						getBackPressureLevel(backPressureRatio),
-						backPressureRatio);
-				})
-				.collect(Collectors.toList()));
-	}
+    private static JobVertexBackPressureInfo createJobVertexBackPressureInfo(
+            final OperatorBackPressureStats operatorBackPressureStats) {
+        return new JobVertexBackPressureInfo(
+                JobVertexBackPressureInfo.VertexBackPressureStatus.OK,
+                getBackPressureLevel(operatorBackPressureStats.getMaxBackPressureRatio()),
+                operatorBackPressureStats.getEndTimestamp(),
+                IntStream.range(0, operatorBackPressureStats.getNumberOfSubTasks())
+                        .mapToObj(
+                                subtask -> {
+                                    final double backPressureRatio =
+                                            operatorBackPressureStats.getBackPressureRatio(subtask);
+                                    return new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
+                                            subtask,
+                                            getBackPressureLevel(backPressureRatio),
+                                            backPressureRatio);
+                                })
+                        .collect(Collectors.toList()));
+    }
 
-	/**
-	 * Returns the back pressure level as a String.
-	 *
-	 * @param backPressureRatio Ratio of back pressures samples to total number of samples.
-	 *
-	 * @return Back pressure level ('ok', 'low', or 'high')
-	 */
-	private static JobVertexBackPressureInfo.VertexBackPressureLevel getBackPressureLevel(double backPressureRatio) {
-		if (backPressureRatio <= 0.10) {
-			return JobVertexBackPressureInfo.VertexBackPressureLevel.OK;
-		} else if (backPressureRatio <= 0.5) {
-			return JobVertexBackPressureInfo.VertexBackPressureLevel.LOW;
-		} else {
-			return JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH;
-		}
-	}
+    /**
+     * Returns the back pressure level as a String.
+     *
+     * @param backPressureRatio Ratio of back pressures samples to total number of samples.
+     * @return Back pressure level ('ok', 'low', or 'high')
+     */
+    private static JobVertexBackPressureInfo.VertexBackPressureLevel getBackPressureLevel(
+            double backPressureRatio) {
+        if (backPressureRatio <= 0.10) {
+            return JobVertexBackPressureInfo.VertexBackPressureLevel.OK;
+        } else if (backPressureRatio <= 0.5) {
+            return JobVertexBackPressureInfo.VertexBackPressureLevel.LOW;
+        } else {
+            return JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH;
+        }
+    }
 }

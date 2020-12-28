@@ -23,21 +23,19 @@ import org.junit.Test;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Tests for the {@link ProcessorArchitecture}.
- */
+/** Tests for the {@link ProcessorArchitecture}. */
 public class ProcessorArchitectureTest {
 
-	@Test
-	public void testArchitectureNotUnknown() {
-		final ProcessorArchitecture arch = ProcessorArchitecture.getProcessorArchitecture();
-		assertNotEquals(ProcessorArchitecture.UNKNOWN, arch);
-	}
+    @Test
+    public void testArchitectureNotUnknown() {
+        final ProcessorArchitecture arch = ProcessorArchitecture.getProcessorArchitecture();
+        assertNotEquals(ProcessorArchitecture.UNKNOWN, arch);
+    }
 
-	@Test
-	public void testNamesNotNull() {
-		final ProcessorArchitecture arch = ProcessorArchitecture.getProcessorArchitecture();
-		assertNotNull(arch.getArchitectureName());
-		assertNotNull(arch.getAlternativeNames());
-	}
+    @Test
+    public void testNamesNotNull() {
+        final ProcessorArchitecture arch = ProcessorArchitecture.getProcessorArchitecture();
+        assertNotNull(arch.getArchitectureName());
+        assertNotNull(arch.getAlternativeNames());
+    }
 }

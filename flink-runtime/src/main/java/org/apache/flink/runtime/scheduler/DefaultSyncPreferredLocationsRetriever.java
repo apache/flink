@@ -29,34 +29,35 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Synchronous version of {@link DefaultPreferredLocationsRetriever}.
  *
- * <p>This class turns {@link DefaultPreferredLocationsRetriever} into {@link SyncPreferredLocationsRetriever}.
- * The method {@link #getPreferredLocations(ExecutionVertexID, Set)} does not return {@link CompletableFuture}
- * of preferred locations, it returns only locations which are available immediately.
- * This behaviour is achieved by wrapping the original {@link InputsLocationsRetriever} with
- * {@link AvailableInputsLocationsRetriever} and hence making it synchronous without blocking.
- * As {@link StateLocationRetriever} is already synchronous,
- * the overall location retrieval becomes synchronous without blocking.
+ * <p>This class turns {@link DefaultPreferredLocationsRetriever} into {@link
+ * SyncPreferredLocationsRetriever}. The method {@link #getPreferredLocations(ExecutionVertexID,
+ * Set)} does not return {@link CompletableFuture} of preferred locations, it returns only locations
+ * which are available immediately. This behaviour is achieved by wrapping the original {@link
+ * InputsLocationsRetriever} with {@link AvailableInputsLocationsRetriever} and hence making it
+ * synchronous without blocking. As {@link StateLocationRetriever} is already synchronous, the
+ * overall location retrieval becomes synchronous without blocking.
  */
 class DefaultSyncPreferredLocationsRetriever implements SyncPreferredLocationsRetriever {
-	private final PreferredLocationsRetriever asyncPreferredLocationsRetriever;
+    private final PreferredLocationsRetriever asyncPreferredLocationsRetriever;
 
-	DefaultSyncPreferredLocationsRetriever(
-			StateLocationRetriever stateLocationRetriever,
-			InputsLocationsRetriever inputsLocationsRetriever) {
-		this.asyncPreferredLocationsRetriever = new DefaultPreferredLocationsRetriever(
-				stateLocationRetriever,
-				new AvailableInputsLocationsRetriever(inputsLocationsRetriever));
-	}
+    DefaultSyncPreferredLocationsRetriever(
+            StateLocationRetriever stateLocationRetriever,
+            InputsLocationsRetriever inputsLocationsRetriever) {
+        this.asyncPreferredLocationsRetriever =
+                new DefaultPreferredLocationsRetriever(
+                        stateLocationRetriever,
+                        new AvailableInputsLocationsRetriever(inputsLocationsRetriever));
+    }
 
-	@Override
-	public Collection<TaskManagerLocation> getPreferredLocations(
-			ExecutionVertexID executionVertexId,
-			Set<ExecutionVertexID> producersToIgnore) {
-		CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture =
-				asyncPreferredLocationsRetriever.getPreferredLocations(executionVertexId, producersToIgnore);
-		Preconditions.checkState(preferredLocationsFuture.isDone());
-		// it is safe to do the blocking call here
-		// as the underlying InputsLocationsRetriever returns only immediately available locations
-		return preferredLocationsFuture.join();
-	}
+    @Override
+    public Collection<TaskManagerLocation> getPreferredLocations(
+            ExecutionVertexID executionVertexId, Set<ExecutionVertexID> producersToIgnore) {
+        CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture =
+                asyncPreferredLocationsRetriever.getPreferredLocations(
+                        executionVertexId, producersToIgnore);
+        Preconditions.checkState(preferredLocationsFuture.isDone());
+        // it is safe to do the blocking call here
+        // as the underlying InputsLocationsRetriever returns only immediately available locations
+        return preferredLocationsFuture.join();
+    }
 }

@@ -33,36 +33,35 @@ import java.io.Serializable;
  */
 public abstract class MessageCombiner<K, Message> implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private Collector<Tuple2<K, Either<NullValue, Message>>> out;
+    private Collector<Tuple2<K, Either<NullValue, Message>>> out;
 
-	private Tuple2<K, Either<NullValue, Message>> outValue;
+    private Tuple2<K, Either<NullValue, Message>> outValue;
 
-	void set(K target, Collector<Tuple2<K, Either<NullValue, Message>>> collector) {
-		this.out = collector;
-		this.outValue = new Tuple2<>();
-		outValue.f0 = target;
-	}
+    void set(K target, Collector<Tuple2<K, Either<NullValue, Message>>> collector) {
+        this.out = collector;
+        this.outValue = new Tuple2<>();
+        outValue.f0 = target;
+    }
 
-	/**
-	 * Combines messages sent from different vertices to a target vertex.
-	 * Implementing this method might reduce communication costs during a vertex-centric
-	 * iteration.
-	 *
-	 * @param messages the input messages to combine
-	 * @throws Exception
-	 */
-	public abstract void combineMessages(MessageIterator<Message> messages) throws Exception;
+    /**
+     * Combines messages sent from different vertices to a target vertex. Implementing this method
+     * might reduce communication costs during a vertex-centric iteration.
+     *
+     * @param messages the input messages to combine
+     * @throws Exception
+     */
+    public abstract void combineMessages(MessageIterator<Message> messages) throws Exception;
 
-	/**
-	 * Sends the combined message to the target vertex.
-	 *
-	 * @param combinedMessage
-	 * @throws Exception
-	 */
-	public final void sendCombinedMessage(Message combinedMessage) {
-		outValue.f1 = Either.Right(combinedMessage);
-		out.collect(outValue);
-	}
+    /**
+     * Sends the combined message to the target vertex.
+     *
+     * @param combinedMessage
+     * @throws Exception
+     */
+    public final void sendCombinedMessage(Message combinedMessage) {
+        outValue.f1 = Either.Right(combinedMessage);
+        out.collect(outValue);
+    }
 }

@@ -21,17 +21,15 @@ package org.apache.flink.table.module.hive;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.ModuleDescriptorValidator;
 
-/**
- * Validator for {@link HiveModuleDescriptor}.
- */
+/** Validator for {@link HiveModuleDescriptor}. */
 public class HiveModuleDescriptorValidator extends ModuleDescriptorValidator {
-	public static final String MODULE_TYPE_HIVE = "hive";
-	public static final String MODULE_HIVE_VERSION = "hive-version";
+    public static final String MODULE_TYPE_HIVE = "hive";
+    public static final String MODULE_HIVE_VERSION = "hive-version";
 
-	@Override
-	public void validate(DescriptorProperties properties) {
-		super.validate(properties);
-		properties.validateValue(MODULE_TYPE, MODULE_TYPE_HIVE, false);
-		properties.validateString(MODULE_HIVE_VERSION, true, 1);
-	}
+    @Override
+    public void validate(DescriptorProperties properties) {
+        super.validate(properties);
+        properties.validateValue(MODULE_TYPE, MODULE_TYPE_HIVE, false);
+        properties.validateString(MODULE_HIVE_VERSION, true, 1);
+    }
 }

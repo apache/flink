@@ -25,24 +25,28 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
 /**
- * Base {@link OneInputStreamOperatorFactory} for subclasses of {@link AbstractStreamingCommitterOperator}.
+ * Base {@link OneInputStreamOperatorFactory} for subclasses of {@link
+ * AbstractStreamingCommitterOperator}.
  *
  * @param <InputT> The input type of the {@link Committer}.
  * @param <CommT> The committable type of the {@link Committer}.
  */
-abstract class AbstractStreamingCommitterOperatorFactory<InputT, CommT> extends AbstractStreamOperatorFactory<CommT>
-		implements OneInputStreamOperatorFactory<InputT, CommT> {
+abstract class AbstractStreamingCommitterOperatorFactory<InputT, CommT>
+        extends AbstractStreamOperatorFactory<CommT>
+        implements OneInputStreamOperatorFactory<InputT, CommT> {
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T extends StreamOperator<CommT>> T createStreamOperator(StreamOperatorParameters<CommT> parameters) {
-		final AbstractStreamingCommitterOperator<InputT, CommT> streamingCommitterOperator = createStreamingCommitterOperator();
-		streamingCommitterOperator.setup(
-				parameters.getContainingTask(),
-				parameters.getStreamConfig(),
-				parameters.getOutput());
-		return (T) streamingCommitterOperator;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends StreamOperator<CommT>> T createStreamOperator(
+            StreamOperatorParameters<CommT> parameters) {
+        final AbstractStreamingCommitterOperator<InputT, CommT> streamingCommitterOperator =
+                createStreamingCommitterOperator();
+        streamingCommitterOperator.setup(
+                parameters.getContainingTask(),
+                parameters.getStreamConfig(),
+                parameters.getOutput());
+        return (T) streamingCommitterOperator;
+    }
 
-	abstract AbstractStreamingCommitterOperator<InputT, CommT> createStreamingCommitterOperator();
+    abstract AbstractStreamingCommitterOperator<InputT, CommT> createStreamingCommitterOperator();
 }

@@ -38,58 +38,57 @@ import java.util.List;
 import static org.apache.parquet.format.converter.ParquetMetadataConverter.range;
 import static org.apache.parquet.hadoop.ParquetFileReader.readFooter;
 
-/**
- * ITCase for {@link ParquetFileFormatFactory}.
- */
+/** ITCase for {@link ParquetFileFormatFactory}. */
 @RunWith(Parameterized.class)
 public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
 
-	private final boolean configure;
+    private final boolean configure;
 
-	@Parameterized.Parameters(name = "{0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(false, true);
-	}
+    @Parameterized.Parameters(name = "{0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(false, true);
+    }
 
-	public ParquetFileSystemITCase(boolean configure) {
-		this.configure = configure;
-	}
+    public ParquetFileSystemITCase(boolean configure) {
+        this.configure = configure;
+    }
 
-	@Override
-	public String[] formatProperties() {
-		List<String> ret = new ArrayList<>();
-		ret.add("'format'='parquet'");
-		if (configure) {
-			ret.add("'parquet.utc-timezone'='true'");
-			ret.add("'parquet.compression'='gzip'");
-		}
-		return ret.toArray(new String[0]);
-	}
+    @Override
+    public String[] formatProperties() {
+        List<String> ret = new ArrayList<>();
+        ret.add("'format'='parquet'");
+        if (configure) {
+            ret.add("'parquet.utc-timezone'='true'");
+            ret.add("'parquet.compression'='gzip'");
+        }
+        return ret.toArray(new String[0]);
+    }
 
-	@Override
-	public void testNonPartition() {
-		super.testNonPartition();
+    @Override
+    public void testNonPartition() {
+        super.testNonPartition();
 
-		// test configure success
-		File directory = new File(URI.create(resultPath()).getPath());
-		File[] files = directory.listFiles((dir, name) ->
-				!name.startsWith(".") && !name.startsWith("_"));
-		Assert.assertNotNull(files);
-		Path path = new Path(URI.create(files[0].getAbsolutePath()));
+        // test configure success
+        File directory = new File(URI.create(resultPath()).getPath());
+        File[] files =
+                directory.listFiles((dir, name) -> !name.startsWith(".") && !name.startsWith("_"));
+        Assert.assertNotNull(files);
+        Path path = new Path(URI.create(files[0].getAbsolutePath()));
 
-		try {
-			ParquetMetadata footer = readFooter(new Configuration(), path, range(0, Long.MAX_VALUE));
-			if (configure) {
-				Assert.assertEquals(
-						"GZIP",
-						footer.getBlocks().get(0).getColumns().get(0).getCodec().toString());
-			} else {
-				Assert.assertEquals(
-						"UNCOMPRESSED",
-						footer.getBlocks().get(0).getColumns().get(0).getCodec().toString());
-			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+        try {
+            ParquetMetadata footer =
+                    readFooter(new Configuration(), path, range(0, Long.MAX_VALUE));
+            if (configure) {
+                Assert.assertEquals(
+                        "GZIP",
+                        footer.getBlocks().get(0).getColumns().get(0).getCodec().toString());
+            } else {
+                Assert.assertEquals(
+                        "UNCOMPRESSED",
+                        footer.getBlocks().get(0).getColumns().get(0).getCodec().toString());
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

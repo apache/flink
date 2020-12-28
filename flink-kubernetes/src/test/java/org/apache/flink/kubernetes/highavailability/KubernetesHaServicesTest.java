@@ -30,37 +30,50 @@ import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_K
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link KubernetesHaServices}.
- */
+/** Tests for the {@link KubernetesHaServices}. */
 public class KubernetesHaServicesTest extends KubernetesHighAvailabilityTestBase {
 
-	@Test
-	public void testInternalCloseShouldCloseFlinkKubeClient() throws Exception {
-		new Context() {{
-			runTest(
-				() -> {
-					final KubernetesHaServices kubernetesHaServices =
-						new KubernetesHaServices(flinkKubeClient, executorService, configuration, new VoidBlobStore());
-					kubernetesHaServices.internalClose();
-					assertThat(closeKubeClientFuture.isDone(), is(true));
-				});
-		}};
-	}
+    @Test
+    public void testInternalCloseShouldCloseFlinkKubeClient() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final KubernetesHaServices kubernetesHaServices =
+                                    new KubernetesHaServices(
+                                            flinkKubeClient,
+                                            executorService,
+                                            configuration,
+                                            new VoidBlobStore());
+                            kubernetesHaServices.internalClose();
+                            assertThat(closeKubeClientFuture.isDone(), is(true));
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testInternalCleanupShouldCleanupConfigMaps() throws Exception {
-		new Context() {{
-			runTest(
-				() -> {
-					final KubernetesHaServices kubernetesHaServices =
-						new KubernetesHaServices(flinkKubeClient, executorService, configuration, new VoidBlobStore());
-					kubernetesHaServices.internalCleanup();
-					final Map<String, String> labels =
-						deleteConfigMapByLabelsFuture.get(TIMEOUT, TimeUnit.MILLISECONDS);
-					assertThat(labels.size(), is(3));
-					assertThat(labels.get(LABEL_CONFIGMAP_TYPE_KEY), is(LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
-				});
-		}};
-	}
+    @Test
+    public void testInternalCleanupShouldCleanupConfigMaps() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final KubernetesHaServices kubernetesHaServices =
+                                    new KubernetesHaServices(
+                                            flinkKubeClient,
+                                            executorService,
+                                            configuration,
+                                            new VoidBlobStore());
+                            kubernetesHaServices.internalCleanup();
+                            final Map<String, String> labels =
+                                    deleteConfigMapByLabelsFuture.get(
+                                            TIMEOUT, TimeUnit.MILLISECONDS);
+                            assertThat(labels.size(), is(3));
+                            assertThat(
+                                    labels.get(LABEL_CONFIGMAP_TYPE_KEY),
+                                    is(LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+                        });
+            }
+        };
+    }
 }

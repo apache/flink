@@ -22,33 +22,31 @@ import org.apache.flink.api.common.JobID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Describes the target where a table program has been submitted to.
- */
+/** Describes the target where a table program has been submitted to. */
 public class ProgramTargetDescriptor {
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	public ProgramTargetDescriptor(JobID jobId) {
-		this.jobId = checkNotNull(jobId);
-	}
+    public ProgramTargetDescriptor(JobID jobId) {
+        this.jobId = checkNotNull(jobId);
+    }
 
-	public JobID getJobId() {
-		return jobId;
-	}
+    public JobID getJobId() {
+        return jobId;
+    }
 
-	@Override
-	public String toString() {
-		return String.format("Job ID: %s\n", jobId);
-	}
+    @Override
+    public String toString() {
+        return String.format("Job ID: %s\n", jobId);
+    }
 
-	/**
-	 * Creates a program target description from deployment classes.
-	 *
-	 * @param jobId job id
-	 * @return program target descriptor
-	 */
-	public static ProgramTargetDescriptor of(JobID jobId) {
-		return new ProgramTargetDescriptor(jobId);
-	}
+    /**
+     * Creates a program target description from deployment classes.
+     *
+     * @param jobId job id
+     * @return program target descriptor
+     */
+    public static ProgramTargetDescriptor of(JobID jobId) {
+        return new ProgramTargetDescriptor(jobId);
+    }
 }

@@ -38,79 +38,80 @@ import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-/**
- * Tests for {@link RegistryAvroDeserializationSchema}.
- */
+/** Tests for {@link RegistryAvroDeserializationSchema}. */
 public class RegistryAvroDeserializationSchemaTest {
 
-	private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
+    private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
 
-	@Test
-	public void testGenericRecordReadWithCompatibleSchema() throws IOException {
-		RegistryAvroDeserializationSchema<GenericRecord> deserializer = new RegistryAvroDeserializationSchema<>(
-			GenericRecord.class,
-			SchemaBuilder.record("Address")
-				.fields()
-				.requiredString("street")
-				.requiredInt("num")
-				.optionalString("country")
-				.endRecord(),
-			() -> new SchemaCoder() {
-				@Override
-				public Schema readSchema(InputStream in) {
-					return Address.getClassSchema();
-				}
+    @Test
+    public void testGenericRecordReadWithCompatibleSchema() throws IOException {
+        RegistryAvroDeserializationSchema<GenericRecord> deserializer =
+                new RegistryAvroDeserializationSchema<>(
+                        GenericRecord.class,
+                        SchemaBuilder.record("Address")
+                                .fields()
+                                .requiredString("street")
+                                .requiredInt("num")
+                                .optionalString("country")
+                                .endRecord(),
+                        () ->
+                                new SchemaCoder() {
+                                    @Override
+                                    public Schema readSchema(InputStream in) {
+                                        return Address.getClassSchema();
+                                    }
 
-				@Override
-				public void writeSchema(Schema schema, OutputStream out) throws IOException {
-					//do nothing
-				}
-			}
-		);
+                                    @Override
+                                    public void writeSchema(Schema schema, OutputStream out)
+                                            throws IOException {
+                                        // do nothing
+                                    }
+                                });
 
-		GenericRecord genericRecord = deserializer.deserialize(writeRecord(
-			address,
-			Address.getClassSchema()));
-		assertEquals(address.getNum(), genericRecord.get("num"));
-		assertEquals(address.getStreet(), genericRecord.get("street").toString());
-		assertNull(genericRecord.get("country"));
-	}
+        GenericRecord genericRecord =
+                deserializer.deserialize(writeRecord(address, Address.getClassSchema()));
+        assertEquals(address.getNum(), genericRecord.get("num"));
+        assertEquals(address.getStreet(), genericRecord.get("street").toString());
+        assertNull(genericRecord.get("country"));
+    }
 
-	@Test
-	public void testSpecificRecordReadMoreFieldsThanWereWritten() throws IOException {
-		Schema smallerUserSchema = new Schema.Parser().parse(
-			"{\"namespace\": \"org.apache.flink.formats.avro.generated\",\n" +
-				" \"type\": \"record\",\n" +
-				" \"name\": \"SimpleRecord\",\n" +
-				" \"fields\": [\n" +
-				"     {\"name\": \"name\", \"type\": \"string\"}" +
-				" ]\n" +
-				"}]");
-		RegistryAvroDeserializationSchema<SimpleRecord> deserializer = new RegistryAvroDeserializationSchema<>(
-			SimpleRecord.class,
-			null,
-			() -> new SchemaCoder() {
-				@Override
-				public Schema readSchema(InputStream in) {
-					return smallerUserSchema;
-				}
+    @Test
+    public void testSpecificRecordReadMoreFieldsThanWereWritten() throws IOException {
+        Schema smallerUserSchema =
+                new Schema.Parser()
+                        .parse(
+                                "{\"namespace\": \"org.apache.flink.formats.avro.generated\",\n"
+                                        + " \"type\": \"record\",\n"
+                                        + " \"name\": \"SimpleRecord\",\n"
+                                        + " \"fields\": [\n"
+                                        + "     {\"name\": \"name\", \"type\": \"string\"}"
+                                        + " ]\n"
+                                        + "}]");
+        RegistryAvroDeserializationSchema<SimpleRecord> deserializer =
+                new RegistryAvroDeserializationSchema<>(
+                        SimpleRecord.class,
+                        null,
+                        () ->
+                                new SchemaCoder() {
+                                    @Override
+                                    public Schema readSchema(InputStream in) {
+                                        return smallerUserSchema;
+                                    }
 
-				@Override
-				public void writeSchema(Schema schema, OutputStream out) throws IOException {
-					//Do nothing
-				}
-			}
-		);
+                                    @Override
+                                    public void writeSchema(Schema schema, OutputStream out)
+                                            throws IOException {
+                                        // Do nothing
+                                    }
+                                });
 
-		GenericData.Record smallUser = new GenericRecordBuilder(smallerUserSchema)
-			.set("name", "someName")
-			.build();
+        GenericData.Record smallUser =
+                new GenericRecordBuilder(smallerUserSchema).set("name", "someName").build();
 
-		SimpleRecord simpleRecord = deserializer.deserialize(writeRecord(
-			smallUser,
-			smallerUserSchema));
+        SimpleRecord simpleRecord =
+                deserializer.deserialize(writeRecord(smallUser, smallerUserSchema));
 
-		assertEquals("someName", simpleRecord.getName().toString());
-		assertNull(simpleRecord.getOptionalField());
-	}
+        assertEquals("someName", simpleRecord.getName().toString());
+        assertNull(simpleRecord.getOptionalField());
+    }
 }

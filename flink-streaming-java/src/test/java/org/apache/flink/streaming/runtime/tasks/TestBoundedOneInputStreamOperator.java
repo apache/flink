@@ -23,40 +23,40 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-/**
- * A bounded one-input stream operator for test.
- */
+/** A bounded one-input stream operator for test. */
 public class TestBoundedOneInputStreamOperator extends AbstractStreamOperator<String>
-	implements OneInputStreamOperator<String, String>, BoundedOneInput {
+        implements OneInputStreamOperator<String, String>, BoundedOneInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final String name;
+    private final String name;
 
-	public TestBoundedOneInputStreamOperator(String name) {
-		this.name = name;
-	}
+    public TestBoundedOneInputStreamOperator(String name) {
+        this.name = name;
+    }
 
-	@Override
-	public void processElement(StreamRecord<String> element) {
-		output.collect(element);
-	}
+    @Override
+    public void processElement(StreamRecord<String> element) {
+        output.collect(element);
+    }
 
-	@Override
-	public void endInput() {
-		output("[" + name + "]: End of input");
-	}
+    @Override
+    public void endInput() {
+        output("[" + name + "]: End of input");
+    }
 
-	@Override
-	public void close() throws Exception {
-		ProcessingTimeService timeService = getProcessingTimeService();
-		timeService.registerTimer(timeService.getCurrentProcessingTime(), t -> output("[" + name + "]: Timer registered in close"));
+    @Override
+    public void close() throws Exception {
+        ProcessingTimeService timeService = getProcessingTimeService();
+        timeService.registerTimer(
+                timeService.getCurrentProcessingTime(),
+                t -> output("[" + name + "]: Timer registered in close"));
 
-		output("[" + name + "]: Bye");
-		super.close();
-	}
+        output("[" + name + "]: Bye");
+        super.close();
+    }
 
-	private void output(String record) {
-		output.collect(new StreamRecord<>(record));
-	}
+    private void output(String record) {
+        output.collect(new StreamRecord<>(record));
+    }
 }

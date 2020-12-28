@@ -23,15 +23,15 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
 
 /**
- * A function drops only rows with {@link RowKind#UPDATE_BEFORE} changelog kind.
- * This is usually used as an optimization for the downstream operators that doesn't need
- * the {@link RowKind#UPDATE_BEFORE} messages, but the upstream operator can't drop it by itself.
+ * A function drops only rows with {@link RowKind#UPDATE_BEFORE} changelog kind. This is usually
+ * used as an optimization for the downstream operators that doesn't need the {@link
+ * RowKind#UPDATE_BEFORE} messages, but the upstream operator can't drop it by itself.
  */
 public class DropUpdateBeforeFunction implements FilterFunction<RowData> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean filter(RowData value) {
-		return !RowKind.UPDATE_BEFORE.equals(value.getRowKind());
-	}
+    @Override
+    public boolean filter(RowData value) {
+        return !RowKind.UPDATE_BEFORE.equals(value.getRowKind());
+    }
 }

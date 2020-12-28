@@ -29,51 +29,49 @@ import org.apache.flink.table.runtime.operators.rank.ConstantRankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.types.logical.LogicalType;
 
-/**
- * Stream {@link ExecNode} for Limit.
- */
+/** Stream {@link ExecNode} for Limit. */
 public class StreamExecLimit extends StreamExecRank {
 
-	private final long limitEnd;
+    private final long limitEnd;
 
-	public StreamExecLimit(
-		long limitStart,
-		long limitEnd,
-		boolean generateUpdateBefore,
-		boolean needRetraction,
-		ExecEdge inputEdge,
-		LogicalType outputType,
-		String description) {
-		super(
-			RankType.ROW_NUMBER,
-			new int[0],
-			new int[0],
-			new boolean[0],
-			new boolean[0],
-			new ConstantRankRange(limitStart + 1, limitEnd),
-			getRankStrategy(needRetraction),
-			false,
-			generateUpdateBefore,
-			inputEdge,
-			outputType,
-			description);
-		this.limitEnd = limitEnd;
-	}
+    public StreamExecLimit(
+            long limitStart,
+            long limitEnd,
+            boolean generateUpdateBefore,
+            boolean needRetraction,
+            ExecEdge inputEdge,
+            LogicalType outputType,
+            String description) {
+        super(
+                RankType.ROW_NUMBER,
+                new int[0],
+                new int[0],
+                new boolean[0],
+                new boolean[0],
+                new ConstantRankRange(limitStart + 1, limitEnd),
+                getRankStrategy(needRetraction),
+                false,
+                generateUpdateBefore,
+                inputEdge,
+                outputType,
+                description);
+        this.limitEnd = limitEnd;
+    }
 
-	private static RankProcessStrategy getRankStrategy(boolean needRetraction) {
-		if (needRetraction) {
-			return RankProcessStrategy.RETRACT_STRATEGY;
-		} else {
-			return RankProcessStrategy.APPEND_FAST_STRATEGY;
-		}
-	}
+    private static RankProcessStrategy getRankStrategy(boolean needRetraction) {
+        if (needRetraction) {
+            return RankProcessStrategy.RETRACT_STRATEGY;
+        } else {
+            return RankProcessStrategy.APPEND_FAST_STRATEGY;
+        }
+    }
 
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		if (limitEnd == Long.MAX_VALUE) {
-			throw new TableException(
-				"FETCH is missed, which on streaming table is not supported currently.");
-		}
-		return super.translateToPlanInternal(planner);
-	}
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        if (limitEnd == Long.MAX_VALUE) {
+            throw new TableException(
+                    "FETCH is missed, which on streaming table is not supported currently.");
+        }
+        return super.translateToPlanInternal(planner);
+    }
 }

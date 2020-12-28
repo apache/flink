@@ -23,32 +23,29 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-/**
- * Utility methods for parsing command-line arguments.
- */
+/** Utility methods for parsing command-line arguments. */
 public class Util {
 
-	private Util() {}
+    private Util() {}
 
-	// ------------------------------------------------------------------------
-	//  Boolean Condition Checking (Argument)
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Boolean Condition Checking (Argument)
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Checks the given boolean condition, and throws an {@code ProgramParametrizationException} if
-	 * the condition is not met (evaluates to {@code false}). The exception will have the
-	 * given error message.
-	 *
-	 * @param condition The condition to check
-	 * @param errorMessage The message for the {@code ProgramParametrizationException} that is thrown if the check fails.
-	 *
-	 * @throws ProgramParametrizationException Thrown, if the condition is violated.
-	 *
-	 * @see Preconditions#checkNotNull(Object, String)
-	 */
-	public static void checkParameter(boolean condition, @Nullable Object errorMessage) {
-		if (!condition) {
-			throw new ProgramParametrizationException(String.valueOf(errorMessage));
-		}
-	}
+    /**
+     * Checks the given boolean condition, and throws an {@code ProgramParametrizationException} if
+     * the condition is not met (evaluates to {@code false}). The exception will have the given
+     * error message.
+     *
+     * @param condition The condition to check
+     * @param errorMessage The message for the {@code ProgramParametrizationException} that is
+     *     thrown if the check fails.
+     * @throws ProgramParametrizationException Thrown, if the condition is violated.
+     * @see Preconditions#checkNotNull(Object, String)
+     */
+    public static void checkParameter(boolean condition, @Nullable Object errorMessage) {
+        if (!condition) {
+            throw new ProgramParametrizationException(String.valueOf(errorMessage));
+        }
+    }
 }

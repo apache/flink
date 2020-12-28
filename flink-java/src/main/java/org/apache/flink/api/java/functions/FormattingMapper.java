@@ -25,20 +25,21 @@ import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 
 /**
  * Mapper that converts values to strings using a {@link TextFormatter}.
+ *
  * @param <T>
  */
 @Internal
 public class FormattingMapper<T> implements MapFunction<T, String> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final TextFormatter<T> formatter;
+    private final TextFormatter<T> formatter;
 
-	public FormattingMapper(TextOutputFormat.TextFormatter<T> formatter) {
-		this.formatter = formatter;
-	}
+    public FormattingMapper(TextOutputFormat.TextFormatter<T> formatter) {
+        this.formatter = formatter;
+    }
 
-	@Override
-	public String map(T value) throws Exception {
-		return formatter.format(value);
-	}
+    @Override
+    public String map(T value) throws Exception {
+        return formatter.format(value);
+    }
 }

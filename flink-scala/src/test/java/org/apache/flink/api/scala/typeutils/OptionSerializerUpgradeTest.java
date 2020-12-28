@@ -37,68 +37,76 @@ import scala.Option;
 import static org.hamcrest.CoreMatchers.is;
 
 /**
- * A {@link org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase} for {@link ScalaEitherSerializerSnapshot}.
+ * A {@link org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase} for {@link
+ * ScalaEitherSerializerSnapshot}.
  */
 @RunWith(Parameterized.class)
-public class OptionSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Option<String>, Option<String>> {
+public class OptionSerializerUpgradeTest
+        extends TypeSerializerUpgradeTestBase<Option<String>, Option<String>> {
 
-	private static final String SPEC_NAME = "scala-option-serializer";
+    private static final String SPEC_NAME = "scala-option-serializer";
 
-	public OptionSerializerUpgradeTest(TestSpecification<Option<String>, Option<String>> testSpecification) {
-		super(testSpecification);
-	}
+    public OptionSerializerUpgradeTest(
+            TestSpecification<Option<String>, Option<String>> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					SPEC_NAME,
-					migrationVersion,
-					ScalaOptionSerializerSetup.class,
-					ScalaOptionSerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            SPEC_NAME,
+                            migrationVersion,
+                            ScalaOptionSerializerSetup.class,
+                            ScalaOptionSerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "scala-option-serializer"
-	// ----------------------------------------------------------------------------------------------
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class ScalaOptionSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Option<String>> {
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "scala-option-serializer"
+    // ----------------------------------------------------------------------------------------------
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class ScalaOptionSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Option<String>> {
 
-		@Override
-		public TypeSerializer<Option<String>> createPriorSerializer() {
-			return new OptionSerializer<>(StringSerializer.INSTANCE);
-		}
+        @Override
+        public TypeSerializer<Option<String>> createPriorSerializer() {
+            return new OptionSerializer<>(StringSerializer.INSTANCE);
+        }
 
-		@Override
-		public Option<String> createTestData() {
-			return Option.empty();
-		}
-	}
+        @Override
+        public Option<String> createTestData() {
+            return Option.empty();
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class ScalaOptionSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Option<String>> {
-		@Override
-		public TypeSerializer<Option<String>> createUpgradedSerializer() {
-			return new OptionSerializer<>(StringSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class ScalaOptionSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Option<String>> {
+        @Override
+        public TypeSerializer<Option<String>> createUpgradedSerializer() {
+            return new OptionSerializer<>(StringSerializer.INSTANCE);
+        }
 
-		@Override
-		public Matcher<Option<String>> testDataMatcher() {
-			return is(Option.empty());
-		}
+        @Override
+        public Matcher<Option<String>> testDataMatcher() {
+            return is(Option.empty());
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<Option<String>>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<Option<String>>>
+                schemaCompatibilityMatcher(MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 }

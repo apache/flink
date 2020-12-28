@@ -20,8 +20,5 @@ package org.apache.flink.connector.jdbc.fakedb.driver;
 
 import java.util.Properties;
 
-/**
- * Sql connection created by {@link FakeDriver2#connect(String, Properties)}.
- */
-public class FakeConnection2 extends FakeConnection {
-}
+/** Sql connection created by {@link FakeDriver2#connect(String, Properties)}. */
+public class FakeConnection2 extends FakeConnection {}

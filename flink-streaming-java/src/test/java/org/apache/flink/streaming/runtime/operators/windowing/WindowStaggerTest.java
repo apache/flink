@@ -27,22 +27,20 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link WindowStagger}.
- */
+/** Tests for {@link WindowStagger}. */
 public class WindowStaggerTest {
 
-	@Test
-	public void testWindowStagger() {
-		long sizeInMilliseconds = 5000;
+    @Test
+    public void testWindowStagger() {
+        long sizeInMilliseconds = 5000;
 
-		assertEquals(0L, WindowStagger.ALIGNED.getStaggerOffset(500L, sizeInMilliseconds));
-		assertEquals(500L, WindowStagger.NATURAL.getStaggerOffset(5500L, sizeInMilliseconds));
-		assertThat(
-				WindowStagger.RANDOM.getStaggerOffset(0L, sizeInMilliseconds),
-				greaterThanOrEqualTo(0L));
-		assertThat(
-				WindowStagger.RANDOM.getStaggerOffset(0L, sizeInMilliseconds),
-				lessThan(sizeInMilliseconds));
-	}
+        assertEquals(0L, WindowStagger.ALIGNED.getStaggerOffset(500L, sizeInMilliseconds));
+        assertEquals(500L, WindowStagger.NATURAL.getStaggerOffset(5500L, sizeInMilliseconds));
+        assertThat(
+                WindowStagger.RANDOM.getStaggerOffset(0L, sizeInMilliseconds),
+                greaterThanOrEqualTo(0L));
+        assertThat(
+                WindowStagger.RANDOM.getStaggerOffset(0L, sizeInMilliseconds),
+                lessThan(sizeInMilliseconds));
+    }
 }

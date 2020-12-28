@@ -46,104 +46,112 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Unite test class for {@link KafkaSource}.
- */
+/** Unite test class for {@link KafkaSource}. */
 public class KafkaSourceITCase {
-	private static final String TOPIC1 = "topic1";
-	private static final String TOPIC2 = "topic2";
+    private static final String TOPIC1 = "topic1";
+    private static final String TOPIC2 = "topic2";
 
-	@BeforeClass
-	public static void setup() throws Throwable {
-		KafkaSourceTestEnv.setup();
-		KafkaSourceTestEnv.setupTopic(TOPIC1, true, true);
-		KafkaSourceTestEnv.setupTopic(TOPIC2, true, true);
-	}
+    @BeforeClass
+    public static void setup() throws Throwable {
+        KafkaSourceTestEnv.setup();
+        KafkaSourceTestEnv.setupTopic(TOPIC1, true, true);
+        KafkaSourceTestEnv.setupTopic(TOPIC2, true, true);
+    }
 
-	@AfterClass
-	public static void tearDown() throws Exception {
-		KafkaSourceTestEnv.tearDown();
-	}
+    @AfterClass
+    public static void tearDown() throws Exception {
+        KafkaSourceTestEnv.tearDown();
+    }
 
-	@Test
-	public void testBasicRead() throws Exception {
-		KafkaSource<PartitionAndValue> source = KafkaSource
-				.<PartitionAndValue>builder()
-				.setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
-				.setGroupId("testBasicRead")
-				.setTopics(Arrays.asList(TOPIC1, TOPIC2))
-				.setDeserializer(new TestingKafkaRecordDeserializer())
-				.setStartingOffsets(OffsetsInitializer.earliest())
-				.setBounded(OffsetsInitializer.latest())
-				.build();
+    @Test
+    public void testBasicRead() throws Exception {
+        KafkaSource<PartitionAndValue> source =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                        .setGroupId("testBasicRead")
+                        .setTopics(Arrays.asList(TOPIC1, TOPIC2))
+                        .setDeserializer(new TestingKafkaRecordDeserializer())
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
+                        .build();
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		DataStream<PartitionAndValue> stream = env.fromSource(
-				source,
-				WatermarkStrategy.noWatermarks(),
-				"testBasicRead");
-		executeAndVerify(env, stream);
-	}
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        DataStream<PartitionAndValue> stream =
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "testBasicRead");
+        executeAndVerify(env, stream);
+    }
 
-	// -----------------
+    // -----------------
 
-	private static class PartitionAndValue implements Serializable {
-		private static final long serialVersionUID = 4813439951036021779L;
-		private final String tp;
-		private final int value;
+    private static class PartitionAndValue implements Serializable {
+        private static final long serialVersionUID = 4813439951036021779L;
+        private final String tp;
+        private final int value;
 
-		private PartitionAndValue(TopicPartition tp, int value) {
-			this.tp = tp.toString();
-			this.value = value;
-		}
-	}
+        private PartitionAndValue(TopicPartition tp, int value) {
+            this.tp = tp.toString();
+            this.value = value;
+        }
+    }
 
-	private static class TestingKafkaRecordDeserializer implements KafkaRecordDeserializer<PartitionAndValue> {
-		private static final long serialVersionUID = -3765473065594331694L;
-		private transient Deserializer<Integer> deserializer;
+    private static class TestingKafkaRecordDeserializer
+            implements KafkaRecordDeserializer<PartitionAndValue> {
+        private static final long serialVersionUID = -3765473065594331694L;
+        private transient Deserializer<Integer> deserializer;
 
-		@Override
-		public void deserialize(
-				ConsumerRecord<byte[], byte[]> record,
-				Collector<PartitionAndValue> collector) throws Exception {
-			if (deserializer == null) {
-				deserializer = new IntegerDeserializer();
-			}
-			collector.collect(new PartitionAndValue(
-					new TopicPartition(record.topic(), record.partition()),
-					deserializer.deserialize(record.topic(), record.value())));
-		}
+        @Override
+        public void deserialize(
+                ConsumerRecord<byte[], byte[]> record, Collector<PartitionAndValue> collector)
+                throws Exception {
+            if (deserializer == null) {
+                deserializer = new IntegerDeserializer();
+            }
+            collector.collect(
+                    new PartitionAndValue(
+                            new TopicPartition(record.topic(), record.partition()),
+                            deserializer.deserialize(record.topic(), record.value())));
+        }
 
-		@Override
-		public TypeInformation<PartitionAndValue> getProducedType() {
-			return TypeInformation.of(PartitionAndValue.class);
-		}
-	}
+        @Override
+        public TypeInformation<PartitionAndValue> getProducedType() {
+            return TypeInformation.of(PartitionAndValue.class);
+        }
+    }
 
-	@SuppressWarnings("serial")
-	private void executeAndVerify(StreamExecutionEnvironment env, DataStream<PartitionAndValue> stream) throws Exception {
-		stream.addSink(new RichSinkFunction<PartitionAndValue>() {
-			@Override
-			public void open(Configuration parameters) throws Exception {
-				getRuntimeContext().addAccumulator("result", new ListAccumulator<PartitionAndValue>());
-			}
+    @SuppressWarnings("serial")
+    private void executeAndVerify(
+            StreamExecutionEnvironment env, DataStream<PartitionAndValue> stream) throws Exception {
+        stream.addSink(
+                new RichSinkFunction<PartitionAndValue>() {
+                    @Override
+                    public void open(Configuration parameters) throws Exception {
+                        getRuntimeContext()
+                                .addAccumulator("result", new ListAccumulator<PartitionAndValue>());
+                    }
 
-			@Override
-			public void invoke(PartitionAndValue value, Context context) throws Exception {
-				getRuntimeContext().getAccumulator("result").add(value);
-			}
-		});
-		List<PartitionAndValue> result = env.execute().getAccumulatorResult("result");
-		Map<String, List<Integer>> resultPerPartition = new HashMap<>();
-		result.forEach(partitionAndValue -> resultPerPartition.computeIfAbsent(
-			partitionAndValue.tp, ignored -> new ArrayList<>()).add(partitionAndValue.value));
-		resultPerPartition.forEach((tp, values) -> {
-			int firstExpectedValue = Integer.parseInt(tp.substring(tp.indexOf('-') + 1));
-			for (int i = 0; i < values.size(); i++) {
-				assertEquals(String.format("The %d-th value for partition %s should be %d", i, tp, i),
-						firstExpectedValue + i, (int) values.get(i));
-			}
-		});
-	}
+                    @Override
+                    public void invoke(PartitionAndValue value, Context context) throws Exception {
+                        getRuntimeContext().getAccumulator("result").add(value);
+                    }
+                });
+        List<PartitionAndValue> result = env.execute().getAccumulatorResult("result");
+        Map<String, List<Integer>> resultPerPartition = new HashMap<>();
+        result.forEach(
+                partitionAndValue ->
+                        resultPerPartition
+                                .computeIfAbsent(partitionAndValue.tp, ignored -> new ArrayList<>())
+                                .add(partitionAndValue.value));
+        resultPerPartition.forEach(
+                (tp, values) -> {
+                    int firstExpectedValue = Integer.parseInt(tp.substring(tp.indexOf('-') + 1));
+                    for (int i = 0; i < values.size(); i++) {
+                        assertEquals(
+                                String.format(
+                                        "The %d-th value for partition %s should be %d", i, tp, i),
+                                firstExpectedValue + i,
+                                (int) values.get(i));
+                    }
+                });
+    }
 }

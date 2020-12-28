@@ -47,66 +47,71 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Utility class for constructing all the Kubernetes components on the client-side. This can
- * include the Deployment, the ConfigMap(s), and the Service(s).
+ * Utility class for constructing all the Kubernetes components on the client-side. This can include
+ * the Deployment, the ConfigMap(s), and the Service(s).
  */
 public class KubernetesJobManagerFactory {
 
-	public static KubernetesJobManagerSpecification buildKubernetesJobManagerSpecification(
-			KubernetesJobManagerParameters kubernetesJobManagerParameters) throws IOException {
-		FlinkPod flinkPod = new FlinkPod.Builder().build();
-		List<HasMetadata> accompanyingResources = new ArrayList<>();
+    public static KubernetesJobManagerSpecification buildKubernetesJobManagerSpecification(
+            KubernetesJobManagerParameters kubernetesJobManagerParameters) throws IOException {
+        FlinkPod flinkPod = new FlinkPod.Builder().build();
+        List<HasMetadata> accompanyingResources = new ArrayList<>();
 
-		final KubernetesStepDecorator[] stepDecorators = new KubernetesStepDecorator[] {
-			new InitJobManagerDecorator(kubernetesJobManagerParameters),
-			new EnvSecretsDecorator(kubernetesJobManagerParameters),
-			new MountSecretsDecorator(kubernetesJobManagerParameters),
-			new JavaCmdJobManagerDecorator(kubernetesJobManagerParameters),
-			new InternalServiceDecorator(kubernetesJobManagerParameters),
-			new ExternalServiceDecorator(kubernetesJobManagerParameters),
-			new HadoopConfMountDecorator(kubernetesJobManagerParameters),
-			new KerberosMountDecorator(kubernetesJobManagerParameters),
-			new FlinkConfMountDecorator(kubernetesJobManagerParameters)};
+        final KubernetesStepDecorator[] stepDecorators =
+                new KubernetesStepDecorator[] {
+                    new InitJobManagerDecorator(kubernetesJobManagerParameters),
+                    new EnvSecretsDecorator(kubernetesJobManagerParameters),
+                    new MountSecretsDecorator(kubernetesJobManagerParameters),
+                    new JavaCmdJobManagerDecorator(kubernetesJobManagerParameters),
+                    new InternalServiceDecorator(kubernetesJobManagerParameters),
+                    new ExternalServiceDecorator(kubernetesJobManagerParameters),
+                    new HadoopConfMountDecorator(kubernetesJobManagerParameters),
+                    new KerberosMountDecorator(kubernetesJobManagerParameters),
+                    new FlinkConfMountDecorator(kubernetesJobManagerParameters)
+                };
 
-		for (KubernetesStepDecorator stepDecorator: stepDecorators) {
-			flinkPod = stepDecorator.decorateFlinkPod(flinkPod);
-			accompanyingResources.addAll(stepDecorator.buildAccompanyingKubernetesResources());
-		}
+        for (KubernetesStepDecorator stepDecorator : stepDecorators) {
+            flinkPod = stepDecorator.decorateFlinkPod(flinkPod);
+            accompanyingResources.addAll(stepDecorator.buildAccompanyingKubernetesResources());
+        }
 
-		final Deployment deployment = createJobManagerDeployment(flinkPod, kubernetesJobManagerParameters);
+        final Deployment deployment =
+                createJobManagerDeployment(flinkPod, kubernetesJobManagerParameters);
 
-		return new KubernetesJobManagerSpecification(deployment, accompanyingResources);
-	}
+        return new KubernetesJobManagerSpecification(deployment, accompanyingResources);
+    }
 
-	private static Deployment createJobManagerDeployment(
-			FlinkPod flinkPod,
-			KubernetesJobManagerParameters kubernetesJobManagerParameters) {
-		final Container resolvedMainContainer = flinkPod.getMainContainer();
+    private static Deployment createJobManagerDeployment(
+            FlinkPod flinkPod, KubernetesJobManagerParameters kubernetesJobManagerParameters) {
+        final Container resolvedMainContainer = flinkPod.getMainContainer();
 
-		final Pod resolvedPod = new PodBuilder(flinkPod.getPod())
-			.editOrNewSpec()
-				.addToContainers(resolvedMainContainer)
-				.endSpec()
-			.build();
+        final Pod resolvedPod =
+                new PodBuilder(flinkPod.getPod())
+                        .editOrNewSpec()
+                        .addToContainers(resolvedMainContainer)
+                        .endSpec()
+                        .build();
 
-		final Map<String, String> labels = resolvedPod.getMetadata().getLabels();
+        final Map<String, String> labels = resolvedPod.getMetadata().getLabels();
 
-		return new DeploymentBuilder()
-			.withApiVersion(Constants.APPS_API_VERSION)
-			.editOrNewMetadata()
-				.withName(KubernetesUtils.getDeploymentName(kubernetesJobManagerParameters.getClusterId()))
-				.withLabels(kubernetesJobManagerParameters.getLabels())
-				.endMetadata()
-			.editOrNewSpec()
-				.withReplicas(1)
-				.editOrNewTemplate()
-					.withMetadata(resolvedPod.getMetadata())
-					.withSpec(resolvedPod.getSpec())
-					.endTemplate()
-				.editOrNewSelector()
-					.addToMatchLabels(labels)
-					.endSelector()
-				.endSpec()
-			.build();
-	}
+        return new DeploymentBuilder()
+                .withApiVersion(Constants.APPS_API_VERSION)
+                .editOrNewMetadata()
+                .withName(
+                        KubernetesUtils.getDeploymentName(
+                                kubernetesJobManagerParameters.getClusterId()))
+                .withLabels(kubernetesJobManagerParameters.getLabels())
+                .endMetadata()
+                .editOrNewSpec()
+                .withReplicas(1)
+                .editOrNewTemplate()
+                .withMetadata(resolvedPod.getMetadata())
+                .withSpec(resolvedPod.getSpec())
+                .endTemplate()
+                .editOrNewSelector()
+                .addToMatchLabels(labels)
+                .endSelector()
+                .endSpec()
+                .build();
+    }
 }

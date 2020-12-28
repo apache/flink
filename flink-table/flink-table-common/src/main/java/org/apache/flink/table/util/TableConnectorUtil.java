@@ -28,10 +28,8 @@ import org.apache.flink.table.utils.TableConnectorUtils;
 @Deprecated
 public final class TableConnectorUtil {
 
-	/**
-	 * Returns the table connector name used for log and web UI.
-	 */
-	public static String generateRuntimeName(Class<?> clazz, String[] fields) {
-		return TableConnectorUtils.generateRuntimeName(clazz, fields);
-	}
+    /** Returns the table connector name used for log and web UI. */
+    public static String generateRuntimeName(Class<?> clazz, String[] fields) {
+        return TableConnectorUtils.generateRuntimeName(clazz, fields);
+    }
 }

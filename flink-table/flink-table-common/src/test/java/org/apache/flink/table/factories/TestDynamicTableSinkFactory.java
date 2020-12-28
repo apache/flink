@@ -24,35 +24,34 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import java.util.Set;
 
 /**
- * Test implementations for {@link DynamicTableSinkFactory}. The source and sink "test" connector
- * is separated into two factory implementation.
+ * Test implementations for {@link DynamicTableSinkFactory}. The source and sink "test" connector is
+ * separated into two factory implementation.
  *
  * @see TestDynamicTableSourceFactory
  */
 public final class TestDynamicTableSinkFactory implements DynamicTableSinkFactory {
 
-	public static final String IDENTIFIER = "test";
+    public static final String IDENTIFIER = "test";
 
-	private static final TestDynamicTableFactory delegate = new TestDynamicTableFactory();
+    private static final TestDynamicTableFactory delegate = new TestDynamicTableFactory();
 
-	@Override
-	public DynamicTableSink createDynamicTableSink(Context context) {
-		return delegate.createDynamicTableSink(context);
-	}
+    @Override
+    public DynamicTableSink createDynamicTableSink(Context context) {
+        return delegate.createDynamicTableSink(context);
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return delegate.requiredOptions();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return delegate.requiredOptions();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		return delegate.optionalOptions();
-	}
-
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return delegate.optionalOptions();
+    }
 }

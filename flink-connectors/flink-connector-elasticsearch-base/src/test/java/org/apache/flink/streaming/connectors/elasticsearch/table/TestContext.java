@@ -28,57 +28,51 @@ import org.apache.flink.table.factories.DynamicTableFactory;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * A utility class for mocking {@link DynamicTableFactory.Context}.
- */
+/** A utility class for mocking {@link DynamicTableFactory.Context}. */
 class TestContext {
-	private TableSchema schema;
-	private Map<String, String> properties = new HashMap<>();
+    private TableSchema schema;
+    private Map<String, String> properties = new HashMap<>();
 
-	public static TestContext context() {
-		return new TestContext();
-	}
+    public static TestContext context() {
+        return new TestContext();
+    }
 
-	public TestContext withSchema(TableSchema schema) {
-		this.schema = schema;
-		return this;
-	}
+    public TestContext withSchema(TableSchema schema) {
+        this.schema = schema;
+        return this;
+    }
 
-	DynamicTableFactory.Context build() {
-		return new DynamicTableFactory.Context() {
-			@Override
-			public ObjectIdentifier getObjectIdentifier() {
-				return null;
-			}
+    DynamicTableFactory.Context build() {
+        return new DynamicTableFactory.Context() {
+            @Override
+            public ObjectIdentifier getObjectIdentifier() {
+                return null;
+            }
 
-			@Override
-			public CatalogTable getCatalogTable() {
-				return new CatalogTableImpl(
-					schema,
-					properties,
-					""
-				);
-			}
+            @Override
+            public CatalogTable getCatalogTable() {
+                return new CatalogTableImpl(schema, properties, "");
+            }
 
-			@Override
-			public ReadableConfig getConfiguration() {
-				return null;
-			}
+            @Override
+            public ReadableConfig getConfiguration() {
+                return null;
+            }
 
-			@Override
-			public ClassLoader getClassLoader() {
-				return TestContext.class.getClassLoader();
-			}
+            @Override
+            public ClassLoader getClassLoader() {
+                return TestContext.class.getClassLoader();
+            }
 
-			@Override
-			public boolean isTemporary() {
-				return false;
-			}
-		};
-	}
+            @Override
+            public boolean isTemporary() {
+                return false;
+            }
+        };
+    }
 
-	public TestContext withOption(String key, String value) {
-		properties.put(key, value);
-		return this;
-	}
+    public TestContext withOption(String key, String value) {
+        properties.put(key, value);
+        return this;
+    }
 }

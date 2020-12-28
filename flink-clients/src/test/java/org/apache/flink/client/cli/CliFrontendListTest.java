@@ -40,84 +40,91 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for the LIST command.
- */
+/** Tests for the LIST command. */
 public class CliFrontendListTest extends CliFrontendTestBase {
 
-	@BeforeClass
-	public static void init() {
-		CliFrontendTestUtils.pipeSystemOutToNull();
-	}
+    @BeforeClass
+    public static void init() {
+        CliFrontendTestUtils.pipeSystemOutToNull();
+    }
 
-	@AfterClass
-	public static void shutdown() {
-		CliFrontendTestUtils.restoreSystemOut();
-	}
+    @AfterClass
+    public static void shutdown() {
+        CliFrontendTestUtils.restoreSystemOut();
+    }
 
-	@Test
-	public void testListOptions() throws Exception {
-		// test configure all job
-		{
-			String[] parameters = {"-a"};
-			ListOptions options = new ListOptions(CliFrontendParser.parse(
-				CliFrontendParser.getListCommandOptions(), parameters, true));
-			assertTrue(options.showAll());
-			assertFalse(options.showRunning());
-			assertFalse(options.showScheduled());
-		}
+    @Test
+    public void testListOptions() throws Exception {
+        // test configure all job
+        {
+            String[] parameters = {"-a"};
+            ListOptions options =
+                    new ListOptions(
+                            CliFrontendParser.parse(
+                                    CliFrontendParser.getListCommandOptions(), parameters, true));
+            assertTrue(options.showAll());
+            assertFalse(options.showRunning());
+            assertFalse(options.showScheduled());
+        }
 
-		// test configure running job
-		{
-			String[] parameters = {"-r"};
-			ListOptions options = new ListOptions(CliFrontendParser.parse(
-				CliFrontendParser.getListCommandOptions(), parameters, true));
-			assertFalse(options.showAll());
-			assertTrue(options.showRunning());
-			assertFalse(options.showScheduled());
-		}
+        // test configure running job
+        {
+            String[] parameters = {"-r"};
+            ListOptions options =
+                    new ListOptions(
+                            CliFrontendParser.parse(
+                                    CliFrontendParser.getListCommandOptions(), parameters, true));
+            assertFalse(options.showAll());
+            assertTrue(options.showRunning());
+            assertFalse(options.showScheduled());
+        }
 
-		// test configure scheduled job
-		{
-			String[] parameters = {"-s"};
-			ListOptions options = new ListOptions(CliFrontendParser.parse(
-				CliFrontendParser.getListCommandOptions(), parameters, true));
-			assertFalse(options.showAll());
-			assertFalse(options.showRunning());
-			assertTrue(options.showScheduled());
-		}
-	}
+        // test configure scheduled job
+        {
+            String[] parameters = {"-s"};
+            ListOptions options =
+                    new ListOptions(
+                            CliFrontendParser.parse(
+                                    CliFrontendParser.getListCommandOptions(), parameters, true));
+            assertFalse(options.showAll());
+            assertFalse(options.showRunning());
+            assertTrue(options.showScheduled());
+        }
+    }
 
-	@Test(expected = CliArgsException.class)
-	public void testUnrecognizedOption() throws Exception {
-		String[] parameters = {"-v", "-k"};
-		Configuration configuration = getConfiguration();
-		CliFrontend testFrontend = new CliFrontend(
-			configuration,
-			Collections.singletonList(getCli()));
-		testFrontend.list(parameters);
-	}
+    @Test(expected = CliArgsException.class)
+    public void testUnrecognizedOption() throws Exception {
+        String[] parameters = {"-v", "-k"};
+        Configuration configuration = getConfiguration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testFrontend.list(parameters);
+    }
 
-	@Test
-	public void testList() throws Exception {
-		// test list properly
-		{
-			String[] parameters = {"-r", "-s", "-a"};
-			ClusterClient<String> clusterClient = createClusterClient();
-			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-			testFrontend.list(parameters);
-			Mockito.verify(clusterClient, times(1))
-				.listJobs();
-		}
-	}
+    @Test
+    public void testList() throws Exception {
+        // test list properly
+        {
+            String[] parameters = {"-r", "-s", "-a"};
+            ClusterClient<String> clusterClient = createClusterClient();
+            MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+            testFrontend.list(parameters);
+            Mockito.verify(clusterClient, times(1)).listJobs();
+        }
+    }
 
-	private static ClusterClient<String> createClusterClient() throws Exception {
-		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
-		when(clusterClient.listJobs()).thenReturn(CompletableFuture.completedFuture(Arrays.asList(
-			new JobStatusMessage(new JobID(), "job1", JobStatus.RUNNING, 1L),
-			new JobStatusMessage(new JobID(), "job2", JobStatus.CREATED, 1L),
-			new JobStatusMessage(new JobID(), "job3", JobStatus.FINISHED, 3L)
-		)));
-		return clusterClient;
-	}
+    private static ClusterClient<String> createClusterClient() throws Exception {
+        final ClusterClient<String> clusterClient = mock(ClusterClient.class);
+        when(clusterClient.listJobs())
+                .thenReturn(
+                        CompletableFuture.completedFuture(
+                                Arrays.asList(
+                                        new JobStatusMessage(
+                                                new JobID(), "job1", JobStatus.RUNNING, 1L),
+                                        new JobStatusMessage(
+                                                new JobID(), "job2", JobStatus.CREATED, 1L),
+                                        new JobStatusMessage(
+                                                new JobID(), "job3", JobStatus.FINISHED, 3L))));
+        return clusterClient;
+    }
 }

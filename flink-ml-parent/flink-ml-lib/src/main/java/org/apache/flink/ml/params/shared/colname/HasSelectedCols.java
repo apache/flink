@@ -25,23 +25,24 @@ import org.apache.flink.ml.api.misc.param.WithParams;
 
 /**
  * An interface for classes with a parameter specifying the name of multiple table columns.
+ *
  * @see HasSelectedCol
  * @see HasSelectedColDefaultAsNull
  * @see HasSelectedColsDefaultAsNull
  */
-public interface HasSelectedCols<T> extends WithParams <T> {
+public interface HasSelectedCols<T> extends WithParams<T> {
 
-	ParamInfo <String[]> SELECTED_COLS = ParamInfoFactory
-		.createParamInfo("selectedCols", String[].class)
-		.setDescription("Names of the columns used for processing")
-		.setRequired()
-		.build();
+    ParamInfo<String[]> SELECTED_COLS =
+            ParamInfoFactory.createParamInfo("selectedCols", String[].class)
+                    .setDescription("Names of the columns used for processing")
+                    .setRequired()
+                    .build();
 
-	default String[] getSelectedCols() {
-		return get(SELECTED_COLS);
-	}
+    default String[] getSelectedCols() {
+        return get(SELECTED_COLS);
+    }
 
-	default T setSelectedCols(String... value) {
-		return set(SELECTED_COLS, value);
-	}
+    default T setSelectedCols(String... value) {
+        return set(SELECTED_COLS, value);
+    }
 }

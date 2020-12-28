@@ -25,49 +25,41 @@ import org.apache.flink.util.MutableObjectIterator;
  * the {@link StageMessageDispatcher}.
  */
 public interface StageRunner extends AutoCloseable {
-	/**
-	 * Starts the stage.
-	 */
-	void start();
+    /** Starts the stage. */
+    void start();
 
-	/**
-	 * A marker interface for sending messages to different stages.
-	 */
-	enum SortStage {
-		READ,
-		SORT,
-		SPILL
-	}
+    /** A marker interface for sending messages to different stages. */
+    enum SortStage {
+        READ,
+        SORT,
+        SPILL
+    }
 
-	/**
-	 * A dispatcher for inter-stage communication. It allows for returning a result to a {@link Sorter} via
-	 * {@link StageMessageDispatcher#sendResult(MutableObjectIterator)}
-	 */
-	interface StageMessageDispatcher<E> extends AutoCloseable {
-		/**
-		 * Sends a message to the given stage.
-		 */
-		void send(SortStage stage, CircularElement<E> element);
+    /**
+     * A dispatcher for inter-stage communication. It allows for returning a result to a {@link
+     * Sorter} via {@link StageMessageDispatcher#sendResult(MutableObjectIterator)}
+     */
+    interface StageMessageDispatcher<E> extends AutoCloseable {
+        /** Sends a message to the given stage. */
+        void send(SortStage stage, CircularElement<E> element);
 
-		/**
-		 * Retrieves and removes the head of the given queue, waiting if necessary
-		 * until an element becomes available.
-		 *
-		 * @return the head of the queue
-		 */
-		CircularElement<E> take(SortStage stage) throws InterruptedException;
+        /**
+         * Retrieves and removes the head of the given queue, waiting if necessary until an element
+         * becomes available.
+         *
+         * @return the head of the queue
+         */
+        CircularElement<E> take(SortStage stage) throws InterruptedException;
 
-		/**
-		 * Retrieves and removes the head of the given stage queue,
-		 * or returns {@code null} if the queue is empty.
-		 *
-		 * @return the head of the queue, or {@code null} if the queue is empty
-		 */
-		CircularElement<E> poll(SortStage stage);
+        /**
+         * Retrieves and removes the head of the given stage queue, or returns {@code null} if the
+         * queue is empty.
+         *
+         * @return the head of the queue, or {@code null} if the queue is empty
+         */
+        CircularElement<E> poll(SortStage stage);
 
-		/**
-		 * Sends a result to the corresponding {@link Sorter}.
-		 */
-		void sendResult(MutableObjectIterator<E> result);
-	}
+        /** Sends a result to the corresponding {@link Sorter}. */
+        void sendResult(MutableObjectIterator<E> result);
+    }
 }

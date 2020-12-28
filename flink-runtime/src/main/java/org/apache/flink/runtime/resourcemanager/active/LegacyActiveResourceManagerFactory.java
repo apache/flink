@@ -39,46 +39,49 @@ import java.util.concurrent.Executor;
 /**
  * Resource manager factory which creates active {@link ResourceManager} implementations.
  *
- * <p>The default implementation will call {@link #createActiveResourceManagerConfiguration}
- * to create a new configuration which is configured with active resource manager relevant
+ * <p>The default implementation will call {@link #createActiveResourceManagerConfiguration} to
+ * create a new configuration which is configured with active resource manager relevant
  * configuration options.
  *
  * @param <T> type of the {@link ResourceIDRetrievable}
  */
-public abstract class LegacyActiveResourceManagerFactory<T extends ResourceIDRetrievable> extends ResourceManagerFactory<T> {
+public abstract class LegacyActiveResourceManagerFactory<T extends ResourceIDRetrievable>
+        extends ResourceManagerFactory<T> {
 
-	@Override
-	public ResourceManager<T> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			MetricRegistry metricRegistry,
-			String hostname,
-			Executor ioExecutor) throws Exception {
-		return super.createResourceManager(
-			createActiveResourceManagerConfiguration(configuration),
-			resourceId,
-			rpcService,
-			highAvailabilityServices,
-			heartbeatServices,
-			fatalErrorHandler,
-			clusterInformation,
-			webInterfaceUrl,
-			metricRegistry,
-			hostname,
-			ioExecutor);
-	}
+    @Override
+    public ResourceManager<T> createResourceManager(
+            Configuration configuration,
+            ResourceID resourceId,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            FatalErrorHandler fatalErrorHandler,
+            ClusterInformation clusterInformation,
+            @Nullable String webInterfaceUrl,
+            MetricRegistry metricRegistry,
+            String hostname,
+            Executor ioExecutor)
+            throws Exception {
+        return super.createResourceManager(
+                createActiveResourceManagerConfiguration(configuration),
+                resourceId,
+                rpcService,
+                highAvailabilityServices,
+                heartbeatServices,
+                fatalErrorHandler,
+                clusterInformation,
+                webInterfaceUrl,
+                metricRegistry,
+                hostname,
+                ioExecutor);
+    }
 
-	private Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
-		final Configuration copiedConfig = new Configuration(originalConfiguration);
-		// In active mode, it's depend on the ResourceManager to set the ResourceID of TaskManagers.
-		copiedConfig.removeConfig(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID);
-		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-			copiedConfig, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
-	}
+    private Configuration createActiveResourceManagerConfiguration(
+            Configuration originalConfiguration) {
+        final Configuration copiedConfig = new Configuration(originalConfiguration);
+        // In active mode, it's depend on the ResourceManager to set the ResourceID of TaskManagers.
+        copiedConfig.removeConfig(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID);
+        return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+                copiedConfig, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+    }
 }

@@ -26,42 +26,44 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link SubtaskIndexPathParameter}.
- */
+/** Tests for {@link SubtaskIndexPathParameter}. */
 public class SubtaskIndexPathParameterTest {
 
-	private SubtaskIndexPathParameter subtaskIndexPathParameter;
+    private SubtaskIndexPathParameter subtaskIndexPathParameter;
 
-	@Before
-	public void setUp() {
-		subtaskIndexPathParameter = new SubtaskIndexPathParameter();
-	}
+    @Before
+    public void setUp() {
+        subtaskIndexPathParameter = new SubtaskIndexPathParameter();
+    }
 
-	@Test
-	public void testConversionFromString() throws Exception {
-		assertThat(subtaskIndexPathParameter.convertFromString("2147483647"), equalTo(Integer.MAX_VALUE));
-	}
+    @Test
+    public void testConversionFromString() throws Exception {
+        assertThat(
+                subtaskIndexPathParameter.convertFromString("2147483647"),
+                equalTo(Integer.MAX_VALUE));
+    }
 
-	@Test
-	public void testConversionFromStringNegativeNumber() throws Exception {
-		try {
-			subtaskIndexPathParameter.convertFromString("-2147483648");
-			fail("Expected exception not thrown");
-		} catch (final ConversionException e) {
-			assertThat(e.getMessage(), equalTo("subtaskindex must be positive, was: " + Integer
-				.MIN_VALUE));
-		}
-	}
+    @Test
+    public void testConversionFromStringNegativeNumber() throws Exception {
+        try {
+            subtaskIndexPathParameter.convertFromString("-2147483648");
+            fail("Expected exception not thrown");
+        } catch (final ConversionException e) {
+            assertThat(
+                    e.getMessage(),
+                    equalTo("subtaskindex must be positive, was: " + Integer.MIN_VALUE));
+        }
+    }
 
-	@Test
-	public void testConvertToString() throws Exception {
-		assertThat(subtaskIndexPathParameter.convertToString(Integer.MAX_VALUE), equalTo("2147483647"));
-	}
+    @Test
+    public void testConvertToString() throws Exception {
+        assertThat(
+                subtaskIndexPathParameter.convertToString(Integer.MAX_VALUE),
+                equalTo("2147483647"));
+    }
 
-	@Test
-	public void testIsMandatoryParameter() {
-		assertTrue(subtaskIndexPathParameter.isMandatory());
-	}
-
+    @Test
+    public void testIsMandatoryParameter() {
+        assertTrue(subtaskIndexPathParameter.isMandatory());
+    }
 }

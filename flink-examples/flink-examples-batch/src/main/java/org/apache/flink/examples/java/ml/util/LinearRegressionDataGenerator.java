@@ -27,85 +27,89 @@ import java.util.Locale;
 import java.util.Random;
 
 /**
- * Generates data for the {@link org.apache.flink.examples.java.ml.LinearRegression} example program.
+ * Generates data for the {@link org.apache.flink.examples.java.ml.LinearRegression} example
+ * program.
  */
 public class LinearRegressionDataGenerator {
 
-	static {
-		Locale.setDefault(Locale.US);
-	}
+    static {
+        Locale.setDefault(Locale.US);
+    }
 
-	private static final String POINTS_FILE = "data";
-	private static final long DEFAULT_SEED = 4650285087650871364L;
-	private static final int DIMENSIONALITY = 1;
-	private static final DecimalFormat FORMAT = new DecimalFormat("#0.00");
-	private static final char DELIMITER = ' ';
+    private static final String POINTS_FILE = "data";
+    private static final long DEFAULT_SEED = 4650285087650871364L;
+    private static final int DIMENSIONALITY = 1;
+    private static final DecimalFormat FORMAT = new DecimalFormat("#0.00");
+    private static final char DELIMITER = ' ';
 
-	/**
-	 * Main method to generate data for the {@link org.apache.flink.examples.java.ml.LinearRegression} example program.
-	 *
-	 * <p>The generator creates to files:
-	 * <ul>
-	 * <li><code>{tmp.dir}/data</code> for the data points
-	 * </ul>
-	 *
-	 * @param args
-	 * <ol>
-	 * <li>Int: Number of data points
-	 * <li><b>Optional</b> Long: Random seed
-	 * </ol>
-	 */
-	public static void main(String[] args) throws IOException {
+    /**
+     * Main method to generate data for the {@link
+     * org.apache.flink.examples.java.ml.LinearRegression} example program.
+     *
+     * <p>The generator creates to files:
+     *
+     * <ul>
+     *   <li><code>{tmp.dir}/data</code> for the data points
+     * </ul>
+     *
+     * @param args
+     *     <ol>
+     *       <li>Int: Number of data points
+     *       <li><b>Optional</b> Long: Random seed
+     *     </ol>
+     */
+    public static void main(String[] args) throws IOException {
 
-		// check parameter count
-		if (args.length < 1) {
-			System.out.println("LinearRegressionDataGenerator <numberOfDataPoints> [<seed>]");
-			System.exit(1);
-		}
+        // check parameter count
+        if (args.length < 1) {
+            System.out.println("LinearRegressionDataGenerator <numberOfDataPoints> [<seed>]");
+            System.exit(1);
+        }
 
-		// parse parameters
-		final int numDataPoints = Integer.parseInt(args[0]);
-		final long firstSeed = args.length > 1 ? Long.parseLong(args[4]) : DEFAULT_SEED;
-		final Random random = new Random(firstSeed);
-		final String tmpDir = System.getProperty("java.io.tmpdir");
+        // parse parameters
+        final int numDataPoints = Integer.parseInt(args[0]);
+        final long firstSeed = args.length > 1 ? Long.parseLong(args[4]) : DEFAULT_SEED;
+        final Random random = new Random(firstSeed);
+        final String tmpDir = System.getProperty("java.io.tmpdir");
 
-		// write the points out
-		BufferedWriter pointsOut = null;
-		try {
-			pointsOut = new BufferedWriter(new FileWriter(new File(tmpDir + "/" + POINTS_FILE)));
-			StringBuilder buffer = new StringBuilder();
+        // write the points out
+        BufferedWriter pointsOut = null;
+        try {
+            pointsOut = new BufferedWriter(new FileWriter(new File(tmpDir + "/" + POINTS_FILE)));
+            StringBuilder buffer = new StringBuilder();
 
-			// DIMENSIONALITY + 1 means that the number of x(dimensionality) and target y
-			double[] point = new double[DIMENSIONALITY + 1];
+            // DIMENSIONALITY + 1 means that the number of x(dimensionality) and target y
+            double[] point = new double[DIMENSIONALITY + 1];
 
-			for (int i = 1; i <= numDataPoints; i++) {
-				point[0] = random.nextGaussian();
-				point[1] = 2 * point[0] + 0.01 * random.nextGaussian();
-				writePoint(point, buffer, pointsOut);
-			}
+            for (int i = 1; i <= numDataPoints; i++) {
+                point[0] = random.nextGaussian();
+                point[1] = 2 * point[0] + 0.01 * random.nextGaussian();
+                writePoint(point, buffer, pointsOut);
+            }
 
-		}
-		finally {
-			if (pointsOut != null) {
-				pointsOut.close();
-			}
-		}
+        } finally {
+            if (pointsOut != null) {
+                pointsOut.close();
+            }
+        }
 
-		System.out.println("Wrote " + numDataPoints + " data points to " + tmpDir + "/" + POINTS_FILE);
-	}
+        System.out.println(
+                "Wrote " + numDataPoints + " data points to " + tmpDir + "/" + POINTS_FILE);
+    }
 
-	private static void writePoint(double[] data, StringBuilder buffer, BufferedWriter out) throws IOException {
-		buffer.setLength(0);
+    private static void writePoint(double[] data, StringBuilder buffer, BufferedWriter out)
+            throws IOException {
+        buffer.setLength(0);
 
-		// write coordinates
-		for (int j = 0; j < data.length; j++) {
-			buffer.append(FORMAT.format(data[j]));
-			if (j < data.length - 1) {
-				buffer.append(DELIMITER);
-			}
-		}
+        // write coordinates
+        for (int j = 0; j < data.length; j++) {
+            buffer.append(FORMAT.format(data[j]));
+            if (j < data.length - 1) {
+                buffer.append(DELIMITER);
+            }
+        }
 
-		out.write(buffer.toString());
-		out.newLine();
-	}
+        out.write(buffer.toString());
+        out.newLine();
+    }
 }

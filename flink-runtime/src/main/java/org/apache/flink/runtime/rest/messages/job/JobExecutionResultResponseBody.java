@@ -42,52 +42,52 @@ import static java.util.Objects.requireNonNull;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class JobExecutionResultResponseBody
-		implements ResponseBody, AsynchronouslyCreatedResource<JobResult> {
+        implements ResponseBody, AsynchronouslyCreatedResource<JobResult> {
 
-	@JsonProperty(value = "status", required = true)
-	private final QueueStatus status;
+    @JsonProperty(value = "status", required = true)
+    private final QueueStatus status;
 
-	@JsonProperty(value = "job-execution-result")
-	@JsonSerialize(using = JobResultSerializer.class)
-	@JsonDeserialize(using = JobResultDeserializer.class)
-	@Nullable
-	private final JobResult jobExecutionResult;
+    @JsonProperty(value = "job-execution-result")
+    @JsonSerialize(using = JobResultSerializer.class)
+    @JsonDeserialize(using = JobResultDeserializer.class)
+    @Nullable
+    private final JobResult jobExecutionResult;
 
-	@JsonCreator
-	public JobExecutionResultResponseBody(
-			@JsonProperty(value = "status", required = true) final QueueStatus status,
-			@JsonProperty(value = "job-execution-result")
-			@JsonDeserialize(using = JobResultDeserializer.class)
-			@Nullable final JobResult jobExecutionResult) {
-		this.status = requireNonNull(status);
-		this.jobExecutionResult = jobExecutionResult;
-	}
+    @JsonCreator
+    public JobExecutionResultResponseBody(
+            @JsonProperty(value = "status", required = true) final QueueStatus status,
+            @JsonProperty(value = "job-execution-result")
+                    @JsonDeserialize(using = JobResultDeserializer.class)
+                    @Nullable
+                    final JobResult jobExecutionResult) {
+        this.status = requireNonNull(status);
+        this.jobExecutionResult = jobExecutionResult;
+    }
 
-	public static JobExecutionResultResponseBody inProgress() {
-		return new JobExecutionResultResponseBody(QueueStatus.inProgress(), null);
-	}
+    public static JobExecutionResultResponseBody inProgress() {
+        return new JobExecutionResultResponseBody(QueueStatus.inProgress(), null);
+    }
 
-	public static JobExecutionResultResponseBody created(
-			final JobResult jobExecutionResult) {
-		return new JobExecutionResultResponseBody(QueueStatus.completed(), jobExecutionResult);
-	}
+    public static JobExecutionResultResponseBody created(final JobResult jobExecutionResult) {
+        return new JobExecutionResultResponseBody(QueueStatus.completed(), jobExecutionResult);
+    }
 
-	public QueueStatus getStatus() {
-		return status;
-	}
+    public QueueStatus getStatus() {
+        return status;
+    }
 
-	@Nullable
-	public JobResult getJobExecutionResult() {
-		return jobExecutionResult;
-	}
+    @Nullable
+    public JobResult getJobExecutionResult() {
+        return jobExecutionResult;
+    }
 
-	@Override
-	public QueueStatus queueStatus() {
-		return status;
-	}
+    @Override
+    public QueueStatus queueStatus() {
+        return status;
+    }
 
-	@Override
-	public JobResult resource() {
-		return jobExecutionResult;
-	}
+    @Override
+    public JobResult resource() {
+        return jobExecutionResult;
+    }
 }

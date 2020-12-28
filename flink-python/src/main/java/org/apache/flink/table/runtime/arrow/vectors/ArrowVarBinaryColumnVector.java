@@ -24,29 +24,25 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.VarBinaryVector;
 
-/**
- * Arrow column vector for VarBinary.
- */
+/** Arrow column vector for VarBinary. */
 @Internal
 public final class ArrowVarBinaryColumnVector implements BytesColumnVector {
 
-	/**
-	 * Container which is used to store the sequence of varbinary values of a column to read.
-	 */
-	private final VarBinaryVector varBinaryVector;
+    /** Container which is used to store the sequence of varbinary values of a column to read. */
+    private final VarBinaryVector varBinaryVector;
 
-	public ArrowVarBinaryColumnVector(VarBinaryVector varBinaryVector) {
-		this.varBinaryVector = Preconditions.checkNotNull(varBinaryVector);
-	}
+    public ArrowVarBinaryColumnVector(VarBinaryVector varBinaryVector) {
+        this.varBinaryVector = Preconditions.checkNotNull(varBinaryVector);
+    }
 
-	@Override
-	public Bytes getBytes(int i) {
-		byte[] bytes = varBinaryVector.get(i);
-		return new Bytes(bytes, 0, bytes.length);
-	}
+    @Override
+    public Bytes getBytes(int i) {
+        byte[] bytes = varBinaryVector.get(i);
+        return new Bytes(bytes, 0, bytes.length);
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return varBinaryVector.isNull(i);
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return varBinaryVector.isNull(i);
+    }
 }

@@ -22,37 +22,36 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Optional;
 
-/**
- * Container for meta-data of a data set.
- */
+/** Container for meta-data of a data set. */
 public final class DataSetMetaInfo {
-	private static final int UNKNOWN = -1;
+    private static final int UNKNOWN = -1;
 
-	private final int numRegisteredPartitions;
-	private final int numTotalPartitions;
+    private final int numRegisteredPartitions;
+    private final int numTotalPartitions;
 
-	private DataSetMetaInfo(int numRegisteredPartitions, int numTotalPartitions) {
-		this.numRegisteredPartitions = numRegisteredPartitions;
-		this.numTotalPartitions = numTotalPartitions;
-	}
+    private DataSetMetaInfo(int numRegisteredPartitions, int numTotalPartitions) {
+        this.numRegisteredPartitions = numRegisteredPartitions;
+        this.numTotalPartitions = numTotalPartitions;
+    }
 
-	public Optional<Integer> getNumRegisteredPartitions() {
-		return numRegisteredPartitions == UNKNOWN
-			? Optional.empty()
-			: Optional.of(numRegisteredPartitions);
-	}
+    public Optional<Integer> getNumRegisteredPartitions() {
+        return numRegisteredPartitions == UNKNOWN
+                ? Optional.empty()
+                : Optional.of(numRegisteredPartitions);
+    }
 
-	public int getNumTotalPartitions() {
-		return numTotalPartitions;
-	}
+    public int getNumTotalPartitions() {
+        return numTotalPartitions;
+    }
 
-	static DataSetMetaInfo withoutNumRegisteredPartitions(int numTotalPartitions) {
-		return new DataSetMetaInfo(UNKNOWN, numTotalPartitions);
-	}
+    static DataSetMetaInfo withoutNumRegisteredPartitions(int numTotalPartitions) {
+        return new DataSetMetaInfo(UNKNOWN, numTotalPartitions);
+    }
 
-	@VisibleForTesting
-	public static DataSetMetaInfo withNumRegisteredPartitions(int numRegisteredPartitions, int numTotalPartitions) {
-		Preconditions.checkArgument(numRegisteredPartitions > 0);
-		return new DataSetMetaInfo(numRegisteredPartitions, numTotalPartitions);
-	}
+    @VisibleForTesting
+    public static DataSetMetaInfo withNumRegisteredPartitions(
+            int numRegisteredPartitions, int numTotalPartitions) {
+        Preconditions.checkArgument(numRegisteredPartitions > 0);
+        return new DataSetMetaInfo(numRegisteredPartitions, numTotalPartitions);
+    }
 }

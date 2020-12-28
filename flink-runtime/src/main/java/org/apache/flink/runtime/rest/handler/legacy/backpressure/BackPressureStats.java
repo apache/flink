@@ -35,53 +35,59 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class BackPressureStats {
 
-	/** ID of the request (unique per job). */
-	private final int requestId;
+    /** ID of the request (unique per job). */
+    private final int requestId;
 
-	/** Time stamp, when the request was triggered. */
-	private final long startTime;
+    /** Time stamp, when the request was triggered. */
+    private final long startTime;
 
-	/** Time stamp, when all back pressure stats were collected at the BackPressureRequestCoordinator. */
-	private final long endTime;
+    /**
+     * Time stamp, when all back pressure stats were collected at the
+     * BackPressureRequestCoordinator.
+     */
+    private final long endTime;
 
-	/** Map of back pressure ratios by execution ID. */
-	private final Map<ExecutionAttemptID, Double> backPressureRatios;
+    /** Map of back pressure ratios by execution ID. */
+    private final Map<ExecutionAttemptID, Double> backPressureRatios;
 
-	public BackPressureStats(
-			@Nonnegative int requestId,
-			@Nonnegative long startTime,
-			@Nonnegative long endTime,
-			Map<ExecutionAttemptID, Double> backPressureRatios) {
-		checkArgument(endTime >= startTime, "End time must not before start time.");
+    public BackPressureStats(
+            @Nonnegative int requestId,
+            @Nonnegative long startTime,
+            @Nonnegative long endTime,
+            Map<ExecutionAttemptID, Double> backPressureRatios) {
+        checkArgument(endTime >= startTime, "End time must not before start time.");
 
-		this.requestId = requestId;
-		this.startTime = startTime;
-		this.endTime = endTime;
-		this.backPressureRatios = Collections.unmodifiableMap(checkNotNull(backPressureRatios));
-	}
+        this.requestId = requestId;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.backPressureRatios = Collections.unmodifiableMap(checkNotNull(backPressureRatios));
+    }
 
-	public int getRequestId() {
-		return requestId;
-	}
+    public int getRequestId() {
+        return requestId;
+    }
 
-	public long getStartTime() {
-		return startTime;
-	}
+    public long getStartTime() {
+        return startTime;
+    }
 
-	public long getEndTime() {
-		return endTime;
-	}
+    public long getEndTime() {
+        return endTime;
+    }
 
-	public Map<ExecutionAttemptID, Double> getBackPressureRatios() {
-		return backPressureRatios;
-	}
+    public Map<ExecutionAttemptID, Double> getBackPressureRatios() {
+        return backPressureRatios;
+    }
 
-	@Override
-	public String toString() {
-		return "BackPressureStats{" +
-				"requestId=" + requestId +
-				", startTime=" + startTime +
-				", endTime=" + endTime +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "BackPressureStats{"
+                + "requestId="
+                + requestId
+                + ", startTime="
+                + startTime
+                + ", endTime="
+                + endTime
+                + '}';
+    }
 }

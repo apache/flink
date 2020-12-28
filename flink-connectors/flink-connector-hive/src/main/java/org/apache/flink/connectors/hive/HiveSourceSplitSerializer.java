@@ -31,70 +31,80 @@ import java.io.ObjectOutputStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * SerDe for {@link HiveSourceSplit}.
- */
+/** SerDe for {@link HiveSourceSplit}. */
 public class HiveSourceSplitSerializer implements SimpleVersionedSerializer<HiveSourceSplit> {
 
-	private static final int VERSION = 1;
+    private static final int VERSION = 1;
 
-	public static final HiveSourceSplitSerializer INSTANCE = new HiveSourceSplitSerializer();
+    public static final HiveSourceSplitSerializer INSTANCE = new HiveSourceSplitSerializer();
 
-	private HiveSourceSplitSerializer() {
-	}
+    private HiveSourceSplitSerializer() {}
 
-	@Override
-	public int getVersion() {
-		return VERSION;
-	}
+    @Override
+    public int getVersion() {
+        return VERSION;
+    }
 
-	@Override
-	public byte[] serialize(HiveSourceSplit split) throws IOException {
-		checkArgument(split.getClass() == HiveSourceSplit.class, "Cannot serialize subclasses of HiveSourceSplit");
+    @Override
+    public byte[] serialize(HiveSourceSplit split) throws IOException {
+        checkArgument(
+                split.getClass() == HiveSourceSplit.class,
+                "Cannot serialize subclasses of HiveSourceSplit");
 
-		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-		try (ObjectOutputStream outputStream = new ObjectOutputStream(byteArrayOutputStream)) {
-			serialize(outputStream, split);
-		}
-		return byteArrayOutputStream.toByteArray();
-	}
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        try (ObjectOutputStream outputStream = new ObjectOutputStream(byteArrayOutputStream)) {
+            serialize(outputStream, split);
+        }
+        return byteArrayOutputStream.toByteArray();
+    }
 
-	@Override
-	public HiveSourceSplit deserialize(int version, byte[] serialized) throws IOException {
-		if (version == 1) {
-			try (ObjectInputStream inputStream = new ObjectInputStream(new ByteArrayInputStream(serialized))) {
-				return deserializeV1(inputStream);
-			}
-		} else {
-			throw new IOException("Unknown version: " + version);
-		}
-	}
+    @Override
+    public HiveSourceSplit deserialize(int version, byte[] serialized) throws IOException {
+        if (version == 1) {
+            try (ObjectInputStream inputStream =
+                    new ObjectInputStream(new ByteArrayInputStream(serialized))) {
+                return deserializeV1(inputStream);
+            }
+        } else {
+            throw new IOException("Unknown version: " + version);
+        }
+    }
 
-	private void serialize(ObjectOutputStream outputStream, HiveSourceSplit split) throws IOException {
-		byte[] superBytes = FileSourceSplitSerializer.INSTANCE.serialize(new FileSourceSplit(
-				split.splitId(), split.path(), split.offset(), split.length(), split.hostnames(), split.getReaderPosition().orElse(null)));
-		outputStream.writeInt(superBytes.length);
-		outputStream.write(superBytes);
-		outputStream.writeObject(split.getHiveTablePartition());
-	}
+    private void serialize(ObjectOutputStream outputStream, HiveSourceSplit split)
+            throws IOException {
+        byte[] superBytes =
+                FileSourceSplitSerializer.INSTANCE.serialize(
+                        new FileSourceSplit(
+                                split.splitId(),
+                                split.path(),
+                                split.offset(),
+                                split.length(),
+                                split.hostnames(),
+                                split.getReaderPosition().orElse(null)));
+        outputStream.writeInt(superBytes.length);
+        outputStream.write(superBytes);
+        outputStream.writeObject(split.getHiveTablePartition());
+    }
 
-	private HiveSourceSplit deserializeV1(ObjectInputStream inputStream) throws IOException {
-		try {
-			int superLen = inputStream.readInt();
-			byte[] superBytes = new byte[superLen];
-			inputStream.readFully(superBytes);
-			FileSourceSplit superSplit = FileSourceSplitSerializer.INSTANCE.deserialize(FileSourceSplitSerializer.INSTANCE.getVersion(), superBytes);
-			HiveTablePartition hiveTablePartition = (HiveTablePartition) inputStream.readObject();
-			return new HiveSourceSplit(
-					superSplit.splitId(),
-					superSplit.path(),
-					superSplit.offset(),
-					superSplit.length(),
-					superSplit.hostnames(),
-					superSplit.getReaderPosition().orElse(null),
-					hiveTablePartition);
-		} catch (ClassNotFoundException e) {
-			throw new IOException("Failed to deserialize HiveSourceSplit", e);
-		}
-	}
+    private HiveSourceSplit deserializeV1(ObjectInputStream inputStream) throws IOException {
+        try {
+            int superLen = inputStream.readInt();
+            byte[] superBytes = new byte[superLen];
+            inputStream.readFully(superBytes);
+            FileSourceSplit superSplit =
+                    FileSourceSplitSerializer.INSTANCE.deserialize(
+                            FileSourceSplitSerializer.INSTANCE.getVersion(), superBytes);
+            HiveTablePartition hiveTablePartition = (HiveTablePartition) inputStream.readObject();
+            return new HiveSourceSplit(
+                    superSplit.splitId(),
+                    superSplit.path(),
+                    superSplit.offset(),
+                    superSplit.length(),
+                    superSplit.hostnames(),
+                    superSplit.getReaderPosition().orElse(null),
+                    hiveTablePartition);
+        } catch (ClassNotFoundException e) {
+            throw new IOException("Failed to deserialize HiveSourceSplit", e);
+        }
+    }
 }

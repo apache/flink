@@ -19,14 +19,14 @@
 package org.apache.flink.cep.pattern;
 
 /**
- * An exception used to indicate that a {@link org.apache.flink.cep.pattern.Pattern}
- * was not specified correctly.
+ * An exception used to indicate that a {@link org.apache.flink.cep.pattern.Pattern} was not
+ * specified correctly.
  */
 public class MalformedPatternException extends RuntimeException {
 
-	private static final long serialVersionUID = 7751134834983361543L;
+    private static final long serialVersionUID = 7751134834983361543L;
 
-	public MalformedPatternException(String message) {
-		super(message);
-	}
+    public MalformedPatternException(String message) {
+        super(message);
+    }
 }

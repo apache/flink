@@ -18,22 +18,20 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
-/**
- * anonymous inner class in non static method accessing a local variable in its closure.
- */
+/** anonymous inner class in non static method accessing a local variable in its closure. */
 public class AnonymousInNonStaticMethod {
 
-	public void testMethod() {
-		final int i = 1;
-		new A(){
-			@Override
-			public void t() {
-				System.out.println(i);
-			}
-		};
-	}
+    public void testMethod() {
+        final int i = 1;
+        new A() {
+            @Override
+            public void t() {
+                System.out.println(i);
+            }
+        };
+    }
 
-	public interface A {
-		void t();
-	}
+    public interface A {
+        void t();
+    }
 }

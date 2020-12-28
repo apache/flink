@@ -28,37 +28,41 @@ import org.junit.Test;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link InitTaskManagerDecorator} decorating service account.
- */
+/** Tests for {@link InitTaskManagerDecorator} decorating service account. */
 public class InitTaskManagerDecoratorAccountTest extends KubernetesTaskManagerTestBase {
 
-	private static final String SERVICE_ACCOUNT_NAME = "service-test";
-	private static final String TASK_MANAGER_SERVICE_ACCOUNT_NAME = "tm-service-test";
+    private static final String SERVICE_ACCOUNT_NAME = "service-test";
+    private static final String TASK_MANAGER_SERVICE_ACCOUNT_NAME = "tm-service-test";
 
-	private Pod resultPod;
+    private Pod resultPod;
 
-	@Override
-	protected void setupFlinkConfig() {
-		super.setupFlinkConfig();
+    @Override
+    protected void setupFlinkConfig() {
+        super.setupFlinkConfig();
 
-		this.flinkConfig.set(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
-		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT, TASK_MANAGER_SERVICE_ACCOUNT_NAME);
-	}
+        this.flinkConfig.set(
+                KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
+        this.flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT,
+                TASK_MANAGER_SERVICE_ACCOUNT_NAME);
+    }
 
-	@Override
-	protected void onSetup() throws Exception {
-		super.onSetup();
+    @Override
+    protected void onSetup() throws Exception {
+        super.onSetup();
 
-		final InitTaskManagerDecorator initTaskManagerDecorator =
-			new InitTaskManagerDecorator(kubernetesTaskManagerParameters);
+        final InitTaskManagerDecorator initTaskManagerDecorator =
+                new InitTaskManagerDecorator(kubernetesTaskManagerParameters);
 
-		final FlinkPod resultFlinkPod = initTaskManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
-		this.resultPod = resultFlinkPod.getPod();
-	}
+        final FlinkPod resultFlinkPod =
+                initTaskManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
+        this.resultPod = resultFlinkPod.getPod();
+    }
 
-	@Test
-	public void testPodServiceAccountName() {
-		assertThat(this.resultPod.getSpec().getServiceAccountName(), is(TASK_MANAGER_SERVICE_ACCOUNT_NAME));
-	}
+    @Test
+    public void testPodServiceAccountName() {
+        assertThat(
+                this.resultPod.getSpec().getServiceAccountName(),
+                is(TASK_MANAGER_SERVICE_ACCOUNT_NAME));
+    }
 }

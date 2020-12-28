@@ -53,120 +53,127 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
-/**
- * Orc format factory for file system.
- */
+/** Orc format factory for file system. */
 public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
 
-	public static final String IDENTIFIER = "orc";
+    public static final String IDENTIFIER = "orc";
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		// support "orc.*"
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        // support "orc.*"
+        return new HashSet<>();
+    }
 
-	private static Properties getOrcProperties(ReadableConfig options) {
-		Properties orcProperties = new Properties();
-		Properties properties = new Properties();
-		((org.apache.flink.configuration.Configuration) options).addAllToProperties(properties);
-		properties.forEach((k, v) -> orcProperties.put(IDENTIFIER + "." + k, v));
-		return orcProperties;
-	}
+    private static Properties getOrcProperties(ReadableConfig options) {
+        Properties orcProperties = new Properties();
+        Properties properties = new Properties();
+        ((org.apache.flink.configuration.Configuration) options).addAllToProperties(properties);
+        properties.forEach((k, v) -> orcProperties.put(IDENTIFIER + "." + k, v));
+        return orcProperties;
+    }
 
-	@Override
-	public BulkDecodingFormat<RowData> createDecodingFormat(
-			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-		return new BulkDecodingFormat<RowData>() {
+    @Override
+    public BulkDecodingFormat<RowData> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        return new BulkDecodingFormat<RowData>() {
 
-			private List<ResolvedExpression> filters;
+            private List<ResolvedExpression> filters;
 
-			@Override
-			public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
-					DynamicTableSource.Context sourceContext,
-					DataType producedDataType) {
-				List<OrcFilters.Predicate> orcPredicates = new ArrayList<>();
+            @Override
+            public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
+                    DynamicTableSource.Context sourceContext, DataType producedDataType) {
+                List<OrcFilters.Predicate> orcPredicates = new ArrayList<>();
 
-				if (filters != null) {
-					for (Expression pred : filters) {
-						OrcFilters.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
-						if (orcPred != null) {
-							orcPredicates.add(orcPred);
-						}
-					}
-				}
+                if (filters != null) {
+                    for (Expression pred : filters) {
+                        OrcFilters.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
+                        if (orcPred != null) {
+                            orcPredicates.add(orcPred);
+                        }
+                    }
+                }
 
-				RowType tableType = (RowType) context.getCatalogTable().getSchema()
-						.toPhysicalRowDataType().getLogicalType();
-				List<String> tableFieldNames = tableType.getFieldNames();
-				RowType projectedType = (RowType) producedDataType.getLogicalType();
+                RowType tableType =
+                        (RowType)
+                                context.getCatalogTable()
+                                        .getSchema()
+                                        .toPhysicalRowDataType()
+                                        .getLogicalType();
+                List<String> tableFieldNames = tableType.getFieldNames();
+                RowType projectedType = (RowType) producedDataType.getLogicalType();
 
-				int[] selectedFields = projectedType.getFieldNames().stream()
-						.mapToInt(tableFieldNames::indexOf).toArray();
+                int[] selectedFields =
+                        projectedType.getFieldNames().stream()
+                                .mapToInt(tableFieldNames::indexOf)
+                                .toArray();
 
-				Properties properties = getOrcProperties(formatOptions);
-				Configuration conf = new Configuration();
-				properties.forEach((k, v) -> conf.set(k.toString(), v.toString()));
+                Properties properties = getOrcProperties(formatOptions);
+                Configuration conf = new Configuration();
+                properties.forEach((k, v) -> conf.set(k.toString(), v.toString()));
 
-				String defaultPartName = context.getCatalogTable().getOptions().getOrDefault(
-						FileSystemOptions.PARTITION_DEFAULT_NAME.key(),
-						FileSystemOptions.PARTITION_DEFAULT_NAME.defaultValue());
+                String defaultPartName =
+                        context.getCatalogTable()
+                                .getOptions()
+                                .getOrDefault(
+                                        FileSystemOptions.PARTITION_DEFAULT_NAME.key(),
+                                        FileSystemOptions.PARTITION_DEFAULT_NAME.defaultValue());
 
-				return OrcColumnarRowFileInputFormat.createPartitionedFormat(
-						OrcShim.defaultShim(),
-						conf,
-						tableType,
-						context.getCatalogTable().getPartitionKeys(),
-						PartitionFieldExtractor.forFileSystem(defaultPartName),
-						selectedFields,
-						orcPredicates,
-						VectorizedColumnBatch.DEFAULT_SIZE);
-			}
+                return OrcColumnarRowFileInputFormat.createPartitionedFormat(
+                        OrcShim.defaultShim(),
+                        conf,
+                        tableType,
+                        context.getCatalogTable().getPartitionKeys(),
+                        PartitionFieldExtractor.forFileSystem(defaultPartName),
+                        selectedFields,
+                        orcPredicates,
+                        VectorizedColumnBatch.DEFAULT_SIZE);
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
 
-			@Override
-			public void applyFilters(List<ResolvedExpression> filters) {
-				this.filters = filters;
-			}
-		};
-	}
+            @Override
+            public void applyFilters(List<ResolvedExpression> filters) {
+                this.filters = filters;
+            }
+        };
+    }
 
-	@Override
-	public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
-			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-		return new EncodingFormat<BulkWriter.Factory<RowData>>() {
-			@Override
-			public BulkWriter.Factory<RowData> createRuntimeEncoder(
-					DynamicTableSink.Context sinkContext, DataType consumedDataType) {
-				RowType formatRowType = (RowType) consumedDataType.getLogicalType();
-				LogicalType[] orcTypes = formatRowType.getChildren().toArray(new LogicalType[0]);
+    @Override
+    public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        return new EncodingFormat<BulkWriter.Factory<RowData>>() {
+            @Override
+            public BulkWriter.Factory<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context sinkContext, DataType consumedDataType) {
+                RowType formatRowType = (RowType) consumedDataType.getLogicalType();
+                LogicalType[] orcTypes = formatRowType.getChildren().toArray(new LogicalType[0]);
 
-				TypeDescription typeDescription = OrcSplitReaderUtil.logicalTypeToOrcType(formatRowType);
+                TypeDescription typeDescription =
+                        OrcSplitReaderUtil.logicalTypeToOrcType(formatRowType);
 
-				return new OrcBulkWriterFactory<>(
-						new RowDataVectorizer(typeDescription.toString(), orcTypes),
-						getOrcProperties(formatOptions),
-						new Configuration());
-			}
+                return new OrcBulkWriterFactory<>(
+                        new RowDataVectorizer(typeDescription.toString(), orcTypes),
+                        getOrcProperties(formatOptions),
+                        new Configuration());
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 }

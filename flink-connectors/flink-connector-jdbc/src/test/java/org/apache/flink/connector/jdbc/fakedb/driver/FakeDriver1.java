@@ -29,54 +29,52 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-/**
- * A {@link Driver} for FakeDB.
- */
+/** A {@link Driver} for FakeDB. */
 public class FakeDriver1 implements Driver {
 
-	static {
-		try {
-			DriverManager.registerDriver(new FakeDriver1());
-		} catch (SQLException ex) {
-			throw new ExceptionInInitializerError(ex);
-		}
-	}
+    static {
+        try {
+            DriverManager.registerDriver(new FakeDriver1());
+        } catch (SQLException ex) {
+            throw new ExceptionInInitializerError(ex);
+        }
+    }
 
-	@Override
-	public Connection connect(String url, Properties info) throws SQLException {
-		if (!acceptsURL(url)) {
-			return null;
-		}
-		return new FakeConnection1();
-	}
+    @Override
+    public Connection connect(String url, Properties info) throws SQLException {
+        if (!acceptsURL(url)) {
+            return null;
+        }
+        return new FakeConnection1();
+    }
 
-	@Override
-	public boolean acceptsURL(String url) throws SQLException {
-		return FakeDBUtils.acceptsUrl(url);
-	}
+    @Override
+    public boolean acceptsURL(String url) throws SQLException {
+        return FakeDBUtils.acceptsUrl(url);
+    }
 
-	@Override
-	public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
-		return new DriverPropertyInfo[0];
-	}
+    @Override
+    public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
+        return new DriverPropertyInfo[0];
+    }
 
-	@Override
-	public int getMajorVersion() {
-		return 0;
-	}
+    @Override
+    public int getMajorVersion() {
+        return 0;
+    }
 
-	@Override
-	public int getMinorVersion() {
-		return 0;
-	}
+    @Override
+    public int getMinorVersion() {
+        return 0;
+    }
 
-	@Override
-	public boolean jdbcCompliant() {
-		return false;
-	}
+    @Override
+    public boolean jdbcCompliant() {
+        return false;
+    }
 
-	@Override
-	public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-		throw new SQLFeatureNotSupportedException();
-	}
+    @Override
+    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        throw new SQLFeatureNotSupportedException();
+    }
 }

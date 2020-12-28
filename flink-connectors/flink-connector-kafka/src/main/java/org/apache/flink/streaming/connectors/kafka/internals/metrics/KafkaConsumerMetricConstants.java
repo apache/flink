@@ -22,35 +22,35 @@ import org.apache.flink.annotation.Internal;
 /**
  * A collection of Kafka consumer metrics related constant strings.
  *
- * <p>The names must not be changed, as that would break backward compatibility for the consumer's metrics.
+ * <p>The names must not be changed, as that would break backward compatibility for the consumer's
+ * metrics.
  */
 @Internal
 public class KafkaConsumerMetricConstants {
 
-	public static final String KAFKA_CONSUMER_METRICS_GROUP = "KafkaConsumer";
+    public static final String KAFKA_CONSUMER_METRICS_GROUP = "KafkaConsumer";
 
-	// ------------------------------------------------------------------------
-	//  Per-subtask metrics
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Per-subtask metrics
+    // ------------------------------------------------------------------------
 
-	public static final String COMMITS_SUCCEEDED_METRICS_COUNTER = "commitsSucceeded";
-	public static final String COMMITS_FAILED_METRICS_COUNTER = "commitsFailed";
+    public static final String COMMITS_SUCCEEDED_METRICS_COUNTER = "commitsSucceeded";
+    public static final String COMMITS_FAILED_METRICS_COUNTER = "commitsFailed";
 
-	// ------------------------------------------------------------------------
-	//  Per-partition metrics
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Per-partition metrics
+    // ------------------------------------------------------------------------
 
-	public static final String OFFSETS_BY_TOPIC_METRICS_GROUP = "topic";
-	public static final String OFFSETS_BY_PARTITION_METRICS_GROUP = "partition";
+    public static final String OFFSETS_BY_TOPIC_METRICS_GROUP = "topic";
+    public static final String OFFSETS_BY_PARTITION_METRICS_GROUP = "partition";
 
-	public static final String CURRENT_OFFSETS_METRICS_GAUGE = "currentOffsets";
-	public static final String COMMITTED_OFFSETS_METRICS_GAUGE = "committedOffsets";
+    public static final String CURRENT_OFFSETS_METRICS_GAUGE = "currentOffsets";
+    public static final String COMMITTED_OFFSETS_METRICS_GAUGE = "committedOffsets";
 
-	// ------------------------------------------------------------------------
-	//  Legacy metrics
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Legacy metrics
+    // ------------------------------------------------------------------------
 
-	public static final String LEGACY_CURRENT_OFFSETS_METRICS_GROUP = "current-offsets";
-	public static final String LEGACY_COMMITTED_OFFSETS_METRICS_GROUP = "committed-offsets";
-
+    public static final String LEGACY_CURRENT_OFFSETS_METRICS_GROUP = "current-offsets";
+    public static final String LEGACY_COMMITTED_OFFSETS_METRICS_GROUP = "committed-offsets";
 }

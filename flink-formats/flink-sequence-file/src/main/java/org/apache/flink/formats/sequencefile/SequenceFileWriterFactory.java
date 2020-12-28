@@ -40,89 +40,108 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <V> The type of value to write. It should be writable.
  */
 @PublicEvolving
-public class SequenceFileWriterFactory<K extends Writable, V extends Writable> implements BulkWriter.Factory<Tuple2<K, V>> {
+public class SequenceFileWriterFactory<K extends Writable, V extends Writable>
+        implements BulkWriter.Factory<Tuple2<K, V>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** A constant specifying that no compression is requested. */
-	public static final String NO_COMPRESSION = "NO_COMPRESSION";
+    /** A constant specifying that no compression is requested. */
+    public static final String NO_COMPRESSION = "NO_COMPRESSION";
 
-	private final SerializableHadoopConfiguration serializableHadoopConfig;
-	private final Class<K> keyClass;
-	private final Class<V> valueClass;
-	private final String compressionCodecName;
-	private final SequenceFile.CompressionType compressionType;
+    private final SerializableHadoopConfiguration serializableHadoopConfig;
+    private final Class<K> keyClass;
+    private final Class<V> valueClass;
+    private final String compressionCodecName;
+    private final SequenceFile.CompressionType compressionType;
 
-	/**
-	 * Creates a new SequenceFileWriterFactory using the given builder to assemble the
-	 * SequenceFileWriter.
-	 *
-	 * @param hadoopConf The Hadoop configuration for Sequence File Writer.
-	 * @param keyClass   The class of key to write.
-	 * @param valueClass The class of value to write.
-	 */
-	public SequenceFileWriterFactory(Configuration hadoopConf, Class<K> keyClass, Class<V> valueClass) {
-		this(hadoopConf, keyClass, valueClass, NO_COMPRESSION, SequenceFile.CompressionType.BLOCK);
-	}
+    /**
+     * Creates a new SequenceFileWriterFactory using the given builder to assemble the
+     * SequenceFileWriter.
+     *
+     * @param hadoopConf The Hadoop configuration for Sequence File Writer.
+     * @param keyClass The class of key to write.
+     * @param valueClass The class of value to write.
+     */
+    public SequenceFileWriterFactory(
+            Configuration hadoopConf, Class<K> keyClass, Class<V> valueClass) {
+        this(hadoopConf, keyClass, valueClass, NO_COMPRESSION, SequenceFile.CompressionType.BLOCK);
+    }
 
-	/**
-	 * Creates a new SequenceFileWriterFactory using the given builder to assemble the
-	 * SequenceFileWriter.
-	 *
-	 * @param hadoopConf           The Hadoop configuration for Sequence File Writer.
-	 * @param keyClass             The class of key to write.
-	 * @param valueClass           The class of value to write.
-	 * @param compressionCodecName The name of compression codec.
-	 */
-	public SequenceFileWriterFactory(Configuration hadoopConf, Class<K> keyClass, Class<V> valueClass, String compressionCodecName) {
-		this(hadoopConf, keyClass, valueClass, compressionCodecName, SequenceFile.CompressionType.BLOCK);
-	}
+    /**
+     * Creates a new SequenceFileWriterFactory using the given builder to assemble the
+     * SequenceFileWriter.
+     *
+     * @param hadoopConf The Hadoop configuration for Sequence File Writer.
+     * @param keyClass The class of key to write.
+     * @param valueClass The class of value to write.
+     * @param compressionCodecName The name of compression codec.
+     */
+    public SequenceFileWriterFactory(
+            Configuration hadoopConf,
+            Class<K> keyClass,
+            Class<V> valueClass,
+            String compressionCodecName) {
+        this(
+                hadoopConf,
+                keyClass,
+                valueClass,
+                compressionCodecName,
+                SequenceFile.CompressionType.BLOCK);
+    }
 
-	/**
-	 * Creates a new SequenceFileWriterFactory using the given builder to assemble the
-	 * SequenceFileWriter.
-	 *
-	 * @param hadoopConf           The Hadoop configuration for Sequence File Writer.
-	 * @param keyClass             The class of key to write.
-	 * @param valueClass           The class of value to write.
-	 * @param compressionCodecName The name of compression codec.
-	 * @param compressionType      The type of compression level.
-	 */
-	public SequenceFileWriterFactory(Configuration hadoopConf, Class<K> keyClass, Class<V> valueClass, String compressionCodecName, SequenceFile.CompressionType compressionType) {
-		this.serializableHadoopConfig = new SerializableHadoopConfiguration(checkNotNull(hadoopConf));
-		this.keyClass = checkNotNull(keyClass);
-		this.valueClass = checkNotNull(valueClass);
-		this.compressionCodecName = checkNotNull(compressionCodecName);
-		this.compressionType = checkNotNull(compressionType);
-	}
+    /**
+     * Creates a new SequenceFileWriterFactory using the given builder to assemble the
+     * SequenceFileWriter.
+     *
+     * @param hadoopConf The Hadoop configuration for Sequence File Writer.
+     * @param keyClass The class of key to write.
+     * @param valueClass The class of value to write.
+     * @param compressionCodecName The name of compression codec.
+     * @param compressionType The type of compression level.
+     */
+    public SequenceFileWriterFactory(
+            Configuration hadoopConf,
+            Class<K> keyClass,
+            Class<V> valueClass,
+            String compressionCodecName,
+            SequenceFile.CompressionType compressionType) {
+        this.serializableHadoopConfig =
+                new SerializableHadoopConfiguration(checkNotNull(hadoopConf));
+        this.keyClass = checkNotNull(keyClass);
+        this.valueClass = checkNotNull(valueClass);
+        this.compressionCodecName = checkNotNull(compressionCodecName);
+        this.compressionType = checkNotNull(compressionType);
+    }
 
-	@Override
-	public SequenceFileWriter<K, V> create(FSDataOutputStream out) throws IOException {
-		org.apache.hadoop.fs.FSDataOutputStream stream = new org.apache.hadoop.fs.FSDataOutputStream(out, null);
-		CompressionCodec compressionCodec = getCompressionCodec(serializableHadoopConfig.get(), compressionCodecName);
-		SequenceFile.Writer writer = SequenceFile.createWriter(
-			serializableHadoopConfig.get(),
-			SequenceFile.Writer.stream(stream),
-			SequenceFile.Writer.keyClass(keyClass),
-			SequenceFile.Writer.valueClass(valueClass),
-			SequenceFile.Writer.compression(compressionType, compressionCodec));
-		return new SequenceFileWriter<>(writer);
-	}
+    @Override
+    public SequenceFileWriter<K, V> create(FSDataOutputStream out) throws IOException {
+        org.apache.hadoop.fs.FSDataOutputStream stream =
+                new org.apache.hadoop.fs.FSDataOutputStream(out, null);
+        CompressionCodec compressionCodec =
+                getCompressionCodec(serializableHadoopConfig.get(), compressionCodecName);
+        SequenceFile.Writer writer =
+                SequenceFile.createWriter(
+                        serializableHadoopConfig.get(),
+                        SequenceFile.Writer.stream(stream),
+                        SequenceFile.Writer.keyClass(keyClass),
+                        SequenceFile.Writer.valueClass(valueClass),
+                        SequenceFile.Writer.compression(compressionType, compressionCodec));
+        return new SequenceFileWriter<>(writer);
+    }
 
-	private CompressionCodec getCompressionCodec(Configuration conf, String compressionCodecName) {
-		checkNotNull(conf);
-		checkNotNull(compressionCodecName);
+    private CompressionCodec getCompressionCodec(Configuration conf, String compressionCodecName) {
+        checkNotNull(conf);
+        checkNotNull(compressionCodecName);
 
-		if (compressionCodecName.equals(NO_COMPRESSION)) {
-			return null;
-		}
+        if (compressionCodecName.equals(NO_COMPRESSION)) {
+            return null;
+        }
 
-		CompressionCodecFactory codecFactory = new CompressionCodecFactory(conf);
-		CompressionCodec codec = codecFactory.getCodecByName(compressionCodecName);
-		if (codec == null) {
-			throw new RuntimeException("Codec " + compressionCodecName + " not found.");
-		}
-		return codec;
-	}
+        CompressionCodecFactory codecFactory = new CompressionCodecFactory(conf);
+        CompressionCodec codec = codecFactory.getCodecByName(compressionCodecName);
+        if (codec == null) {
+            throw new RuntimeException("Codec " + compressionCodecName + " not found.");
+        }
+        return codec;
+    }
 }
-

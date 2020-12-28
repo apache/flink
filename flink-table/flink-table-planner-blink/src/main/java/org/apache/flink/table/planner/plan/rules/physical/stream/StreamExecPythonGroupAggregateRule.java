@@ -41,71 +41,84 @@ import scala.collection.JavaConverters;
 /**
  * Rule to convert a {@link FlinkLogicalAggregate} into a {@link StreamExecPythonGroupAggregate}.
  */
-public class StreamExecPythonGroupAggregateRule
-	extends ConverterRule {
+public class StreamExecPythonGroupAggregateRule extends ConverterRule {
 
-	public static final RelOptRule INSTANCE = new StreamExecPythonGroupAggregateRule();
+    public static final RelOptRule INSTANCE = new StreamExecPythonGroupAggregateRule();
 
-	public StreamExecPythonGroupAggregateRule() {
-		super(FlinkLogicalAggregate.class,
-			FlinkConventions.LOGICAL(),
-			FlinkConventions.STREAM_PHYSICAL(),
-			"StreamExecPythonGroupAggregateRule");
-	}
+    public StreamExecPythonGroupAggregateRule() {
+        super(
+                FlinkLogicalAggregate.class,
+                FlinkConventions.LOGICAL(),
+                FlinkConventions.STREAM_PHYSICAL(),
+                "StreamExecPythonGroupAggregateRule");
+    }
 
-	@Override
-	public boolean matches(RelOptRuleCall call) {
-		FlinkLogicalAggregate agg = call.rel(0);
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        FlinkLogicalAggregate agg = call.rel(0);
 
-		// check if we have grouping sets
-		if (agg.getGroupType() != Aggregate.Group.SIMPLE || agg.indicator) {
-			throw new TableException("GROUPING SETS are currently not supported.");
-		}
+        // check if we have grouping sets
+        if (agg.getGroupType() != Aggregate.Group.SIMPLE || agg.indicator) {
+            throw new TableException("GROUPING SETS are currently not supported.");
+        }
 
-		List<AggregateCall> aggCalls = agg.getAggCallList();
-		boolean existGeneralPythonFunction =
-			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
-		boolean existPandasFunction =
-			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
-		boolean existJavaUserDefinedFunction =
-			aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null) &&
-				!PythonUtil.isBuiltInAggregate(x));
-		if (existPandasFunction || existGeneralPythonFunction) {
-			if (existPandasFunction) {
-				throw new TableException("Pandas UDAFs are not supported in streaming mode currently.");
-			}
-			if (existJavaUserDefinedFunction) {
-				throw new TableException("Python UDAF and Java/Scala UDAF cannot be used together.");
-			}
-			return true;
-		} else {
-			return false;
-		}
-	}
+        List<AggregateCall> aggCalls = agg.getAggCallList();
+        boolean existGeneralPythonFunction =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
+        boolean existPandasFunction =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
+        boolean existJavaUserDefinedFunction =
+                aggCalls.stream()
+                        .anyMatch(
+                                x ->
+                                        !PythonUtil.isPythonAggregate(x, null)
+                                                && !PythonUtil.isBuiltInAggregate(x));
+        if (existPandasFunction || existGeneralPythonFunction) {
+            if (existPandasFunction) {
+                throw new TableException(
+                        "Pandas UDAFs are not supported in streaming mode currently.");
+            }
+            if (existJavaUserDefinedFunction) {
+                throw new TableException(
+                        "Python UDAF and Java/Scala UDAF cannot be used together.");
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public RelNode convert(RelNode rel) {
-		FlinkLogicalAggregate agg = (FlinkLogicalAggregate) rel;
-		FlinkRelDistribution requiredDistribution;
-		if (agg.getGroupCount() != 0) {
-			requiredDistribution = FlinkRelDistribution.hash(agg.getGroupSet().asList(), true);
-		} else {
-			requiredDistribution = FlinkRelDistribution.SINGLETON();
-		}
+    @Override
+    public RelNode convert(RelNode rel) {
+        FlinkLogicalAggregate agg = (FlinkLogicalAggregate) rel;
+        FlinkRelDistribution requiredDistribution;
+        if (agg.getGroupCount() != 0) {
+            requiredDistribution = FlinkRelDistribution.hash(agg.getGroupSet().asList(), true);
+        } else {
+            requiredDistribution = FlinkRelDistribution.SINGLETON();
+        }
 
-		RelTraitSet requiredTraitSet = rel.getCluster().getPlanner().emptyTraitSet()
-			.replace(requiredDistribution)
-			.replace(FlinkConventions.STREAM_PHYSICAL());
+        RelTraitSet requiredTraitSet =
+                rel.getCluster()
+                        .getPlanner()
+                        .emptyTraitSet()
+                        .replace(requiredDistribution)
+                        .replace(FlinkConventions.STREAM_PHYSICAL());
 
-		RelTraitSet providedTraitSet = rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
-		RelNode newInput = RelOptRule.convert(agg.getInput(), requiredTraitSet);
+        RelTraitSet providedTraitSet =
+                rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
+        RelNode newInput = RelOptRule.convert(agg.getInput(), requiredTraitSet);
 
-		return new StreamExecPythonGroupAggregate(
-			rel.getCluster(),
-			providedTraitSet,
-			newInput,
-			rel.getRowType(),
-			agg.getGroupSet().toArray(),
-			JavaConverters.asScalaIteratorConverter(agg.getAggCallList().iterator()).asScala().toSeq());
-	}
+        return new StreamExecPythonGroupAggregate(
+                rel.getCluster(),
+                providedTraitSet,
+                newInput,
+                rel.getRowType(),
+                agg.getGroupSet().toArray(),
+                JavaConverters.asScalaIteratorConverter(agg.getAggCallList().iterator())
+                        .asScala()
+                        .toSeq());
+    }
 }

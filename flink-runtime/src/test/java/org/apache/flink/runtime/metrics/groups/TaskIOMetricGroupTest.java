@@ -27,41 +27,39 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Tests for the {@link TaskIOMetricGroup}.
- */
+/** Tests for the {@link TaskIOMetricGroup}. */
 public class TaskIOMetricGroupTest {
-	@Test
-	public void testTaskIOMetricGroup() {
-		TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
-		TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+    @Test
+    public void testTaskIOMetricGroup() {
+        TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
 
-		// test counter forwarding
-		assertNotNull(taskIO.getNumRecordsInCounter());
-		assertNotNull(taskIO.getNumRecordsOutCounter());
+        // test counter forwarding
+        assertNotNull(taskIO.getNumRecordsInCounter());
+        assertNotNull(taskIO.getNumRecordsOutCounter());
 
-		Counter c1 = new SimpleCounter();
-		c1.inc(32L);
-		Counter c2 = new SimpleCounter();
-		c2.inc(64L);
+        Counter c1 = new SimpleCounter();
+        c1.inc(32L);
+        Counter c2 = new SimpleCounter();
+        c2.inc(64L);
 
-		taskIO.reuseRecordsInputCounter(c1);
-		taskIO.reuseRecordsOutputCounter(c2);
-		assertEquals(32L, taskIO.getNumRecordsInCounter().getCount());
-		assertEquals(64L, taskIO.getNumRecordsOutCounter().getCount());
+        taskIO.reuseRecordsInputCounter(c1);
+        taskIO.reuseRecordsOutputCounter(c2);
+        assertEquals(32L, taskIO.getNumRecordsInCounter().getCount());
+        assertEquals(64L, taskIO.getNumRecordsOutCounter().getCount());
 
-		// test IOMetrics instantiation
-		taskIO.getNumBytesInCounter().inc(100L);
-		taskIO.getNumBytesOutCounter().inc(250L);
-		taskIO.getNumBuffersOutCounter().inc(3L);
-		taskIO.getIdleTimeMsPerSecond().markEvent(2L);
+        // test IOMetrics instantiation
+        taskIO.getNumBytesInCounter().inc(100L);
+        taskIO.getNumBytesOutCounter().inc(250L);
+        taskIO.getNumBuffersOutCounter().inc(3L);
+        taskIO.getIdleTimeMsPerSecond().markEvent(2L);
 
-		IOMetrics io = taskIO.createSnapshot();
-		assertEquals(32L, io.getNumRecordsIn());
-		assertEquals(64L, io.getNumRecordsOut());
-		assertEquals(100L, io.getNumBytesIn());
-		assertEquals(250L, io.getNumBytesOut());
-		assertEquals(3L, taskIO.getNumBuffersOutCounter().getCount());
-		assertEquals(2L, taskIO.getIdleTimeMsPerSecond().getCount());
-	}
+        IOMetrics io = taskIO.createSnapshot();
+        assertEquals(32L, io.getNumRecordsIn());
+        assertEquals(64L, io.getNumRecordsOut());
+        assertEquals(100L, io.getNumBytesIn());
+        assertEquals(250L, io.getNumBytesOut());
+        assertEquals(3L, taskIO.getNumBuffersOutCounter().getCount());
+        assertEquals(2L, taskIO.getIdleTimeMsPerSecond().getCount());
+    }
 }

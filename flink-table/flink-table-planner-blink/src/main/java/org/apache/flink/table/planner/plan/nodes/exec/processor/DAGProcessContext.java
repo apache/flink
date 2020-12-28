@@ -20,23 +20,21 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
 import org.apache.flink.table.planner.delegation.PlannerBase;
 
-/**
- * Context for processors to process dag.
- */
+/** Context for processors to process dag. */
 public class DAGProcessContext {
 
-	private final PlannerBase planner;
+    private final PlannerBase planner;
 
-	public DAGProcessContext(PlannerBase planner) {
-		this.planner = planner;
-	}
+    public DAGProcessContext(PlannerBase planner) {
+        this.planner = planner;
+    }
 
-	/**
-	 * Gets {@link PlannerBase}, {@link org.apache.flink.table.planner.delegation.BatchPlanner} for batch job.
-	 * and {@link org.apache.flink.table.planner.delegation.StreamPlanner} for stream job.
-	 */
-	public PlannerBase getPlanner() {
-		return planner;
-	}
-
+    /**
+     * Gets {@link PlannerBase}, {@link org.apache.flink.table.planner.delegation.BatchPlanner} for
+     * batch job. and {@link org.apache.flink.table.planner.delegation.StreamPlanner} for stream
+     * job.
+     */
+    public PlannerBase getPlanner() {
+        return planner;
+    }
 }

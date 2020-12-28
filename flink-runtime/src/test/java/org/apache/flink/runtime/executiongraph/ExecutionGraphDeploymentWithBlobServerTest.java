@@ -48,59 +48,63 @@ import static org.mockito.Mockito.doAnswer;
  */
 public class ExecutionGraphDeploymentWithBlobServerTest extends ExecutionGraphDeploymentTest {
 
-	private Set<byte[]> seenHashes = Collections.newSetFromMap(new ConcurrentHashMap<byte[], Boolean>());
+    private Set<byte[]> seenHashes =
+            Collections.newSetFromMap(new ConcurrentHashMap<byte[], Boolean>());
 
-	protected BlobServer blobServer = null;
+    protected BlobServer blobServer = null;
 
-	@Before
-	public void setupBlobServer() throws IOException {
-		Configuration config = new Configuration();
-		// always offload the serialized job and task information
-		config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
-		blobServer = Mockito.spy(new BlobServer(config, new VoidBlobStore()));
-		blobWriter = blobServer;
-		blobCache = blobServer;
+    @Before
+    public void setupBlobServer() throws IOException {
+        Configuration config = new Configuration();
+        // always offload the serialized job and task information
+        config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
+        blobServer = Mockito.spy(new BlobServer(config, new VoidBlobStore()));
+        blobWriter = blobServer;
+        blobCache = blobServer;
 
-		seenHashes.clear();
+        seenHashes.clear();
 
-		// verify that we do not upload the same content more than once
-		doAnswer(
-			invocation -> {
-				PermanentBlobKey key = (PermanentBlobKey) invocation.callRealMethod();
+        // verify that we do not upload the same content more than once
+        doAnswer(
+                        invocation -> {
+                            PermanentBlobKey key = (PermanentBlobKey) invocation.callRealMethod();
 
-				assertTrue(seenHashes.add(key.getHash()));
+                            assertTrue(seenHashes.add(key.getHash()));
 
-				return key;
-			}
-		).when(blobServer).putPermanent(any(JobID.class), Matchers.<byte[]>any());
+                            return key;
+                        })
+                .when(blobServer)
+                .putPermanent(any(JobID.class), Matchers.<byte[]>any());
 
-		blobServer.start();
-	}
+        blobServer.start();
+    }
 
-	@After
-	public void shutdownBlobServer() throws IOException {
-		if (blobServer != null) {
-			blobServer.close();
-		}
-	}
+    @After
+    public void shutdownBlobServer() throws IOException {
+        if (blobServer != null) {
+            blobServer.close();
+        }
+    }
 
-	@Override
-	protected void checkJobOffloaded(ExecutionGraph eg) throws Exception {
-		Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey = eg.getJobInformationOrBlobKey();
+    @Override
+    protected void checkJobOffloaded(ExecutionGraph eg) throws Exception {
+        Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey =
+                eg.getJobInformationOrBlobKey();
 
-		assertTrue(jobInformationOrBlobKey.isRight());
+        assertTrue(jobInformationOrBlobKey.isRight());
 
-		// must not throw:
-		blobServer.getFile(eg.getJobID(), jobInformationOrBlobKey.right());
-	}
+        // must not throw:
+        blobServer.getFile(eg.getJobID(), jobInformationOrBlobKey.right());
+    }
 
-	@Override
-	protected void checkTaskOffloaded(ExecutionGraph eg, JobVertexID jobVertexId) throws Exception {
-		Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey = eg.getJobVertex(jobVertexId).getTaskInformationOrBlobKey();
+    @Override
+    protected void checkTaskOffloaded(ExecutionGraph eg, JobVertexID jobVertexId) throws Exception {
+        Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey =
+                eg.getJobVertex(jobVertexId).getTaskInformationOrBlobKey();
 
-		assertTrue(taskInformationOrBlobKey.isRight());
+        assertTrue(taskInformationOrBlobKey.isRight());
 
-		// must not throw:
-		blobServer.getFile(eg.getJobID(), taskInformationOrBlobKey.right());
-	}
+        // must not throw:
+        blobServer.getFile(eg.getJobID(), taskInformationOrBlobKey.right());
+    }
 }

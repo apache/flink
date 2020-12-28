@@ -20,13 +20,11 @@ package org.apache.flink.formats.csv;
 
 import org.apache.flink.table.planner.runtime.stream.sql.FileCompactionITCaseBase;
 
-/**
- * Compaction it case for csv.
- */
+/** Compaction it case for csv. */
 public class CsvFileCompactionITCase extends FileCompactionITCaseBase {
 
-	@Override
-	protected String format() {
-		return "csv";
-	}
+    @Override
+    protected String format() {
+        return "csv";
+    }
 }

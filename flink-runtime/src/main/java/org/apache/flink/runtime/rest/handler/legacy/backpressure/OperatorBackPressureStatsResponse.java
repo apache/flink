@@ -23,26 +23,24 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Optional;
 
-/**
- * Wrapper for {@link OperatorBackPressureStats}.
- */
+/** Wrapper for {@link OperatorBackPressureStats}. */
 public class OperatorBackPressureStatsResponse implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Nullable
-	private final OperatorBackPressureStats operatorBackPressureStats;
+    @Nullable private final OperatorBackPressureStats operatorBackPressureStats;
 
-	private OperatorBackPressureStatsResponse(@Nullable final OperatorBackPressureStats operatorBackPressureStats) {
-		this.operatorBackPressureStats = operatorBackPressureStats;
-	}
+    private OperatorBackPressureStatsResponse(
+            @Nullable final OperatorBackPressureStats operatorBackPressureStats) {
+        this.operatorBackPressureStats = operatorBackPressureStats;
+    }
 
-	public static OperatorBackPressureStatsResponse of(@Nullable final OperatorBackPressureStats operatorBackPressureStats) {
-		return new OperatorBackPressureStatsResponse(operatorBackPressureStats);
-	}
+    public static OperatorBackPressureStatsResponse of(
+            @Nullable final OperatorBackPressureStats operatorBackPressureStats) {
+        return new OperatorBackPressureStatsResponse(operatorBackPressureStats);
+    }
 
-	public Optional<OperatorBackPressureStats> getOperatorBackPressureStats() {
-		return Optional.ofNullable(operatorBackPressureStats);
-	}
-
+    public Optional<OperatorBackPressureStats> getOperatorBackPressureStats() {
+        return Optional.ofNullable(operatorBackPressureStats);
+    }
 }

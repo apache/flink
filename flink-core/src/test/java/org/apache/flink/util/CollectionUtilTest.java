@@ -25,19 +25,20 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * Tests for java collection utilities.
- */
+/** Tests for java collection utilities. */
 public class CollectionUtilTest {
 
-	@Test
-	public void testPartition() {
-		List<Integer> list = Arrays.asList(1, 2, 3, 4);
-		Collection<List<Integer>> partitioned = CollectionUtil.partition(list, 4);
+    @Test
+    public void testPartition() {
+        List<Integer> list = Arrays.asList(1, 2, 3, 4);
+        Collection<List<Integer>> partitioned = CollectionUtil.partition(list, 4);
 
-		Assert.assertEquals("List partitioned into the an incorrect number of partitions", 4, partitioned.size());
-		for (List<Integer> partition : partitioned) {
-			Assert.assertEquals("Unexpected number of elements in partition", 1, partition.size());
-		}
-	}
+        Assert.assertEquals(
+                "List partitioned into the an incorrect number of partitions",
+                4,
+                partitioned.size());
+        for (List<Integer> partition : partitioned) {
+            Assert.assertEquals("Unexpected number of elements in partition", 1, partition.size());
+        }
+    }
 }

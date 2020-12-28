@@ -44,158 +44,170 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the SlotPoolImpl interactions.
- */
+/** Tests for the SlotPoolImpl interactions. */
 public class SlotPoolInteractionsTest extends TestLogger {
 
-	private static final Time fastTimeout = Time.milliseconds(1L);
+    private static final Time fastTimeout = Time.milliseconds(1L);
 
-	@ClassRule
-	public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
-		new TestingComponentMainThreadExecutor.Resource(10L);
+    @ClassRule
+    public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
+            new TestingComponentMainThreadExecutor.Resource(10L);
 
-	private final TestingComponentMainThreadExecutor testMainThreadExecutor =
-		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
+    private final TestingComponentMainThreadExecutor testMainThreadExecutor =
+            EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
-	// ------------------------------------------------------------------------
-	//  tests
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  tests
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void testSlotAllocationNoResourceManager() throws Exception {
+    @Test
+    public void testSlotAllocationNoResourceManager() throws Exception {
 
-		try (SlotPool pool = createAndSetUpSlotPoolWithoutResourceManager()) {
+        try (SlotPool pool = createAndSetUpSlotPoolWithoutResourceManager()) {
 
-			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
-				new SlotRequestId(),
-				ResourceProfile.UNKNOWN,
-				fastTimeout));
+            final CompletableFuture<PhysicalSlot> future =
+                    testMainThreadExecutor.execute(
+                            () ->
+                                    pool.requestNewAllocatedSlot(
+                                            new SlotRequestId(),
+                                            ResourceProfile.UNKNOWN,
+                                            fastTimeout));
 
-			try {
-				future.get();
-				fail("We expected an ExecutionException.");
-			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
-			}
-		}
-	}
+            try {
+                future.get();
+                fail("We expected an ExecutionException.");
+            } catch (ExecutionException e) {
+                assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
+            }
+        }
+    }
 
-	@Test
-	public void testCancelSlotAllocationWithoutResourceManager() throws Exception {
+    @Test
+    public void testCancelSlotAllocationWithoutResourceManager() throws Exception {
 
-		try (TestingSlotPoolImpl pool = createAndSetUpSlotPoolWithoutResourceManager()) {
+        try (TestingSlotPoolImpl pool = createAndSetUpSlotPoolWithoutResourceManager()) {
 
-			final CompletableFuture<SlotRequestId> timeoutFuture = new CompletableFuture<>();
-			pool.setTimeoutPendingSlotRequestConsumer(timeoutFuture::complete);
+            final CompletableFuture<SlotRequestId> timeoutFuture = new CompletableFuture<>();
+            pool.setTimeoutPendingSlotRequestConsumer(timeoutFuture::complete);
 
-			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
-				new SlotRequestId(),
-				ResourceProfile.UNKNOWN,
-				fastTimeout));
+            final CompletableFuture<PhysicalSlot> future =
+                    testMainThreadExecutor.execute(
+                            () ->
+                                    pool.requestNewAllocatedSlot(
+                                            new SlotRequestId(),
+                                            ResourceProfile.UNKNOWN,
+                                            fastTimeout));
 
-			try {
-				future.get();
-				fail("We expected a TimeoutException.");
-			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
-			}
+            try {
+                future.get();
+                fail("We expected a TimeoutException.");
+            } catch (ExecutionException e) {
+                assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
+            }
 
-			// wait for the timeout of the pending slot request
-			timeoutFuture.get();
+            // wait for the timeout of the pending slot request
+            timeoutFuture.get();
 
-			assertEquals(0L, pool.getNumberOfWaitingForResourceRequests());
-		}
-	}
+            assertEquals(0L, pool.getNumberOfWaitingForResourceRequests());
+        }
+    }
 
-	/**
-	 * Tests that a slot allocation times out wrt to the specified time out.
-	 */
-	@Test
-	public void testSlotAllocationTimeout() throws Exception {
+    /** Tests that a slot allocation times out wrt to the specified time out. */
+    @Test
+    public void testSlotAllocationTimeout() throws Exception {
 
-		try (TestingSlotPoolImpl pool = createAndSetUpSlotPool()) {
+        try (TestingSlotPoolImpl pool = createAndSetUpSlotPool()) {
 
-			final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture = new CompletableFuture<>();
-			pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
+            final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture =
+                    new CompletableFuture<>();
+            pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
 
-			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
-				new SlotRequestId(),
-				ResourceProfile.UNKNOWN,
-				fastTimeout));
+            final CompletableFuture<PhysicalSlot> future =
+                    testMainThreadExecutor.execute(
+                            () ->
+                                    pool.requestNewAllocatedSlot(
+                                            new SlotRequestId(),
+                                            ResourceProfile.UNKNOWN,
+                                            fastTimeout));
 
-			try {
-				future.get();
-				fail("We expected a TimeoutException.");
-			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
-			}
+            try {
+                future.get();
+                fail("We expected a TimeoutException.");
+            } catch (ExecutionException e) {
+                assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
+            }
 
-			// wait until we have timed out the slot request
-			slotRequestTimeoutFuture.get();
+            // wait until we have timed out the slot request
+            slotRequestTimeoutFuture.get();
 
-			assertEquals(0L, pool.getNumberOfPendingRequests());
-		}
-	}
+            assertEquals(0L, pool.getNumberOfPendingRequests());
+        }
+    }
 
-	/**
-	 * Tests that extra slots are kept by the {@link SlotPoolImpl}.
-	 */
-	@Test
-	public void testExtraSlotsAreKept() throws Exception {
-		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+    /** Tests that extra slots are kept by the {@link SlotPoolImpl}. */
+    @Test
+    public void testExtraSlotsAreKept() throws Exception {
+        final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
 
-		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-		resourceManagerGateway.setRequestSlotConsumer(
-			(SlotRequest slotRequest) -> allocationIdFuture.complete(slotRequest.getAllocationId()));
+        TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+        resourceManagerGateway.setRequestSlotConsumer(
+                (SlotRequest slotRequest) ->
+                        allocationIdFuture.complete(slotRequest.getAllocationId()));
 
-		try (TestingSlotPoolImpl pool = new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
-				.setResourceManagerGateway(resourceManagerGateway)
-				.build()) {
+        try (TestingSlotPoolImpl pool =
+                new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
+                        .setResourceManagerGateway(resourceManagerGateway)
+                        .build()) {
 
-			final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture = new CompletableFuture<>();
-			pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
+            final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture =
+                    new CompletableFuture<>();
+            pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
 
-			final CompletableFuture<PhysicalSlot> future = testMainThreadExecutor.execute(() -> pool.requestNewAllocatedSlot(
-				new SlotRequestId(),
-				ResourceProfile.UNKNOWN,
-				fastTimeout));
+            final CompletableFuture<PhysicalSlot> future =
+                    testMainThreadExecutor.execute(
+                            () ->
+                                    pool.requestNewAllocatedSlot(
+                                            new SlotRequestId(),
+                                            ResourceProfile.UNKNOWN,
+                                            fastTimeout));
 
-			try {
-				future.get();
-				fail("We expected a TimeoutException.");
-			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
-			}
+            try {
+                future.get();
+                fail("We expected a TimeoutException.");
+            } catch (ExecutionException e) {
+                assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
+            }
 
-			// wait until we have timed out the slot request
-			slotRequestTimeoutFuture.get();
+            // wait until we have timed out the slot request
+            slotRequestTimeoutFuture.get();
 
-			assertEquals(0L, pool.getNumberOfPendingRequests());
+            assertEquals(0L, pool.getNumberOfPendingRequests());
 
-			AllocationID allocationId = allocationIdFuture.get();
-			final SlotOffer slotOffer = new SlotOffer(
-				allocationId,
-				0,
-				ResourceProfile.ANY);
-			final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-			final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+            AllocationID allocationId = allocationIdFuture.get();
+            final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.ANY);
+            final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+            final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
-			testMainThreadExecutor.execute(() -> pool.registerTaskManager(taskManagerLocation.getResourceID()));
+            testMainThreadExecutor.execute(
+                    () -> pool.registerTaskManager(taskManagerLocation.getResourceID()));
 
-			assertTrue(testMainThreadExecutor.execute(() -> pool.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer)));
+            assertTrue(
+                    testMainThreadExecutor.execute(
+                            () ->
+                                    pool.offerSlot(
+                                            taskManagerLocation, taskManagerGateway, slotOffer)));
 
-			assertTrue(pool.containsAvailableSlot(allocationId));
-		}
-	}
+            assertTrue(pool.containsAvailableSlot(allocationId));
+        }
+    }
 
-	private TestingSlotPoolImpl createAndSetUpSlotPool() throws Exception {
-		return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor()).build();
-	}
+    private TestingSlotPoolImpl createAndSetUpSlotPool() throws Exception {
+        return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor()).build();
+    }
 
-	private TestingSlotPoolImpl createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
-		return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
-			.setResourceManagerGateway(null)
-			.build();
-	}
+    private TestingSlotPoolImpl createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
+        return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
+                .setResourceManagerGateway(null)
+                .build();
+    }
 }

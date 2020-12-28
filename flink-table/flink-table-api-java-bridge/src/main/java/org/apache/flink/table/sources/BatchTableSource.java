@@ -21,20 +21,20 @@ package org.apache.flink.table.sources;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-/** Defines an external batch table and provides access to its data.
+/**
+ * Defines an external batch table and provides access to its data.
  *
  * @param <T> Type of the {@link DataSet} created by this {@link TableSource}.
- *
  * @deprecated use {@link InputFormatTableSource} instead.
  */
 @Deprecated
 public interface BatchTableSource<T> extends TableSource<T> {
 
-	/**
-	 * Returns the data of the table as a {@link DataSet}.
-	 *
-	 *<p>NOTE: This method is for internal use only for defining a {@link TableSource}.
-	 *       Do not use it in Table API programs.
-	 */
-	DataSet<T> getDataSet(ExecutionEnvironment execEnv);
+    /**
+     * Returns the data of the table as a {@link DataSet}.
+     *
+     * <p>NOTE: This method is for internal use only for defining a {@link TableSource}. Do not use
+     * it in Table API programs.
+     */
+    DataSet<T> getDataSet(ExecutionEnvironment execEnv);
 }

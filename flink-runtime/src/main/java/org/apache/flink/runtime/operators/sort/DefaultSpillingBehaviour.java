@@ -30,37 +30,37 @@ import java.io.IOException;
  */
 final class DefaultSpillingBehaviour<R> implements SpillingThread.SpillingBehaviour<R> {
 
-	private final boolean objectReuseEnabled;
-	private final TypeSerializer<R> serializer;
+    private final boolean objectReuseEnabled;
+    private final TypeSerializer<R> serializer;
 
-	DefaultSpillingBehaviour(boolean objectReuseEnabled, TypeSerializer<R> serializer) {
-		this.objectReuseEnabled = objectReuseEnabled;
-		this.serializer = serializer;
-	}
+    DefaultSpillingBehaviour(boolean objectReuseEnabled, TypeSerializer<R> serializer) {
+        this.objectReuseEnabled = objectReuseEnabled;
+        this.serializer = serializer;
+    }
 
-	@Override
-	public void spillBuffer(
-			CircularElement<R> element,
-			ChannelWriterOutputView output,
-			LargeRecordHandler<R> largeRecordHandler) throws IOException {
-		element.getBuffer().writeToOutput(output, largeRecordHandler);
-	}
+    @Override
+    public void spillBuffer(
+            CircularElement<R> element,
+            ChannelWriterOutputView output,
+            LargeRecordHandler<R> largeRecordHandler)
+            throws IOException {
+        element.getBuffer().writeToOutput(output, largeRecordHandler);
+    }
 
-	@Override
-	public void mergeRecords(
-		MergeIterator<R> mergeIterator,
-		ChannelWriterOutputView output) throws IOException {
-		// read the merged stream and write the data back
-		if (objectReuseEnabled) {
-			R rec = serializer.createInstance();
-			while ((rec = mergeIterator.next(rec)) != null) {
-				serializer.serialize(rec, output);
-			}
-		} else {
-			R rec;
-			while ((rec = mergeIterator.next()) != null) {
-				serializer.serialize(rec, output);
-			}
-		}
-	}
+    @Override
+    public void mergeRecords(MergeIterator<R> mergeIterator, ChannelWriterOutputView output)
+            throws IOException {
+        // read the merged stream and write the data back
+        if (objectReuseEnabled) {
+            R rec = serializer.createInstance();
+            while ((rec = mergeIterator.next(rec)) != null) {
+                serializer.serialize(rec, output);
+            }
+        } else {
+            R rec;
+            while ((rec = mergeIterator.next()) != null) {
+                serializer.serialize(rec, output);
+            }
+        }
+    }
 }

@@ -20,18 +20,12 @@ package org.apache.flink.table.data.vector.writable;
 
 import org.apache.flink.table.data.vector.ByteColumnVector;
 
-/**
- * Writable {@link ByteColumnVector}.
- */
+/** Writable {@link ByteColumnVector}. */
 public interface WritableByteVector extends WritableColumnVector, ByteColumnVector {
 
-	/**
-	 * Set byte at rowId with the provided value.
-	 */
-	void setByte(int rowId, byte value);
+    /** Set byte at rowId with the provided value. */
+    void setByte(int rowId, byte value);
 
-	/**
-	 * Fill the column vector with the provided value.
-	 */
-	void fill(byte value);
+    /** Fill the column vector with the provided value. */
+    void fill(byte value);
 }

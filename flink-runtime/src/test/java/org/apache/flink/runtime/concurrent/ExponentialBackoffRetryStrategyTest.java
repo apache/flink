@@ -26,49 +26,52 @@ import java.time.Duration;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link ExponentialBackoffRetryStrategy}.
- */
+/** Tests for {@link ExponentialBackoffRetryStrategy}. */
 public class ExponentialBackoffRetryStrategyTest extends TestLogger {
 
-	@Test
-	public void testGettersNotCapped() throws Exception {
-		RetryStrategy retryStrategy = new ExponentialBackoffRetryStrategy(10, Duration.ofMillis(5L), Duration.ofMillis(20L));
-		assertEquals(10, retryStrategy.getNumRemainingRetries());
-		assertEquals(Duration.ofMillis(5L), retryStrategy.getRetryDelay());
+    @Test
+    public void testGettersNotCapped() throws Exception {
+        RetryStrategy retryStrategy =
+                new ExponentialBackoffRetryStrategy(
+                        10, Duration.ofMillis(5L), Duration.ofMillis(20L));
+        assertEquals(10, retryStrategy.getNumRemainingRetries());
+        assertEquals(Duration.ofMillis(5L), retryStrategy.getRetryDelay());
 
-		RetryStrategy nextRetryStrategy = retryStrategy.getNextRetryStrategy();
-		assertEquals(9, nextRetryStrategy.getNumRemainingRetries());
-		assertEquals(Duration.ofMillis(10L), nextRetryStrategy.getRetryDelay());
-	}
+        RetryStrategy nextRetryStrategy = retryStrategy.getNextRetryStrategy();
+        assertEquals(9, nextRetryStrategy.getNumRemainingRetries());
+        assertEquals(Duration.ofMillis(10L), nextRetryStrategy.getRetryDelay());
+    }
 
-	@Test
-	public void testGettersHitCapped() throws Exception {
-		RetryStrategy retryStrategy = new ExponentialBackoffRetryStrategy(5, Duration.ofMillis(15L), Duration.ofMillis(20L));
-		assertEquals(5, retryStrategy.getNumRemainingRetries());
-		assertEquals(Duration.ofMillis(15L), retryStrategy.getRetryDelay());
+    @Test
+    public void testGettersHitCapped() throws Exception {
+        RetryStrategy retryStrategy =
+                new ExponentialBackoffRetryStrategy(
+                        5, Duration.ofMillis(15L), Duration.ofMillis(20L));
+        assertEquals(5, retryStrategy.getNumRemainingRetries());
+        assertEquals(Duration.ofMillis(15L), retryStrategy.getRetryDelay());
 
-		RetryStrategy nextRetryStrategy = retryStrategy.getNextRetryStrategy();
-		assertEquals(4, nextRetryStrategy.getNumRemainingRetries());
-		assertEquals(Duration.ofMillis(20L), nextRetryStrategy.getRetryDelay());
-	}
+        RetryStrategy nextRetryStrategy = retryStrategy.getNextRetryStrategy();
+        assertEquals(4, nextRetryStrategy.getNumRemainingRetries());
+        assertEquals(Duration.ofMillis(20L), nextRetryStrategy.getRetryDelay());
+    }
 
-	@Test
-	public void testGettersAtCap() throws Exception {
-		RetryStrategy retryStrategy = new ExponentialBackoffRetryStrategy(5, Duration.ofMillis(20L), Duration.ofMillis(20L));
-		assertEquals(5, retryStrategy.getNumRemainingRetries());
-		assertEquals(Duration.ofMillis(20L), retryStrategy.getRetryDelay());
+    @Test
+    public void testGettersAtCap() throws Exception {
+        RetryStrategy retryStrategy =
+                new ExponentialBackoffRetryStrategy(
+                        5, Duration.ofMillis(20L), Duration.ofMillis(20L));
+        assertEquals(5, retryStrategy.getNumRemainingRetries());
+        assertEquals(Duration.ofMillis(20L), retryStrategy.getRetryDelay());
 
-		RetryStrategy nextRetryStrategy = retryStrategy.getNextRetryStrategy();
-		assertEquals(4, nextRetryStrategy.getNumRemainingRetries());
-		assertEquals(Duration.ofMillis(20L), nextRetryStrategy.getRetryDelay());
-	}
+        RetryStrategy nextRetryStrategy = retryStrategy.getNextRetryStrategy();
+        assertEquals(4, nextRetryStrategy.getNumRemainingRetries());
+        assertEquals(Duration.ofMillis(20L), nextRetryStrategy.getRetryDelay());
+    }
 
-	/**
-	 * Tests that getting a next RetryStrategy below zero remaining retries fails.
-	 */
-	@Test(expected = IllegalStateException.class)
-	public void testRetryFailure() throws Throwable {
-		new ExponentialBackoffRetryStrategy(0, Duration.ofMillis(20L), Duration.ofMillis(20L)).getNextRetryStrategy();
-	}
+    /** Tests that getting a next RetryStrategy below zero remaining retries fails. */
+    @Test(expected = IllegalStateException.class)
+    public void testRetryFailure() throws Throwable {
+        new ExponentialBackoffRetryStrategy(0, Duration.ofMillis(20L), Duration.ofMillis(20L))
+                .getNextRetryStrategy();
+    }
 }

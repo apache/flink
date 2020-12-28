@@ -21,51 +21,34 @@ package org.apache.flink.table.data.vector.writable;
 import org.apache.flink.table.data.vector.ColumnVector;
 import org.apache.flink.table.data.vector.Dictionary;
 
-/**
- * Writable {@link ColumnVector}.
- */
+/** Writable {@link ColumnVector}. */
 public interface WritableColumnVector extends ColumnVector {
 
-	/**
-	 * Resets the column to default state.
-	 */
-	void reset();
+    /** Resets the column to default state. */
+    void reset();
 
-	/**
-	 * Set null at rowId.
-	 */
-	void setNullAt(int rowId);
+    /** Set null at rowId. */
+    void setNullAt(int rowId);
 
-	/**
-	 * Set nulls from rowId to rowId + count (exclude).
-	 */
-	void setNulls(int rowId, int count);
+    /** Set nulls from rowId to rowId + count (exclude). */
+    void setNulls(int rowId, int count);
 
-	/**
-	 * Fill the column vector with nulls.
-	 */
-	void fillWithNulls();
+    /** Fill the column vector with nulls. */
+    void fillWithNulls();
 
-	/**
-	 * Set the dictionary, it should work with dictionary ids.
-	 */
-	void setDictionary(Dictionary dictionary);
+    /** Set the dictionary, it should work with dictionary ids. */
+    void setDictionary(Dictionary dictionary);
 
-	/**
-	 * Check if there's a dictionary.
-	 */
-	boolean hasDictionary();
+    /** Check if there's a dictionary. */
+    boolean hasDictionary();
 
-	/**
-	 * Reserve a integer column for ids of dictionary. The size of return {@link WritableIntVector}
-	 * should be equal to or bigger than capacity.
-	 * DictionaryIds must inconsistent with {@link #setDictionary}. We don't support a mix of
-	 * dictionary.
-	 */
-	WritableIntVector reserveDictionaryIds(int capacity);
+    /**
+     * Reserve a integer column for ids of dictionary. The size of return {@link WritableIntVector}
+     * should be equal to or bigger than capacity. DictionaryIds must inconsistent with {@link
+     * #setDictionary}. We don't support a mix of dictionary.
+     */
+    WritableIntVector reserveDictionaryIds(int capacity);
 
-	/**
-	 * Get reserved dictionary ids.
-	 */
-	WritableIntVector getDictionaryIds();
+    /** Get reserved dictionary ids. */
+    WritableIntVector getDictionaryIds();
 }

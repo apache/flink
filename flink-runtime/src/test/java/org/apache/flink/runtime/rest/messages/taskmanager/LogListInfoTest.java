@@ -26,20 +26,19 @@ import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 import java.util.Arrays;
 
-/**
- * Tests for (un)marshalling of {@link LogListInfo}.
- */
+/** Tests for (un)marshalling of {@link LogListInfo}. */
 public class LogListInfoTest extends RestResponseMarshallingTestBase {
 
-	@Override
-	protected Class getTestResponseClass() {
-		return LogListInfo.class;
-	}
+    @Override
+    protected Class getTestResponseClass() {
+        return LogListInfo.class;
+    }
 
-	@Override
-	protected ResponseBody getTestResponseInstance() throws Exception {
-		return new LogListInfo(Arrays.asList(
-			new LogInfo("taskmanager.log", 0),
-			new LogInfo("taskmanager.out", Integer.MAX_VALUE)));
-	}
+    @Override
+    protected ResponseBody getTestResponseInstance() throws Exception {
+        return new LogListInfo(
+                Arrays.asList(
+                        new LogInfo("taskmanager.log", 0),
+                        new LogInfo("taskmanager.out", Integer.MAX_VALUE)));
+    }
 }

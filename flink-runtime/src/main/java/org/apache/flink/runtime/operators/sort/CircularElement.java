@@ -22,68 +22,62 @@ import org.apache.flink.core.memory.MemorySegment;
 
 import java.util.List;
 
-/**
- * Class representing buffers that circulate between the reading, sorting and spilling stages.
- */
+/** Class representing buffers that circulate between the reading, sorting and spilling stages. */
 final class CircularElement<E> {
 
-	private final int id;
-	private final InMemorySorter<E> buffer;
-	private final List<MemorySegment> memory;
+    private final int id;
+    private final InMemorySorter<E> buffer;
+    private final List<MemorySegment> memory;
 
-	public CircularElement(int id) {
-		this.id = id;
-		this.buffer = null;
-		this.memory = null;
-	}
+    public CircularElement(int id) {
+        this.id = id;
+        this.buffer = null;
+        this.memory = null;
+    }
 
-	public CircularElement(int id, InMemorySorter<E> buffer, List<MemorySegment> memory) {
-		this.id = id;
-		this.buffer = buffer;
-		this.memory = memory;
-	}
+    public CircularElement(int id, InMemorySorter<E> buffer, List<MemorySegment> memory) {
+        this.id = id;
+        this.buffer = buffer;
+        this.memory = memory;
+    }
 
-	public int getId() {
-		return id;
-	}
+    public int getId() {
+        return id;
+    }
 
-	public InMemorySorter<E> getBuffer() {
-		return buffer;
-	}
+    public InMemorySorter<E> getBuffer() {
+        return buffer;
+    }
 
-	public List<MemorySegment> getMemory() {
-		return memory;
-	}
+    public List<MemorySegment> getMemory() {
+        return memory;
+    }
 
-	/**
-	 * The element that is passed as marker for the end of data.
-	 */
-	static final CircularElement<Object> EOF_MARKER = new CircularElement<>(-1);
+    /** The element that is passed as marker for the end of data. */
+    static final CircularElement<Object> EOF_MARKER = new CircularElement<>(-1);
 
-	/**
-	 * The element that is passed as marker for signal beginning of spilling.
-	 */
-	static final CircularElement<Object> SPILLING_MARKER = new CircularElement<>(-2);
+    /** The element that is passed as marker for signal beginning of spilling. */
+    static final CircularElement<Object> SPILLING_MARKER = new CircularElement<>(-2);
 
-	/**
-	 * Gets the element that is passed as marker for the end of data.
-	 *
-	 * @return The element that is passed as marker for the end of data.
-	 */
-	static <T> CircularElement<T> endMarker() {
-		@SuppressWarnings("unchecked")
-		CircularElement<T> c = (CircularElement<T>) EOF_MARKER;
-		return c;
-	}
+    /**
+     * Gets the element that is passed as marker for the end of data.
+     *
+     * @return The element that is passed as marker for the end of data.
+     */
+    static <T> CircularElement<T> endMarker() {
+        @SuppressWarnings("unchecked")
+        CircularElement<T> c = (CircularElement<T>) EOF_MARKER;
+        return c;
+    }
 
-	/**
-	 * Gets the element that is passed as marker for signal beginning of spilling.
-	 *
-	 * @return The element that is passed as marker for signal beginning of spilling.
-	 */
-	static <T> CircularElement<T> spillingMarker() {
-		@SuppressWarnings("unchecked")
-		CircularElement<T> c = (CircularElement<T>) SPILLING_MARKER;
-		return c;
-	}
+    /**
+     * Gets the element that is passed as marker for signal beginning of spilling.
+     *
+     * @return The element that is passed as marker for signal beginning of spilling.
+     */
+    static <T> CircularElement<T> spillingMarker() {
+        @SuppressWarnings("unchecked")
+        CircularElement<T> c = (CircularElement<T>) SPILLING_MARKER;
+        return c;
+    }
 }

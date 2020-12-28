@@ -24,50 +24,48 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 
 import java.util.Map;
 
-/**
- * Snapshot class for the {@link MapSerializer}.
- */
-public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<Map<K, V>, MapSerializer<K, V>> {
+/** Snapshot class for the {@link MapSerializer}. */
+public class MapSerializerSnapshot<K, V>
+        extends CompositeTypeSerializerSnapshot<Map<K, V>, MapSerializer<K, V>> {
 
-	private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 1;
 
-	/**
-	 * Constructor for read instantiation.
-	 */
-	public MapSerializerSnapshot() {
-		super(MapSerializer.class);
-	}
+    /** Constructor for read instantiation. */
+    public MapSerializerSnapshot() {
+        super(MapSerializer.class);
+    }
 
-	/**
-	 * Constructor to create the snapshot for writing.
-	 */
-	public MapSerializerSnapshot(MapSerializer<K, V> mapSerializer) {
-		super(mapSerializer);
-	}
+    /** Constructor to create the snapshot for writing. */
+    public MapSerializerSnapshot(MapSerializer<K, V> mapSerializer) {
+        super(mapSerializer);
+    }
 
-	@Override
-	public int getCurrentOuterSnapshotVersion() {
-		return CURRENT_VERSION;
-	}
+    @Override
+    public int getCurrentOuterSnapshotVersion() {
+        return CURRENT_VERSION;
+    }
 
-	@Override
-	protected MapSerializer<K, V> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		@SuppressWarnings("unchecked")
-		TypeSerializer<K> keySerializer = (TypeSerializer<K>) nestedSerializers[0];
+    @Override
+    protected MapSerializer<K, V> createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+        @SuppressWarnings("unchecked")
+        TypeSerializer<K> keySerializer = (TypeSerializer<K>) nestedSerializers[0];
 
-		@SuppressWarnings("unchecked")
-		TypeSerializer<V> valueSerializer = (TypeSerializer<V>) nestedSerializers[1];
+        @SuppressWarnings("unchecked")
+        TypeSerializer<V> valueSerializer = (TypeSerializer<V>) nestedSerializers[1];
 
-		return new MapSerializer<>(keySerializer, valueSerializer);
-	}
+        return new MapSerializer<>(keySerializer, valueSerializer);
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(MapSerializer<K, V> outerSerializer) {
-		return new TypeSerializer<?>[] { outerSerializer.getKeySerializer(), outerSerializer.getValueSerializer() };
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(MapSerializer<K, V> outerSerializer) {
+        return new TypeSerializer<?>[] {
+            outerSerializer.getKeySerializer(), outerSerializer.getValueSerializer()
+        };
+    }
 
-	@SuppressWarnings("unchecked")
-	public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
-		return (TypeSerializerSnapshot<K>) getNestedSerializerSnapshots()[0];
-	}
+    @SuppressWarnings("unchecked")
+    public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
+        return (TypeSerializerSnapshot<K>) getNestedSerializerSnapshots()[0];
+    }
 }

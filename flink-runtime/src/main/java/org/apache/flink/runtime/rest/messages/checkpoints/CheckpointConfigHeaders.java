@@ -26,53 +26,52 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link CheckpointConfigHandler}.
- */
-public class CheckpointConfigHeaders implements MessageHeaders<EmptyRequestBody, CheckpointConfigInfo, JobMessageParameters> {
+/** Message headers for the {@link CheckpointConfigHandler}. */
+public class CheckpointConfigHeaders
+        implements MessageHeaders<EmptyRequestBody, CheckpointConfigInfo, JobMessageParameters> {
 
-	private static final CheckpointConfigHeaders INSTANCE = new CheckpointConfigHeaders();
+    private static final CheckpointConfigHeaders INSTANCE = new CheckpointConfigHeaders();
 
-	public static final String URL = "/jobs/:jobid/checkpoints/config";
+    public static final String URL = "/jobs/:jobid/checkpoints/config";
 
-	private CheckpointConfigHeaders() {}
+    private CheckpointConfigHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<CheckpointConfigInfo> getResponseClass() {
-		return CheckpointConfigInfo.class;
-	}
+    @Override
+    public Class<CheckpointConfigInfo> getResponseClass() {
+        return CheckpointConfigInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobMessageParameters getUnresolvedMessageParameters() {
-		return new JobMessageParameters();
-	}
+    @Override
+    public JobMessageParameters getUnresolvedMessageParameters() {
+        return new JobMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static CheckpointConfigHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static CheckpointConfigHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the checkpointing configuration.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the checkpointing configuration.";
+    }
 }

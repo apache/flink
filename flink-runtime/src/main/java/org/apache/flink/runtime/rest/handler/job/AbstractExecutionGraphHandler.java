@@ -49,58 +49,70 @@ import java.util.concurrent.Executor;
  *
  * @param <R> response type
  */
-public abstract class AbstractExecutionGraphHandler<R extends ResponseBody, M extends JobMessageParameters> extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, R, M> {
+public abstract class AbstractExecutionGraphHandler<
+                R extends ResponseBody, M extends JobMessageParameters>
+        extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, R, M> {
 
-	private final ExecutionGraphCache executionGraphCache;
+    private final ExecutionGraphCache executionGraphCache;
 
-	private final Executor executor;
+    private final Executor executor;
 
-	protected AbstractExecutionGraphHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    protected AbstractExecutionGraphHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
-		this.executionGraphCache = Preconditions.checkNotNull(executionGraphCache);
-		this.executor = Preconditions.checkNotNull(executor);
-	}
+        this.executionGraphCache = Preconditions.checkNotNull(executionGraphCache);
+        this.executor = Preconditions.checkNotNull(executor);
+    }
 
-	@Override
-	protected CompletableFuture<R> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, M> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-		JobID jobId = request.getPathParameter(JobIDPathParameter.class);
+    @Override
+    protected CompletableFuture<R> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, M> request, @Nonnull RestfulGateway gateway)
+            throws RestHandlerException {
+        JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 
-		CompletableFuture<AccessExecutionGraph> executionGraphFuture = executionGraphCache.getExecutionGraph(jobId, gateway);
+        CompletableFuture<AccessExecutionGraph> executionGraphFuture =
+                executionGraphCache.getExecutionGraph(jobId, gateway);
 
-		return executionGraphFuture.thenApplyAsync(
-			executionGraph -> {
-				try {
-					return handleRequest(request, executionGraph);
-				} catch (RestHandlerException rhe) {
-					throw new CompletionException(rhe);
-				}
-			}, executor)
-			.exceptionally(throwable -> {
-				throwable = ExceptionUtils.stripCompletionException(throwable);
-				if (throwable instanceof FlinkJobNotFoundException) {
-					throw new CompletionException(
-						new NotFoundException(String.format("Job %s not found", jobId), throwable));
-				} else {
-					throw new CompletionException(throwable);
-				}
-			});
-	}
+        return executionGraphFuture
+                .thenApplyAsync(
+                        executionGraph -> {
+                            try {
+                                return handleRequest(request, executionGraph);
+                            } catch (RestHandlerException rhe) {
+                                throw new CompletionException(rhe);
+                            }
+                        },
+                        executor)
+                .exceptionally(
+                        throwable -> {
+                            throwable = ExceptionUtils.stripCompletionException(throwable);
+                            if (throwable instanceof FlinkJobNotFoundException) {
+                                throw new CompletionException(
+                                        new NotFoundException(
+                                                String.format("Job %s not found", jobId),
+                                                throwable));
+                            } else {
+                                throw new CompletionException(throwable);
+                            }
+                        });
+    }
 
-	/**
-	 * Called for each request after the corresponding {@link AccessExecutionGraph} has been retrieved from the
-	 * {@link ExecutionGraphCache}.
-	 *
-	 * @param request for further information
-	 * @param executionGraph for which the handler was called
-	 * @return Response
-	 * @throws RestHandlerException if the handler could not process the request
-	 */
-	protected abstract R handleRequest(HandlerRequest<EmptyRequestBody, M> request, AccessExecutionGraph executionGraph) throws RestHandlerException;
+    /**
+     * Called for each request after the corresponding {@link AccessExecutionGraph} has been
+     * retrieved from the {@link ExecutionGraphCache}.
+     *
+     * @param request for further information
+     * @param executionGraph for which the handler was called
+     * @return Response
+     * @throws RestHandlerException if the handler could not process the request
+     */
+    protected abstract R handleRequest(
+            HandlerRequest<EmptyRequestBody, M> request, AccessExecutionGraph executionGraph)
+            throws RestHandlerException;
 }

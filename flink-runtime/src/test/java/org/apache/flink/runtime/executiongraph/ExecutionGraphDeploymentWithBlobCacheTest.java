@@ -34,27 +34,28 @@ import java.net.InetSocketAddress;
  * Tests {@link ExecutionGraph} deployment when offloading job and task information into the BLOB
  * server.
  */
-public class ExecutionGraphDeploymentWithBlobCacheTest extends ExecutionGraphDeploymentWithBlobServerTest {
+public class ExecutionGraphDeploymentWithBlobCacheTest
+        extends ExecutionGraphDeploymentWithBlobServerTest {
 
-	@Before
-	@Override
-	public void setupBlobServer() throws IOException {
-		Configuration config = new Configuration();
-		// always offload the serialized job and task information
-		config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
-		blobServer = new BlobServer(config, new VoidBlobStore());
-		blobServer.start();
-		blobWriter = blobServer;
+    @Before
+    @Override
+    public void setupBlobServer() throws IOException {
+        Configuration config = new Configuration();
+        // always offload the serialized job and task information
+        config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
+        blobServer = new BlobServer(config, new VoidBlobStore());
+        blobServer.start();
+        blobWriter = blobServer;
 
-		InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
-		blobCache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
-	}
+        InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
+        blobCache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
+    }
 
-	@After
-	@Override
-	public void shutdownBlobServer() throws IOException {
-		if (blobServer != null) {
-			blobServer.close();
-		}
-	}
+    @After
+    @Override
+    public void shutdownBlobServer() throws IOException {
+        if (blobServer != null) {
+            blobServer.close();
+        }
+    }
 }

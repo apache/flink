@@ -21,21 +21,19 @@ package org.apache.flink.table.data.conversion;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.TimeType;
 
-/**
- * Converter for {@link TimeType} of {@link Long} external type.
- */
+/** Converter for {@link TimeType} of {@link Long} external type. */
 @Internal
 public class TimeLongConverter implements DataStructureConverter<Integer, Long> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public Integer toInternal(Long external) {
-		return (int) (external / 1000 / 1000);
-	}
+    @Override
+    public Integer toInternal(Long external) {
+        return (int) (external / 1000 / 1000);
+    }
 
-	@Override
-	public Long toExternal(Integer internal) {
-		return ((long) internal) * 1000 * 1000;
-	}
+    @Override
+    public Long toExternal(Integer internal) {
+        return ((long) internal) * 1000 * 1000;
+    }
 }

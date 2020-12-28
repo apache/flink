@@ -27,29 +27,28 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Serializer for the checkpoint of {@link MockSplitEnumerator}.
- */
-public class MockSplitEnumeratorCheckpointSerializer implements SimpleVersionedSerializer<Set<MockSourceSplit>> {
+/** Serializer for the checkpoint of {@link MockSplitEnumerator}. */
+public class MockSplitEnumeratorCheckpointSerializer
+        implements SimpleVersionedSerializer<Set<MockSourceSplit>> {
 
-	@Override
-	public int getVersion() {
-		return 0;
-	}
+    @Override
+    public int getVersion() {
+        return 0;
+    }
 
-	@Override
-	public byte[] serialize(Set<MockSourceSplit> obj) throws IOException {
-		return InstantiationUtil.serializeObject(new ArrayList<>(obj));
-	}
+    @Override
+    public byte[] serialize(Set<MockSourceSplit> obj) throws IOException {
+        return InstantiationUtil.serializeObject(new ArrayList<>(obj));
+    }
 
-	@Override
-	public Set<MockSourceSplit> deserialize(int version, byte[] serialized) throws IOException {
-		try {
-			ArrayList<MockSourceSplit> list = InstantiationUtil.deserializeObject(serialized, getClass().getClassLoader());
-			return new HashSet<>(list);
-		} catch (ClassNotFoundException e) {
-			throw new FlinkRuntimeException("Failed to deserialize the enumerator checkpoint.");
-		}
-	}
-
+    @Override
+    public Set<MockSourceSplit> deserialize(int version, byte[] serialized) throws IOException {
+        try {
+            ArrayList<MockSourceSplit> list =
+                    InstantiationUtil.deserializeObject(serialized, getClass().getClassLoader());
+            return new HashSet<>(list);
+        } catch (ClassNotFoundException e) {
+            throw new FlinkRuntimeException("Failed to deserialize the enumerator checkpoint.");
+        }
+    }
 }

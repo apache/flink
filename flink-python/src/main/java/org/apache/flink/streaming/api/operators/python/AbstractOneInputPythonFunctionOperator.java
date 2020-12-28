@@ -23,22 +23,20 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 
-/**
- * Base class for all one input stream operators to execute Python functions.
- */
+/** Base class for all one input stream operators to execute Python functions. */
 @Internal
 public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
-	extends AbstractPythonFunctionOperator<OUT>
-	implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+        extends AbstractPythonFunctionOperator<OUT>
+        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public AbstractOneInputPythonFunctionOperator(Configuration config) {
-		super(config);
-	}
+    public AbstractOneInputPythonFunctionOperator(Configuration config) {
+        super(config);
+    }
 
-	@Override
-	public void endInput() throws Exception {
-		invokeFinishBundle();
-	}
+    @Override
+    public void endInput() throws Exception {
+        invokeFinishBundle();
+    }
 }

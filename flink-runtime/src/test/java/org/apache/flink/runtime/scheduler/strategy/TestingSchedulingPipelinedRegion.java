@@ -24,43 +24,43 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * A simple implementation of {@link SchedulingPipelinedRegion} for testing.
- */
+/** A simple implementation of {@link SchedulingPipelinedRegion} for testing. */
 public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegion {
 
-	private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> regionVertices = new HashMap<>();
+    private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> regionVertices =
+            new HashMap<>();
 
-	private final Set<TestingSchedulingResultPartition> consumedPartitions = new HashSet<>();
+    private final Set<TestingSchedulingResultPartition> consumedPartitions = new HashSet<>();
 
-	public TestingSchedulingPipelinedRegion(final Set<TestingSchedulingExecutionVertex> vertices) {
-		for (TestingSchedulingExecutionVertex vertex : vertices) {
-			regionVertices.put(vertex.getId(), vertex);
+    public TestingSchedulingPipelinedRegion(final Set<TestingSchedulingExecutionVertex> vertices) {
+        for (TestingSchedulingExecutionVertex vertex : vertices) {
+            regionVertices.put(vertex.getId(), vertex);
 
-			for (TestingSchedulingResultPartition consumedPartition : vertex.getConsumedResults()) {
-				if (!vertices.contains(consumedPartition.getProducer())) {
-					consumedPartitions.add(consumedPartition);
-				}
-			}
-		}
-	}
+            for (TestingSchedulingResultPartition consumedPartition : vertex.getConsumedResults()) {
+                if (!vertices.contains(consumedPartition.getProducer())) {
+                    consumedPartitions.add(consumedPartition);
+                }
+            }
+        }
+    }
 
-	@Override
-	public Iterable<TestingSchedulingExecutionVertex> getVertices() {
-		return Collections.unmodifiableCollection(regionVertices.values());
-	}
+    @Override
+    public Iterable<TestingSchedulingExecutionVertex> getVertices() {
+        return Collections.unmodifiableCollection(regionVertices.values());
+    }
 
-	@Override
-	public TestingSchedulingExecutionVertex getVertex(ExecutionVertexID vertexId) {
-		final TestingSchedulingExecutionVertex executionVertex = regionVertices.get(vertexId);
-		if (executionVertex == null) {
-			throw new IllegalArgumentException(String.format("Execution vertex %s not found in pipelined region", vertexId));
-		}
-		return executionVertex;
-	}
+    @Override
+    public TestingSchedulingExecutionVertex getVertex(ExecutionVertexID vertexId) {
+        final TestingSchedulingExecutionVertex executionVertex = regionVertices.get(vertexId);
+        if (executionVertex == null) {
+            throw new IllegalArgumentException(
+                    String.format("Execution vertex %s not found in pipelined region", vertexId));
+        }
+        return executionVertex;
+    }
 
-	@Override
-	public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
-		return Collections.unmodifiableSet(consumedPartitions);
-	}
+    @Override
+    public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
+        return Collections.unmodifiableSet(consumedPartitions);
+    }
 }

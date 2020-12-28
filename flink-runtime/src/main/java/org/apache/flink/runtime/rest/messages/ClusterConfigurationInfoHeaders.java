@@ -23,55 +23,57 @@ import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link ClusterConfigHandler}.
- */
-public final class ClusterConfigurationInfoHeaders implements MessageHeaders<EmptyRequestBody, ClusterConfigurationInfo, EmptyMessageParameters> {
+/** Message headers for the {@link ClusterConfigHandler}. */
+public final class ClusterConfigurationInfoHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, ClusterConfigurationInfo, EmptyMessageParameters> {
 
-	private static final ClusterConfigurationInfoHeaders INSTANCE = new ClusterConfigurationInfoHeaders();
+    private static final ClusterConfigurationInfoHeaders INSTANCE =
+            new ClusterConfigurationInfoHeaders();
 
-	// TODO this REST path is inappropriately set due to legacy design reasons, and ideally should be '/config';
-	// TODO changing it would require corresponding path changes in flink-runtime-web
-	public static final String CLUSTER_CONFIG_REST_PATH = "/jobmanager/config";
+    // TODO this REST path is inappropriately set due to legacy design reasons, and ideally should
+    // be '/config';
+    // TODO changing it would require corresponding path changes in flink-runtime-web
+    public static final String CLUSTER_CONFIG_REST_PATH = "/jobmanager/config";
 
-	private ClusterConfigurationInfoHeaders() {}
+    private ClusterConfigurationInfoHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return CLUSTER_CONFIG_REST_PATH;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return CLUSTER_CONFIG_REST_PATH;
+    }
 
-	@Override
-	public Class<ClusterConfigurationInfo> getResponseClass() {
-		return ClusterConfigurationInfo.class;
-	}
+    @Override
+    public Class<ClusterConfigurationInfo> getResponseClass() {
+        return ClusterConfigurationInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	public static ClusterConfigurationInfoHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static ClusterConfigurationInfoHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the cluster configuration.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the cluster configuration.";
+    }
 }

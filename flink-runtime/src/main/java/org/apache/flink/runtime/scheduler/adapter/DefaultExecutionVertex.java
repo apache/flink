@@ -29,59 +29,57 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Default implementation of {@link SchedulingExecutionVertex}.
- */
+/** Default implementation of {@link SchedulingExecutionVertex}. */
 class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
-	private final ExecutionVertexID executionVertexId;
+    private final ExecutionVertexID executionVertexId;
 
-	private final List<DefaultResultPartition> consumedResults;
+    private final List<DefaultResultPartition> consumedResults;
 
-	private final List<DefaultResultPartition> producedResults;
+    private final List<DefaultResultPartition> producedResults;
 
-	private final Supplier<ExecutionState> stateSupplier;
+    private final Supplier<ExecutionState> stateSupplier;
 
-	private final InputDependencyConstraint inputDependencyConstraint;
+    private final InputDependencyConstraint inputDependencyConstraint;
 
-	DefaultExecutionVertex(
-			ExecutionVertexID executionVertexId,
-			List<DefaultResultPartition> producedPartitions,
-			Supplier<ExecutionState> stateSupplier,
-			InputDependencyConstraint constraint) {
-		this.executionVertexId = checkNotNull(executionVertexId);
-		this.consumedResults = new ArrayList<>();
-		this.stateSupplier = checkNotNull(stateSupplier);
-		this.producedResults = checkNotNull(producedPartitions);
-		this.inputDependencyConstraint = checkNotNull(constraint);
-	}
+    DefaultExecutionVertex(
+            ExecutionVertexID executionVertexId,
+            List<DefaultResultPartition> producedPartitions,
+            Supplier<ExecutionState> stateSupplier,
+            InputDependencyConstraint constraint) {
+        this.executionVertexId = checkNotNull(executionVertexId);
+        this.consumedResults = new ArrayList<>();
+        this.stateSupplier = checkNotNull(stateSupplier);
+        this.producedResults = checkNotNull(producedPartitions);
+        this.inputDependencyConstraint = checkNotNull(constraint);
+    }
 
-	@Override
-	public ExecutionVertexID getId() {
-		return executionVertexId;
-	}
+    @Override
+    public ExecutionVertexID getId() {
+        return executionVertexId;
+    }
 
-	@Override
-	public ExecutionState getState() {
-		return stateSupplier.get();
-	}
+    @Override
+    public ExecutionState getState() {
+        return stateSupplier.get();
+    }
 
-	@Override
-	public Iterable<DefaultResultPartition> getConsumedResults() {
-		return consumedResults;
-	}
+    @Override
+    public Iterable<DefaultResultPartition> getConsumedResults() {
+        return consumedResults;
+    }
 
-	@Override
-	public Iterable<DefaultResultPartition> getProducedResults() {
-		return producedResults;
-	}
+    @Override
+    public Iterable<DefaultResultPartition> getProducedResults() {
+        return producedResults;
+    }
 
-	@Override
-	public InputDependencyConstraint getInputDependencyConstraint() {
-		return inputDependencyConstraint;
-	}
+    @Override
+    public InputDependencyConstraint getInputDependencyConstraint() {
+        return inputDependencyConstraint;
+    }
 
-	void addConsumedResult(DefaultResultPartition result) {
-			consumedResults.add(result);
-	}
+    void addConsumedResult(DefaultResultPartition result) {
+        consumedResults.add(result);
+    }
 }

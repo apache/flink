@@ -26,5 +26,5 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public interface DataTypeQueryable {
 
-	DataType getDataType();
+    DataType getDataType();
 }

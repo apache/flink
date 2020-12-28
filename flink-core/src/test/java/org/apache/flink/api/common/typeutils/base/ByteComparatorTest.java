@@ -18,48 +18,47 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ByteComparator;
-import org.apache.flink.api.common.typeutils.base.ByteSerializer;
+
+import java.util.Random;
 
 public class ByteComparatorTest extends ComparatorTestBase<Byte> {
 
-	@Override
-	protected TypeComparator<Byte> createComparator(boolean ascending) {
-		return new ByteComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<Byte> createComparator(boolean ascending) {
+        return new ByteComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<Byte> createSerializer() {
-		return new ByteSerializer();
-	}
+    @Override
+    protected TypeSerializer<Byte> createSerializer() {
+        return new ByteSerializer();
+    }
 
-	@Override
-	protected Byte[] getSortedTestData() {
+    @Override
+    protected Byte[] getSortedTestData() {
 
-		Random rnd = new Random(874597969123412338L);
-		int rndByte = rnd.nextInt(Byte.MAX_VALUE);
-		if (rndByte < 0) {
-			rndByte = -rndByte;
-		}
-		if (rndByte == Byte.MAX_VALUE) {
-			rndByte -= 3;
-		}
-		if (rndByte <= 2) {
-			rndByte += 3;
-		}
-		return new Byte[]{
-			Byte.valueOf(Byte.MIN_VALUE),
-			Byte.valueOf(Integer.valueOf(-rndByte).byteValue()),
-			Byte.valueOf(Integer.valueOf(-1).byteValue()),
-			Byte.valueOf(Integer.valueOf(0).byteValue()),
-			Byte.valueOf(Integer.valueOf(1).byteValue()),
-			Byte.valueOf(Integer.valueOf(2).byteValue()),
-			Byte.valueOf(Integer.valueOf(rndByte).byteValue()),
-			Byte.valueOf(Byte.MAX_VALUE)};
-	}
+        Random rnd = new Random(874597969123412338L);
+        int rndByte = rnd.nextInt(Byte.MAX_VALUE);
+        if (rndByte < 0) {
+            rndByte = -rndByte;
+        }
+        if (rndByte == Byte.MAX_VALUE) {
+            rndByte -= 3;
+        }
+        if (rndByte <= 2) {
+            rndByte += 3;
+        }
+        return new Byte[] {
+            Byte.valueOf(Byte.MIN_VALUE),
+            Byte.valueOf(Integer.valueOf(-rndByte).byteValue()),
+            Byte.valueOf(Integer.valueOf(-1).byteValue()),
+            Byte.valueOf(Integer.valueOf(0).byteValue()),
+            Byte.valueOf(Integer.valueOf(1).byteValue()),
+            Byte.valueOf(Integer.valueOf(2).byteValue()),
+            Byte.valueOf(Integer.valueOf(rndByte).byteValue()),
+            Byte.valueOf(Byte.MAX_VALUE)
+        };
+    }
 }

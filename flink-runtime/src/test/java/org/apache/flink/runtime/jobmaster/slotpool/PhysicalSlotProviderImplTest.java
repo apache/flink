@@ -40,84 +40,90 @@ import java.util.function.Function;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link PhysicalSlotProviderImpl}.
- */
+/** Tests for {@link PhysicalSlotProviderImpl}. */
 public class PhysicalSlotProviderImplTest {
-	private static ScheduledExecutorService singleThreadScheduledExecutorService;
+    private static ScheduledExecutorService singleThreadScheduledExecutorService;
 
-	private static ComponentMainThreadExecutor mainThreadExecutor;
+    private static ComponentMainThreadExecutor mainThreadExecutor;
 
-	private TestingSlotPoolImpl slotPool;
+    private TestingSlotPoolImpl slotPool;
 
-	private PhysicalSlotProvider physicalSlotProvider;
+    private PhysicalSlotProvider physicalSlotProvider;
 
-	@BeforeClass
-	public static void setupClass() {
-		singleThreadScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-		mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(singleThreadScheduledExecutorService);
-	}
+    @BeforeClass
+    public static void setupClass() {
+        singleThreadScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        mainThreadExecutor =
+                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                        singleThreadScheduledExecutorService);
+    }
 
-	@AfterClass
-	public static void teardownClass() {
-		if (singleThreadScheduledExecutorService != null) {
-			singleThreadScheduledExecutorService.shutdownNow();
-		}
-	}
+    @AfterClass
+    public static void teardownClass() {
+        if (singleThreadScheduledExecutorService != null) {
+            singleThreadScheduledExecutorService.shutdownNow();
+        }
+    }
 
-	@Before
-	public void setup() throws Exception {
-		slotPool = new SlotPoolBuilder(mainThreadExecutor).build();
-		physicalSlotProvider = new PhysicalSlotProviderImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
-	}
+    @Before
+    public void setup() throws Exception {
+        slotPool = new SlotPoolBuilder(mainThreadExecutor).build();
+        physicalSlotProvider =
+                new PhysicalSlotProviderImpl(
+                        LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
+    }
 
-	@After
-	public void teardown() {
-		CompletableFuture.runAsync(() -> slotPool.close(), mainThreadExecutor).join();
-	}
+    @After
+    public void teardown() {
+        CompletableFuture.runAsync(() -> slotPool.close(), mainThreadExecutor).join();
+    }
 
-	@Test
-	public void testSlotAllocationFulfilledWithAvailableSlots() throws InterruptedException, ExecutionException {
-		PhysicalSlotRequest request = createPhysicalSlotRequest();
-		addSlotToSlotPool();
-		CompletableFuture<PhysicalSlotRequest.Result> slotFuture = allocateSlot(request);
-		PhysicalSlotRequest.Result result = slotFuture.get();
-		assertThat(result.getSlotRequestId(), is(request.getSlotRequestId()));
-	}
+    @Test
+    public void testSlotAllocationFulfilledWithAvailableSlots()
+            throws InterruptedException, ExecutionException {
+        PhysicalSlotRequest request = createPhysicalSlotRequest();
+        addSlotToSlotPool();
+        CompletableFuture<PhysicalSlotRequest.Result> slotFuture = allocateSlot(request);
+        PhysicalSlotRequest.Result result = slotFuture.get();
+        assertThat(result.getSlotRequestId(), is(request.getSlotRequestId()));
+    }
 
-	@Test
-	public void testSlotAllocationFulfilledWithNewSlots() throws ExecutionException, InterruptedException {
-		final CompletableFuture<PhysicalSlotRequest.Result> slotFuture = allocateSlot(createPhysicalSlotRequest());
-		assertThat(slotFuture.isDone(), is(false));
-		addSlotToSlotPool();
-		slotFuture.get();
-	}
+    @Test
+    public void testSlotAllocationFulfilledWithNewSlots()
+            throws ExecutionException, InterruptedException {
+        final CompletableFuture<PhysicalSlotRequest.Result> slotFuture =
+                allocateSlot(createPhysicalSlotRequest());
+        assertThat(slotFuture.isDone(), is(false));
+        addSlotToSlotPool();
+        slotFuture.get();
+    }
 
-	@Test
-	public void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots() throws Exception {
-		TestingSlotPoolImpl slotPool = new SlotPoolBuilder(mainThreadExecutor).build();
-		assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
+    @Test
+    public void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots()
+            throws Exception {
+        TestingSlotPoolImpl slotPool = new SlotPoolBuilder(mainThreadExecutor).build();
+        assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
 
-		new PhysicalSlotProviderImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
-		assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(false));
-	}
+        new PhysicalSlotProviderImpl(
+                LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
+        assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(false));
+    }
 
-	private CompletableFuture<PhysicalSlotRequest.Result> allocateSlot(PhysicalSlotRequest request) {
-		return CompletableFuture
-			.supplyAsync(
-				() -> physicalSlotProvider.allocatePhysicalSlot(request),
-				mainThreadExecutor)
-			.thenCompose(Function.identity());
-	}
+    private CompletableFuture<PhysicalSlotRequest.Result> allocateSlot(
+            PhysicalSlotRequest request) {
+        return CompletableFuture.supplyAsync(
+                        () -> physicalSlotProvider.allocatePhysicalSlot(request),
+                        mainThreadExecutor)
+                .thenCompose(Function.identity());
+    }
 
-	private void addSlotToSlotPool() {
-		SlotPoolUtils.offerSlots(slotPool, mainThreadExecutor, Collections.singletonList(ResourceProfile.ANY));
-	}
+    private void addSlotToSlotPool() {
+        SlotPoolUtils.offerSlots(
+                slotPool, mainThreadExecutor, Collections.singletonList(ResourceProfile.ANY));
+    }
 
-	private static PhysicalSlotRequest createPhysicalSlotRequest() {
-		return new PhysicalSlotRequest(
-			new SlotRequestId(),
-			SlotProfile.noLocality(ResourceProfile.UNKNOWN),
-			false);
-	}
+    private static PhysicalSlotRequest createPhysicalSlotRequest() {
+        return new PhysicalSlotRequest(
+                new SlotRequestId(), SlotProfile.noLocality(ResourceProfile.UNKNOWN), false);
+    }
 }

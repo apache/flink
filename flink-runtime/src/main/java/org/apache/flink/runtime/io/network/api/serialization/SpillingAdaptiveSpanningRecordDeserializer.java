@@ -29,97 +29,101 @@ import static org.apache.flink.runtime.io.network.api.serialization.RecordDeseri
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER;
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.PARTIAL_RECORD;
 
-/**
- * @param <T> The type of the record to be deserialized.
- */
-public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> implements RecordDeserializer<T> {
+/** @param <T> The type of the record to be deserialized. */
+public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWritable>
+        implements RecordDeserializer<T> {
 
-	static final int LENGTH_BYTES = Integer.BYTES;
+    static final int LENGTH_BYTES = Integer.BYTES;
 
-	private final NonSpanningWrapper nonSpanningWrapper;
+    private final NonSpanningWrapper nonSpanningWrapper;
 
-	private final SpanningWrapper spanningWrapper;
+    private final SpanningWrapper spanningWrapper;
 
-	private Buffer currentBuffer;
+    private Buffer currentBuffer;
 
-	public SpillingAdaptiveSpanningRecordDeserializer(String[] tmpDirectories) {
-		this.nonSpanningWrapper = new NonSpanningWrapper();
-		this.spanningWrapper = new SpanningWrapper(tmpDirectories);
-	}
+    public SpillingAdaptiveSpanningRecordDeserializer(String[] tmpDirectories) {
+        this.nonSpanningWrapper = new NonSpanningWrapper();
+        this.spanningWrapper = new SpanningWrapper(tmpDirectories);
+    }
 
-	@Override
-	public void setNextBuffer(Buffer buffer) throws IOException {
-		currentBuffer = buffer;
+    @Override
+    public void setNextBuffer(Buffer buffer) throws IOException {
+        currentBuffer = buffer;
 
-		int offset = buffer.getMemorySegmentOffset();
-		MemorySegment segment = buffer.getMemorySegment();
-		int numBytes = buffer.getSize();
+        int offset = buffer.getMemorySegmentOffset();
+        MemorySegment segment = buffer.getMemorySegment();
+        int numBytes = buffer.getSize();
 
-		// check if some spanning record deserialization is pending
-		if (spanningWrapper.getNumGatheredBytes() > 0) {
-			spanningWrapper.addNextChunkFromMemorySegment(segment, offset, numBytes);
-		} else {
-			nonSpanningWrapper.initializeFromMemorySegment(segment, offset, numBytes + offset);
-		}
-	}
+        // check if some spanning record deserialization is pending
+        if (spanningWrapper.getNumGatheredBytes() > 0) {
+            spanningWrapper.addNextChunkFromMemorySegment(segment, offset, numBytes);
+        } else {
+            nonSpanningWrapper.initializeFromMemorySegment(segment, offset, numBytes + offset);
+        }
+    }
 
-	@Override
-	public Buffer getCurrentBuffer () {
-		Buffer tmp = currentBuffer;
-		currentBuffer = null;
-		return tmp;
-	}
+    @Override
+    public Buffer getCurrentBuffer() {
+        Buffer tmp = currentBuffer;
+        currentBuffer = null;
+        return tmp;
+    }
 
-	@Override
-	public CloseableIterator<Buffer> getUnconsumedBuffer() throws IOException {
-		return nonSpanningWrapper.hasRemaining() ? nonSpanningWrapper.getUnconsumedSegment() : spanningWrapper.getUnconsumedSegment();
-	}
+    @Override
+    public CloseableIterator<Buffer> getUnconsumedBuffer() throws IOException {
+        return nonSpanningWrapper.hasRemaining()
+                ? nonSpanningWrapper.getUnconsumedSegment()
+                : spanningWrapper.getUnconsumedSegment();
+    }
 
-	@Override
-	public DeserializationResult getNextRecord(T target) throws IOException {
-		// always check the non-spanning wrapper first.
-		// this should be the majority of the cases for small records
-		// for large records, this portion of the work is very small in comparison anyways
+    @Override
+    public DeserializationResult getNextRecord(T target) throws IOException {
+        // always check the non-spanning wrapper first.
+        // this should be the majority of the cases for small records
+        // for large records, this portion of the work is very small in comparison anyways
 
-		if (nonSpanningWrapper.hasCompleteLength()) {
-			return readNonSpanningRecord(target);
+        if (nonSpanningWrapper.hasCompleteLength()) {
+            return readNonSpanningRecord(target);
 
-		} else if (nonSpanningWrapper.hasRemaining()) {
-			nonSpanningWrapper.transferTo(spanningWrapper.lengthBuffer);
-			return PARTIAL_RECORD;
+        } else if (nonSpanningWrapper.hasRemaining()) {
+            nonSpanningWrapper.transferTo(spanningWrapper.lengthBuffer);
+            return PARTIAL_RECORD;
 
-		} else if (spanningWrapper.hasFullRecord()) {
-			target.read(spanningWrapper.getInputView());
-			spanningWrapper.transferLeftOverTo(nonSpanningWrapper);
-			return nonSpanningWrapper.hasRemaining() ? INTERMEDIATE_RECORD_FROM_BUFFER : LAST_RECORD_FROM_BUFFER;
+        } else if (spanningWrapper.hasFullRecord()) {
+            target.read(spanningWrapper.getInputView());
+            spanningWrapper.transferLeftOverTo(nonSpanningWrapper);
+            return nonSpanningWrapper.hasRemaining()
+                    ? INTERMEDIATE_RECORD_FROM_BUFFER
+                    : LAST_RECORD_FROM_BUFFER;
 
-		} else {
-			return PARTIAL_RECORD;
-		}
-	}
+        } else {
+            return PARTIAL_RECORD;
+        }
+    }
 
-	private DeserializationResult readNonSpanningRecord(T target) throws IOException {
-		// following three calls to nonSpanningWrapper from object oriented design would be better
-		// to encapsulate inside nonSpanningWrapper, but then nonSpanningWrapper.readInto equivalent
-		// would have to return a tuple of DeserializationResult and recordLen, which would affect
-		// performance too much
-		int recordLen = nonSpanningWrapper.readInt();
-		if (nonSpanningWrapper.canReadRecord(recordLen)) {
-			return nonSpanningWrapper.readInto(target);
-		} else {
-			spanningWrapper.transferFrom(nonSpanningWrapper, recordLen);
-			return PARTIAL_RECORD;
-		}
-	}
+    private DeserializationResult readNonSpanningRecord(T target) throws IOException {
+        // following three calls to nonSpanningWrapper from object oriented design would be better
+        // to encapsulate inside nonSpanningWrapper, but then nonSpanningWrapper.readInto equivalent
+        // would have to return a tuple of DeserializationResult and recordLen, which would affect
+        // performance too much
+        int recordLen = nonSpanningWrapper.readInt();
+        if (nonSpanningWrapper.canReadRecord(recordLen)) {
+            return nonSpanningWrapper.readInto(target);
+        } else {
+            spanningWrapper.transferFrom(nonSpanningWrapper, recordLen);
+            return PARTIAL_RECORD;
+        }
+    }
 
-	@Override
-	public void clear() {
-		this.nonSpanningWrapper.clear();
-		this.spanningWrapper.clear();
-	}
+    @Override
+    public void clear() {
+        this.nonSpanningWrapper.clear();
+        this.spanningWrapper.clear();
+    }
 
-	@Override
-	public boolean hasUnfinishedData() {
-		return this.nonSpanningWrapper.hasRemaining() || this.spanningWrapper.getNumGatheredBytes() > 0;
-	}
+    @Override
+    public boolean hasUnfinishedData() {
+        return this.nonSpanningWrapper.hasRemaining()
+                || this.spanningWrapper.getNumGatheredBytes() > 0;
+    }
 }

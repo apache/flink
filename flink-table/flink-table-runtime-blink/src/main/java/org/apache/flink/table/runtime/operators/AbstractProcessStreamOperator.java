@@ -34,78 +34,80 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public abstract class AbstractProcessStreamOperator<OUT> extends TableStreamOperator<OUT> {
 
-	/** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
-	protected long currentWatermark = Long.MIN_VALUE;
+    /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
+    protected long currentWatermark = Long.MIN_VALUE;
 
-	protected transient ContextImpl ctx;
+    protected transient ContextImpl ctx;
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		this.ctx = new ContextImpl(getProcessingTimeService());
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        this.ctx = new ContextImpl(getProcessingTimeService());
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		super.processWatermark(mark);
-		currentWatermark = mark.getTimestamp();
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        super.processWatermark(mark);
+        currentWatermark = mark.getTimestamp();
+    }
 
-	/**
-	 * Information available in an invocation of processElement.
-	 */
-	protected class ContextImpl implements TimerService {
+    /** Information available in an invocation of processElement. */
+    protected class ContextImpl implements TimerService {
 
-		protected final ProcessingTimeService timerService;
+        protected final ProcessingTimeService timerService;
 
-		public StreamRecord<?> element;
+        public StreamRecord<?> element;
 
-		ContextImpl(ProcessingTimeService timerService) {
-			this.timerService = checkNotNull(timerService);
-		}
+        ContextImpl(ProcessingTimeService timerService) {
+            this.timerService = checkNotNull(timerService);
+        }
 
-		public Long timestamp() {
-			checkState(element != null);
+        public Long timestamp() {
+            checkState(element != null);
 
-			if (element.hasTimestamp()) {
-				return element.getTimestamp();
-			} else {
-				return null;
-			}
-		}
+            if (element.hasTimestamp()) {
+                return element.getTimestamp();
+            } else {
+                return null;
+            }
+        }
 
-		@Override
-		public long currentProcessingTime() {
-			return timerService.getCurrentProcessingTime();
-		}
+        @Override
+        public long currentProcessingTime() {
+            return timerService.getCurrentProcessingTime();
+        }
 
-		@Override
-		public long currentWatermark() {
-			return currentWatermark;
-		}
+        @Override
+        public long currentWatermark() {
+            return currentWatermark;
+        }
 
-		@Override
-		public void registerProcessingTimeTimer(long time) {
-			throw new UnsupportedOperationException("Setting timers is only supported on a keyed streams.");
-		}
+        @Override
+        public void registerProcessingTimeTimer(long time) {
+            throw new UnsupportedOperationException(
+                    "Setting timers is only supported on a keyed streams.");
+        }
 
-		@Override
-		public void registerEventTimeTimer(long time) {
-			throw new UnsupportedOperationException("Setting timers is only supported on a keyed streams.");
-		}
+        @Override
+        public void registerEventTimeTimer(long time) {
+            throw new UnsupportedOperationException(
+                    "Setting timers is only supported on a keyed streams.");
+        }
 
-		@Override
-		public void deleteProcessingTimeTimer(long time) {
-			throw new UnsupportedOperationException("Delete timers is only supported on a keyed streams.");
-		}
+        @Override
+        public void deleteProcessingTimeTimer(long time) {
+            throw new UnsupportedOperationException(
+                    "Delete timers is only supported on a keyed streams.");
+        }
 
-		@Override
-		public void deleteEventTimeTimer(long time) {
-			throw new UnsupportedOperationException("Delete timers is only supported on a keyed streams.");
-		}
+        @Override
+        public void deleteEventTimeTimer(long time) {
+            throw new UnsupportedOperationException(
+                    "Delete timers is only supported on a keyed streams.");
+        }
 
-		public TimerService timerService() {
-			return this;
-		}
-	}
+        public TimerService timerService() {
+            return this;
+        }
+    }
 }

@@ -28,54 +28,55 @@ import java.util.HashSet;
 @Internal
 interface UpstreamRecoveryTracker {
 
-	void handleEndOfRecovery(InputChannelInfo channelInfo) throws IOException;
+    void handleEndOfRecovery(InputChannelInfo channelInfo) throws IOException;
 
-	boolean allChannelsRecovered();
+    boolean allChannelsRecovered();
 
-	static UpstreamRecoveryTracker forInputGate(InputGate inputGate) {
-		return new UpstreamRecoveryTrackerImpl(inputGate);
-	}
+    static UpstreamRecoveryTracker forInputGate(InputGate inputGate) {
+        return new UpstreamRecoveryTrackerImpl(inputGate);
+    }
 
-	UpstreamRecoveryTracker NO_OP = new UpstreamRecoveryTracker() {
-		@Override
-		public void handleEndOfRecovery(InputChannelInfo channelInfo) {
-		}
+    UpstreamRecoveryTracker NO_OP =
+            new UpstreamRecoveryTracker() {
+                @Override
+                public void handleEndOfRecovery(InputChannelInfo channelInfo) {}
 
-		@Override
-		public boolean allChannelsRecovered() {
-			return true;
-		}
-	};
+                @Override
+                public boolean allChannelsRecovered() {
+                    return true;
+                }
+            };
 }
 
 final class UpstreamRecoveryTrackerImpl implements UpstreamRecoveryTracker {
-	private final HashSet<InputChannelInfo> restoredChannels;
-	private int numUnrestoredChannels;
-	private final InputGate inputGate;
+    private final HashSet<InputChannelInfo> restoredChannels;
+    private int numUnrestoredChannels;
+    private final InputGate inputGate;
 
-	UpstreamRecoveryTrackerImpl(InputGate inputGate) {
-		this.restoredChannels = new HashSet<>();
-		this.numUnrestoredChannels = inputGate.getNumberOfInputChannels();
-		this.inputGate = inputGate;
-	}
+    UpstreamRecoveryTrackerImpl(InputGate inputGate) {
+        this.restoredChannels = new HashSet<>();
+        this.numUnrestoredChannels = inputGate.getNumberOfInputChannels();
+        this.inputGate = inputGate;
+    }
 
-	@Override
-	public void handleEndOfRecovery(InputChannelInfo channelInfo) throws IOException {
-		if (numUnrestoredChannels > 0) {
-			Preconditions.checkState(!restoredChannels.contains(channelInfo), "already restored: %s", channelInfo);
-			restoredChannels.add(channelInfo);
-			numUnrestoredChannels--;
-			if (numUnrestoredChannels == 0) {
-				for (InputChannelInfo inputChannelInfo : inputGate.getChannelInfos()) {
-					inputGate.resumeConsumption(inputChannelInfo);
-				}
-				restoredChannels.clear();
-			}
-		}
-	}
+    @Override
+    public void handleEndOfRecovery(InputChannelInfo channelInfo) throws IOException {
+        if (numUnrestoredChannels > 0) {
+            Preconditions.checkState(
+                    !restoredChannels.contains(channelInfo), "already restored: %s", channelInfo);
+            restoredChannels.add(channelInfo);
+            numUnrestoredChannels--;
+            if (numUnrestoredChannels == 0) {
+                for (InputChannelInfo inputChannelInfo : inputGate.getChannelInfos()) {
+                    inputGate.resumeConsumption(inputChannelInfo);
+                }
+                restoredChannels.clear();
+            }
+        }
+    }
 
-	@Override
-	public boolean allChannelsRecovered() {
-		return numUnrestoredChannels == 0;
-	}
+    @Override
+    public boolean allChannelsRecovered() {
+        return numUnrestoredChannels == 0;
+    }
 }

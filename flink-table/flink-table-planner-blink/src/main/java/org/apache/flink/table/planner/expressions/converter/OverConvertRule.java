@@ -61,137 +61,167 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.planner.expressions.converter.ExpressionConverter.extractValue;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 
-/**
- * A {@link CallExpressionConvertRule} that converts {@link BuiltInFunctionDefinitions#OVER}.
- */
+/** A {@link CallExpressionConvertRule} that converts {@link BuiltInFunctionDefinitions#OVER}. */
 public class OverConvertRule implements CallExpressionConvertRule {
 
-	@Override
-	public Optional<RexNode> convert(CallExpression call, ConvertContext context) {
-		List<Expression> children = call.getChildren();
-		if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
-			FlinkTypeFactory typeFactory = context.getTypeFactory();
-			Expression agg = children.get(0);
-			SqlAggFunction aggFunc = agg.accept(new SqlAggFunctionVisitor(context.getRelBuilder()));
-			RelDataType aggResultType = typeFactory.createFieldTypeFromLogicalType(
-				fromDataTypeToLogicalType(((ResolvedExpression) agg).getOutputDataType()));
+    @Override
+    public Optional<RexNode> convert(CallExpression call, ConvertContext context) {
+        List<Expression> children = call.getChildren();
+        if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
+            FlinkTypeFactory typeFactory = context.getTypeFactory();
+            Expression agg = children.get(0);
+            SqlAggFunction aggFunc = agg.accept(new SqlAggFunctionVisitor(context.getRelBuilder()));
+            RelDataType aggResultType =
+                    typeFactory.createFieldTypeFromLogicalType(
+                            fromDataTypeToLogicalType(
+                                    ((ResolvedExpression) agg).getOutputDataType()));
 
-			// assemble exprs by agg children
-			List<RexNode> aggExprs = agg.getChildren().stream().map(context::toRexNode)
-				.collect(Collectors.toList());
+            // assemble exprs by agg children
+            List<RexNode> aggExprs =
+                    agg.getChildren().stream().map(context::toRexNode).collect(Collectors.toList());
 
-			// assemble order by key
-			Expression orderKeyExpr = children.get(1);
-			Set<SqlKind> kinds = new HashSet<>();
-			RexNode collationRexNode = createCollation(
-				context.toRexNode(orderKeyExpr), RelFieldCollation.Direction.ASCENDING, null, kinds);
-			ImmutableList<RexFieldCollation> orderKey = ImmutableList
-				.of(new RexFieldCollation(collationRexNode, kinds));
+            // assemble order by key
+            Expression orderKeyExpr = children.get(1);
+            Set<SqlKind> kinds = new HashSet<>();
+            RexNode collationRexNode =
+                    createCollation(
+                            context.toRexNode(orderKeyExpr),
+                            RelFieldCollation.Direction.ASCENDING,
+                            null,
+                            kinds);
+            ImmutableList<RexFieldCollation> orderKey =
+                    ImmutableList.of(new RexFieldCollation(collationRexNode, kinds));
 
-			// assemble partition by keys
-			List<RexNode> partitionKeys = children.subList(4, children.size()).stream().map(context::toRexNode)
-				.collect(Collectors.toList());
-			// assemble bounds
-			Expression preceding = children.get(2);
-			boolean isPhysical = LogicalTypeChecks.hasRoot(
-				fromDataTypeToLogicalType(((ResolvedExpression) preceding).getOutputDataType()),
-				LogicalTypeRoot.BIGINT);
-			Expression following = children.get(3);
-			RexWindowBound lowerBound = createBound(context, preceding, SqlKind.PRECEDING);
-			RexWindowBound upperBound = createBound(context, following, SqlKind.FOLLOWING);
+            // assemble partition by keys
+            List<RexNode> partitionKeys =
+                    children.subList(4, children.size()).stream()
+                            .map(context::toRexNode)
+                            .collect(Collectors.toList());
+            // assemble bounds
+            Expression preceding = children.get(2);
+            boolean isPhysical =
+                    LogicalTypeChecks.hasRoot(
+                            fromDataTypeToLogicalType(
+                                    ((ResolvedExpression) preceding).getOutputDataType()),
+                            LogicalTypeRoot.BIGINT);
+            Expression following = children.get(3);
+            RexWindowBound lowerBound = createBound(context, preceding, SqlKind.PRECEDING);
+            RexWindowBound upperBound = createBound(context, following, SqlKind.FOLLOWING);
 
-			// build RexOver
-			return Optional.of(context.getRelBuilder().getRexBuilder().makeOver(
-				aggResultType,
-				aggFunc,
-				aggExprs,
-				partitionKeys,
-				orderKey,
-				lowerBound,
-				upperBound,
-				isPhysical,
-				true,
-				false,
-				false));
-		}
-		return Optional.empty();
-	}
+            // build RexOver
+            return Optional.of(
+                    context.getRelBuilder()
+                            .getRexBuilder()
+                            .makeOver(
+                                    aggResultType,
+                                    aggFunc,
+                                    aggExprs,
+                                    partitionKeys,
+                                    orderKey,
+                                    lowerBound,
+                                    upperBound,
+                                    isPhysical,
+                                    true,
+                                    false,
+                                    false));
+        }
+        return Optional.empty();
+    }
 
-	private RexNode createCollation(
-			RexNode node,
-			RelFieldCollation.Direction direction,
-			RelFieldCollation.NullDirection nullDirection,
-			Set<SqlKind> kinds) {
-		switch (node.getKind()) {
-			case DESCENDING:
-				kinds.add(node.getKind());
-				return createCollation(((RexCall) node).getOperands().get(0), RelFieldCollation.Direction.DESCENDING,
-					nullDirection, kinds);
-			case NULLS_FIRST:
-				kinds.add(node.getKind());
-				return createCollation(((RexCall) node).getOperands().get(0), direction,
-					RelFieldCollation.NullDirection.FIRST, kinds);
-			case NULLS_LAST:
-				kinds.add(node.getKind());
-				return createCollation(((RexCall) node).getOperands().get(0), direction,
-					RelFieldCollation.NullDirection.LAST, kinds);
-			default:
-				if (nullDirection == null) {
-					// Set the null direction if not specified.
-					// Consistent with HIVE/SPARK/MYSQL/BLINK-RUNTIME.
-					if (FlinkPlannerImpl.defaultNullCollation()
-						.last(direction.equals(RelFieldCollation.Direction.DESCENDING))) {
-						kinds.add(SqlKind.NULLS_LAST);
-					} else {
-						kinds.add(SqlKind.NULLS_FIRST);
-					}
-				}
-				return node;
-		}
-	}
+    private RexNode createCollation(
+            RexNode node,
+            RelFieldCollation.Direction direction,
+            RelFieldCollation.NullDirection nullDirection,
+            Set<SqlKind> kinds) {
+        switch (node.getKind()) {
+            case DESCENDING:
+                kinds.add(node.getKind());
+                return createCollation(
+                        ((RexCall) node).getOperands().get(0),
+                        RelFieldCollation.Direction.DESCENDING,
+                        nullDirection,
+                        kinds);
+            case NULLS_FIRST:
+                kinds.add(node.getKind());
+                return createCollation(
+                        ((RexCall) node).getOperands().get(0),
+                        direction,
+                        RelFieldCollation.NullDirection.FIRST,
+                        kinds);
+            case NULLS_LAST:
+                kinds.add(node.getKind());
+                return createCollation(
+                        ((RexCall) node).getOperands().get(0),
+                        direction,
+                        RelFieldCollation.NullDirection.LAST,
+                        kinds);
+            default:
+                if (nullDirection == null) {
+                    // Set the null direction if not specified.
+                    // Consistent with HIVE/SPARK/MYSQL/BLINK-RUNTIME.
+                    if (FlinkPlannerImpl.defaultNullCollation()
+                            .last(direction.equals(RelFieldCollation.Direction.DESCENDING))) {
+                        kinds.add(SqlKind.NULLS_LAST);
+                    } else {
+                        kinds.add(SqlKind.NULLS_FIRST);
+                    }
+                }
+                return node;
+        }
+    }
 
-	private RexWindowBound createBound(ConvertContext context, Expression bound, SqlKind sqlKind) {
-		if (bound instanceof CallExpression) {
-			CallExpression callExpr = (CallExpression) bound;
-			FunctionDefinition func = callExpr.getFunctionDefinition();
-			if (BuiltInFunctionDefinitions.UNBOUNDED_ROW.equals(func) || BuiltInFunctionDefinitions.UNBOUNDED_RANGE
-				.equals(func)) {
-				SqlNode unbounded = sqlKind.equals(SqlKind.PRECEDING) ? SqlWindow
-					.createUnboundedPreceding(SqlParserPos.ZERO) :
-					SqlWindow.createUnboundedFollowing(SqlParserPos.ZERO);
-				return RexWindowBound.create(unbounded, null);
-			} else if (BuiltInFunctionDefinitions.CURRENT_ROW.equals(func) || BuiltInFunctionDefinitions.CURRENT_RANGE
-				.equals(func)) {
-				SqlNode currentRow = SqlWindow.createCurrentRow(SqlParserPos.ZERO);
-				return RexWindowBound.create(currentRow, null);
-			} else {
-				throw new IllegalArgumentException("Unexpected expression: " + bound);
-			}
-		} else if (bound instanceof ValueLiteralExpression) {
-			RelDataType returnType = context.getTypeFactory()
-				.createFieldTypeFromLogicalType(new DecimalType(true, 19, 0));
-			SqlOperator sqlOperator = new SqlPostfixOperator(
-				sqlKind.name(),
-				sqlKind,
-				2,
-				new OrdinalReturnTypeInference(0),
-				null,
-				null);
-			SqlNode[] operands = new SqlNode[] { SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO) };
-			SqlNode node = new SqlBasicCall(sqlOperator, operands, SqlParserPos.ZERO);
+    private RexWindowBound createBound(ConvertContext context, Expression bound, SqlKind sqlKind) {
+        if (bound instanceof CallExpression) {
+            CallExpression callExpr = (CallExpression) bound;
+            FunctionDefinition func = callExpr.getFunctionDefinition();
+            if (BuiltInFunctionDefinitions.UNBOUNDED_ROW.equals(func)
+                    || BuiltInFunctionDefinitions.UNBOUNDED_RANGE.equals(func)) {
+                SqlNode unbounded =
+                        sqlKind.equals(SqlKind.PRECEDING)
+                                ? SqlWindow.createUnboundedPreceding(SqlParserPos.ZERO)
+                                : SqlWindow.createUnboundedFollowing(SqlParserPos.ZERO);
+                return RexWindowBound.create(unbounded, null);
+            } else if (BuiltInFunctionDefinitions.CURRENT_ROW.equals(func)
+                    || BuiltInFunctionDefinitions.CURRENT_RANGE.equals(func)) {
+                SqlNode currentRow = SqlWindow.createCurrentRow(SqlParserPos.ZERO);
+                return RexWindowBound.create(currentRow, null);
+            } else {
+                throw new IllegalArgumentException("Unexpected expression: " + bound);
+            }
+        } else if (bound instanceof ValueLiteralExpression) {
+            RelDataType returnType =
+                    context.getTypeFactory()
+                            .createFieldTypeFromLogicalType(new DecimalType(true, 19, 0));
+            SqlOperator sqlOperator =
+                    new SqlPostfixOperator(
+                            sqlKind.name(),
+                            sqlKind,
+                            2,
+                            new OrdinalReturnTypeInference(0),
+                            null,
+                            null);
+            SqlNode[] operands =
+                    new SqlNode[] {SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)};
+            SqlNode node = new SqlBasicCall(sqlOperator, operands, SqlParserPos.ZERO);
 
-			ValueLiteralExpression literalExpr = (ValueLiteralExpression) bound;
-			RexNode literalRexNode = literalExpr.getValueAs(BigDecimal.class)
-				.map(v -> context.getRelBuilder().literal(v))
-				.orElse(context.getRelBuilder().literal(extractValue(literalExpr, Object.class)));
+            ValueLiteralExpression literalExpr = (ValueLiteralExpression) bound;
+            RexNode literalRexNode =
+                    literalExpr
+                            .getValueAs(BigDecimal.class)
+                            .map(v -> context.getRelBuilder().literal(v))
+                            .orElse(
+                                    context.getRelBuilder()
+                                            .literal(extractValue(literalExpr, Object.class)));
 
-			List<RexNode> expressions = new ArrayList<>();
-			expressions.add(literalRexNode);
-			RexNode rexNode = context.getRelBuilder().getRexBuilder().makeCall(
-				returnType, sqlOperator, expressions);
-			return RexWindowBound.create(node, rexNode);
-		} else {
-			throw new TableException("Unexpected expression: " + bound);
-		}
-	}
+            List<RexNode> expressions = new ArrayList<>();
+            expressions.add(literalRexNode);
+            RexNode rexNode =
+                    context.getRelBuilder()
+                            .getRexBuilder()
+                            .makeCall(returnType, sqlOperator, expressions);
+            return RexWindowBound.create(node, rexNode);
+        } else {
+            throw new TableException("Unexpected expression: " + bound);
+        }
+    }
 }

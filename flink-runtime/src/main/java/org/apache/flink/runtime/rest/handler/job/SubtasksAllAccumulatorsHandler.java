@@ -40,42 +40,61 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * Request handler for the subtasks all accumulators.
- */
-public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexHandler<SubtasksAllAccumulatorsInfo, JobVertexMessageParameters> {
+/** Request handler for the subtasks all accumulators. */
+public class SubtasksAllAccumulatorsHandler
+        extends AbstractJobVertexHandler<SubtasksAllAccumulatorsInfo, JobVertexMessageParameters> {
 
-	public SubtasksAllAccumulatorsHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, SubtasksAllAccumulatorsInfo, JobVertexMessageParameters> messageHeaders, ExecutionGraphCache executionGraphCache, Executor executor) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
-	}
+    public SubtasksAllAccumulatorsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<
+                            EmptyRequestBody,
+                            SubtasksAllAccumulatorsInfo,
+                            JobVertexMessageParameters>
+                    messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor);
+    }
 
-	@Override
-	protected SubtasksAllAccumulatorsInfo handleRequest(HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request, AccessExecutionJobVertex jobVertex) throws RestHandlerException {
-		JobVertexID jobVertexId = jobVertex.getJobVertexId();
-		int parallelism = jobVertex.getParallelism();
+    @Override
+    protected SubtasksAllAccumulatorsInfo handleRequest(
+            HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
+            AccessExecutionJobVertex jobVertex)
+            throws RestHandlerException {
+        JobVertexID jobVertexId = jobVertex.getJobVertexId();
+        int parallelism = jobVertex.getParallelism();
 
-		final List<SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos = new ArrayList<>();
+        final List<SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo> subtaskAccumulatorsInfos =
+                new ArrayList<>();
 
-		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
-			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-			String locationString = location == null ? "(unassigned)" : location.getHostname();
+        for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
+            TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
+            String locationString = location == null ? "(unassigned)" : location.getHostname();
 
-			StringifiedAccumulatorResult[] accs = vertex.getCurrentExecutionAttempt().getUserAccumulatorsStringified();
-			List<UserAccumulator> userAccumulators = new ArrayList<>(accs.length);
-			for (StringifiedAccumulatorResult acc : accs) {
-				userAccumulators.add(new UserAccumulator(acc.getName(), acc.getType(), acc.getValue()));
-			}
+            StringifiedAccumulatorResult[] accs =
+                    vertex.getCurrentExecutionAttempt().getUserAccumulatorsStringified();
+            List<UserAccumulator> userAccumulators = new ArrayList<>(accs.length);
+            for (StringifiedAccumulatorResult acc : accs) {
+                userAccumulators.add(
+                        new UserAccumulator(acc.getName(), acc.getType(), acc.getValue()));
+            }
 
-			subtaskAccumulatorsInfos.add(
-				new SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo(
-					vertex.getCurrentExecutionAttempt().getParallelSubtaskIndex(),
-					vertex.getCurrentExecutionAttempt().getAttemptNumber(),
-					locationString,
-					userAccumulators
-				));
-		}
+            subtaskAccumulatorsInfos.add(
+                    new SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo(
+                            vertex.getCurrentExecutionAttempt().getParallelSubtaskIndex(),
+                            vertex.getCurrentExecutionAttempt().getAttemptNumber(),
+                            locationString,
+                            userAccumulators));
+        }
 
-		return new SubtasksAllAccumulatorsInfo(jobVertexId, parallelism, subtaskAccumulatorsInfos);
-	}
-
+        return new SubtasksAllAccumulatorsInfo(jobVertexId, parallelism, subtaskAccumulatorsInfos);
+    }
 }

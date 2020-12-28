@@ -24,75 +24,68 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 
 /**
- * Part file name configuration.
- * This allow to define a prefix and a suffix to the part file name.
+ * Part file name configuration. This allow to define a prefix and a suffix to the part file name.
  */
 public class OutputFileConfig implements Serializable {
 
-	private final String partPrefix;
+    private final String partPrefix;
 
-	private final String partSuffix;
+    private final String partSuffix;
 
-	/**
-	 *	Initiates the {@code PartFileConfig} with values passed as parameters.
-	 *
-	 * @param partPrefix - the beginning of part file name
-	 * @param partSuffix - the ending of part file name
-	 */
-	public OutputFileConfig(final String partPrefix, final String partSuffix) {
-		this.partPrefix = Preconditions.checkNotNull(partPrefix);
-		this.partSuffix = Preconditions.checkNotNull(partSuffix);
-	}
+    /**
+     * Initiates the {@code PartFileConfig} with values passed as parameters.
+     *
+     * @param partPrefix - the beginning of part file name
+     * @param partSuffix - the ending of part file name
+     */
+    public OutputFileConfig(final String partPrefix, final String partSuffix) {
+        this.partPrefix = Preconditions.checkNotNull(partPrefix);
+        this.partSuffix = Preconditions.checkNotNull(partSuffix);
+    }
 
-	/**
-	 * The prefix for the part name.
-	 */
-	public String getPartPrefix() {
-		return partPrefix;
-	}
+    /** The prefix for the part name. */
+    public String getPartPrefix() {
+        return partPrefix;
+    }
 
-	/**
-	 * The suffix for the part name.
-	 */
-	public String getPartSuffix() {
-		return partSuffix;
-	}
+    /** The suffix for the part name. */
+    public String getPartSuffix() {
+        return partSuffix;
+    }
 
-	public static OutputFileConfigBuilder builder() {
-		return new OutputFileConfigBuilder();
-	}
+    public static OutputFileConfigBuilder builder() {
+        return new OutputFileConfigBuilder();
+    }
 
-	/**
-	 * A builder to create the part file configuration.
-	 */
-	@PublicEvolving
-	public static class OutputFileConfigBuilder {
+    /** A builder to create the part file configuration. */
+    @PublicEvolving
+    public static class OutputFileConfigBuilder {
 
-		private static final String DEFAULT_PART_PREFIX = "part";
+        private static final String DEFAULT_PART_PREFIX = "part";
 
-		private static final String DEFAULT_PART_SUFFIX = "";
+        private static final String DEFAULT_PART_SUFFIX = "";
 
-		private String partPrefix;
+        private String partPrefix;
 
-		private String partSuffix;
+        private String partSuffix;
 
-		private OutputFileConfigBuilder() {
-			this.partPrefix = DEFAULT_PART_PREFIX;
-			this.partSuffix = DEFAULT_PART_SUFFIX;
-		}
+        private OutputFileConfigBuilder() {
+            this.partPrefix = DEFAULT_PART_PREFIX;
+            this.partSuffix = DEFAULT_PART_SUFFIX;
+        }
 
-		public OutputFileConfigBuilder withPartPrefix(String prefix) {
-			this.partPrefix = prefix;
-			return this;
-		}
+        public OutputFileConfigBuilder withPartPrefix(String prefix) {
+            this.partPrefix = prefix;
+            return this;
+        }
 
-		public OutputFileConfigBuilder withPartSuffix(String suffix) {
-			this.partSuffix = suffix;
-			return this;
-		}
+        public OutputFileConfigBuilder withPartSuffix(String suffix) {
+            this.partSuffix = suffix;
+            return this;
+        }
 
-		public OutputFileConfig build() {
-			return new OutputFileConfig(partPrefix, partSuffix);
-		}
-	}
+        public OutputFileConfig build() {
+            return new OutputFileConfig(partPrefix, partSuffix);
+        }
+    }
 }

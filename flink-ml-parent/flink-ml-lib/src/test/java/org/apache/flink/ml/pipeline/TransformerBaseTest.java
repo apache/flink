@@ -1,20 +1,20 @@
 /*
- Licensed to the Apache Software Foundation (ASF) under one
- or more contributor license agreements.  See the NOTICE file
- distributed with this work for additional information
- regarding copyright ownership.  The ASF licenses this file
- to you under the Apache License, Version 2.0 (the
- "License"); you may not use this file except in compliance
- with the License.  You may obtain a copy of the License at
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+      http://www.apache.org/licenses/LICENSE-2.0
 
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
- */
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package org.apache.flink.ml.pipeline;
 
@@ -29,64 +29,60 @@ import org.apache.flink.table.api.Table;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Unit test for {@link TransformerBase}.
- */
+/** Unit test for {@link TransformerBase}. */
 public class TransformerBaseTest extends PipelineStageTestBase {
 
-	/**
-	 * This fake transformer simply record which transform method is invoked.
-	 */
-	private static class FakeTransFormer extends TransformerBase {
+    /** This fake transformer simply record which transform method is invoked. */
+    private static class FakeTransFormer extends TransformerBase {
 
-		boolean batchTransformed = false;
-		boolean streamTransformed = false;
+        boolean batchTransformed = false;
+        boolean streamTransformed = false;
 
-		@Override
-		protected BatchOperator transform(BatchOperator input) {
-			batchTransformed = true;
-			return input;
-		}
+        @Override
+        protected BatchOperator transform(BatchOperator input) {
+            batchTransformed = true;
+            return input;
+        }
 
-		@Override
-		protected StreamOperator transform(StreamOperator input) {
-			streamTransformed = true;
-			return input;
-		}
-	}
+        @Override
+        protected StreamOperator transform(StreamOperator input) {
+            streamTransformed = true;
+            return input;
+        }
+    }
 
-	@Override
-	protected PipelineStageBase createPipelineStage() {
-		return new FakeTransFormer();
-	}
+    @Override
+    protected PipelineStageBase createPipelineStage() {
+        return new FakeTransFormer();
+    }
 
-	@Test
-	public void testFitBatchTable() {
-		Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
-		MLEnvironment env = MLEnvironmentFactory.get(id);
-		DataSet<Integer> input = env.getExecutionEnvironment().fromElements(1, 2, 3);
-		Table table = env.getBatchTableEnvironment().fromDataSet(input);
+    @Test
+    public void testFitBatchTable() {
+        Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
+        MLEnvironment env = MLEnvironmentFactory.get(id);
+        DataSet<Integer> input = env.getExecutionEnvironment().fromElements(1, 2, 3);
+        Table table = env.getBatchTableEnvironment().fromDataSet(input);
 
-		FakeTransFormer transFormer = new FakeTransFormer();
-		transFormer.setMLEnvironmentId(id);
-		transFormer.transform(env.getBatchTableEnvironment(), table);
+        FakeTransFormer transFormer = new FakeTransFormer();
+        transFormer.setMLEnvironmentId(id);
+        transFormer.transform(env.getBatchTableEnvironment(), table);
 
-		Assert.assertTrue(transFormer.batchTransformed);
-		Assert.assertFalse(transFormer.streamTransformed);
-	}
+        Assert.assertTrue(transFormer.batchTransformed);
+        Assert.assertFalse(transFormer.streamTransformed);
+    }
 
-	@Test
-	public void testFitStreamTable() {
-		Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
-		MLEnvironment env = MLEnvironmentFactory.get(id);
-		DataStream<Integer> input = env.getStreamExecutionEnvironment().fromElements(1, 2, 3);
-		Table table = env.getStreamTableEnvironment().fromDataStream(input);
+    @Test
+    public void testFitStreamTable() {
+        Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
+        MLEnvironment env = MLEnvironmentFactory.get(id);
+        DataStream<Integer> input = env.getStreamExecutionEnvironment().fromElements(1, 2, 3);
+        Table table = env.getStreamTableEnvironment().fromDataStream(input);
 
-		FakeTransFormer transFormer = new FakeTransFormer();
-		transFormer.setMLEnvironmentId(id);
-		transFormer.transform(env.getStreamTableEnvironment(), table);
+        FakeTransFormer transFormer = new FakeTransFormer();
+        transFormer.setMLEnvironmentId(id);
+        transFormer.transform(env.getStreamTableEnvironment(), table);
 
-		Assert.assertFalse(transFormer.batchTransformed);
-		Assert.assertTrue(transFormer.streamTransformed);
-	}
+        Assert.assertFalse(transFormer.batchTransformed);
+        Assert.assertTrue(transFormer.streamTransformed);
+    }
 }

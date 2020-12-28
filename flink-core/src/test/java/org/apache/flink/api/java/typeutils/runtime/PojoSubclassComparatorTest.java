@@ -19,58 +19,61 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 import org.junit.Assert;
 
 import java.util.Arrays;
 
-
 public class PojoSubclassComparatorTest extends ComparatorTestBase<PojoContainingTuple> {
-	TypeInformation<PojoContainingTuple> type = TypeExtractor.getForClass(PojoContainingTuple.class);
-	
-	PojoContainingTuple[] data = new PojoContainingTuple[]{
-		new Subclass(1, 1L, 1L, 17L),
-		new Subclass(2, 2L, 2L, 42L),
-		new Subclass(8519, 85190L, 85190L, 117L),
-		new Subclass(8520, 85191L, 85191L, 93L),
-	};
+    TypeInformation<PojoContainingTuple> type =
+            TypeExtractor.getForClass(PojoContainingTuple.class);
 
-	@Override
-	protected TypeComparator<PojoContainingTuple> createComparator(boolean ascending) {
-		Assert.assertTrue(type instanceof CompositeType);
-		CompositeType<PojoContainingTuple> cType = (CompositeType<PojoContainingTuple>) type;
-		ExpressionKeys<PojoContainingTuple> keys = new ExpressionKeys<PojoContainingTuple>(new String[] {"theTuple.*"}, cType);
-		boolean[] orders = new boolean[keys.getNumberOfKeyFields()];
-		Arrays.fill(orders, ascending);
-		return cType.createComparator(keys.computeLogicalKeyPositions(), orders, 0, new ExecutionConfig());
-	}
+    PojoContainingTuple[] data =
+            new PojoContainingTuple[] {
+                new Subclass(1, 1L, 1L, 17L),
+                new Subclass(2, 2L, 2L, 42L),
+                new Subclass(8519, 85190L, 85190L, 117L),
+                new Subclass(8520, 85191L, 85191L, 93L),
+            };
 
-	@Override
-	protected TypeSerializer<PojoContainingTuple> createSerializer() {
-		return type.createSerializer(new ExecutionConfig());
-	}
+    @Override
+    protected TypeComparator<PojoContainingTuple> createComparator(boolean ascending) {
+        Assert.assertTrue(type instanceof CompositeType);
+        CompositeType<PojoContainingTuple> cType = (CompositeType<PojoContainingTuple>) type;
+        ExpressionKeys<PojoContainingTuple> keys =
+                new ExpressionKeys<PojoContainingTuple>(new String[] {"theTuple.*"}, cType);
+        boolean[] orders = new boolean[keys.getNumberOfKeyFields()];
+        Arrays.fill(orders, ascending);
+        return cType.createComparator(
+                keys.computeLogicalKeyPositions(), orders, 0, new ExecutionConfig());
+    }
 
-	@Override
-	protected PojoContainingTuple[] getSortedTestData() {
-		return data;
-	}
+    @Override
+    protected TypeSerializer<PojoContainingTuple> createSerializer() {
+        return type.createSerializer(new ExecutionConfig());
+    }
 
-	public static class Subclass extends PojoContainingTuple {
+    @Override
+    protected PojoContainingTuple[] getSortedTestData() {
+        return data;
+    }
 
-		public long additionalField;
+    public static class Subclass extends PojoContainingTuple {
 
-		public Subclass() {
-		}
+        public long additionalField;
 
-		public Subclass(int i, long l1, long l2, long additionalField) {
-			super(i, l1, l2);
-			this.additionalField = additionalField;
-		}
-	}
+        public Subclass() {}
+
+        public Subclass(int i, long l1, long l2, long additionalField) {
+            super(i, l1, l2);
+            this.additionalField = additionalField;
+        }
+    }
 }

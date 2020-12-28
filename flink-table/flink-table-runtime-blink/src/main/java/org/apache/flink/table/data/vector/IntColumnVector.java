@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.data.vector;
 
-/**
- * Int column vector.
- */
+/** Int column vector. */
 public interface IntColumnVector extends ColumnVector {
-	int getInt(int i);
+    int getInt(int i);
 }

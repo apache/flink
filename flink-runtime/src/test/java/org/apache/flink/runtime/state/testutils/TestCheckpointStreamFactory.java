@@ -26,19 +26,19 @@ import java.util.function.Supplier;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A bridge between factory lambdas (like {@link Supplier} and the
- * CheckpointStreamFactory class.
+ * A bridge between factory lambdas (like {@link Supplier} and the CheckpointStreamFactory class.
  */
 public class TestCheckpointStreamFactory implements CheckpointStreamFactory {
 
-	private final Supplier<CheckpointStateOutputStream> supplier;
+    private final Supplier<CheckpointStateOutputStream> supplier;
 
-	public TestCheckpointStreamFactory(Supplier<CheckpointStateOutputStream> supplier) {
-		this.supplier = checkNotNull(supplier);
-	}
+    public TestCheckpointStreamFactory(Supplier<CheckpointStateOutputStream> supplier) {
+        this.supplier = checkNotNull(supplier);
+    }
 
-	@Override
-	public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) {
-		return supplier.get();
-	}
+    @Override
+    public CheckpointStateOutputStream createCheckpointStateOutputStream(
+            CheckpointedStateScope scope) {
+        return supplier.get();
+    }
 }

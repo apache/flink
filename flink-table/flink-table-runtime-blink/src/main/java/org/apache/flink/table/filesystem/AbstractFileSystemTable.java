@@ -33,41 +33,41 @@ import java.util.List;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_DEFAULT_NAME;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PATH;
 
-/**
- * Abstract File system table for providing some common methods.
- */
+/** Abstract File system table for providing some common methods. */
 abstract class AbstractFileSystemTable {
 
-	final DynamicTableFactory.Context context;
-	final ObjectIdentifier tableIdentifier;
-	final Configuration tableOptions;
-	final TableSchema schema;
-	final List<String> partitionKeys;
-	final Path path;
-	final String defaultPartName;
+    final DynamicTableFactory.Context context;
+    final ObjectIdentifier tableIdentifier;
+    final Configuration tableOptions;
+    final TableSchema schema;
+    final List<String> partitionKeys;
+    final Path path;
+    final String defaultPartName;
 
-	AbstractFileSystemTable(DynamicTableFactory.Context context) {
-		this.context = context;
-		this.tableIdentifier = context.getObjectIdentifier();
-		this.tableOptions = new Configuration();
-		context.getCatalogTable().getOptions().forEach(tableOptions::setString);
-		this.schema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
-		this.partitionKeys = context.getCatalogTable().getPartitionKeys();
-		this.path = new Path(tableOptions.get(PATH));
-		this.defaultPartName = tableOptions.get(PARTITION_DEFAULT_NAME);
-	}
+    AbstractFileSystemTable(DynamicTableFactory.Context context) {
+        this.context = context;
+        this.tableIdentifier = context.getObjectIdentifier();
+        this.tableOptions = new Configuration();
+        context.getCatalogTable().getOptions().forEach(tableOptions::setString);
+        this.schema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+        this.partitionKeys = context.getCatalogTable().getPartitionKeys();
+        this.path = new Path(tableOptions.get(PATH));
+        this.defaultPartName = tableOptions.get(PARTITION_DEFAULT_NAME);
+    }
 
-	ReadableConfig formatOptions(String identifier) {
-		return new DelegatingConfiguration(tableOptions, identifier + ".");
-	}
+    ReadableConfig formatOptions(String identifier) {
+        return new DelegatingConfiguration(tableOptions, identifier + ".");
+    }
 
-	DataType getFormatDataType() {
-		TableSchema.Builder builder = TableSchema.builder();
-		schema.getTableColumns().forEach(column -> {
-			if (!partitionKeys.contains(column.getName())) {
-				builder.add(column);
-			}
-		});
-		return builder.build().toRowDataType();
-	}
+    DataType getFormatDataType() {
+        TableSchema.Builder builder = TableSchema.builder();
+        schema.getTableColumns()
+                .forEach(
+                        column -> {
+                            if (!partitionKeys.contains(column.getName())) {
+                                builder.add(column);
+                            }
+                        });
+        return builder.build().toRowDataType();
+    }
 }

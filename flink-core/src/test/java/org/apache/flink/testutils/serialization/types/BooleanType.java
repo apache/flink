@@ -16,59 +16,58 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.testutils.serialization.types;
-
-import java.io.IOException;
-import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.util.Random;
+
 public class BooleanType implements SerializationTestType {
 
-	private boolean value;
+    private boolean value;
 
-	public BooleanType() {
-		this.value = false;
-	}
+    public BooleanType() {
+        this.value = false;
+    }
 
-	private BooleanType(boolean value) {
-		this.value = value;
-	}
+    private BooleanType(boolean value) {
+        this.value = value;
+    }
 
-	@Override
-	public BooleanType getRandom(Random rnd) {
-		return new BooleanType(rnd.nextBoolean());
-	}
+    @Override
+    public BooleanType getRandom(Random rnd) {
+        return new BooleanType(rnd.nextBoolean());
+    }
 
-	@Override
-	public int length() {
-		return 1;
-	}
+    @Override
+    public int length() {
+        return 1;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeBoolean(this.value);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeBoolean(this.value);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.value = in.readBoolean();
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        this.value = in.readBoolean();
+    }
 
-	@Override
-	public int hashCode() {
-		return this.value ? 1 : 0;
-	}
+    @Override
+    public int hashCode() {
+        return this.value ? 1 : 0;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof BooleanType) {
-			BooleanType other = (BooleanType) obj;
-			return this.value == other.value;
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof BooleanType) {
+            BooleanType other = (BooleanType) obj;
+            return this.value == other.value;
+        } else {
+            return false;
+        }
+    }
 }

@@ -48,97 +48,108 @@ import java.util.List;
 import scala.collection.JavaConverters;
 
 /**
- * The physical rule is responsible for converting {@link FlinkLogicalWindowAggregate} to
- * {@link StreamExecPythonGroupWindowAggregate}.
+ * The physical rule is responsible for converting {@link FlinkLogicalWindowAggregate} to {@link
+ * StreamExecPythonGroupWindowAggregate}.
  */
 public class StreamExecPythonGroupWindowAggregateRule extends ConverterRule {
 
-	public static final StreamExecPythonGroupWindowAggregateRule INSTANCE = new StreamExecPythonGroupWindowAggregateRule();
+    public static final StreamExecPythonGroupWindowAggregateRule INSTANCE =
+            new StreamExecPythonGroupWindowAggregateRule();
 
-	private StreamExecPythonGroupWindowAggregateRule() {
-		super(FlinkLogicalWindowAggregate.class,
-			FlinkConventions.LOGICAL(),
-			FlinkConventions.STREAM_PHYSICAL(),
-			"StreamExecPythonGroupWindowAggregateRule");
-	}
+    private StreamExecPythonGroupWindowAggregateRule() {
+        super(
+                FlinkLogicalWindowAggregate.class,
+                FlinkConventions.LOGICAL(),
+                FlinkConventions.STREAM_PHYSICAL(),
+                "StreamExecPythonGroupWindowAggregateRule");
+    }
 
-	@Override
-	public boolean matches(RelOptRuleCall call) {
-		FlinkLogicalWindowAggregate agg = call.rel(0);
-		List<AggregateCall> aggCalls = agg.getAggCallList();
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        FlinkLogicalWindowAggregate agg = call.rel(0);
+        List<AggregateCall> aggCalls = agg.getAggCallList();
 
-		// check if we have grouping sets
-		if (agg.getGroupType() != Aggregate.Group.SIMPLE || agg.indicator) {
-			throw new TableException("GROUPING SETS are currently not supported.");
-		}
+        // check if we have grouping sets
+        if (agg.getGroupType() != Aggregate.Group.SIMPLE || agg.indicator) {
+            throw new TableException("GROUPING SETS are currently not supported.");
+        }
 
-		boolean existGeneralPythonFunction =
-			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
-		boolean existPandasFunction =
-			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
-		boolean existJavaFunction =
-			aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
-		if (existPandasFunction || existGeneralPythonFunction) {
-			if (existGeneralPythonFunction) {
-				throw new TableException("non-Pandas UDAFs are not supported in stream mode currently.");
-			}
-			if (existJavaFunction) {
-				throw new TableException("Python UDAF and Java/Scala UDAF cannot be used together.");
-			}
-			return true;
-		} else {
-			return false;
-		}
-	}
+        boolean existGeneralPythonFunction =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
+        boolean existPandasFunction =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
+        boolean existJavaFunction =
+                aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
+        if (existPandasFunction || existGeneralPythonFunction) {
+            if (existGeneralPythonFunction) {
+                throw new TableException(
+                        "non-Pandas UDAFs are not supported in stream mode currently.");
+            }
+            if (existJavaFunction) {
+                throw new TableException(
+                        "Python UDAF and Java/Scala UDAF cannot be used together.");
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public RelNode convert(RelNode rel) {
-		FlinkLogicalWindowAggregate agg = (FlinkLogicalWindowAggregate) rel;
-		LogicalWindow window = agg.getWindow();
+    @Override
+    public RelNode convert(RelNode rel) {
+        FlinkLogicalWindowAggregate agg = (FlinkLogicalWindowAggregate) rel;
+        LogicalWindow window = agg.getWindow();
 
-		if (window instanceof SessionGroupWindow) {
-			throw new TableException("Session Group Window is currently not supported.");
-		}
-		RelNode input = agg.getInput();
-		RelDataType inputRowType = input.getRowType();
-		RelOptCluster cluster = rel.getCluster();
-		FlinkRelDistribution requiredDistribution;
-		if (agg.getGroupCount() != 0) {
-			requiredDistribution = FlinkRelDistribution.hash(agg.getGroupSet().asList(), true);
-		} else {
-			requiredDistribution = FlinkRelDistribution.SINGLETON();
-		}
-		RelTraitSet requiredTraitSet = input.getTraitSet()
-			.replace(FlinkConventions.STREAM_PHYSICAL())
-			.replace(requiredDistribution);
+        if (window instanceof SessionGroupWindow) {
+            throw new TableException("Session Group Window is currently not supported.");
+        }
+        RelNode input = agg.getInput();
+        RelDataType inputRowType = input.getRowType();
+        RelOptCluster cluster = rel.getCluster();
+        FlinkRelDistribution requiredDistribution;
+        if (agg.getGroupCount() != 0) {
+            requiredDistribution = FlinkRelDistribution.hash(agg.getGroupSet().asList(), true);
+        } else {
+            requiredDistribution = FlinkRelDistribution.SINGLETON();
+        }
+        RelTraitSet requiredTraitSet =
+                input.getTraitSet()
+                        .replace(FlinkConventions.STREAM_PHYSICAL())
+                        .replace(requiredDistribution);
 
-		RelTraitSet providedTraitSet = rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
-		RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
-		TableConfig config = cluster.getPlanner().getContext().unwrap(FlinkContext.class).getTableConfig();
-		WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(config, agg.getWindow());
+        RelTraitSet providedTraitSet =
+                rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
+        RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
+        TableConfig config =
+                cluster.getPlanner().getContext().unwrap(FlinkContext.class).getTableConfig();
+        WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(config, agg.getWindow());
 
-		FieldReferenceExpression timeField = agg.getWindow().timeAttribute();
+        FieldReferenceExpression timeField = agg.getWindow().timeAttribute();
 
-		int inputTimestampIndex;
-		if (AggregateUtil.isRowtimeAttribute(timeField)) {
-			inputTimestampIndex = AggregateUtil.timeFieldIndex(
-				inputRowType, relBuilderFactory.create(cluster, null), timeField);
-		} else {
-			inputTimestampIndex = -1;
-		}
+        int inputTimestampIndex;
+        if (AggregateUtil.isRowtimeAttribute(timeField)) {
+            inputTimestampIndex =
+                    AggregateUtil.timeFieldIndex(
+                            inputRowType, relBuilderFactory.create(cluster, null), timeField);
+        } else {
+            inputTimestampIndex = -1;
+        }
 
-		return new StreamExecPythonGroupWindowAggregate(
-			cluster,
-			providedTraitSet,
-			newInput,
-			rel.getRowType(),
-			inputRowType,
-			agg.getGroupSet().toArray(),
-			JavaConverters.asScalaIteratorConverter(
-				agg.getAggCallList().iterator()).asScala().toSeq(),
-			agg.getWindow(),
-			agg.getNamedProperties(),
-			inputTimestampIndex,
-			emitStrategy);
-	}
+        return new StreamExecPythonGroupWindowAggregate(
+                cluster,
+                providedTraitSet,
+                newInput,
+                rel.getRowType(),
+                inputRowType,
+                agg.getGroupSet().toArray(),
+                JavaConverters.asScalaIteratorConverter(agg.getAggCallList().iterator())
+                        .asScala()
+                        .toSeq(),
+                agg.getWindow(),
+                agg.getNamedProperties(),
+                inputTimestampIndex,
+                emitStrategy);
+    }
 }

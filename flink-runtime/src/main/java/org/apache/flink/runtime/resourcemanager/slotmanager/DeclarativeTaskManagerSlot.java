@@ -27,108 +27,114 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 /**
- * A DeclarativeTaskManagerSlot represents a slot located in a TaskExecutor. It contains the necessary information
- * for initiating the allocation of the slot, and keeps track of the state of the slot.
+ * A DeclarativeTaskManagerSlot represents a slot located in a TaskExecutor. It contains the
+ * necessary information for initiating the allocation of the slot, and keeps track of the state of
+ * the slot.
  *
  * <p>This class is the declarative-resource-management version of the {@link TaskManagerSlot}.
  */
 class DeclarativeTaskManagerSlot implements TaskManagerSlotInformation {
 
-	/**
-	 * The unique identification of this slot.
-	 */
-	private final SlotID slotId;
+    /** The unique identification of this slot. */
+    private final SlotID slotId;
 
-	/**
-	 * The resource profile of this slot.
-	 */
-	private final ResourceProfile resourceProfile;
+    /** The resource profile of this slot. */
+    private final ResourceProfile resourceProfile;
 
-	/**
-	 * Gateway to the TaskExecutor which owns the slot.
-	 */
-	private final TaskExecutorConnection taskManagerConnection;
+    /** Gateway to the TaskExecutor which owns the slot. */
+    private final TaskExecutorConnection taskManagerConnection;
 
-	/**
-	 * Job id for which this slot has been allocated.
-	 */
-	@Nullable
-	private JobID jobId;
+    /** Job id for which this slot has been allocated. */
+    @Nullable private JobID jobId;
 
-	private SlotState state = SlotState.FREE;
+    private SlotState state = SlotState.FREE;
 
-	private long allocationStartTimeStamp;
+    private long allocationStartTimeStamp;
 
-	public DeclarativeTaskManagerSlot(SlotID slotId, ResourceProfile resourceProfile, TaskExecutorConnection taskManagerConnection) {
-		this.slotId = slotId;
-		this.resourceProfile = resourceProfile;
-		this.taskManagerConnection = taskManagerConnection;
-	}
+    public DeclarativeTaskManagerSlot(
+            SlotID slotId,
+            ResourceProfile resourceProfile,
+            TaskExecutorConnection taskManagerConnection) {
+        this.slotId = slotId;
+        this.resourceProfile = resourceProfile;
+        this.taskManagerConnection = taskManagerConnection;
+    }
 
-	public SlotState getState() {
-		return state;
-	}
+    public SlotState getState() {
+        return state;
+    }
 
-	@Override
-	public SlotID getSlotId() {
-		return slotId;
-	}
+    @Override
+    public SlotID getSlotId() {
+        return slotId;
+    }
 
-	@Override
-	public ResourceProfile getResourceProfile() {
-		return resourceProfile;
-	}
+    @Override
+    public ResourceProfile getResourceProfile() {
+        return resourceProfile;
+    }
 
-	@Override
-	public TaskExecutorConnection getTaskManagerConnection() {
-		return taskManagerConnection;
-	}
+    @Override
+    public TaskExecutorConnection getTaskManagerConnection() {
+        return taskManagerConnection;
+    }
 
-	@Nullable
-	public JobID getJobId() {
-		return jobId;
-	}
+    @Nullable
+    public JobID getJobId() {
+        return jobId;
+    }
 
-	@Override
-	public InstanceID getInstanceId() {
-		return taskManagerConnection.getInstanceID();
-	}
+    @Override
+    public InstanceID getInstanceId() {
+        return taskManagerConnection.getInstanceID();
+    }
 
-	public long getAllocationStartTimestamp() {
-		return allocationStartTimeStamp;
-	}
+    public long getAllocationStartTimestamp() {
+        return allocationStartTimeStamp;
+    }
 
-	public void startAllocation(JobID jobId) {
-		Preconditions.checkState(state == SlotState.FREE, "Slot must be free to be assigned a slot request.");
+    public void startAllocation(JobID jobId) {
+        Preconditions.checkState(
+                state == SlotState.FREE, "Slot must be free to be assigned a slot request.");
 
-		this.jobId = jobId;
-		this.state = SlotState.PENDING;
-		this.allocationStartTimeStamp = System.currentTimeMillis();
-	}
+        this.jobId = jobId;
+        this.state = SlotState.PENDING;
+        this.allocationStartTimeStamp = System.currentTimeMillis();
+    }
 
-	public void completeAllocation() {
-		Preconditions.checkState(state == SlotState.PENDING, "In order to complete an allocation, the slot has to be allocated.");
+    public void completeAllocation() {
+        Preconditions.checkState(
+                state == SlotState.PENDING,
+                "In order to complete an allocation, the slot has to be allocated.");
 
-		this.state = SlotState.ALLOCATED;
-	}
+        this.state = SlotState.ALLOCATED;
+    }
 
-	public void freeSlot() {
-		Preconditions.checkState(state == SlotState.PENDING || state == SlotState.ALLOCATED, "Slot must be allocated or pending before freeing it.");
+    public void freeSlot() {
+        Preconditions.checkState(
+                state == SlotState.PENDING || state == SlotState.ALLOCATED,
+                "Slot must be allocated or pending before freeing it.");
 
-		this.jobId = null;
-		this.state = SlotState.FREE;
-		this.allocationStartTimeStamp = 0;
-	}
+        this.jobId = null;
+        this.state = SlotState.FREE;
+        this.allocationStartTimeStamp = 0;
+    }
 
-	@Override
-	public String toString() {
-		return "DeclarativeTaskManagerSlot{" +
-			"slotId=" + slotId +
-			", resourceProfile=" + resourceProfile +
-			", taskManagerConnection=" + taskManagerConnection +
-			", jobId=" + jobId +
-			", state=" + state +
-			", allocationStartTimeStamp=" + allocationStartTimeStamp +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "DeclarativeTaskManagerSlot{"
+                + "slotId="
+                + slotId
+                + ", resourceProfile="
+                + resourceProfile
+                + ", taskManagerConnection="
+                + taskManagerConnection
+                + ", jobId="
+                + jobId
+                + ", state="
+                + state
+                + ", allocationStartTimeStamp="
+                + allocationStartTimeStamp
+                + '}';
+    }
 }

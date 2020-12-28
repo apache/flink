@@ -25,69 +25,66 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Testing implementation for {@link RetrievableStateStorageHelper} and {@link RetrievableStateHandle}
- * with type {@link Long}.
+ * Testing implementation for {@link RetrievableStateStorageHelper} and {@link
+ * RetrievableStateHandle} with type {@link Long}.
  */
 public class TestingLongStateHandleHelper implements RetrievableStateStorageHelper<Long> {
 
-	private final List<LongRetrievableStateHandle> stateHandles = new ArrayList<>();
+    private final List<LongRetrievableStateHandle> stateHandles = new ArrayList<>();
 
-	@Override
-	public RetrievableStateHandle<Long> store(Long state) {
-		final LongRetrievableStateHandle stateHandle = new LongRetrievableStateHandle(state);
-		stateHandles.add(stateHandle);
+    @Override
+    public RetrievableStateHandle<Long> store(Long state) {
+        final LongRetrievableStateHandle stateHandle = new LongRetrievableStateHandle(state);
+        stateHandles.add(stateHandle);
 
-		return stateHandle;
-	}
+        return stateHandle;
+    }
 
-	public List<LongRetrievableStateHandle> getStateHandles() {
-		return stateHandles;
-	}
+    public List<LongRetrievableStateHandle> getStateHandles() {
+        return stateHandles;
+    }
 
-	/**
-	 * Testing {@link RetrievableStateStorageHelper} implementation with {@link Long}.
-	 */
-	public static class LongRetrievableStateHandle implements RetrievableStateHandle<Long> {
+    /** Testing {@link RetrievableStateStorageHelper} implementation with {@link Long}. */
+    public static class LongRetrievableStateHandle implements RetrievableStateHandle<Long> {
 
-		private static final long serialVersionUID = -3555329254423838912L;
+        private static final long serialVersionUID = -3555329254423838912L;
 
-		private static AtomicInteger numberOfGlobalDiscardCalls = new AtomicInteger(0);
+        private static AtomicInteger numberOfGlobalDiscardCalls = new AtomicInteger(0);
 
-		private final Long state;
+        private final Long state;
 
-		private int numberOfDiscardCalls = 0;
+        private int numberOfDiscardCalls = 0;
 
-		public LongRetrievableStateHandle(Long state) {
-			this.state = state;
-		}
+        public LongRetrievableStateHandle(Long state) {
+            this.state = state;
+        }
 
-		@Override
-		public Long retrieveState() {
-			return state;
-		}
+        @Override
+        public Long retrieveState() {
+            return state;
+        }
 
-		@Override
-		public void discardState() {
-			numberOfGlobalDiscardCalls.incrementAndGet();
-			numberOfDiscardCalls++;
-		}
+        @Override
+        public void discardState() {
+            numberOfGlobalDiscardCalls.incrementAndGet();
+            numberOfDiscardCalls++;
+        }
 
-		@Override
-		public long getStateSize() {
-			return 0;
-		}
+        @Override
+        public long getStateSize() {
+            return 0;
+        }
 
-		public int getNumberOfDiscardCalls() {
-			return numberOfDiscardCalls;
-		}
+        public int getNumberOfDiscardCalls() {
+            return numberOfDiscardCalls;
+        }
 
-		public static int getNumberOfGlobalDiscardCalls() {
-			return numberOfGlobalDiscardCalls.get();
-		}
+        public static int getNumberOfGlobalDiscardCalls() {
+            return numberOfGlobalDiscardCalls.get();
+        }
 
-		public static void clearNumberOfGlobalDiscardCalls() {
-			numberOfGlobalDiscardCalls.set(0);
-		}
-	}
-
+        public static void clearNumberOfGlobalDiscardCalls() {
+            numberOfGlobalDiscardCalls.set(0);
+        }
+    }
 }

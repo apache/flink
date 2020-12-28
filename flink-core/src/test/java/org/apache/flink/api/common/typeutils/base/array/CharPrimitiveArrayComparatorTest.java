@@ -18,25 +18,26 @@
 package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+
 import org.junit.Assert;
 
 public class CharPrimitiveArrayComparatorTest extends PrimitiveArrayComparatorTestBase<char[]> {
-	public CharPrimitiveArrayComparatorTest() {
-		super(PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO);
-	}
+    public CharPrimitiveArrayComparatorTest() {
+        super(PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO);
+    }
 
-	@Override
-	protected void deepEquals(String message, char[] should, char[] is) {
-		Assert.assertArrayEquals(message, should, is);
-	}
+    @Override
+    protected void deepEquals(String message, char[] should, char[] is) {
+        Assert.assertArrayEquals(message, should, is);
+    }
 
-	@Override
-	protected char[][] getSortedTestData() {
-		return new char[][]{
-			new char[]{0, 0},
-			new char[]{0, 1},
-			new char[]{0, 1, 2},
-			new char[]{2}
-		};
-	}
+    @Override
+    protected char[][] getSortedTestData() {
+        return new char[][] {
+            new char[] {0, 0},
+            new char[] {0, 1},
+            new char[] {0, 1, 2},
+            new char[] {2}
+        };
+    }
 }

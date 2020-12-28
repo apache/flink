@@ -20,19 +20,17 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 
-/**
- * Message headers for {@link JarPlanHandler}.
- */
+/** Message headers for {@link JarPlanHandler}. */
 public class JarPlanGetHeaders extends AbstractJarPlanHeaders {
 
-	private static final JarPlanGetHeaders INSTANCE = new JarPlanGetHeaders();
+    private static final JarPlanGetHeaders INSTANCE = new JarPlanGetHeaders();
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	public static JarPlanGetHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JarPlanGetHeaders getInstance() {
+        return INSTANCE;
+    }
 }

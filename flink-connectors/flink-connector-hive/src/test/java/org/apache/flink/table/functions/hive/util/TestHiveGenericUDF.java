@@ -29,36 +29,34 @@ import org.apache.hadoop.io.IntWritable;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Test generic udf.
- */
+/** Test generic udf. */
 public class TestHiveGenericUDF extends GenericUDF {
 
-	@Override
-	public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
-		checkArgument(arguments.length == 2);
+    @Override
+    public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
+        checkArgument(arguments.length == 2);
 
-		// TEST for constant arguments
-		checkArgument(arguments[1] instanceof ConstantObjectInspector);
-		Object constant = ((ConstantObjectInspector) arguments[1]).getWritableConstantValue();
-		checkArgument(constant instanceof IntWritable);
-		checkArgument(((IntWritable) constant).get() == 1);
+        // TEST for constant arguments
+        checkArgument(arguments[1] instanceof ConstantObjectInspector);
+        Object constant = ((ConstantObjectInspector) arguments[1]).getWritableConstantValue();
+        checkArgument(constant instanceof IntWritable);
+        checkArgument(((IntWritable) constant).get() == 1);
 
-		if (arguments[0] instanceof IntObjectInspector ||
-				arguments[0] instanceof StringObjectInspector) {
-			return arguments[0];
-		} else {
-			throw new RuntimeException("Not support argument: " + arguments[0]);
-		}
-	}
+        if (arguments[0] instanceof IntObjectInspector
+                || arguments[0] instanceof StringObjectInspector) {
+            return arguments[0];
+        } else {
+            throw new RuntimeException("Not support argument: " + arguments[0]);
+        }
+    }
 
-	@Override
-	public Object evaluate(DeferredObject[] arguments) throws HiveException {
-		return arguments[0].get();
-	}
+    @Override
+    public Object evaluate(DeferredObject[] arguments) throws HiveException {
+        return arguments[0].get();
+    }
 
-	@Override
-	public String getDisplayString(String[] children) {
-		return "TestHiveGenericUDF";
-	}
+    @Override
+    public String getDisplayString(String[] children) {
+        return "TestHiveGenericUDF";
+    }
 }

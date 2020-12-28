@@ -31,12 +31,11 @@ import org.apache.flink.table.data.RowData;
  * @see FactoryUtil#createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)
  */
 @Internal
-public interface BulkReaderFormatFactory extends DecodingFormatFactory<BulkFormat<RowData, FileSourceSplit>> {
+public interface BulkReaderFormatFactory
+        extends DecodingFormatFactory<BulkFormat<RowData, FileSourceSplit>> {
 
-	/**
-	 * Creates a {@link BulkDecodingFormat} from the given context and format options.
-	 */
-	@Override
-	BulkDecodingFormat<RowData> createDecodingFormat(
-			DynamicTableFactory.Context context, ReadableConfig formatOptions);
+    /** Creates a {@link BulkDecodingFormat} from the given context and format options. */
+    @Override
+    BulkDecodingFormat<RowData> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions);
 }

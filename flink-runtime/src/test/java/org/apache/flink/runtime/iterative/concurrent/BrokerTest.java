@@ -34,104 +34,99 @@ import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link Broker}.
- */
+/** Tests for {@link Broker}. */
 public class BrokerTest {
 
-	@Test
-	public void mediation() throws Exception {
-		Random random = new Random();
-		for (int n = 0; n < 20; n++) {
-			mediate(random.nextInt(10) + 1);
-		}
-	}
+    @Test
+    public void mediation() throws Exception {
+        Random random = new Random();
+        for (int n = 0; n < 20; n++) {
+            mediate(random.nextInt(10) + 1);
+        }
+    }
 
-	void mediate(int subtasks) throws InterruptedException, ExecutionException {
+    void mediate(int subtasks) throws InterruptedException, ExecutionException {
 
-		final ExecutorService executorService = Executors.newFixedThreadPool(subtasks * 2);
+        final ExecutorService executorService = Executors.newFixedThreadPool(subtasks * 2);
 
-		try {
-			List<Callable<StringPair>> tasks = new ArrayList<>();
-			Broker<String> broker = new Broker<String>();
+        try {
+            List<Callable<StringPair>> tasks = new ArrayList<>();
+            Broker<String> broker = new Broker<String>();
 
-			for (int subtask = 0; subtask < subtasks; subtask++) {
-				tasks.add(new IterationHead(broker, subtask, "value" + subtask));
-				tasks.add(new IterationTail(broker, subtask));
-			}
+            for (int subtask = 0; subtask < subtasks; subtask++) {
+                tasks.add(new IterationHead(broker, subtask, "value" + subtask));
+                tasks.add(new IterationTail(broker, subtask));
+            }
 
-			Collections.shuffle(tasks);
+            Collections.shuffle(tasks);
 
-			int numSuccessfulHandovers = 0;
-			for (Future<StringPair> future : executorService.invokeAll(tasks)) {
-				StringPair stringPair = future.get();
-				if (stringPair != null) {
-					assertEquals("value" + stringPair.getFirst(), stringPair.getSecond());
-					numSuccessfulHandovers++;
-				}
-			}
+            int numSuccessfulHandovers = 0;
+            for (Future<StringPair> future : executorService.invokeAll(tasks)) {
+                StringPair stringPair = future.get();
+                if (stringPair != null) {
+                    assertEquals("value" + stringPair.getFirst(), stringPair.getSecond());
+                    numSuccessfulHandovers++;
+                }
+            }
 
-			assertEquals(subtasks, numSuccessfulHandovers);
-		}
-		finally {
-			executorService.shutdownNow();
-		}
-	}
+            assertEquals(subtasks, numSuccessfulHandovers);
+        } finally {
+            executorService.shutdownNow();
+        }
+    }
 
-	class IterationHead implements Callable<StringPair> {
+    class IterationHead implements Callable<StringPair> {
 
-		private final Random random;
+        private final Random random;
 
-		private final Broker<String> broker;
+        private final Broker<String> broker;
 
-		private final String key;
+        private final String key;
 
-		private final String value;
+        private final String value;
 
-		IterationHead(Broker<String> broker, Integer key, String value) {
-			this.broker = broker;
-			this.key = String.valueOf(key);
-			this.value = value;
-			random = new Random();
-		}
+        IterationHead(Broker<String> broker, Integer key, String value) {
+            this.broker = broker;
+            this.key = String.valueOf(key);
+            this.value = value;
+            random = new Random();
+        }
 
-		@Override
-		public StringPair call() throws Exception {
-			Thread.sleep(random.nextInt(10));
-			// System.out.println("Head " + key + " hands in " + value);
-			broker.handIn(key, value);
-			Thread.sleep(random.nextInt(10));
-			return null;
-		}
+        @Override
+        public StringPair call() throws Exception {
+            Thread.sleep(random.nextInt(10));
+            // System.out.println("Head " + key + " hands in " + value);
+            broker.handIn(key, value);
+            Thread.sleep(random.nextInt(10));
+            return null;
+        }
+    }
 
-	}
+    class IterationTail implements Callable<StringPair> {
 
-	class IterationTail implements Callable<StringPair> {
+        private final Random random;
 
-		private final Random random;
+        private final Broker<String> broker;
 
-		private final Broker<String> broker;
+        private final String key;
 
-		private final String key;
+        IterationTail(Broker<String> broker, Integer key) {
+            this.broker = broker;
+            this.key = String.valueOf(key);
+            random = new Random();
+        }
 
-		IterationTail(Broker<String> broker, Integer key) {
-			this.broker = broker;
-			this.key = String.valueOf(key);
-			random = new Random();
-		}
+        @Override
+        public StringPair call() throws Exception {
 
-		@Override
-		public StringPair call() throws Exception {
+            Thread.sleep(random.nextInt(10));
+            //			System.out.println("Tail " + key + " asks for handover");
+            String value = broker.getAndRemove(key);
 
-			Thread.sleep(random.nextInt(10));
-//			System.out.println("Tail " + key + " asks for handover");
-			String value = broker.getAndRemove(key);
+            //			System.out.println("Tail " + key + " received " + value);
+            Preconditions.checkNotNull(value);
 
-//			System.out.println("Tail " + key + " received " + value);
-			Preconditions.checkNotNull(value);
-
-			return new StringPair(key, value);
-		}
-	}
-
+            return new StringPair(key, value);
+        }
+    }
 }

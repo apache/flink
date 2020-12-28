@@ -21,17 +21,16 @@ package org.apache.flink.runtime.rpc;
 import java.io.Serializable;
 
 /**
- * Fenced {@link RpcGateway}. This gateway allows to have access to the associated
- * fencing token.
+ * Fenced {@link RpcGateway}. This gateway allows to have access to the associated fencing token.
  *
  * @param <F> type of the fencing token
  */
 public interface FencedRpcGateway<F extends Serializable> extends RpcGateway {
 
-	/**
-	 * Get the current fencing token.
-	 *
-	 * @return current fencing token
-	 */
-	F getFencingToken();
+    /**
+     * Get the current fencing token.
+     *
+     * @return current fencing token
+     */
+    F getFencingToken();
 }

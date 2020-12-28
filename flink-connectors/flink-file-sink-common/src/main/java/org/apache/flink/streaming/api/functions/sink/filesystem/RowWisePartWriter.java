@@ -26,26 +26,26 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * A {@link InProgressFileWriter} for row-wise formats that use an {@link Encoder}.
- * This also implements the {@link PartFileInfo}.
+ * A {@link InProgressFileWriter} for row-wise formats that use an {@link Encoder}. This also
+ * implements the {@link PartFileInfo}.
  */
 @Internal
 final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter<IN, BucketID> {
 
-	private final Encoder<IN> encoder;
+    private final Encoder<IN> encoder;
 
-	RowWisePartWriter(
-			final BucketID bucketId,
-			final RecoverableFsDataOutputStream currentPartStream,
-			final Encoder<IN> encoder,
-			final long creationTime) {
-		super(bucketId, currentPartStream, creationTime);
-		this.encoder = Preconditions.checkNotNull(encoder);
-	}
+    RowWisePartWriter(
+            final BucketID bucketId,
+            final RecoverableFsDataOutputStream currentPartStream,
+            final Encoder<IN> encoder,
+            final long creationTime) {
+        super(bucketId, currentPartStream, creationTime);
+        this.encoder = Preconditions.checkNotNull(encoder);
+    }
 
-	@Override
-	public void write(final IN element, final long currentTime) throws IOException {
-		encoder.encode(element, currentPartStream);
-		markWrite(currentTime);
-	}
+    @Override
+    public void write(final IN element, final long currentTime) throws IOException {
+        encoder.encode(element, currentPartStream);
+        markWrite(currentTime);
+    }
 }

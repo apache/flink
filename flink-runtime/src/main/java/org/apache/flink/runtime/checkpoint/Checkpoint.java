@@ -17,11 +17,9 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-/**
- * A checkpoint, pending or completed.
- */
+/** A checkpoint, pending or completed. */
 public interface Checkpoint {
-	long getCheckpointID();
+    long getCheckpointID();
 
-	void discard() throws Exception;
+    void discard() throws Exception;
 }

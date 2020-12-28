@@ -26,16 +26,16 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A serializer for {@link Map}. The serializer relies on a key serializer and a value serializer
  * for the serialization of the map's key-value pairs.
  *
  * <p>The serialization format for the map is as follows: four bytes for the length of the map,
- * followed by the serialized representation of each key-value pair. To allow null values, each value
- * is prefixed by a null marker.
+ * followed by the serialized representation of each key-value pair. To allow null values, each
+ * value is prefixed by a null marker.
  *
  * @param <K> The type of the keys in the map.
  * @param <V> The type of the values in the map.
@@ -43,160 +43,166 @@ import java.util.HashMap;
 @Internal
 public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 
-	private static final long serialVersionUID = -6885593032367050078L;
-	
-	/** The serializer for the keys in the map */
-	private final TypeSerializer<K> keySerializer;
+    private static final long serialVersionUID = -6885593032367050078L;
 
-	/** The serializer for the values in the map */
-	private final TypeSerializer<V> valueSerializer;
+    /** The serializer for the keys in the map */
+    private final TypeSerializer<K> keySerializer;
 
-	/**
-	 * Creates a map serializer that uses the given serializers to serialize the key-value pairs in the map.
-	 *
-	 * @param keySerializer The serializer for the keys in the map
-	 * @param valueSerializer The serializer for the values in the map
-	 */
-	public MapSerializer(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer) {
-		this.keySerializer = Preconditions.checkNotNull(keySerializer, "The key serializer cannot be null");
-		this.valueSerializer = Preconditions.checkNotNull(valueSerializer, "The value serializer cannot be null.");
-	}
+    /** The serializer for the values in the map */
+    private final TypeSerializer<V> valueSerializer;
 
-	// ------------------------------------------------------------------------
-	//  MapSerializer specific properties
-	// ------------------------------------------------------------------------
+    /**
+     * Creates a map serializer that uses the given serializers to serialize the key-value pairs in
+     * the map.
+     *
+     * @param keySerializer The serializer for the keys in the map
+     * @param valueSerializer The serializer for the values in the map
+     */
+    public MapSerializer(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer) {
+        this.keySerializer =
+                Preconditions.checkNotNull(keySerializer, "The key serializer cannot be null");
+        this.valueSerializer =
+                Preconditions.checkNotNull(valueSerializer, "The value serializer cannot be null.");
+    }
 
-	public TypeSerializer<K> getKeySerializer() {
-		return keySerializer;
-	}
+    // ------------------------------------------------------------------------
+    //  MapSerializer specific properties
+    // ------------------------------------------------------------------------
 
-	public TypeSerializer<V> getValueSerializer() {
-		return valueSerializer;
-	}
+    public TypeSerializer<K> getKeySerializer() {
+        return keySerializer;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Type Serializer implementation
-	// ------------------------------------------------------------------------
+    public TypeSerializer<V> getValueSerializer() {
+        return valueSerializer;
+    }
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    // ------------------------------------------------------------------------
+    //  Type Serializer implementation
+    // ------------------------------------------------------------------------
 
-	@Override
-	public TypeSerializer<Map<K, V>> duplicate() {
-		TypeSerializer<K> duplicateKeySerializer = keySerializer.duplicate();
-		TypeSerializer<V> duplicateValueSerializer = valueSerializer.duplicate();
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-		return (duplicateKeySerializer == keySerializer) && (duplicateValueSerializer == valueSerializer)
-				? this
-				: new MapSerializer<>(duplicateKeySerializer, duplicateValueSerializer);
-	}
+    @Override
+    public TypeSerializer<Map<K, V>> duplicate() {
+        TypeSerializer<K> duplicateKeySerializer = keySerializer.duplicate();
+        TypeSerializer<V> duplicateValueSerializer = valueSerializer.duplicate();
 
-	@Override
-	public Map<K, V> createInstance() {
-		return new HashMap<>();
-	}
+        return (duplicateKeySerializer == keySerializer)
+                        && (duplicateValueSerializer == valueSerializer)
+                ? this
+                : new MapSerializer<>(duplicateKeySerializer, duplicateValueSerializer);
+    }
 
-	@Override
-	public Map<K, V> copy(Map<K, V> from) {
-		Map<K, V> newMap = new HashMap<>(from.size());
+    @Override
+    public Map<K, V> createInstance() {
+        return new HashMap<>();
+    }
 
-		for (Map.Entry<K, V> entry : from.entrySet()) {
-			K newKey = keySerializer.copy(entry.getKey());
-			V newValue = entry.getValue() == null ? null : valueSerializer.copy(entry.getValue());
+    @Override
+    public Map<K, V> copy(Map<K, V> from) {
+        Map<K, V> newMap = new HashMap<>(from.size());
 
-			newMap.put(newKey, newValue);
-		}
+        for (Map.Entry<K, V> entry : from.entrySet()) {
+            K newKey = keySerializer.copy(entry.getKey());
+            V newValue = entry.getValue() == null ? null : valueSerializer.copy(entry.getValue());
 
-		return newMap;
-	}
+            newMap.put(newKey, newValue);
+        }
 
-	@Override
-	public Map<K, V> copy(Map<K, V> from, Map<K, V> reuse) {
-		return copy(from);
-	}
+        return newMap;
+    }
 
-	@Override
-	public int getLength() {
-		return -1; // var length
-	}
+    @Override
+    public Map<K, V> copy(Map<K, V> from, Map<K, V> reuse) {
+        return copy(from);
+    }
 
-	@Override
-	public void serialize(Map<K, V> map, DataOutputView target) throws IOException {
-		final int size = map.size();
-		target.writeInt(size);
+    @Override
+    public int getLength() {
+        return -1; // var length
+    }
 
-		for (Map.Entry<K, V> entry : map.entrySet()) {
-			keySerializer.serialize(entry.getKey(), target);
+    @Override
+    public void serialize(Map<K, V> map, DataOutputView target) throws IOException {
+        final int size = map.size();
+        target.writeInt(size);
 
-			if (entry.getValue() == null) {
-				target.writeBoolean(true);
-			} else {
-				target.writeBoolean(false);
-				valueSerializer.serialize(entry.getValue(), target);
-			}
-		}
-	}
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            keySerializer.serialize(entry.getKey(), target);
 
-	@Override
-	public Map<K, V> deserialize(DataInputView source) throws IOException {
-		final int size = source.readInt();
+            if (entry.getValue() == null) {
+                target.writeBoolean(true);
+            } else {
+                target.writeBoolean(false);
+                valueSerializer.serialize(entry.getValue(), target);
+            }
+        }
+    }
 
-		final Map<K, V> map = new HashMap<>(size);
-		for (int i = 0; i < size; ++i) {
-			K key = keySerializer.deserialize(source);
+    @Override
+    public Map<K, V> deserialize(DataInputView source) throws IOException {
+        final int size = source.readInt();
 
-			boolean isNull = source.readBoolean();
-			V value = isNull ? null : valueSerializer.deserialize(source);
+        final Map<K, V> map = new HashMap<>(size);
+        for (int i = 0; i < size; ++i) {
+            K key = keySerializer.deserialize(source);
 
-			map.put(key, value);
-		}
+            boolean isNull = source.readBoolean();
+            V value = isNull ? null : valueSerializer.deserialize(source);
 
-		return map;
-	}
+            map.put(key, value);
+        }
 
-	@Override
-	public Map<K, V> deserialize(Map<K, V> reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+        return map;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		final int size = source.readInt();
-		target.writeInt(size);
+    @Override
+    public Map<K, V> deserialize(Map<K, V> reuse, DataInputView source) throws IOException {
+        return deserialize(source);
+    }
 
-		for (int i = 0; i < size; ++i) {
-			keySerializer.copy(source, target);
-			
-			boolean isNull = source.readBoolean();
-			target.writeBoolean(isNull);
-			
-			if (!isNull) {
-				valueSerializer.copy(source, target);
-			}
-		}
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        final int size = source.readInt();
+        target.writeInt(size);
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj == this ||
-				(obj != null && obj.getClass() == getClass() &&
-						keySerializer.equals(((MapSerializer<?, ?>) obj).getKeySerializer()) &&
-						valueSerializer.equals(((MapSerializer<?, ?>) obj).getValueSerializer()));
-	}
+        for (int i = 0; i < size; ++i) {
+            keySerializer.copy(source, target);
 
-	@Override
-	public int hashCode() {
-		return keySerializer.hashCode() * 31 + valueSerializer.hashCode();
-	}
+            boolean isNull = source.readBoolean();
+            target.writeBoolean(isNull);
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting
-	// --------------------------------------------------------------------------------------------
+            if (!isNull) {
+                valueSerializer.copy(source, target);
+            }
+        }
+    }
 
-	@Override
-	public TypeSerializerSnapshot<Map<K, V>> snapshotConfiguration() {
-		return new MapSerializerSnapshot<>(this);
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj == this
+                || (obj != null
+                        && obj.getClass() == getClass()
+                        && keySerializer.equals(((MapSerializer<?, ?>) obj).getKeySerializer())
+                        && valueSerializer.equals(
+                                ((MapSerializer<?, ?>) obj).getValueSerializer()));
+    }
+
+    @Override
+    public int hashCode() {
+        return keySerializer.hashCode() * 31 + valueSerializer.hashCode();
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Serializer configuration snapshotting
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public TypeSerializerSnapshot<Map<K, V>> snapshotConfiguration() {
+        return new MapSerializerSnapshot<>(this);
+    }
 }

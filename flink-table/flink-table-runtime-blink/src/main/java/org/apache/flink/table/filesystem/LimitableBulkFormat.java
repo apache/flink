@@ -29,113 +29,112 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * A {@link BulkFormat} that can limit output record number.
- */
-public class LimitableBulkFormat<T, SplitT extends FileSourceSplit> implements BulkFormat<T, SplitT> {
+/** A {@link BulkFormat} that can limit output record number. */
+public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
+        implements BulkFormat<T, SplitT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final BulkFormat<T, SplitT> format;
-	private final long limit;
+    private final BulkFormat<T, SplitT> format;
+    private final long limit;
 
-	/**
-	 * Limit the total number of records read by this format. When the limit is reached,
-	 * subsequent readers will no longer read data.
-	 */
-	@Nullable private transient AtomicLong globalNumberRead;
+    /**
+     * Limit the total number of records read by this format. When the limit is reached, subsequent
+     * readers will no longer read data.
+     */
+    @Nullable private transient AtomicLong globalNumberRead;
 
-	private LimitableBulkFormat(BulkFormat<T, SplitT> format, long limit) {
-		this.format = format;
-		this.limit = limit;
-	}
+    private LimitableBulkFormat(BulkFormat<T, SplitT> format, long limit) {
+        this.format = format;
+        this.limit = limit;
+    }
 
-	@Override
-	public Reader<T> createReader(Configuration config, SplitT split) throws IOException {
-		return wrapReader(format.createReader(config, split));
-	}
+    @Override
+    public Reader<T> createReader(Configuration config, SplitT split) throws IOException {
+        return wrapReader(format.createReader(config, split));
+    }
 
-	@Override
-	public Reader<T> restoreReader(Configuration config, SplitT split) throws IOException {
-		return wrapReader(format.restoreReader(config, split));
-	}
+    @Override
+    public Reader<T> restoreReader(Configuration config, SplitT split) throws IOException {
+        return wrapReader(format.restoreReader(config, split));
+    }
 
-	private synchronized Reader<T> wrapReader(Reader<T> reader) {
-		if (globalNumberRead == null) {
-			globalNumberRead = new AtomicLong(0);
-		}
-		return new LimitableReader<>(reader, globalNumberRead, limit);
-	}
+    private synchronized Reader<T> wrapReader(Reader<T> reader) {
+        if (globalNumberRead == null) {
+            globalNumberRead = new AtomicLong(0);
+        }
+        return new LimitableReader<>(reader, globalNumberRead, limit);
+    }
 
-	@Override
-	public boolean isSplittable() {
-		return format.isSplittable();
-	}
+    @Override
+    public boolean isSplittable() {
+        return format.isSplittable();
+    }
 
-	@Override
-	public TypeInformation<T> getProducedType() {
-		return format.getProducedType();
-	}
+    @Override
+    public TypeInformation<T> getProducedType() {
+        return format.getProducedType();
+    }
 
-	private static class LimitableReader<T> implements Reader<T> {
+    private static class LimitableReader<T> implements Reader<T> {
 
-		private final Reader<T> reader;
-		private final AtomicLong numRead;
-		private final long limit;
+        private final Reader<T> reader;
+        private final AtomicLong numRead;
+        private final long limit;
 
-		private LimitableReader(Reader<T> reader, AtomicLong numRead, long limit) {
-			this.reader = reader;
-			this.numRead = numRead;
-			this.limit = limit;
-		}
+        private LimitableReader(Reader<T> reader, AtomicLong numRead, long limit) {
+            this.reader = reader;
+            this.numRead = numRead;
+            this.limit = limit;
+        }
 
-		private boolean reachLimit() {
-			return numRead.get() >= limit;
-		}
+        private boolean reachLimit() {
+            return numRead.get() >= limit;
+        }
 
-		@Nullable
-		@Override
-		public RecordIterator<T> readBatch() throws IOException {
-			if (reachLimit()) {
-				return null;
-			}
+        @Nullable
+        @Override
+        public RecordIterator<T> readBatch() throws IOException {
+            if (reachLimit()) {
+                return null;
+            }
 
-			RecordIterator<T> batch = reader.readBatch();
-			return batch == null ? null : new LimitableIterator(batch);
-		}
+            RecordIterator<T> batch = reader.readBatch();
+            return batch == null ? null : new LimitableIterator(batch);
+        }
 
-		@Override
-		public void close() throws IOException {
-			reader.close();
-		}
+        @Override
+        public void close() throws IOException {
+            reader.close();
+        }
 
-		private class LimitableIterator implements RecordIterator<T> {
+        private class LimitableIterator implements RecordIterator<T> {
 
-			private final RecordIterator<T> iterator;
+            private final RecordIterator<T> iterator;
 
-			private LimitableIterator(RecordIterator<T> iterator) {
-				this.iterator = iterator;
-			}
+            private LimitableIterator(RecordIterator<T> iterator) {
+                this.iterator = iterator;
+            }
 
-			@Nullable
-			@Override
-			public RecordAndPosition<T> next() {
-				if (reachLimit()) {
-					return null;
-				}
-				numRead.incrementAndGet();
-				return iterator.next();
-			}
+            @Nullable
+            @Override
+            public RecordAndPosition<T> next() {
+                if (reachLimit()) {
+                    return null;
+                }
+                numRead.incrementAndGet();
+                return iterator.next();
+            }
 
-			@Override
-			public void releaseBatch() {
-				iterator.releaseBatch();
-			}
-		}
-	}
+            @Override
+            public void releaseBatch() {
+                iterator.releaseBatch();
+            }
+        }
+    }
 
-	public static <T, SplitT extends FileSourceSplit> BulkFormat<T, SplitT> create(
-			BulkFormat<T, SplitT> format, Long limit) {
-		return limit == null ? format : new LimitableBulkFormat<>(format, limit);
-	}
+    public static <T, SplitT extends FileSourceSplit> BulkFormat<T, SplitT> create(
+            BulkFormat<T, SplitT> format, Long limit) {
+        return limit == null ? format : new LimitableBulkFormat<>(format, limit);
+    }
 }

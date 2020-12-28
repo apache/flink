@@ -37,69 +37,69 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A base class with functionality used during translating
- * {@link Transformation transformations} with two inputs.
+ * A base class with functionality used during translating {@link Transformation transformations}
+ * with two inputs.
  */
 @Internal
-public abstract class AbstractTwoInputTransformationTranslator<IN1, IN2, OUT, OP extends Transformation<OUT>>
-		extends SimpleTransformationTranslator<OUT, OP> {
+public abstract class AbstractTwoInputTransformationTranslator<
+                IN1, IN2, OUT, OP extends Transformation<OUT>>
+        extends SimpleTransformationTranslator<OUT, OP> {
 
-	protected Collection<Integer> translateInternal(
-			final Transformation<OUT> transformation,
-			final Transformation<IN1> firstInputTransformation,
-			final Transformation<IN2> secondInputTransformation,
-			final StreamOperatorFactory<OUT> operatorFactory,
-			@Nullable final TypeInformation<?> keyTypeInfo,
-			@Nullable final KeySelector<IN1, ?> firstKeySelector,
-			@Nullable final KeySelector<IN2, ?> secondKeySelector,
-			final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(firstInputTransformation);
-		checkNotNull(secondInputTransformation);
-		checkNotNull(operatorFactory);
-		checkNotNull(context);
+    protected Collection<Integer> translateInternal(
+            final Transformation<OUT> transformation,
+            final Transformation<IN1> firstInputTransformation,
+            final Transformation<IN2> secondInputTransformation,
+            final StreamOperatorFactory<OUT> operatorFactory,
+            @Nullable final TypeInformation<?> keyTypeInfo,
+            @Nullable final KeySelector<IN1, ?> firstKeySelector,
+            @Nullable final KeySelector<IN2, ?> secondKeySelector,
+            final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(firstInputTransformation);
+        checkNotNull(secondInputTransformation);
+        checkNotNull(operatorFactory);
+        checkNotNull(context);
 
-		final StreamGraph streamGraph = context.getStreamGraph();
-		final String slotSharingGroup = context.getSlotSharingGroup();
-		final int transformationId = transformation.getId();
-		final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
+        final StreamGraph streamGraph = context.getStreamGraph();
+        final String slotSharingGroup = context.getSlotSharingGroup();
+        final int transformationId = transformation.getId();
+        final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
-		streamGraph.addCoOperator(
-				transformationId,
-				slotSharingGroup,
-				transformation.getCoLocationGroupKey(),
-				operatorFactory,
-				firstInputTransformation.getOutputType(),
-				secondInputTransformation.getOutputType(),
-				transformation.getOutputType(),
-				transformation.getName());
+        streamGraph.addCoOperator(
+                transformationId,
+                slotSharingGroup,
+                transformation.getCoLocationGroupKey(),
+                operatorFactory,
+                firstInputTransformation.getOutputType(),
+                secondInputTransformation.getOutputType(),
+                transformation.getOutputType(),
+                transformation.getName());
 
-		if (firstKeySelector != null || secondKeySelector != null) {
-			checkState(keyTypeInfo != null, "Keyed Transformation without provided key type information.");
+        if (firstKeySelector != null || secondKeySelector != null) {
+            checkState(
+                    keyTypeInfo != null,
+                    "Keyed Transformation without provided key type information.");
 
-			final TypeSerializer<?> keySerializer = keyTypeInfo.createSerializer(executionConfig);
-			streamGraph.setTwoInputStateKey(
-					transformationId,
-					firstKeySelector,
-					secondKeySelector,
-					keySerializer);
-		}
+            final TypeSerializer<?> keySerializer = keyTypeInfo.createSerializer(executionConfig);
+            streamGraph.setTwoInputStateKey(
+                    transformationId, firstKeySelector, secondKeySelector, keySerializer);
+        }
 
-		final int parallelism = transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
-				? transformation.getParallelism()
-				: executionConfig.getParallelism();
-		streamGraph.setParallelism(transformationId, parallelism);
-		streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
+        final int parallelism =
+                transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
+                        ? transformation.getParallelism()
+                        : executionConfig.getParallelism();
+        streamGraph.setParallelism(transformationId, parallelism);
+        streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
-		for (Integer inputId: context.getStreamNodeIds(firstInputTransformation)) {
-			streamGraph.addEdge(inputId, transformationId, 1);
-		}
+        for (Integer inputId : context.getStreamNodeIds(firstInputTransformation)) {
+            streamGraph.addEdge(inputId, transformationId, 1);
+        }
 
-		for (Integer inputId: context.getStreamNodeIds(secondInputTransformation)) {
-			streamGraph.addEdge(inputId, transformationId, 2);
-		}
+        for (Integer inputId : context.getStreamNodeIds(secondInputTransformation)) {
+            streamGraph.addEdge(inputId, transformationId, 2);
+        }
 
-		return Collections.singleton(transformationId);
-
-	}
+        return Collections.singleton(transformationId);
+    }
 }

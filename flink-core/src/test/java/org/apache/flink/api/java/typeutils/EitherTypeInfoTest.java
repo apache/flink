@@ -22,17 +22,18 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-/**
- * Test for {@link EitherTypeInfo}.
- */
+/** Test for {@link EitherTypeInfo}. */
 public class EitherTypeInfoTest extends TypeInformationTestBase<EitherTypeInfo<?, ?>> {
 
-	@Override
-	protected EitherTypeInfo<?, ?>[] getTestData() {
-		return new EitherTypeInfo<?, ?>[] {
-			new EitherTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-			new EitherTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO,
-				new TupleTypeInfo<Tuple2<Double, Long>>(TypeExtractor.getForClass(Double.class), TypeExtractor.getForClass(String.class)))
-		};
-	}
+    @Override
+    protected EitherTypeInfo<?, ?>[] getTestData() {
+        return new EitherTypeInfo<?, ?>[] {
+            new EitherTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+            new EitherTypeInfo<>(
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    new TupleTypeInfo<Tuple2<Double, Long>>(
+                            TypeExtractor.getForClass(Double.class),
+                            TypeExtractor.getForClass(String.class)))
+        };
+    }
 }

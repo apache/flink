@@ -35,49 +35,47 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for HiveCatalog.
- */
+/** Test for HiveCatalog. */
 public class HiveCatalogTest {
 
-	TableSchema schema = TableSchema.builder()
-		.field("name", DataTypes.STRING())
-		.field("age", DataTypes.INT())
-		.build();
+    TableSchema schema =
+            TableSchema.builder()
+                    .field("name", DataTypes.STRING())
+                    .field("age", DataTypes.INT())
+                    .build();
 
-	@Test
-	public void testCreateGenericTable() {
-		Table hiveTable = HiveTableUtil.instantiateHiveTable(
-			new ObjectPath("test", "test"),
-			new CatalogTableImpl(
-				schema,
-				new FileSystem().path("/test_path").toProperties(),
-				null
-			),
-			HiveTestUtils.createHiveConf());
+    @Test
+    public void testCreateGenericTable() {
+        Table hiveTable =
+                HiveTableUtil.instantiateHiveTable(
+                        new ObjectPath("test", "test"),
+                        new CatalogTableImpl(
+                                schema, new FileSystem().path("/test_path").toProperties(), null),
+                        HiveTestUtils.createHiveConf());
 
-		Map<String, String> prop = hiveTable.getParameters();
-		assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf("true"));
-		assertTrue(prop.keySet().stream().allMatch(k -> k.startsWith(CatalogConfig.FLINK_PROPERTY_PREFIX)));
-	}
+        Map<String, String> prop = hiveTable.getParameters();
+        assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf("true"));
+        assertTrue(
+                prop.keySet().stream()
+                        .allMatch(k -> k.startsWith(CatalogConfig.FLINK_PROPERTY_PREFIX)));
+    }
 
-	@Test
-	public void testCreateHiveTable() {
-		Map<String, String> map = new HashMap<>(new FileSystem().path("/test_path").toProperties());
+    @Test
+    public void testCreateHiveTable() {
+        Map<String, String> map = new HashMap<>(new FileSystem().path("/test_path").toProperties());
 
-		map.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+        map.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
 
-		Table hiveTable = HiveTableUtil.instantiateHiveTable(
-			new ObjectPath("test", "test"),
-			new CatalogTableImpl(
-				schema,
-				map,
-				null
-			),
-			HiveTestUtils.createHiveConf());
+        Table hiveTable =
+                HiveTableUtil.instantiateHiveTable(
+                        new ObjectPath("test", "test"),
+                        new CatalogTableImpl(schema, map, null),
+                        HiveTestUtils.createHiveConf());
 
-		Map<String, String> prop = hiveTable.getParameters();
-		assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf(false));
-		assertTrue(prop.keySet().stream().noneMatch(k -> k.startsWith(CatalogConfig.FLINK_PROPERTY_PREFIX)));
-	}
+        Map<String, String> prop = hiveTable.getParameters();
+        assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf(false));
+        assertTrue(
+                prop.keySet().stream()
+                        .noneMatch(k -> k.startsWith(CatalogConfig.FLINK_PROPERTY_PREFIX)));
+    }
 }

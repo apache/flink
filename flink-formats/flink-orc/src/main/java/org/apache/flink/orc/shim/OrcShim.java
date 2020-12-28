@@ -30,52 +30,43 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 
-/**
- * A shim layer to support orc with different dependents versions of Hive.
- */
+/** A shim layer to support orc with different dependents versions of Hive. */
 public interface OrcShim<BATCH> extends Serializable {
 
-	/**
-	 * Create orc {@link RecordReader} from conf, schema and etc...
-	 */
-	RecordReader createRecordReader(
-			Configuration conf,
-			TypeDescription schema,
-			int[] selectedFields,
-			List<OrcFilters.Predicate> conjunctPredicates,
-			org.apache.flink.core.fs.Path path,
-			long splitStart,
-			long splitLength) throws IOException;
+    /** Create orc {@link RecordReader} from conf, schema and etc... */
+    RecordReader createRecordReader(
+            Configuration conf,
+            TypeDescription schema,
+            int[] selectedFields,
+            List<OrcFilters.Predicate> conjunctPredicates,
+            org.apache.flink.core.fs.Path path,
+            long splitStart,
+            long splitLength)
+            throws IOException;
 
-	OrcVectorizedBatchWrapper<BATCH> createBatchWrapper(TypeDescription schema, int batchSize);
+    OrcVectorizedBatchWrapper<BATCH> createBatchWrapper(TypeDescription schema, int batchSize);
 
-	/**
-	 * Read the next row batch.
-	 */
-	boolean nextBatch(RecordReader reader, BATCH rowBatch) throws IOException;
+    /** Read the next row batch. */
+    boolean nextBatch(RecordReader reader, BATCH rowBatch) throws IOException;
 
-	/**
-	 * Default with orc dependent, we should use v2.3.0.
-	 */
-	static OrcShim<VectorizedRowBatch> defaultShim() {
-		return new OrcShimV230();
-	}
+    /** Default with orc dependent, we should use v2.3.0. */
+    static OrcShim<VectorizedRowBatch> defaultShim() {
+        return new OrcShimV230();
+    }
 
-	/**
-	 * Create shim from hive version.
-	 */
-	static OrcShim<VectorizedRowBatch> createShim(String hiveVersion) {
-		if (hiveVersion.startsWith("2.0")) {
-			return new OrcShimV200();
-		} else if (hiveVersion.startsWith("2.1")) {
-			return new OrcShimV210();
-		} else if (hiveVersion.startsWith("2.2") ||
-				hiveVersion.startsWith("2.3") ||
-				hiveVersion.startsWith("3.")) {
-			return new OrcShimV230();
-		} else {
-			throw new UnsupportedOperationException(
-					"Unsupported hive version for orc shim: " + hiveVersion);
-		}
-	}
+    /** Create shim from hive version. */
+    static OrcShim<VectorizedRowBatch> createShim(String hiveVersion) {
+        if (hiveVersion.startsWith("2.0")) {
+            return new OrcShimV200();
+        } else if (hiveVersion.startsWith("2.1")) {
+            return new OrcShimV210();
+        } else if (hiveVersion.startsWith("2.2")
+                || hiveVersion.startsWith("2.3")
+                || hiveVersion.startsWith("3.")) {
+            return new OrcShimV230();
+        } else {
+            throw new UnsupportedOperationException(
+                    "Unsupported hive version for orc shim: " + hiveVersion);
+        }
+    }
 }

@@ -18,67 +18,67 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.flink.annotation.Internal;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.core.io.InputSplitAssigner;
-
 /**
- * This is the default implementation of the {@link InputSplitAssigner} interface. The default input split assigner
- * simply returns all input splits of an input vertex in the order they were originally computed.
+ * This is the default implementation of the {@link InputSplitAssigner} interface. The default input
+ * split assigner simply returns all input splits of an input vertex in the order they were
+ * originally computed.
  */
 @Internal
 public class DefaultInputSplitAssigner implements InputSplitAssigner {
 
-	/** The logging object used to report information and errors. */
-	private static final Logger LOG = LoggerFactory.getLogger(DefaultInputSplitAssigner.class);
+    /** The logging object used to report information and errors. */
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultInputSplitAssigner.class);
 
-	/** The list of all splits */
-	private final List<InputSplit> splits = new ArrayList<InputSplit>();
+    /** The list of all splits */
+    private final List<InputSplit> splits = new ArrayList<InputSplit>();
 
+    public DefaultInputSplitAssigner(InputSplit[] splits) {
+        Collections.addAll(this.splits, splits);
+    }
 
-	public DefaultInputSplitAssigner(InputSplit[] splits) {
-		Collections.addAll(this.splits, splits);
-	}
-	
-	public DefaultInputSplitAssigner(Collection<? extends InputSplit> splits) {
-		this.splits.addAll(splits);
-	}
-	
-	
-	@Override
-	public InputSplit getNextInputSplit(String host, int taskId) {
-		InputSplit next = null;
-		
-		// keep the synchronized part short
-		synchronized (this.splits) {
-			if (this.splits.size() > 0) {
-				next = this.splits.remove(this.splits.size() - 1);
-			}
-		}
-		
-		if (LOG.isDebugEnabled()) {
-			if (next == null) {
-				LOG.debug("No more input splits available");
-			} else {
-				LOG.debug("Assigning split " + next + " to " + host);
-			}
-		}
-		return next;
-	}
+    public DefaultInputSplitAssigner(Collection<? extends InputSplit> splits) {
+        this.splits.addAll(splits);
+    }
 
-	@Override
-	public void returnInputSplit(List<InputSplit> splits, int taskId) {
-		synchronized (this.splits) {
-			for (InputSplit split : splits) {
-				this.splits.add(split);
-			}
-		}
-	}
+    @Override
+    public InputSplit getNextInputSplit(String host, int taskId) {
+        InputSplit next = null;
+
+        // keep the synchronized part short
+        synchronized (this.splits) {
+            if (this.splits.size() > 0) {
+                next = this.splits.remove(this.splits.size() - 1);
+            }
+        }
+
+        if (LOG.isDebugEnabled()) {
+            if (next == null) {
+                LOG.debug("No more input splits available");
+            } else {
+                LOG.debug("Assigning split " + next + " to " + host);
+            }
+        }
+        return next;
+    }
+
+    @Override
+    public void returnInputSplit(List<InputSplit> splits, int taskId) {
+        synchronized (this.splits) {
+            for (InputSplit split : splits) {
+                this.splits.add(split);
+            }
+        }
+    }
 }

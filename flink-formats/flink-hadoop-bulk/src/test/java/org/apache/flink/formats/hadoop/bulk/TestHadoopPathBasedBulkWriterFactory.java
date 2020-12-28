@@ -28,55 +28,55 @@ import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 
-/**
- * A {@link HadoopPathBasedBulkWriter.Factory} implementation used in tests.
- */
-public class TestHadoopPathBasedBulkWriterFactory implements HadoopPathBasedBulkWriter.Factory<String> {
+/** A {@link HadoopPathBasedBulkWriter.Factory} implementation used in tests. */
+public class TestHadoopPathBasedBulkWriterFactory
+        implements HadoopPathBasedBulkWriter.Factory<String> {
 
-	@Override
-	public HadoopPathBasedBulkWriter<String> create(Path targetFilePath, Path inProgressFilePath) {
-		try {
-			FileSystem fileSystem = FileSystem.get(inProgressFilePath.toUri(), new Configuration());
-			FSDataOutputStream output = fileSystem.create(inProgressFilePath);
-			return new FSDataOutputStreamBulkWriterHadoop(output);
-		} catch (IOException e) {
-			ExceptionUtils.rethrow(e);
-		}
+    @Override
+    public HadoopPathBasedBulkWriter<String> create(Path targetFilePath, Path inProgressFilePath) {
+        try {
+            FileSystem fileSystem = FileSystem.get(inProgressFilePath.toUri(), new Configuration());
+            FSDataOutputStream output = fileSystem.create(inProgressFilePath);
+            return new FSDataOutputStreamBulkWriterHadoop(output);
+        } catch (IOException e) {
+            ExceptionUtils.rethrow(e);
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	private static class FSDataOutputStreamBulkWriterHadoop implements HadoopPathBasedBulkWriter<String> {
-		private final FSDataOutputStream outputStream;
+    private static class FSDataOutputStreamBulkWriterHadoop
+            implements HadoopPathBasedBulkWriter<String> {
+        private final FSDataOutputStream outputStream;
 
-		public FSDataOutputStreamBulkWriterHadoop(FSDataOutputStream outputStream) {
-			this.outputStream = outputStream;
-		}
+        public FSDataOutputStreamBulkWriterHadoop(FSDataOutputStream outputStream) {
+            this.outputStream = outputStream;
+        }
 
-		@Override
-		public long getSize() throws IOException {
-			return outputStream.getPos();
-		}
+        @Override
+        public long getSize() throws IOException {
+            return outputStream.getPos();
+        }
 
-		@Override
-		public void dispose() {
-			IOUtils.closeQuietly(outputStream);
-		}
+        @Override
+        public void dispose() {
+            IOUtils.closeQuietly(outputStream);
+        }
 
-		@Override
-		public void addElement(String element) throws IOException {
-			outputStream.writeBytes(element + "\n");
-		}
+        @Override
+        public void addElement(String element) throws IOException {
+            outputStream.writeBytes(element + "\n");
+        }
 
-		@Override
-		public void flush() throws IOException {
-			outputStream.flush();
-		}
+        @Override
+        public void flush() throws IOException {
+            outputStream.flush();
+        }
 
-		@Override
-		public void finish() throws IOException {
-			outputStream.flush();
-			outputStream.close();
-		}
-	}
+        @Override
+        public void finish() throws IOException {
+            outputStream.flush();
+            outputStream.close();
+        }
+    }
 }

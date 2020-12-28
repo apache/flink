@@ -24,59 +24,59 @@ import static org.junit.Assert.assertEquals;
 
 public class IntMaximumTest {
 
-	@Test
-	public void testGet() {
-		IntMaximum max = new IntMaximum();
-		assertEquals(Integer.MIN_VALUE, max.getLocalValue().intValue());
-	}
+    @Test
+    public void testGet() {
+        IntMaximum max = new IntMaximum();
+        assertEquals(Integer.MIN_VALUE, max.getLocalValue().intValue());
+    }
 
-	@Test
-	public void testResetLocal() {
-		IntMaximum max = new IntMaximum();
-		int value = 13;
+    @Test
+    public void testResetLocal() {
+        IntMaximum max = new IntMaximum();
+        int value = 13;
 
-		max.add(value);
-		assertEquals(value, max.getLocalValue().intValue());
+        max.add(value);
+        assertEquals(value, max.getLocalValue().intValue());
 
-		max.resetLocal();
-		assertEquals(Integer.MIN_VALUE, max.getLocalValue().intValue());
-	}
+        max.resetLocal();
+        assertEquals(Integer.MIN_VALUE, max.getLocalValue().intValue());
+    }
 
-	@Test
-	public void testAdd() {
-		IntMaximum max = new IntMaximum();
+    @Test
+    public void testAdd() {
+        IntMaximum max = new IntMaximum();
 
-		max.add(1234);
-		max.add(9876);
-		max.add(-987);
-		max.add(-123);
+        max.add(1234);
+        max.add(9876);
+        max.add(-987);
+        max.add(-123);
 
-		assertEquals(9876, max.getLocalValue().intValue());
-	}
+        assertEquals(9876, max.getLocalValue().intValue());
+    }
 
-	@Test
-	public void testMerge() {
-		IntMaximum max1 = new IntMaximum();
-		max1.add(1234);
+    @Test
+    public void testMerge() {
+        IntMaximum max1 = new IntMaximum();
+        max1.add(1234);
 
-		IntMaximum max2 = new IntMaximum();
-		max2.add(5678);
+        IntMaximum max2 = new IntMaximum();
+        max2.add(5678);
 
-		max2.merge(max1);
-		assertEquals(5678, max2.getLocalValue().intValue());
+        max2.merge(max1);
+        assertEquals(5678, max2.getLocalValue().intValue());
 
-		max1.merge(max2);
-		assertEquals(5678, max1.getLocalValue().intValue());
-	}
+        max1.merge(max2);
+        assertEquals(5678, max1.getLocalValue().intValue());
+    }
 
-	@Test
-	public void testClone() {
-		IntMaximum max = new IntMaximum();
-		int value = 42;
+    @Test
+    public void testClone() {
+        IntMaximum max = new IntMaximum();
+        int value = 42;
 
-		max.add(value);
+        max.add(value);
 
-		IntMaximum clone = max.clone();
-		assertEquals(value, clone.getLocalValue().intValue());
-	}
+        IntMaximum clone = max.clone();
+        assertEquals(value, clone.getLocalValue().intValue());
+    }
 }

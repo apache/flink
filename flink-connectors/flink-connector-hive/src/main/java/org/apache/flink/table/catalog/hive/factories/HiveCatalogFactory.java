@@ -42,59 +42,68 @@ import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATA
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 
-/**
- * Catalog factory for {@link HiveCatalog}.
- */
+/** Catalog factory for {@link HiveCatalog}. */
 public class HiveCatalogFactory implements CatalogFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(HiveCatalogFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HiveCatalogFactory.class);
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(CATALOG_TYPE, CATALOG_TYPE_VALUE_HIVE); // hive
-		context.put(CATALOG_PROPERTY_VERSION, "1"); // backwards compatibility
-		return context;
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>();
+        context.put(CATALOG_TYPE, CATALOG_TYPE_VALUE_HIVE); // hive
+        context.put(CATALOG_PROPERTY_VERSION, "1"); // backwards compatibility
+        return context;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		List<String> properties = new ArrayList<>();
+    @Override
+    public List<String> supportedProperties() {
+        List<String> properties = new ArrayList<>();
 
-		// default database
-		properties.add(CATALOG_DEFAULT_DATABASE);
+        // default database
+        properties.add(CATALOG_DEFAULT_DATABASE);
 
-		properties.add(CATALOG_HIVE_CONF_DIR);
+        properties.add(CATALOG_HIVE_CONF_DIR);
 
-		properties.add(CATALOG_HIVE_VERSION);
+        properties.add(CATALOG_HIVE_VERSION);
 
-		properties.add(CATALOG_HADOOP_CONF_DIR);
+        properties.add(CATALOG_HADOOP_CONF_DIR);
 
-		return properties;
-	}
+        return properties;
+    }
 
-	@Override
-	public Catalog createCatalog(String name, Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+    @Override
+    public Catalog createCatalog(String name, Map<String, String> properties) {
+        final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		final String defaultDatabase =
-			descriptorProperties.getOptionalString(CATALOG_DEFAULT_DATABASE)
-				.orElse(HiveCatalog.DEFAULT_DB);
+        final String defaultDatabase =
+                descriptorProperties
+                        .getOptionalString(CATALOG_DEFAULT_DATABASE)
+                        .orElse(HiveCatalog.DEFAULT_DB);
 
-		final Optional<String> hiveConfDir = descriptorProperties.getOptionalString(CATALOG_HIVE_CONF_DIR);
+        final Optional<String> hiveConfDir =
+                descriptorProperties.getOptionalString(CATALOG_HIVE_CONF_DIR);
 
-		final Optional<String> hadoopConfDir = descriptorProperties.getOptionalString(CATALOG_HADOOP_CONF_DIR);
+        final Optional<String> hadoopConfDir =
+                descriptorProperties.getOptionalString(CATALOG_HADOOP_CONF_DIR);
 
-		final String version = descriptorProperties.getOptionalString(CATALOG_HIVE_VERSION).orElse(HiveShimLoader.getHiveVersion());
+        final String version =
+                descriptorProperties
+                        .getOptionalString(CATALOG_HIVE_VERSION)
+                        .orElse(HiveShimLoader.getHiveVersion());
 
-		return new HiveCatalog(name, defaultDatabase, hiveConfDir.orElse(null), hadoopConfDir.orElse(null), version);
-	}
+        return new HiveCatalog(
+                name,
+                defaultDatabase,
+                hiveConfDir.orElse(null),
+                hadoopConfDir.orElse(null),
+                version);
+    }
 
-	private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putProperties(properties);
+    private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
+        final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+        descriptorProperties.putProperties(properties);
 
-		new HiveCatalogValidator().validate(descriptorProperties);
+        new HiveCatalogValidator().validate(descriptorProperties);
 
-		return descriptorProperties;
-	}
+        return descriptorProperties;
+    }
 }

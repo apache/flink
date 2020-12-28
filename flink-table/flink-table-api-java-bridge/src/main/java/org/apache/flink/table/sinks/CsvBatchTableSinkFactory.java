@@ -28,10 +28,11 @@ import java.util.Map;
  * Factory base for creating configured instances of {@link CsvTableSink} in a batch environment.
  */
 @PublicEvolving
-public class CsvBatchTableSinkFactory extends CsvTableSinkFactoryBase implements BatchTableSinkFactory<Row> {
+public class CsvBatchTableSinkFactory extends CsvTableSinkFactoryBase
+        implements BatchTableSinkFactory<Row> {
 
-	@Override
-	public BatchTableSink<Row> createBatchTableSink(Map<String, String> properties) {
-		return createTableSink(false, properties);
-	}
+    @Override
+    public BatchTableSink<Row> createBatchTableSink(Map<String, String> properties) {
+        return createTableSink(false, properties);
+    }
 }

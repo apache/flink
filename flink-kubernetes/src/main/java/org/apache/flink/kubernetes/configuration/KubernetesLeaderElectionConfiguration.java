@@ -23,48 +23,52 @@ import org.apache.flink.configuration.Configuration;
 import java.time.Duration;
 
 /**
- * Configuration specific to {@link org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector}.
+ * Configuration specific to {@link
+ * org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector}.
  */
 public class KubernetesLeaderElectionConfiguration {
 
-	private final String clusterId;
-	private final String configMapName;
-	private final String lockIdentity;
-	private final Duration leaseDuration;
-	private final Duration renewDeadline;
-	private final Duration retryPeriod;
+    private final String clusterId;
+    private final String configMapName;
+    private final String lockIdentity;
+    private final Duration leaseDuration;
+    private final Duration renewDeadline;
+    private final Duration retryPeriod;
 
-	public KubernetesLeaderElectionConfiguration(String configMapName, String lockIdentity, Configuration config) {
-		this.clusterId = config.getString(KubernetesConfigOptions.CLUSTER_ID);
-		this.configMapName = configMapName;
-		this.lockIdentity = lockIdentity;
+    public KubernetesLeaderElectionConfiguration(
+            String configMapName, String lockIdentity, Configuration config) {
+        this.clusterId = config.getString(KubernetesConfigOptions.CLUSTER_ID);
+        this.configMapName = configMapName;
+        this.lockIdentity = lockIdentity;
 
-		this.leaseDuration = config.get(KubernetesHighAvailabilityOptions.KUBERNETES_LEASE_DURATION);
-		this.renewDeadline = config.get(KubernetesHighAvailabilityOptions.KUBERNETES_RENEW_DEADLINE);
-		this.retryPeriod = config.get(KubernetesHighAvailabilityOptions.KUBERNETES_RETRY_PERIOD);
-	}
+        this.leaseDuration =
+                config.get(KubernetesHighAvailabilityOptions.KUBERNETES_LEASE_DURATION);
+        this.renewDeadline =
+                config.get(KubernetesHighAvailabilityOptions.KUBERNETES_RENEW_DEADLINE);
+        this.retryPeriod = config.get(KubernetesHighAvailabilityOptions.KUBERNETES_RETRY_PERIOD);
+    }
 
-	public String getClusterId() {
-		return clusterId;
-	}
+    public String getClusterId() {
+        return clusterId;
+    }
 
-	public String getConfigMapName() {
-		return configMapName;
-	}
+    public String getConfigMapName() {
+        return configMapName;
+    }
 
-	public String getLockIdentity() {
-		return lockIdentity;
-	}
+    public String getLockIdentity() {
+        return lockIdentity;
+    }
 
-	public Duration getLeaseDuration() {
-		return leaseDuration;
-	}
+    public Duration getLeaseDuration() {
+        return leaseDuration;
+    }
 
-	public Duration getRenewDeadline() {
-		return renewDeadline;
-	}
+    public Duration getRenewDeadline() {
+        return renewDeadline;
+    }
 
-	public Duration getRetryPeriod() {
-		return retryPeriod;
-	}
+    public Duration getRetryPeriod() {
+        return retryPeriod;
+    }
 }

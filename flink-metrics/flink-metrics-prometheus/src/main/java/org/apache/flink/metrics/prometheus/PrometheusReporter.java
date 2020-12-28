@@ -32,56 +32,56 @@ import io.prometheus.client.exporter.HTTPServer;
 import java.io.IOException;
 import java.util.Iterator;
 
-/**
- * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus.
- */
+/** {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus. */
 @PublicEvolving
-@InstantiateViaFactory(factoryClassName = "org.apache.flink.metrics.prometheus.PrometheusReporterFactory")
+@InstantiateViaFactory(
+        factoryClassName = "org.apache.flink.metrics.prometheus.PrometheusReporterFactory")
 public class PrometheusReporter extends AbstractPrometheusReporter {
 
-	static final String ARG_PORT = "port";
-	private static final String DEFAULT_PORT = "9249";
+    static final String ARG_PORT = "port";
+    private static final String DEFAULT_PORT = "9249";
 
-	private HTTPServer httpServer;
-	private int port;
+    private HTTPServer httpServer;
+    private int port;
 
-	@VisibleForTesting
-	int getPort() {
-		Preconditions.checkState(httpServer != null, "Server has not been initialized.");
-		return port;
-	}
+    @VisibleForTesting
+    int getPort() {
+        Preconditions.checkState(httpServer != null, "Server has not been initialized.");
+        return port;
+    }
 
-	@Override
-	public void open(MetricConfig config) {
-		super.open(config);
+    @Override
+    public void open(MetricConfig config) {
+        super.open(config);
 
-		String portsConfig = config.getString(ARG_PORT, DEFAULT_PORT);
-		Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
+        String portsConfig = config.getString(ARG_PORT, DEFAULT_PORT);
+        Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 
-		while (ports.hasNext()) {
-			int port = ports.next();
-			try {
-				// internally accesses CollectorRegistry.defaultRegistry
-				httpServer = new HTTPServer(port);
-				this.port = port;
-				log.info("Started PrometheusReporter HTTP server on port {}.", port);
-				break;
-			} catch (IOException ioe) { //assume port conflict
-				log.debug("Could not start PrometheusReporter HTTP server on port {}.", port, ioe);
-			}
-		}
-		if (httpServer == null) {
-			throw new RuntimeException("Could not start PrometheusReporter HTTP server on any configured port. Ports: " + portsConfig);
-		}
-	}
+        while (ports.hasNext()) {
+            int port = ports.next();
+            try {
+                // internally accesses CollectorRegistry.defaultRegistry
+                httpServer = new HTTPServer(port);
+                this.port = port;
+                log.info("Started PrometheusReporter HTTP server on port {}.", port);
+                break;
+            } catch (IOException ioe) { // assume port conflict
+                log.debug("Could not start PrometheusReporter HTTP server on port {}.", port, ioe);
+            }
+        }
+        if (httpServer == null) {
+            throw new RuntimeException(
+                    "Could not start PrometheusReporter HTTP server on any configured port. Ports: "
+                            + portsConfig);
+        }
+    }
 
-	@Override
-	public void close() {
-		if (httpServer != null) {
-			httpServer.stop();
-		}
+    @Override
+    public void close() {
+        if (httpServer != null) {
+            httpServer.stop();
+        }
 
-		super.close();
-	}
-
+        super.close();
+    }
 }

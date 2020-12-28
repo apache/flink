@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework.overlays;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Test;
 
@@ -29,45 +30,46 @@ import static org.junit.Assert.assertEquals;
 
 public class HadoopUserOverlayTest extends ContainerOverlayTestBase {
 
-	@Test
-	public void testConfigure() throws Exception {
+    @Test
+    public void testConfigure() throws Exception {
 
-		final UserGroupInformation ugi = UserGroupInformation.createRemoteUser("test");
+        final UserGroupInformation ugi = UserGroupInformation.createRemoteUser("test");
 
-		HadoopUserOverlay overlay = new HadoopUserOverlay(ugi);
+        HadoopUserOverlay overlay = new HadoopUserOverlay(ugi);
 
-		ContainerSpecification spec = new ContainerSpecification();
-		overlay.configure(spec);
+        ContainerSpecification spec = new ContainerSpecification();
+        overlay.configure(spec);
 
-		assertEquals(ugi.getUserName(), spec.getEnvironmentVariables().get("HADOOP_USER_NAME"));
-	}
+        assertEquals(ugi.getUserName(), spec.getEnvironmentVariables().get("HADOOP_USER_NAME"));
+    }
 
-	@Test
-	public void testNoConf() throws Exception {
-		HadoopUserOverlay overlay = new HadoopUserOverlay(null);
+    @Test
+    public void testNoConf() throws Exception {
+        HadoopUserOverlay overlay = new HadoopUserOverlay(null);
 
-		ContainerSpecification containerSpecification = new ContainerSpecification();
-		overlay.configure(containerSpecification);
-	}
+        ContainerSpecification containerSpecification = new ContainerSpecification();
+        overlay.configure(containerSpecification);
+    }
 
-	@Test
-	public void testBuilderFromEnvironment() throws Exception {
+    @Test
+    public void testBuilderFromEnvironment() throws Exception {
 
-		final Configuration conf = new Configuration();
-		final UserGroupInformation ugi = UserGroupInformation.createRemoteUser("test");
+        final Configuration conf = new Configuration();
+        final UserGroupInformation ugi = UserGroupInformation.createRemoteUser("test");
 
-		ugi.doAs(new PrivilegedAction<Object>() {
-			@Override
-			public Object run() {
-				try {
-					HadoopUserOverlay.Builder builder = HadoopUserOverlay.newBuilder().fromEnvironment(conf);
-					assertEquals(ugi, builder.ugi);
-					return null;
-				}
-				catch(Exception ex) {
-					throw new AssertionError(ex);
-				}
-			}
-		});
-	}
+        ugi.doAs(
+                new PrivilegedAction<Object>() {
+                    @Override
+                    public Object run() {
+                        try {
+                            HadoopUserOverlay.Builder builder =
+                                    HadoopUserOverlay.newBuilder().fromEnvironment(conf);
+                            assertEquals(ugi, builder.ugi);
+                            return null;
+                        } catch (Exception ex) {
+                            throw new AssertionError(ex);
+                        }
+                    }
+                });
+    }
 }

@@ -28,14 +28,12 @@ import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
  */
 interface SnapshotStrategySynchronicityBehavior<K> {
 
-	default void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
+    default void finalizeSnapshotBeforeReturnHook(Runnable runnable) {}
 
-	}
+    boolean isAsynchronous();
 
-	boolean isAsynchronous();
-
-	<N, V> StateTable<K, N, V> newStateTable(
-		InternalKeyContext<K> keyContext,
-		RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo,
-		TypeSerializer<K> keySerializer);
+    <N, V> StateTable<K, N, V> newStateTable(
+            InternalKeyContext<K> keyContext,
+            RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo,
+            TypeSerializer<K> keySerializer);
 }

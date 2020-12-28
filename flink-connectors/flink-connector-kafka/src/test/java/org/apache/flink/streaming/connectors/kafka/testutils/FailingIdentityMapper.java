@@ -34,95 +34,96 @@ import java.util.List;
  *
  * @param <T>
  */
-public class FailingIdentityMapper<T> extends RichMapFunction<T, T> implements
-	ListCheckpointed<Integer>, CheckpointListener, Runnable {
+public class FailingIdentityMapper<T> extends RichMapFunction<T, T>
+        implements ListCheckpointed<Integer>, CheckpointListener, Runnable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FailingIdentityMapper.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FailingIdentityMapper.class);
 
-	private static final long serialVersionUID = 6334389850158707313L;
+    private static final long serialVersionUID = 6334389850158707313L;
 
-	public static volatile boolean failedBefore;
+    public static volatile boolean failedBefore;
 
-	private final int failCount;
-	private int numElementsTotal;
-	private int numElementsThisTime;
+    private final int failCount;
+    private int numElementsTotal;
+    private int numElementsThisTime;
 
-	private boolean failer;
-	private boolean hasBeenCheckpointed;
+    private boolean failer;
+    private boolean hasBeenCheckpointed;
 
-	private Thread printer;
-	private volatile boolean printerRunning = true;
+    private Thread printer;
+    private volatile boolean printerRunning = true;
 
-	public FailingIdentityMapper(int failCount) {
-		this.failCount = failCount;
-	}
+    public FailingIdentityMapper(int failCount) {
+        this.failCount = failCount;
+    }
 
-	@Override
-	public void open(Configuration parameters) {
-		failer = getRuntimeContext().getIndexOfThisSubtask() == 0;
-		printer = new Thread(this, "FailingIdentityMapper Status Printer");
-		printer.start();
-	}
+    @Override
+    public void open(Configuration parameters) {
+        failer = getRuntimeContext().getIndexOfThisSubtask() == 0;
+        printer = new Thread(this, "FailingIdentityMapper Status Printer");
+        printer.start();
+    }
 
-	@Override
-	public T map(T value) throws Exception {
-		numElementsTotal++;
-		numElementsThisTime++;
+    @Override
+    public T map(T value) throws Exception {
+        numElementsTotal++;
+        numElementsThisTime++;
 
-		if (!failedBefore) {
-			Thread.sleep(10);
+        if (!failedBefore) {
+            Thread.sleep(10);
 
-			if (failer && numElementsTotal >= failCount) {
-				failedBefore = true;
-				throw new Exception("Artificial Test Failure");
-			}
-		}
-		return value;
-	}
+            if (failer && numElementsTotal >= failCount) {
+                failedBefore = true;
+                throw new Exception("Artificial Test Failure");
+            }
+        }
+        return value;
+    }
 
-	@Override
-	public void close() throws Exception {
-		printerRunning = false;
-		if (printer != null) {
-			printer.interrupt();
-			printer = null;
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        printerRunning = false;
+        if (printer != null) {
+            printer.interrupt();
+            printer = null;
+        }
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
-		this.hasBeenCheckpointed = true;
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {
+        this.hasBeenCheckpointed = true;
+    }
 
-	@Override
-	public void notifyCheckpointAborted(long checkpointId) {
-	}
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) {}
 
-	@Override
-	public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-		return Collections.singletonList(numElementsTotal);
-	}
+    @Override
+    public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+        return Collections.singletonList(numElementsTotal);
+    }
 
-	@Override
-	public void restoreState(List<Integer> state) throws Exception {
-		if (state.isEmpty() || state.size() > 1) {
-			throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
-		}
-		this.numElementsTotal = state.get(0);
-	}
+    @Override
+    public void restoreState(List<Integer> state) throws Exception {
+        if (state.isEmpty() || state.size() > 1) {
+            throw new RuntimeException(
+                    "Test failed due to unexpected recovered state size " + state.size());
+        }
+        this.numElementsTotal = state.get(0);
+    }
 
-	@Override
-	public void run() {
-		while (printerRunning) {
-			try {
-				Thread.sleep(5000);
-			}
-			catch (InterruptedException e) {
-				// ignore
-			}
-			LOG.info("============================> Failing mapper  {}: count={}, totalCount={}",
-					getRuntimeContext().getIndexOfThisSubtask(),
-					numElementsThisTime, numElementsTotal);
-		}
-	}
+    @Override
+    public void run() {
+        while (printerRunning) {
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+            LOG.info(
+                    "============================> Failing mapper  {}: count={}, totalCount={}",
+                    getRuntimeContext().getIndexOfThisSubtask(),
+                    numElementsThisTime,
+                    numElementsTotal);
+        }
+    }
 }

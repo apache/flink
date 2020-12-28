@@ -24,97 +24,112 @@ import org.apache.flink.util.CloseableIterator;
 import static org.apache.flink.util.ExceptionUtils.rethrow;
 
 /**
- * A no op implementation that performs basic checks of the contract, but does not actually write any data.
+ * A no op implementation that performs basic checks of the contract, but does not actually write
+ * any data.
  */
 public class MockChannelStateWriter implements ChannelStateWriter {
-	private volatile ChannelStateWriteResult channelStateWriteResult = ChannelStateWriteResult.EMPTY;
-	private volatile long startedCheckpointId = -1;
-	private final boolean autoComplete;
+    private volatile ChannelStateWriteResult channelStateWriteResult =
+            ChannelStateWriteResult.EMPTY;
+    private volatile long startedCheckpointId = -1;
+    private final boolean autoComplete;
 
-	public MockChannelStateWriter() {
-		this(true);
-	}
+    public MockChannelStateWriter() {
+        this(true);
+    }
 
-	public MockChannelStateWriter(boolean autoComplete) {
-		this.autoComplete = autoComplete;
-	}
+    public MockChannelStateWriter(boolean autoComplete) {
+        this.autoComplete = autoComplete;
+    }
 
-	@Override
-	public void start(long checkpointId, CheckpointOptions checkpointOptions) {
-		if (checkpointId == startedCheckpointId) {
-			throw new IllegalStateException("Already started " + checkpointId);
-		} else if (checkpointId < startedCheckpointId) {
-			throw new IllegalArgumentException("Expected a larger checkpoint id than " + startedCheckpointId + " but " +
-				"got " + checkpointId);
-		}
-		startedCheckpointId = checkpointId;
-		channelStateWriteResult = new ChannelStateWriteResult();
-	}
+    @Override
+    public void start(long checkpointId, CheckpointOptions checkpointOptions) {
+        if (checkpointId == startedCheckpointId) {
+            throw new IllegalStateException("Already started " + checkpointId);
+        } else if (checkpointId < startedCheckpointId) {
+            throw new IllegalArgumentException(
+                    "Expected a larger checkpoint id than "
+                            + startedCheckpointId
+                            + " but "
+                            + "got "
+                            + checkpointId);
+        }
+        startedCheckpointId = checkpointId;
+        channelStateWriteResult = new ChannelStateWriteResult();
+    }
 
-	@Override
-	public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, CloseableIterator<Buffer> iterator) {
-		checkCheckpointId(checkpointId);
-		try {
-			iterator.close();
-		} catch (Exception e) {
-			rethrow(e);
-		}
-	}
+    @Override
+    public void addInputData(
+            long checkpointId,
+            InputChannelInfo info,
+            int startSeqNum,
+            CloseableIterator<Buffer> iterator) {
+        checkCheckpointId(checkpointId);
+        try {
+            iterator.close();
+        } catch (Exception e) {
+            rethrow(e);
+        }
+    }
 
-	@Override
-	public void addOutputData(long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {
-		checkCheckpointId(checkpointId);
-		for (final Buffer buffer : data) {
-			buffer.recycleBuffer();
-		}
-	}
+    @Override
+    public void addOutputData(
+            long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {
+        checkCheckpointId(checkpointId);
+        for (final Buffer buffer : data) {
+            buffer.recycleBuffer();
+        }
+    }
 
-	@Override
-	public void finishInput(long checkpointId) {
-		checkCheckpointId(checkpointId);
-		if (autoComplete) {
-			completeInput();
-		}
-	}
+    @Override
+    public void finishInput(long checkpointId) {
+        checkCheckpointId(checkpointId);
+        if (autoComplete) {
+            completeInput();
+        }
+    }
 
-	public void completeInput() {
-		channelStateWriteResult.getInputChannelStateHandles().complete(null);
-	}
+    public void completeInput() {
+        channelStateWriteResult.getInputChannelStateHandles().complete(null);
+    }
 
-	@Override
-	public void finishOutput(long checkpointId) {
-		checkCheckpointId(checkpointId);
-		if (autoComplete) {
-			completeOutput();
-		}
-	}
+    @Override
+    public void finishOutput(long checkpointId) {
+        checkCheckpointId(checkpointId);
+        if (autoComplete) {
+            completeOutput();
+        }
+    }
 
-	public void completeOutput() {
-		channelStateWriteResult.getResultSubpartitionStateHandles().complete(null);
-	}
+    public void completeOutput() {
+        channelStateWriteResult.getResultSubpartitionStateHandles().complete(null);
+    }
 
-	protected void checkCheckpointId(long checkpointId) {
-		if (checkpointId != startedCheckpointId) {
-			throw new IllegalStateException("Need to have recently called #start with " + checkpointId + " but " +
-				"currently started checkpoint id is " + startedCheckpointId);
-		}
-	}
+    protected void checkCheckpointId(long checkpointId) {
+        if (checkpointId != startedCheckpointId) {
+            throw new IllegalStateException(
+                    "Need to have recently called #start with "
+                            + checkpointId
+                            + " but "
+                            + "currently started checkpoint id is "
+                            + startedCheckpointId);
+        }
+    }
 
-	@Override
-	public ChannelStateWriteResult getAndRemoveWriteResult(long checkpointId) {
-		return channelStateWriteResult;
-	}
+    @Override
+    public ChannelStateWriteResult getAndRemoveWriteResult(long checkpointId) {
+        return channelStateWriteResult;
+    }
 
-	@Override
-	public void abort(long checkpointId, Throwable cause, boolean cleanup) {
-		checkCheckpointId(checkpointId);
-		channelStateWriteResult.getInputChannelStateHandles().cancel(false);
-		channelStateWriteResult.getResultSubpartitionStateHandles().cancel(false);
-	}
+    @Override
+    public void abort(long checkpointId, Throwable cause, boolean cleanup) {
+        checkCheckpointId(checkpointId);
+        channelStateWriteResult.getInputChannelStateHandles().cancel(false);
+        channelStateWriteResult.getResultSubpartitionStateHandles().cancel(false);
+    }
 
-	@Override
-	public void close() {
-		channelStateWriteResult.getInputChannelStateHandles().cancel(false);
-		channelStateWriteResult.getResultSubpartitionStateHandles().cancel(false);
-	}
+    @Override
+    public void close() {
+        channelStateWriteResult.getInputChannelStateHandles().cancel(false);
+        channelStateWriteResult.getResultSubpartitionStateHandles().cancel(false);
+    }
 }

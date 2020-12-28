@@ -18,35 +18,33 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-/**
- * Testing implementation of {@link KubernetesPod}.
- */
+/** Testing implementation of {@link KubernetesPod}. */
 public class TestingKubernetesPod extends KubernetesPod {
-	private final String name;
-	private final boolean isTerminated;
+    private final String name;
+    private final boolean isTerminated;
 
-	public TestingKubernetesPod(String name) {
-		this(name, false);
-	}
+    public TestingKubernetesPod(String name) {
+        this(name, false);
+    }
 
-	public TestingKubernetesPod(String name, boolean isTerminated) {
-		super(null);
-		this.name = name;
-		this.isTerminated = isTerminated;
-	}
+    public TestingKubernetesPod(String name, boolean isTerminated) {
+        super(null);
+        this.name = name;
+        this.isTerminated = isTerminated;
+    }
 
-	@Override
-	public String getName() {
-		return name;
-	}
+    @Override
+    public String getName() {
+        return name;
+    }
 
-	@Override
-	public boolean isTerminated() {
-		return isTerminated;
-	}
+    @Override
+    public boolean isTerminated() {
+        return isTerminated;
+    }
 
-	@Override
-	public String getTerminatedDiagnostics() {
-		return "testing-diagnostics";
-	}
+    @Override
+    public String getTerminatedDiagnostics() {
+        return "testing-diagnostics";
+    }
 }

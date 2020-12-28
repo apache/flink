@@ -39,47 +39,48 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 /**
  * {@link InputTypeStrategy} specific for {@link BuiltInFunctionDefinitions#CAST}.
  *
- * <p>It expects two arguments where the type of first one must be castable to the type of the second
- * one. The second one must be a type literal.
+ * <p>It expects two arguments where the type of first one must be castable to the type of the
+ * second one. The second one must be a type literal.
  */
 @Internal
 public final class CastInputTypeStrategy implements InputTypeStrategy {
 
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.of(2);
-	}
+    @Override
+    public ArgumentCount getArgumentCount() {
+        return ConstantArgumentCount.of(2);
+    }
 
-	@Override
-	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
-		// check for type literal
-		if (!callContext.isArgumentLiteral(1) || !callContext.getArgumentValue(1, DataType.class).isPresent()) {
-			return Optional.empty();
-		}
+    @Override
+    public Optional<List<DataType>> inferInputTypes(
+            CallContext callContext, boolean throwOnFailure) {
+        // check for type literal
+        if (!callContext.isArgumentLiteral(1)
+                || !callContext.getArgumentValue(1, DataType.class).isPresent()) {
+            return Optional.empty();
+        }
 
-		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-		final LogicalType fromType = argumentDataTypes.get(0).getLogicalType();
-		final LogicalType toType = argumentDataTypes.get(1).getLogicalType();
+        final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+        final LogicalType fromType = argumentDataTypes.get(0).getLogicalType();
+        final LogicalType toType = argumentDataTypes.get(1).getLogicalType();
 
-		// A hack to support legacy types. To be removed when we drop the legacy types.
-		if (fromType instanceof LegacyTypeInformationType) {
-			return Optional.of(argumentDataTypes);
-		}
-		if (!supportsExplicitCast(fromType, toType)) {
-			if (throwOnFailure) {
-				throw callContext.newValidationError(
-					"Unsupported cast from '%s' to '%s'.",
-					fromType,
-					toType);
-			}
-			return Optional.empty();
-		}
-		return Optional.of(argumentDataTypes);
-	}
+        // A hack to support legacy types. To be removed when we drop the legacy types.
+        if (fromType instanceof LegacyTypeInformationType) {
+            return Optional.of(argumentDataTypes);
+        }
+        if (!supportsExplicitCast(fromType, toType)) {
+            if (throwOnFailure) {
+                throw callContext.newValidationError(
+                        "Unsupported cast from '%s' to '%s'.", fromType, toType);
+            }
+            return Optional.empty();
+        }
+        return Optional.of(argumentDataTypes);
+    }
 
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(
-			Signature.of(Signature.Argument.of("<ANY>"), Signature.Argument.of("<TYPE LITERAL>")));
-	}
+    @Override
+    public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+        return Collections.singletonList(
+                Signature.of(
+                        Signature.Argument.of("<ANY>"), Signature.Argument.of("<TYPE LITERAL>")));
+    }
 }

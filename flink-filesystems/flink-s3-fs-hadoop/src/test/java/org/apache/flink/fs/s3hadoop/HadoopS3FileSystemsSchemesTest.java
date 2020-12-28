@@ -26,30 +26,29 @@ import java.util.ServiceLoader;
 
 import static org.junit.Assert.fail;
 
-/**
- * This test validates that the S3 file system registers both under s3:// and s3a://.
- */
+/** This test validates that the S3 file system registers both under s3:// and s3a://. */
 public class HadoopS3FileSystemsSchemesTest {
 
-	@Test
-	public void testS3Factory() {
-		testFactory("s3");
-	}
+    @Test
+    public void testS3Factory() {
+        testFactory("s3");
+    }
 
-	@Test
-	public void testS3AFactory() {
-		testFactory("s3a");
-	}
+    @Test
+    public void testS3AFactory() {
+        testFactory("s3a");
+    }
 
-	private static void testFactory(String scheme) {
-		ServiceLoader<FileSystemFactory> serviceLoader = ServiceLoader.load(FileSystemFactory.class);
-		for (FileSystemFactory fs : serviceLoader) {
-			if (scheme.equals(fs.getScheme())) {
-				// found the matching scheme
-				return;
-			}
-		}
+    private static void testFactory(String scheme) {
+        ServiceLoader<FileSystemFactory> serviceLoader =
+                ServiceLoader.load(FileSystemFactory.class);
+        for (FileSystemFactory fs : serviceLoader) {
+            if (scheme.equals(fs.getScheme())) {
+                // found the matching scheme
+                return;
+            }
+        }
 
-		fail("No factory available for scheme " + scheme);
-	}
+        fail("No factory available for scheme " + scheme);
+    }
 }

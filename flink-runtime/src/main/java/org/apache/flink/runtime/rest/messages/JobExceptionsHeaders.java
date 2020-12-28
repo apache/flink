@@ -24,54 +24,54 @@ import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobExceptionsHandler}.
- */
-public class JobExceptionsHeaders implements MessageHeaders<EmptyRequestBody, JobExceptionsInfo, JobExceptionsMessageParameters> {
+/** Message headers for the {@link JobExceptionsHandler}. */
+public class JobExceptionsHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, JobExceptionsInfo, JobExceptionsMessageParameters> {
 
-	private static final JobExceptionsHeaders INSTANCE = new JobExceptionsHeaders();
+    private static final JobExceptionsHeaders INSTANCE = new JobExceptionsHeaders();
 
-	public static final String URL = "/jobs/:jobid/exceptions";
+    public static final String URL = "/jobs/:jobid/exceptions";
 
-	private JobExceptionsHeaders() {}
+    private JobExceptionsHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JobExceptionsInfo> getResponseClass() {
-		return JobExceptionsInfo.class;
-	}
+    @Override
+    public Class<JobExceptionsInfo> getResponseClass() {
+        return JobExceptionsInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobExceptionsMessageParameters getUnresolvedMessageParameters() {
-		return new JobExceptionsMessageParameters();
-	}
+    @Override
+    public JobExceptionsMessageParameters getUnresolvedMessageParameters() {
+        return new JobExceptionsMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobExceptionsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobExceptionsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the non-recoverable exceptions that have been observed by the job. The truncated flag defines " +
-			"whether more exceptions occurred, but are not listed, because the response would otherwise get too big.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the non-recoverable exceptions that have been observed by the job. The truncated flag defines "
+                + "whether more exceptions occurred, but are not listed, because the response would otherwise get too big.";
+    }
 }

@@ -28,54 +28,57 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-/**
- * Generic interface for interacting with Flink.
- */
+/** Generic interface for interacting with Flink. */
 public interface FlinkResource extends ExternalResource {
 
-	/**
-	 * Starts a cluster.
-	 *
-	 * <p>The exact constellation of the cluster is undefined.
-	 *
-	 * <p>In the case of per-job clusters this method may not start any Flink processes, deferring this to
-	 * {@link ClusterController#submitJob(JobSubmission, Duration)}.
-	 *
-	 * @return controller for interacting with the cluster
-	 * @throws IOException
-	 * @param numTaskManagers number of task managers
-	 */
-	ClusterController startCluster(int numTaskManagers) throws IOException;
+    /**
+     * Starts a cluster.
+     *
+     * <p>The exact constellation of the cluster is undefined.
+     *
+     * <p>In the case of per-job clusters this method may not start any Flink processes, deferring
+     * this to {@link ClusterController#submitJob(JobSubmission, Duration)}.
+     *
+     * @return controller for interacting with the cluster
+     * @throws IOException
+     * @param numTaskManagers number of task managers
+     */
+    ClusterController startCluster(int numTaskManagers) throws IOException;
 
-	/**
-	 * Searches the logs of all processes for the given pattern, and applies the given processor for every line for
-	 * which {@link Matcher#matches()} returned true.
-	 *
-	 * @param pattern pattern to search for
-	 * @param matchProcessor match processor
-	 * @return stream of matched strings
-	 */
-	Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor) throws IOException;
+    /**
+     * Searches the logs of all processes for the given pattern, and applies the given processor for
+     * every line for which {@link Matcher#matches()} returned true.
+     *
+     * @param pattern pattern to search for
+     * @param matchProcessor match processor
+     * @return stream of matched strings
+     */
+    Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor)
+            throws IOException;
 
-	/**
-	 * Returns the configured FlinkResource implementation, or a {@link LocalStandaloneFlinkResource} if none is configured.
-	 *
-	 * @return configured FlinkResource, or {@link LocalStandaloneFlinkResource} is none is configured
-	 */
-	static FlinkResource get() {
-		return get(FlinkResourceSetup.builder().build());
-	}
+    /**
+     * Returns the configured FlinkResource implementation, or a {@link
+     * LocalStandaloneFlinkResource} if none is configured.
+     *
+     * @return configured FlinkResource, or {@link LocalStandaloneFlinkResource} is none is
+     *     configured
+     */
+    static FlinkResource get() {
+        return get(FlinkResourceSetup.builder().build());
+    }
 
-	/**
-	 * Returns the configured FlinkResource implementation, or a {@link LocalStandaloneFlinkResource} if none is configured.
-	 *
-	 * @param setup setup instructions for the FlinkResource
-	 * @return configured FlinkResource, or {@link LocalStandaloneFlinkResource} is none is configured
-	 */
-	static FlinkResource get(FlinkResourceSetup setup) {
-		return FactoryUtils.loadAndInvokeFactory(
-			FlinkResourceFactory.class,
-			factory -> factory.create(setup),
-			LocalStandaloneFlinkResourceFactory::new);
-	}
+    /**
+     * Returns the configured FlinkResource implementation, or a {@link
+     * LocalStandaloneFlinkResource} if none is configured.
+     *
+     * @param setup setup instructions for the FlinkResource
+     * @return configured FlinkResource, or {@link LocalStandaloneFlinkResource} is none is
+     *     configured
+     */
+    static FlinkResource get(FlinkResourceSetup setup) {
+        return FactoryUtils.loadAndInvokeFactory(
+                FlinkResourceFactory.class,
+                factory -> factory.create(setup),
+                LocalStandaloneFlinkResourceFactory::new);
+    }
 }

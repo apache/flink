@@ -34,64 +34,74 @@ import java.util.Map;
 
 import static org.apache.flink.table.data.util.MapDataUtil.convertToJavaMap;
 
-/**
- * A test for the {@link MapDataSerializer}.
- */
+/** A test for the {@link MapDataSerializer}. */
 public class MapDataSerializerTest extends SerializerTestBase<MapData> {
 
-	private static final LogicalType INT = DataTypes.INT().getLogicalType();
-	private static final LogicalType STRING = DataTypes.STRING().getLogicalType();
+    private static final LogicalType INT = DataTypes.INT().getLogicalType();
+    private static final LogicalType STRING = DataTypes.STRING().getLogicalType();
 
-	public MapDataSerializerTest() {
-		super(new DeeplyEqualsChecker().withCustomCheck(
-				(o1, o2) -> o1 instanceof MapData && o2 instanceof MapData,
-				(o1, o2, checker) ->
-						// Better is more proper to compare the maps after changing them to Java maps
-						// instead of binary maps. For example, consider the following two maps:
-						// {1: 'a', 2: 'b', 3: 'c'} and {3: 'c', 2: 'b', 1: 'a'}
-						// These are actually the same maps, but their key / value order will be
-						// different when stored as binary maps, and the equalsTo method of binary
-						// map will return false.
-						convertToJavaMap((MapData) o1, INT, STRING)
-							.equals(convertToJavaMap((MapData) o2, INT, STRING))
-		));
-	}
+    public MapDataSerializerTest() {
+        super(
+                new DeeplyEqualsChecker()
+                        .withCustomCheck(
+                                (o1, o2) -> o1 instanceof MapData && o2 instanceof MapData,
+                                (o1, o2, checker) ->
+                                        // Better is more proper to compare the maps after changing
+                                        // them to Java maps
+                                        // instead of binary maps. For example, consider the
+                                        // following two maps:
+                                        // {1: 'a', 2: 'b', 3: 'c'} and {3: 'c', 2: 'b', 1: 'a'}
+                                        // These are actually the same maps, but their key / value
+                                        // order will be
+                                        // different when stored as binary maps, and the equalsTo
+                                        // method of binary
+                                        // map will return false.
+                                        convertToJavaMap((MapData) o1, INT, STRING)
+                                                .equals(
+                                                        convertToJavaMap(
+                                                                (MapData) o2, INT, STRING))));
+    }
 
-	@Override
-	protected MapDataSerializer createSerializer() {
-		return new MapDataSerializer(INT, STRING);
-	}
+    @Override
+    protected MapDataSerializer createSerializer() {
+        return new MapDataSerializer(INT, STRING);
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<MapData> getTypeClass() {
-		return MapData.class;
-	}
+    @Override
+    protected Class<MapData> getTypeClass() {
+        return MapData.class;
+    }
 
-	@Override
-	protected MapData[] getTestData() {
-		Map<Object, Object> first = new HashMap<>();
-		first.put(1, StringData.fromString(""));
-		return new MapData[] {
-				new GenericMapData(first),
-				BinaryMapData.valueOf(createArray(1, 2), ArrayDataSerializerTest.createArray("11", "haa")),
-				BinaryMapData.valueOf(createArray(1, 3, 4), ArrayDataSerializerTest.createArray("11", "haa", "ke")),
-				BinaryMapData.valueOf(createArray(1, 4, 2), ArrayDataSerializerTest.createArray("11", "haa", "ke")),
-				BinaryMapData.valueOf(createArray(1, 5, 6, 7), ArrayDataSerializerTest.createArray("11", "lele", "haa", "ke"))
-		};
-	}
+    @Override
+    protected MapData[] getTestData() {
+        Map<Object, Object> first = new HashMap<>();
+        first.put(1, StringData.fromString(""));
+        return new MapData[] {
+            new GenericMapData(first),
+            BinaryMapData.valueOf(
+                    createArray(1, 2), ArrayDataSerializerTest.createArray("11", "haa")),
+            BinaryMapData.valueOf(
+                    createArray(1, 3, 4), ArrayDataSerializerTest.createArray("11", "haa", "ke")),
+            BinaryMapData.valueOf(
+                    createArray(1, 4, 2), ArrayDataSerializerTest.createArray("11", "haa", "ke")),
+            BinaryMapData.valueOf(
+                    createArray(1, 5, 6, 7),
+                    ArrayDataSerializerTest.createArray("11", "lele", "haa", "ke"))
+        };
+    }
 
-	private static BinaryArrayData createArray(int... vs) {
-		BinaryArrayData array = new BinaryArrayData();
-		BinaryArrayWriter writer = new BinaryArrayWriter(array, vs.length, 4);
-		for (int i = 0; i < vs.length; i++) {
-			writer.writeInt(i, vs[i]);
-		}
-		writer.complete();
-		return array;
-	}
+    private static BinaryArrayData createArray(int... vs) {
+        BinaryArrayData array = new BinaryArrayData();
+        BinaryArrayWriter writer = new BinaryArrayWriter(array, vs.length, 4);
+        for (int i = 0; i < vs.length; i++) {
+            writer.writeInt(i, vs[i]);
+        }
+        writer.complete();
+        return array;
+    }
 }

@@ -20,30 +20,24 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Validator for a {@link HierarchyDescriptor}.
- */
+/** Validator for a {@link HierarchyDescriptor}. */
 @Internal
 public abstract class HierarchyDescriptorValidator implements DescriptorValidator {
 
-	public static final String EMPTY_PREFIX = "";
+    public static final String EMPTY_PREFIX = "";
 
-	private String keyPrefix;
+    private String keyPrefix;
 
-	/**
-	 * @param keyPrefix prefix to be added to every property before validation
-	 */
-	public HierarchyDescriptorValidator(String keyPrefix) {
-		this.keyPrefix = keyPrefix;
-	}
+    /** @param keyPrefix prefix to be added to every property before validation */
+    public HierarchyDescriptorValidator(String keyPrefix) {
+        this.keyPrefix = keyPrefix;
+    }
 
-	@Override
-	public void validate(DescriptorProperties properties) {
-		validateWithPrefix(keyPrefix, properties);
-	}
+    @Override
+    public void validate(DescriptorProperties properties) {
+        validateWithPrefix(keyPrefix, properties);
+    }
 
-	/**
-	 * Performs validation with a prefix for the keys.
-	 */
-	protected abstract void validateWithPrefix(String keyPrefix, DescriptorProperties properties);
+    /** Performs validation with a prefix for the keys. */
+    protected abstract void validateWithPrefix(String keyPrefix, DescriptorProperties properties);
 }

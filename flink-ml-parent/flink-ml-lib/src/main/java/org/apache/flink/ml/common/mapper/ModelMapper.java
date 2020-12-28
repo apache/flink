@@ -26,47 +26,41 @@ import org.apache.flink.types.Row;
 
 import java.util.List;
 
-/**
- * An abstract class for {@link Mapper Mappers} with a model.
- */
+/** An abstract class for {@link Mapper Mappers} with a model. */
 public abstract class ModelMapper extends Mapper {
 
-	/**
-	 * Field names of the model rows.
-	 */
-	private final String[] modelFieldNames;
+    /** Field names of the model rows. */
+    private final String[] modelFieldNames;
 
-	/**
-	 * Field types of the model rows.
-	 */
-	private final DataType[] modelFieldTypes;
+    /** Field types of the model rows. */
+    private final DataType[] modelFieldTypes;
 
-	/**
-	 * Constructs a ModelMapper.
-	 *
-	 * @param modelSchema The schema of the model rows passed to {@link #loadModel(List)}.
-	 * @param dataSchema The schema of the input data rows.
-	 * @param params The parameters of this ModelMapper.
-	 */
-	public ModelMapper(TableSchema modelSchema, TableSchema dataSchema, Params params) {
-		super(dataSchema, params);
-		this.modelFieldNames = modelSchema.getFieldNames();
-		this.modelFieldTypes = modelSchema.getFieldDataTypes();
-	}
+    /**
+     * Constructs a ModelMapper.
+     *
+     * @param modelSchema The schema of the model rows passed to {@link #loadModel(List)}.
+     * @param dataSchema The schema of the input data rows.
+     * @param params The parameters of this ModelMapper.
+     */
+    public ModelMapper(TableSchema modelSchema, TableSchema dataSchema, Params params) {
+        super(dataSchema, params);
+        this.modelFieldNames = modelSchema.getFieldNames();
+        this.modelFieldTypes = modelSchema.getFieldDataTypes();
+    }
 
-	/**
-	 * Get the schema of the model rows that are passed to {@link #loadModel(List)}.
-	 *
-	 * @return The schema of the model rows.
-	 */
-	protected TableSchema getModelSchema() {
-		return TableSchema.builder().fields(this.modelFieldNames, this.modelFieldTypes).build();
-	}
+    /**
+     * Get the schema of the model rows that are passed to {@link #loadModel(List)}.
+     *
+     * @return The schema of the model rows.
+     */
+    protected TableSchema getModelSchema() {
+        return TableSchema.builder().fields(this.modelFieldNames, this.modelFieldTypes).build();
+    }
 
-	/**
-	 * Load the model from the list of rows.
-	 *
-	 * @param modelRows The list of rows that containing the model.
-	 */
-	public abstract void loadModel(List<Row> modelRows);
+    /**
+     * Load the model from the list of rows.
+     *
+     * @param modelRows The list of rows that containing the model.
+     */
+    public abstract void loadModel(List<Row> modelRows);
 }

@@ -28,23 +28,23 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Utilities for the Kubernetes tests.
- */
+/** Utilities for the Kubernetes tests. */
 public class KubernetesTestUtils {
 
-	public static void createTemporyFile(String data, File directory, String fileName) throws IOException {
-		Files.write(data, new File(directory, fileName), StandardCharsets.UTF_8);
-	}
+    public static void createTemporyFile(String data, File directory, String fileName)
+            throws IOException {
+        Files.write(data, new File(directory, fileName), StandardCharsets.UTF_8);
+    }
 
-	public static Configuration loadConfigurationFromString(String content) {
-		final Configuration configuration = new Configuration();
-		for (String line : content.split(System.lineSeparator())) {
-			final String[] splits = line.split(":");
-			if (splits.length >= 2) {
-				configuration.setString(splits[0].trim(), StringUtils.substringAfter(line, ":").trim());
-			}
-		}
-		return configuration;
-	}
+    public static Configuration loadConfigurationFromString(String content) {
+        final Configuration configuration = new Configuration();
+        for (String line : content.split(System.lineSeparator())) {
+            final String[] splits = line.split(":");
+            if (splits.length >= 2) {
+                configuration.setString(
+                        splits[0].trim(), StringUtils.substringAfter(line, ":").trim());
+            }
+        }
+        return configuration;
+    }
 }

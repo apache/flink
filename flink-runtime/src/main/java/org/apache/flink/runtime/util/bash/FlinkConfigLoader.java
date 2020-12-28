@@ -31,38 +31,37 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Util class for loading configuration from commandline arguments.
- * It parses only the configuration file and dynamic properties, ignores other commandline options.
+ * Util class for loading configuration from commandline arguments. It parses only the configuration
+ * file and dynamic properties, ignores other commandline options.
  */
 public class FlinkConfigLoader {
 
-	private static final Options CMD_OPTIONS = ClusterConfigurationParserFactory.options();
+    private static final Options CMD_OPTIONS = ClusterConfigurationParserFactory.options();
 
-	public static Configuration loadConfiguration(String[] args) throws FlinkException {
-		return ConfigurationParserUtils.loadCommonConfiguration(
-			filterCmdArgs(args),
-			BashJavaUtils.class.getSimpleName());
-	}
+    public static Configuration loadConfiguration(String[] args) throws FlinkException {
+        return ConfigurationParserUtils.loadCommonConfiguration(
+                filterCmdArgs(args), BashJavaUtils.class.getSimpleName());
+    }
 
-	private static String[] filterCmdArgs(String[] args) {
-		final List<String> filteredArgs = new ArrayList<>();
-		final Iterator<String> iter = Arrays.asList(args).iterator();
+    private static String[] filterCmdArgs(String[] args) {
+        final List<String> filteredArgs = new ArrayList<>();
+        final Iterator<String> iter = Arrays.asList(args).iterator();
 
-		while (iter.hasNext()) {
-			String token = iter.next();
-			if (CMD_OPTIONS.hasOption(token)) {
-				filteredArgs.add(token);
-				if (CMD_OPTIONS.getOption(token).hasArg() && iter.hasNext()) {
-					filteredArgs.add(iter.next());
-				}
-			} else if (token.startsWith("-D")) {
-				// "-Dkey=value"
-				filteredArgs.add(token);
-			}
-		}
+        while (iter.hasNext()) {
+            String token = iter.next();
+            if (CMD_OPTIONS.hasOption(token)) {
+                filteredArgs.add(token);
+                if (CMD_OPTIONS.getOption(token).hasArg() && iter.hasNext()) {
+                    filteredArgs.add(iter.next());
+                }
+            } else if (token.startsWith("-D")) {
+                // "-Dkey=value"
+                filteredArgs.add(token);
+            }
+        }
 
-		return filteredArgs.toArray(new String[0]);
-	}
+        return filteredArgs.toArray(new String[0]);
+    }
 
-	private FlinkConfigLoader() {}
+    private FlinkConfigLoader() {}
 }

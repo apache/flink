@@ -35,60 +35,72 @@ import static org.apache.flink.runtime.checkpoint.StateObjectCollection.emptyIfN
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singletonOrEmpty;
 
 /**
- * This class finalizes {@link OperatorSnapshotFutures}. Each object is created with a {@link OperatorSnapshotFutures}
- * that is executed. The object can then deliver the results from the execution as {@link OperatorSubtaskState}.
+ * This class finalizes {@link OperatorSnapshotFutures}. Each object is created with a {@link
+ * OperatorSnapshotFutures} that is executed. The object can then deliver the results from the
+ * execution as {@link OperatorSubtaskState}.
  */
 public class OperatorSnapshotFinalizer {
 
-	/** Primary replica of the operator subtask state for report to JM. */
-	private final OperatorSubtaskState jobManagerOwnedState;
+    /** Primary replica of the operator subtask state for report to JM. */
+    private final OperatorSubtaskState jobManagerOwnedState;
 
-	/** Secondary replica of the operator subtask state for faster, local recovery on TM. */
-	private final OperatorSubtaskState taskLocalState;
+    /** Secondary replica of the operator subtask state for faster, local recovery on TM. */
+    private final OperatorSubtaskState taskLocalState;
 
-	public OperatorSnapshotFinalizer(
-		@Nonnull OperatorSnapshotFutures snapshotFutures) throws ExecutionException, InterruptedException {
+    public OperatorSnapshotFinalizer(@Nonnull OperatorSnapshotFutures snapshotFutures)
+            throws ExecutionException, InterruptedException {
 
-		SnapshotResult<KeyedStateHandle> keyedManaged =
-			FutureUtils.runIfNotDoneAndGet(snapshotFutures.getKeyedStateManagedFuture());
+        SnapshotResult<KeyedStateHandle> keyedManaged =
+                FutureUtils.runIfNotDoneAndGet(snapshotFutures.getKeyedStateManagedFuture());
 
-		SnapshotResult<KeyedStateHandle> keyedRaw =
-			FutureUtils.runIfNotDoneAndGet(snapshotFutures.getKeyedStateRawFuture());
+        SnapshotResult<KeyedStateHandle> keyedRaw =
+                FutureUtils.runIfNotDoneAndGet(snapshotFutures.getKeyedStateRawFuture());
 
-		SnapshotResult<OperatorStateHandle> operatorManaged =
-			FutureUtils.runIfNotDoneAndGet(snapshotFutures.getOperatorStateManagedFuture());
+        SnapshotResult<OperatorStateHandle> operatorManaged =
+                FutureUtils.runIfNotDoneAndGet(snapshotFutures.getOperatorStateManagedFuture());
 
-		SnapshotResult<OperatorStateHandle> operatorRaw =
-			FutureUtils.runIfNotDoneAndGet(snapshotFutures.getOperatorStateRawFuture());
+        SnapshotResult<OperatorStateHandle> operatorRaw =
+                FutureUtils.runIfNotDoneAndGet(snapshotFutures.getOperatorStateRawFuture());
 
-		SnapshotResult<StateObjectCollection<InputChannelStateHandle>> inputChannel = snapshotFutures.getInputChannelStateFuture().get();
+        SnapshotResult<StateObjectCollection<InputChannelStateHandle>> inputChannel =
+                snapshotFutures.getInputChannelStateFuture().get();
 
-		SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartition = snapshotFutures.getResultSubpartitionStateFuture().get();
+        SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartition =
+                snapshotFutures.getResultSubpartitionStateFuture().get();
 
-		jobManagerOwnedState = OperatorSubtaskState.builder()
-			.setManagedOperatorState(singletonOrEmpty(operatorManaged.getJobManagerOwnedSnapshot()))
-			.setRawOperatorState(singletonOrEmpty(operatorRaw.getJobManagerOwnedSnapshot()))
-			.setManagedKeyedState(singletonOrEmpty(keyedManaged.getJobManagerOwnedSnapshot()))
-			.setRawKeyedState(singletonOrEmpty(keyedRaw.getJobManagerOwnedSnapshot()))
-			.setInputChannelState(emptyIfNull(inputChannel.getJobManagerOwnedSnapshot()))
-			.setResultSubpartitionState(emptyIfNull(resultSubpartition.getJobManagerOwnedSnapshot()))
-			.build();
+        jobManagerOwnedState =
+                OperatorSubtaskState.builder()
+                        .setManagedOperatorState(
+                                singletonOrEmpty(operatorManaged.getJobManagerOwnedSnapshot()))
+                        .setRawOperatorState(
+                                singletonOrEmpty(operatorRaw.getJobManagerOwnedSnapshot()))
+                        .setManagedKeyedState(
+                                singletonOrEmpty(keyedManaged.getJobManagerOwnedSnapshot()))
+                        .setRawKeyedState(singletonOrEmpty(keyedRaw.getJobManagerOwnedSnapshot()))
+                        .setInputChannelState(
+                                emptyIfNull(inputChannel.getJobManagerOwnedSnapshot()))
+                        .setResultSubpartitionState(
+                                emptyIfNull(resultSubpartition.getJobManagerOwnedSnapshot()))
+                        .build();
 
-		taskLocalState = OperatorSubtaskState.builder()
-			.setManagedOperatorState(singletonOrEmpty(operatorManaged.getTaskLocalSnapshot()))
-			.setRawOperatorState(singletonOrEmpty(operatorRaw.getTaskLocalSnapshot()))
-			.setManagedKeyedState(singletonOrEmpty(keyedManaged.getTaskLocalSnapshot()))
-			.setRawKeyedState(singletonOrEmpty(keyedRaw.getTaskLocalSnapshot()))
-			.setInputChannelState(emptyIfNull(inputChannel.getTaskLocalSnapshot()))
-			.setResultSubpartitionState(emptyIfNull(resultSubpartition.getTaskLocalSnapshot()))
-			.build();
-	}
+        taskLocalState =
+                OperatorSubtaskState.builder()
+                        .setManagedOperatorState(
+                                singletonOrEmpty(operatorManaged.getTaskLocalSnapshot()))
+                        .setRawOperatorState(singletonOrEmpty(operatorRaw.getTaskLocalSnapshot()))
+                        .setManagedKeyedState(singletonOrEmpty(keyedManaged.getTaskLocalSnapshot()))
+                        .setRawKeyedState(singletonOrEmpty(keyedRaw.getTaskLocalSnapshot()))
+                        .setInputChannelState(emptyIfNull(inputChannel.getTaskLocalSnapshot()))
+                        .setResultSubpartitionState(
+                                emptyIfNull(resultSubpartition.getTaskLocalSnapshot()))
+                        .build();
+    }
 
-	public OperatorSubtaskState getTaskLocalState() {
-		return taskLocalState;
-	}
+    public OperatorSubtaskState getTaskLocalState() {
+        return taskLocalState;
+    }
 
-	public OperatorSubtaskState getJobManagerOwnedState() {
-		return jobManagerOwnedState;
-	}
+    public OperatorSubtaskState getJobManagerOwnedState() {
+        return jobManagerOwnedState;
+    }
 }

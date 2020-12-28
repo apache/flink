@@ -33,75 +33,87 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
-/**
- * A SourceOperator extension to simplify test setup.
- */
-public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit> {
+/** A SourceOperator extension to simplify test setup. */
+public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int subtaskIndex;
-	private final int parallelism;
+    private final int subtaskIndex;
+    private final int parallelism;
 
-	public TestingSourceOperator(
-			SourceReader<T, MockSourceSplit> reader,
-			WatermarkStrategy<T> watermarkStrategy,
-			ProcessingTimeService timeService,
-			boolean emitProgressiveWatermarks) {
+    public TestingSourceOperator(
+            SourceReader<T, MockSourceSplit> reader,
+            WatermarkStrategy<T> watermarkStrategy,
+            ProcessingTimeService timeService,
+            boolean emitProgressiveWatermarks) {
 
-		this(reader, watermarkStrategy, timeService, new MockOperatorEventGateway(), 1, 5, emitProgressiveWatermarks);
-	}
+        this(
+                reader,
+                watermarkStrategy,
+                timeService,
+                new MockOperatorEventGateway(),
+                1,
+                5,
+                emitProgressiveWatermarks);
+    }
 
-	public TestingSourceOperator(
-			SourceReader<T, MockSourceSplit> reader,
-			OperatorEventGateway eventGateway,
-			int subtaskIndex,
-			boolean emitProgressiveWatermarks) {
+    public TestingSourceOperator(
+            SourceReader<T, MockSourceSplit> reader,
+            OperatorEventGateway eventGateway,
+            int subtaskIndex,
+            boolean emitProgressiveWatermarks) {
 
-		this(reader, WatermarkStrategy.noWatermarks(), new TestProcessingTimeService(), eventGateway, subtaskIndex, 5, emitProgressiveWatermarks);
-	}
+        this(
+                reader,
+                WatermarkStrategy.noWatermarks(),
+                new TestProcessingTimeService(),
+                eventGateway,
+                subtaskIndex,
+                5,
+                emitProgressiveWatermarks);
+    }
 
-	public TestingSourceOperator(
-			SourceReader<T, MockSourceSplit> reader,
-			WatermarkStrategy<T> watermarkStrategy,
-			ProcessingTimeService timeService,
-			OperatorEventGateway eventGateway,
-			int subtaskIndex,
-			int parallelism,
-			boolean emitProgressiveWatermarks) {
+    public TestingSourceOperator(
+            SourceReader<T, MockSourceSplit> reader,
+            WatermarkStrategy<T> watermarkStrategy,
+            ProcessingTimeService timeService,
+            OperatorEventGateway eventGateway,
+            int subtaskIndex,
+            int parallelism,
+            boolean emitProgressiveWatermarks) {
 
-		super(
-			(context) -> reader,
-			eventGateway,
-			new MockSourceSplitSerializer(),
-			watermarkStrategy,
-			timeService,
-			new Configuration(),
-			"localhost",
-			emitProgressiveWatermarks);
+        super(
+                (context) -> reader,
+                eventGateway,
+                new MockSourceSplitSerializer(),
+                watermarkStrategy,
+                timeService,
+                new Configuration(),
+                "localhost",
+                emitProgressiveWatermarks);
 
-		this.subtaskIndex = subtaskIndex;
-		this.parallelism = parallelism;
-		this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
+        this.subtaskIndex = subtaskIndex;
+        this.parallelism = parallelism;
+        this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
 
-		// unchecked wrapping is okay to keep tests simpler
-		try {
-			initReader();
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+        // unchecked wrapping is okay to keep tests simpler
+        try {
+            initReader();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	@Override
-	public StreamingRuntimeContext getRuntimeContext() {
-		return new MockStreamingRuntimeContext(false, parallelism, subtaskIndex);
-	}
+    @Override
+    public StreamingRuntimeContext getRuntimeContext() {
+        return new MockStreamingRuntimeContext(false, parallelism, subtaskIndex);
+    }
 
-	// this is overridden to avoid complex mock injection through the "containingTask"
-	@Override
-	public ExecutionConfig getExecutionConfig() {
-		ExecutionConfig cfg = new ExecutionConfig();
-		cfg.setAutoWatermarkInterval(100);
-		return cfg;
-	}
+    // this is overridden to avoid complex mock injection through the "containingTask"
+    @Override
+    public ExecutionConfig getExecutionConfig() {
+        ExecutionConfig cfg = new ExecutionConfig();
+        cfg.setAutoWatermarkInterval(100);
+        return cfg;
+    }
 }

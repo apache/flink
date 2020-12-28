@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.data.vector;
 
-/**
- * Boolean column vector.
- */
+/** Boolean column vector. */
 public interface BooleanColumnVector extends ColumnVector {
-	boolean getBoolean(int i);
+    boolean getBoolean(int i);
 }

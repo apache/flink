@@ -27,32 +27,32 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
+
 import java.util.Collection;
 
-/**
- * Abstract base class for state backends that use managed memory.
- */
+/** Abstract base class for state backends that use managed memory. */
 public abstract class AbstractManagedMemoryStateBackend extends AbstractStateBackend {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public abstract <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-		Environment env,
-		JobID jobID,
-		String operatorIdentifier,
-		TypeSerializer<K> keySerializer,
-		int numberOfKeyGroups,
-		KeyGroupRange keyGroupRange,
-		TaskKvStateRegistry kvStateRegistry,
-		TtlTimeProvider ttlTimeProvider,
-		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		CloseableRegistry cancelStreamRegistry,
-		double managedMemoryFraction) throws Exception;
+    @Override
+    public abstract <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry,
+            double managedMemoryFraction)
+            throws Exception;
 
-	@Override
-	public boolean useManagedMemory() {
-		return true;
-	}
+    @Override
+    public boolean useManagedMemory() {
+        return true;
+    }
 }

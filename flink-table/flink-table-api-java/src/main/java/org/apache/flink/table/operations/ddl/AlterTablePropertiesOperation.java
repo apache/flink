@@ -24,29 +24,30 @@ import org.apache.flink.table.operations.OperationUtils;
 
 import java.util.stream.Collectors;
 
-
-/**
- * Operation to describe a ALTER TABLE .. SET .. statement.
- */
+/** Operation to describe a ALTER TABLE .. SET .. statement. */
 public class AlterTablePropertiesOperation extends AlterTableOperation {
-	private final CatalogTable catalogTable;
+    private final CatalogTable catalogTable;
 
-	public AlterTablePropertiesOperation(
-			ObjectIdentifier tableIdentifier,
-			CatalogTable catalogTable) {
-		super(tableIdentifier);
-		this.catalogTable = catalogTable;
-	}
+    public AlterTablePropertiesOperation(
+            ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
+        super(tableIdentifier);
+        this.catalogTable = catalogTable;
+    }
 
-	public CatalogTable getCatalogTable() {
-		return catalogTable;
-	}
+    public CatalogTable getCatalogTable() {
+        return catalogTable;
+    }
 
-	@Override
-	public String asSummaryString() {
-		String description = catalogTable.getProperties().entrySet().stream()
-				.map(entry -> OperationUtils.formatParameter(entry.getKey(), entry.getValue()))
-				.collect(Collectors.joining(", "));
-		return String.format("ALTER TABLE %s SET (%s)", tableIdentifier.asSummaryString(), description);
-	}
+    @Override
+    public String asSummaryString() {
+        String description =
+                catalogTable.getProperties().entrySet().stream()
+                        .map(
+                                entry ->
+                                        OperationUtils.formatParameter(
+                                                entry.getKey(), entry.getValue()))
+                        .collect(Collectors.joining(", "));
+        return String.format(
+                "ALTER TABLE %s SET (%s)", tableIdentifier.asSummaryString(), description);
+    }
 }

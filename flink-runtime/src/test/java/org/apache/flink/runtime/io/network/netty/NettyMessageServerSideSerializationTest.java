@@ -21,8 +21,10 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.runtime.event.task.IntegerTaskEvent;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
-import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -38,86 +40,90 @@ import static org.junit.Assert.assertEquals;
  */
 public class NettyMessageServerSideSerializationTest extends TestLogger {
 
-	private final Random random = new Random();
+    private final Random random = new Random();
 
-	private EmbeddedChannel channel;
+    private EmbeddedChannel channel;
 
-	@Before
-	public void setup() {
-		channel = new EmbeddedChannel(
-			new NettyMessage.NettyMessageEncoder(), // For outbound messages
-			new NettyMessage.NettyMessageDecoder()); // For inbound messages
-	}
+    @Before
+    public void setup() {
+        channel =
+                new EmbeddedChannel(
+                        new NettyMessage.NettyMessageEncoder(), // For outbound messages
+                        new NettyMessage.NettyMessageDecoder()); // For inbound messages
+    }
 
-	@After
-	public void tearDown() {
-		if (channel != null) {
-			channel.close();
-		}
-	}
+    @After
+    public void tearDown() {
+        if (channel != null) {
+            channel.close();
+        }
+    }
 
-	@Test
-	public void testPartitionRequest() {
-		NettyMessage.PartitionRequest expected = new NettyMessage.PartitionRequest(
-			new ResultPartitionID(),
-			random.nextInt(),
-			new InputChannelID(),
-			random.nextInt());
+    @Test
+    public void testPartitionRequest() {
+        NettyMessage.PartitionRequest expected =
+                new NettyMessage.PartitionRequest(
+                        new ResultPartitionID(),
+                        random.nextInt(),
+                        new InputChannelID(),
+                        random.nextInt());
 
-		NettyMessage.PartitionRequest actual = encodeAndDecode(expected, channel);
+        NettyMessage.PartitionRequest actual = encodeAndDecode(expected, channel);
 
-		assertEquals(expected.partitionId, actual.partitionId);
-		assertEquals(expected.queueIndex, actual.queueIndex);
-		assertEquals(expected.receiverId, actual.receiverId);
-		assertEquals(expected.credit, actual.credit);
-	}
+        assertEquals(expected.partitionId, actual.partitionId);
+        assertEquals(expected.queueIndex, actual.queueIndex);
+        assertEquals(expected.receiverId, actual.receiverId);
+        assertEquals(expected.credit, actual.credit);
+    }
 
-	@Test
-	public void testTaskEventRequest() {
-		NettyMessage.TaskEventRequest expected = new NettyMessage.TaskEventRequest(
-			new IntegerTaskEvent(random.nextInt()),
-			new ResultPartitionID(),
-			new InputChannelID());
-		NettyMessage.TaskEventRequest actual = encodeAndDecode(expected, channel);
+    @Test
+    public void testTaskEventRequest() {
+        NettyMessage.TaskEventRequest expected =
+                new NettyMessage.TaskEventRequest(
+                        new IntegerTaskEvent(random.nextInt()),
+                        new ResultPartitionID(),
+                        new InputChannelID());
+        NettyMessage.TaskEventRequest actual = encodeAndDecode(expected, channel);
 
-		assertEquals(expected.event, actual.event);
-		assertEquals(expected.partitionId, actual.partitionId);
-		assertEquals(expected.receiverId, actual.receiverId);
-	}
+        assertEquals(expected.event, actual.event);
+        assertEquals(expected.partitionId, actual.partitionId);
+        assertEquals(expected.receiverId, actual.receiverId);
+    }
 
-	@Test
-	public void testCancelPartitionRequest() {
-		NettyMessage.CancelPartitionRequest expected = new NettyMessage.CancelPartitionRequest(
-			new InputChannelID());
-		NettyMessage.CancelPartitionRequest actual = encodeAndDecode(expected, channel);
+    @Test
+    public void testCancelPartitionRequest() {
+        NettyMessage.CancelPartitionRequest expected =
+                new NettyMessage.CancelPartitionRequest(new InputChannelID());
+        NettyMessage.CancelPartitionRequest actual = encodeAndDecode(expected, channel);
 
-		assertEquals(expected.receiverId, actual.receiverId);
-	}
+        assertEquals(expected.receiverId, actual.receiverId);
+    }
 
-	@Test
-	public void testCloseRequest() {
-		NettyMessage.CloseRequest expected = new NettyMessage.CloseRequest();
-		NettyMessage.CloseRequest actual = encodeAndDecode(expected, channel);
+    @Test
+    public void testCloseRequest() {
+        NettyMessage.CloseRequest expected = new NettyMessage.CloseRequest();
+        NettyMessage.CloseRequest actual = encodeAndDecode(expected, channel);
 
-		assertEquals(expected.getClass(), actual.getClass());
-	}
+        assertEquals(expected.getClass(), actual.getClass());
+    }
 
-	@Test
-	public void testAddCredit() {
-		NettyMessage.AddCredit expected = new NettyMessage.AddCredit(
-			random.nextInt(Integer.MAX_VALUE) + 1,
-			new InputChannelID());
-		NettyMessage.AddCredit actual = encodeAndDecode(expected, channel);
+    @Test
+    public void testAddCredit() {
+        NettyMessage.AddCredit expected =
+                new NettyMessage.AddCredit(
+                        random.nextInt(Integer.MAX_VALUE) + 1, new InputChannelID());
+        NettyMessage.AddCredit actual = encodeAndDecode(expected, channel);
 
-		assertEquals(expected.credit, actual.credit);
-		assertEquals(expected.receiverId, actual.receiverId);
-	}
+        assertEquals(expected.credit, actual.credit);
+        assertEquals(expected.receiverId, actual.receiverId);
+    }
 
-	@Test
-	public void testResumeConsumption() {
-		NettyMessage.ResumeConsumption expected = new NettyMessage.ResumeConsumption(new InputChannelID());
-		NettyMessage.ResumeConsumption actual = encodeAndDecode(expected, channel);
+    @Test
+    public void testResumeConsumption() {
+        NettyMessage.ResumeConsumption expected =
+                new NettyMessage.ResumeConsumption(new InputChannelID());
+        NettyMessage.ResumeConsumption actual = encodeAndDecode(expected, channel);
 
-		assertEquals(expected.receiverId, actual.receiverId);
-	}
+        assertEquals(expected.receiverId, actual.receiverId);
+    }
 }

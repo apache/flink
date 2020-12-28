@@ -23,27 +23,27 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 
 /**
- * A {@link BucketAssigner} that does not perform any
- * bucketing of files. All files are written to the base path.
+ * A {@link BucketAssigner} that does not perform any bucketing of files. All files are written to
+ * the base path.
  */
 @PublicEvolving
 public class BasePathBucketAssigner<T> implements BucketAssigner<T, String> {
 
-	private static final long serialVersionUID = -6033643155550226022L;
+    private static final long serialVersionUID = -6033643155550226022L;
 
-	@Override
-	public String getBucketId(T element, BucketAssigner.Context context) {
-		return "";
-	}
+    @Override
+    public String getBucketId(T element, BucketAssigner.Context context) {
+        return "";
+    }
 
-	@Override
-	public SimpleVersionedSerializer<String> getSerializer() {
-		// in the future this could be optimized as it is the empty string.
-		return SimpleVersionedStringSerializer.INSTANCE;
-	}
+    @Override
+    public SimpleVersionedSerializer<String> getSerializer() {
+        // in the future this could be optimized as it is the empty string.
+        return SimpleVersionedStringSerializer.INSTANCE;
+    }
 
-	@Override
-	public String toString() {
-		return "BasePathBucketAssigner";
-	}
+    @Override
+    public String toString() {
+        return "BasePathBucketAssigner";
+    }
 }

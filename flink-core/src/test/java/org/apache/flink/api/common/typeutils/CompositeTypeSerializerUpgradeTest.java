@@ -34,114 +34,123 @@ import java.util.Collection;
 
 import static org.hamcrest.Matchers.is;
 
-/**
- * A {@link TypeSerializerUpgradeTestBase} for {@link GenericArraySerializer}.
- */
+/** A {@link TypeSerializerUpgradeTestBase} for {@link GenericArraySerializer}. */
 @RunWith(Parameterized.class)
-public class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
+public class CompositeTypeSerializerUpgradeTest
+        extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-	public CompositeTypeSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-		super(testSpecification);
-	}
+    public CompositeTypeSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					"either-serializer",
-					migrationVersion,
-					EitherSerializerSetup.class,
-					EitherSerializerVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"generic-array-serializer",
-					migrationVersion,
-					GenericArraySerializerSetup.class,
-					GenericArraySerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "either-serializer",
+                            migrationVersion,
+                            EitherSerializerSetup.class,
+                            EitherSerializerVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "generic-array-serializer",
+                            migrationVersion,
+                            GenericArraySerializerSetup.class,
+                            GenericArraySerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "either-serializer"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "either-serializer"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class EitherSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Either<String, Integer>> {
-		@Override
-		public TypeSerializer<Either<String, Integer>> createPriorSerializer() {
-			return new EitherSerializer<>(StringSerializer.INSTANCE, IntSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class EitherSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Either<String, Integer>> {
+        @Override
+        public TypeSerializer<Either<String, Integer>> createPriorSerializer() {
+            return new EitherSerializer<>(StringSerializer.INSTANCE, IntSerializer.INSTANCE);
+        }
 
-		@Override
-		public Either<String, Integer> createTestData() {
-			return new Either.Left<>("ApacheFlink");
-		}
-	}
+        @Override
+        public Either<String, Integer> createTestData() {
+            return new Either.Left<>("ApacheFlink");
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class EitherSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Either<String, Integer>> {
-		@Override
-		public TypeSerializer<Either<String, Integer>> createUpgradedSerializer() {
-			return new EitherSerializer<>(StringSerializer.INSTANCE, IntSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class EitherSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Either<String, Integer>> {
+        @Override
+        public TypeSerializer<Either<String, Integer>> createUpgradedSerializer() {
+            return new EitherSerializer<>(StringSerializer.INSTANCE, IntSerializer.INSTANCE);
+        }
 
-		@Override
-		public Matcher<Either<String, Integer>> testDataMatcher() {
-			return is(new Either.Left<>("ApacheFlink"));
-		}
+        @Override
+        public Matcher<Either<String, Integer>> testDataMatcher() {
+            return is(new Either.Left<>("ApacheFlink"));
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<Either<String, Integer>>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<Either<String, Integer>>>
+                schemaCompatibilityMatcher(MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "generic-array-serializer"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "generic-array-serializer"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class GenericArraySerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<String[]> {
-		@Override
-		public TypeSerializer<String[]> createPriorSerializer() {
-			return new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class GenericArraySerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<String[]> {
+        @Override
+        public TypeSerializer<String[]> createPriorSerializer() {
+            return new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE);
+        }
 
-		@Override
-		public String[] createTestData() {
-			String[] data = {"Apache", "Flink"};
-			return data;
-		}
-	}
+        @Override
+        public String[] createTestData() {
+            String[] data = {"Apache", "Flink"};
+            return data;
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class GenericArraySerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<String[]> {
-		@Override
-		public TypeSerializer<String[]> createUpgradedSerializer() {
-			return new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class GenericArraySerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<String[]> {
+        @Override
+        public TypeSerializer<String[]> createUpgradedSerializer() {
+            return new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE);
+        }
 
-		@Override
-		public Matcher<String[]> testDataMatcher() {
-			String[] data = {"Apache", "Flink"};
-			return is(data);
-		}
+        @Override
+        public Matcher<String[]> testDataMatcher() {
+            String[] data = {"Apache", "Flink"};
+            return is(data);
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<String[]>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<String[]>> schemaCompatibilityMatcher(
+                MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 }

@@ -22,32 +22,30 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.DecimalData;
 
-/**
- * Test for {@link DecimalDataSerializer}.
- */
+/** Test for {@link DecimalDataSerializer}. */
 public class DecimalDataSerializerTest extends SerializerTestBase<DecimalData> {
-	@Override
-	protected TypeSerializer<DecimalData> createSerializer() {
-		return new DecimalDataSerializer(5, 2);
-	}
+    @Override
+    protected TypeSerializer<DecimalData> createSerializer() {
+        return new DecimalDataSerializer(5, 2);
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<DecimalData> getTypeClass() {
-		return DecimalData.class;
-	}
+    @Override
+    protected Class<DecimalData> getTypeClass() {
+        return DecimalData.class;
+    }
 
-	@Override
-	protected DecimalData[] getTestData() {
-		return new DecimalData[]{
-			DecimalData.fromUnscaledLong(1, 5, 2),
-			DecimalData.fromUnscaledLong(2, 5, 2),
-			DecimalData.fromUnscaledLong(3, 5, 2),
-			DecimalData.fromUnscaledLong(4, 5, 2)
-		};
-	}
+    @Override
+    protected DecimalData[] getTestData() {
+        return new DecimalData[] {
+            DecimalData.fromUnscaledLong(1, 5, 2),
+            DecimalData.fromUnscaledLong(2, 5, 2),
+            DecimalData.fromUnscaledLong(3, 5, 2),
+            DecimalData.fromUnscaledLong(4, 5, 2)
+        };
+    }
 }

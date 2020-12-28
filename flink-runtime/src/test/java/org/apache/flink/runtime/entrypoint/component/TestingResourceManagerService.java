@@ -23,71 +23,69 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Testing implementation of {@link DispatcherResourceManagerComponent.ResourceManagerService}.
- */
-public class TestingResourceManagerService implements DispatcherResourceManagerComponent.ResourceManagerService {
-	private final ResourceManagerGateway resourceManagerGateway;
+/** Testing implementation of {@link DispatcherResourceManagerComponent.ResourceManagerService}. */
+public class TestingResourceManagerService
+        implements DispatcherResourceManagerComponent.ResourceManagerService {
+    private final ResourceManagerGateway resourceManagerGateway;
 
-	private final CompletableFuture<Void> terminationFuture;
-	private final boolean completeTerminationFutureOnClose;
+    private final CompletableFuture<Void> terminationFuture;
+    private final boolean completeTerminationFutureOnClose;
 
-	private TestingResourceManagerService(
-			ResourceManagerGateway resourceManagerGateway,
-			CompletableFuture<Void> terminationFuture,
-			boolean completeTerminationFutureOnClose) {
-		this.resourceManagerGateway = resourceManagerGateway;
-		this.terminationFuture = terminationFuture;
-		this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
-	}
+    private TestingResourceManagerService(
+            ResourceManagerGateway resourceManagerGateway,
+            CompletableFuture<Void> terminationFuture,
+            boolean completeTerminationFutureOnClose) {
+        this.resourceManagerGateway = resourceManagerGateway;
+        this.terminationFuture = terminationFuture;
+        this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
+    }
 
-	@Override
-	public ResourceManagerGateway getGateway() {
-		return resourceManagerGateway;
-	}
+    @Override
+    public ResourceManagerGateway getGateway() {
+        return resourceManagerGateway;
+    }
 
-	@Override
-	public CompletableFuture<Void> getTerminationFuture() {
-		return terminationFuture;
-	}
+    @Override
+    public CompletableFuture<Void> getTerminationFuture() {
+        return terminationFuture;
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		if (completeTerminationFutureOnClose) {
-			terminationFuture.complete(null);
-		}
-		return getTerminationFuture();
-	}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        if (completeTerminationFutureOnClose) {
+            terminationFuture.complete(null);
+        }
+        return getTerminationFuture();
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	/**
-	 * Builder for {@link TestingResourceManagerService}.
-	 */
-	public static final class Builder {
-		private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-		private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-		private boolean completeTerminationFutureOnClose = true;
+    /** Builder for {@link TestingResourceManagerService}. */
+    public static final class Builder {
+        private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+        private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+        private boolean completeTerminationFutureOnClose = true;
 
-		public Builder setResourceManagerGateway(ResourceManagerGateway resourceManagerGateway) {
-			this.resourceManagerGateway = resourceManagerGateway;
-			return this;
-		}
+        public Builder setResourceManagerGateway(ResourceManagerGateway resourceManagerGateway) {
+            this.resourceManagerGateway = resourceManagerGateway;
+            return this;
+        }
 
-		public Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
-			this.terminationFuture = terminationFuture;
-			return this;
-		}
+        public Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
+            this.terminationFuture = terminationFuture;
+            return this;
+        }
 
-		public Builder withManualTerminationFutureCompletion() {
-			completeTerminationFutureOnClose = false;
-			return this;
-		}
+        public Builder withManualTerminationFutureCompletion() {
+            completeTerminationFutureOnClose = false;
+            return this;
+        }
 
-		public TestingResourceManagerService build() {
-			return new TestingResourceManagerService(resourceManagerGateway, terminationFuture, completeTerminationFutureOnClose);
-		}
-	}
+        public TestingResourceManagerService build() {
+            return new TestingResourceManagerService(
+                    resourceManagerGateway, terminationFuture, completeTerminationFutureOnClose);
+        }
+    }
 }

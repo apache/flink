@@ -40,24 +40,22 @@ The only changes to the code are those that are required to make it compile and 
 checks in our code base.
  */
 
-/**
- * Creates a registrar for all the serializers in the chill.java package.
- */
+/** Creates a registrar for all the serializers in the chill.java package. */
 public class FlinkChillPackageRegistrar {
 
-	public static IKryoRegistrar all() {
-		return new IterableRegistrar(
-				ArraysAsListSerializer.registrar(),
-				BitSetSerializer.registrar(),
-				PriorityQueueSerializer.registrar(),
-				RegexSerializer.registrar(),
-				SqlDateSerializer.registrar(),
-				SqlTimeSerializer.registrar(),
-				TimestampSerializer.registrar(),
-				URISerializer.registrar(),
-				InetSocketAddressSerializer.registrar(),
-				UUIDSerializer.registrar(),
-				LocaleSerializer.registrar(),
-				SimpleDateFormatSerializer.registrar());
-	}
+    public static IKryoRegistrar all() {
+        return new IterableRegistrar(
+                ArraysAsListSerializer.registrar(),
+                BitSetSerializer.registrar(),
+                PriorityQueueSerializer.registrar(),
+                RegexSerializer.registrar(),
+                SqlDateSerializer.registrar(),
+                SqlTimeSerializer.registrar(),
+                TimestampSerializer.registrar(),
+                URISerializer.registrar(),
+                InetSocketAddressSerializer.registrar(),
+                UUIDSerializer.registrar(),
+                LocaleSerializer.registrar(),
+                SimpleDateFormatSerializer.registrar());
+    }
 }

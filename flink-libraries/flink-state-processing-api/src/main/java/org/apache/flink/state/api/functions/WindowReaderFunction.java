@@ -38,62 +38,50 @@ import java.util.Set;
  * @param <W> The type of {@code Window} that this window function can be applied on.
  */
 @PublicEvolving
-public abstract class WindowReaderFunction<IN, OUT, KEY, W extends Window> extends AbstractRichFunction {
+public abstract class WindowReaderFunction<IN, OUT, KEY, W extends Window>
+        extends AbstractRichFunction {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Evaluates the window and outputs none or several elements.
-	 *
-	 * @param key The key for which this window is evaluated.
-	 * @param context The context in which the window is being evaluated.
-	 * @param elements The elements in the window being evaluated.
-	 * @param out A collector for emitting elements.
-	 *
-	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-	 */
-	public abstract void readWindow(KEY key, Context<W> context, Iterable<IN> elements, Collector<OUT> out) throws Exception;
+    /**
+     * Evaluates the window and outputs none or several elements.
+     *
+     * @param key The key for which this window is evaluated.
+     * @param context The context in which the window is being evaluated.
+     * @param elements The elements in the window being evaluated.
+     * @param out A collector for emitting elements.
+     * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+     */
+    public abstract void readWindow(
+            KEY key, Context<W> context, Iterable<IN> elements, Collector<OUT> out)
+            throws Exception;
 
-	/**
-	 * The context holding window metadata.
-	 */
-	public interface Context<W extends Window> extends java.io.Serializable {
-		/**
-		 * Returns the window that is being evaluated.
-		 */
-		W window();
+    /** The context holding window metadata. */
+    public interface Context<W extends Window> extends java.io.Serializable {
+        /** Returns the window that is being evaluated. */
+        W window();
 
-		/**
-		 * Retrieves a {@link State} object that can be used to interact with
-		 * fault-tolerant state that is scoped to the trigger which corresponds
-		 * to the current window.
-		 *
-		 * @param descriptor The StateDescriptor that contains the name and type of the
-		 *                        state that is being accessed.
-		 * @param <S>             The type of the state.
-		 * @return The partitioned state object.
-		 */
-		<S extends State> S triggerState(StateDescriptor<S, ?> descriptor);
+        /**
+         * Retrieves a {@link State} object that can be used to interact with fault-tolerant state
+         * that is scoped to the trigger which corresponds to the current window.
+         *
+         * @param descriptor The StateDescriptor that contains the name and type of the state that
+         *     is being accessed.
+         * @param <S> The type of the state.
+         * @return The partitioned state object.
+         */
+        <S extends State> S triggerState(StateDescriptor<S, ?> descriptor);
 
-		/**
-		 * State accessor for per-key and per-window state.
-		 */
-		KeyedStateStore windowState();
+        /** State accessor for per-key and per-window state. */
+        KeyedStateStore windowState();
 
-		/**
-		 * State accessor for per-key global state.
-		 */
-		KeyedStateStore globalState();
+        /** State accessor for per-key global state. */
+        KeyedStateStore globalState();
 
-		/**
-		 * @return All event time timers registered by a trigger for the current window.
-		 */
-		Set<Long> registeredEventTimeTimers() throws Exception;
+        /** @return All event time timers registered by a trigger for the current window. */
+        Set<Long> registeredEventTimeTimers() throws Exception;
 
-		/**
-		 * @return All processing time timers registered by a trigger for the current window.
-		 */
-		Set<Long> registeredProcessingTimeTimers() throws Exception;
-
-	}
+        /** @return All processing time timers registered by a trigger for the current window. */
+        Set<Long> registeredProcessingTimeTimers() throws Exception;
+    }
 }

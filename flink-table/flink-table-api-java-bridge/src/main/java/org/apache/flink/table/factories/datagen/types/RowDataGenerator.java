@@ -26,55 +26,52 @@ import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
-/**
- * Data generator for Flink's internal {@link RowData} type.
- */
+/** Data generator for Flink's internal {@link RowData} type. */
 @Internal
 public class RowDataGenerator implements DataGenerator<RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final DataGenerator<?>[] fieldGenerators;
-	private final String[] fieldNames;
+    private final DataGenerator<?>[] fieldGenerators;
+    private final String[] fieldNames;
 
-	public RowDataGenerator(DataGenerator<?>[] fieldGenerators, String[] fieldNames) {
-		this.fieldGenerators = fieldGenerators;
-		this.fieldNames = fieldNames;
-	}
+    public RowDataGenerator(DataGenerator<?>[] fieldGenerators, String[] fieldNames) {
+        this.fieldGenerators = fieldGenerators;
+        this.fieldNames = fieldNames;
+    }
 
-	@Override
-	public void open(
-		String name,
-		FunctionInitializationContext context,
-		RuntimeContext runtimeContext) throws Exception {
-		for (int i = 0; i < fieldGenerators.length; i++) {
-			fieldGenerators[i].open(fieldNames[i], context, runtimeContext);
-		}
-	}
+    @Override
+    public void open(
+            String name, FunctionInitializationContext context, RuntimeContext runtimeContext)
+            throws Exception {
+        for (int i = 0; i < fieldGenerators.length; i++) {
+            fieldGenerators[i].open(fieldNames[i], context, runtimeContext);
+        }
+    }
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		for (DataGenerator<?> generator : fieldGenerators) {
-			generator.snapshotState(context);
-		}
-	}
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        for (DataGenerator<?> generator : fieldGenerators) {
+            generator.snapshotState(context);
+        }
+    }
 
-	@Override
-	public boolean hasNext() {
-		for (DataGenerator<?> generator : fieldGenerators) {
-			if (!generator.hasNext()) {
-				return false;
-			}
-		}
-		return true;
-	}
+    @Override
+    public boolean hasNext() {
+        for (DataGenerator<?> generator : fieldGenerators) {
+            if (!generator.hasNext()) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-	@Override
-	public RowData next() {
-		GenericRowData row = new GenericRowData(fieldNames.length);
-		for (int i = 0; i < fieldGenerators.length; i++) {
-			row.setField(i, fieldGenerators[i].next());
-		}
-		return row;
-	}
+    @Override
+    public RowData next() {
+        GenericRowData row = new GenericRowData(fieldNames.length);
+        for (int i = 0; i < fieldGenerators.length; i++) {
+            row.setField(i, fieldGenerators[i].next());
+        }
+        return row;
+    }
 }

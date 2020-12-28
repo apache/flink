@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.testutils.recordutils;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -24,52 +23,48 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Record;
 
-/**
- * A factory that create a serializer for the {@link Record} data type.
- */
+/** A factory that create a serializer for the {@link Record} data type. */
 public class RecordSerializerFactory implements TypeSerializerFactory<Record> {
-	
-	private static final RecordSerializerFactory INSTANCE = new RecordSerializerFactory();
-	
-	/**
-	 * Gets an instance of the serializer factory. The instance is shared, since the factory is a
-	 * stateless class. 
-	 * 
-	 * @return An instance of the serializer factory.
-	 */
-	public static final RecordSerializerFactory get() {
-		return INSTANCE;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
 
-	@Override
-	public void writeParametersToConfig(Configuration config) {}
+    private static final RecordSerializerFactory INSTANCE = new RecordSerializerFactory();
 
-	@Override
-	public void readParametersFromConfig(Configuration config, ClassLoader cl) {}
-	
+    /**
+     * Gets an instance of the serializer factory. The instance is shared, since the factory is a
+     * stateless class.
+     *
+     * @return An instance of the serializer factory.
+     */
+    public static final RecordSerializerFactory get() {
+        return INSTANCE;
+    }
 
-	@Override
-	public TypeSerializer<Record> getSerializer() {
-		return RecordSerializer.get();
-	}
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public Class<Record> getDataType() {
-		return Record.class;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public int hashCode() {
-		return 31;
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == RecordSerializerFactory.class;
-	}
+    @Override
+    public void writeParametersToConfig(Configuration config) {}
+
+    @Override
+    public void readParametersFromConfig(Configuration config, ClassLoader cl) {}
+
+    @Override
+    public TypeSerializer<Record> getSerializer() {
+        return RecordSerializer.get();
+    }
+
+    @Override
+    public Class<Record> getDataType() {
+        return Record.class;
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public int hashCode() {
+        return 31;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj != null && obj.getClass() == RecordSerializerFactory.class;
+    }
 }

@@ -31,36 +31,42 @@ import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
 
-/**
- * Test for {@link PushLimitIntoTableSourceScanRule}.
- */
-public class PushLimitIntoTableSourceScanRuleTest extends PushLimitIntoLegacyTableSourceScanRuleTest {
-	@Override
-	public void setup() {
-		util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
-		CalciteConfig calciteConfig = TableConfigUtils.getCalciteConfig(util().tableEnv().getConfig());
-		calciteConfig.getBatchProgram().get().addLast(
-			"rules",
-			FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
-				.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION())
-				.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-				.add(RuleSets.ofList(PushLimitIntoTableSourceScanRule.INSTANCE,
-					CoreRules.SORT_PROJECT_TRANSPOSE,
-					// converts calcite rel(RelNode) to flink rel(FlinkRelNode)
-					FlinkLogicalSort.BATCH_CONVERTER(),
-					FlinkLogicalTableSourceScan.CONVERTER()))
-				.build()
-		);
+/** Test for {@link PushLimitIntoTableSourceScanRule}. */
+public class PushLimitIntoTableSourceScanRuleTest
+        extends PushLimitIntoLegacyTableSourceScanRuleTest {
+    @Override
+    public void setup() {
+        util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
+        CalciteConfig calciteConfig =
+                TableConfigUtils.getCalciteConfig(util().tableEnv().getConfig());
+        calciteConfig
+                .getBatchProgram()
+                .get()
+                .addLast(
+                        "rules",
+                        FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
+                                .setHepRulesExecutionType(
+                                        HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION())
+                                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                                .add(
+                                        RuleSets.ofList(
+                                                PushLimitIntoTableSourceScanRule.INSTANCE,
+                                                CoreRules.SORT_PROJECT_TRANSPOSE,
+                                                // converts calcite rel(RelNode) to flink
+                                                // rel(FlinkRelNode)
+                                                FlinkLogicalSort.BATCH_CONVERTER(),
+                                                FlinkLogicalTableSourceScan.CONVERTER()))
+                                .build());
 
-		String ddl =
-			"CREATE TABLE LimitTable (\n" +
-				"  a int,\n" +
-				"  b bigint,\n" +
-				"  c string\n" +
-				") WITH (\n" +
-				" 'connector' = 'values',\n" +
-				" 'bounded' = 'true'\n" +
-				")";
-		util().tableEnv().executeSql(ddl);
-	}
+        String ddl =
+                "CREATE TABLE LimitTable (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util().tableEnv().executeSql(ddl);
+    }
 }

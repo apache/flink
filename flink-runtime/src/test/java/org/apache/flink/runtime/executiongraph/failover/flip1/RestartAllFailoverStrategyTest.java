@@ -30,26 +30,24 @@ import java.util.HashSet;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link RestartAllFailoverStrategy}.
- */
+/** Tests for {@link RestartAllFailoverStrategy}. */
 public class RestartAllFailoverStrategyTest extends TestLogger {
 
-	@Test
-	public void testGetTasksNeedingRestart() {
-		final TestingSchedulingTopology topology = new TestingSchedulingTopology();
+    @Test
+    public void testGetTasksNeedingRestart() {
+        final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		final TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
-		final TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
-		final TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+        final TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+        final TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+        final TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
 
-		topology.connect(v1, v2, ResultPartitionType.PIPELINED);
-		topology.connect(v2, v3, ResultPartitionType.BLOCKING);
+        topology.connect(v1, v2, ResultPartitionType.PIPELINED);
+        topology.connect(v2, v3, ResultPartitionType.BLOCKING);
 
-		final RestartAllFailoverStrategy strategy = new RestartAllFailoverStrategy(topology);
+        final RestartAllFailoverStrategy strategy = new RestartAllFailoverStrategy(topology);
 
-		assertEquals(
-			new HashSet<>(Arrays.asList(v1.getId(), v2.getId(), v3.getId())),
-			strategy.getTasksNeedingRestart(v1.getId(), new Exception("Test failure")));
-	}
+        assertEquals(
+                new HashSet<>(Arrays.asList(v1.getId(), v2.getId(), v3.getId())),
+                strategy.getTasksNeedingRestart(v1.getId(), new Exception("Test failure")));
+    }
 }

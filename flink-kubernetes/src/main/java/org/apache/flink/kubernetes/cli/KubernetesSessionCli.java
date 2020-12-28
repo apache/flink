@@ -49,150 +49,159 @@ import java.io.InputStreamReader;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Kubernetes customized commandline.
- */
+/** Kubernetes customized commandline. */
 @Internal
 public class KubernetesSessionCli {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KubernetesSessionCli.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KubernetesSessionCli.class);
 
-	private static final long CLIENT_POLLING_INTERVAL_MS = 3000L;
+    private static final long CLIENT_POLLING_INTERVAL_MS = 3000L;
 
-	private static final String KUBERNETES_CLUSTER_HELP = "Available commands:\n" +
-		"help - show these commands\n" +
-		"stop - stop the kubernetes cluster\n" +
-		"quit - quit attach mode";
+    private static final String KUBERNETES_CLUSTER_HELP =
+            "Available commands:\n"
+                    + "help - show these commands\n"
+                    + "stop - stop the kubernetes cluster\n"
+                    + "quit - quit attach mode";
 
-	private final Configuration baseConfiguration;
+    private final Configuration baseConfiguration;
 
-	private final GenericCLI cli;
-	private final ClusterClientServiceLoader clusterClientServiceLoader;
+    private final GenericCLI cli;
+    private final ClusterClientServiceLoader clusterClientServiceLoader;
 
-	public KubernetesSessionCli(Configuration configuration, String configDir) {
-		this(configuration, new DefaultClusterClientServiceLoader(), configDir);
-	}
+    public KubernetesSessionCli(Configuration configuration, String configDir) {
+        this(configuration, new DefaultClusterClientServiceLoader(), configDir);
+    }
 
-	public KubernetesSessionCli(Configuration configuration, ClusterClientServiceLoader clusterClientServiceLoader, String configDir) {
-		this.baseConfiguration = new UnmodifiableConfiguration(checkNotNull(configuration));
-		this.clusterClientServiceLoader = checkNotNull(clusterClientServiceLoader);
-		this.cli = new GenericCLI(baseConfiguration, configDir);
-	}
+    public KubernetesSessionCli(
+            Configuration configuration,
+            ClusterClientServiceLoader clusterClientServiceLoader,
+            String configDir) {
+        this.baseConfiguration = new UnmodifiableConfiguration(checkNotNull(configuration));
+        this.clusterClientServiceLoader = checkNotNull(clusterClientServiceLoader);
+        this.cli = new GenericCLI(baseConfiguration, configDir);
+    }
 
-	Configuration getEffectiveConfiguration(String[] args) throws CliArgsException {
-		final CommandLine commandLine = cli.parseCommandLineOptions(args, true);
-		final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
-		effectiveConfiguration.addAll(cli.toConfiguration(commandLine));
-		effectiveConfiguration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
-		return effectiveConfiguration;
-	}
+    Configuration getEffectiveConfiguration(String[] args) throws CliArgsException {
+        final CommandLine commandLine = cli.parseCommandLineOptions(args, true);
+        final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
+        effectiveConfiguration.addAll(cli.toConfiguration(commandLine));
+        effectiveConfiguration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
+        return effectiveConfiguration;
+    }
 
-	private int run(String[] args) throws FlinkException, CliArgsException {
-		final Configuration configuration = getEffectiveConfiguration(args);
+    private int run(String[] args) throws FlinkException, CliArgsException {
+        final Configuration configuration = getEffectiveConfiguration(args);
 
-		final ClusterClientFactory<String> kubernetesClusterClientFactory =
-			clusterClientServiceLoader.getClusterClientFactory(configuration);
+        final ClusterClientFactory<String> kubernetesClusterClientFactory =
+                clusterClientServiceLoader.getClusterClientFactory(configuration);
 
-		final ClusterDescriptor<String> kubernetesClusterDescriptor =
-			kubernetesClusterClientFactory.createClusterDescriptor(configuration);
+        final ClusterDescriptor<String> kubernetesClusterDescriptor =
+                kubernetesClusterClientFactory.createClusterDescriptor(configuration);
 
-		try {
-			final ClusterClient<String> clusterClient;
-			String clusterId = kubernetesClusterClientFactory.getClusterId(configuration);
-			final boolean detached = !configuration.get(DeploymentOptions.ATTACHED);
-			final FlinkKubeClient kubeClient = DefaultKubeClientFactory.getInstance().fromConfiguration(configuration);
+        try {
+            final ClusterClient<String> clusterClient;
+            String clusterId = kubernetesClusterClientFactory.getClusterId(configuration);
+            final boolean detached = !configuration.get(DeploymentOptions.ATTACHED);
+            final FlinkKubeClient kubeClient =
+                    DefaultKubeClientFactory.getInstance().fromConfiguration(configuration);
 
-			// Retrieve or create a session cluster.
-			if (clusterId != null && kubeClient.getRestService(clusterId).isPresent()) {
-				clusterClient = kubernetesClusterDescriptor.retrieve(clusterId).getClusterClient();
-			} else {
-				clusterClient = kubernetesClusterDescriptor
-						.deploySessionCluster(
-								kubernetesClusterClientFactory.getClusterSpecification(configuration))
-						.getClusterClient();
-				clusterId = clusterClient.getClusterId();
-			}
+            // Retrieve or create a session cluster.
+            if (clusterId != null && kubeClient.getRestService(clusterId).isPresent()) {
+                clusterClient = kubernetesClusterDescriptor.retrieve(clusterId).getClusterClient();
+            } else {
+                clusterClient =
+                        kubernetesClusterDescriptor
+                                .deploySessionCluster(
+                                        kubernetesClusterClientFactory.getClusterSpecification(
+                                                configuration))
+                                .getClusterClient();
+                clusterId = clusterClient.getClusterId();
+            }
 
-			try {
-				if (!detached) {
-					Tuple2<Boolean, Boolean> continueRepl = new Tuple2<>(true, false);
-					try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
-						while (continueRepl.f0) {
-							continueRepl = repStep(in);
-						}
-					} catch (Exception e) {
-						LOG.warn("Exception while running the interactive command line interface.", e);
-					}
-					if (continueRepl.f1) {
-						kubernetesClusterDescriptor.killCluster(clusterId);
-					}
-				}
-				clusterClient.close();
-				kubeClient.close();
-			} catch (Exception e) {
-				LOG.info("Could not properly shutdown cluster client.", e);
-			}
-		} finally {
-			try {
-				kubernetesClusterDescriptor.close();
-			} catch (Exception e) {
-				LOG.info("Could not properly close the kubernetes cluster descriptor.", e);
-			}
-		}
+            try {
+                if (!detached) {
+                    Tuple2<Boolean, Boolean> continueRepl = new Tuple2<>(true, false);
+                    try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
+                        while (continueRepl.f0) {
+                            continueRepl = repStep(in);
+                        }
+                    } catch (Exception e) {
+                        LOG.warn(
+                                "Exception while running the interactive command line interface.",
+                                e);
+                    }
+                    if (continueRepl.f1) {
+                        kubernetesClusterDescriptor.killCluster(clusterId);
+                    }
+                }
+                clusterClient.close();
+                kubeClient.close();
+            } catch (Exception e) {
+                LOG.info("Could not properly shutdown cluster client.", e);
+            }
+        } finally {
+            try {
+                kubernetesClusterDescriptor.close();
+            } catch (Exception e) {
+                LOG.info("Could not properly close the kubernetes cluster descriptor.", e);
+            }
+        }
 
-		return 0;
-	}
+        return 0;
+    }
 
-	/**
-	 * Check whether need to continue or kill the cluster.
-	 * @param in input buffer reader
-	 * @return f0, whether need to continue read from input. f1, whether need to kill the cluster.
-	 */
-	private Tuple2<Boolean, Boolean> repStep(BufferedReader in) throws IOException, InterruptedException {
-		final long startTime = System.currentTimeMillis();
-		while ((System.currentTimeMillis() - startTime) < CLIENT_POLLING_INTERVAL_MS
-			&& (!in.ready())) {
-			Thread.sleep(200L);
-		}
-		//------------- handle interactive command by user. ----------------------
+    /**
+     * Check whether need to continue or kill the cluster.
+     *
+     * @param in input buffer reader
+     * @return f0, whether need to continue read from input. f1, whether need to kill the cluster.
+     */
+    private Tuple2<Boolean, Boolean> repStep(BufferedReader in)
+            throws IOException, InterruptedException {
+        final long startTime = System.currentTimeMillis();
+        while ((System.currentTimeMillis() - startTime) < CLIENT_POLLING_INTERVAL_MS
+                && (!in.ready())) {
+            Thread.sleep(200L);
+        }
+        // ------------- handle interactive command by user. ----------------------
 
-		if (in.ready()) {
-			final String command = in.readLine();
-			switch (command) {
-				case "quit":
-					return new Tuple2<>(false, false);
-				case "stop":
-					return new Tuple2<>(false, true);
+        if (in.ready()) {
+            final String command = in.readLine();
+            switch (command) {
+                case "quit":
+                    return new Tuple2<>(false, false);
+                case "stop":
+                    return new Tuple2<>(false, true);
 
-				case "help":
-					System.err.println(KUBERNETES_CLUSTER_HELP);
-					break;
-				default:
-					System.err.println("Unknown command '" + command + "'. Showing help:");
-					System.err.println(KUBERNETES_CLUSTER_HELP);
-					break;
-			}
-		}
+                case "help":
+                    System.err.println(KUBERNETES_CLUSTER_HELP);
+                    break;
+                default:
+                    System.err.println("Unknown command '" + command + "'. Showing help:");
+                    System.err.println(KUBERNETES_CLUSTER_HELP);
+                    break;
+            }
+        }
 
-		return new Tuple2<>(true, false);
-	}
+        return new Tuple2<>(true, false);
+    }
 
-	public static void main(String[] args) {
-		final Configuration configuration = GlobalConfiguration.loadConfiguration();
+    public static void main(String[] args) {
+        final Configuration configuration = GlobalConfiguration.loadConfiguration();
 
-		final String configDir = CliFrontend.getConfigurationDirectoryFromEnv();
+        final String configDir = CliFrontend.getConfigurationDirectoryFromEnv();
 
-		int retCode;
+        int retCode;
 
-		try {
-			final KubernetesSessionCli cli = new KubernetesSessionCli(configuration, configDir);
-			retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
-		} catch (CliArgsException e) {
-			retCode = AbstractCustomCommandLine.handleCliArgsException(e, LOG);
-		} catch (Exception e) {
-			retCode = AbstractCustomCommandLine.handleError(e, LOG);
-		}
+        try {
+            final KubernetesSessionCli cli = new KubernetesSessionCli(configuration, configDir);
+            retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
+        } catch (CliArgsException e) {
+            retCode = AbstractCustomCommandLine.handleCliArgsException(e, LOG);
+        } catch (Exception e) {
+            retCode = AbstractCustomCommandLine.handleError(e, LOG);
+        }
 
-		System.exit(retCode);
-	}
+        System.exit(retCode);
+    }
 }

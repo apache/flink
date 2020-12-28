@@ -20,29 +20,27 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.api.common.JobID;
 
-/**
- * Path parameter identifying jobs.
- */
+/** Path parameter identifying jobs. */
 public class JobIDPathParameter extends MessagePathParameter<JobID> {
 
-	public static final String KEY = "jobid";
+    public static final String KEY = "jobid";
 
-	public JobIDPathParameter() {
-		super(KEY);
-	}
+    public JobIDPathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected JobID convertFromString(String value) {
-		return JobID.fromHexString(value);
-	}
+    @Override
+    protected JobID convertFromString(String value) {
+        return JobID.fromHexString(value);
+    }
 
-	@Override
-	protected String convertToString(JobID value) {
-		return value.toString();
-	}
+    @Override
+    protected String convertToString(JobID value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "32-character hexadecimal string value that identifies a job.";
-	}
+    @Override
+    public String getDescription() {
+        return "32-character hexadecimal string value that identifies a job.";
+    }
 }

@@ -39,72 +39,81 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Rule will transpose the conditions after the Python correlate node if the join type is inner join.
+ * Rule will transpose the conditions after the Python correlate node if the join type is inner
+ * join.
  */
 public class CalcPythonCorrelateTransposeRule extends RelOptRule {
 
-	public static final CalcPythonCorrelateTransposeRule INSTANCE =
-		new CalcPythonCorrelateTransposeRule();
+    public static final CalcPythonCorrelateTransposeRule INSTANCE =
+            new CalcPythonCorrelateTransposeRule();
 
-	private CalcPythonCorrelateTransposeRule() {
-		super(operand(FlinkLogicalCorrelate.class,
-			operand(FlinkLogicalRel.class, any()),
-			operand(FlinkLogicalCalc.class, any())),
-			"CalcPythonCorrelateTransposeRule");
-	}
+    private CalcPythonCorrelateTransposeRule() {
+        super(
+                operand(
+                        FlinkLogicalCorrelate.class,
+                        operand(FlinkLogicalRel.class, any()),
+                        operand(FlinkLogicalCalc.class, any())),
+                "CalcPythonCorrelateTransposeRule");
+    }
 
-	@Override
-	public boolean matches(RelOptRuleCall call) {
-		FlinkLogicalCorrelate correlate = call.rel(0);
-		FlinkLogicalCalc right = call.rel(2);
-		JoinRelType joinType = correlate.getJoinType();
-		FlinkLogicalCalc mergedCalc = StreamPhysicalCorrelateRule.getMergedCalc(right);
-		FlinkLogicalTableFunctionScan scan = StreamPhysicalCorrelateRule.getTableScan(mergedCalc);
-		return joinType == JoinRelType.INNER &&
-			PythonUtil.isPythonCall(scan.getCall(), null) &&
-			mergedCalc.getProgram().getCondition() != null;
-	}
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        FlinkLogicalCorrelate correlate = call.rel(0);
+        FlinkLogicalCalc right = call.rel(2);
+        JoinRelType joinType = correlate.getJoinType();
+        FlinkLogicalCalc mergedCalc = StreamPhysicalCorrelateRule.getMergedCalc(right);
+        FlinkLogicalTableFunctionScan scan = StreamPhysicalCorrelateRule.getTableScan(mergedCalc);
+        return joinType == JoinRelType.INNER
+                && PythonUtil.isPythonCall(scan.getCall(), null)
+                && mergedCalc.getProgram().getCondition() != null;
+    }
 
-	@Override
-	public void onMatch(RelOptRuleCall call) {
-		FlinkLogicalCorrelate correlate = call.rel(0);
-		FlinkLogicalCalc right = call.rel(2);
-		RexBuilder rexBuilder = call.builder().getRexBuilder();
-		FlinkLogicalCalc mergedCalc = StreamPhysicalCorrelateRule.getMergedCalc(right);
-		FlinkLogicalTableFunctionScan tableScan = StreamPhysicalCorrelateRule.getTableScan(mergedCalc);
-		RexProgram mergedCalcProgram = mergedCalc.getProgram();
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+        FlinkLogicalCorrelate correlate = call.rel(0);
+        FlinkLogicalCalc right = call.rel(2);
+        RexBuilder rexBuilder = call.builder().getRexBuilder();
+        FlinkLogicalCalc mergedCalc = StreamPhysicalCorrelateRule.getMergedCalc(right);
+        FlinkLogicalTableFunctionScan tableScan =
+                StreamPhysicalCorrelateRule.getTableScan(mergedCalc);
+        RexProgram mergedCalcProgram = mergedCalc.getProgram();
 
-		InputRefRewriter inputRefRewriter = new InputRefRewriter(
-			correlate.getRowType().getFieldCount() - mergedCalc.getRowType().getFieldCount());
-		List<RexNode> correlateFilters = RelOptUtil
-			.conjunctions(mergedCalcProgram.expandLocalRef(mergedCalcProgram.getCondition()))
-			.stream()
-			.map(x -> x.accept(inputRefRewriter))
-			.collect(Collectors.toList());
+        InputRefRewriter inputRefRewriter =
+                new InputRefRewriter(
+                        correlate.getRowType().getFieldCount()
+                                - mergedCalc.getRowType().getFieldCount());
+        List<RexNode> correlateFilters =
+                RelOptUtil.conjunctions(
+                                mergedCalcProgram.expandLocalRef(mergedCalcProgram.getCondition()))
+                        .stream()
+                        .map(x -> x.accept(inputRefRewriter))
+                        .collect(Collectors.toList());
 
-		FlinkLogicalCorrelate newCorrelate = new FlinkLogicalCorrelate(
-			correlate.getCluster(),
-			correlate.getTraitSet(),
-			correlate.getLeft(),
-			tableScan,
-			correlate.getCorrelationId(),
-			correlate.getRequiredColumns(),
-			correlate.getJoinType());
+        FlinkLogicalCorrelate newCorrelate =
+                new FlinkLogicalCorrelate(
+                        correlate.getCluster(),
+                        correlate.getTraitSet(),
+                        correlate.getLeft(),
+                        tableScan,
+                        correlate.getCorrelationId(),
+                        correlate.getRequiredColumns(),
+                        correlate.getJoinType());
 
-		RexNode topCalcCondition = RexUtil.composeConjunction(rexBuilder, correlateFilters);
-		RexProgram rexProgram = new RexProgramBuilder(
-			newCorrelate.getRowType(), rexBuilder).getProgram();
-		FlinkLogicalCalc newTopCalc = new FlinkLogicalCalc(
-			newCorrelate.getCluster(),
-			newCorrelate.getTraitSet(),
-			newCorrelate,
-			RexProgram.create(
-				newCorrelate.getRowType(),
-				rexProgram.getExprList(),
-				topCalcCondition,
-				newCorrelate.getRowType(),
-				rexBuilder));
+        RexNode topCalcCondition = RexUtil.composeConjunction(rexBuilder, correlateFilters);
+        RexProgram rexProgram =
+                new RexProgramBuilder(newCorrelate.getRowType(), rexBuilder).getProgram();
+        FlinkLogicalCalc newTopCalc =
+                new FlinkLogicalCalc(
+                        newCorrelate.getCluster(),
+                        newCorrelate.getTraitSet(),
+                        newCorrelate,
+                        RexProgram.create(
+                                newCorrelate.getRowType(),
+                                rexProgram.getExprList(),
+                                topCalcCondition,
+                                newCorrelate.getRowType(),
+                                rexBuilder));
 
-		call.transformTo(newTopCalc);
-	}
+        call.transformTo(newTopCalc);
+    }
 }

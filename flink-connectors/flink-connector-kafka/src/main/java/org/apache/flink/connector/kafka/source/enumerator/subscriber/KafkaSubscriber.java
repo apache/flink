@@ -28,61 +28,61 @@ import java.util.regex.Pattern;
 
 /**
  * Kafka consumer allows a few different ways to consume from the topics, including:
+ *
  * <ol>
- *     <li>Subscribe from a collection of topics. </li>
- *     <li>Subscribe to a topic pattern using Java {@code Regex}. </li>
- *     <li>Assign specific partitions. </li>
+ *   <li>Subscribe from a collection of topics.
+ *   <li>Subscribe to a topic pattern using Java {@code Regex}.
+ *   <li>Assign specific partitions.
  * </ol>
  *
- * <p>The KafkaSubscriber provides a unified interface for the Kafka source to
- * support all these three types of subscribing mode.
+ * <p>The KafkaSubscriber provides a unified interface for the Kafka source to support all these
+ * three types of subscribing mode.
  */
 public interface KafkaSubscriber extends Serializable {
 
-	/**
-	 * Get the partitions changes compared to the current partition assignment.
-	 *
-	 * <p>Although Kafka partitions can only expand and will not shrink, the partitions
-	 * may still disappear when the topic is deleted.
-	 *
-	 * @param adminClient The admin client used to retrieve partition information.
-	 * @param currentAssignment the partitions that are currently assigned to the source readers.
-	 * @return The partition changes compared with the currently assigned partitions.
-	 */
-	PartitionChange getPartitionChanges(AdminClient adminClient, Set<TopicPartition> currentAssignment);
+    /**
+     * Get the partitions changes compared to the current partition assignment.
+     *
+     * <p>Although Kafka partitions can only expand and will not shrink, the partitions may still
+     * disappear when the topic is deleted.
+     *
+     * @param adminClient The admin client used to retrieve partition information.
+     * @param currentAssignment the partitions that are currently assigned to the source readers.
+     * @return The partition changes compared with the currently assigned partitions.
+     */
+    PartitionChange getPartitionChanges(
+            AdminClient adminClient, Set<TopicPartition> currentAssignment);
 
-	/**
-	 * A container class to hold the newly added partitions and removed partitions.
-	 */
-	class PartitionChange {
-		private final Set<TopicPartition> newPartitions;
-		private final Set<TopicPartition> removedPartitions;
+    /** A container class to hold the newly added partitions and removed partitions. */
+    class PartitionChange {
+        private final Set<TopicPartition> newPartitions;
+        private final Set<TopicPartition> removedPartitions;
 
-		PartitionChange(Set<TopicPartition> newPartitions, Set<TopicPartition> removedPartitions) {
-			this.newPartitions = newPartitions;
-			this.removedPartitions = removedPartitions;
-		}
+        PartitionChange(Set<TopicPartition> newPartitions, Set<TopicPartition> removedPartitions) {
+            this.newPartitions = newPartitions;
+            this.removedPartitions = removedPartitions;
+        }
 
-		public Set<TopicPartition> getNewPartitions() {
-			return newPartitions;
-		}
+        public Set<TopicPartition> getNewPartitions() {
+            return newPartitions;
+        }
 
-		public Set<TopicPartition> getRemovedPartitions() {
-			return removedPartitions;
-		}
-	}
+        public Set<TopicPartition> getRemovedPartitions() {
+            return removedPartitions;
+        }
+    }
 
-	// ----------------- factory methods --------------
+    // ----------------- factory methods --------------
 
-	static KafkaSubscriber getTopicListSubscriber(List<String> topics) {
-		return new TopicListSubscriber(topics);
-	}
+    static KafkaSubscriber getTopicListSubscriber(List<String> topics) {
+        return new TopicListSubscriber(topics);
+    }
 
-	static KafkaSubscriber getTopicPatternSubscriber(Pattern topicPattern) {
-		return new TopicPatternSubscriber(topicPattern);
-	}
+    static KafkaSubscriber getTopicPatternSubscriber(Pattern topicPattern) {
+        return new TopicPatternSubscriber(topicPattern);
+    }
 
-	static KafkaSubscriber getPartitionSetSubscriber(Set<TopicPartition> partitions) {
-		return new PartitionSetSubscriber(partitions);
-	}
+    static KafkaSubscriber getPartitionSetSubscriber(Set<TopicPartition> partitions) {
+        return new PartitionSetSubscriber(partitions);
+    }
 }

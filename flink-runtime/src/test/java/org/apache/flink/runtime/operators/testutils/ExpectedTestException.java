@@ -16,19 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
 
-/**
- * Standard Exception to be thrown as part of exception handling tests.
- * Recognized by type.
- */
+/** Standard Exception to be thrown as part of exception handling tests. Recognized by type. */
 @SuppressWarnings("serial")
-public class ExpectedTestException extends RuntimeException
-{
-	public static final String MESSAGE = "Expected Test Exception";
+public class ExpectedTestException extends RuntimeException {
+    public static final String MESSAGE = "Expected Test Exception";
 
-	public ExpectedTestException() {
-		super(MESSAGE);
-	}
+    public ExpectedTestException() {
+        super(MESSAGE);
+    }
 }

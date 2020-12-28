@@ -46,77 +46,84 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * Request handler for the subtasks times info.
- */
-public class SubtasksTimesHandler extends AbstractJobVertexHandler<SubtasksTimesInfo, JobVertexMessageParameters> implements JsonArchivist {
-	public SubtasksTimesHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, SubtasksTimesInfo, JobVertexMessageParameters> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor) {
-		super(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders,
-			executionGraphCache,
-			executor);
-	}
+/** Request handler for the subtasks times info. */
+public class SubtasksTimesHandler
+        extends AbstractJobVertexHandler<SubtasksTimesInfo, JobVertexMessageParameters>
+        implements JsonArchivist {
+    public SubtasksTimesHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, SubtasksTimesInfo, JobVertexMessageParameters>
+                    messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor);
+    }
 
-	@Override
-	protected SubtasksTimesInfo handleRequest(HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request, AccessExecutionJobVertex jobVertex) {
-		return createSubtaskTimesInfo(jobVertex);
-	}
+    @Override
+    protected SubtasksTimesInfo handleRequest(
+            HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
+            AccessExecutionJobVertex jobVertex) {
+        return createSubtaskTimesInfo(jobVertex);
+    }
 
-	@Override
-	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-		Collection<? extends AccessExecutionJobVertex> allVertices = graph.getAllVertices().values();
-		List<ArchivedJson> archive = new ArrayList<>(allVertices.size());
-		for (AccessExecutionJobVertex task : allVertices) {
-			ResponseBody json = createSubtaskTimesInfo(task);
-			String path = getMessageHeaders().getTargetRestEndpointURL()
-				.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
-				.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString());
-			archive.add(new ArchivedJson(path, json));
-		}
-		return archive;
-	}
+    @Override
+    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+            throws IOException {
+        Collection<? extends AccessExecutionJobVertex> allVertices =
+                graph.getAllVertices().values();
+        List<ArchivedJson> archive = new ArrayList<>(allVertices.size());
+        for (AccessExecutionJobVertex task : allVertices) {
+            ResponseBody json = createSubtaskTimesInfo(task);
+            String path =
+                    getMessageHeaders()
+                            .getTargetRestEndpointURL()
+                            .replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+                            .replace(
+                                    ':' + JobVertexIdPathParameter.KEY,
+                                    task.getJobVertexId().toString());
+            archive.add(new ArchivedJson(path, json));
+        }
+        return archive;
+    }
 
-	private static SubtasksTimesInfo createSubtaskTimesInfo(AccessExecutionJobVertex jobVertex) {
-		final String id = jobVertex.getJobVertexId().toString();
-		final String name = jobVertex.getName();
-		final long now = System.currentTimeMillis();
-		final List<SubtasksTimesInfo.SubtaskTimeInfo> subtasks = new ArrayList<>();
+    private static SubtasksTimesInfo createSubtaskTimesInfo(AccessExecutionJobVertex jobVertex) {
+        final String id = jobVertex.getJobVertexId().toString();
+        final String name = jobVertex.getName();
+        final long now = System.currentTimeMillis();
+        final List<SubtasksTimesInfo.SubtaskTimeInfo> subtasks = new ArrayList<>();
 
-		int num = 0;
-		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
+        int num = 0;
+        for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 
-			long[] timestamps = vertex.getCurrentExecutionAttempt().getStateTimestamps();
-			ExecutionState status = vertex.getExecutionState();
+            long[] timestamps = vertex.getCurrentExecutionAttempt().getStateTimestamps();
+            ExecutionState status = vertex.getExecutionState();
 
-			long scheduledTime = timestamps[ExecutionState.SCHEDULED.ordinal()];
+            long scheduledTime = timestamps[ExecutionState.SCHEDULED.ordinal()];
 
-			long start = scheduledTime > 0 ? scheduledTime : -1;
-			long end = status.isTerminal() ? timestamps[status.ordinal()] : now;
-			long duration = start >= 0 ? end - start : -1L;
+            long start = scheduledTime > 0 ? scheduledTime : -1;
+            long end = status.isTerminal() ? timestamps[status.ordinal()] : now;
+            long duration = start >= 0 ? end - start : -1L;
 
-			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-			String locationString = location == null ? "(unassigned)" : location.getHostname();
+            TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
+            String locationString = location == null ? "(unassigned)" : location.getHostname();
 
-			Map<ExecutionState, Long> timestampMap = new HashMap<>(ExecutionState.values().length);
-			for (ExecutionState state : ExecutionState.values()) {
-				timestampMap.put(state, timestamps[state.ordinal()]);
-			}
+            Map<ExecutionState, Long> timestampMap = new HashMap<>(ExecutionState.values().length);
+            for (ExecutionState state : ExecutionState.values()) {
+                timestampMap.put(state, timestamps[state.ordinal()]);
+            }
 
-			subtasks.add(new SubtasksTimesInfo.SubtaskTimeInfo(
-				num++,
-				locationString,
-				duration,
-				timestampMap));
-		}
-		return new SubtasksTimesInfo(id, name, now, subtasks);
-	}
+            subtasks.add(
+                    new SubtasksTimesInfo.SubtaskTimeInfo(
+                            num++, locationString, duration, timestampMap));
+        }
+        return new SubtasksTimesInfo(id, name, now, subtasks);
+    }
 }

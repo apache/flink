@@ -39,63 +39,67 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Test for operator broadcast state input format.
- */
+/** Test for operator broadcast state input format. */
 public class BroadcastStateInputFormatTest {
-	private static MapStateDescriptor<Integer, Integer> descriptor = new MapStateDescriptor<>("state", Types.INT, Types.INT);
+    private static MapStateDescriptor<Integer, Integer> descriptor =
+            new MapStateDescriptor<>("state", Types.INT, Types.INT);
 
-	@Test
-	public void testReadBroadcastState() throws Exception {
-		try (TwoInputStreamOperatorTestHarness<Void, Integer, Void> testHarness = getTestHarness()) {
-			testHarness.open();
+    @Test
+    public void testReadBroadcastState() throws Exception {
+        try (TwoInputStreamOperatorTestHarness<Void, Integer, Void> testHarness =
+                getTestHarness()) {
+            testHarness.open();
 
-			testHarness.processElement2(new StreamRecord<>(1));
-			testHarness.processElement2(new StreamRecord<>(2));
-			testHarness.processElement2(new StreamRecord<>(3));
+            testHarness.processElement2(new StreamRecord<>(1));
+            testHarness.processElement2(new StreamRecord<>(2));
+            testHarness.processElement2(new StreamRecord<>(3));
 
-			OperatorSubtaskState subtaskState = testHarness.snapshot(0, 0);
-			OperatorState state = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4);
-			state.putState(0, subtaskState);
+            OperatorSubtaskState subtaskState = testHarness.snapshot(0, 0);
+            OperatorState state = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4);
+            state.putState(0, subtaskState);
 
-			OperatorStateInputSplit split = new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
+            OperatorStateInputSplit split =
+                    new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
 
-			BroadcastStateInputFormat<Integer, Integer> format = new BroadcastStateInputFormat<>(state, descriptor);
+            BroadcastStateInputFormat<Integer, Integer> format =
+                    new BroadcastStateInputFormat<>(state, descriptor);
 
-			format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
-			format.open(split);
+            format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+            format.open(split);
 
-			Map<Integer, Integer> results = new HashMap<>(3);
+            Map<Integer, Integer> results = new HashMap<>(3);
 
-			while (!format.reachedEnd()) {
-				Tuple2<Integer, Integer> entry = format.nextRecord(null);
-				results.put(entry.f0, entry.f1);
-			}
+            while (!format.reachedEnd()) {
+                Tuple2<Integer, Integer> entry = format.nextRecord(null);
+                results.put(entry.f0, entry.f1);
+            }
 
-			Map<Integer, Integer> expected = new HashMap<>(3);
-			expected.put(1, 1);
-			expected.put(2, 2);
-			expected.put(3, 3);
+            Map<Integer, Integer> expected = new HashMap<>(3);
+            expected.put(1, 1);
+            expected.put(2, 2);
+            expected.put(3, 3);
 
-			Assert.assertEquals("Failed to read correct list state from state backend", expected, results);
-		}
-	}
+            Assert.assertEquals(
+                    "Failed to read correct list state from state backend", expected, results);
+        }
+    }
 
-	private TwoInputStreamOperatorTestHarness<Void, Integer, Void> getTestHarness() throws Exception {
-		return new TwoInputStreamOperatorTestHarness<>(
-			new CoBroadcastWithNonKeyedOperator<>(
-				new StatefulFunction(), Collections.singletonList(descriptor)));
-	}
+    private TwoInputStreamOperatorTestHarness<Void, Integer, Void> getTestHarness()
+            throws Exception {
+        return new TwoInputStreamOperatorTestHarness<>(
+                new CoBroadcastWithNonKeyedOperator<>(
+                        new StatefulFunction(), Collections.singletonList(descriptor)));
+    }
 
-	static class StatefulFunction extends BroadcastProcessFunction<Void, Integer, Void> {
+    static class StatefulFunction extends BroadcastProcessFunction<Void, Integer, Void> {
 
-		@Override
-		public void processElement(Void value, ReadOnlyContext ctx, Collector<Void> out) {}
+        @Override
+        public void processElement(Void value, ReadOnlyContext ctx, Collector<Void> out) {}
 
-		@Override
-		public void processBroadcastElement(Integer value, Context ctx, Collector<Void> out) throws Exception {
-			ctx.getBroadcastState(descriptor).put(value, value);
-		}
-	}
+        @Override
+        public void processBroadcastElement(Integer value, Context ctx, Collector<Void> out)
+                throws Exception {
+            ctx.getBroadcastState(descriptor).put(value, value);
+        }
+    }
 }
-

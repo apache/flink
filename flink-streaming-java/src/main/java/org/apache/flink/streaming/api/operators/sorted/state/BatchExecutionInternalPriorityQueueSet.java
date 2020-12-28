@@ -31,48 +31,47 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Very similar implementation to {@link org.apache.flink.runtime.state.heap.HeapPriorityQueueSet}. The only difference
- * is it keeps track of elements for a single key at a time.
+ * Very similar implementation to {@link org.apache.flink.runtime.state.heap.HeapPriorityQueueSet}.
+ * The only difference is it keeps track of elements for a single key at a time.
  */
 class BatchExecutionInternalPriorityQueueSet<T extends HeapPriorityQueueElement>
-		extends HeapPriorityQueue<T>
-		implements KeyGroupedInternalPriorityQueue<T> {
+        extends HeapPriorityQueue<T> implements KeyGroupedInternalPriorityQueue<T> {
 
-	private final Map<T, T> dedupMap = new HashMap<>();
+    private final Map<T, T> dedupMap = new HashMap<>();
 
-	BatchExecutionInternalPriorityQueueSet(
-			@Nonnull PriorityComparator<T> elementPriorityComparator,
-			int minimumCapacity) {
-		super(elementPriorityComparator, minimumCapacity);
-	}
+    BatchExecutionInternalPriorityQueueSet(
+            @Nonnull PriorityComparator<T> elementPriorityComparator, int minimumCapacity) {
+        super(elementPriorityComparator, minimumCapacity);
+    }
 
-	@Nonnull
-	@Override
-	public Set<T> getSubsetForKeyGroup(int keyGroupId) {
-		throw new UnsupportedOperationException("Getting subset for key group is not supported in BATCH runtime mode.");
-	}
+    @Nonnull
+    @Override
+    public Set<T> getSubsetForKeyGroup(int keyGroupId) {
+        throw new UnsupportedOperationException(
+                "Getting subset for key group is not supported in BATCH runtime mode.");
+    }
 
-	@Override
-	@Nullable
-	public T poll() {
-		final T toRemove = super.poll();
-		return toRemove != null ? dedupMap.remove(toRemove) : null;
-	}
+    @Override
+    @Nullable
+    public T poll() {
+        final T toRemove = super.poll();
+        return toRemove != null ? dedupMap.remove(toRemove) : null;
+    }
 
-	@Override
-	public boolean add(@Nonnull T element) {
-		return dedupMap.putIfAbsent(element, element) == null && super.add(element);
-	}
+    @Override
+    public boolean add(@Nonnull T element) {
+        return dedupMap.putIfAbsent(element, element) == null && super.add(element);
+    }
 
-	@Override
-	public boolean remove(@Nonnull T toRemove) {
-		T storedElement = dedupMap.remove(toRemove);
-		return storedElement != null && super.remove(storedElement);
-	}
+    @Override
+    public boolean remove(@Nonnull T toRemove) {
+        T storedElement = dedupMap.remove(toRemove);
+        return storedElement != null && super.remove(storedElement);
+    }
 
-	@Override
-	public void clear() {
-		super.clear();
-		dedupMap.clear();
-	}
+    @Override
+    public void clear() {
+        super.clear();
+        dedupMap.clear();
+    }
 }

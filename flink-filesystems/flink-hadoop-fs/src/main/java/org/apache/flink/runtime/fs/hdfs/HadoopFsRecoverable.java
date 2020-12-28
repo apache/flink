@@ -27,47 +27,47 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An implementation of the resume and commit descriptor objects for Hadoop's
- * file system abstraction.
+ * An implementation of the resume and commit descriptor objects for Hadoop's file system
+ * abstraction.
  */
 class HadoopFsRecoverable implements CommitRecoverable, ResumeRecoverable {
 
-	/** The file path for the final result file. */
-	private final Path targetFile;
+    /** The file path for the final result file. */
+    private final Path targetFile;
 
-	/** The file path of the staging file. */
-	private final Path tempFile;
+    /** The file path of the staging file. */
+    private final Path tempFile;
 
-	/** The position to resume from. */
-	private final long offset;
+    /** The position to resume from. */
+    private final long offset;
 
-	/**
-	 * Creates a resumable for the given file at the given position.
-	 *
-	 * @param targetFile The file to resume.
-	 * @param offset The position to resume from.
-	 */
-	HadoopFsRecoverable(Path targetFile, Path tempFile, long offset) {
-		checkArgument(offset >= 0, "offset must be >= 0");
-		this.targetFile = checkNotNull(targetFile, "targetFile");
-		this.tempFile = checkNotNull(tempFile, "tempFile");
-		this.offset = offset;
-	}
+    /**
+     * Creates a resumable for the given file at the given position.
+     *
+     * @param targetFile The file to resume.
+     * @param offset The position to resume from.
+     */
+    HadoopFsRecoverable(Path targetFile, Path tempFile, long offset) {
+        checkArgument(offset >= 0, "offset must be >= 0");
+        this.targetFile = checkNotNull(targetFile, "targetFile");
+        this.tempFile = checkNotNull(tempFile, "tempFile");
+        this.offset = offset;
+    }
 
-	public Path targetFile() {
-		return targetFile;
-	}
+    public Path targetFile() {
+        return targetFile;
+    }
 
-	public Path tempFile() {
-		return tempFile;
-	}
+    public Path tempFile() {
+        return tempFile;
+    }
 
-	public long offset() {
-		return offset;
-	}
+    public long offset() {
+        return offset;
+    }
 
-	@Override
-	public String toString() {
-		return "HadoopFsRecoverable " + tempFile + " @ " + offset + " -> " + targetFile;
-	}
+    @Override
+    public String toString() {
+        return "HadoopFsRecoverable " + tempFile + " @ " + offset + " -> " + targetFile;
+    }
 }

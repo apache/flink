@@ -39,15 +39,16 @@ import java.util.Map;
  * potentially forwarding metadata columns to contained formats.
  *
  * <p>Examples in SQL look like:
+ *
  * <pre>{@code
- *   // writes data to the corresponding metadata key `timestamp`
- *   CREATE TABLE t1 (i INT, s STRING, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA, d DOUBLE)
+ * // writes data to the corresponding metadata key `timestamp`
+ * CREATE TABLE t1 (i INT, s STRING, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA, d DOUBLE)
  *
- *   // casts data from INT and writes to metadata key `timestamp`
- *   CREATE TABLE t2 (i INT, s STRING, myTimestamp INT METADATA FROM 'timestamp', d DOUBLE)
+ * // casts data from INT and writes to metadata key `timestamp`
+ * CREATE TABLE t2 (i INT, s STRING, myTimestamp INT METADATA FROM 'timestamp', d DOUBLE)
  *
- *   // metadata is not persisted because metadata column is virtual
- *   CREATE TABLE t3 (i INT, s STRING, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA VIRTUAL, d DOUBLE)
+ * // metadata is not persisted because metadata column is virtual
+ * CREATE TABLE t3 (i INT, s STRING, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA VIRTUAL, d DOUBLE)
  * }</pre>
  *
  * <p>By default, if this interface is not implemented, the statements above would fail because the
@@ -57,64 +58,65 @@ import java.util.Map;
  * their corresponding data types that the sink exposes to the planner. The planner will use this
  * information for validation and insertion of explicit casts if necessary.
  *
- * <p>The planner will select required metadata columns and will call {@link #applyWritableMetadata(List, DataType)}
- * with a list of metadata keys. An implementation must ensure that metadata columns are accepted at
- * the end of the physical row in the order of the provided list after the apply method has been called.
+ * <p>The planner will select required metadata columns and will call {@link
+ * #applyWritableMetadata(List, DataType)} with a list of metadata keys. An implementation must
+ * ensure that metadata columns are accepted at the end of the physical row in the order of the
+ * provided list after the apply method has been called.
  *
- * <p>The metadata column's data type must match with {@link #listWritableMetadata()}. For the examples
- * above, this means that a table sink for `t2` accepts a TIMESTAMP and not INT. The casting from INT
- * will be performed by the planner in a preceding operation:
+ * <p>The metadata column's data type must match with {@link #listWritableMetadata()}. For the
+ * examples above, this means that a table sink for `t2` accepts a TIMESTAMP and not INT. The
+ * casting from INT will be performed by the planner in a preceding operation:
  *
  * <pre>{@code
- *   // for t1 and t2
- *   ROW < i INT, s STRING, d DOUBLE >                                              // physical input
- *   ROW < i INT, s STRING, d DOUBLE, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE > // final input
+ * // for t1 and t2
+ * ROW < i INT, s STRING, d DOUBLE >                                              // physical input
+ * ROW < i INT, s STRING, d DOUBLE, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE > // final input
  *
- *   // for t3
- *   ROW < i INT, s STRING, d DOUBLE >                                              // physical input
- *   ROW < i INT, s STRING, d DOUBLE >                                              // final input
+ * // for t3
+ * ROW < i INT, s STRING, d DOUBLE >                                              // physical input
+ * ROW < i INT, s STRING, d DOUBLE >                                              // final input
  * }</pre>
  */
 @PublicEvolving
 public interface SupportsWritingMetadata {
 
-	/**
-	 * Returns the map of metadata keys and their corresponding data types that can be consumed by this
-	 * table sink for writing.
-	 *
-	 * <p>The returned map will be used by the planner for validation and insertion of explicit casts
-	 * (see {@link LogicalTypeCasts#supportsExplicitCast(LogicalType, LogicalType)}) if necessary.
-	 *
-	 * <p>The iteration order of the returned map determines the order of metadata keys in the list
-	 * passed in {@link #applyWritableMetadata(List, DataType)}. Therefore, it might be beneficial to return a
-	 * {@link LinkedHashMap} if a strict metadata column order is required.
-	 *
-	 * <p>If a sink forwards metadata to one or more formats, we recommend the following column
-	 * order for consistency:
-	 *
-	 * <pre>{@code
-	 *   KEY FORMAT METADATA COLUMNS + VALUE FORMAT METADATA COLUMNS + SINK METADATA COLUMNS
-	 * }</pre>
-	 *
-	 * <p>Metadata key names follow the same pattern as mentioned in {@link Factory}. In case of duplicate
-	 * names in format and sink keys, format keys shall have higher precedence.
-	 *
-	 * <p>Regardless of the returned {@link DataType}s, a metadata column is always represented using
-	 * internal data structures (see {@link RowData}).
-	 *
-	 * @see EncodingFormat#listWritableMetadata()
-	 */
-	Map<String, DataType> listWritableMetadata();
+    /**
+     * Returns the map of metadata keys and their corresponding data types that can be consumed by
+     * this table sink for writing.
+     *
+     * <p>The returned map will be used by the planner for validation and insertion of explicit
+     * casts (see {@link LogicalTypeCasts#supportsExplicitCast(LogicalType, LogicalType)}) if
+     * necessary.
+     *
+     * <p>The iteration order of the returned map determines the order of metadata keys in the list
+     * passed in {@link #applyWritableMetadata(List, DataType)}. Therefore, it might be beneficial
+     * to return a {@link LinkedHashMap} if a strict metadata column order is required.
+     *
+     * <p>If a sink forwards metadata to one or more formats, we recommend the following column
+     * order for consistency:
+     *
+     * <pre>{@code
+     * KEY FORMAT METADATA COLUMNS + VALUE FORMAT METADATA COLUMNS + SINK METADATA COLUMNS
+     * }</pre>
+     *
+     * <p>Metadata key names follow the same pattern as mentioned in {@link Factory}. In case of
+     * duplicate names in format and sink keys, format keys shall have higher precedence.
+     *
+     * <p>Regardless of the returned {@link DataType}s, a metadata column is always represented
+     * using internal data structures (see {@link RowData}).
+     *
+     * @see EncodingFormat#listWritableMetadata()
+     */
+    Map<String, DataType> listWritableMetadata();
 
-	/**
-	 * Provides a list of metadata keys that the consumed {@link RowData} will contain as appended metadata
-	 * columns which must be persisted.
-	 *
-	 * @param metadataKeys a subset of the keys returned by {@link #listWritableMetadata()}, ordered
-	 *                     by the iteration order of returned map
-	 * @param consumedDataType the final input type of the sink
-	 *
-	 * @see EncodingFormat#applyWritableMetadata(List)
-	 */
-	void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType);
+    /**
+     * Provides a list of metadata keys that the consumed {@link RowData} will contain as appended
+     * metadata columns which must be persisted.
+     *
+     * @param metadataKeys a subset of the keys returned by {@link #listWritableMetadata()}, ordered
+     *     by the iteration order of returned map
+     * @param consumedDataType the final input type of the sink
+     * @see EncodingFormat#applyWritableMetadata(List)
+     */
+    void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType);
 }

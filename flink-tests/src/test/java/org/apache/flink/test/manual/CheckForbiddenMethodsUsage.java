@@ -41,85 +41,91 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests via reflection that certain methods are not called in Flink.
  *
- * <p>Forbidden calls include:
- *   - Byte / String conversions that do not specify an explicit charset
- *     because they produce different results in different locales
+ * <p>Forbidden calls include: - Byte / String conversions that do not specify an explicit charset
+ * because they produce different results in different locales
  */
 public class CheckForbiddenMethodsUsage {
 
-	private static class ForbiddenCall {
+    private static class ForbiddenCall {
 
-		private final Method method;
-		private final Constructor<?> constructor;
-		private final List<Member> exclusions;
+        private final Method method;
+        private final Constructor<?> constructor;
+        private final List<Member> exclusions;
 
-		private ForbiddenCall(Method method, Constructor<?> ctor, List<Member> exclusions) {
-			this.method = method;
-			this.exclusions = exclusions;
-			this.constructor = ctor;
-		}
+        private ForbiddenCall(Method method, Constructor<?> ctor, List<Member> exclusions) {
+            this.method = method;
+            this.exclusions = exclusions;
+            this.constructor = ctor;
+        }
 
-		public Method getMethod() {
-			return method;
-		}
+        public Method getMethod() {
+            return method;
+        }
 
-		public List<Member> getExclusions() {
-			return exclusions;
-		}
+        public List<Member> getExclusions() {
+            return exclusions;
+        }
 
-		public Set<Member> getUsages(Reflections reflections) {
-			if (method == null) {
-				return reflections.getConstructorUsage(constructor);
-			}
+        public Set<Member> getUsages(Reflections reflections) {
+            if (method == null) {
+                return reflections.getConstructorUsage(constructor);
+            }
 
-			return reflections.getMethodUsage(method);
-		}
+            return reflections.getMethodUsage(method);
+        }
 
-		public static ForbiddenCall of(Method method) {
-			return new ForbiddenCall(method, null, Collections.<Member>emptyList());
-		}
+        public static ForbiddenCall of(Method method) {
+            return new ForbiddenCall(method, null, Collections.<Member>emptyList());
+        }
 
-		public static ForbiddenCall of(Method method, List<Member> exclusions) {
-			return new ForbiddenCall(method, null, exclusions);
-		}
+        public static ForbiddenCall of(Method method, List<Member> exclusions) {
+            return new ForbiddenCall(method, null, exclusions);
+        }
 
-		public static ForbiddenCall of(Constructor<?> ctor) {
-			return new ForbiddenCall(null, ctor, Collections.<Member>emptyList());
-		}
+        public static ForbiddenCall of(Constructor<?> ctor) {
+            return new ForbiddenCall(null, ctor, Collections.<Member>emptyList());
+        }
 
-		public static ForbiddenCall of(Constructor<?> ctor, List<Member> exclusions) {
-			return new ForbiddenCall(null, ctor, exclusions);
-		}
-	}
+        public static ForbiddenCall of(Constructor<?> ctor, List<Member> exclusions) {
+            return new ForbiddenCall(null, ctor, exclusions);
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static final List<ForbiddenCall> forbiddenCalls = new ArrayList<>();
+    private static final List<ForbiddenCall> forbiddenCalls = new ArrayList<>();
 
-	@BeforeClass
-	public static void init() throws Exception {
-		forbiddenCalls.add(ForbiddenCall.of(String.class.getMethod("getBytes"),
-			Arrays.<Member>asList(
-				FieldParserTest.class.getMethod("testEndsWithDelimiter"),
-				FieldParserTest.class.getMethod("testDelimiterNext")
-			)));
-		forbiddenCalls.add(ForbiddenCall.of(String.class.getConstructor(byte[].class)));
-		forbiddenCalls.add(ForbiddenCall.of(String.class.getConstructor(byte[].class, int.class)));
-		forbiddenCalls.add(ForbiddenCall.of(String.class.getConstructor(byte[].class, int.class, int.class)));
-		forbiddenCalls.add(ForbiddenCall.of(String.class.getConstructor(byte[].class, int.class, int.class, int.class)));
-	}
+    @BeforeClass
+    public static void init() throws Exception {
+        forbiddenCalls.add(
+                ForbiddenCall.of(
+                        String.class.getMethod("getBytes"),
+                        Arrays.<Member>asList(
+                                FieldParserTest.class.getMethod("testEndsWithDelimiter"),
+                                FieldParserTest.class.getMethod("testDelimiterNext"))));
+        forbiddenCalls.add(ForbiddenCall.of(String.class.getConstructor(byte[].class)));
+        forbiddenCalls.add(ForbiddenCall.of(String.class.getConstructor(byte[].class, int.class)));
+        forbiddenCalls.add(
+                ForbiddenCall.of(String.class.getConstructor(byte[].class, int.class, int.class)));
+        forbiddenCalls.add(
+                ForbiddenCall.of(
+                        String.class.getConstructor(
+                                byte[].class, int.class, int.class, int.class)));
+    }
 
-	@Test
-	public void testNoDefaultEncoding() throws Exception {
-		final Reflections reflections = new Reflections(new ConfigurationBuilder()
-			.useParallelExecutor(Runtime.getRuntime().availableProcessors())
-			.addUrls(ClasspathHelper.forPackage("org.apache.flink"))
-			.addScanners(new MemberUsageScanner()));
+    @Test
+    public void testNoDefaultEncoding() throws Exception {
+        final Reflections reflections =
+                new Reflections(
+                        new ConfigurationBuilder()
+                                .useParallelExecutor(Runtime.getRuntime().availableProcessors())
+                                .addUrls(ClasspathHelper.forPackage("org.apache.flink"))
+                                .addScanners(new MemberUsageScanner()));
 
-		for (ForbiddenCall forbiddenCall : forbiddenCalls) {
-			final Set<Member> methodUsages = forbiddenCall.getUsages(reflections);
-			methodUsages.removeAll(forbiddenCall.getExclusions());
-			assertEquals("Unexpected calls: " + methodUsages, 0, methodUsages.size());
-		}
-	}
+        for (ForbiddenCall forbiddenCall : forbiddenCalls) {
+            final Set<Member> methodUsages = forbiddenCall.getUsages(reflections);
+            methodUsages.removeAll(forbiddenCall.getExclusions());
+            assertEquals("Unexpected calls: " + methodUsages, 0, methodUsages.size());
+        }
+    }
 }

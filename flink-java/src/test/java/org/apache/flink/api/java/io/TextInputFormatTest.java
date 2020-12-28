@@ -48,215 +48,219 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link TextInputFormat}.
- */
+/** Tests for {@link TextInputFormat}. */
 public class TextInputFormatTest extends TestLogger {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Test
-	public void testSimpleRead() throws IOException {
-		final String first = "First line";
-		final String second = "Second line";
+    @Test
+    public void testSimpleRead() throws IOException {
+        final String first = "First line";
+        final String second = "Second line";
 
-		// create input file
-		File tempFile = File.createTempFile("TextInputFormatTest", "tmp", temporaryFolder.getRoot());
-		tempFile.setWritable(true);
+        // create input file
+        File tempFile =
+                File.createTempFile("TextInputFormatTest", "tmp", temporaryFolder.getRoot());
+        tempFile.setWritable(true);
 
-		try (PrintStream ps = new PrintStream(tempFile)) {
-			ps.println(first);
-			ps.println(second);
-		}
+        try (PrintStream ps = new PrintStream(tempFile)) {
+            ps.println(first);
+            ps.println(second);
+        }
 
-		TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
+        TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
 
-		Configuration parameters = new Configuration();
-		inputFormat.configure(parameters);
+        Configuration parameters = new Configuration();
+        inputFormat.configure(parameters);
 
-		FileInputSplit[] splits = inputFormat.createInputSplits(1);
-		assertThat("expected at least one input split", splits.length, greaterThanOrEqualTo(1));
+        FileInputSplit[] splits = inputFormat.createInputSplits(1);
+        assertThat("expected at least one input split", splits.length, greaterThanOrEqualTo(1));
 
-		inputFormat.open(splits[0]);
-		try {
-			assertFalse(inputFormat.reachedEnd());
-			String result = inputFormat.nextRecord("");
-			assertNotNull("Expecting first record here", result);
-			assertEquals(first, result);
+        inputFormat.open(splits[0]);
+        try {
+            assertFalse(inputFormat.reachedEnd());
+            String result = inputFormat.nextRecord("");
+            assertNotNull("Expecting first record here", result);
+            assertEquals(first, result);
 
-			assertFalse(inputFormat.reachedEnd());
-			result = inputFormat.nextRecord(result);
-			assertNotNull("Expecting second record here", result);
-			assertEquals(second, result);
+            assertFalse(inputFormat.reachedEnd());
+            result = inputFormat.nextRecord(result);
+            assertNotNull("Expecting second record here", result);
+            assertEquals(second, result);
 
-			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
-		} finally {
-			inputFormat.close();
-		}
-	}
+            assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
+        } finally {
+            inputFormat.close();
+        }
+    }
 
-	@Test
-	public void testNestedFileRead() throws IOException {
-		String[] dirs = new String[] {"first", "second"};
-		List<String> expectedFiles = new ArrayList<>();
+    @Test
+    public void testNestedFileRead() throws IOException {
+        String[] dirs = new String[] {"first", "second"};
+        List<String> expectedFiles = new ArrayList<>();
 
-		File parentDir = temporaryFolder.getRoot();
-		for (String dir: dirs) {
-			// create input file
-			File tmpDir = temporaryFolder.newFolder(dir);
+        File parentDir = temporaryFolder.getRoot();
+        for (String dir : dirs) {
+            // create input file
+            File tmpDir = temporaryFolder.newFolder(dir);
 
-			File tempFile = File.createTempFile("TextInputFormatTest", ".tmp", tmpDir);
+            File tempFile = File.createTempFile("TextInputFormatTest", ".tmp", tmpDir);
 
-			expectedFiles.add(new Path(tempFile.getAbsolutePath()).makeQualified(FileSystem.getLocalFileSystem()).toString());
-		}
+            expectedFiles.add(
+                    new Path(tempFile.getAbsolutePath())
+                            .makeQualified(FileSystem.getLocalFileSystem())
+                            .toString());
+        }
 
-		TextInputFormat inputFormat = new TextInputFormat(new Path(parentDir.toURI()));
-		inputFormat.setNestedFileEnumeration(true);
-		inputFormat.setNumLineSamples(10);
+        TextInputFormat inputFormat = new TextInputFormat(new Path(parentDir.toURI()));
+        inputFormat.setNestedFileEnumeration(true);
+        inputFormat.setNumLineSamples(10);
 
-		// this is to check if the setter overrides the configuration (as expected)
-		Configuration config = new Configuration();
-		config.setBoolean("recursive.file.enumeration", false);
-		config.setString("delimited-format.numSamples", "20");
-		inputFormat.configure(config);
+        // this is to check if the setter overrides the configuration (as expected)
+        Configuration config = new Configuration();
+        config.setBoolean("recursive.file.enumeration", false);
+        config.setString("delimited-format.numSamples", "20");
+        inputFormat.configure(config);
 
-		assertTrue(inputFormat.getNestedFileEnumeration());
-		assertEquals(10, inputFormat.getNumLineSamples());
+        assertTrue(inputFormat.getNestedFileEnumeration());
+        assertEquals(10, inputFormat.getNumLineSamples());
 
-		FileInputSplit[] splits = inputFormat.createInputSplits(expectedFiles.size());
+        FileInputSplit[] splits = inputFormat.createInputSplits(expectedFiles.size());
 
-		List<String> paths = new ArrayList<>();
-		for (FileInputSplit split: splits) {
-			paths.add(split.getPath().toString());
-		}
+        List<String> paths = new ArrayList<>();
+        for (FileInputSplit split : splits) {
+            paths.add(split.getPath().toString());
+        }
 
-		Collections.sort(expectedFiles);
-		Collections.sort(paths);
-		for (int i = 0; i < expectedFiles.size(); i++) {
-			assertEquals(expectedFiles.get(i), paths.get(i));
-		}
-	}
+        Collections.sort(expectedFiles);
+        Collections.sort(paths);
+        for (int i = 0; i < expectedFiles.size(); i++) {
+            assertEquals(expectedFiles.get(i), paths.get(i));
+        }
+    }
 
-	/**
-	 * This tests cases when line ends with \r\n and \n is used as delimiter, the last \r should be removed.
-	 */
-	@Test
-	public void testRemovingTrailingCR() throws IOException {
+    /**
+     * This tests cases when line ends with \r\n and \n is used as delimiter, the last \r should be
+     * removed.
+     */
+    @Test
+    public void testRemovingTrailingCR() throws IOException {
 
-		testRemovingTrailingCR("\n", "\n");
-		testRemovingTrailingCR("\r\n", "\n");
+        testRemovingTrailingCR("\n", "\n");
+        testRemovingTrailingCR("\r\n", "\n");
 
-		testRemovingTrailingCR("|", "|");
-		testRemovingTrailingCR("|", "\n");
-	}
+        testRemovingTrailingCR("|", "|");
+        testRemovingTrailingCR("|", "\n");
+    }
 
-	private void testRemovingTrailingCR(String lineBreaker, String delimiter) throws IOException {
-		String first = "First line";
-		String second = "Second line";
-		String content = first + lineBreaker + second + lineBreaker;
+    private void testRemovingTrailingCR(String lineBreaker, String delimiter) throws IOException {
+        String first = "First line";
+        String second = "Second line";
+        String content = first + lineBreaker + second + lineBreaker;
 
-		// create input file
-		File tempFile = File.createTempFile("TextInputFormatTest", "tmp", temporaryFolder.getRoot());
-		tempFile.setWritable(true);
+        // create input file
+        File tempFile =
+                File.createTempFile("TextInputFormatTest", "tmp", temporaryFolder.getRoot());
+        tempFile.setWritable(true);
 
-		try (OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile))) {
-			wrt.write(content);
-		}
+        try (OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile))) {
+            wrt.write(content);
+        }
 
-		TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
-		inputFormat.setFilePath(tempFile.toURI().toString());
+        TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
+        inputFormat.setFilePath(tempFile.toURI().toString());
 
-		Configuration parameters = new Configuration();
-		inputFormat.configure(parameters);
+        Configuration parameters = new Configuration();
+        inputFormat.configure(parameters);
 
-		inputFormat.setDelimiter(delimiter);
+        inputFormat.setDelimiter(delimiter);
 
-		FileInputSplit[] splits = inputFormat.createInputSplits(1);
+        FileInputSplit[] splits = inputFormat.createInputSplits(1);
 
-		inputFormat.open(splits[0]);
+        inputFormat.open(splits[0]);
 
-		String result;
-		if ((delimiter.equals("\n") && (lineBreaker.equals("\n") || lineBreaker.equals("\r\n")))
-				|| (lineBreaker.equals(delimiter))){
+        String result;
+        if ((delimiter.equals("\n") && (lineBreaker.equals("\n") || lineBreaker.equals("\r\n")))
+                || (lineBreaker.equals(delimiter))) {
 
-			result = inputFormat.nextRecord("");
-			assertNotNull("Expecting first record here", result);
-			assertEquals(first, result);
+            result = inputFormat.nextRecord("");
+            assertNotNull("Expecting first record here", result);
+            assertEquals(first, result);
 
-			result = inputFormat.nextRecord(result);
-			assertNotNull("Expecting second record here", result);
-			assertEquals(second, result);
+            result = inputFormat.nextRecord(result);
+            assertNotNull("Expecting second record here", result);
+            assertEquals(second, result);
 
-			result = inputFormat.nextRecord(result);
-			assertNull("The input file is over", result);
+            result = inputFormat.nextRecord(result);
+            assertNull("The input file is over", result);
 
-		} else {
-			result = inputFormat.nextRecord("");
-			assertNotNull("Expecting first record here", result);
-			assertEquals(content, result);
-		}
-	}
+        } else {
+            result = inputFormat.nextRecord("");
+            assertNotNull("Expecting first record here", result);
+            assertEquals(content, result);
+        }
+    }
 
-	@Test
-	public void testCompressedRead() throws IOException {
-		TextInputFormat.registerInflaterInputStreamFactory(
-			"compressed",
-			new InflaterInputStreamFactory<InputStream>() {
-				@Override
-				public InputStream create(InputStream in) {
-					return in;
-				}
+    @Test
+    public void testCompressedRead() throws IOException {
+        TextInputFormat.registerInflaterInputStreamFactory(
+                "compressed",
+                new InflaterInputStreamFactory<InputStream>() {
+                    @Override
+                    public InputStream create(InputStream in) {
+                        return in;
+                    }
 
-				@Override
-				public Collection<String> getCommonFileExtensions() {
-					return Collections.singletonList("compressed");
-				}
-			});
+                    @Override
+                    public Collection<String> getCommonFileExtensions() {
+                        return Collections.singletonList("compressed");
+                    }
+                });
 
-		final String first = "First line";
-		final String second = "Second line";
+        final String first = "First line";
+        final String second = "Second line";
 
-		// create input file
-		File tempFile = File.createTempFile("TextInputFormatTest", ".compressed", temporaryFolder.getRoot());
-		tempFile.setWritable(true);
+        // create input file
+        File tempFile =
+                File.createTempFile(
+                        "TextInputFormatTest", ".compressed", temporaryFolder.getRoot());
+        tempFile.setWritable(true);
 
-		try (PrintStream ps = new PrintStream(tempFile)) {
-			ps.println(first);
-			ps.println(second);
-		}
+        try (PrintStream ps = new PrintStream(tempFile)) {
+            ps.println(first);
+            ps.println(second);
+        }
 
-		TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
-		Configuration parameters = new Configuration();
-		inputFormat.configure(parameters);
+        TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
+        Configuration parameters = new Configuration();
+        inputFormat.configure(parameters);
 
-		FileInputSplit[] splits = inputFormat.createInputSplits(1);
-		assertThat("expected at least one input split", splits.length, greaterThanOrEqualTo(1));
+        FileInputSplit[] splits = inputFormat.createInputSplits(1);
+        assertThat("expected at least one input split", splits.length, greaterThanOrEqualTo(1));
 
-		inputFormat.open(splits[0]);
-		try {
-			assertFalse(inputFormat.reachedEnd());
-			String result = inputFormat.nextRecord("");
-			assertNotNull("Expecting first record here", result);
-			assertEquals(first, result);
-			assertFalse(inputFormat.reachedEnd());
+        inputFormat.open(splits[0]);
+        try {
+            assertFalse(inputFormat.reachedEnd());
+            String result = inputFormat.nextRecord("");
+            assertNotNull("Expecting first record here", result);
+            assertEquals(first, result);
+            assertFalse(inputFormat.reachedEnd());
 
-			Long currentOffset = inputFormat.getCurrentState();
-			inputFormat.close();
+            Long currentOffset = inputFormat.getCurrentState();
+            inputFormat.close();
 
-			inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
-			inputFormat.configure(parameters);
-			inputFormat.reopen(splits[0], currentOffset);
+            inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
+            inputFormat.configure(parameters);
+            inputFormat.reopen(splits[0], currentOffset);
 
-			assertFalse(inputFormat.reachedEnd());
-			result = inputFormat.nextRecord(result);
-			assertNotNull("Expecting second record here", result);
-			assertEquals(second, result);
+            assertFalse(inputFormat.reachedEnd());
+            result = inputFormat.nextRecord(result);
+            assertNotNull("Expecting second record here", result);
+            assertEquals(second, result);
 
-			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
-		} finally {
-			inputFormat.close();
-		}
-	}
-
+            assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
+        } finally {
+            inputFormat.close();
+        }
+    }
 }

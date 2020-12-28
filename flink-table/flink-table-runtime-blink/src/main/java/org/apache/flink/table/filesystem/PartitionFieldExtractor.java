@@ -25,26 +25,24 @@ import org.apache.flink.table.utils.PartitionPathUtils;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 
-/**
- * Interface to extract partition field from split.
- */
+/** Interface to extract partition field from split. */
 @FunctionalInterface
 public interface PartitionFieldExtractor<T extends FileSourceSplit> extends Serializable {
 
-	Object extract(T split, String fieldName, LogicalType fieldType);
+    Object extract(T split, String fieldName, LogicalType fieldType);
 
-	static PartitionFieldExtractor<FileSourceSplit> forFileSystem(String defaultPartValue) {
-		return (split, fieldName, fieldType) -> {
-			LinkedHashMap<String, String> partitionSpec =
-					PartitionPathUtils.extractPartitionSpecFromPath(split.path());
-			if (!partitionSpec.containsKey(fieldName)) {
-				throw new RuntimeException(
-						"Cannot find the partition value from path for partition: " + fieldName);
-			}
+    static PartitionFieldExtractor<FileSourceSplit> forFileSystem(String defaultPartValue) {
+        return (split, fieldName, fieldType) -> {
+            LinkedHashMap<String, String> partitionSpec =
+                    PartitionPathUtils.extractPartitionSpecFromPath(split.path());
+            if (!partitionSpec.containsKey(fieldName)) {
+                throw new RuntimeException(
+                        "Cannot find the partition value from path for partition: " + fieldName);
+            }
 
-			String valueStr = partitionSpec.get(fieldName);
-			valueStr = valueStr.equals(defaultPartValue) ? null : valueStr;
-			return RowPartitionComputer.restorePartValueFromType(valueStr, fieldType);
-		};
-	}
+            String valueStr = partitionSpec.get(fieldName);
+            valueStr = valueStr.equals(defaultPartValue) ? null : valueStr;
+            return RowPartitionComputer.restorePartValueFromType(valueStr, fieldType);
+        };
+    }
 }

@@ -20,16 +20,14 @@ package org.apache.flink.streaming.connectors.elasticsearch.index;
 
 import org.apache.flink.types.Row;
 
-/**
- * A static {@link IndexGenerator} which generate fixed index name.
- */
+/** A static {@link IndexGenerator} which generate fixed index name. */
 public class StaticIndexGenerator extends IndexGeneratorBase {
 
-	public StaticIndexGenerator(String index) {
-		super(index);
-	}
+    public StaticIndexGenerator(String index) {
+        super(index);
+    }
 
-	public String generate(Row row) {
-		return index;
-	}
+    public String generate(Row row) {
+        return index;
+    }
 }

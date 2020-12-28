@@ -21,14 +21,10 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.DataType;
 
-/**
- * Transforms one data type to another.
- */
+/** Transforms one data type to another. */
 @PublicEvolving
 public interface TypeTransformation {
 
-	/**
-	 * Transforms the given data type to a different data type.
-	 */
-	DataType transform(DataType typeToTransform);
+    /** Transforms the given data type to a different data type. */
+    DataType transform(DataType typeToTransform);
 }

@@ -35,123 +35,118 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * Mock {@link InputGate}.
- */
+/** Mock {@link InputGate}. */
 public class MockInputGate extends IndexedInputGate {
 
-	private final int numberOfChannels;
+    private final int numberOfChannels;
 
-	private final Queue<BufferOrEvent> bufferOrEvents;
+    private final Queue<BufferOrEvent> bufferOrEvents;
 
-	private final boolean[] closed;
+    private final boolean[] closed;
 
-	private final boolean finishAfterLastBuffer;
+    private final boolean finishAfterLastBuffer;
 
-	private ArrayList<Integer> lastUnblockedChannels = new ArrayList<>();
+    private ArrayList<Integer> lastUnblockedChannels = new ArrayList<>();
 
-	public MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
-		this(numberOfChannels, bufferOrEvents, true);
-	}
+    public MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
+        this(numberOfChannels, bufferOrEvents, true);
+    }
 
-	public MockInputGate(
-			int numberOfChannels,
-			List<BufferOrEvent> bufferOrEvents,
-			boolean finishAfterLastBuffer) {
-		this.numberOfChannels = numberOfChannels;
-		this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
-		this.closed = new boolean[numberOfChannels];
-		this.finishAfterLastBuffer = finishAfterLastBuffer;
+    public MockInputGate(
+            int numberOfChannels,
+            List<BufferOrEvent> bufferOrEvents,
+            boolean finishAfterLastBuffer) {
+        this.numberOfChannels = numberOfChannels;
+        this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
+        this.closed = new boolean[numberOfChannels];
+        this.finishAfterLastBuffer = finishAfterLastBuffer;
 
-		availabilityHelper.resetAvailable();
-	}
+        availabilityHelper.resetAvailable();
+    }
 
-	@Override
-	public void setup() {
-	}
+    @Override
+    public void setup() {}
 
-	@Override
-	public CompletableFuture<Void> getStateConsumedFuture() {
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Void> getStateConsumedFuture() {
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public void finishReadRecoveredState() {
-	}
+    @Override
+    public void finishReadRecoveredState() {}
 
-	@Override
-	public void requestPartitions() {
-	}
+    @Override
+    public void requestPartitions() {}
 
-	@Override
-	public int getNumberOfInputChannels() {
-		return numberOfChannels;
-	}
+    @Override
+    public int getNumberOfInputChannels() {
+        return numberOfChannels;
+    }
 
-	@Override
-	public InputChannel getChannel(int channelIndex) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public InputChannel getChannel(int channelIndex) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public List<InputChannelInfo> getChannelInfos() {
-		return IntStream.range(0, numberOfChannels)
-			.mapToObj(channelIndex -> new InputChannelInfo(0, channelIndex))
-			.collect(Collectors.toList());
-	}
+    @Override
+    public List<InputChannelInfo> getChannelInfos() {
+        return IntStream.range(0, numberOfChannels)
+                .mapToObj(channelIndex -> new InputChannelInfo(0, channelIndex))
+                .collect(Collectors.toList());
+    }
 
-	@Override
-	public boolean isFinished() {
-		return finishAfterLastBuffer && bufferOrEvents.isEmpty();
-	}
+    @Override
+    public boolean isFinished() {
+        return finishAfterLastBuffer && bufferOrEvents.isEmpty();
+    }
 
-	@Override
-	public Optional<BufferOrEvent> getNext() {
-		BufferOrEvent next = bufferOrEvents.poll();
-		if (!finishAfterLastBuffer && bufferOrEvents.isEmpty()) {
-			availabilityHelper.resetUnavailable();
-		}
-		if (next == null) {
-			return Optional.empty();
-		}
+    @Override
+    public Optional<BufferOrEvent> getNext() {
+        BufferOrEvent next = bufferOrEvents.poll();
+        if (!finishAfterLastBuffer && bufferOrEvents.isEmpty()) {
+            availabilityHelper.resetUnavailable();
+        }
+        if (next == null) {
+            return Optional.empty();
+        }
 
-		int channelIdx = next.getChannelInfo().getInputChannelIdx();
-		if (closed[channelIdx]) {
-			throw new RuntimeException("Inconsistent: Channel " + channelIdx
-				+ " has data even though it is already closed.");
-		}
-		if (next.isEvent() && next.getEvent() instanceof EndOfPartitionEvent) {
-			closed[channelIdx] = true;
-		}
-		return Optional.of(next);
-	}
+        int channelIdx = next.getChannelInfo().getInputChannelIdx();
+        if (closed[channelIdx]) {
+            throw new RuntimeException(
+                    "Inconsistent: Channel "
+                            + channelIdx
+                            + " has data even though it is already closed.");
+        }
+        if (next.isEvent() && next.getEvent() instanceof EndOfPartitionEvent) {
+            closed[channelIdx] = true;
+        }
+        return Optional.of(next);
+    }
 
-	@Override
-	public Optional<BufferOrEvent> pollNext() {
-		return getNext();
-	}
+    @Override
+    public Optional<BufferOrEvent> pollNext() {
+        return getNext();
+    }
 
-	@Override
-	public void sendTaskEvent(TaskEvent event) {
-	}
+    @Override
+    public void sendTaskEvent(TaskEvent event) {}
 
-	@Override
-	public void resumeConsumption(InputChannelInfo channelInfo) {
-		lastUnblockedChannels.add(channelInfo.getInputChannelIdx());
-	}
+    @Override
+    public void resumeConsumption(InputChannelInfo channelInfo) {
+        lastUnblockedChannels.add(channelInfo.getInputChannelIdx());
+    }
 
-	public ArrayList<Integer> getAndResetLastUnblockedChannels() {
-		ArrayList<Integer> unblockedChannels = lastUnblockedChannels;
-		lastUnblockedChannels = new ArrayList<>();
-		return unblockedChannels;
-	}
+    public ArrayList<Integer> getAndResetLastUnblockedChannels() {
+        ArrayList<Integer> unblockedChannels = lastUnblockedChannels;
+        lastUnblockedChannels = new ArrayList<>();
+        return unblockedChannels;
+    }
 
-	@Override
-	public void close() {
-	}
+    @Override
+    public void close() {}
 
-	@Override
-	public int getGateIndex() {
-		return 0;
-	}
+    @Override
+    public int getGateIndex() {
+        return 0;
+    }
 }

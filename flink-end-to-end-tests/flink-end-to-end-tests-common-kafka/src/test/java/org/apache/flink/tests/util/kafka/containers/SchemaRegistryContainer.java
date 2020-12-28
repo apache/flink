@@ -21,30 +21,30 @@ package org.apache.flink.tests.util.kafka.containers;
 import org.testcontainers.containers.GenericContainer;
 
 /**
- * A container over an Confluent Schema Registry. It runs the schema registry on port 8082
- * in the docker network so that it does not overlap with Flink cluster.
+ * A container over an Confluent Schema Registry. It runs the schema registry on port 8082 in the
+ * docker network so that it does not overlap with Flink cluster.
  */
 public class SchemaRegistryContainer extends GenericContainer<SchemaRegistryContainer> {
 
-	public SchemaRegistryContainer(String version) {
-		super("confluentinc/cp-schema-registry:" + version);
-		withExposedPorts(8082);
-	}
+    public SchemaRegistryContainer(String version) {
+        super("confluentinc/cp-schema-registry:" + version);
+        withExposedPorts(8082);
+    }
 
-	public SchemaRegistryContainer withKafka(String kafkaBootstrapServer) {
-		withEnv(
-			"SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS",
-			"PLAINTEXT://" + kafkaBootstrapServer);
-		return this;
-	}
+    public SchemaRegistryContainer withKafka(String kafkaBootstrapServer) {
+        withEnv(
+                "SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS",
+                "PLAINTEXT://" + kafkaBootstrapServer);
+        return this;
+    }
 
-	@Override
-	protected void configure() {
-		withEnv("SCHEMA_REGISTRY_HOST_NAME", getNetworkAliases().get(0));
-		withEnv("SCHEMA_REGISTRY_LISTENERS", "http://0.0.0.0:8082");
-	}
+    @Override
+    protected void configure() {
+        withEnv("SCHEMA_REGISTRY_HOST_NAME", getNetworkAliases().get(0));
+        withEnv("SCHEMA_REGISTRY_LISTENERS", "http://0.0.0.0:8082");
+    }
 
-	public String getSchemaRegistryUrl() {
-		return "http://" + getContainerIpAddress() + ":" + getMappedPort(8082);
-	}
+    public String getSchemaRegistryUrl() {
+        return "http://" + getContainerIpAddress() + ":" + getMappedPort(8082);
+    }
 }

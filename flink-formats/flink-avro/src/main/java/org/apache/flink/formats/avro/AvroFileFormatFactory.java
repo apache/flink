@@ -44,106 +44,110 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Avro format factory for file system.
- */
+/** Avro format factory for file system. */
 public class AvroFileFormatFactory implements BulkWriterFormatFactory {
 
-	public static final String IDENTIFIER = "avro";
+    public static final String IDENTIFIER = "avro";
 
-	public static final ConfigOption<String> AVRO_OUTPUT_CODEC = ConfigOptions.key("codec")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("The compression codec for avro");
+    public static final ConfigOption<String> AVRO_OUTPUT_CODEC =
+            ConfigOptions.key("codec")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("The compression codec for avro");
 
-	@Override
-	public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
-			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-		return new EncodingFormat<BulkWriter.Factory<RowData>>() {
+    @Override
+    public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        return new EncodingFormat<BulkWriter.Factory<RowData>>() {
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
 
-			@Override
-			public BulkWriter.Factory<RowData> createRuntimeEncoder(
-					DynamicTableSink.Context context,
-					DataType consumedDataType) {
-				return new RowDataAvroWriterFactory(
-						(RowType) consumedDataType.getLogicalType(),
-						formatOptions.get(AVRO_OUTPUT_CODEC));
-			}
-		};
-	}
+            @Override
+            public BulkWriter.Factory<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType consumedDataType) {
+                return new RowDataAvroWriterFactory(
+                        (RowType) consumedDataType.getLogicalType(),
+                        formatOptions.get(AVRO_OUTPUT_CODEC));
+            }
+        };
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(AVRO_OUTPUT_CODEC);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(AVRO_OUTPUT_CODEC);
+        return options;
+    }
 
-	/**
-	 * A {@link BulkWriter.Factory} to convert {@link RowData} to {@link GenericRecord} and
-	 * wrap {@link AvroWriterFactory}.
-	 */
-	private static class RowDataAvroWriterFactory implements BulkWriter.Factory<RowData> {
+    /**
+     * A {@link BulkWriter.Factory} to convert {@link RowData} to {@link GenericRecord} and wrap
+     * {@link AvroWriterFactory}.
+     */
+    private static class RowDataAvroWriterFactory implements BulkWriter.Factory<RowData> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final AvroWriterFactory<GenericRecord> factory;
-		private final RowType rowType;
+        private final AvroWriterFactory<GenericRecord> factory;
+        private final RowType rowType;
 
-		private RowDataAvroWriterFactory(RowType rowType, String codec) {
-			this.rowType = rowType;
-			this.factory = new AvroWriterFactory<>((AvroBuilder<GenericRecord>) out -> {
-				Schema schema = AvroSchemaConverter.convertToSchema(rowType);
-				DatumWriter<GenericRecord> datumWriter = new GenericDatumWriter<>(schema);
-				DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(datumWriter);
+        private RowDataAvroWriterFactory(RowType rowType, String codec) {
+            this.rowType = rowType;
+            this.factory =
+                    new AvroWriterFactory<>(
+                            (AvroBuilder<GenericRecord>)
+                                    out -> {
+                                        Schema schema =
+                                                AvroSchemaConverter.convertToSchema(rowType);
+                                        DatumWriter<GenericRecord> datumWriter =
+                                                new GenericDatumWriter<>(schema);
+                                        DataFileWriter<GenericRecord> dataFileWriter =
+                                                new DataFileWriter<>(datumWriter);
 
-				if (codec != null) {
-					dataFileWriter.setCodec(CodecFactory.fromString(codec));
-				}
-				dataFileWriter.create(schema, out);
-				return dataFileWriter;
-			});
-		}
+                                        if (codec != null) {
+                                            dataFileWriter.setCodec(CodecFactory.fromString(codec));
+                                        }
+                                        dataFileWriter.create(schema, out);
+                                        return dataFileWriter;
+                                    });
+        }
 
-		@Override
-		public BulkWriter<RowData> create(FSDataOutputStream out) throws IOException {
-			BulkWriter<GenericRecord> writer = factory.create(out);
-			RowDataToAvroConverters.RowDataToAvroConverter converter =
-					RowDataToAvroConverters.createConverter(rowType);
-			Schema schema = AvroSchemaConverter.convertToSchema(rowType);
-			return new BulkWriter<RowData>() {
+        @Override
+        public BulkWriter<RowData> create(FSDataOutputStream out) throws IOException {
+            BulkWriter<GenericRecord> writer = factory.create(out);
+            RowDataToAvroConverters.RowDataToAvroConverter converter =
+                    RowDataToAvroConverters.createConverter(rowType);
+            Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+            return new BulkWriter<RowData>() {
 
-				@Override
-				public void addElement(RowData element) throws IOException {
-					GenericRecord record = (GenericRecord) converter.convert(schema, element);
-					writer.addElement(record);
-				}
+                @Override
+                public void addElement(RowData element) throws IOException {
+                    GenericRecord record = (GenericRecord) converter.convert(schema, element);
+                    writer.addElement(record);
+                }
 
-				@Override
-				public void flush() throws IOException {
-					writer.flush();
-				}
+                @Override
+                public void flush() throws IOException {
+                    writer.flush();
+                }
 
-				@Override
-				public void finish() throws IOException {
-					writer.finish();
-				}
-			};
-		}
-	}
+                @Override
+                public void finish() throws IOException {
+                    writer.finish();
+                }
+            };
+        }
+    }
 }

@@ -32,65 +32,73 @@ import java.util.Set;
  * associated counts. The counts are always positive (> 0).
  */
 public class ResourceCounter {
-	public static final ResourceCounter EMPTY = new ResourceCounter(Collections.emptyMap());
+    public static final ResourceCounter EMPTY = new ResourceCounter(Collections.emptyMap());
 
-	private final Map<ResourceProfile, Integer> resources;
+    private final Map<ResourceProfile, Integer> resources;
 
-	public ResourceCounter() {
-		this(new HashMap<>());
-	}
+    public ResourceCounter() {
+        this(new HashMap<>());
+    }
 
-	public ResourceCounter(Map<ResourceProfile, Integer> resources) {
-		this.resources = resources;
-	}
+    public ResourceCounter(Map<ResourceProfile, Integer> resources) {
+        this.resources = resources;
+    }
 
-	public void incrementCount(ResourceProfile profile, int increment) {
-		Preconditions.checkArgument(increment > 0);
-		resources.compute(profile, (ignored, currentCount) -> currentCount == null ? increment : currentCount + increment);
-	}
+    public void incrementCount(ResourceProfile profile, int increment) {
+        Preconditions.checkArgument(increment > 0);
+        resources.compute(
+                profile,
+                (ignored, currentCount) ->
+                        currentCount == null ? increment : currentCount + increment);
+    }
 
-	public void decrementCount(ResourceProfile profile, int decrement) {
-		Preconditions.checkArgument(decrement > 0);
-		resources.compute(profile, (p, currentCount) -> {
-			Preconditions.checkState(currentCount != null, "Attempting to decrement count of profile %s, but no count was present.", p);
-			return currentCount == decrement ? null : guardAgainstNegativeCount(currentCount - decrement);
-		});
-	}
+    public void decrementCount(ResourceProfile profile, int decrement) {
+        Preconditions.checkArgument(decrement > 0);
+        resources.compute(
+                profile,
+                (p, currentCount) -> {
+                    Preconditions.checkState(
+                            currentCount != null,
+                            "Attempting to decrement count of profile %s, but no count was present.",
+                            p);
+                    return currentCount == decrement
+                            ? null
+                            : guardAgainstNegativeCount(currentCount - decrement);
+                });
+    }
 
-	private static int guardAgainstNegativeCount(int count) {
-		if (count < 0) {
-			throw new IllegalStateException("Count is negative.");
-		}
-		return count;
-	}
+    private static int guardAgainstNegativeCount(int count) {
+        if (count < 0) {
+            throw new IllegalStateException("Count is negative.");
+        }
+        return count;
+    }
 
-	public Map<ResourceProfile, Integer> getResourceProfilesWithCount() {
-		return Collections.unmodifiableMap(resources);
-	}
+    public Map<ResourceProfile, Integer> getResourceProfilesWithCount() {
+        return Collections.unmodifiableMap(resources);
+    }
 
-	public Set<ResourceProfile> getResourceProfiles() {
-		return resources.keySet();
-	}
+    public Set<ResourceProfile> getResourceProfiles() {
+        return resources.keySet();
+    }
 
-	public int getResourceCount(ResourceProfile profile) {
-		return resources.getOrDefault(profile, 0);
-	}
+    public int getResourceCount(ResourceProfile profile) {
+        return resources.getOrDefault(profile, 0);
+    }
 
-	public int getResourceCount() {
-		return resources.isEmpty()
-			? 0
-			: resources.values().stream().reduce(0, Integer::sum);
-	}
+    public int getResourceCount() {
+        return resources.isEmpty() ? 0 : resources.values().stream().reduce(0, Integer::sum);
+    }
 
-	public ResourceCounter copy() {
-		return new ResourceCounter(new HashMap<>(resources));
-	}
+    public ResourceCounter copy() {
+        return new ResourceCounter(new HashMap<>(resources));
+    }
 
-	public boolean isEmpty() {
-		return resources.isEmpty();
-	}
+    public boolean isEmpty() {
+        return resources.isEmpty();
+    }
 
-	public void clear() {
-		resources.clear();
-	}
+    public void clear() {
+        resources.clear();
+    }
 }

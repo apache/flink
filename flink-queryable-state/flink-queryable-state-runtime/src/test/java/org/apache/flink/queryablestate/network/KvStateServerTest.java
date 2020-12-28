@@ -69,154 +69,157 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link KvStateServerImpl}.
- */
+/** Tests for {@link KvStateServerImpl}. */
 public class KvStateServerTest {
 
-	// Thread pool for client bootstrap (shared between tests)
-	private static final NioEventLoopGroup NIO_GROUP = new NioEventLoopGroup();
+    // Thread pool for client bootstrap (shared between tests)
+    private static final NioEventLoopGroup NIO_GROUP = new NioEventLoopGroup();
 
-	private static final int TIMEOUT_MILLIS = 10000;
+    private static final int TIMEOUT_MILLIS = 10000;
 
-	@AfterClass
-	public static void tearDown() throws Exception {
-		if (NIO_GROUP != null) {
-			// note: no "quiet period" to not trigger Netty#4357
-			NIO_GROUP.shutdownGracefully(0, 10, TimeUnit.SECONDS);
-		}
-	}
+    @AfterClass
+    public static void tearDown() throws Exception {
+        if (NIO_GROUP != null) {
+            // note: no "quiet period" to not trigger Netty#4357
+            NIO_GROUP.shutdownGracefully(0, 10, TimeUnit.SECONDS);
+        }
+    }
 
-	/**
-	 * Tests a simple successful query via a SocketChannel.
-	 */
-	@Test
-	public void testSimpleRequest() throws Throwable {
-		KvStateServerImpl server = null;
-		Bootstrap bootstrap = null;
-		try {
-			KvStateRegistry registry = new KvStateRegistry();
-			KvStateRequestStats stats = new AtomicKvStateRequestStats();
+    /** Tests a simple successful query via a SocketChannel. */
+    @Test
+    public void testSimpleRequest() throws Throwable {
+        KvStateServerImpl server = null;
+        Bootstrap bootstrap = null;
+        try {
+            KvStateRegistry registry = new KvStateRegistry();
+            KvStateRequestStats stats = new AtomicKvStateRequestStats();
 
-			server = new KvStateServerImpl(
-					InetAddress.getLocalHost().getHostName(),
-					Collections.singletonList(0).iterator(),
-					1,
-					1,
-					registry,
-					stats);
-			server.start();
+            server =
+                    new KvStateServerImpl(
+                            InetAddress.getLocalHost().getHostName(),
+                            Collections.singletonList(0).iterator(),
+                            1,
+                            1,
+                            registry,
+                            stats);
+            server.start();
 
-			InetSocketAddress serverAddress = server.getServerAddress();
-			int numKeyGroups = 1;
-			AbstractStateBackend abstractBackend = new MemoryStateBackend();
-			DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
-			dummyEnv.setKvStateRegistry(registry);
-			final JobID jobId = new JobID();
-			AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
-				dummyEnv,
-				jobId,
-				"test_op",
-				IntSerializer.INSTANCE,
-				numKeyGroups,
-				new KeyGroupRange(0, 0),
-				registry.createTaskRegistry(jobId, new JobVertexID()),
-				TtlTimeProvider.DEFAULT,
-				new UnregisteredMetricsGroup(),
-				Collections.emptyList(),
-				new CloseableRegistry());
+            InetSocketAddress serverAddress = server.getServerAddress();
+            int numKeyGroups = 1;
+            AbstractStateBackend abstractBackend = new MemoryStateBackend();
+            DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
+            dummyEnv.setKvStateRegistry(registry);
+            final JobID jobId = new JobID();
+            AbstractKeyedStateBackend<Integer> backend =
+                    abstractBackend.createKeyedStateBackend(
+                            dummyEnv,
+                            jobId,
+                            "test_op",
+                            IntSerializer.INSTANCE,
+                            numKeyGroups,
+                            new KeyGroupRange(0, 0),
+                            registry.createTaskRegistry(jobId, new JobVertexID()),
+                            TtlTimeProvider.DEFAULT,
+                            new UnregisteredMetricsGroup(),
+                            Collections.emptyList(),
+                            new CloseableRegistry());
 
-			final KvStateServerHandlerTest.TestRegistryListener registryListener =
-					new KvStateServerHandlerTest.TestRegistryListener();
+            final KvStateServerHandlerTest.TestRegistryListener registryListener =
+                    new KvStateServerHandlerTest.TestRegistryListener();
 
-			registry.registerListener(jobId, registryListener);
+            registry.registerListener(jobId, registryListener);
 
-			ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
-			desc.setQueryable("vanilla");
+            ValueStateDescriptor<Integer> desc =
+                    new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
+            desc.setQueryable("vanilla");
 
-			ValueState<Integer> state = backend.getPartitionedState(
-					VoidNamespace.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE,
-					desc);
+            ValueState<Integer> state =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
 
-			// Update KvState
-			int expectedValue = 712828289;
+            // Update KvState
+            int expectedValue = 712828289;
 
-			int key = 99812822;
-			backend.setCurrentKey(key);
-			state.update(expectedValue);
+            int key = 99812822;
+            backend.setCurrentKey(key);
+            state.update(expectedValue);
 
-			// Request
-			byte[] serializedKeyAndNamespace = KvStateSerializer.serializeKeyAndNamespace(
-					key,
-					IntSerializer.INSTANCE,
-					VoidNamespace.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE);
+            // Request
+            byte[] serializedKeyAndNamespace =
+                    KvStateSerializer.serializeKeyAndNamespace(
+                            key,
+                            IntSerializer.INSTANCE,
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE);
 
-			// Connect to the server
-			final BlockingQueue<ByteBuf> responses = new LinkedBlockingQueue<>();
-			bootstrap = createBootstrap(
-					new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4),
-					new ChannelInboundHandlerAdapter() {
-						@Override
-						public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-							responses.add((ByteBuf) msg);
-						}
-					});
+            // Connect to the server
+            final BlockingQueue<ByteBuf> responses = new LinkedBlockingQueue<>();
+            bootstrap =
+                    createBootstrap(
+                            new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4),
+                            new ChannelInboundHandlerAdapter() {
+                                @Override
+                                public void channelRead(ChannelHandlerContext ctx, Object msg)
+                                        throws Exception {
+                                    responses.add((ByteBuf) msg);
+                                }
+                            });
 
-			Channel channel = bootstrap
-					.connect(serverAddress.getAddress(), serverAddress.getPort())
-					.sync().channel();
+            Channel channel =
+                    bootstrap
+                            .connect(serverAddress.getAddress(), serverAddress.getPort())
+                            .sync()
+                            .channel();
 
-			long requestId = Integer.MAX_VALUE + 182828L;
+            long requestId = Integer.MAX_VALUE + 182828L;
 
-			assertTrue(registryListener.registrationName.equals("vanilla"));
+            assertTrue(registryListener.registrationName.equals("vanilla"));
 
-			final KvStateInternalRequest request = new KvStateInternalRequest(
-					registryListener.kvStateId,
-					serializedKeyAndNamespace);
+            final KvStateInternalRequest request =
+                    new KvStateInternalRequest(
+                            registryListener.kvStateId, serializedKeyAndNamespace);
 
-			ByteBuf serializeRequest = MessageSerializer.serializeRequest(
-					channel.alloc(),
-					requestId,
-					request);
+            ByteBuf serializeRequest =
+                    MessageSerializer.serializeRequest(channel.alloc(), requestId, request);
 
-			channel.writeAndFlush(serializeRequest);
+            channel.writeAndFlush(serializeRequest);
 
-			ByteBuf buf = responses.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+            ByteBuf buf = responses.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 
-			assertEquals(MessageType.REQUEST_RESULT, MessageSerializer.deserializeHeader(buf));
-			assertEquals(requestId, MessageSerializer.getRequestId(buf));
-			KvStateResponse response = server.getSerializer().deserializeResponse(buf);
+            assertEquals(MessageType.REQUEST_RESULT, MessageSerializer.deserializeHeader(buf));
+            assertEquals(requestId, MessageSerializer.getRequestId(buf));
+            KvStateResponse response = server.getSerializer().deserializeResponse(buf);
 
-			int actualValue = KvStateSerializer.deserializeValue(response.getContent(), IntSerializer.INSTANCE);
-			assertEquals(expectedValue, actualValue);
-		} finally {
-			if (server != null) {
-				server.shutdown();
-			}
+            int actualValue =
+                    KvStateSerializer.deserializeValue(
+                            response.getContent(), IntSerializer.INSTANCE);
+            assertEquals(expectedValue, actualValue);
+        } finally {
+            if (server != null) {
+                server.shutdown();
+            }
 
-			if (bootstrap != null) {
-				EventLoopGroup group = bootstrap.group();
-				if (group != null) {
-					// note: no "quiet period" to not trigger Netty#4357
-					group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
-				}
-			}
-		}
-	}
+            if (bootstrap != null) {
+                EventLoopGroup group = bootstrap.group();
+                if (group != null) {
+                    // note: no "quiet period" to not trigger Netty#4357
+                    group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
+                }
+            }
+        }
+    }
 
-	/**
-	 * Creates a client bootstrap.
-	 */
-	private Bootstrap createBootstrap(final ChannelHandler... handlers) {
-		return new Bootstrap().group(NIO_GROUP).channel(NioSocketChannel.class)
-				.handler(new ChannelInitializer<SocketChannel>() {
-					@Override
-					protected void initChannel(SocketChannel ch) throws Exception {
-						ch.pipeline().addLast(handlers);
-					}
-				});
-	}
-
+    /** Creates a client bootstrap. */
+    private Bootstrap createBootstrap(final ChannelHandler... handlers) {
+        return new Bootstrap()
+                .group(NIO_GROUP)
+                .channel(NioSocketChannel.class)
+                .handler(
+                        new ChannelInitializer<SocketChannel>() {
+                            @Override
+                            protected void initChannel(SocketChannel ch) throws Exception {
+                                ch.pipeline().addLast(handlers);
+                            }
+                        });
+    }
 }

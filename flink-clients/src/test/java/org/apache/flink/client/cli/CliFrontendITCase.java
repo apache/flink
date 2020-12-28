@@ -35,74 +35,80 @@ import java.util.Collections;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertThat;
 
-/**
- * Integration tests for {@link CliFrontend}.
- */
+/** Integration tests for {@link CliFrontend}. */
 public class CliFrontendITCase {
 
-	private PrintStream originalPrintStream;
+    private PrintStream originalPrintStream;
 
-	private ByteArrayOutputStream testOutputStream;
+    private ByteArrayOutputStream testOutputStream;
 
-	@Before
-	public void before() {
-		originalPrintStream = System.out;
-		testOutputStream = new ByteArrayOutputStream();
-		System.setOut(new PrintStream(testOutputStream));
-	}
+    @Before
+    public void before() {
+        originalPrintStream = System.out;
+        testOutputStream = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(testOutputStream));
+    }
 
-	@After
-	public void finalize() {
-		System.setOut(originalPrintStream);
-	}
+    @After
+    public void finalize() {
+        System.setOut(originalPrintStream);
+    }
 
-	private String getStdoutString() {
-		return testOutputStream.toString();
-	}
+    private String getStdoutString() {
+        return testOutputStream.toString();
+    }
 
-	@Test
-	public void configurationIsForwarded() throws Exception {
-		Configuration config = new Configuration();
-		CustomCommandLine commandLine = new DefaultCLI();
+    @Test
+    public void configurationIsForwarded() throws Exception {
+        Configuration config = new Configuration();
+        CustomCommandLine commandLine = new DefaultCLI();
 
-		config.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(42L));
+        config.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(42L));
 
-		CliFrontend cliFrontend = new CliFrontend(config, Collections.singletonList(commandLine));
+        CliFrontend cliFrontend = new CliFrontend(config, Collections.singletonList(commandLine));
 
-		cliFrontend.parseAndRun(new String[]{"run", "-c", TestingJob.class.getName(), CliFrontendTestUtils.getTestJarPath()});
+        cliFrontend.parseAndRun(
+                new String[] {
+                    "run", "-c", TestingJob.class.getName(), CliFrontendTestUtils.getTestJarPath()
+                });
 
-		assertThat(getStdoutString(), containsString("Watermark interval is 42"));
-	}
+        assertThat(getStdoutString(), containsString("Watermark interval is 42"));
+    }
 
-	@Test
-	public void commandlineOverridesConfiguration() throws Exception {
-		Configuration config = new Configuration();
+    @Test
+    public void commandlineOverridesConfiguration() throws Exception {
+        Configuration config = new Configuration();
 
-		// we use GenericCli because it allows specifying arbitrary options via "-Dfoo=bar" syntax
-		CustomCommandLine commandLine = new GenericCLI(config, "/dev/null");
+        // we use GenericCli because it allows specifying arbitrary options via "-Dfoo=bar" syntax
+        CustomCommandLine commandLine = new GenericCLI(config, "/dev/null");
 
-		config.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(42L));
+        config.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(42L));
 
-		CliFrontend cliFrontend = new CliFrontend(config, Collections.singletonList(commandLine));
+        CliFrontend cliFrontend = new CliFrontend(config, Collections.singletonList(commandLine));
 
-		cliFrontend.parseAndRun(new String[]{
-				"run",
-				"-t", LocalExecutor.NAME,
-				"-c", TestingJob.class.getName(),
-				"-D" + PipelineOptions.AUTO_WATERMARK_INTERVAL.key() + "=142",
-				CliFrontendTestUtils.getTestJarPath()});
+        cliFrontend.parseAndRun(
+                new String[] {
+                    "run",
+                    "-t",
+                    LocalExecutor.NAME,
+                    "-c",
+                    TestingJob.class.getName(),
+                    "-D" + PipelineOptions.AUTO_WATERMARK_INTERVAL.key() + "=142",
+                    CliFrontendTestUtils.getTestJarPath()
+                });
 
-		assertThat(getStdoutString(), containsString("Watermark interval is 142"));
-	}
+        assertThat(getStdoutString(), containsString("Watermark interval is 142"));
+    }
 
-	/**
-	 * Testing job that the watermark interval from the {@link org.apache.flink.api.common.ExecutionConfig}.
-	 */
-	public static class TestingJob {
-		public static void main(String[] args) {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			System.out.println(
-					"Watermark interval is " + env.getConfig().getAutoWatermarkInterval());
-		}
-	}
+    /**
+     * Testing job that the watermark interval from the {@link
+     * org.apache.flink.api.common.ExecutionConfig}.
+     */
+    public static class TestingJob {
+        public static void main(String[] args) {
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            System.out.println(
+                    "Watermark interval is " + env.getConfig().getAutoWatermarkInterval());
+        }
+    }
 }

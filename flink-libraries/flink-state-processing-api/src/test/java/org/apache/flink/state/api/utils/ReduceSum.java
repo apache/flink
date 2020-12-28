@@ -20,13 +20,11 @@ package org.apache.flink.state.api.utils;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 
-/**
- * A simple sum reducer.
- */
+/** A simple sum reducer. */
 public class ReduceSum implements ReduceFunction<Integer> {
 
-	@Override
-	public Integer reduce(Integer value1, Integer value2) {
-		return value1 + value2;
-	}
+    @Override
+    public Integer reduce(Integer value1, Integer value2) {
+        return value1 + value2;
+    }
 }

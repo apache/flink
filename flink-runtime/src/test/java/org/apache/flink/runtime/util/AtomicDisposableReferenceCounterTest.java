@@ -33,91 +33,95 @@ import static org.junit.Assert.assertTrue;
 
 public class AtomicDisposableReferenceCounterTest {
 
-	@Test
-	public void testSerialIncrementAndDecrement() {
-		AtomicDisposableReferenceCounter counter = new AtomicDisposableReferenceCounter();
+    @Test
+    public void testSerialIncrementAndDecrement() {
+        AtomicDisposableReferenceCounter counter = new AtomicDisposableReferenceCounter();
 
-		assertTrue(counter.increment());
+        assertTrue(counter.increment());
 
-		assertTrue(counter.decrement());
+        assertTrue(counter.decrement());
 
-		assertFalse(counter.increment());
+        assertFalse(counter.increment());
 
-		assertFalse(counter.decrement());
-	}
+        assertFalse(counter.decrement());
+    }
 
-	@Test
-	public void testSerialIncrementAndDecrementWithCustomDisposeCount() {
-		AtomicDisposableReferenceCounter counter = new AtomicDisposableReferenceCounter(-2);
+    @Test
+    public void testSerialIncrementAndDecrementWithCustomDisposeCount() {
+        AtomicDisposableReferenceCounter counter = new AtomicDisposableReferenceCounter(-2);
 
-		assertTrue(counter.increment());
+        assertTrue(counter.increment());
 
-		assertFalse(counter.decrement());
+        assertFalse(counter.decrement());
 
-		assertFalse(counter.decrement());
+        assertFalse(counter.decrement());
 
-		assertTrue(counter.decrement());
-	}
+        assertTrue(counter.decrement());
+    }
 
-	@Test
-	public void testConcurrentIncrementAndDecrement() throws InterruptedException, ExecutionException, TimeoutException {
-		final Random random = new Random();
+    @Test
+    public void testConcurrentIncrementAndDecrement()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        final Random random = new Random();
 
-		final ExecutorService executor = Executors.newFixedThreadPool(2);
+        final ExecutorService executor = Executors.newFixedThreadPool(2);
 
-		try {
-			final MockIncrementer incrementer = new MockIncrementer();
+        try {
+            final MockIncrementer incrementer = new MockIncrementer();
 
-			final MockDecrementer decrementer = new MockDecrementer();
+            final MockDecrementer decrementer = new MockDecrementer();
 
-			// Repeat this to provoke races
-			for (int i = 0; i < 256; i++) {
-				final AtomicDisposableReferenceCounter counter = new AtomicDisposableReferenceCounter();
-				incrementer.setCounter(counter);
-				decrementer.setCounter(counter);
+            // Repeat this to provoke races
+            for (int i = 0; i < 256; i++) {
+                final AtomicDisposableReferenceCounter counter =
+                        new AtomicDisposableReferenceCounter();
+                incrementer.setCounter(counter);
+                decrementer.setCounter(counter);
 
-				counter.increment();
+                counter.increment();
 
-				// Randomly decide which one should be first as the first task usually will win the race
-				boolean incrementFirst = random.nextBoolean();
+                // Randomly decide which one should be first as the first task usually will win the
+                // race
+                boolean incrementFirst = random.nextBoolean();
 
-				Future<Boolean> success1 = executor.submit(incrementFirst ? incrementer : decrementer);
-				Future<Boolean> success2 = executor.submit(incrementFirst ? decrementer : incrementer);
+                Future<Boolean> success1 =
+                        executor.submit(incrementFirst ? incrementer : decrementer);
+                Future<Boolean> success2 =
+                        executor.submit(incrementFirst ? decrementer : incrementer);
 
-				// Only one of the two should win the race and return true
-				assertTrue(success1.get() ^ success2.get());
-			}
-		}
-		finally {
-			executor.shutdownNow();
-		}
-	}
+                // Only one of the two should win the race and return true
+                assertTrue(success1.get() ^ success2.get());
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 
-	private static class MockIncrementer implements Callable<Boolean> {
+    private static class MockIncrementer implements Callable<Boolean> {
 
-		private AtomicDisposableReferenceCounter counter;
+        private AtomicDisposableReferenceCounter counter;
 
-		void setCounter(AtomicDisposableReferenceCounter counter) {
-			this.counter = counter;
-		}
+        void setCounter(AtomicDisposableReferenceCounter counter) {
+            this.counter = counter;
+        }
 
-		@Override
-		public Boolean call() throws Exception {
-			return counter.increment();
-		}
-	}
+        @Override
+        public Boolean call() throws Exception {
+            return counter.increment();
+        }
+    }
 
-	private static class MockDecrementer implements Callable<Boolean> {
+    private static class MockDecrementer implements Callable<Boolean> {
 
-		private AtomicDisposableReferenceCounter counter;
+        private AtomicDisposableReferenceCounter counter;
 
-		void setCounter(AtomicDisposableReferenceCounter counter) {
-			this.counter = counter;
-		}
+        void setCounter(AtomicDisposableReferenceCounter counter) {
+            this.counter = counter;
+        }
 
-		@Override
-		public Boolean call() throws Exception {
-			return counter.decrement();
-		}
-	}
+        @Override
+        public Boolean call() throws Exception {
+            return counter.decrement();
+        }
+    }
 }

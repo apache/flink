@@ -20,25 +20,26 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-/**
- * A mailbox executor that immediately executes code in the current thread.
- */
+/** A mailbox executor that immediately executes code in the current thread. */
 public class SyncMailboxExecutor implements MailboxExecutor {
-	@Override
-	public void execute(ThrowingRunnable<? extends Exception> command, String descriptionFormat, Object... descriptionArgs) {
-		try {
-			command.run();
-		} catch (Exception e) {
-			throw new FlinkRuntimeException("Cannot execute mail " + String.format(descriptionFormat, descriptionArgs), e);
-		}
-	}
+    @Override
+    public void execute(
+            ThrowingRunnable<? extends Exception> command,
+            String descriptionFormat,
+            Object... descriptionArgs) {
+        try {
+            command.run();
+        } catch (Exception e) {
+            throw new FlinkRuntimeException(
+                    "Cannot execute mail " + String.format(descriptionFormat, descriptionArgs), e);
+        }
+    }
 
-	@Override
-	public void yield() throws FlinkRuntimeException {
-	}
+    @Override
+    public void yield() throws FlinkRuntimeException {}
 
-	@Override
-	public boolean tryYield() throws FlinkRuntimeException {
-		return false;
-	}
+    @Override
+    public boolean tryYield() throws FlinkRuntimeException {
+        return false;
+    }
 }

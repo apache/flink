@@ -25,42 +25,43 @@ import java.util.HashMap;
 import java.util.Optional;
 
 /**
- * A view created from a {@link QueryOperation} via operations on {@link org.apache.flink.table.api.Table}.
+ * A view created from a {@link QueryOperation} via operations on {@link
+ * org.apache.flink.table.api.Table}.
  */
 @Internal
 public class QueryOperationCatalogView extends AbstractCatalogView {
-	private final QueryOperation queryOperation;
+    private final QueryOperation queryOperation;
 
-	public QueryOperationCatalogView(QueryOperation queryOperation) {
-		this(queryOperation, "");
-	}
+    public QueryOperationCatalogView(QueryOperation queryOperation) {
+        this(queryOperation, "");
+    }
 
-	public QueryOperationCatalogView(QueryOperation queryOperation, String comment) {
-		super(
-			queryOperation.asSummaryString(),
-			queryOperation.asSummaryString(),
-			queryOperation.getTableSchema(),
-			new HashMap<>(),
-			comment);
-		this.queryOperation = queryOperation;
-	}
+    public QueryOperationCatalogView(QueryOperation queryOperation, String comment) {
+        super(
+                queryOperation.asSummaryString(),
+                queryOperation.asSummaryString(),
+                queryOperation.getTableSchema(),
+                new HashMap<>(),
+                comment);
+        this.queryOperation = queryOperation;
+    }
 
-	public QueryOperation getQueryOperation() {
-		return queryOperation;
-	}
+    public QueryOperation getQueryOperation() {
+        return queryOperation;
+    }
 
-	@Override
-	public QueryOperationCatalogView copy() {
-		return new QueryOperationCatalogView(this.queryOperation, getComment());
-	}
+    @Override
+    public QueryOperationCatalogView copy() {
+        return new QueryOperationCatalogView(this.queryOperation, getComment());
+    }
 
-	@Override
-	public Optional<String> getDescription() {
-		return Optional.of(getComment());
-	}
+    @Override
+    public Optional<String> getDescription() {
+        return Optional.of(getComment());
+    }
 
-	@Override
-	public Optional<String> getDetailedDescription() {
-		return getDescription();
-	}
+    @Override
+    public Optional<String> getDetailedDescription() {
+        return getDescription();
+    }
 }

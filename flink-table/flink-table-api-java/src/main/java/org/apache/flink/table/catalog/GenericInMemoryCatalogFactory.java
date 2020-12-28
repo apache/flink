@@ -33,44 +33,44 @@ import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATA
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.apache.flink.table.descriptors.GenericInMemoryCatalogValidator.CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY;
 
-/**
- * Catalog factory for {@link GenericInMemoryCatalog}.
- */
+/** Catalog factory for {@link GenericInMemoryCatalog}. */
 public class GenericInMemoryCatalogFactory implements CatalogFactory {
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(CATALOG_TYPE, CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY); // generic_in_memory
-		context.put(CATALOG_PROPERTY_VERSION, "1"); // backwards compatibility
-		return context;
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>();
+        context.put(CATALOG_TYPE, CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY); // generic_in_memory
+        context.put(CATALOG_PROPERTY_VERSION, "1"); // backwards compatibility
+        return context;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		List<String> properties = new ArrayList<>();
+    @Override
+    public List<String> supportedProperties() {
+        List<String> properties = new ArrayList<>();
 
-		// default database
-		properties.add(CATALOG_DEFAULT_DATABASE);
+        // default database
+        properties.add(CATALOG_DEFAULT_DATABASE);
 
-		return properties;
-	}
+        return properties;
+    }
 
-	@Override
-	public Catalog createCatalog(String name, Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+    @Override
+    public Catalog createCatalog(String name, Map<String, String> properties) {
+        final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		final Optional<String> defaultDatabase = descriptorProperties.getOptionalString(CATALOG_DEFAULT_DATABASE);
+        final Optional<String> defaultDatabase =
+                descriptorProperties.getOptionalString(CATALOG_DEFAULT_DATABASE);
 
-		return new GenericInMemoryCatalog(name, defaultDatabase.orElse(GenericInMemoryCatalog.DEFAULT_DB));
-	}
+        return new GenericInMemoryCatalog(
+                name, defaultDatabase.orElse(GenericInMemoryCatalog.DEFAULT_DB));
+    }
 
-	private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putProperties(properties);
+    private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
+        final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+        descriptorProperties.putProperties(properties);
 
-		new GenericInMemoryCatalogValidator().validate(descriptorProperties);
+        new GenericInMemoryCatalogValidator().validate(descriptorProperties);
 
-		return descriptorProperties;
-	}
+        return descriptorProperties;
+    }
 }

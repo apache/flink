@@ -46,102 +46,98 @@ import java.util.Set;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITER;
 
-/**
- * Test csv {@link FileSystemFormatFactory}.
- */
-public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory, BulkWriterFormatFactory {
+/** Test csv {@link FileSystemFormatFactory}. */
+public class TestCsvFileSystemFormatFactory
+        implements FileSystemFormatFactory, BulkWriterFormatFactory {
 
-	@Override
-	public String factoryIdentifier() {
-		return "testcsv";
-	}
+    @Override
+    public String factoryIdentifier() {
+        return "testcsv";
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		return new TestRowDataCsvInputFormat(
-				context.getPaths(),
-				context.getSchema(),
-				context.getPartitionKeys(),
-				context.getDefaultPartName(),
-				context.getProjectFields(),
-				context.getPushedDownLimit());
-	}
+    @Override
+    public InputFormat<RowData, ?> createReader(ReaderContext context) {
+        return new TestRowDataCsvInputFormat(
+                context.getPaths(),
+                context.getSchema(),
+                context.getPartitionKeys(),
+                context.getDefaultPartName(),
+                context.getProjectFields(),
+                context.getPushedDownLimit());
+    }
 
-	private static void writeCsvToStream(
-			DataType[] types,
-			RowData rowData,
-			OutputStream stream) throws IOException {
-		LogicalType[] fieldTypes = Arrays.stream(types)
-				.map(DataType::getLogicalType)
-				.toArray(LogicalType[]::new);
-		DataFormatConverters.DataFormatConverter converter = DataFormatConverters.getConverterForDataType(
-				TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
+    private static void writeCsvToStream(DataType[] types, RowData rowData, OutputStream stream)
+            throws IOException {
+        LogicalType[] fieldTypes =
+                Arrays.stream(types).map(DataType::getLogicalType).toArray(LogicalType[]::new);
+        DataFormatConverters.DataFormatConverter converter =
+                DataFormatConverters.getConverterForDataType(
+                        TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
 
-		Row row = (Row) converter.toExternal(rowData);
-		StringBuilder builder = new StringBuilder();
-		Object o;
-		for (int i = 0; i < row.getArity(); i++) {
-			if (i > 0) {
-				builder.append(DEFAULT_FIELD_DELIMITER);
-			}
-			if ((o = row.getField(i)) != null) {
-				builder.append(o);
-			}
-		}
-		String str = builder.toString();
-		stream.write(str.getBytes(StandardCharsets.UTF_8));
-		stream.write(DEFAULT_LINE_DELIMITER.getBytes(StandardCharsets.UTF_8));
-	}
+        Row row = (Row) converter.toExternal(rowData);
+        StringBuilder builder = new StringBuilder();
+        Object o;
+        for (int i = 0; i < row.getArity(); i++) {
+            if (i > 0) {
+                builder.append(DEFAULT_FIELD_DELIMITER);
+            }
+            if ((o = row.getField(i)) != null) {
+                builder.append(o);
+            }
+        }
+        String str = builder.toString();
+        stream.write(str.getBytes(StandardCharsets.UTF_8));
+        stream.write(DEFAULT_LINE_DELIMITER.getBytes(StandardCharsets.UTF_8));
+    }
 
-	@Override
-	public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
-			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-		return new EncodingFormat<BulkWriter.Factory<RowData>>() {
-			@Override
-			public BulkWriter.Factory<RowData> createRuntimeEncoder(
-					DynamicTableSink.Context context, DataType consumedDataType) {
-				return out -> new CsvBulkWriter(
-						consumedDataType.getChildren().toArray(new DataType[0]), out);
-			}
+    @Override
+    public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        return new EncodingFormat<BulkWriter.Factory<RowData>>() {
+            @Override
+            public BulkWriter.Factory<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType consumedDataType) {
+                return out ->
+                        new CsvBulkWriter(
+                                consumedDataType.getChildren().toArray(new DataType[0]), out);
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 
-	private static class CsvBulkWriter implements BulkWriter<RowData> {
+    private static class CsvBulkWriter implements BulkWriter<RowData> {
 
-		private final DataType[] types;
-		private final OutputStream stream;
+        private final DataType[] types;
+        private final OutputStream stream;
 
-		private CsvBulkWriter(DataType[] types, OutputStream stream) {
-			this.types = types;
-			this.stream = stream;
-		}
+        private CsvBulkWriter(DataType[] types, OutputStream stream) {
+            this.types = types;
+            this.stream = stream;
+        }
 
-		@Override
-		public void addElement(RowData element) throws IOException {
-			writeCsvToStream(types, element, stream);
-		}
+        @Override
+        public void addElement(RowData element) throws IOException {
+            writeCsvToStream(types, element, stream);
+        }
 
-		@Override
-		public void flush() {
-		}
+        @Override
+        public void flush() {}
 
-		@Override
-		public void finish() {
-		}
-	}
+        @Override
+        public void finish() {}
+    }
 }

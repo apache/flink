@@ -37,89 +37,56 @@ import static java.util.Collections.singletonList;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for parsing a Table API specific SqlIdentifier.
- */
+/** Tests for parsing a Table API specific SqlIdentifier. */
 @RunWith(Parameterized.class)
 public class TableApiIdentifierParsingTest {
 
-	private static final String ANTHROPOS_IN_GREEK_IN_UNICODE = "#03B1#03BD#03B8#03C1#03C9#03C0#03BF#03C2";
-	private static final String ANTHROPOS_IN_GREEK = "ανθρωπος";
+    private static final String ANTHROPOS_IN_GREEK_IN_UNICODE =
+            "#03B1#03BD#03B8#03C1#03C9#03C0#03BF#03C2";
+    private static final String ANTHROPOS_IN_GREEK = "ανθρωπος";
 
-	@Parameterized.Parameters(name = "Parsing: {0}. Expected identifier: {1}")
-	public static Object[][] parameters() {
-		return new Object[][] {
-			new Object[] {
-				"array",
-				singletonList("array")
-			},
+    @Parameterized.Parameters(name = "Parsing: {0}. Expected identifier: {1}")
+    public static Object[][] parameters() {
+        return new Object[][] {
+            new Object[] {"array", singletonList("array")},
+            new Object[] {"table", singletonList("table")},
+            new Object[] {"cat.db.array", asList("cat", "db", "array")},
+            new Object[] {"`cat.db`.table", asList("cat.db", "table")},
+            new Object[] {"db.table", asList("db", "table")},
+            new Object[] {"`ta``ble`", singletonList("ta`ble")},
+            new Object[] {"`c``at`.`d``b`.`ta``ble`", asList("c`at", "d`b", "ta`ble")},
+            new Object[] {
+                "db.U&\"" + ANTHROPOS_IN_GREEK_IN_UNICODE + "\" UESCAPE '#'",
+                asList("db", ANTHROPOS_IN_GREEK)
+            },
+            new Object[] {"db.ανθρωπος", asList("db", ANTHROPOS_IN_GREEK)}
+        };
+    }
 
-			new Object[] {
-				"table",
-				singletonList("table")
-			},
+    @Parameterized.Parameter public String stringIdentifier;
 
-			new Object[] {
-				"cat.db.array",
-				asList("cat", "db", "array")
-			},
+    @Parameterized.Parameter(1)
+    public List<String> expectedParsedIdentifier;
 
-			new Object[] {
-				"`cat.db`.table",
-				asList("cat.db", "table")
-			},
+    @Test
+    public void testTableApiIdentifierParsing() throws ParseException {
+        FlinkSqlParserImpl parser = createFlinkParser(stringIdentifier);
 
-			new Object[] {
-				"db.table",
-				asList("db", "table")
-			},
+        SqlIdentifier sqlIdentifier = parser.TableApiIdentifier();
+        assertThat(sqlIdentifier.names, equalTo(expectedParsedIdentifier));
+    }
 
-			new Object[] {
-				"`ta``ble`",
-				singletonList("ta`ble")
-			},
+    private FlinkSqlParserImpl createFlinkParser(String expr) {
+        SourceStringReader reader = new SourceStringReader(expr);
+        FlinkSqlParserImpl parser =
+                (FlinkSqlParserImpl) FlinkSqlParserImpl.FACTORY.getParser(reader);
+        parser.setTabSize(1);
+        parser.setUnquotedCasing(Lex.JAVA.unquotedCasing);
+        parser.setQuotedCasing(Lex.JAVA.quotedCasing);
+        parser.setIdentifierMaxLength(256);
+        parser.setConformance(FlinkSqlConformance.DEFAULT);
+        parser.switchTo(SqlAbstractParserImpl.LexicalState.BTID);
 
-			new Object[] {
-				"`c``at`.`d``b`.`ta``ble`",
-				asList("c`at", "d`b", "ta`ble")
-			},
-
-			new Object[] {
-				"db.U&\"" + ANTHROPOS_IN_GREEK_IN_UNICODE + "\" UESCAPE '#'",
-				asList("db", ANTHROPOS_IN_GREEK)
-			},
-
-			new Object[] {
-				"db.ανθρωπος",
-				asList("db", ANTHROPOS_IN_GREEK)
-			}
-		};
-	}
-
-	@Parameterized.Parameter
-	public String stringIdentifier;
-
-	@Parameterized.Parameter(1)
-	public List<String> expectedParsedIdentifier;
-
-	@Test
-	public void testTableApiIdentifierParsing() throws ParseException {
-		FlinkSqlParserImpl parser = createFlinkParser(stringIdentifier);
-
-		SqlIdentifier sqlIdentifier = parser.TableApiIdentifier();
-		assertThat(sqlIdentifier.names, equalTo(expectedParsedIdentifier));
-	}
-
-	private FlinkSqlParserImpl createFlinkParser(String expr) {
-		SourceStringReader reader = new SourceStringReader(expr);
-		FlinkSqlParserImpl parser = (FlinkSqlParserImpl) FlinkSqlParserImpl.FACTORY.getParser(reader);
-		parser.setTabSize(1);
-		parser.setUnquotedCasing(Lex.JAVA.unquotedCasing);
-		parser.setQuotedCasing(Lex.JAVA.quotedCasing);
-		parser.setIdentifierMaxLength(256);
-		parser.setConformance(FlinkSqlConformance.DEFAULT);
-		parser.switchTo(SqlAbstractParserImpl.LexicalState.BTID);
-
-		return parser;
-	}
+        return parser;
+    }
 }

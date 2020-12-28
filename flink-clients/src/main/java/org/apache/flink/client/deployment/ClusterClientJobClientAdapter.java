@@ -43,107 +43,115 @@ import java.util.function.Function;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An implementation of the {@link JobClient} interface that uses a {@link ClusterClient} underneath..
+ * An implementation of the {@link JobClient} interface that uses a {@link ClusterClient}
+ * underneath..
  */
-public class ClusterClientJobClientAdapter<ClusterID> implements JobClient, CoordinationRequestGateway {
+public class ClusterClientJobClientAdapter<ClusterID>
+        implements JobClient, CoordinationRequestGateway {
 
-	private final ClusterClientProvider<ClusterID> clusterClientProvider;
+    private final ClusterClientProvider<ClusterID> clusterClientProvider;
 
-	private final JobID jobID;
+    private final JobID jobID;
 
-	private final ClassLoader classLoader;
+    private final ClassLoader classLoader;
 
-	public ClusterClientJobClientAdapter(final ClusterClientProvider<ClusterID> clusterClientProvider, final JobID jobID, final ClassLoader classLoader) {
-		this.jobID = checkNotNull(jobID);
-		this.clusterClientProvider = checkNotNull(clusterClientProvider);
-		this.classLoader = classLoader;
-	}
+    public ClusterClientJobClientAdapter(
+            final ClusterClientProvider<ClusterID> clusterClientProvider,
+            final JobID jobID,
+            final ClassLoader classLoader) {
+        this.jobID = checkNotNull(jobID);
+        this.clusterClientProvider = checkNotNull(clusterClientProvider);
+        this.classLoader = classLoader;
+    }
 
-	@Override
-	public JobID getJobID() {
-		return jobID;
-	}
+    @Override
+    public JobID getJobID() {
+        return jobID;
+    }
 
-	@Override
-	public CompletableFuture<JobStatus> getJobStatus() {
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient -> clusterClient.getJobStatus(jobID)));
-	}
+    @Override
+    public CompletableFuture<JobStatus> getJobStatus() {
+        return bridgeClientRequest(
+                clusterClientProvider, (clusterClient -> clusterClient.getJobStatus(jobID)));
+    }
 
-	@Override
-	public CompletableFuture<Void> cancel() {
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient -> clusterClient.cancel(jobID).thenApply((ignored) -> null)));
-	}
+    @Override
+    public CompletableFuture<Void> cancel() {
+        return bridgeClientRequest(
+                clusterClientProvider,
+                (clusterClient -> clusterClient.cancel(jobID).thenApply((ignored) -> null)));
+    }
 
-	@Override
-	public CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient ->
-						clusterClient.stopWithSavepoint(jobID, advanceToEndOfEventTime, savepointDirectory)));
-	}
+    @Override
+    public CompletableFuture<String> stopWithSavepoint(
+            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
+        return bridgeClientRequest(
+                clusterClientProvider,
+                (clusterClient ->
+                        clusterClient.stopWithSavepoint(
+                                jobID, advanceToEndOfEventTime, savepointDirectory)));
+    }
 
-	@Override
-	public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient ->
-						clusterClient.triggerSavepoint(jobID, savepointDirectory)));
-	}
+    @Override
+    public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
+        return bridgeClientRequest(
+                clusterClientProvider,
+                (clusterClient -> clusterClient.triggerSavepoint(jobID, savepointDirectory)));
+    }
 
-	@Override
-	public CompletableFuture<Map<String, Object>> getAccumulators() {
-		checkNotNull(classLoader);
+    @Override
+    public CompletableFuture<Map<String, Object>> getAccumulators() {
+        checkNotNull(classLoader);
 
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient ->
-						clusterClient.getAccumulators(jobID, classLoader)));
-	}
+        return bridgeClientRequest(
+                clusterClientProvider,
+                (clusterClient -> clusterClient.getAccumulators(jobID, classLoader)));
+    }
 
-	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
-		checkNotNull(classLoader);
+    @Override
+    public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
+        checkNotNull(classLoader);
 
-		return bridgeClientRequest(
-				clusterClientProvider,
-				(clusterClient -> clusterClient
-					.requestJobResult(jobID)
-					.thenApply((jobResult) -> {
-						try {
-							return jobResult.toJobExecutionResult(classLoader);
-						} catch (Throwable t) {
-							throw new CompletionException(
-									new ProgramInvocationException("Job failed", jobID, t));
-						}
-					})));
-	}
+        return bridgeClientRequest(
+                clusterClientProvider,
+                (clusterClient ->
+                        clusterClient
+                                .requestJobResult(jobID)
+                                .thenApply(
+                                        (jobResult) -> {
+                                            try {
+                                                return jobResult.toJobExecutionResult(classLoader);
+                                            } catch (Throwable t) {
+                                                throw new CompletionException(
+                                                        new ProgramInvocationException(
+                                                                "Job failed", jobID, t));
+                                            }
+                                        })));
+    }
 
-	@Override
-	public CompletableFuture<CoordinationResponse> sendCoordinationRequest(OperatorID operatorId, CoordinationRequest request) {
-		return bridgeClientRequest(
-			clusterClientProvider,
-			clusterClient -> clusterClient.sendCoordinationRequest(jobID, operatorId, request));
-	}
+    @Override
+    public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
+            OperatorID operatorId, CoordinationRequest request) {
+        return bridgeClientRequest(
+                clusterClientProvider,
+                clusterClient -> clusterClient.sendCoordinationRequest(jobID, operatorId, request));
+    }
 
-	private static <T> CompletableFuture<T> bridgeClientRequest(
-			ClusterClientProvider<?> clusterClientProvider,
-			Function<ClusterClient<?>, CompletableFuture<T>> resultRetriever) {
+    private static <T> CompletableFuture<T> bridgeClientRequest(
+            ClusterClientProvider<?> clusterClientProvider,
+            Function<ClusterClient<?>, CompletableFuture<T>> resultRetriever) {
 
-		ClusterClient<?> clusterClient = clusterClientProvider.getClusterClient();
+        ClusterClient<?> clusterClient = clusterClientProvider.getClusterClient();
 
-		CompletableFuture<T> resultFuture;
-		try {
-			resultFuture = resultRetriever.apply(clusterClient);
-		} catch (Throwable throwable) {
-			IOUtils.closeQuietly(clusterClient::close);
-			return FutureUtils.completedExceptionally(throwable);
-		}
+        CompletableFuture<T> resultFuture;
+        try {
+            resultFuture = resultRetriever.apply(clusterClient);
+        } catch (Throwable throwable) {
+            IOUtils.closeQuietly(clusterClient::close);
+            return FutureUtils.completedExceptionally(throwable);
+        }
 
-		return resultFuture.whenCompleteAsync(
-				(jobResult, throwable) -> IOUtils.closeQuietly(clusterClient::close));
-	}
+        return resultFuture.whenCompleteAsync(
+                (jobResult, throwable) -> IOUtils.closeQuietly(clusterClient::close));
+    }
 }

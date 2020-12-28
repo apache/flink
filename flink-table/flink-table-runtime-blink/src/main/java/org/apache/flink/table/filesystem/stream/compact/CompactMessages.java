@@ -29,8 +29,8 @@ import java.util.stream.Collectors;
 /**
  * Util class for all compaction messages.
  *
- * <p>The compaction operator graph is:
- * TempFileWriter|parallel ---(InputFile&EndInputFile)---> CompactCoordinator|non-parallel
+ * <p>The compaction operator graph is: TempFileWriter|parallel ---(InputFile&EndInputFile)--->
+ * CompactCoordinator|non-parallel
  * ---(CompactionUnit&EndCompaction)--->CompactOperator|parallel---(PartitionCommitInfo)--->
  * PartitionCommitter|non-parallel
  *
@@ -38,129 +38,115 @@ import java.util.stream.Collectors;
  * in the way of full broadcast in the link from coordinator to compact operator.
  */
 public class CompactMessages {
-	private CompactMessages() {}
+    private CompactMessages() {}
 
-	/**
-	 * The input of compact coordinator.
-	 */
-	public interface CoordinatorInput extends Serializable {}
+    /** The input of compact coordinator. */
+    public interface CoordinatorInput extends Serializable {}
 
-	/**
-	 * A partitioned input file.
-	 */
-	public static class InputFile implements CoordinatorInput {
+    /** A partitioned input file. */
+    public static class InputFile implements CoordinatorInput {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final String partition;
-		private final Path file;
+        private final String partition;
+        private final Path file;
 
-		public InputFile(String partition, Path file) {
-			this.partition = partition;
-			this.file = file;
-		}
+        public InputFile(String partition, Path file) {
+            this.partition = partition;
+            this.file = file;
+        }
 
-		public String getPartition() {
-			return partition;
-		}
+        public String getPartition() {
+            return partition;
+        }
 
-		public Path getFile() {
-			return file;
-		}
-	}
+        public Path getFile() {
+            return file;
+        }
+    }
 
-	/**
-	 * A flag to end checkpoint, coordinator can start coordinating one checkpoint.
-	 */
-	public static class EndCheckpoint implements CoordinatorInput {
+    /** A flag to end checkpoint, coordinator can start coordinating one checkpoint. */
+    public static class EndCheckpoint implements CoordinatorInput {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final long checkpointId;
-		private final int taskId;
-		private final int numberOfTasks;
+        private final long checkpointId;
+        private final int taskId;
+        private final int numberOfTasks;
 
-		public EndCheckpoint(long checkpointId, int taskId, int numberOfTasks) {
-			this.checkpointId = checkpointId;
-			this.taskId = taskId;
-			this.numberOfTasks = numberOfTasks;
-		}
+        public EndCheckpoint(long checkpointId, int taskId, int numberOfTasks) {
+            this.checkpointId = checkpointId;
+            this.taskId = taskId;
+            this.numberOfTasks = numberOfTasks;
+        }
 
-		public long getCheckpointId() {
-			return checkpointId;
-		}
+        public long getCheckpointId() {
+            return checkpointId;
+        }
 
-		public int getTaskId() {
-			return taskId;
-		}
+        public int getTaskId() {
+            return taskId;
+        }
 
-		public int getNumberOfTasks() {
-			return numberOfTasks;
-		}
-	}
+        public int getNumberOfTasks() {
+            return numberOfTasks;
+        }
+    }
 
-	/**
-	 * The output of compact coordinator.
-	 */
-	public interface CoordinatorOutput extends Serializable {}
+    /** The output of compact coordinator. */
+    public interface CoordinatorOutput extends Serializable {}
 
-	/**
-	 * The unit of a single compaction.
-	 */
-	public static class CompactionUnit implements CoordinatorOutput {
+    /** The unit of a single compaction. */
+    public static class CompactionUnit implements CoordinatorOutput {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final int unitId;
-		private final String partition;
+        private final int unitId;
+        private final String partition;
 
-		// Store strings to improve serialization performance.
-		private final String[] pathStrings;
+        // Store strings to improve serialization performance.
+        private final String[] pathStrings;
 
-		public CompactionUnit(int unitId, String partition, List<Path> unit) {
-			this.unitId = unitId;
-			this.partition = partition;
-			this.pathStrings = unit.stream()
-					.map(Path::toUri)
-					.map(URI::toString)
-					.toArray(String[]::new);
-		}
+        public CompactionUnit(int unitId, String partition, List<Path> unit) {
+            this.unitId = unitId;
+            this.partition = partition;
+            this.pathStrings =
+                    unit.stream().map(Path::toUri).map(URI::toString).toArray(String[]::new);
+        }
 
-		public boolean isTaskMessage(int taskNumber, int taskId) {
-			return unitId % taskNumber == taskId;
-		}
+        public boolean isTaskMessage(int taskNumber, int taskId) {
+            return unitId % taskNumber == taskId;
+        }
 
-		public int getUnitId() {
-			return unitId;
-		}
+        public int getUnitId() {
+            return unitId;
+        }
 
-		public String getPartition() {
-			return partition;
-		}
+        public String getPartition() {
+            return partition;
+        }
 
-		public List<Path> getPaths() {
-			return Arrays.stream(pathStrings)
-					.map(URI::create)
-					.map(Path::new)
-					.collect(Collectors.toList());
-		}
-	}
+        public List<Path> getPaths() {
+            return Arrays.stream(pathStrings)
+                    .map(URI::create)
+                    .map(Path::new)
+                    .collect(Collectors.toList());
+        }
+    }
 
-	/**
-	 * A flag to end compaction.
-	 */
-	public static class EndCompaction implements CoordinatorOutput {
+    /** A flag to end compaction. */
+    public static class EndCompaction implements CoordinatorOutput {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final long checkpointId;
+        private final long checkpointId;
 
-		public EndCompaction(long checkpointId) {
-			this.checkpointId = checkpointId;
-		}
+        public EndCompaction(long checkpointId) {
+            this.checkpointId = checkpointId;
+        }
 
-		public long getCheckpointId() {
-			return checkpointId;
-		}
-	}
+        public long getCheckpointId() {
+            return checkpointId;
+        }
+    }
 }

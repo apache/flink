@@ -31,25 +31,26 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.util.Map;
 
-/**
- * Rest handler which serves the log files from JobManager.
- */
-public class JobManagerLogFileHandler extends AbstractJobManagerFileHandler<EmptyMessageParameters> {
+/** Rest handler which serves the log files from JobManager. */
+public class JobManagerLogFileHandler
+        extends AbstractJobManagerFileHandler<EmptyMessageParameters> {
 
-	private final File file;
+    private final File file;
 
-	public JobManagerLogFileHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout, Map<String, String> responseHeaders,
-			UntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> messageHeaders,
-			@Nullable File file) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    public JobManagerLogFileHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            UntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> messageHeaders,
+            @Nullable File file) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
-		this.file = file;
-	}
+        this.file = file;
+    }
 
-	@Override
-	protected File getFile(HandlerRequest<EmptyRequestBody, EmptyMessageParameters> handlerRequest) {
-		return file;
-	}
+    @Override
+    protected File getFile(
+            HandlerRequest<EmptyRequestBody, EmptyMessageParameters> handlerRequest) {
+        return file;
+    }
 }

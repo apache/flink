@@ -25,14 +25,14 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-/**
- * Tests for the {@link HadoopUtils}.
- */
+/** Tests for the {@link HadoopUtils}. */
 public class HadoopUtilsTest extends AbstractParameterToolTest {
 
-	@Test
-	public void testParamsFromGenericOptionsParser() throws IOException {
-		ParameterTool parameter = HadoopUtils.paramsFromGenericOptionsParser(new String[]{"-D", "input=myInput", "-DexpectedCount=15"});
-		validate(parameter);
-	}
+    @Test
+    public void testParamsFromGenericOptionsParser() throws IOException {
+        ParameterTool parameter =
+                HadoopUtils.paramsFromGenericOptionsParser(
+                        new String[] {"-D", "input=myInput", "-DexpectedCount=15"});
+        validate(parameter);
+    }
 }

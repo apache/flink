@@ -43,219 +43,223 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the RpcEndpoint and its self gateways.
- */
+/** Tests for the RpcEndpoint and its self gateways. */
 public class RpcEndpointTest extends TestLogger {
 
-	private static final Time TIMEOUT = Time.seconds(10L);
-	private static ActorSystem actorSystem = null;
-	private static RpcService rpcService = null;
+    private static final Time TIMEOUT = Time.seconds(10L);
+    private static ActorSystem actorSystem = null;
+    private static RpcService rpcService = null;
 
-	@BeforeClass
-	public static void setup() {
-		actorSystem = AkkaUtils.createDefaultActorSystem();
-		rpcService = new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
-	}
+    @BeforeClass
+    public static void setup() {
+        actorSystem = AkkaUtils.createDefaultActorSystem();
+        rpcService =
+                new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
+    }
 
-	@AfterClass
-	public static void teardown() throws Exception {
+    @AfterClass
+    public static void teardown() throws Exception {
 
-		final CompletableFuture<Void> rpcTerminationFuture = rpcService.stopService();
-		final CompletableFuture<Terminated> actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
+        final CompletableFuture<Void> rpcTerminationFuture = rpcService.stopService();
+        final CompletableFuture<Terminated> actorSystemTerminationFuture =
+                FutureUtils.toJava(actorSystem.terminate());
 
-		FutureUtils
-			.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
-			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-	}
+        FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
+                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+    }
 
-	/**
-	 * Tests that we can obtain the self gateway from a RpcEndpoint and can interact with
-	 * it via the self gateway.
-	 */
-	@Test
-	public void testSelfGateway() throws Exception {
-		int expectedValue = 1337;
-		BaseEndpoint baseEndpoint = new BaseEndpoint(rpcService, expectedValue);
+    /**
+     * Tests that we can obtain the self gateway from a RpcEndpoint and can interact with it via the
+     * self gateway.
+     */
+    @Test
+    public void testSelfGateway() throws Exception {
+        int expectedValue = 1337;
+        BaseEndpoint baseEndpoint = new BaseEndpoint(rpcService, expectedValue);
 
-		try {
-			baseEndpoint.start();
+        try {
+            baseEndpoint.start();
 
-			BaseGateway baseGateway = baseEndpoint.getSelfGateway(BaseGateway.class);
+            BaseGateway baseGateway = baseEndpoint.getSelfGateway(BaseGateway.class);
 
-			CompletableFuture<Integer> foobar = baseGateway.foobar();
+            CompletableFuture<Integer> foobar = baseGateway.foobar();
 
-			assertEquals(Integer.valueOf(expectedValue), foobar.get());
-		} finally {
-			RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
-		}
-	}
+            assertEquals(Integer.valueOf(expectedValue), foobar.get());
+        } finally {
+            RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
+        }
+    }
 
-	/**
-	 * Tests that we cannot accidentally obtain a wrong self gateway type which is
-	 * not implemented by the RpcEndpoint.
-	 */
-	@Test(expected = RuntimeException.class)
-	public void testWrongSelfGateway() throws Exception {
-		int expectedValue = 1337;
-		BaseEndpoint baseEndpoint = new BaseEndpoint(rpcService, expectedValue);
+    /**
+     * Tests that we cannot accidentally obtain a wrong self gateway type which is not implemented
+     * by the RpcEndpoint.
+     */
+    @Test(expected = RuntimeException.class)
+    public void testWrongSelfGateway() throws Exception {
+        int expectedValue = 1337;
+        BaseEndpoint baseEndpoint = new BaseEndpoint(rpcService, expectedValue);
 
-		try {
-			baseEndpoint.start();
+        try {
+            baseEndpoint.start();
 
-			DifferentGateway differentGateway = baseEndpoint.getSelfGateway(DifferentGateway.class);
+            DifferentGateway differentGateway = baseEndpoint.getSelfGateway(DifferentGateway.class);
 
-			fail("Expected to fail with a RuntimeException since we requested the wrong gateway type.");
-		} finally {
-			RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
-		}
-	}
+            fail(
+                    "Expected to fail with a RuntimeException since we requested the wrong gateway type.");
+        } finally {
+            RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
+        }
+    }
 
-	/**
-	 * Tests that we can extend existing RpcEndpoints and can communicate with them via the
-	 * self gateways.
-	 */
-	@Test
-	public void testEndpointInheritance() throws Exception {
-		int foobar = 1;
-		int barfoo = 2;
-		String foo = "foobar";
+    /**
+     * Tests that we can extend existing RpcEndpoints and can communicate with them via the self
+     * gateways.
+     */
+    @Test
+    public void testEndpointInheritance() throws Exception {
+        int foobar = 1;
+        int barfoo = 2;
+        String foo = "foobar";
 
-		ExtendedEndpoint endpoint = new ExtendedEndpoint(rpcService, foobar, barfoo, foo);
+        ExtendedEndpoint endpoint = new ExtendedEndpoint(rpcService, foobar, barfoo, foo);
 
-		try {
-			endpoint.start();
+        try {
+            endpoint.start();
 
-			BaseGateway baseGateway = endpoint.getSelfGateway(BaseGateway.class);
-			ExtendedGateway extendedGateway = endpoint.getSelfGateway(ExtendedGateway.class);
-			DifferentGateway differentGateway = endpoint.getSelfGateway(DifferentGateway.class);
+            BaseGateway baseGateway = endpoint.getSelfGateway(BaseGateway.class);
+            ExtendedGateway extendedGateway = endpoint.getSelfGateway(ExtendedGateway.class);
+            DifferentGateway differentGateway = endpoint.getSelfGateway(DifferentGateway.class);
 
-			assertEquals(Integer.valueOf(foobar), baseGateway.foobar().get());
-			assertEquals(Integer.valueOf(foobar), extendedGateway.foobar().get());
+            assertEquals(Integer.valueOf(foobar), baseGateway.foobar().get());
+            assertEquals(Integer.valueOf(foobar), extendedGateway.foobar().get());
 
-			assertEquals(Integer.valueOf(barfoo), extendedGateway.barfoo().get());
-			assertEquals(foo, differentGateway.foo().get());
-		} finally {
-			RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
-		}
-	}
+            assertEquals(Integer.valueOf(barfoo), extendedGateway.barfoo().get());
+            assertEquals(foo, differentGateway.foo().get());
+        } finally {
+            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+        }
+    }
 
-	/**
-	 * Tests that the RPC is running after it has been started.
-	 */
-	@Test
-	public void testRunningState() throws InterruptedException, ExecutionException, TimeoutException {
-		RunningStateTestingEndpoint endpoint = new RunningStateTestingEndpoint(
-			rpcService,
-			CompletableFuture.completedFuture(null));
-		RunningStateTestingEndpointGateway gateway = endpoint.getSelfGateway(RunningStateTestingEndpointGateway.class);
+    /** Tests that the RPC is running after it has been started. */
+    @Test
+    public void testRunningState()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        RunningStateTestingEndpoint endpoint =
+                new RunningStateTestingEndpoint(
+                        rpcService, CompletableFuture.completedFuture(null));
+        RunningStateTestingEndpointGateway gateway =
+                endpoint.getSelfGateway(RunningStateTestingEndpointGateway.class);
 
-		try {
-			endpoint.start();
-			assertThat(gateway.queryIsRunningFlag().get(), is(true));
-		} finally {
-			RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
-		}
-	}
+        try {
+            endpoint.start();
+            assertThat(gateway.queryIsRunningFlag().get(), is(true));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+        }
+    }
 
-	/**
-	 * Tests that the RPC is not running if it is being stopped.
-	 */
-	@Test
-	public void testNotRunningState() throws InterruptedException, ExecutionException, TimeoutException {
-		CompletableFuture<Void> stopFuture = new CompletableFuture<>();
-		RunningStateTestingEndpoint endpoint = new RunningStateTestingEndpoint(rpcService, stopFuture);
-		RunningStateTestingEndpointGateway gateway = endpoint.getSelfGateway(RunningStateTestingEndpointGateway.class);
+    /** Tests that the RPC is not running if it is being stopped. */
+    @Test
+    public void testNotRunningState()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        CompletableFuture<Void> stopFuture = new CompletableFuture<>();
+        RunningStateTestingEndpoint endpoint =
+                new RunningStateTestingEndpoint(rpcService, stopFuture);
+        RunningStateTestingEndpointGateway gateway =
+                endpoint.getSelfGateway(RunningStateTestingEndpointGateway.class);
 
-		endpoint.start();
-		CompletableFuture<Void> terminationFuture = endpoint.closeAndWaitUntilOnStopCalled();
+        endpoint.start();
+        CompletableFuture<Void> terminationFuture = endpoint.closeAndWaitUntilOnStopCalled();
 
-		assertThat(gateway.queryIsRunningFlag().get(), is(false));
+        assertThat(gateway.queryIsRunningFlag().get(), is(false));
 
-		stopFuture.complete(null);
-		terminationFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-	}
+        stopFuture.complete(null);
+        terminationFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+    }
 
-	public interface BaseGateway extends RpcGateway {
-		CompletableFuture<Integer> foobar();
-	}
+    public interface BaseGateway extends RpcGateway {
+        CompletableFuture<Integer> foobar();
+    }
 
-	public interface ExtendedGateway extends BaseGateway {
-		CompletableFuture<Integer> barfoo();
-	}
+    public interface ExtendedGateway extends BaseGateway {
+        CompletableFuture<Integer> barfoo();
+    }
 
-	public interface DifferentGateway extends RpcGateway {
-		CompletableFuture<String> foo();
-	}
+    public interface DifferentGateway extends RpcGateway {
+        CompletableFuture<String> foo();
+    }
 
-	public static class BaseEndpoint extends RpcEndpoint implements BaseGateway {
+    public static class BaseEndpoint extends RpcEndpoint implements BaseGateway {
 
-		private final int foobarValue;
+        private final int foobarValue;
 
-		protected BaseEndpoint(RpcService rpcService, int foobarValue) {
-			super(rpcService);
+        protected BaseEndpoint(RpcService rpcService, int foobarValue) {
+            super(rpcService);
 
-			this.foobarValue = foobarValue;
-		}
+            this.foobarValue = foobarValue;
+        }
 
-		@Override
-		public CompletableFuture<Integer> foobar() {
-			return CompletableFuture.completedFuture(foobarValue);
-		}
-	}
+        @Override
+        public CompletableFuture<Integer> foobar() {
+            return CompletableFuture.completedFuture(foobarValue);
+        }
+    }
 
-	public static class ExtendedEndpoint extends BaseEndpoint implements ExtendedGateway, DifferentGateway {
+    public static class ExtendedEndpoint extends BaseEndpoint
+            implements ExtendedGateway, DifferentGateway {
 
-		private final int barfooValue;
+        private final int barfooValue;
 
-		private final String fooString;
+        private final String fooString;
 
-		protected ExtendedEndpoint(RpcService rpcService, int foobarValue, int barfooValue, String fooString) {
-			super(rpcService, foobarValue);
+        protected ExtendedEndpoint(
+                RpcService rpcService, int foobarValue, int barfooValue, String fooString) {
+            super(rpcService, foobarValue);
 
-			this.barfooValue = barfooValue;
-			this.fooString = fooString;
-		}
+            this.barfooValue = barfooValue;
+            this.fooString = fooString;
+        }
 
-		@Override
-		public CompletableFuture<Integer> barfoo() {
-			return CompletableFuture.completedFuture(barfooValue);
-		}
+        @Override
+        public CompletableFuture<Integer> barfoo() {
+            return CompletableFuture.completedFuture(barfooValue);
+        }
 
-		@Override
-		public CompletableFuture<String> foo() {
-			return CompletableFuture.completedFuture(fooString);
-		}
-	}
+        @Override
+        public CompletableFuture<String> foo() {
+            return CompletableFuture.completedFuture(fooString);
+        }
+    }
 
-	public interface RunningStateTestingEndpointGateway extends RpcGateway {
-		CompletableFuture<Boolean> queryIsRunningFlag();
-	}
+    public interface RunningStateTestingEndpointGateway extends RpcGateway {
+        CompletableFuture<Boolean> queryIsRunningFlag();
+    }
 
-	private static final class RunningStateTestingEndpoint extends RpcEndpoint implements RunningStateTestingEndpointGateway {
-		private final CountDownLatch onStopCalled;
-		private final CompletableFuture<Void> stopFuture;
+    private static final class RunningStateTestingEndpoint extends RpcEndpoint
+            implements RunningStateTestingEndpointGateway {
+        private final CountDownLatch onStopCalled;
+        private final CompletableFuture<Void> stopFuture;
 
-		RunningStateTestingEndpoint(RpcService rpcService, CompletableFuture<Void> stopFuture) {
-			super(rpcService);
-			this.stopFuture = stopFuture;
-			this.onStopCalled = new CountDownLatch(1);
-		}
+        RunningStateTestingEndpoint(RpcService rpcService, CompletableFuture<Void> stopFuture) {
+            super(rpcService);
+            this.stopFuture = stopFuture;
+            this.onStopCalled = new CountDownLatch(1);
+        }
 
-		@Override
-		public CompletableFuture<Void> onStop() {
-			onStopCalled.countDown();
-			return stopFuture;
-		}
+        @Override
+        public CompletableFuture<Void> onStop() {
+            onStopCalled.countDown();
+            return stopFuture;
+        }
 
-		CompletableFuture<Void> closeAndWaitUntilOnStopCalled() throws InterruptedException {
-			CompletableFuture<Void> terminationFuture = closeAsync();
-			onStopCalled.await();
-			return terminationFuture;
-		}
+        CompletableFuture<Void> closeAndWaitUntilOnStopCalled() throws InterruptedException {
+            CompletableFuture<Void> terminationFuture = closeAsync();
+            onStopCalled.await();
+            return terminationFuture;
+        }
 
-		public CompletableFuture<Boolean> queryIsRunningFlag() {
-			return CompletableFuture.completedFuture(isRunning());
-		}
-	}
+        public CompletableFuture<Boolean> queryIsRunningFlag() {
+            return CompletableFuture.completedFuture(isRunning());
+        }
+    }
 }

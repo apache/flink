@@ -31,46 +31,42 @@ import java.io.Flushable;
 import java.io.IOException;
 import java.sql.Connection;
 
-/**
- * Base jdbc outputFormat.
- */
+/** Base jdbc outputFormat. */
 public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> implements Flushable {
 
-	private static final long serialVersionUID = 1L;
-	public static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
-	public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0L;
+    private static final long serialVersionUID = 1L;
+    public static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
+    public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractJdbcOutputFormat.class);
-	protected final JdbcConnectionProvider connectionProvider;
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractJdbcOutputFormat.class);
+    protected final JdbcConnectionProvider connectionProvider;
 
-	public AbstractJdbcOutputFormat(JdbcConnectionProvider connectionProvider) {
-		this.connectionProvider = Preconditions.checkNotNull(connectionProvider);
-	}
+    public AbstractJdbcOutputFormat(JdbcConnectionProvider connectionProvider) {
+        this.connectionProvider = Preconditions.checkNotNull(connectionProvider);
+    }
 
-	@Override
-	public void configure(Configuration parameters) {
-	}
+    @Override
+    public void configure(Configuration parameters) {}
 
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-		try {
-			connectionProvider.getOrEstablishConnection();
-		} catch (Exception e) {
-			throw new IOException("unable to open JDBC writer", e);
-		}
-	}
+    @Override
+    public void open(int taskNumber, int numTasks) throws IOException {
+        try {
+            connectionProvider.getOrEstablishConnection();
+        } catch (Exception e) {
+            throw new IOException("unable to open JDBC writer", e);
+        }
+    }
 
-	@Override
-	public void close() {
-		connectionProvider.closeConnection();
-	}
+    @Override
+    public void close() {
+        connectionProvider.closeConnection();
+    }
 
-	@Override
-	public void flush() throws IOException {
-	}
+    @Override
+    public void flush() throws IOException {}
 
-	@VisibleForTesting
-	public Connection getConnection() {
-		return connectionProvider.getConnection();
-	}
+    @VisibleForTesting
+    public Connection getConnection() {
+        return connectionProvider.getConnection();
+    }
 }

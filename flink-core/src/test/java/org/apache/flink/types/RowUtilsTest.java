@@ -26,54 +26,57 @@ import java.util.List;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link RowUtils}.
- */
+/** Tests for {@link RowUtils}. */
 public class RowUtilsTest {
 
-	@Test
-	public void testCompareRowsUnordered() {
-		final List<Row> originalList = Arrays.asList(
-				Row.of("a", 12, false),
-				Row.of("b", 12, false),
-				Row.of("b", 12, false),
-				Row.of("b", 12, true));
+    @Test
+    public void testCompareRowsUnordered() {
+        final List<Row> originalList =
+                Arrays.asList(
+                        Row.of("a", 12, false),
+                        Row.of("b", 12, false),
+                        Row.of("b", 12, false),
+                        Row.of("b", 12, true));
 
-		{
-			final List<Row> list = Arrays.asList(
-					Row.of("a", 12, false),
-					Row.of("b", 12, false),
-					Row.of("b", 12, false),
-					Row.of("b", 12, true));
-			assertTrue(RowUtils.compareRows(originalList, list, false));
-		}
+        {
+            final List<Row> list =
+                    Arrays.asList(
+                            Row.of("a", 12, false),
+                            Row.of("b", 12, false),
+                            Row.of("b", 12, false),
+                            Row.of("b", 12, true));
+            assertTrue(RowUtils.compareRows(originalList, list, false));
+        }
 
-		{
-			final List<Row> list = Arrays.asList(
-					Row.of("a", 12, false),
-					Row.of("b", 12, false),
-					Row.of("b", 12, true), // diff order here
-					Row.of("b", 12, false));
-			assertFalse(RowUtils.compareRows(originalList, list, false));
-		}
+        {
+            final List<Row> list =
+                    Arrays.asList(
+                            Row.of("a", 12, false),
+                            Row.of("b", 12, false),
+                            Row.of("b", 12, true), // diff order here
+                            Row.of("b", 12, false));
+            assertFalse(RowUtils.compareRows(originalList, list, false));
+        }
 
-		{
-			final List<Row> list = Arrays.asList(
-					Row.of("a", 12, false),
-					Row.of("b", 12, false),
-					Row.of("b", 12, true), // diff order here
-					Row.of("b", 12, false));
-			assertTrue(RowUtils.compareRows(originalList, list, true));
-		}
+        {
+            final List<Row> list =
+                    Arrays.asList(
+                            Row.of("a", 12, false),
+                            Row.of("b", 12, false),
+                            Row.of("b", 12, true), // diff order here
+                            Row.of("b", 12, false));
+            assertTrue(RowUtils.compareRows(originalList, list, true));
+        }
 
-		{
-			final List<Row> list = Arrays.asList(
-					Row.of("a", 12, false),
-					Row.of("b", 12, false),
-					Row.of("b", 12, false),
-					Row.of("b", 12, true),
-					Row.of("b", 12, true)); // diff here
-			assertFalse(RowUtils.compareRows(originalList, list, true));
-		}
-	}
+        {
+            final List<Row> list =
+                    Arrays.asList(
+                            Row.of("a", 12, false),
+                            Row.of("b", 12, false),
+                            Row.of("b", 12, false),
+                            Row.of("b", 12, true),
+                            Row.of("b", 12, true)); // diff here
+            assertFalse(RowUtils.compareRows(originalList, list, true));
+        }
+    }
 }

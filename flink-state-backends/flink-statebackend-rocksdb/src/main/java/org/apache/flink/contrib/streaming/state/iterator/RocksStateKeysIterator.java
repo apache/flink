@@ -29,75 +29,76 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 
 /**
- * Adapter class to bridge between {@link RocksIteratorWrapper} and {@link Iterator} to iterate over the keys. This class
- * is not thread safe.
+ * Adapter class to bridge between {@link RocksIteratorWrapper} and {@link Iterator} to iterate over
+ * the keys. This class is not thread safe.
  *
  * @param <K> the type of the iterated objects, which are keys in RocksDB.
  */
-public class RocksStateKeysIterator<K> extends AbstractRocksStateKeysIterator<K> implements Iterator<K> {
+public class RocksStateKeysIterator<K> extends AbstractRocksStateKeysIterator<K>
+        implements Iterator<K> {
 
-	@Nonnull
-	private final byte[] namespaceBytes;
+    @Nonnull private final byte[] namespaceBytes;
 
-	private K nextKey;
-	private K previousKey;
+    private K nextKey;
+    private K previousKey;
 
-	public RocksStateKeysIterator(
-		@Nonnull RocksIteratorWrapper iterator,
-		@Nonnull String state,
-		@Nonnull TypeSerializer<K> keySerializer,
-		int keyGroupPrefixBytes,
-		boolean ambiguousKeyPossible,
-		@Nonnull byte[] namespaceBytes) {
-		super(iterator, state, keySerializer, keyGroupPrefixBytes, ambiguousKeyPossible);
-		this.namespaceBytes = namespaceBytes;
-		this.nextKey = null;
-		this.previousKey = null;
-	}
+    public RocksStateKeysIterator(
+            @Nonnull RocksIteratorWrapper iterator,
+            @Nonnull String state,
+            @Nonnull TypeSerializer<K> keySerializer,
+            int keyGroupPrefixBytes,
+            boolean ambiguousKeyPossible,
+            @Nonnull byte[] namespaceBytes) {
+        super(iterator, state, keySerializer, keyGroupPrefixBytes, ambiguousKeyPossible);
+        this.namespaceBytes = namespaceBytes;
+        this.nextKey = null;
+        this.previousKey = null;
+    }
 
-	@Override
-	public boolean hasNext() {
-		try {
-			while (nextKey == null && iterator.isValid()) {
+    @Override
+    public boolean hasNext() {
+        try {
+            while (nextKey == null && iterator.isValid()) {
 
-				final byte[] keyBytes = iterator.key();
-				final K currentKey = deserializeKey(keyBytes, byteArrayDataInputView);
-				final int namespaceByteStartPos = byteArrayDataInputView.getPosition();
+                final byte[] keyBytes = iterator.key();
+                final K currentKey = deserializeKey(keyBytes, byteArrayDataInputView);
+                final int namespaceByteStartPos = byteArrayDataInputView.getPosition();
 
-				if (isMatchingNameSpace(keyBytes, namespaceByteStartPos) && !Objects.equals(previousKey, currentKey)) {
-					previousKey = currentKey;
-					nextKey = currentKey;
-				}
-				iterator.next();
-			}
-		} catch (Exception e) {
-			throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
-		}
-		return nextKey != null;
-	}
+                if (isMatchingNameSpace(keyBytes, namespaceByteStartPos)
+                        && !Objects.equals(previousKey, currentKey)) {
+                    previousKey = currentKey;
+                    nextKey = currentKey;
+                }
+                iterator.next();
+            }
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
+        }
+        return nextKey != null;
+    }
 
-	@Override
-	public K next() {
-		if (!hasNext()) {
-			throw new NoSuchElementException("Failed to access state [" + state + "]");
-		}
+    @Override
+    public K next() {
+        if (!hasNext()) {
+            throw new NoSuchElementException("Failed to access state [" + state + "]");
+        }
 
-		K tmpKey = nextKey;
-		nextKey = null;
-		return tmpKey;
-	}
+        K tmpKey = nextKey;
+        nextKey = null;
+        return tmpKey;
+    }
 
-	private boolean isMatchingNameSpace(@Nonnull byte[] key, int beginPos) {
-		final int namespaceBytesLength = namespaceBytes.length;
-		final int basicLength = namespaceBytesLength + beginPos;
-		if (key.length >= basicLength) {
-			for (int i = 0; i < namespaceBytesLength; ++i) {
-				if (key[beginPos + i] != namespaceBytes[i]) {
-					return false;
-				}
-			}
-			return true;
-		}
-		return false;
-	}
+    private boolean isMatchingNameSpace(@Nonnull byte[] key, int beginPos) {
+        final int namespaceBytesLength = namespaceBytes.length;
+        final int basicLength = namespaceBytesLength + beginPos;
+        if (key.length >= basicLength) {
+            for (int i = 0; i < namespaceBytesLength; ++i) {
+                if (key[beginPos + i] != namespaceBytes[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
 }

@@ -19,18 +19,18 @@
 package org.apache.flink.util;
 
 /**
- * Interface for classes that can be disposed, i.e. that have a dedicated lifecycle step to "destroy" the object. On
- * reason for this is for example to release native resources. From this point, the interface fulfills a similar purpose
- * as the {@link java.io.Closeable} interface, but sometimes both should be represented as isolated, independent
- * lifecycle steps.
+ * Interface for classes that can be disposed, i.e. that have a dedicated lifecycle step to
+ * "destroy" the object. On reason for this is for example to release native resources. From this
+ * point, the interface fulfills a similar purpose as the {@link java.io.Closeable} interface, but
+ * sometimes both should be represented as isolated, independent lifecycle steps.
  */
 public interface Disposable {
 
-	/**
-	 * Disposes the object and releases all resources. After calling this method, calling any methods on the
-	 * object may result in undefined behavior.
-	 *
-	 * @throws Exception if something goes wrong during disposal.
-	 */
-	void dispose() throws Exception;
+    /**
+     * Disposes the object and releases all resources. After calling this method, calling any
+     * methods on the object may result in undefined behavior.
+     *
+     * @throws Exception if something goes wrong during disposal.
+     */
+    void dispose() throws Exception;
 }

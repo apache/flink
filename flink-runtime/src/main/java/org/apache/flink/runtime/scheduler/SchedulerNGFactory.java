@@ -36,28 +36,26 @@ import org.slf4j.Logger;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
-/**
- * Factory for {@link SchedulerNG}.
- */
+/** Factory for {@link SchedulerNG}. */
 public interface SchedulerNGFactory {
 
-	SchedulerNG createInstance(
-		Logger log,
-		JobGraph jobGraph,
-		BackPressureStatsTracker backPressureStatsTracker,
-		Executor ioExecutor,
-		Configuration jobMasterConfiguration,
-		SlotPool slotPool,
-		ScheduledExecutorService futureExecutor,
-		ClassLoader userCodeLoader,
-		CheckpointRecoveryFactory checkpointRecoveryFactory,
-		Time rpcTimeout,
-		BlobWriter blobWriter,
-		JobManagerJobMetricGroup jobManagerJobMetricGroup,
-		Time slotRequestTimeout,
-		ShuffleMaster<?> shuffleMaster,
-		JobMasterPartitionTracker partitionTracker,
-		ExecutionDeploymentTracker executionDeploymentTracker,
-		long initializationTimestamp) throws Exception;
-
+    SchedulerNG createInstance(
+            Logger log,
+            JobGraph jobGraph,
+            BackPressureStatsTracker backPressureStatsTracker,
+            Executor ioExecutor,
+            Configuration jobMasterConfiguration,
+            SlotPool slotPool,
+            ScheduledExecutorService futureExecutor,
+            ClassLoader userCodeLoader,
+            CheckpointRecoveryFactory checkpointRecoveryFactory,
+            Time rpcTimeout,
+            BlobWriter blobWriter,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            Time slotRequestTimeout,
+            ShuffleMaster<?> shuffleMaster,
+            JobMasterPartitionTracker partitionTracker,
+            ExecutionDeploymentTracker executionDeploymentTracker,
+            long initializationTimestamp)
+            throws Exception;
 }

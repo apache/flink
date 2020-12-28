@@ -27,56 +27,56 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.OutputTag;
 
 /**
- * An {@link Output} that can be used to emit elements and other messages for {@link OneInputStreamOperator}.
+ * An {@link Output} that can be used to emit elements and other messages for {@link
+ * OneInputStreamOperator}.
  */
 public class OneInputStreamOperatorOutput extends OutputBase {
 
-	private final OneInputStreamOperator<RowData, RowData> operator;
+    private final OneInputStreamOperator<RowData, RowData> operator;
 
-	public OneInputStreamOperatorOutput(
-			OneInputStreamOperator<RowData, RowData> operator) {
-		super(operator);
-		this.operator = operator;
-	}
+    public OneInputStreamOperatorOutput(OneInputStreamOperator<RowData, RowData> operator) {
+        super(operator);
+        this.operator = operator;
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		try {
-			operator.processWatermark(mark);
-		} catch (Exception e) {
-			throw new ExceptionInMultipleInputOperatorException(e);
-		}
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        try {
+            operator.processWatermark(mark);
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
 
-	@Override
-	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		try {
-			operator.processLatencyMarker(latencyMarker);
-		} catch (Exception e) {
-			throw new ExceptionInMultipleInputOperatorException(e);
-		}
-	}
+    @Override
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+        try {
+            operator.processLatencyMarker(latencyMarker);
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
 
-	@Override
-	public void collect(StreamRecord<RowData> record) {
-		pushToOperator(record);
-	}
+    @Override
+    public void collect(StreamRecord<RowData> record) {
+        pushToOperator(record);
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		pushToOperator(record);
-	}
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        pushToOperator(record);
+    }
 
-	protected <X> void pushToOperator(StreamRecord<X> record) {
-		try {
-			// we know that the given outputTag matches our OutputTag so the record
-			// must be of the type that our operator expects.
-			@SuppressWarnings("unchecked")
-			StreamRecord<RowData> castRecord = (StreamRecord<RowData>) record;
+    protected <X> void pushToOperator(StreamRecord<X> record) {
+        try {
+            // we know that the given outputTag matches our OutputTag so the record
+            // must be of the type that our operator expects.
+            @SuppressWarnings("unchecked")
+            StreamRecord<RowData> castRecord = (StreamRecord<RowData>) record;
 
-			operator.processElement(castRecord);
-		} catch (Exception e) {
-			throw new ExceptionInMultipleInputOperatorException(e);
-		}
-	}
+            operator.processElement(castRecord);
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
 }

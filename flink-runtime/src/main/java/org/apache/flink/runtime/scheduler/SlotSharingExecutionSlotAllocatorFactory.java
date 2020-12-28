@@ -23,47 +23,46 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
 import org.apache.flink.runtime.scheduler.SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory;
 
-/**
- * Factory for {@link SlotSharingExecutionSlotAllocator}.
- */
+/** Factory for {@link SlotSharingExecutionSlotAllocator}. */
 class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
-	private final PhysicalSlotProvider slotProvider;
+    private final PhysicalSlotProvider slotProvider;
 
-	private final boolean slotWillBeOccupiedIndefinitely;
+    private final boolean slotWillBeOccupiedIndefinitely;
 
-	private final PhysicalSlotRequestBulkChecker bulkChecker;
+    private final PhysicalSlotRequestBulkChecker bulkChecker;
 
-	private final Time allocationTimeout;
+    private final Time allocationTimeout;
 
-	SlotSharingExecutionSlotAllocatorFactory(
-			PhysicalSlotProvider slotProvider,
-			boolean slotWillBeOccupiedIndefinitely,
-			PhysicalSlotRequestBulkChecker bulkChecker,
-			Time allocationTimeout) {
-		this.slotProvider = slotProvider;
-		this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
-		this.bulkChecker = bulkChecker;
-		this.allocationTimeout = allocationTimeout;
-	}
+    SlotSharingExecutionSlotAllocatorFactory(
+            PhysicalSlotProvider slotProvider,
+            boolean slotWillBeOccupiedIndefinitely,
+            PhysicalSlotRequestBulkChecker bulkChecker,
+            Time allocationTimeout) {
+        this.slotProvider = slotProvider;
+        this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
+        this.bulkChecker = bulkChecker;
+        this.allocationTimeout = allocationTimeout;
+    }
 
-	@Override
-	public ExecutionSlotAllocator createInstance(final ExecutionSlotAllocationContext context) {
-		SlotSharingStrategy slotSharingStrategy = new LocalInputPreferredSlotSharingStrategy(
-			context.getSchedulingTopology(),
-			context.getLogicalSlotSharingGroups(),
-			context.getCoLocationGroups());
-		SyncPreferredLocationsRetriever preferredLocationsRetriever =
-				new DefaultSyncPreferredLocationsRetriever(context, context);
-		SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory = new MergingSharedSlotProfileRetrieverFactory(
-			preferredLocationsRetriever,
-			context::getPriorAllocationId);
-		return new SlotSharingExecutionSlotAllocator(
-			slotProvider,
-			slotWillBeOccupiedIndefinitely,
-			slotSharingStrategy,
-			sharedSlotProfileRetrieverFactory,
-			bulkChecker,
-			allocationTimeout,
-			context::getResourceProfile);
-	}
+    @Override
+    public ExecutionSlotAllocator createInstance(final ExecutionSlotAllocationContext context) {
+        SlotSharingStrategy slotSharingStrategy =
+                new LocalInputPreferredSlotSharingStrategy(
+                        context.getSchedulingTopology(),
+                        context.getLogicalSlotSharingGroups(),
+                        context.getCoLocationGroups());
+        SyncPreferredLocationsRetriever preferredLocationsRetriever =
+                new DefaultSyncPreferredLocationsRetriever(context, context);
+        SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory =
+                new MergingSharedSlotProfileRetrieverFactory(
+                        preferredLocationsRetriever, context::getPriorAllocationId);
+        return new SlotSharingExecutionSlotAllocator(
+                slotProvider,
+                slotWillBeOccupiedIndefinitely,
+                slotSharingStrategy,
+                sharedSlotProfileRetrieverFactory,
+                bulkChecker,
+                allocationTimeout,
+                context::getResourceProfile);
+    }
 }

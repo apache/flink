@@ -49,70 +49,80 @@ import java.util.concurrent.ExecutionException;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests to cover functionality provided by {@link AbstractHandler}.
- */
+/** Tests to cover functionality provided by {@link AbstractHandler}. */
 public class AbstractHandlerITCase extends TestLogger {
 
-	private static final RestfulGateway mockRestfulGateway = new TestingDispatcherGateway.Builder().build();
+    private static final RestfulGateway mockRestfulGateway =
+            new TestingDispatcherGateway.Builder().build();
 
-	private static final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () -> CompletableFuture.completedFuture(mockRestfulGateway);
+    private static final GatewayRetriever<RestfulGateway> mockGatewayRetriever =
+            () -> CompletableFuture.completedFuture(mockRestfulGateway);
 
-	private static final Configuration REST_BASE_CONFIG;
+    private static final Configuration REST_BASE_CONFIG;
 
-	static {
-		final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
+    static {
+        final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
 
-		final Configuration config = new Configuration();
-		config.setString(RestOptions.BIND_PORT, "0");
-		config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
-		config.setString(RestOptions.ADDRESS, loopbackAddress);
+        final Configuration config = new Configuration();
+        config.setString(RestOptions.BIND_PORT, "0");
+        config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
+        config.setString(RestOptions.ADDRESS, loopbackAddress);
 
-		REST_BASE_CONFIG = config;
-	}
+        REST_BASE_CONFIG = config;
+    }
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private RestClient createRestClient(int serverPort) throws ConfigurationException {
-		Configuration config = new Configuration(REST_BASE_CONFIG);
-		config.setInteger(RestOptions.PORT, serverPort);
+    private RestClient createRestClient(int serverPort) throws ConfigurationException {
+        Configuration config = new Configuration(REST_BASE_CONFIG);
+        config.setInteger(RestOptions.PORT, serverPort);
 
-		return new RestClient(
-				RestClientConfiguration.fromConfiguration(config),
-				Executors.directExecutor());
-	}
+        return new RestClient(
+                RestClientConfiguration.fromConfiguration(config), Executors.directExecutor());
+    }
 
-	@Test
-	public void testOOMErrorMessageEnrichment() throws Exception {
-		final TestMessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> messageHeaders =
-				TestMessageHeaders.emptyBuilder()
-						.setTargetRestEndpointURL("/test-handler")
-						.build();
+    @Test
+    public void testOOMErrorMessageEnrichment() throws Exception {
+        final TestMessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters>
+                messageHeaders =
+                        TestMessageHeaders.emptyBuilder()
+                                .setTargetRestEndpointURL("/test-handler")
+                                .build();
 
-		final TestRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> testRestHandler = new TestRestHandler<>(
-				mockGatewayRetriever,
-				messageHeaders,
-				FutureUtils.completedExceptionally(new OutOfMemoryError("Metaspace"))
-		);
+        final TestRestHandler<
+                        RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters>
+                testRestHandler =
+                        new TestRestHandler<>(
+                                mockGatewayRetriever,
+                                messageHeaders,
+                                FutureUtils.completedExceptionally(
+                                        new OutOfMemoryError("Metaspace")));
 
-		try (final TestRestServerEndpoint server = TestRestServerEndpoint.builder(RestServerEndpointConfiguration.fromConfiguration(REST_BASE_CONFIG))
-				.withHandler(messageHeaders, testRestHandler)
-				.buildAndStart();
-			final RestClient restClient = createRestClient(server.getServerAddress().getPort())
-		) {
-			CompletableFuture<EmptyResponseBody> response = restClient.sendRequest(
-					server.getServerAddress().getHostName(),
-					server.getServerAddress().getPort(),
-					messageHeaders,
-					EmptyMessageParameters.getInstance(),
-					EmptyRequestBody.getInstance());
-			try {
-				response.get();
-				fail("An ExecutionException was expected here being caused by the OutOfMemoryError.");
-			} catch (ExecutionException e) {
-				assertThat(e.getMessage(), StringContains.containsString("Metaspace. The metaspace out-of-memory error has occurred. "));
-			}
-		}
-	}
+        try (final TestRestServerEndpoint server =
+                        TestRestServerEndpoint.builder(
+                                        RestServerEndpointConfiguration.fromConfiguration(
+                                                REST_BASE_CONFIG))
+                                .withHandler(messageHeaders, testRestHandler)
+                                .buildAndStart();
+                final RestClient restClient =
+                        createRestClient(server.getServerAddress().getPort())) {
+            CompletableFuture<EmptyResponseBody> response =
+                    restClient.sendRequest(
+                            server.getServerAddress().getHostName(),
+                            server.getServerAddress().getPort(),
+                            messageHeaders,
+                            EmptyMessageParameters.getInstance(),
+                            EmptyRequestBody.getInstance());
+            try {
+                response.get();
+                fail(
+                        "An ExecutionException was expected here being caused by the OutOfMemoryError.");
+            } catch (ExecutionException e) {
+                assertThat(
+                        e.getMessage(),
+                        StringContains.containsString(
+                                "Metaspace. The metaspace out-of-memory error has occurred. "));
+            }
+        }
+    }
 }

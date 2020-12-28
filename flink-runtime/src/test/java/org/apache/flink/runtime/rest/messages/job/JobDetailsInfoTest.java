@@ -31,78 +31,80 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-/**
- * Tests (un)marshalling of the {@link JobDetailsInfo}.
- */
+/** Tests (un)marshalling of the {@link JobDetailsInfo}. */
 public class JobDetailsInfoTest extends RestResponseMarshallingTestBase<JobDetailsInfo> {
 
-	@Override
-	protected Class<JobDetailsInfo> getTestResponseClass() {
-		return JobDetailsInfo.class;
-	}
+    @Override
+    protected Class<JobDetailsInfo> getTestResponseClass() {
+        return JobDetailsInfo.class;
+    }
 
-	@Override
-	protected JobDetailsInfo getTestResponseInstance() throws Exception {
-		final Random random = new Random();
-		final int numJobVertexDetailsInfos = 4;
-		final String jsonPlan = "{\"id\":\"1234\"}";
+    @Override
+    protected JobDetailsInfo getTestResponseInstance() throws Exception {
+        final Random random = new Random();
+        final int numJobVertexDetailsInfos = 4;
+        final String jsonPlan = "{\"id\":\"1234\"}";
 
-		final Map<JobStatus, Long> timestamps = new HashMap<>(JobStatus.values().length);
-		final Collection<JobDetailsInfo.JobVertexDetailsInfo> jobVertexInfos = new ArrayList<>(numJobVertexDetailsInfos);
-		final Map<ExecutionState, Integer> jobVerticesPerState = new HashMap<>(ExecutionState.values().length);
+        final Map<JobStatus, Long> timestamps = new HashMap<>(JobStatus.values().length);
+        final Collection<JobDetailsInfo.JobVertexDetailsInfo> jobVertexInfos =
+                new ArrayList<>(numJobVertexDetailsInfos);
+        final Map<ExecutionState, Integer> jobVerticesPerState =
+                new HashMap<>(ExecutionState.values().length);
 
-		for (JobStatus jobStatus : JobStatus.values()) {
-			timestamps.put(jobStatus, random.nextLong());
-		}
+        for (JobStatus jobStatus : JobStatus.values()) {
+            timestamps.put(jobStatus, random.nextLong());
+        }
 
-		for (int i = 0; i < numJobVertexDetailsInfos; i++) {
-			jobVertexInfos.add(createJobVertexDetailsInfo(random));
-		}
+        for (int i = 0; i < numJobVertexDetailsInfos; i++) {
+            jobVertexInfos.add(createJobVertexDetailsInfo(random));
+        }
 
-		for (ExecutionState executionState : ExecutionState.values()) {
-			jobVerticesPerState.put(executionState, random.nextInt());
-		}
+        for (ExecutionState executionState : ExecutionState.values()) {
+            jobVerticesPerState.put(executionState, random.nextInt());
+        }
 
-		return new JobDetailsInfo(
-			new JobID(),
-			"foobar",
-			true,
-			JobStatus.values()[random.nextInt(JobStatus.values().length)],
-			1L,
-			2L,
-			1L,
-			1984L,
-			timestamps,
-			jobVertexInfos,
-			jobVerticesPerState,
-			jsonPlan);
-	}
+        return new JobDetailsInfo(
+                new JobID(),
+                "foobar",
+                true,
+                JobStatus.values()[random.nextInt(JobStatus.values().length)],
+                1L,
+                2L,
+                1L,
+                1984L,
+                timestamps,
+                jobVertexInfos,
+                jobVerticesPerState,
+                jsonPlan);
+    }
 
-	private JobDetailsInfo.JobVertexDetailsInfo createJobVertexDetailsInfo(Random random) {
-		final Map<ExecutionState, Integer> tasksPerState = new HashMap<>(ExecutionState.values().length);
-		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean());
+    private JobDetailsInfo.JobVertexDetailsInfo createJobVertexDetailsInfo(Random random) {
+        final Map<ExecutionState, Integer> tasksPerState =
+                new HashMap<>(ExecutionState.values().length);
+        final IOMetricsInfo jobVertexMetrics =
+                new IOMetricsInfo(
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean());
 
-		for (ExecutionState executionState : ExecutionState.values()) {
-			tasksPerState.put(executionState, random.nextInt());
-		}
+        for (ExecutionState executionState : ExecutionState.values()) {
+            tasksPerState.put(executionState, random.nextInt());
+        }
 
-		return new JobDetailsInfo.JobVertexDetailsInfo(
-			new JobVertexID(),
-			"jobVertex" + random.nextLong(),
-			random.nextInt(),
-			ExecutionState.values()[random.nextInt(ExecutionState.values().length)],
-			random.nextLong(),
-			random.nextLong(),
-			random.nextLong(),
-			tasksPerState,
-			jobVertexMetrics);
-	}
+        return new JobDetailsInfo.JobVertexDetailsInfo(
+                new JobVertexID(),
+                "jobVertex" + random.nextLong(),
+                random.nextInt(),
+                ExecutionState.values()[random.nextInt(ExecutionState.values().length)],
+                random.nextLong(),
+                random.nextLong(),
+                random.nextLong(),
+                tasksPerState,
+                jobVertexMetrics);
+    }
 }

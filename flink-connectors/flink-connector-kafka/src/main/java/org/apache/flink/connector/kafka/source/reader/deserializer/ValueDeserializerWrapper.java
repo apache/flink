@@ -31,45 +31,51 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-/**
- * A package private class to wrap {@link Deserializer}.
- */
+/** A package private class to wrap {@link Deserializer}. */
 class ValueDeserializerWrapper<T> implements KafkaRecordDeserializer<T> {
-	private static final long serialVersionUID = 5409547407386004054L;
-	private static final Logger LOG = LoggerFactory.getLogger(ValueDeserializerWrapper.class);
-	private final String deserializerClass;
-	private final Map<String, String> config;
+    private static final long serialVersionUID = 5409547407386004054L;
+    private static final Logger LOG = LoggerFactory.getLogger(ValueDeserializerWrapper.class);
+    private final String deserializerClass;
+    private final Map<String, String> config;
 
-	private transient Deserializer<T> deserializer;
+    private transient Deserializer<T> deserializer;
 
-	ValueDeserializerWrapper(
-			Class<? extends Deserializer<T>> deserializerClass,
-			Map<String, String> config) {
-		this.deserializerClass = deserializerClass.getName();
-		this.config = config;
-	}
+    ValueDeserializerWrapper(
+            Class<? extends Deserializer<T>> deserializerClass, Map<String, String> config) {
+        this.deserializerClass = deserializerClass.getName();
+        this.config = config;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<T> collector) throws Exception {
-		if (deserializer == null) {
-			deserializer = (Deserializer<T>) InstantiationUtil.instantiate(
-					deserializerClass, Deserializer.class, getClass().getClassLoader());
-			if (deserializer instanceof Configurable) {
-				((Configurable) deserializer).configure(config);
-			}
-		}
+    @Override
+    @SuppressWarnings("unchecked")
+    public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<T> collector)
+            throws Exception {
+        if (deserializer == null) {
+            deserializer =
+                    (Deserializer<T>)
+                            InstantiationUtil.instantiate(
+                                    deserializerClass,
+                                    Deserializer.class,
+                                    getClass().getClassLoader());
+            if (deserializer instanceof Configurable) {
+                ((Configurable) deserializer).configure(config);
+            }
+        }
 
-		T value = deserializer.deserialize(record.topic(), record.value());
-		LOG.trace("Deserialized [partition: {}-{}, offset: {}, timestamp: {}, value: {}]",
-				record.topic(), record.partition(), record.offset(), record.timestamp(), value);
-		collector.collect(value);
-	}
+        T value = deserializer.deserialize(record.topic(), record.value());
+        LOG.trace(
+                "Deserialized [partition: {}-{}, offset: {}, timestamp: {}, value: {}]",
+                record.topic(),
+                record.partition(),
+                record.offset(),
+                record.timestamp(),
+                value);
+        collector.collect(value);
+    }
 
-	@Override
-	public TypeInformation<T> getProducedType() {
-		return TypeExtractor.createTypeInfo(
-				Deserializer.class,
-				deserializer.getClass(), 0, null, null);
-	}
+    @Override
+    public TypeInformation<T> getProducedType() {
+        return TypeExtractor.createTypeInfo(
+                Deserializer.class, deserializer.getClass(), 0, null, null);
+    }
 }

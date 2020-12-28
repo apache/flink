@@ -37,67 +37,72 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Special version of {@link org.apache.flink.api.java.ExecutionEnvironment} that has a reference
- * to a {@link org.apache.flink.api.scala.FlinkILoop}. When execute is called this will
- * use the reference of the ILoop to write the compiled classes of the current session to
- * a Jar file and submit these with the program.
+ * Special version of {@link org.apache.flink.api.java.ExecutionEnvironment} that has a reference to
+ * a {@link org.apache.flink.api.scala.FlinkILoop}. When execute is called this will use the
+ * reference of the ILoop to write the compiled classes of the current session to a Jar file and
+ * submit these with the program.
  */
 @Internal
 public class ScalaShellEnvironment extends ExecutionEnvironment {
 
-	/** The jar files that need to be attached to each job. */
-	private final List<URL> jarFiles;
+    /** The jar files that need to be attached to each job. */
+    private final List<URL> jarFiles;
 
-	/** reference to Scala Shell, for access to virtual directory. */
-	private final FlinkILoop flinkILoop;
+    /** reference to Scala Shell, for access to virtual directory. */
+    private final FlinkILoop flinkILoop;
 
-	public ScalaShellEnvironment(
-			final Configuration configuration,
-			final FlinkILoop flinkILoop,
-			final String... jarFiles) {
+    public ScalaShellEnvironment(
+            final Configuration configuration,
+            final FlinkILoop flinkILoop,
+            final String... jarFiles) {
 
-		super(validateAndGetConfiguration(configuration));
-		this.flinkILoop = checkNotNull(flinkILoop);
-		this.jarFiles = checkNotNull(JarUtils.getJarFiles(jarFiles));
-	}
+        super(validateAndGetConfiguration(configuration));
+        this.flinkILoop = checkNotNull(flinkILoop);
+        this.jarFiles = checkNotNull(JarUtils.getJarFiles(jarFiles));
+    }
 
-	private static Configuration validateAndGetConfiguration(final Configuration configuration) {
-		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
-			throw new InvalidProgramException(
-					"The RemoteEnvironment cannot be instantiated when running in a pre-defined context " +
-							"(such as Command Line Client, Scala Shell, or TestEnvironment)");
-		}
-		return checkNotNull(configuration);
-	}
+    private static Configuration validateAndGetConfiguration(final Configuration configuration) {
+        if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
+            throw new InvalidProgramException(
+                    "The RemoteEnvironment cannot be instantiated when running in a pre-defined context "
+                            + "(such as Command Line Client, Scala Shell, or TestEnvironment)");
+        }
+        return checkNotNull(configuration);
+    }
 
-	@Override
-	public JobClient executeAsync(String jobName) throws Exception {
-		updateDependencies();
-		return super.executeAsync(jobName);
-	}
+    @Override
+    public JobClient executeAsync(String jobName) throws Exception {
+        updateDependencies();
+        return super.executeAsync(jobName);
+    }
 
-	private void updateDependencies() throws Exception {
-		final Configuration configuration = getConfiguration();
-		checkState(configuration.getBoolean(DeploymentOptions.ATTACHED), "Only ATTACHED mode is supported by the scala shell.");
+    private void updateDependencies() throws Exception {
+        final Configuration configuration = getConfiguration();
+        checkState(
+                configuration.getBoolean(DeploymentOptions.ATTACHED),
+                "Only ATTACHED mode is supported by the scala shell.");
 
-		final List<URL> updatedJarFiles = getUpdatedJarFiles();
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, updatedJarFiles, URL::toString);
-	}
+        final List<URL> updatedJarFiles = getUpdatedJarFiles();
+        ConfigUtils.encodeCollectionToConfig(
+                configuration, PipelineOptions.JARS, updatedJarFiles, URL::toString);
+    }
 
-	private List<URL> getUpdatedJarFiles() throws MalformedURLException {
-		final URL jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
-		final List<URL> allJarFiles = new ArrayList<>(jarFiles);
-		allJarFiles.add(jarUrl);
-		return allJarFiles;
-	}
+    private List<URL> getUpdatedJarFiles() throws MalformedURLException {
+        final URL jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
+        final List<URL> allJarFiles = new ArrayList<>(jarFiles);
+        allJarFiles.add(jarUrl);
+        return allJarFiles;
+    }
 
-	public static void disableAllContextAndOtherEnvironments() {
-		initializeContextEnvironment(() -> {
-			throw new UnsupportedOperationException("Execution Environment is already defined for this shell.");
-		});
-	}
+    public static void disableAllContextAndOtherEnvironments() {
+        initializeContextEnvironment(
+                () -> {
+                    throw new UnsupportedOperationException(
+                            "Execution Environment is already defined for this shell.");
+                });
+    }
 
-	public static void resetContextEnvironments() {
-		ExecutionEnvironment.resetContextEnvironment();
-	}
+    public static void resetContextEnvironments() {
+        ExecutionEnvironment.resetContextEnvironment();
+    }
 }

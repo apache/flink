@@ -68,237 +68,256 @@ import java.util.stream.StreamSupport;
  */
 @Internal
 public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OUT>
-	extends StateReaderOperator<WindowReaderFunction<IN, OUT, KEY, W>, KEY, W, OUT> {
+        extends StateReaderOperator<WindowReaderFunction<IN, OUT, KEY, W>, KEY, W, OUT> {
 
-	private static final String WINDOW_STATE_NAME = "window-contents";
+    private static final String WINDOW_STATE_NAME = "window-contents";
 
-	private static final String WINDOW_TIMER_NAME = "window-timers";
+    private static final String WINDOW_TIMER_NAME = "window-timers";
 
-	private final WindowContents<S, IN> contents;
+    private final WindowContents<S, IN> contents;
 
-	private final StateDescriptor<S, ?> descriptor;
+    private final StateDescriptor<S, ?> descriptor;
 
-	private transient Context ctx;
+    private transient Context ctx;
 
-	public static <KEY, T, W extends Window, OUT> WindowReaderOperator<?, KEY, T, W, OUT> reduce(
-		ReduceFunction<T> function,
-		WindowReaderFunction<T, OUT, KEY, W> reader,
-		TypeInformation<KEY> keyType,
-		TypeSerializer<W> windowSerializer,
-		TypeInformation<T> inputType) {
+    public static <KEY, T, W extends Window, OUT> WindowReaderOperator<?, KEY, T, W, OUT> reduce(
+            ReduceFunction<T> function,
+            WindowReaderFunction<T, OUT, KEY, W> reader,
+            TypeInformation<KEY> keyType,
+            TypeSerializer<W> windowSerializer,
+            TypeInformation<T> inputType) {
 
-		StateDescriptor<ReducingState<T>, T> descriptor = new ReducingStateDescriptor<>(WINDOW_STATE_NAME, function, inputType);
-		return new WindowReaderOperator<>(reader, keyType, windowSerializer, WindowContents.reducingState(), descriptor);
-	}
+        StateDescriptor<ReducingState<T>, T> descriptor =
+                new ReducingStateDescriptor<>(WINDOW_STATE_NAME, function, inputType);
+        return new WindowReaderOperator<>(
+                reader, keyType, windowSerializer, WindowContents.reducingState(), descriptor);
+    }
 
-	public static <KEY, T, ACC, R, OUT, W extends Window> WindowReaderOperator<?, KEY, R, W, OUT> aggregate(
-		AggregateFunction<T, ACC, R> function,
-		WindowReaderFunction<R, OUT, KEY, W> readerFunction,
-		TypeInformation<KEY> keyType,
-		TypeSerializer<W> windowSerializer,
-		TypeInformation<ACC> accumulatorType) {
+    public static <KEY, T, ACC, R, OUT, W extends Window>
+            WindowReaderOperator<?, KEY, R, W, OUT> aggregate(
+                    AggregateFunction<T, ACC, R> function,
+                    WindowReaderFunction<R, OUT, KEY, W> readerFunction,
+                    TypeInformation<KEY> keyType,
+                    TypeSerializer<W> windowSerializer,
+                    TypeInformation<ACC> accumulatorType) {
 
-		StateDescriptor<AggregatingState<T, R>, ACC> descriptor = new AggregatingStateDescriptor<>(WINDOW_STATE_NAME, function, accumulatorType);
-		return new WindowReaderOperator<>(readerFunction, keyType, windowSerializer, WindowContents.aggregatingState(), descriptor);
-	}
+        StateDescriptor<AggregatingState<T, R>, ACC> descriptor =
+                new AggregatingStateDescriptor<>(WINDOW_STATE_NAME, function, accumulatorType);
+        return new WindowReaderOperator<>(
+                readerFunction,
+                keyType,
+                windowSerializer,
+                WindowContents.aggregatingState(),
+                descriptor);
+    }
 
-	public static <KEY, T, W extends Window, OUT> WindowReaderOperator<?, KEY, T, W, OUT> process(
-		WindowReaderFunction<T, OUT, KEY, W> readerFunction,
-		TypeInformation<KEY> keyType,
-		TypeSerializer<W> windowSerializer,
-		TypeInformation<T> stateType) {
+    public static <KEY, T, W extends Window, OUT> WindowReaderOperator<?, KEY, T, W, OUT> process(
+            WindowReaderFunction<T, OUT, KEY, W> readerFunction,
+            TypeInformation<KEY> keyType,
+            TypeSerializer<W> windowSerializer,
+            TypeInformation<T> stateType) {
 
-		StateDescriptor<ListState<T>, List<T>> descriptor = new ListStateDescriptor<>(WINDOW_STATE_NAME, stateType);
-		return new WindowReaderOperator<>(readerFunction, keyType, windowSerializer, WindowContents.listState(), descriptor);
-	}
+        StateDescriptor<ListState<T>, List<T>> descriptor =
+                new ListStateDescriptor<>(WINDOW_STATE_NAME, stateType);
+        return new WindowReaderOperator<>(
+                readerFunction, keyType, windowSerializer, WindowContents.listState(), descriptor);
+    }
 
-	public static <KEY, T, W extends Window, OUT> WindowReaderOperator<?, KEY, StreamRecord<T>, W, OUT> evictingWindow(
-		WindowReaderFunction<StreamRecord<T>, OUT, KEY, W> readerFunction,
-		TypeInformation<KEY> keyType,
-		TypeSerializer<W> windowSerializer,
-		TypeInformation<T> stateType,
-		ExecutionConfig config) {
+    public static <KEY, T, W extends Window, OUT>
+            WindowReaderOperator<?, KEY, StreamRecord<T>, W, OUT> evictingWindow(
+                    WindowReaderFunction<StreamRecord<T>, OUT, KEY, W> readerFunction,
+                    TypeInformation<KEY> keyType,
+                    TypeSerializer<W> windowSerializer,
+                    TypeInformation<T> stateType,
+                    ExecutionConfig config) {
 
-		@SuppressWarnings({"unchecked", "rawtypes"})
-		TypeSerializer<StreamRecord<T>> streamRecordSerializer =
-			(TypeSerializer<StreamRecord<T>>) new StreamElementSerializer(stateType.createSerializer(config));
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        TypeSerializer<StreamRecord<T>> streamRecordSerializer =
+                (TypeSerializer<StreamRecord<T>>)
+                        new StreamElementSerializer(stateType.createSerializer(config));
 
-		StateDescriptor<ListState<StreamRecord<T>>, List<StreamRecord<T>>> descriptor =
-			new ListStateDescriptor<>(WINDOW_STATE_NAME, streamRecordSerializer);
+        StateDescriptor<ListState<StreamRecord<T>>, List<StreamRecord<T>>> descriptor =
+                new ListStateDescriptor<>(WINDOW_STATE_NAME, streamRecordSerializer);
 
-		return new WindowReaderOperator<>(readerFunction, keyType, windowSerializer, WindowContents.listState(), descriptor);
-	}
+        return new WindowReaderOperator<>(
+                readerFunction, keyType, windowSerializer, WindowContents.listState(), descriptor);
+    }
 
-	private WindowReaderOperator(
-		WindowReaderFunction<IN, OUT, KEY, W> function,
-		TypeInformation<KEY> keyType,
-		TypeSerializer<W> namespaceSerializer,
-		WindowContents<S, IN> contents,
-		StateDescriptor<S, ?> descriptor) {
-		super(function, keyType, namespaceSerializer);
+    private WindowReaderOperator(
+            WindowReaderFunction<IN, OUT, KEY, W> function,
+            TypeInformation<KEY> keyType,
+            TypeSerializer<W> namespaceSerializer,
+            WindowContents<S, IN> contents,
+            StateDescriptor<S, ?> descriptor) {
+        super(function, keyType, namespaceSerializer);
 
-		Preconditions.checkNotNull(contents, "WindowContents must not be null");
-		Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
+        Preconditions.checkNotNull(contents, "WindowContents must not be null");
+        Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
 
-		this.contents = contents;
-		this.descriptor = descriptor;
-	}
+        this.contents = contents;
+        this.descriptor = descriptor;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
+    @Override
+    public void open() throws Exception {
+        super.open();
 
-		ctx = new Context(getKeyedStateBackend(), getInternalTimerService(WINDOW_TIMER_NAME));
-	}
+        ctx = new Context(getKeyedStateBackend(), getInternalTimerService(WINDOW_TIMER_NAME));
+    }
 
-	@Override
-	public void processElement(KEY key, W namespace, Collector<OUT> out) throws Exception {
-		ctx.window = namespace;
-		S state = getKeyedStateBackend().getPartitionedState(namespace, namespaceSerializer, descriptor);
-		function.readWindow(key, ctx, contents.contents(state), out);
-	}
+    @Override
+    public void processElement(KEY key, W namespace, Collector<OUT> out) throws Exception {
+        ctx.window = namespace;
+        S state =
+                getKeyedStateBackend()
+                        .getPartitionedState(namespace, namespaceSerializer, descriptor);
+        function.readWindow(key, ctx, contents.contents(state), out);
+    }
 
-	@Override
-	public CloseableIterator<Tuple2<KEY, W>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception {
-		Stream<Tuple2<KEY, W>> keysAndWindows = getKeyedStateBackend()
-			.getKeysAndNamespaces(descriptor.getName());
+    @Override
+    public CloseableIterator<Tuple2<KEY, W>> getKeysAndNamespaces(SavepointRuntimeContext ctx)
+            throws Exception {
+        Stream<Tuple2<KEY, W>> keysAndWindows =
+                getKeyedStateBackend().getKeysAndNamespaces(descriptor.getName());
 
-		return new IteratorWithRemove<>(keysAndWindows);
-	}
+        return new IteratorWithRemove<>(keysAndWindows);
+    }
 
-	private class Context implements WindowReaderFunction.Context<W> {
+    private class Context implements WindowReaderFunction.Context<W> {
 
-		private static final String EVENT_TIMER_STATE = "event-time-timers";
+        private static final String EVENT_TIMER_STATE = "event-time-timers";
 
-		private static final String PROC_TIMER_STATE = "proc-time-timers";
+        private static final String PROC_TIMER_STATE = "proc-time-timers";
 
-		W window;
+        W window;
 
-		final PerWindowKeyedStateStore perWindowKeyedStateStore;
+        final PerWindowKeyedStateStore perWindowKeyedStateStore;
 
-		final DefaultKeyedStateStore keyedStateStore;
+        final DefaultKeyedStateStore keyedStateStore;
 
-		ListState<Long> eventTimers;
+        ListState<Long> eventTimers;
 
-		ListState<Long> procTimers;
+        ListState<Long> procTimers;
 
-		private Context(KeyedStateBackend<KEY> keyedStateBackend, InternalTimerService<W> timerService) throws Exception {
-			keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());
-			perWindowKeyedStateStore = new PerWindowKeyedStateStore(keyedStateBackend);
+        private Context(
+                KeyedStateBackend<KEY> keyedStateBackend, InternalTimerService<W> timerService)
+                throws Exception {
+            keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());
+            perWindowKeyedStateStore = new PerWindowKeyedStateStore(keyedStateBackend);
 
-			eventTimers = keyedStateBackend.getPartitionedState(
-				WINDOW_TIMER_NAME,
-				StringSerializer.INSTANCE,
-				new ListStateDescriptor<>(EVENT_TIMER_STATE, Types.LONG));
+            eventTimers =
+                    keyedStateBackend.getPartitionedState(
+                            WINDOW_TIMER_NAME,
+                            StringSerializer.INSTANCE,
+                            new ListStateDescriptor<>(EVENT_TIMER_STATE, Types.LONG));
 
-			timerService.forEachEventTimeTimer((namespace, timer) -> {
-				eventTimers.add(timer);
-			});
+            timerService.forEachEventTimeTimer(
+                    (namespace, timer) -> {
+                        eventTimers.add(timer);
+                    });
 
-			procTimers = keyedStateBackend.getPartitionedState(
-				WINDOW_TIMER_NAME,
-				StringSerializer.INSTANCE,
-				new ListStateDescriptor<>(PROC_TIMER_STATE, Types.LONG));
+            procTimers =
+                    keyedStateBackend.getPartitionedState(
+                            WINDOW_TIMER_NAME,
+                            StringSerializer.INSTANCE,
+                            new ListStateDescriptor<>(PROC_TIMER_STATE, Types.LONG));
 
-			timerService.forEachProcessingTimeTimer((namespace, timer) -> {
-				procTimers.add(timer);
-			});
-		}
+            timerService.forEachProcessingTimeTimer(
+                    (namespace, timer) -> {
+                        procTimers.add(timer);
+                    });
+        }
 
-		@Override
-		public W window() {
-			return window;
-		}
+        @Override
+        public W window() {
+            return window;
+        }
 
-		@Override
-		public <TS extends State> TS triggerState(StateDescriptor<TS, ?> descriptor) {
-			try {
-				return getKeyedStateBackend().getPartitionedState(window, namespaceSerializer, descriptor);
-			} catch (Exception e) {
-				throw new RuntimeException("Could not retrieve trigger state", e);
-			}
-		}
+        @Override
+        public <TS extends State> TS triggerState(StateDescriptor<TS, ?> descriptor) {
+            try {
+                return getKeyedStateBackend()
+                        .getPartitionedState(window, namespaceSerializer, descriptor);
+            } catch (Exception e) {
+                throw new RuntimeException("Could not retrieve trigger state", e);
+            }
+        }
 
-		@Override
-		public KeyedStateStore windowState() {
-			perWindowKeyedStateStore.window = window;
-			return perWindowKeyedStateStore;
-		}
+        @Override
+        public KeyedStateStore windowState() {
+            perWindowKeyedStateStore.window = window;
+            return perWindowKeyedStateStore;
+        }
 
-		@Override
-		public KeyedStateStore globalState() {
-			return keyedStateStore;
-		}
+        @Override
+        public KeyedStateStore globalState() {
+            return keyedStateStore;
+        }
 
-		@Override
-		public Set<Long> registeredEventTimeTimers() throws Exception {
-			Iterable<Long> timers = eventTimers.get();
-			if (timers == null) {
-				return Collections.emptySet();
-			}
+        @Override
+        public Set<Long> registeredEventTimeTimers() throws Exception {
+            Iterable<Long> timers = eventTimers.get();
+            if (timers == null) {
+                return Collections.emptySet();
+            }
 
-			return StreamSupport
-				.stream(timers.spliterator(), false)
-				.collect(Collectors.toSet());
-		}
+            return StreamSupport.stream(timers.spliterator(), false).collect(Collectors.toSet());
+        }
 
-		@Override
-		public Set<Long> registeredProcessingTimeTimers() throws Exception {
-			Iterable<Long> timers = procTimers.get();
-			if (timers == null) {
-				return Collections.emptySet();
-			}
+        @Override
+        public Set<Long> registeredProcessingTimeTimers() throws Exception {
+            Iterable<Long> timers = procTimers.get();
+            if (timers == null) {
+                return Collections.emptySet();
+            }
 
-			return StreamSupport
-				.stream(timers.spliterator(), false)
-				.collect(Collectors.toSet());
-		}
-	}
+            return StreamSupport.stream(timers.spliterator(), false).collect(Collectors.toSet());
+        }
+    }
 
-	private class PerWindowKeyedStateStore extends DefaultKeyedStateStore {
+    private class PerWindowKeyedStateStore extends DefaultKeyedStateStore {
 
-		W window;
+        W window;
 
-		PerWindowKeyedStateStore(KeyedStateBackend<?> keyedStateBackend) {
-			super(keyedStateBackend, WindowReaderOperator.this.getExecutionConfig());
-		}
+        PerWindowKeyedStateStore(KeyedStateBackend<?> keyedStateBackend) {
+            super(keyedStateBackend, WindowReaderOperator.this.getExecutionConfig());
+        }
 
-		@Override
-		protected <SS extends State> SS getPartitionedState(StateDescriptor<SS, ?> stateDescriptor) throws Exception {
-			return keyedStateBackend.getPartitionedState(
-				window,
-				namespaceSerializer,
-				stateDescriptor);
-		}
-	}
+        @Override
+        protected <SS extends State> SS getPartitionedState(StateDescriptor<SS, ?> stateDescriptor)
+                throws Exception {
+            return keyedStateBackend.getPartitionedState(
+                    window, namespaceSerializer, stateDescriptor);
+        }
+    }
 
-	private static class IteratorWithRemove<T> implements CloseableIterator<T> {
+    private static class IteratorWithRemove<T> implements CloseableIterator<T> {
 
-		private final Iterator<T> iterator;
+        private final Iterator<T> iterator;
 
-		private final AutoCloseable resource;
+        private final AutoCloseable resource;
 
-		private IteratorWithRemove(Stream<T> stream) {
-			this.iterator = stream.iterator();
-			this.resource = stream;
-		}
+        private IteratorWithRemove(Stream<T> stream) {
+            this.iterator = stream.iterator();
+            this.resource = stream;
+        }
 
-		@Override
-		public boolean hasNext() {
-			return iterator.hasNext();
-		}
+        @Override
+        public boolean hasNext() {
+            return iterator.hasNext();
+        }
 
-		@Override
-		public T next() {
-			return iterator.next();
-		}
+        @Override
+        public T next() {
+            return iterator.next();
+        }
 
-		@Override
-		public void remove() { }
+        @Override
+        public void remove() {}
 
-		@Override
-		public void close() throws Exception {
-			resource.close();
-		}
-	}
+        @Override
+        public void close() throws Exception {
+            resource.close();
+        }
+    }
 }

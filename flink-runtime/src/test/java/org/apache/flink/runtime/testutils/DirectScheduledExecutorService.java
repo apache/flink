@@ -30,78 +30,80 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * This implements a variant of the {@link Executors#directExecutor()} that also implements the
- * {@link ScheduledExecutorService} interface.
- * Scheduled executables are actually scheduled, all other (call / execute) execute synchronously.
+ * {@link ScheduledExecutorService} interface. Scheduled executables are actually scheduled, all
+ * other (call / execute) execute synchronously.
  */
-public class DirectScheduledExecutorService extends AbstractExecutorService implements ScheduledExecutorService {
+public class DirectScheduledExecutorService extends AbstractExecutorService
+        implements ScheduledExecutorService {
 
-	private final ScheduledExecutorService scheduledService = 
-			java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService scheduledService =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
 
-	// ------------------------------------------------------------------------
-	//  Direct Executor 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Direct Executor
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void execute(Runnable command) {
-		if (!isShutdown()) {
-			command.run();
-		} else {
-			throw new RejectedExecutionException();
-		}
-	}
+    @Override
+    public void execute(Runnable command) {
+        if (!isShutdown()) {
+            command.run();
+        } else {
+            throw new RejectedExecutionException();
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Scheduled Executor 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Scheduled Executor
+    // ------------------------------------------------------------------------
 
+    @Override
+    public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+        return scheduledService.schedule(command, delay, unit);
+    }
 
-	@Override
-	public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
-		return scheduledService.schedule(command, delay, unit);
-	}
+    @Override
+    public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+        return scheduledService.schedule(callable, delay, unit);
+    }
 
-	@Override
-	public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-		return scheduledService.schedule(callable, delay, unit);
-	}
+    @Override
+    public ScheduledFuture<?> scheduleAtFixedRate(
+            Runnable command, long initialDelay, long period, TimeUnit unit) {
+        return scheduledService.scheduleAtFixedRate(command, initialDelay, period, unit);
+    }
 
-	@Override
-	public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
-		return scheduledService.scheduleAtFixedRate(command, initialDelay, period, unit);
-	}
+    @Override
+    public ScheduledFuture<?> scheduleWithFixedDelay(
+            Runnable command, long initialDelay, long delay, TimeUnit unit) {
+        return scheduledService.scheduleWithFixedDelay(command, initialDelay, delay, unit);
+    }
 
-	@Override
-	public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
-		return scheduledService.scheduleWithFixedDelay(command, initialDelay, delay, unit);
-	}
+    // ------------------------------------------------------------------------
+    //  Shutdown
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	//  Shutdown 
-	// ------------------------------------------------------------------------
+    @Override
+    public void shutdown() {
+        scheduledService.shutdown();
+    }
 
-	@Override
-	public void shutdown() {
-		scheduledService.shutdown();
-	}
+    @Override
+    public List<Runnable> shutdownNow() {
+        return scheduledService.shutdownNow();
+    }
 
-	@Override
-	public List<Runnable> shutdownNow() {
-		return scheduledService.shutdownNow();
-	}
+    @Override
+    public boolean isShutdown() {
+        return scheduledService.isShutdown();
+    }
 
-	@Override
-	public boolean isShutdown() {
-		return scheduledService.isShutdown();
-	}
+    @Override
+    public boolean isTerminated() {
+        return scheduledService.isTerminated();
+    }
 
-	@Override
-	public boolean isTerminated() {
-		return scheduledService.isTerminated();
-	}
-
-	@Override
-	public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-		return scheduledService.awaitTermination(timeout, unit);
-	}
+    @Override
+    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        return scheduledService.awaitTermination(timeout, unit);
+    }
 }

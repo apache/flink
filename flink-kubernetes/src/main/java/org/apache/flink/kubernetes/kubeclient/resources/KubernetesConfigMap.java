@@ -23,41 +23,39 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Represent {@link ConfigMap} resource in kubernetes.
- */
+/** Represent {@link ConfigMap} resource in kubernetes. */
 public class KubernetesConfigMap extends KubernetesResource<ConfigMap> {
 
-	public KubernetesConfigMap(ConfigMap configMap) {
-		super(configMap);
-	}
+    public KubernetesConfigMap(ConfigMap configMap) {
+        super(configMap);
+    }
 
-	public String getName() {
-		return this.getInternalResource().getMetadata().getName();
-	}
+    public String getName() {
+        return this.getInternalResource().getMetadata().getName();
+    }
 
-	public String getResourceVersion() {
-		return this.getInternalResource().getMetadata().getResourceVersion();
-	}
+    public String getResourceVersion() {
+        return this.getInternalResource().getMetadata().getResourceVersion();
+    }
 
-	public Map<String, String> getAnnotations() {
-		if (this.getInternalResource().getMetadata().getAnnotations() == null) {
-			this.getInternalResource().getMetadata().setAnnotations(new HashMap<>());
-		}
-		return this.getInternalResource().getMetadata().getAnnotations();
-	}
+    public Map<String, String> getAnnotations() {
+        if (this.getInternalResource().getMetadata().getAnnotations() == null) {
+            this.getInternalResource().getMetadata().setAnnotations(new HashMap<>());
+        }
+        return this.getInternalResource().getMetadata().getAnnotations();
+    }
 
-	public Map<String, String> getData() {
-		if (this.getInternalResource().getData() == null) {
-			this.getInternalResource().setData(new HashMap<>());
-		}
-		return this.getInternalResource().getData();
-	}
+    public Map<String, String> getData() {
+        if (this.getInternalResource().getData() == null) {
+            this.getInternalResource().setData(new HashMap<>());
+        }
+        return this.getInternalResource().getData();
+    }
 
-	public Map<String, String> getLabels() {
-		if (this.getInternalResource().getMetadata().getLabels() == null) {
-			this.getInternalResource().getMetadata().setLabels(new HashMap<>());
-		}
-		return this.getInternalResource().getMetadata().getLabels();
-	}
+    public Map<String, String> getLabels() {
+        if (this.getInternalResource().getMetadata().getLabels() == null) {
+            this.getInternalResource().getMetadata().setLabels(new HashMap<>());
+        }
+        return this.getInternalResource().getMetadata().getLabels();
+    }
 }

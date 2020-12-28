@@ -29,34 +29,34 @@ import org.junit.Test;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for {@link RowTimeRowsBoundedPrecedingFunction}.
- */
+/** Test for {@link RowTimeRowsBoundedPrecedingFunction}. */
 public class RowTimeRowsBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
 
-	@Test
-	public void testLateRecordMetrics() throws Exception {
-		RowTimeRowsBoundedPrecedingFunction<RowData> function = new RowTimeRowsBoundedPrecedingFunction<>(1000, 2000,
-			aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);
-		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(function);
+    @Test
+    public void testLateRecordMetrics() throws Exception {
+        RowTimeRowsBoundedPrecedingFunction<RowData> function =
+                new RowTimeRowsBoundedPrecedingFunction<>(
+                        1000, 2000, aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
 
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
 
-		testHarness.open();
+        testHarness.open();
 
-		Counter counter = function.getCounter();
+        Counter counter = function.getCounter();
 
-		// put some records
-		testHarness.processElement(insertRecord("key", 1L, 100L));
-		testHarness.processElement(insertRecord("key", 1L, 100L));
-		testHarness.processElement(insertRecord("key", 1L, 500L));
+        // put some records
+        testHarness.processElement(insertRecord("key", 1L, 100L));
+        testHarness.processElement(insertRecord("key", 1L, 100L));
+        testHarness.processElement(insertRecord("key", 1L, 500L));
 
-		testHarness.processWatermark(new Watermark(500L));
+        testHarness.processWatermark(new Watermark(500L));
 
-		//late record
-		testHarness.processElement(insertRecord("key", 1L, 400L));
+        // late record
+        testHarness.processElement(insertRecord("key", 1L, 400L));
 
-		assertEquals(1L, counter.getCount());
-	}
-
+        assertEquals(1L, counter.getCount());
+    }
 }

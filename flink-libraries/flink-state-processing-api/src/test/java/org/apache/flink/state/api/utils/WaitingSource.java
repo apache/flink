@@ -31,93 +31,90 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * A wrapper class that allows threads to block until the inner source completes.
- * It's run method does not return until explicitly canceled so external processes can
- * perform operations such as taking savepoints.
+ * A wrapper class that allows threads to block until the inner source completes. It's run method
+ * does not return until explicitly canceled so external processes can perform operations such as
+ * taking savepoints.
  *
  * @param <T> The output type of the inner source.
  */
 @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
 public class WaitingSource<T> extends RichSourceFunction<T> implements ResultTypeQueryable<T> {
 
-	private static final Map<String, OneShotLatch> guards = new HashMap<>();
+    private static final Map<String, OneShotLatch> guards = new HashMap<>();
 
-	private final SourceFunction<T> source;
+    private final SourceFunction<T> source;
 
-	private final TypeInformation<T> returnType;
+    private final TypeInformation<T> returnType;
 
-	private final String guardId;
+    private final String guardId;
 
-	private volatile boolean running;
+    private volatile boolean running;
 
-	public WaitingSource(SourceFunction<T> source, TypeInformation<T> returnType) {
-		this.source = source;
-		this.returnType = returnType;
-		this.guardId = UUID.randomUUID().toString();
+    public WaitingSource(SourceFunction<T> source, TypeInformation<T> returnType) {
+        this.source = source;
+        this.returnType = returnType;
+        this.guardId = UUID.randomUUID().toString();
 
-		guards.put(guardId, new OneShotLatch());
-		this.running = true;
-	}
+        guards.put(guardId, new OneShotLatch());
+        this.running = true;
+    }
 
-	@Override
-	public void setRuntimeContext(RuntimeContext t) {
-		if (source instanceof RichSourceFunction) {
-			((RichSourceFunction<T>) source).setRuntimeContext(t);
-		}
-	}
+    @Override
+    public void setRuntimeContext(RuntimeContext t) {
+        if (source instanceof RichSourceFunction) {
+            ((RichSourceFunction<T>) source).setRuntimeContext(t);
+        }
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		if (source instanceof RichSourceFunction) {
-			((RichSourceFunction<T>) source).open(parameters);
-		}
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        if (source instanceof RichSourceFunction) {
+            ((RichSourceFunction<T>) source).open(parameters);
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		if (source instanceof RichSourceFunction) {
-			((RichSourceFunction<T>) source).close();
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        if (source instanceof RichSourceFunction) {
+            ((RichSourceFunction<T>) source).close();
+        }
+    }
 
-	@Override
-	public void run(SourceContext<T> ctx) throws Exception {
-		OneShotLatch latch = guards.get(guardId);
-		try {
-			source.run(ctx);
-		} finally {
-			latch.trigger();
-		}
+    @Override
+    public void run(SourceContext<T> ctx) throws Exception {
+        OneShotLatch latch = guards.get(guardId);
+        try {
+            source.run(ctx);
+        } finally {
+            latch.trigger();
+        }
 
-		while (running) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				// ignore
-			}
-		}
-	}
+        while (running) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+        }
+    }
 
-	@Override
-	public void cancel() {
-		source.cancel();
-		running = false;
-	}
+    @Override
+    public void cancel() {
+        source.cancel();
+        running = false;
+    }
 
-	/**
-	 * This method blocks until the inner source has completed.
-	 *
-	 */
-	public void awaitSource() throws RuntimeException {
-		try {
-			guards.get(guardId).await();
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Failed to initialize source");
-		}
-	}
+    /** This method blocks until the inner source has completed. */
+    public void awaitSource() throws RuntimeException {
+        try {
+            guards.get(guardId).await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Failed to initialize source");
+        }
+    }
 
-	@Override
-	public TypeInformation<T> getProducedType() {
-		return returnType;
-	}
+    @Override
+    public TypeInformation<T> getProducedType() {
+        return returnType;
+    }
 }

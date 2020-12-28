@@ -41,107 +41,89 @@ import java.io.OutputStream;
 @Internal
 public abstract class ArrowSerializer<T> {
 
-	static {
-		ArrowUtils.checkArrowUsable();
-	}
+    static {
+        ArrowUtils.checkArrowUsable();
+    }
 
-	/**
-	 * The input RowType.
-	 */
-	protected final RowType inputType;
+    /** The input RowType. */
+    protected final RowType inputType;
 
-	/**
-	 * The output RowType.
-	 */
-	protected final RowType outputType;
+    /** The output RowType. */
+    protected final RowType outputType;
 
-	/**
-	 * Allocator which is used for byte buffer allocation.
-	 */
-	private transient BufferAllocator allocator;
+    /** Allocator which is used for byte buffer allocation. */
+    private transient BufferAllocator allocator;
 
-	/**
-	 * Reader which is responsible for deserialize the Arrow format data to the Flink rows.
-	 */
-	private transient ArrowReader<T> arrowReader;
+    /** Reader which is responsible for deserialize the Arrow format data to the Flink rows. */
+    private transient ArrowReader<T> arrowReader;
 
-	/**
-	 * Reader which is responsible for convert the execution result from
-	 * byte array to arrow format.
-	 */
-	private transient ArrowStreamReader arrowStreamReader;
+    /**
+     * Reader which is responsible for convert the execution result from byte array to arrow format.
+     */
+    private transient ArrowStreamReader arrowStreamReader;
 
-	/**
-	 * Container that holds a set of vectors for the input elements
-	 * to be sent to the Python worker.
-	 */
-	transient VectorSchemaRoot rootWriter;
+    /**
+     * Container that holds a set of vectors for the input elements to be sent to the Python worker.
+     */
+    transient VectorSchemaRoot rootWriter;
 
-	/**
-	 * Writer which is responsible for serialize the input elements to arrow format.
-	 */
-	private transient ArrowWriter<T> arrowWriter;
+    /** Writer which is responsible for serialize the input elements to arrow format. */
+    private transient ArrowWriter<T> arrowWriter;
 
-	/**
-	 * Writer which is responsible for convert the arrow format data into byte array.
-	 */
-	private transient ArrowStreamWriter arrowStreamWriter;
+    /** Writer which is responsible for convert the arrow format data into byte array. */
+    private transient ArrowStreamWriter arrowStreamWriter;
 
-	public ArrowSerializer(
-		RowType inputType,
-		RowType outputType) {
-		this.inputType = inputType;
-		this.outputType = outputType;
-	}
+    public ArrowSerializer(RowType inputType, RowType outputType) {
+        this.inputType = inputType;
+        this.outputType = outputType;
+    }
 
-	public void open(InputStream bais, OutputStream baos) throws Exception {
-		allocator = ArrowUtils.getRootAllocator().newChildAllocator("allocator", 0, Long.MAX_VALUE);
-		arrowStreamReader = new ArrowStreamReader(bais, allocator);
+    public void open(InputStream bais, OutputStream baos) throws Exception {
+        allocator = ArrowUtils.getRootAllocator().newChildAllocator("allocator", 0, Long.MAX_VALUE);
+        arrowStreamReader = new ArrowStreamReader(bais, allocator);
 
-		rootWriter = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(inputType), allocator);
-		arrowWriter = createArrowWriter();
-		arrowStreamWriter = new ArrowStreamWriter(rootWriter, null, baos);
-		arrowStreamWriter.start();
-	}
+        rootWriter = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(inputType), allocator);
+        arrowWriter = createArrowWriter();
+        arrowStreamWriter = new ArrowStreamWriter(rootWriter, null, baos);
+        arrowStreamWriter.start();
+    }
 
-	public int load() throws IOException {
-		arrowStreamReader.loadNextBatch();
-		VectorSchemaRoot root = arrowStreamReader.getVectorSchemaRoot();
-		if (arrowReader == null) {
-			arrowReader = createArrowReader(root);
-		}
-		return root.getRowCount();
-	}
+    public int load() throws IOException {
+        arrowStreamReader.loadNextBatch();
+        VectorSchemaRoot root = arrowStreamReader.getVectorSchemaRoot();
+        if (arrowReader == null) {
+            arrowReader = createArrowReader(root);
+        }
+        return root.getRowCount();
+    }
 
-	public T read(int i) {
-		return arrowReader.read(i);
-	}
+    public T read(int i) {
+        return arrowReader.read(i);
+    }
 
-	public void write(T element) {
-		arrowWriter.write(element);
-	}
+    public void write(T element) {
+        arrowWriter.write(element);
+    }
 
-	public void close() throws Exception {
-		arrowStreamWriter.end();
-		arrowStreamReader.close();
-		rootWriter.close();
-		allocator.close();
-	}
+    public void close() throws Exception {
+        arrowStreamWriter.end();
+        arrowStreamReader.close();
+        rootWriter.close();
+        allocator.close();
+    }
 
-	/**
-	 * Creates an {@link ArrowWriter}.
-	 */
-	public abstract ArrowWriter<T> createArrowWriter();
+    /** Creates an {@link ArrowWriter}. */
+    public abstract ArrowWriter<T> createArrowWriter();
 
-	public abstract ArrowReader<T> createArrowReader(VectorSchemaRoot root);
+    public abstract ArrowReader<T> createArrowReader(VectorSchemaRoot root);
 
-	/**
-	 * Forces to finish the processing of the current batch of elements.
-	 * It will serialize the batch of elements into one arrow batch.
-	 */
-	public void finishCurrentBatch() throws Exception {
-		arrowWriter.finish();
-		arrowStreamWriter.writeBatch();
-		arrowWriter.reset();
-	}
+    /**
+     * Forces to finish the processing of the current batch of elements. It will serialize the batch
+     * of elements into one arrow batch.
+     */
+    public void finishCurrentBatch() throws Exception {
+        arrowWriter.finish();
+        arrowStreamWriter.writeBatch();
+        arrowWriter.reset();
+    }
 }

@@ -22,22 +22,16 @@ package org.apache.flink.table.filesystem.stream.compact;
 import java.io.IOException;
 import java.io.Serializable;
 
-/**
- * Writer for compaction.
- */
+/** Writer for compaction. */
 public interface CompactWriter<T> {
 
-	void write(T record) throws IOException;
+    void write(T record) throws IOException;
 
-	/**
-	 * Commits the pending file, making it visible.
-	 */
-	void commit() throws IOException;
+    /** Commits the pending file, making it visible. */
+    void commit() throws IOException;
 
-	/**
-	 * Factory to create {@link CompactWriter}.
-	 */
-	interface Factory<T> extends Serializable {
-		CompactWriter<T> create(CompactContext context) throws IOException;
-	}
+    /** Factory to create {@link CompactWriter}. */
+    interface Factory<T> extends Serializable {
+        CompactWriter<T> create(CompactContext context) throws IOException;
+    }
 }

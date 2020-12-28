@@ -21,22 +21,23 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.util.FlinkException;
 
 /**
- * This exception is thrown by the {@link LeaderElectionDriver} when {@link LeaderElectionDriver#writeLeaderInformation}
- * failed or some unexpected changes to the leader storage.
+ * This exception is thrown by the {@link LeaderElectionDriver} when {@link
+ * LeaderElectionDriver#writeLeaderInformation} failed or some unexpected changes to the leader
+ * storage.
  */
 public class LeaderElectionException extends FlinkException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public LeaderElectionException(String message) {
-		super(message);
-	}
+    public LeaderElectionException(String message) {
+        super(message);
+    }
 
-	public LeaderElectionException(Throwable cause) {
-		super(cause);
-	}
+    public LeaderElectionException(Throwable cause) {
+        super(cause);
+    }
 
-	public LeaderElectionException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public LeaderElectionException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

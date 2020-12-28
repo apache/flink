@@ -46,133 +46,146 @@ import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequen
 @Internal
 public class PollingRecordPublisher implements RecordPublisher {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PollingRecordPublisher.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PollingRecordPublisher.class);
 
-	private final PollingRecordPublisherMetricsReporter metricsReporter;
+    private final PollingRecordPublisherMetricsReporter metricsReporter;
 
-	private final KinesisProxyInterface kinesisProxy;
+    private final KinesisProxyInterface kinesisProxy;
 
-	private final StreamShardHandle subscribedShard;
+    private final StreamShardHandle subscribedShard;
 
-	private String nextShardItr;
+    private String nextShardItr;
 
-	private StartingPosition nextStartingPosition;
+    private StartingPosition nextStartingPosition;
 
-	private final int maxNumberOfRecordsPerFetch;
+    private final int maxNumberOfRecordsPerFetch;
 
-	private final long expiredIteratorBackoffMillis;
+    private final long expiredIteratorBackoffMillis;
 
-	/**
-	 * A Polling implementation of {@link RecordPublisher} that polls kinesis for records.
-	 * The following KDS services are used: GetRecords and GetShardIterator.
-	 *
-	 * @param startingPosition the position in the stream to start consuming from
-	 * @param subscribedShard the shard in which to consume from
-	 * @param metricsReporter a metric reporter used to output metrics
-	 * @param kinesisProxy the proxy used to communicate with kinesis
-	 * @param maxNumberOfRecordsPerFetch the maximum number of records to retrieve per batch
-	 * @param expiredIteratorBackoffMillis the duration to sleep in the event of an {@link ExpiredIteratorException}
-	 */
-	PollingRecordPublisher(
-			final StartingPosition startingPosition,
-			final StreamShardHandle subscribedShard,
-			final PollingRecordPublisherMetricsReporter metricsReporter,
-			final KinesisProxyInterface kinesisProxy,
-			final int maxNumberOfRecordsPerFetch,
-			final long expiredIteratorBackoffMillis) throws InterruptedException {
-		this.nextStartingPosition = Preconditions.checkNotNull(startingPosition);
-		this.subscribedShard = Preconditions.checkNotNull(subscribedShard);
-		this.metricsReporter = Preconditions.checkNotNull(metricsReporter);
-		this.kinesisProxy = Preconditions.checkNotNull(kinesisProxy);
-		this.maxNumberOfRecordsPerFetch = maxNumberOfRecordsPerFetch;
-		this.expiredIteratorBackoffMillis = expiredIteratorBackoffMillis;
+    /**
+     * A Polling implementation of {@link RecordPublisher} that polls kinesis for records. The
+     * following KDS services are used: GetRecords and GetShardIterator.
+     *
+     * @param startingPosition the position in the stream to start consuming from
+     * @param subscribedShard the shard in which to consume from
+     * @param metricsReporter a metric reporter used to output metrics
+     * @param kinesisProxy the proxy used to communicate with kinesis
+     * @param maxNumberOfRecordsPerFetch the maximum number of records to retrieve per batch
+     * @param expiredIteratorBackoffMillis the duration to sleep in the event of an {@link
+     *     ExpiredIteratorException}
+     */
+    PollingRecordPublisher(
+            final StartingPosition startingPosition,
+            final StreamShardHandle subscribedShard,
+            final PollingRecordPublisherMetricsReporter metricsReporter,
+            final KinesisProxyInterface kinesisProxy,
+            final int maxNumberOfRecordsPerFetch,
+            final long expiredIteratorBackoffMillis)
+            throws InterruptedException {
+        this.nextStartingPosition = Preconditions.checkNotNull(startingPosition);
+        this.subscribedShard = Preconditions.checkNotNull(subscribedShard);
+        this.metricsReporter = Preconditions.checkNotNull(metricsReporter);
+        this.kinesisProxy = Preconditions.checkNotNull(kinesisProxy);
+        this.maxNumberOfRecordsPerFetch = maxNumberOfRecordsPerFetch;
+        this.expiredIteratorBackoffMillis = expiredIteratorBackoffMillis;
 
-		Preconditions.checkArgument(expiredIteratorBackoffMillis >= 0);
-		Preconditions.checkArgument(maxNumberOfRecordsPerFetch > 0);
+        Preconditions.checkArgument(expiredIteratorBackoffMillis >= 0);
+        Preconditions.checkArgument(maxNumberOfRecordsPerFetch > 0);
 
-		this.nextShardItr = getShardIterator();
-	}
+        this.nextShardItr = getShardIterator();
+    }
 
-	@Override
-	public RecordPublisherRunResult run(final RecordBatchConsumer consumer) throws InterruptedException {
-		return run(consumer, maxNumberOfRecordsPerFetch);
-	}
+    @Override
+    public RecordPublisherRunResult run(final RecordBatchConsumer consumer)
+            throws InterruptedException {
+        return run(consumer, maxNumberOfRecordsPerFetch);
+    }
 
-	public RecordPublisherRunResult run(final RecordBatchConsumer consumer, int maxNumberOfRecords) throws InterruptedException {
-		if (nextShardItr == null) {
-			return COMPLETE;
-		}
+    public RecordPublisherRunResult run(final RecordBatchConsumer consumer, int maxNumberOfRecords)
+            throws InterruptedException {
+        if (nextShardItr == null) {
+            return COMPLETE;
+        }
 
-		metricsReporter.setMaxNumberOfRecordsPerFetch(maxNumberOfRecords);
+        metricsReporter.setMaxNumberOfRecordsPerFetch(maxNumberOfRecords);
 
-		GetRecordsResult result = getRecords(nextShardItr, maxNumberOfRecords);
+        GetRecordsResult result = getRecords(nextShardItr, maxNumberOfRecords);
 
-		RecordBatch recordBatch = new RecordBatch(result.getRecords(), subscribedShard, result.getMillisBehindLatest());
-		SequenceNumber latestSequenceNumber = consumer.accept(recordBatch);
+        RecordBatch recordBatch =
+                new RecordBatch(
+                        result.getRecords(), subscribedShard, result.getMillisBehindLatest());
+        SequenceNumber latestSequenceNumber = consumer.accept(recordBatch);
 
-		nextStartingPosition = getNextStartingPosition(latestSequenceNumber);
-		nextShardItr = result.getNextShardIterator();
-		return nextShardItr == null ? COMPLETE : INCOMPLETE;
-	}
+        nextStartingPosition = getNextStartingPosition(latestSequenceNumber);
+        nextShardItr = result.getNextShardIterator();
+        return nextShardItr == null ? COMPLETE : INCOMPLETE;
+    }
 
-	private StartingPosition getNextStartingPosition(final SequenceNumber latestSequenceNumber) {
-		// When consuming from a timestamp sentinel/AT_TIMESTAMP ShardIteratorType.
-		// If the first RecordBatch is empty, then the latestSequenceNumber would be the timestamp sentinel.
-		// This is because we have not yet received any real sequence numbers on this shard.
-		// In this condition we should retry from the previous starting position (AT_TIMESTAMP).
-		if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(latestSequenceNumber)) {
-			Preconditions.checkState(nextStartingPosition.getShardIteratorType() == AT_TIMESTAMP);
-			return nextStartingPosition;
-		} else {
-			return StartingPosition.continueFromSequenceNumber(latestSequenceNumber);
-		}
-	}
+    private StartingPosition getNextStartingPosition(final SequenceNumber latestSequenceNumber) {
+        // When consuming from a timestamp sentinel/AT_TIMESTAMP ShardIteratorType.
+        // If the first RecordBatch is empty, then the latestSequenceNumber would be the timestamp
+        // sentinel.
+        // This is because we have not yet received any real sequence numbers on this shard.
+        // In this condition we should retry from the previous starting position (AT_TIMESTAMP).
+        if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(latestSequenceNumber)) {
+            Preconditions.checkState(nextStartingPosition.getShardIteratorType() == AT_TIMESTAMP);
+            return nextStartingPosition;
+        } else {
+            return StartingPosition.continueFromSequenceNumber(latestSequenceNumber);
+        }
+    }
 
-	/**
-	 * Calls {@link KinesisProxyInterface#getRecords(String, int)}, while also handling unexpected
-	 * AWS {@link ExpiredIteratorException}s to assure that we get results and don't just fail on
-	 * such occasions. The returned shard iterator within the successful {@link GetRecordsResult} should
-	 * be used for the next call to this method.
-	 *
-	 * <p>Note: it is important that this method is not called again before all the records from the last result have been
-	 * fully collected with {@code ShardConsumer#deserializeRecordForCollectionAndUpdateState(UserRecord)}, otherwise
-	 * {@code ShardConsumer#lastSequenceNum} may refer to a sub-record in the middle of an aggregated record, leading to
-	 * incorrect shard iteration if the iterator had to be refreshed.
-	 *
-	 * @param shardItr shard iterator to use
-	 * @param maxNumberOfRecords the maximum number of records to fetch for this getRecords attempt
-	 * @return get records result
-	 */
-	private GetRecordsResult getRecords(String shardItr, int maxNumberOfRecords) throws InterruptedException {
-		GetRecordsResult getRecordsResult = null;
-		while (getRecordsResult == null) {
-			try {
-				getRecordsResult = kinesisProxy.getRecords(shardItr, maxNumberOfRecords);
-			} catch (ExpiredIteratorException | InterruptedException eiEx) {
-				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
-					" refreshing the iterator ...", shardItr, subscribedShard);
+    /**
+     * Calls {@link KinesisProxyInterface#getRecords(String, int)}, while also handling unexpected
+     * AWS {@link ExpiredIteratorException}s to assure that we get results and don't just fail on
+     * such occasions. The returned shard iterator within the successful {@link GetRecordsResult}
+     * should be used for the next call to this method.
+     *
+     * <p>Note: it is important that this method is not called again before all the records from the
+     * last result have been fully collected with {@code
+     * ShardConsumer#deserializeRecordForCollectionAndUpdateState(UserRecord)}, otherwise {@code
+     * ShardConsumer#lastSequenceNum} may refer to a sub-record in the middle of an aggregated
+     * record, leading to incorrect shard iteration if the iterator had to be refreshed.
+     *
+     * @param shardItr shard iterator to use
+     * @param maxNumberOfRecords the maximum number of records to fetch for this getRecords attempt
+     * @return get records result
+     */
+    private GetRecordsResult getRecords(String shardItr, int maxNumberOfRecords)
+            throws InterruptedException {
+        GetRecordsResult getRecordsResult = null;
+        while (getRecordsResult == null) {
+            try {
+                getRecordsResult = kinesisProxy.getRecords(shardItr, maxNumberOfRecords);
+            } catch (ExpiredIteratorException | InterruptedException eiEx) {
+                LOG.warn(
+                        "Encountered an unexpected expired iterator {} for shard {};"
+                                + " refreshing the iterator ...",
+                        shardItr,
+                        subscribedShard);
 
-				shardItr = getShardIterator();
+                shardItr = getShardIterator();
 
-				// sleep for the fetch interval before the next getRecords attempt with the refreshed iterator
-				if (expiredIteratorBackoffMillis != 0) {
-					Thread.sleep(expiredIteratorBackoffMillis);
-				}
-			}
-		}
-		return getRecordsResult;
-	}
+                // sleep for the fetch interval before the next getRecords attempt with the
+                // refreshed iterator
+                if (expiredIteratorBackoffMillis != 0) {
+                    Thread.sleep(expiredIteratorBackoffMillis);
+                }
+            }
+        }
+        return getRecordsResult;
+    }
 
-	/**
-	 * Returns a shard iterator for the given {@link SequenceNumber}.
-	 *
-	 * @return shard iterator
-	 */
-	@Nullable
-	private String getShardIterator() throws InterruptedException {
-		return kinesisProxy.getShardIterator(
-			subscribedShard,
-			nextStartingPosition.getShardIteratorType().toString(),
-			nextStartingPosition.getStartingMarker());
-	}
+    /**
+     * Returns a shard iterator for the given {@link SequenceNumber}.
+     *
+     * @return shard iterator
+     */
+    @Nullable
+    private String getShardIterator() throws InterruptedException {
+        return kinesisProxy.getShardIterator(
+                subscribedShard,
+                nextStartingPosition.getShardIteratorType().toString(),
+                nextStartingPosition.getStartingMarker());
+    }
 }

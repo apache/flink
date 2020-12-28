@@ -32,32 +32,32 @@ import org.apache.flink.util.OutputTag;
  */
 @Internal
 public class InternalProcessApplyAllWindowContext<IN, OUT, W extends Window>
-	extends ProcessAllWindowFunction<IN, OUT, W>.Context {
+        extends ProcessAllWindowFunction<IN, OUT, W>.Context {
 
-	W window;
-	ProcessAllWindowFunction.Context context;
+    W window;
+    ProcessAllWindowFunction.Context context;
 
-	InternalProcessApplyAllWindowContext(ProcessAllWindowFunction<IN, OUT, W> function) {
-		function.super();
-	}
+    InternalProcessApplyAllWindowContext(ProcessAllWindowFunction<IN, OUT, W> function) {
+        function.super();
+    }
 
-	@Override
-	public W window() {
-		return window;
-	}
+    @Override
+    public W window() {
+        return window;
+    }
 
-	@Override
-	public KeyedStateStore windowState() {
-		return context.windowState();
-	}
+    @Override
+    public KeyedStateStore windowState() {
+        return context.windowState();
+    }
 
-	@Override
-	public KeyedStateStore globalState() {
-		return context.globalState();
-	}
+    @Override
+    public KeyedStateStore globalState() {
+        return context.globalState();
+    }
 
-	@Override
-	public <X> void output(OutputTag<X> outputTag, X value) {
-		context.output(outputTag, value);
-	}
+    @Override
+    public <X> void output(OutputTag<X> outputTag, X value) {
+        context.output(outputTag, value);
+    }
 }

@@ -21,29 +21,28 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 import java.nio.file.Path;
 
 /**
- * Utilities to resolve the directory structure for the bucket state
- * generated for migration test.
+ * Utilities to resolve the directory structure for the bucket state generated for migration test.
  */
 public class BucketStatePathResolver {
-	private final java.nio.file.Path basePath;
-	private final int version;
+    private final java.nio.file.Path basePath;
+    private final int version;
 
-	public BucketStatePathResolver(Path basePath, int version) {
-		this.basePath = basePath;
-		this.version = version;
-	}
+    public BucketStatePathResolver(Path basePath, int version) {
+        this.basePath = basePath;
+        this.version = version;
+    }
 
-	public java.nio.file.Path getSnapshotPath(String scenarioName) {
-		java.nio.file.Path basePath = getResourcePath(scenarioName);
-		return basePath.resolve("snapshot");
-	}
+    public java.nio.file.Path getSnapshotPath(String scenarioName) {
+        java.nio.file.Path basePath = getResourcePath(scenarioName);
+        return basePath.resolve("snapshot");
+    }
 
-	public java.nio.file.Path getOutputPath(String scenarioName) {
-		java.nio.file.Path basePath = getResourcePath(scenarioName);
-		return basePath.resolve("bucket");
-	}
+    public java.nio.file.Path getOutputPath(String scenarioName) {
+        java.nio.file.Path basePath = getResourcePath(scenarioName);
+        return basePath.resolve("bucket");
+    }
 
-	public java.nio.file.Path getResourcePath(String scenarioName) {
-		return basePath.resolve(scenarioName + "-v" + version);
-	}
+    public java.nio.file.Path getResourcePath(String scenarioName) {
+        return basePath.resolve(scenarioName + "-v" + version);
+    }
 }

@@ -23,17 +23,17 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitState;
 
-/**
- * The {@link RecordEmitter} implementation for {@link KafkaSourceReader}.
- */
-public class KafkaRecordEmitter<T> implements RecordEmitter<Tuple3<T, Long, Long>, T, KafkaPartitionSplitState> {
+/** The {@link RecordEmitter} implementation for {@link KafkaSourceReader}. */
+public class KafkaRecordEmitter<T>
+        implements RecordEmitter<Tuple3<T, Long, Long>, T, KafkaPartitionSplitState> {
 
-	@Override
-	public void emitRecord(
-			Tuple3<T, Long, Long> element,
-			SourceOutput<T> output,
-			KafkaPartitionSplitState splitState) throws Exception {
-		output.collect(element.f0, element.f2);
-		splitState.setCurrentOffset(element.f1 + 1);
-	}
+    @Override
+    public void emitRecord(
+            Tuple3<T, Long, Long> element,
+            SourceOutput<T> output,
+            KafkaPartitionSplitState splitState)
+            throws Exception {
+        output.collect(element.f0, element.f2);
+        splitState.setCurrentOffset(element.f1 + 1);
+    }
 }

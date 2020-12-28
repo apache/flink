@@ -39,49 +39,81 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
 
-/**
- * Shim for Hive version 1.1.0.
- */
+/** Shim for Hive version 1.1.0. */
 public class HiveShimV110 extends HiveShimV101 {
 
-	@Override
-	public FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, Class outputFormatClz,
-			Class<? extends Writable> outValClz, boolean isCompressed, Properties tableProps, Path outPath) {
-		try {
-			Class utilClass = HiveFileFormatUtils.class;
-			OutputFormat outputFormat = (OutputFormat) outputFormatClz.newInstance();
-			Method utilMethod = utilClass.getDeclaredMethod("getRecordWriter", JobConf.class, OutputFormat.class,
-					Class.class, boolean.class, Properties.class, Path.class, Reporter.class);
-			return (FileSinkOperator.RecordWriter) utilMethod.invoke(null,
-					jobConf, outputFormat, outValClz, isCompressed, tableProps, outPath, Reporter.NULL);
-		} catch (Exception e) {
-			throw new CatalogException("Failed to create Hive RecordWriter", e);
-		}
-	}
+    @Override
+    public FileSinkOperator.RecordWriter getHiveRecordWriter(
+            JobConf jobConf,
+            Class outputFormatClz,
+            Class<? extends Writable> outValClz,
+            boolean isCompressed,
+            Properties tableProps,
+            Path outPath) {
+        try {
+            Class utilClass = HiveFileFormatUtils.class;
+            OutputFormat outputFormat = (OutputFormat) outputFormatClz.newInstance();
+            Method utilMethod =
+                    utilClass.getDeclaredMethod(
+                            "getRecordWriter",
+                            JobConf.class,
+                            OutputFormat.class,
+                            Class.class,
+                            boolean.class,
+                            Properties.class,
+                            Path.class,
+                            Reporter.class);
+            return (FileSinkOperator.RecordWriter)
+                    utilMethod.invoke(
+                            null,
+                            jobConf,
+                            outputFormat,
+                            outValClz,
+                            isCompressed,
+                            tableProps,
+                            outPath,
+                            Reporter.NULL);
+        } catch (Exception e) {
+            throw new CatalogException("Failed to create Hive RecordWriter", e);
+        }
+    }
 
-	@Override
-	public Class getHiveOutputFormatClass(Class outputFormatClz) {
-		try {
-			Class utilClass = HiveFileFormatUtils.class;
-			Method utilMethod = utilClass.getDeclaredMethod("getOutputFormatSubstitute", Class.class);
-			Class res = (Class) utilMethod.invoke(null, outputFormatClz);
-			Preconditions.checkState(res != null, "No Hive substitute output format for " + outputFormatClz);
-			return res;
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveException("Failed to get HiveOutputFormat for " + outputFormatClz, e);
-		}
-	}
+    @Override
+    public Class getHiveOutputFormatClass(Class outputFormatClz) {
+        try {
+            Class utilClass = HiveFileFormatUtils.class;
+            Method utilMethod =
+                    utilClass.getDeclaredMethod("getOutputFormatSubstitute", Class.class);
+            Class res = (Class) utilMethod.invoke(null, outputFormatClz);
+            Preconditions.checkState(
+                    res != null, "No Hive substitute output format for " + outputFormatClz);
+            return res;
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            throw new FlinkHiveException(
+                    "Failed to get HiveOutputFormat for " + outputFormatClz, e);
+        }
+    }
 
-	@Override
-	public List<FieldSchema> getFieldsFromDeserializer(Configuration conf, Table table, boolean skipConfError) {
-		try {
-			Method utilMethod = getHiveMetaStoreUtilsClass().getMethod("getDeserializer",
-					Configuration.class, Table.class, boolean.class);
-			Deserializer deserializer = (Deserializer) utilMethod.invoke(null, conf, table, skipConfError);
-			utilMethod = getHiveMetaStoreUtilsClass().getMethod("getFieldsFromDeserializer", String.class, Deserializer.class);
-			return (List<FieldSchema>) utilMethod.invoke(null, table.getTableName(), deserializer);
-		} catch (Exception e) {
-			throw new CatalogException("Failed to get table schema from deserializer", e);
-		}
-	}
+    @Override
+    public List<FieldSchema> getFieldsFromDeserializer(
+            Configuration conf, Table table, boolean skipConfError) {
+        try {
+            Method utilMethod =
+                    getHiveMetaStoreUtilsClass()
+                            .getMethod(
+                                    "getDeserializer",
+                                    Configuration.class,
+                                    Table.class,
+                                    boolean.class);
+            Deserializer deserializer =
+                    (Deserializer) utilMethod.invoke(null, conf, table, skipConfError);
+            utilMethod =
+                    getHiveMetaStoreUtilsClass()
+                            .getMethod(
+                                    "getFieldsFromDeserializer", String.class, Deserializer.class);
+            return (List<FieldSchema>) utilMethod.invoke(null, table.getTableName(), deserializer);
+        } catch (Exception e) {
+            throw new CatalogException("Failed to get table schema from deserializer", e);
+        }
+    }
 }

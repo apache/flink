@@ -34,29 +34,32 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
-/**
- * Tests for {@link GlobalWindows}.
- */
+/** Tests for {@link GlobalWindows}. */
 public class GlobalWindowsTest extends TestLogger {
 
-	@Test
-	public void testWindowAssignment() {
-		WindowAssigner.WindowAssignerContext mockContext =
-				mock(WindowAssigner.WindowAssignerContext.class);
+    @Test
+    public void testWindowAssignment() {
+        WindowAssigner.WindowAssignerContext mockContext =
+                mock(WindowAssigner.WindowAssignerContext.class);
 
-		GlobalWindows assigner = GlobalWindows.create();
+        GlobalWindows assigner = GlobalWindows.create();
 
-		assertThat(assigner.assignWindows("String", 0L, mockContext), contains(GlobalWindow.get()));
-		assertThat(assigner.assignWindows("String", 4999L, mockContext), contains(GlobalWindow.get()));
-		assertThat(assigner.assignWindows("String", 5000L, mockContext), contains(GlobalWindow.get()));
-	}
+        assertThat(assigner.assignWindows("String", 0L, mockContext), contains(GlobalWindow.get()));
+        assertThat(
+                assigner.assignWindows("String", 4999L, mockContext), contains(GlobalWindow.get()));
+        assertThat(
+                assigner.assignWindows("String", 5000L, mockContext), contains(GlobalWindow.get()));
+    }
 
-	@Test
-	public void testProperties() {
-		GlobalWindows assigner = GlobalWindows.create();
+    @Test
+    public void testProperties() {
+        GlobalWindows assigner = GlobalWindows.create();
 
-		assertFalse(assigner.isEventTime());
-		assertEquals(new GlobalWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
-		assertThat(assigner.getDefaultTrigger(mock(StreamExecutionEnvironment.class)), instanceOf(GlobalWindows.NeverTrigger.class));
-	}
+        assertFalse(assigner.isEventTime());
+        assertEquals(
+                new GlobalWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
+        assertThat(
+                assigner.getDefaultTrigger(mock(StreamExecutionEnvironment.class)),
+                instanceOf(GlobalWindows.NeverTrigger.class));
+    }
 }

@@ -47,104 +47,108 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * An {@link ApplicationClusterEntryPoint} for Yarn.
- */
+/** An {@link ApplicationClusterEntryPoint} for Yarn. */
 @Internal
 public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEntryPoint {
 
-	private YarnApplicationClusterEntryPoint(
-			final Configuration configuration,
-			final PackagedProgram program) {
-		super(configuration, program, YarnResourceManagerFactory.getInstance());
-	}
+    private YarnApplicationClusterEntryPoint(
+            final Configuration configuration, final PackagedProgram program) {
+        super(configuration, program, YarnResourceManagerFactory.getInstance());
+    }
 
-	@Override
-	protected String getRPCPortRange(Configuration configuration) {
-		return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_PORT);
-	}
+    @Override
+    protected String getRPCPortRange(Configuration configuration) {
+        return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_PORT);
+    }
 
-	public static void main(final String[] args) {
-		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, YarnApplicationClusterEntryPoint.class.getSimpleName(), args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
+    public static void main(final String[] args) {
+        // startup checks and logging
+        EnvironmentInformation.logEnvironmentInfo(
+                LOG, YarnApplicationClusterEntryPoint.class.getSimpleName(), args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		Map<String, String> env = System.getenv();
+        Map<String, String> env = System.getenv();
 
-		final String workingDirectory = env.get(ApplicationConstants.Environment.PWD.key());
-		Preconditions.checkArgument(
-				workingDirectory != null,
-				"Working directory variable (%s) not set",
-				ApplicationConstants.Environment.PWD.key());
+        final String workingDirectory = env.get(ApplicationConstants.Environment.PWD.key());
+        Preconditions.checkArgument(
+                workingDirectory != null,
+                "Working directory variable (%s) not set",
+                ApplicationConstants.Environment.PWD.key());
 
-		try {
-			YarnEntrypointUtils.logYarnEnvironmentInformation(env, LOG);
-		} catch (IOException e) {
-			LOG.warn("Could not log YARN environment information.", e);
-		}
+        try {
+            YarnEntrypointUtils.logYarnEnvironmentInformation(env, LOG);
+        } catch (IOException e) {
+            LOG.warn("Could not log YARN environment information.", e);
+        }
 
-		final Configuration dynamicParameters = ClusterEntrypointUtils.parseParametersOrExit(
-			args,
-			new DynamicParametersConfigurationParserFactory(),
-			YarnApplicationClusterEntryPoint.class);
-		final Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, dynamicParameters, env);
+        final Configuration dynamicParameters =
+                ClusterEntrypointUtils.parseParametersOrExit(
+                        args,
+                        new DynamicParametersConfigurationParserFactory(),
+                        YarnApplicationClusterEntryPoint.class);
+        final Configuration configuration =
+                YarnEntrypointUtils.loadConfiguration(workingDirectory, dynamicParameters, env);
 
-		PackagedProgram program = null;
-		try {
-			program = getPackagedProgram(configuration);
-		} catch (Exception e) {
-			LOG.error("Could not create application program.", e);
-			System.exit(1);
-		}
+        PackagedProgram program = null;
+        try {
+            program = getPackagedProgram(configuration);
+        } catch (Exception e) {
+            LOG.error("Could not create application program.", e);
+            System.exit(1);
+        }
 
-		try {
-			configureExecution(configuration, program);
-		} catch (Exception e) {
-			LOG.error("Could not apply application configuration.", e);
-			System.exit(1);
-		}
+        try {
+            configureExecution(configuration, program);
+        } catch (Exception e) {
+            LOG.error("Could not apply application configuration.", e);
+            System.exit(1);
+        }
 
-		YarnApplicationClusterEntryPoint yarnApplicationClusterEntrypoint =
-				new YarnApplicationClusterEntryPoint(configuration, program);
+        YarnApplicationClusterEntryPoint yarnApplicationClusterEntrypoint =
+                new YarnApplicationClusterEntryPoint(configuration, program);
 
-		ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
-	}
+        ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
+    }
 
-	private static PackagedProgram getPackagedProgram(final Configuration configuration) throws IOException, FlinkException {
+    private static PackagedProgram getPackagedProgram(final Configuration configuration)
+            throws IOException, FlinkException {
 
-		final ApplicationConfiguration applicationConfiguration =
-				ApplicationConfiguration.fromConfiguration(configuration);
+        final ApplicationConfiguration applicationConfiguration =
+                ApplicationConfiguration.fromConfiguration(configuration);
 
-		final PackagedProgramRetriever programRetriever = getPackagedProgramRetriever(
-				configuration,
-				applicationConfiguration.getProgramArguments(),
-				applicationConfiguration.getApplicationClassName());
-		return programRetriever.getPackagedProgram();
-	}
+        final PackagedProgramRetriever programRetriever =
+                getPackagedProgramRetriever(
+                        configuration,
+                        applicationConfiguration.getProgramArguments(),
+                        applicationConfiguration.getApplicationClassName());
+        return programRetriever.getPackagedProgram();
+    }
 
-	private static PackagedProgramRetriever getPackagedProgramRetriever(
-			final Configuration configuration,
-			final String[] programArguments,
-			@Nullable final String jobClassName) throws IOException {
+    private static PackagedProgramRetriever getPackagedProgramRetriever(
+            final Configuration configuration,
+            final String[] programArguments,
+            @Nullable final String jobClassName)
+            throws IOException {
 
-		final File userLibDir = YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null);
-		final File userApplicationJar = getUserApplicationJar(userLibDir, configuration);
-		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-				ClassPathPackagedProgramRetriever
-						.newBuilder(programArguments)
-						.setUserLibDirectory(userLibDir)
-						.setJarFile(userApplicationJar)
-						.setJobClassName(jobClassName);
-		return retrieverBuilder.build();
-	}
+        final File userLibDir = YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null);
+        final File userApplicationJar = getUserApplicationJar(userLibDir, configuration);
+        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
+                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
+                        .setUserLibDirectory(userLibDir)
+                        .setJarFile(userApplicationJar)
+                        .setJobClassName(jobClassName);
+        return retrieverBuilder.build();
+    }
 
-	private static File getUserApplicationJar(final File userLibDir, final Configuration configuration) {
-		final List<File> pipelineJars = configuration.get(PipelineOptions.JARS).stream()
-			.map(uri -> new File(userLibDir, new Path(uri).getName()))
-			.collect(Collectors.toList());
+    private static File getUserApplicationJar(
+            final File userLibDir, final Configuration configuration) {
+        final List<File> pipelineJars =
+                configuration.get(PipelineOptions.JARS).stream()
+                        .map(uri -> new File(userLibDir, new Path(uri).getName()))
+                        .collect(Collectors.toList());
 
-		Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
-		return pipelineJars.get(0);
-	}
+        Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+        return pipelineJars.get(0);
+    }
 }

@@ -34,146 +34,136 @@ import org.junit.runners.Parameterized;
 import java.util.List;
 
 /**
- * Tests for {@link Graph#inDegrees()}, {@link Graph#outDegrees()},
- * and {@link Graph#getDegrees()}.
+ * Tests for {@link Graph#inDegrees()}, {@link Graph#outDegrees()}, and {@link Graph#getDegrees()}.
  */
 @RunWith(Parameterized.class)
 public class DegreesITCase extends MultipleProgramsTestBase {
 
-	public DegreesITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public DegreesITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	private String expectedResult;
+    private String expectedResult;
 
-	@Test
-	public void testOutDegrees() throws Exception {
-		/*
-		* Test outDegrees()
-		*/
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testOutDegrees() throws Exception {
+        /*
+         * Test outDegrees()
+         */
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-			TestGraphUtils.getLongLongEdgeData(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeData(env),
+                        env);
 
-		DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
-		List<Tuple2<Long, LongValue>> result = data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
 
-		expectedResult = "1,2\n" +
-			"2,1\n" +
-			"3,2\n" +
-			"4,1\n" +
-			"5,1\n";
+        expectedResult = "1,2\n" + "2,1\n" + "3,2\n" + "4,1\n" + "5,1\n";
 
-		compareResultAsTuples(result, expectedResult);
-	}
+        compareResultAsTuples(result, expectedResult);
+    }
 
-	@Test
-	public void testOutDegreesWithNoOutEdges() throws Exception {
-		/*
-		 * Test outDegrees() no outgoing edges
-		 */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testOutDegreesWithNoOutEdges() throws Exception {
+        /*
+         * Test outDegrees() no outgoing edges
+         */
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-			TestGraphUtils.getLongLongEdgeDataWithZeroDegree(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeDataWithZeroDegree(env),
+                        env);
 
-		DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
-		List<Tuple2<Long, LongValue>> result = data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
 
-		expectedResult = "1,3\n" +
-			"2,1\n" +
-			"3,1\n" +
-			"4,1\n" +
-			"5,0\n";
+        expectedResult = "1,3\n" + "2,1\n" + "3,1\n" + "4,1\n" + "5,0\n";
 
-		compareResultAsTuples(result, expectedResult);
-	}
+        compareResultAsTuples(result, expectedResult);
+    }
 
-	@Test
-	public void testInDegrees() throws Exception {
-		/*
-		 * Test inDegrees()
-		 */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testInDegrees() throws Exception {
+        /*
+         * Test inDegrees()
+         */
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-			TestGraphUtils.getLongLongEdgeData(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeData(env),
+                        env);
 
-		DataSet<Tuple2<Long, LongValue>> data = graph.inDegrees();
-		List<Tuple2<Long, LongValue>> result = data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.inDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
 
-		expectedResult = "1,1\n" +
-			"2,1\n" +
-			"3,2\n" +
-			"4,1\n" +
-			"5,2\n";
-		compareResultAsTuples(result, expectedResult);
-	}
+        expectedResult = "1,1\n" + "2,1\n" + "3,2\n" + "4,1\n" + "5,2\n";
+        compareResultAsTuples(result, expectedResult);
+    }
 
-	@Test
-	public void testInDegreesWithNoInEdge() throws Exception {
-		/*
-		 * Test inDegrees() no ingoing edge
-		 */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testInDegreesWithNoInEdge() throws Exception {
+        /*
+         * Test inDegrees() no ingoing edge
+         */
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-			TestGraphUtils.getLongLongEdgeDataWithZeroDegree(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeDataWithZeroDegree(env),
+                        env);
 
-		DataSet<Tuple2<Long, LongValue>> data = graph.inDegrees();
-		List<Tuple2<Long, LongValue>> result = data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.inDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
 
-		expectedResult = "1,0\n" +
-			"2,1\n" +
-			"3,1\n" +
-			"4,1\n" +
-			"5,3\n";
+        expectedResult = "1,0\n" + "2,1\n" + "3,1\n" + "4,1\n" + "5,3\n";
 
-		compareResultAsTuples(result, expectedResult);
-	}
+        compareResultAsTuples(result, expectedResult);
+    }
 
-	@Test
-	public void testGetDegrees() throws Exception {
-		/*
-		 * Test getDegrees()
-		 */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testGetDegrees() throws Exception {
+        /*
+         * Test getDegrees()
+         */
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-			TestGraphUtils.getLongLongEdgeData(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeData(env),
+                        env);
 
-		DataSet<Tuple2<Long, LongValue>> data = graph.getDegrees();
-		List<Tuple2<Long, LongValue>> result = data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.getDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
 
-		expectedResult = "1,3\n" +
-			"2,2\n" +
-			"3,4\n" +
-			"4,2\n" +
-			"5,3\n";
+        expectedResult = "1,3\n" + "2,2\n" + "3,4\n" + "4,2\n" + "5,3\n";
 
-		compareResultAsTuples(result, expectedResult);
-	}
+        compareResultAsTuples(result, expectedResult);
+    }
 
-	@Test
-	public void testGetDegreesWithDisconnectedData() throws Exception {
-		/*
-		 * Test getDegrees() with disconnected data
-		 */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testGetDegreesWithDisconnectedData() throws Exception {
+        /*
+         * Test getDegrees() with disconnected data
+         */
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, NullValue, Long> graph =
-			Graph.fromDataSet(TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
+        Graph<Long, NullValue, Long> graph =
+                Graph.fromDataSet(TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
 
-		DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
-		List<Tuple2<Long, LongValue>> result = data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
 
-		expectedResult = "1,2\n" +
-			"2,1\n" +
-			"3,0\n" +
-			"4,1\n" +
-			"5,0\n";
+        expectedResult = "1,2\n" + "2,1\n" + "3,0\n" + "4,1\n" + "5,0\n";
 
-		compareResultAsTuples(result, expectedResult);
-	}
+        compareResultAsTuples(result, expectedResult);
+    }
 }

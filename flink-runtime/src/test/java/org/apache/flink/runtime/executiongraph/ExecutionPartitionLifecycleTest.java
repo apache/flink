@@ -77,250 +77,303 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link Execution}.
- */
+/** Tests for the {@link Execution}. */
 public class ExecutionPartitionLifecycleTest extends TestLogger {
 
-	@ClassRule
-	public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
-		new TestingComponentMainThreadExecutor.Resource();
+    @ClassRule
+    public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
+            new TestingComponentMainThreadExecutor.Resource();
 
-	private Execution execution;
-	private ResultPartitionDeploymentDescriptor descriptor;
-	private ResourceID taskExecutorResourceId;
-	private JobID jobId;
+    private Execution execution;
+    private ResultPartitionDeploymentDescriptor descriptor;
+    private ResourceID taskExecutorResourceId;
+    private JobID jobId;
 
-	@Test
-	public void testPartitionReleaseOnFinishWhileCanceling() throws Exception {
-		testPartitionReleaseOnStateTransitionsAfterRunning(Execution::cancel, Execution::markFinished);
-	}
+    @Test
+    public void testPartitionReleaseOnFinishWhileCanceling() throws Exception {
+        testPartitionReleaseOnStateTransitionsAfterRunning(
+                Execution::cancel, Execution::markFinished);
+    }
 
-	@Test
-	public void testPartitionReleaseOnCancelWhileFinished() throws Exception {
-		testPartitionReleaseOnStateTransitionsAfterRunning(Execution::markFinished, Execution::cancel);
-	}
+    @Test
+    public void testPartitionReleaseOnCancelWhileFinished() throws Exception {
+        testPartitionReleaseOnStateTransitionsAfterRunning(
+                Execution::markFinished, Execution::cancel);
+    }
 
-	@Test
-	public void testPartitionReleaseOnSuspendWhileFinished() throws Exception {
-		testPartitionReleaseOnStateTransitionsAfterRunning(Execution::markFinished, Execution::suspend);
-	}
+    @Test
+    public void testPartitionReleaseOnSuspendWhileFinished() throws Exception {
+        testPartitionReleaseOnStateTransitionsAfterRunning(
+                Execution::markFinished, Execution::suspend);
+    }
 
-	private void testPartitionReleaseOnStateTransitionsAfterRunning(Consumer<Execution> stateTransition1, Consumer<Execution> stateTransition2) throws Exception {
-		final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
-		final CompletableFuture<Tuple2<JobID, Collection<ResultPartitionID>>> releasePartitionsCallFuture = new CompletableFuture<>();
-		taskManagerGateway.setReleasePartitionsConsumer(((jobID, partitionIds) -> releasePartitionsCallFuture.complete(Tuple2.of(jobID, partitionIds))));
+    private void testPartitionReleaseOnStateTransitionsAfterRunning(
+            Consumer<Execution> stateTransition1, Consumer<Execution> stateTransition2)
+            throws Exception {
+        final SimpleAckingTaskManagerGateway taskManagerGateway =
+                new SimpleAckingTaskManagerGateway();
+        final CompletableFuture<Tuple2<JobID, Collection<ResultPartitionID>>>
+                releasePartitionsCallFuture = new CompletableFuture<>();
+        taskManagerGateway.setReleasePartitionsConsumer(
+                ((jobID, partitionIds) ->
+                        releasePartitionsCallFuture.complete(Tuple2.of(jobID, partitionIds))));
 
-		final TestingShuffleMaster testingShuffleMaster = new TestingShuffleMaster();
+        final TestingShuffleMaster testingShuffleMaster = new TestingShuffleMaster();
 
-		setupExecutionGraphAndStartRunningJob(ResultPartitionType.PIPELINED, NoOpJobMasterPartitionTracker.INSTANCE, taskManagerGateway, testingShuffleMaster);
+        setupExecutionGraphAndStartRunningJob(
+                ResultPartitionType.PIPELINED,
+                NoOpJobMasterPartitionTracker.INSTANCE,
+                taskManagerGateway,
+                testingShuffleMaster);
 
-		stateTransition1.accept(execution);
-		assertFalse(releasePartitionsCallFuture.isDone());
+        stateTransition1.accept(execution);
+        assertFalse(releasePartitionsCallFuture.isDone());
 
-		stateTransition2.accept(execution);
-		assertTrue(releasePartitionsCallFuture.isDone());
+        stateTransition2.accept(execution);
+        assertTrue(releasePartitionsCallFuture.isDone());
 
-		final Tuple2<JobID, Collection<ResultPartitionID>> releasePartitionsCall = releasePartitionsCallFuture.get();
-		assertEquals(jobId, releasePartitionsCall.f0);
-		assertThat(releasePartitionsCall.f1, contains(descriptor.getShuffleDescriptor().getResultPartitionID()));
+        final Tuple2<JobID, Collection<ResultPartitionID>> releasePartitionsCall =
+                releasePartitionsCallFuture.get();
+        assertEquals(jobId, releasePartitionsCall.f0);
+        assertThat(
+                releasePartitionsCall.f1,
+                contains(descriptor.getShuffleDescriptor().getResultPartitionID()));
 
-		assertEquals(1, testingShuffleMaster.externallyReleasedPartitions.size());
-		assertEquals(descriptor.getShuffleDescriptor(), testingShuffleMaster.externallyReleasedPartitions.poll());
-	}
+        assertEquals(1, testingShuffleMaster.externallyReleasedPartitions.size());
+        assertEquals(
+                descriptor.getShuffleDescriptor(),
+                testingShuffleMaster.externallyReleasedPartitions.poll());
+    }
 
-	private enum PartitionReleaseResult {
-		NONE,
-		STOP_TRACKING,
-		STOP_TRACKING_AND_RELEASE
-	}
+    private enum PartitionReleaseResult {
+        NONE,
+        STOP_TRACKING,
+        STOP_TRACKING_AND_RELEASE
+    }
 
-	@Test
-	public void testPartitionTrackedAndNotReleasedWhenFinished() throws Exception {
-		testPartitionTrackingForStateTransition(Execution::markFinished, PartitionReleaseResult.NONE);
-	}
+    @Test
+    public void testPartitionTrackedAndNotReleasedWhenFinished() throws Exception {
+        testPartitionTrackingForStateTransition(
+                Execution::markFinished, PartitionReleaseResult.NONE);
+    }
 
-	@Test
-	public void testPartitionNotTrackedAndNotReleasedWhenCanceledByTM() throws Exception {
-		testPartitionTrackingForStateTransition(
-			execution -> {
-				execution.cancel();
-				execution.completeCancelling(Collections.emptyMap(), new IOMetrics(0, 0, 0, 0), false);
-			},
-			PartitionReleaseResult.STOP_TRACKING);
-	}
+    @Test
+    public void testPartitionNotTrackedAndNotReleasedWhenCanceledByTM() throws Exception {
+        testPartitionTrackingForStateTransition(
+                execution -> {
+                    execution.cancel();
+                    execution.completeCancelling(
+                            Collections.emptyMap(), new IOMetrics(0, 0, 0, 0), false);
+                },
+                PartitionReleaseResult.STOP_TRACKING);
+    }
 
-	@Test
-	public void testPartitionNotTrackedAndReleasedWhenCanceledByJM() throws Exception {
-		testPartitionTrackingForStateTransition(
-			execution -> {
-				execution.cancel();
-				execution.completeCancelling();
-			},
-			PartitionReleaseResult.STOP_TRACKING_AND_RELEASE);
-	}
+    @Test
+    public void testPartitionNotTrackedAndReleasedWhenCanceledByJM() throws Exception {
+        testPartitionTrackingForStateTransition(
+                execution -> {
+                    execution.cancel();
+                    execution.completeCancelling();
+                },
+                PartitionReleaseResult.STOP_TRACKING_AND_RELEASE);
+    }
 
-	@Test
-	public void testPartitionNotTrackedAndNotReleasedWhenFailedByTM() throws Exception {
-		testPartitionTrackingForStateTransition(
-			execution -> execution.markFailed(
-				new Exception("Test exception"),
-				false,
-				Collections.emptyMap(),
-				new IOMetrics(0, 0, 0, 0),
-				false,
-				true),
-			PartitionReleaseResult.STOP_TRACKING);
-	}
+    @Test
+    public void testPartitionNotTrackedAndNotReleasedWhenFailedByTM() throws Exception {
+        testPartitionTrackingForStateTransition(
+                execution ->
+                        execution.markFailed(
+                                new Exception("Test exception"),
+                                false,
+                                Collections.emptyMap(),
+                                new IOMetrics(0, 0, 0, 0),
+                                false,
+                                true),
+                PartitionReleaseResult.STOP_TRACKING);
+    }
 
-	@Test
-	public void testPartitionNotTrackedAndReleasedWhenFailedByJM() throws Exception {
-		testPartitionTrackingForStateTransition(
-			execution -> execution.markFailed(new Exception("Test exception")),
-			PartitionReleaseResult.STOP_TRACKING_AND_RELEASE);
-	}
+    @Test
+    public void testPartitionNotTrackedAndReleasedWhenFailedByJM() throws Exception {
+        testPartitionTrackingForStateTransition(
+                execution -> execution.markFailed(new Exception("Test exception")),
+                PartitionReleaseResult.STOP_TRACKING_AND_RELEASE);
+    }
 
-	private void testPartitionTrackingForStateTransition(final Consumer<Execution> stateTransition, final PartitionReleaseResult partitionReleaseResult) throws Exception {
-		CompletableFuture<Tuple2<ResourceID, ResultPartitionDeploymentDescriptor>> partitionStartTrackingFuture = new CompletableFuture<>();
-		CompletableFuture<Collection<ResultPartitionID>> partitionStopTrackingFuture = new CompletableFuture<>();
-		CompletableFuture<Collection<ResultPartitionID>> partitionStopTrackingAndReleaseFuture = new CompletableFuture<>();
-		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
-		partitionTracker.setStartTrackingPartitionsConsumer(
-			(resourceID, resultPartitionDeploymentDescriptor) ->
-				partitionStartTrackingFuture.complete(Tuple2.of(resourceID, resultPartitionDeploymentDescriptor))
-		);
-		partitionTracker.setStopTrackingPartitionsConsumer(partitionStopTrackingFuture::complete);
-		partitionTracker.setStopTrackingAndReleasePartitionsConsumer(partitionStopTrackingAndReleaseFuture::complete);
+    private void testPartitionTrackingForStateTransition(
+            final Consumer<Execution> stateTransition,
+            final PartitionReleaseResult partitionReleaseResult)
+            throws Exception {
+        CompletableFuture<Tuple2<ResourceID, ResultPartitionDeploymentDescriptor>>
+                partitionStartTrackingFuture = new CompletableFuture<>();
+        CompletableFuture<Collection<ResultPartitionID>> partitionStopTrackingFuture =
+                new CompletableFuture<>();
+        CompletableFuture<Collection<ResultPartitionID>> partitionStopTrackingAndReleaseFuture =
+                new CompletableFuture<>();
+        final TestingJobMasterPartitionTracker partitionTracker =
+                new TestingJobMasterPartitionTracker();
+        partitionTracker.setStartTrackingPartitionsConsumer(
+                (resourceID, resultPartitionDeploymentDescriptor) ->
+                        partitionStartTrackingFuture.complete(
+                                Tuple2.of(resourceID, resultPartitionDeploymentDescriptor)));
+        partitionTracker.setStopTrackingPartitionsConsumer(partitionStopTrackingFuture::complete);
+        partitionTracker.setStopTrackingAndReleasePartitionsConsumer(
+                partitionStopTrackingAndReleaseFuture::complete);
 
-		setupExecutionGraphAndStartRunningJob(ResultPartitionType.BLOCKING, partitionTracker, new SimpleAckingTaskManagerGateway(), NettyShuffleMaster.INSTANCE);
+        setupExecutionGraphAndStartRunningJob(
+                ResultPartitionType.BLOCKING,
+                partitionTracker,
+                new SimpleAckingTaskManagerGateway(),
+                NettyShuffleMaster.INSTANCE);
 
-		Tuple2<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingCall = partitionStartTrackingFuture.get();
-		assertThat(startTrackingCall.f0, equalTo(taskExecutorResourceId));
-		assertThat(startTrackingCall.f1, equalTo(descriptor));
+        Tuple2<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingCall =
+                partitionStartTrackingFuture.get();
+        assertThat(startTrackingCall.f0, equalTo(taskExecutorResourceId));
+        assertThat(startTrackingCall.f1, equalTo(descriptor));
 
-		stateTransition.accept(execution);
+        stateTransition.accept(execution);
 
-		switch (partitionReleaseResult) {
-			case NONE:
-				assertFalse(partitionStopTrackingFuture.isDone());
-				assertFalse(partitionStopTrackingAndReleaseFuture.isDone());
-				break;
-			case STOP_TRACKING:
-				assertTrue(partitionStopTrackingFuture.isDone());
-				assertFalse(partitionStopTrackingAndReleaseFuture.isDone());
-				final Collection<ResultPartitionID> stopTrackingCall = partitionStopTrackingFuture.get();
-				assertEquals(Collections.singletonList(descriptor.getShuffleDescriptor().getResultPartitionID()), stopTrackingCall);
-				break;
-			case STOP_TRACKING_AND_RELEASE:
-				assertFalse(partitionStopTrackingFuture.isDone());
-				assertTrue(partitionStopTrackingAndReleaseFuture.isDone());
-				final Collection<ResultPartitionID> stopTrackingAndReleaseCall = partitionStopTrackingAndReleaseFuture.get();
-				assertEquals(Collections.singletonList(descriptor.getShuffleDescriptor().getResultPartitionID()), stopTrackingAndReleaseCall);
-				break;
-		}
-	}
+        switch (partitionReleaseResult) {
+            case NONE:
+                assertFalse(partitionStopTrackingFuture.isDone());
+                assertFalse(partitionStopTrackingAndReleaseFuture.isDone());
+                break;
+            case STOP_TRACKING:
+                assertTrue(partitionStopTrackingFuture.isDone());
+                assertFalse(partitionStopTrackingAndReleaseFuture.isDone());
+                final Collection<ResultPartitionID> stopTrackingCall =
+                        partitionStopTrackingFuture.get();
+                assertEquals(
+                        Collections.singletonList(
+                                descriptor.getShuffleDescriptor().getResultPartitionID()),
+                        stopTrackingCall);
+                break;
+            case STOP_TRACKING_AND_RELEASE:
+                assertFalse(partitionStopTrackingFuture.isDone());
+                assertTrue(partitionStopTrackingAndReleaseFuture.isDone());
+                final Collection<ResultPartitionID> stopTrackingAndReleaseCall =
+                        partitionStopTrackingAndReleaseFuture.get();
+                assertEquals(
+                        Collections.singletonList(
+                                descriptor.getShuffleDescriptor().getResultPartitionID()),
+                        stopTrackingAndReleaseCall);
+                break;
+        }
+    }
 
-	private void setupExecutionGraphAndStartRunningJob(
-			ResultPartitionType resultPartitionType,
-			JobMasterPartitionTracker partitionTracker,
-			TaskManagerGateway taskManagerGateway,
-			ShuffleMaster<?> shuffleMaster) throws Exception {
-		final JobVertex producerVertex = createNoOpJobVertex();
-		final JobVertex consumerVertex = createNoOpJobVertex();
-		consumerVertex.connectNewDataSetAsInput(producerVertex, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+    private void setupExecutionGraphAndStartRunningJob(
+            ResultPartitionType resultPartitionType,
+            JobMasterPartitionTracker partitionTracker,
+            TaskManagerGateway taskManagerGateway,
+            ShuffleMaster<?> shuffleMaster)
+            throws Exception {
+        final JobVertex producerVertex = createNoOpJobVertex();
+        final JobVertex consumerVertex = createNoOpJobVertex();
+        consumerVertex.connectNewDataSetAsInput(
+                producerVertex, DistributionPattern.ALL_TO_ALL, resultPartitionType);
 
-		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+        final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
-		final SlotProvider slotProvider = new SlotProvider() {
-			@Override
-			public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit scheduledUnit, SlotProfile slotProfile, Time allocationTimeout) {
-				return CompletableFuture.completedFuture(
-					new TestingLogicalSlotBuilder()
-						.setTaskManagerLocation(taskManagerLocation)
-						.setTaskManagerGateway(taskManagerGateway)
-						.setSlotOwner(new SingleSlotTestingSlotOwner())
-						.createTestingLogicalSlot());
-			}
+        final SlotProvider slotProvider =
+                new SlotProvider() {
+                    @Override
+                    public CompletableFuture<LogicalSlot> allocateSlot(
+                            SlotRequestId slotRequestId,
+                            ScheduledUnit scheduledUnit,
+                            SlotProfile slotProfile,
+                            Time allocationTimeout) {
+                        return CompletableFuture.completedFuture(
+                                new TestingLogicalSlotBuilder()
+                                        .setTaskManagerLocation(taskManagerLocation)
+                                        .setTaskManagerGateway(taskManagerGateway)
+                                        .setSlotOwner(new SingleSlotTestingSlotOwner())
+                                        .createTestingLogicalSlot());
+                    }
 
-			@Override
-			public void cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
-			}
-		};
+                    @Override
+                    public void cancelSlotRequest(
+                            SlotRequestId slotRequestId,
+                            @Nullable SlotSharingGroupId slotSharingGroupId,
+                            Throwable cause) {}
+                };
 
-		final JobGraph jobGraph = new JobGraph(new JobID(), "test job", producerVertex, consumerVertex);
-		final SchedulerBase scheduler = SchedulerTestingUtils
-			.newSchedulerBuilderWithDefaultSlotAllocator(jobGraph, slotProvider, Time.seconds(10))
-			.setShuffleMaster(shuffleMaster)
-			.setPartitionTracker(partitionTracker)
-			.build();
+        final JobGraph jobGraph =
+                new JobGraph(new JobID(), "test job", producerVertex, consumerVertex);
+        final SchedulerBase scheduler =
+                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
+                                jobGraph, slotProvider, Time.seconds(10))
+                        .setShuffleMaster(shuffleMaster)
+                        .setPartitionTracker(partitionTracker)
+                        .build();
 
-		final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
+        final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
 
-		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
-		final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(producerVertex.getID());
-		final ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
-		execution = executionVertex.getCurrentExecutionAttempt();
+        final ExecutionJobVertex executionJobVertex =
+                executionGraph.getJobVertex(producerVertex.getID());
+        final ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
+        execution = executionVertex.getCurrentExecutionAttempt();
 
-		scheduler.startScheduling();
-		execution.switchToRunning();
+        scheduler.startScheduling();
+        execution.switchToRunning();
 
-		final IntermediateResultPartitionID expectedIntermediateResultPartitionId = executionJobVertex
-			.getProducedDataSets()[0]
-			.getPartitions()[0]
-			.getPartitionId();
+        final IntermediateResultPartitionID expectedIntermediateResultPartitionId =
+                executionJobVertex.getProducedDataSets()[0].getPartitions()[0].getPartitionId();
 
-		descriptor = execution
-			.getResultPartitionDeploymentDescriptor(expectedIntermediateResultPartitionId).get();
-		taskExecutorResourceId = taskManagerLocation.getResourceID();
-		jobId = executionGraph.getJobID();
-	}
+        descriptor =
+                execution
+                        .getResultPartitionDeploymentDescriptor(
+                                expectedIntermediateResultPartitionId)
+                        .get();
+        taskExecutorResourceId = taskManagerLocation.getResourceID();
+        jobId = executionGraph.getJobID();
+    }
 
-	@Nonnull
-	private JobVertex createNoOpJobVertex() {
-		final JobVertex jobVertex = new JobVertex("Test vertex", new JobVertexID());
-		jobVertex.setInvokableClass(NoOpInvokable.class);
+    @Nonnull
+    private JobVertex createNoOpJobVertex() {
+        final JobVertex jobVertex = new JobVertex("Test vertex", new JobVertexID());
+        jobVertex.setInvokableClass(NoOpInvokable.class);
 
-		return jobVertex;
-	}
+        return jobVertex;
+    }
 
-	/**
-	 * Slot owner which records the first returned slot.
-	 */
-	private static final class SingleSlotTestingSlotOwner implements SlotOwner {
+    /** Slot owner which records the first returned slot. */
+    private static final class SingleSlotTestingSlotOwner implements SlotOwner {
 
-		final CompletableFuture<LogicalSlot> returnedSlot = new CompletableFuture<>();
+        final CompletableFuture<LogicalSlot> returnedSlot = new CompletableFuture<>();
 
-		@Override
-		public void returnLogicalSlot(LogicalSlot logicalSlot) {
-			returnedSlot.complete(logicalSlot);
-		}
-	}
+        @Override
+        public void returnLogicalSlot(LogicalSlot logicalSlot) {
+            returnedSlot.complete(logicalSlot);
+        }
+    }
 
-	private static class TestingShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
+    private static class TestingShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
 
-		final Queue<ShuffleDescriptor> externallyReleasedPartitions = new ArrayBlockingQueue<>(4);
+        final Queue<ShuffleDescriptor> externallyReleasedPartitions = new ArrayBlockingQueue<>(4);
 
-		@Override
-		public CompletableFuture<ShuffleDescriptor> registerPartitionWithProducer(PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
-			return CompletableFuture.completedFuture(new ShuffleDescriptor() {
-				@Override
-				public ResultPartitionID getResultPartitionID() {
-					return new ResultPartitionID(
-						partitionDescriptor.getPartitionId(),
-						producerDescriptor.getProducerExecutionId());
-				}
+        @Override
+        public CompletableFuture<ShuffleDescriptor> registerPartitionWithProducer(
+                PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
+            return CompletableFuture.completedFuture(
+                    new ShuffleDescriptor() {
+                        @Override
+                        public ResultPartitionID getResultPartitionID() {
+                            return new ResultPartitionID(
+                                    partitionDescriptor.getPartitionId(),
+                                    producerDescriptor.getProducerExecutionId());
+                        }
 
-				@Override
-				public Optional<ResourceID> storesLocalResourcesOn() {
-					return Optional.of(producerDescriptor.getProducerLocation());
-				}
-			});
-		}
+                        @Override
+                        public Optional<ResourceID> storesLocalResourcesOn() {
+                            return Optional.of(producerDescriptor.getProducerLocation());
+                        }
+                    });
+        }
 
-		@Override
-		public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
-			externallyReleasedPartitions.add(shuffleDescriptor);
-		}
-	}
+        @Override
+        public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
+            externallyReleasedPartitions.add(shuffleDescriptor);
+        }
+    }
 }

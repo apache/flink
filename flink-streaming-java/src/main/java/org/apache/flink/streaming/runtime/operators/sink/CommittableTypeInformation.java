@@ -32,7 +32,8 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link TypeInformation} for {@link org.apache.flink.api.connector.sink.Sink}'s committable, which uses the {@link SimpleVersionedSerializer} to serialize the object.
+ * A {@link TypeInformation} for {@link org.apache.flink.api.connector.sink.Sink}'s committable,
+ * which uses the {@link SimpleVersionedSerializer} to serialize the object.
  *
  * <p>This should not be used as a general {@link TypeInformation}. It's meant to be used by sink's
  * operators.
@@ -42,78 +43,81 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public final class CommittableTypeInformation<CommT> extends TypeInformation<CommT> {
 
-	private final Class<CommT> typeClazz;
+    private final Class<CommT> typeClazz;
 
-	private final SerializableSupplier<SimpleVersionedSerializer<CommT>> serializerSerializableSupplier;
+    private final SerializableSupplier<SimpleVersionedSerializer<CommT>>
+            serializerSerializableSupplier;
 
-	public CommittableTypeInformation(
-			Class<CommT> typeClazz,
-			SerializableSupplier<SimpleVersionedSerializer<CommT>> serializerSerializableSupplier) {
-		this.typeClazz = checkNotNull(typeClazz);
-		this.serializerSerializableSupplier = checkNotNull(serializerSerializableSupplier);
-	}
+    public CommittableTypeInformation(
+            Class<CommT> typeClazz,
+            SerializableSupplier<SimpleVersionedSerializer<CommT>> serializerSerializableSupplier) {
+        this.typeClazz = checkNotNull(typeClazz);
+        this.serializerSerializableSupplier = checkNotNull(serializerSerializableSupplier);
+    }
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	public Class<CommT> getTypeClass() {
-		return typeClazz;
-	}
+    @Override
+    public Class<CommT> getTypeClass() {
+        return typeClazz;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return Comparable.class.isAssignableFrom(typeClazz);
-	}
+    @Override
+    public boolean isKeyType() {
+        return Comparable.class.isAssignableFrom(typeClazz);
+    }
 
-	@Override
-	public TypeSerializer<CommT> createSerializer(ExecutionConfig config) {
-		return new SimpleVersionedSerializerTypeSerializerProxy<>(serializerSerializableSupplier);
-	}
+    @Override
+    public TypeSerializer<CommT> createSerializer(ExecutionConfig config) {
+        return new SimpleVersionedSerializerTypeSerializerProxy<>(serializerSerializableSupplier);
+    }
 
-	@Override
-	public String toString() {
-		return typeClazz.toString();
-	}
+    @Override
+    public String toString() {
+        return typeClazz.toString();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (o instanceof CommittableTypeInformation) {
-			if (this == o) {
-				return true;
-			}
-			CommittableTypeInformation<?> that = (CommittableTypeInformation<?>) o;
-			return typeClazz.equals(that.typeClazz) &&
-					serializerSerializableSupplier.get().equals(that.serializerSerializableSupplier.get());
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof CommittableTypeInformation) {
+            if (this == o) {
+                return true;
+            }
+            CommittableTypeInformation<?> that = (CommittableTypeInformation<?>) o;
+            return typeClazz.equals(that.typeClazz)
+                    && serializerSerializableSupplier
+                            .get()
+                            .equals(that.serializerSerializableSupplier.get());
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(typeClazz, serializerSerializableSupplier.get());
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(typeClazz, serializerSerializableSupplier.get());
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof CommittableTypeInformation;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof CommittableTypeInformation;
+    }
 }

@@ -31,16 +31,16 @@ import java.io.Serializable;
  * restoration in Pipeline.
  *
  * @param <T> The class type of the PipelineStage implementation itself, used by {@link
- *            org.apache.flink.ml.api.misc.param.WithParams}
+ *     org.apache.flink.ml.api.misc.param.WithParams}
  * @see WithParams
  */
 interface PipelineStage<T extends PipelineStage<T>> extends WithParams<T>, Serializable {
 
-	default String toJson() {
-		return getParams().toJson();
-	}
+    default String toJson() {
+        return getParams().toJson();
+    }
 
-	default void loadJson(String json) {
-		getParams().loadJson(json);
-	}
+    default void loadJson(String json) {
+        getParams().loadJson(json);
+    }
 }

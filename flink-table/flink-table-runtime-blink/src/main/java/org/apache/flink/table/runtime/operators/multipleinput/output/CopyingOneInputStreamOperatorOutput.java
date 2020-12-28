@@ -25,32 +25,32 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 
 /**
- * An {@link Output} that can be used to emit copying elements and other messages for {@link OneInputStreamOperator}.
+ * An {@link Output} that can be used to emit copying elements and other messages for {@link
+ * OneInputStreamOperator}.
  */
 public class CopyingOneInputStreamOperatorOutput extends OneInputStreamOperatorOutput {
 
-	private final OneInputStreamOperator<RowData, RowData> operator;
-	private final TypeSerializer<RowData> serializer;
+    private final OneInputStreamOperator<RowData, RowData> operator;
+    private final TypeSerializer<RowData> serializer;
 
-	public CopyingOneInputStreamOperatorOutput(
-			OneInputStreamOperator<RowData, RowData> operator,
-			TypeSerializer<RowData> serializer) {
-		super(operator);
-		this.operator = operator;
-		this.serializer = serializer;
-	}
+    public CopyingOneInputStreamOperatorOutput(
+            OneInputStreamOperator<RowData, RowData> operator, TypeSerializer<RowData> serializer) {
+        super(operator);
+        this.operator = operator;
+        this.serializer = serializer;
+    }
 
-	protected <X> void pushToOperator(StreamRecord<X> record) {
-		try {
-			// we know that the given outputTag matches our OutputTag so the record
-			// must be of the type that our operator expects.
-			@SuppressWarnings("unchecked")
-			StreamRecord<RowData> castRecord = (StreamRecord<RowData>) record;
-			StreamRecord<RowData> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
+    protected <X> void pushToOperator(StreamRecord<X> record) {
+        try {
+            // we know that the given outputTag matches our OutputTag so the record
+            // must be of the type that our operator expects.
+            @SuppressWarnings("unchecked")
+            StreamRecord<RowData> castRecord = (StreamRecord<RowData>) record;
+            StreamRecord<RowData> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
 
-			operator.processElement(copy);
-		} catch (Exception e) {
-			throw new ExceptionInMultipleInputOperatorException(e);
-		}
-	}
+            operator.processElement(copy);
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
 }

@@ -17,9 +17,7 @@
 
 package org.apache.flink.metrics.datadog;
 
-/**
- * A simple clock that returns the number of seconds since the unix epoch.
- */
+/** A simple clock that returns the number of seconds since the unix epoch. */
 public interface Clock {
-	long getUnixEpochTimestamp();
+    long getUnixEpochTimestamp();
 }

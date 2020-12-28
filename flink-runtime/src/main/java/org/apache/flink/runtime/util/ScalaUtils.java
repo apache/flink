@@ -22,25 +22,23 @@ import java.util.Optional;
 
 import scala.Option;
 
-/**
- * Utilities to convert Scala types into Java types.
- */
+/** Utilities to convert Scala types into Java types. */
 public class ScalaUtils {
 
-	/**
-	 * Converts a Scala {@link Option} to a {@link Optional}.
-	 *
-	 * @param scalaOption to convert into ta Java {@link Optional}
-	 * @param <T> type of the optional value
-	 * @return Optional of the given option
-	 */
-	public static <T> Optional<T> toJava(Option<T> scalaOption) {
-		if (scalaOption.isEmpty()) {
-			return Optional.empty();
-		} else {
-			return Optional.ofNullable(scalaOption.get());
-		}
-	}
+    /**
+     * Converts a Scala {@link Option} to a {@link Optional}.
+     *
+     * @param scalaOption to convert into ta Java {@link Optional}
+     * @param <T> type of the optional value
+     * @return Optional of the given option
+     */
+    public static <T> Optional<T> toJava(Option<T> scalaOption) {
+        if (scalaOption.isEmpty()) {
+            return Optional.empty();
+        } else {
+            return Optional.ofNullable(scalaOption.get());
+        }
+    }
 
-	private ScalaUtils() {}
+    private ScalaUtils() {}
 }

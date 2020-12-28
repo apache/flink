@@ -24,33 +24,29 @@ import org.apache.flink.runtime.jobmanager.JobGraphStoreUtil;
 
 import static org.apache.flink.kubernetes.utils.Constants.JOB_GRAPH_STORE_KEY_PREFIX;
 
-/**
- * Singleton {@link JobGraphStoreUtil} implementation for Kubernetes.
- *
- */
-public enum  KubernetesJobGraphStoreUtil implements JobGraphStoreUtil {
-	INSTANCE;
+/** Singleton {@link JobGraphStoreUtil} implementation for Kubernetes. */
+public enum KubernetesJobGraphStoreUtil implements JobGraphStoreUtil {
+    INSTANCE;
 
-	/**
-	 * Convert a key in ConfigMap to {@link JobID}. The key is stored with prefix
-	 * {@link Constants#JOB_GRAPH_STORE_KEY_PREFIX}.
-	 *
-	 * @param key job graph key in ConfigMap.
-	 *
-	 * @return the parsed {@link JobID}.
-	 */
-	public JobID nameToJobID(String key) {
-		return JobID.fromHexString(key.substring(JOB_GRAPH_STORE_KEY_PREFIX.length()));
-	}
+    /**
+     * Convert a key in ConfigMap to {@link JobID}. The key is stored with prefix {@link
+     * Constants#JOB_GRAPH_STORE_KEY_PREFIX}.
+     *
+     * @param key job graph key in ConfigMap.
+     * @return the parsed {@link JobID}.
+     */
+    public JobID nameToJobID(String key) {
+        return JobID.fromHexString(key.substring(JOB_GRAPH_STORE_KEY_PREFIX.length()));
+    }
 
-	/**
-	 * Convert a {@link JobID} to config map key. We will add prefix {@link Constants#JOB_GRAPH_STORE_KEY_PREFIX}.
-	 *
-	 * @param jobID job id
-	 *
-	 * @return a key to store job graph in the ConfigMap
-	 */
-	public String jobIDToName(JobID jobID) {
-		return JOB_GRAPH_STORE_KEY_PREFIX + jobID;
-	}
+    /**
+     * Convert a {@link JobID} to config map key. We will add prefix {@link
+     * Constants#JOB_GRAPH_STORE_KEY_PREFIX}.
+     *
+     * @param jobID job id
+     * @return a key to store job graph in the ConfigMap
+     */
+    public String jobIDToName(JobID jobID) {
+        return JOB_GRAPH_STORE_KEY_PREFIX + jobID;
+    }
 }

@@ -51,92 +51,91 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for {@link AbstractStreamOperatorTestHarness}.
- */
+/** Tests for {@link AbstractStreamOperatorTestHarness}. */
 public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	@Test
-	public void testInitializeAfterOpenning() throws Throwable {
-		expectedException.expect(IllegalStateException.class);
-		expectedException.expectMessage(containsString("TestHarness has already been initialized."));
+    @Test
+    public void testInitializeAfterOpenning() throws Throwable {
+        expectedException.expect(IllegalStateException.class);
+        expectedException.expectMessage(
+                containsString("TestHarness has already been initialized."));
 
-		AbstractStreamOperatorTestHarness<Integer> result;
-		result =
-			new AbstractStreamOperatorTestHarness<>(
-				new AbstractStreamOperator<Integer>() {
-				},
-				1,
-				1,
-				0);
-		result.setup();
-		result.open();
-		result.initializeState(OperatorSubtaskState.builder().build());
-	}
+        AbstractStreamOperatorTestHarness<Integer> result;
+        result =
+                new AbstractStreamOperatorTestHarness<>(
+                        new AbstractStreamOperator<Integer>() {}, 1, 1, 0);
+        result.setup();
+        result.open();
+        result.initializeState(OperatorSubtaskState.builder().build());
+    }
 
-	@Test
-	public void testSetTtlTimeProvider() throws Exception {
-		AbstractStreamOperator<Integer> operator = new AbstractStreamOperator<Integer>() {};
-		try (AbstractStreamOperatorTestHarness<Integer> result = new AbstractStreamOperatorTestHarness<>(
-				operator,
-				1,
-				1,
-				0)) {
+    @Test
+    public void testSetTtlTimeProvider() throws Exception {
+        AbstractStreamOperator<Integer> operator = new AbstractStreamOperator<Integer>() {};
+        try (AbstractStreamOperatorTestHarness<Integer> result =
+                new AbstractStreamOperatorTestHarness<>(operator, 1, 1, 0)) {
 
-			result.config.setStateKeySerializer(IntSerializer.INSTANCE);
+            result.config.setStateKeySerializer(IntSerializer.INSTANCE);
 
-			Time timeToLive = Time.hours(1);
-			result.initializeState(OperatorSubtaskState.builder().build());
-			result.open();
+            Time timeToLive = Time.hours(1);
+            result.initializeState(OperatorSubtaskState.builder().build());
+            result.open();
 
-			ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("test", IntSerializer.INSTANCE);
-			stateDescriptor.enableTimeToLive(StateTtlConfig.newBuilder(timeToLive).build());
-			KeyedStateBackend<Integer> keyedStateBackend = operator.getKeyedStateBackend();
-			ValueState<Integer> state = keyedStateBackend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+            ValueStateDescriptor<Integer> stateDescriptor =
+                    new ValueStateDescriptor<>("test", IntSerializer.INSTANCE);
+            stateDescriptor.enableTimeToLive(StateTtlConfig.newBuilder(timeToLive).build());
+            KeyedStateBackend<Integer> keyedStateBackend = operator.getKeyedStateBackend();
+            ValueState<Integer> state =
+                    keyedStateBackend.getPartitionedState(
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE,
+                            stateDescriptor);
 
-			int expectedValue = 42;
-			keyedStateBackend.setCurrentKey(1);
-			result.setStateTtlProcessingTime(0L);
-			state.update(expectedValue);
-			Assert.assertEquals(expectedValue, (int) state.value());
-			result.setStateTtlProcessingTime(timeToLive.toMilliseconds() + 1);
-			Assert.assertNull(state.value());
-		}
-	}
+            int expectedValue = 42;
+            keyedStateBackend.setCurrentKey(1);
+            result.setStateTtlProcessingTime(0L);
+            state.update(expectedValue);
+            Assert.assertEquals(expectedValue, (int) state.value());
+            result.setStateTtlProcessingTime(timeToLive.toMilliseconds() + 1);
+            Assert.assertNull(state.value());
+        }
+    }
 
-	@Test
-	public void testSideOutputTypeInformation() throws Throwable {
-		final int probe = 12;
-		final TypeSerializer<Integer> typeSerializer = spy(TypeSerializer.class);
+    @Test
+    public void testSideOutputTypeInformation() throws Throwable {
+        final int probe = 12;
+        final TypeSerializer<Integer> typeSerializer = spy(TypeSerializer.class);
 
-		final TypeInformation<Integer> typeInformation = spy(Types.INT);
-		when(typeInformation.createSerializer(any(ExecutionConfig.class))).thenReturn(typeSerializer);
+        final TypeInformation<Integer> typeInformation = spy(Types.INT);
+        when(typeInformation.createSerializer(any(ExecutionConfig.class)))
+                .thenReturn(typeSerializer);
 
-		final OutputTag<Integer> outputTag = new OutputTag<>("test", typeInformation);
-		final SideOutputTypeInformationTestFunction testFunction = new SideOutputTypeInformationTestFunction(outputTag);
-		final OneInputStreamOperatorTestHarness<Integer, Integer> result = new OneInputStreamOperatorTestHarness<>(
-			new ProcessOperator<>(testFunction));
-		result.setup();
-		result.open();
-		result.processElement(probe, 1000);
+        final OutputTag<Integer> outputTag = new OutputTag<>("test", typeInformation);
+        final SideOutputTypeInformationTestFunction testFunction =
+                new SideOutputTypeInformationTestFunction(outputTag);
+        final OneInputStreamOperatorTestHarness<Integer, Integer> result =
+                new OneInputStreamOperatorTestHarness<>(new ProcessOperator<>(testFunction));
+        result.setup();
+        result.open();
+        result.processElement(probe, 1000);
 
-		// verify that AbstractStreamOperatorTestHarness called copy on serializer from OutputTag
-		verify(typeSerializer, times(1)).copy(eq(probe));
-	}
+        // verify that AbstractStreamOperatorTestHarness called copy on serializer from OutputTag
+        verify(typeSerializer, times(1)).copy(eq(probe));
+    }
 
-	private static class SideOutputTypeInformationTestFunction extends ProcessFunction<Integer, Integer> {
-		private final OutputTag<Integer> outputTag;
+    private static class SideOutputTypeInformationTestFunction
+            extends ProcessFunction<Integer, Integer> {
+        private final OutputTag<Integer> outputTag;
 
-		SideOutputTypeInformationTestFunction(OutputTag<Integer> outputTag) {
-			this.outputTag = outputTag;
-		}
+        SideOutputTypeInformationTestFunction(OutputTag<Integer> outputTag) {
+            this.outputTag = outputTag;
+        }
 
-		@Override
-		public void processElement(Integer value, Context ctx, Collector<Integer> out) throws Exception {
-			ctx.output(outputTag, value);
-		}
-	}
+        @Override
+        public void processElement(Integer value, Context ctx, Collector<Integer> out)
+                throws Exception {
+            ctx.output(outputTag, value);
+        }
+    }
 }
-

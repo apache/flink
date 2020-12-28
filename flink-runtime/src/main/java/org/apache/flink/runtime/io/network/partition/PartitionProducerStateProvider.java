@@ -24,41 +24,35 @@ import org.apache.flink.types.Either;
 
 import java.util.function.Consumer;
 
-/**
- * Request execution state of partition producer, the response accepts state check callbacks.
- */
+/** Request execution state of partition producer, the response accepts state check callbacks. */
 public interface PartitionProducerStateProvider {
-	/**
-	 * Trigger the producer execution state request.
-	 *
-	 * @param intermediateDataSetId ID of the parent intermediate data set.
-	 * @param resultPartitionId ID of the result partition to check. This
-	 * identifies the producing execution and partition.
-	 * @param responseConsumer consumer for the response handle.
-	 */
-	void requestPartitionProducerState(
-		IntermediateDataSetID intermediateDataSetId,
-		ResultPartitionID resultPartitionId,
-		Consumer<? super ResponseHandle> responseConsumer);
+    /**
+     * Trigger the producer execution state request.
+     *
+     * @param intermediateDataSetId ID of the parent intermediate data set.
+     * @param resultPartitionId ID of the result partition to check. This identifies the producing
+     *     execution and partition.
+     * @param responseConsumer consumer for the response handle.
+     */
+    void requestPartitionProducerState(
+            IntermediateDataSetID intermediateDataSetId,
+            ResultPartitionID resultPartitionId,
+            Consumer<? super ResponseHandle> responseConsumer);
 
-	/**
-	 * Result of state query, accepts state check callbacks.
-	 */
-	interface ResponseHandle {
-		ExecutionState getConsumerExecutionState();
+    /** Result of state query, accepts state check callbacks. */
+    interface ResponseHandle {
+        ExecutionState getConsumerExecutionState();
 
-		Either<ExecutionState, Throwable> getProducerExecutionState();
+        Either<ExecutionState, Throwable> getProducerExecutionState();
 
-		/**
-		 * Cancel the partition consumptions as a result of state check.
-		 */
-		void cancelConsumption();
+        /** Cancel the partition consumptions as a result of state check. */
+        void cancelConsumption();
 
-		/**
-		 * Fail the partition consumptions as a result of state check.
-		 *
-		 * @param cause failure cause
-		 */
-		void failConsumption(Throwable cause);
-	}
+        /**
+         * Fail the partition consumptions as a result of state check.
+         *
+         * @param cause failure cause
+         */
+        void failConsumption(Throwable cause);
+    }
 }

@@ -16,339 +16,357 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.util.List;
-
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
-import org.apache.flink.runtime.operators.hash.InPlaceMutableHashTable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.hash.InPlaceMutableHashTable;
 import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.EOFException;
+import java.io.IOException;
+import java.util.List;
+
 /**
- * Combine operator for Reduce functions, standalone (not chained).
- * Sorts and groups and reduces data, but never spills the sort. May produce multiple
- * partially aggregated groups.
+ * Combine operator for Reduce functions, standalone (not chained). Sorts and groups and reduces
+ * data, but never spills the sort. May produce multiple partially aggregated groups.
  *
  * @param <T> The data type consumed and produced by the combiner.
  */
 public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ReduceCombineDriver.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ReduceCombineDriver.class);
 
-	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
-	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
+    /**
+     * Fix length records with a length below this threshold will be in-place sorted, if possible.
+     */
+    private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 
+    private TaskContext<ReduceFunction<T>, T> taskContext;
 
-	private TaskContext<ReduceFunction<T>, T> taskContext;
+    private TypeSerializer<T> serializer;
 
-	private TypeSerializer<T> serializer;
+    private TypeComparator<T> comparator;
 
-	private TypeComparator<T> comparator;
+    private ReduceFunction<T> reducer;
 
-	private ReduceFunction<T> reducer;
+    private Collector<T> output;
 
-	private Collector<T> output;
+    private DriverStrategy strategy;
 
-	private DriverStrategy strategy;
+    private InMemorySorter<T> sorter;
 
-	private InMemorySorter<T> sorter;
+    private QuickSort sortAlgo = new QuickSort();
 
-	private QuickSort sortAlgo = new QuickSort();
+    private InPlaceMutableHashTable<T> table;
 
-	private InPlaceMutableHashTable<T> table;
+    private InPlaceMutableHashTable<T>.ReduceFacade reduceFacade;
 
-	private InPlaceMutableHashTable<T>.ReduceFacade reduceFacade;
+    private List<MemorySegment> memory;
 
-	private List<MemorySegment> memory;
+    private volatile boolean running;
 
-	private volatile boolean running;
+    private boolean objectReuseEnabled = false;
 
-	private boolean objectReuseEnabled = false;
+    // ------------------------------------------------------------------------
 
+    @Override
+    public void setup(TaskContext<ReduceFunction<T>, T> context) {
+        taskContext = context;
+        running = true;
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public int getNumberOfInputs() {
+        return 1;
+    }
 
-	@Override
-	public void setup(TaskContext<ReduceFunction<T>, T> context) {
-		taskContext = context;
-		running = true;
-	}
+    @Override
+    public Class<ReduceFunction<T>> getStubType() {
+        @SuppressWarnings("unchecked")
+        final Class<ReduceFunction<T>> clazz =
+                (Class<ReduceFunction<T>>) (Class<?>) ReduceFunction.class;
+        return clazz;
+    }
 
-	@Override
-	public int getNumberOfInputs() {
-		return 1;
-	}
+    @Override
+    public int getNumberOfDriverComparators() {
+        return 1;
+    }
 
-	@Override
-	public Class<ReduceFunction<T>> getStubType() {
-		@SuppressWarnings("unchecked")
-		final Class<ReduceFunction<T>> clazz = (Class<ReduceFunction<T>>) (Class<?>) ReduceFunction.class;
-		return clazz;
-	}
+    @Override
+    public void prepare() throws Exception {
+        final Counter numRecordsOut =
+                taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 
-	@Override
-	public int getNumberOfDriverComparators() {
-		return 1;
-	}
+        strategy = taskContext.getTaskConfig().getDriverStrategy();
 
-	@Override
-	public void prepare() throws Exception {
-		final Counter numRecordsOut = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
+        // instantiate the serializer / comparator
+        final TypeSerializerFactory<T> serializerFactory = taskContext.getInputSerializer(0);
+        comparator = taskContext.getDriverComparator(0);
+        serializer = serializerFactory.getSerializer();
+        reducer = taskContext.getStub();
+        output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 
-		strategy = taskContext.getTaskConfig().getDriverStrategy();
+        MemoryManager memManager = taskContext.getMemoryManager();
+        final int numMemoryPages =
+                memManager.computeNumberOfPages(
+                        taskContext.getTaskConfig().getRelativeMemoryDriver());
+        memory = memManager.allocatePages(taskContext.getContainingTask(), numMemoryPages);
 
-		// instantiate the serializer / comparator
-		final TypeSerializerFactory<T> serializerFactory = taskContext.getInputSerializer(0);
-		comparator = taskContext.getDriverComparator(0);
-		serializer = serializerFactory.getSerializer();
-		reducer = taskContext.getStub();
-		output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
+        ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+        objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
-		MemoryManager memManager = taskContext.getMemoryManager();
-		final int numMemoryPages = memManager.computeNumberOfPages(
-			taskContext.getTaskConfig().getRelativeMemoryDriver());
-		memory = memManager.allocatePages(taskContext.getContainingTask(), numMemoryPages);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "ReduceCombineDriver object reuse: "
+                            + (objectReuseEnabled ? "ENABLED" : "DISABLED")
+                            + ".");
+        }
 
-		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
-		objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+        switch (strategy) {
+            case SORTED_PARTIAL_REDUCE:
+                // instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place
+                // sorter
+                if (comparator.supportsSerializationWithKeyNormalization()
+                        && serializer.getLength() > 0
+                        && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
+                    sorter =
+                            new FixedLengthRecordSorter<T>(
+                                    serializer, comparator.duplicate(), memory);
+                } else {
+                    sorter = new NormalizedKeySorter<T>(serializer, comparator.duplicate(), memory);
+                }
+                break;
+            case HASHED_PARTIAL_REDUCE:
+                table = new InPlaceMutableHashTable<T>(serializer, comparator, memory);
+                reduceFacade = table.new ReduceFacade(reducer, output, objectReuseEnabled);
+                break;
+            default:
+                throw new Exception(
+                        "Invalid strategy "
+                                + taskContext.getTaskConfig().getDriverStrategy()
+                                + " for reduce combiner.");
+        }
+    }
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("ReduceCombineDriver object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
-		}
+    @Override
+    public void run() throws Exception {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Combiner starting.");
+        }
 
-		switch (strategy) {
-			case SORTED_PARTIAL_REDUCE:
-				// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-				if (comparator.supportsSerializationWithKeyNormalization() &&
-					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
-					sorter = new FixedLengthRecordSorter<T>(serializer, comparator.duplicate(), memory);
-				} else {
-					sorter = new NormalizedKeySorter<T>(serializer, comparator.duplicate(), memory);
-				}
-				break;
-			case HASHED_PARTIAL_REDUCE:
-				table = new InPlaceMutableHashTable<T>(serializer, comparator, memory);
-				reduceFacade = table.new ReduceFacade(reducer, output, objectReuseEnabled);
-				break;
-			default:
-				throw new Exception("Invalid strategy " + taskContext.getTaskConfig().getDriverStrategy() + " for reduce combiner.");
-		}
-	}
+        final Counter numRecordsIn =
+                taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
 
-	@Override
-	public void run() throws Exception {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Combiner starting.");
-		}
+        final MutableObjectIterator<T> in = taskContext.getInput(0);
+        final TypeSerializer<T> serializer = this.serializer;
 
-		final Counter numRecordsIn = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+        switch (strategy) {
+            case SORTED_PARTIAL_REDUCE:
+                if (objectReuseEnabled) {
+                    T value = serializer.createInstance();
+                    while (running && (value = in.next(value)) != null) {
+                        numRecordsIn.inc();
 
-		final MutableObjectIterator<T> in = taskContext.getInput(0);
-		final TypeSerializer<T> serializer = this.serializer;
+                        // try writing to the sorter first
+                        if (sorter.write(value)) {
+                            continue;
+                        }
 
-		switch (strategy) {
-			case SORTED_PARTIAL_REDUCE:
-				if (objectReuseEnabled) {
-					T value = serializer.createInstance();
-					while (running && (value = in.next(value)) != null) {
-						numRecordsIn.inc();
+                        // do the actual sorting, combining, and data writing
+                        sortAndCombine();
+                        sorter.reset();
 
-						// try writing to the sorter first
-						if (sorter.write(value)) {
-							continue;
-						}
+                        // write the value again
+                        if (!sorter.write(value)) {
+                            throw new IOException(
+                                    "Cannot write record to fresh sort buffer. Record too large.");
+                        }
+                    }
+                } else {
+                    T value;
+                    while (running && (value = in.next()) != null) {
+                        numRecordsIn.inc();
 
-						// do the actual sorting, combining, and data writing
-						sortAndCombine();
-						sorter.reset();
+                        // try writing to the sorter first
+                        if (sorter.write(value)) {
+                            continue;
+                        }
 
-						// write the value again
-						if (!sorter.write(value)) {
-							throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
-						}
-					}
-				} else {
-					T value;
-					while (running && (value = in.next()) != null) {
-						numRecordsIn.inc();
+                        // do the actual sorting, combining, and data writing
+                        sortAndCombine();
+                        sorter.reset();
 
-						// try writing to the sorter first
-						if (sorter.write(value)) {
-							continue;
-						}
+                        // write the value again
+                        if (!sorter.write(value)) {
+                            throw new IOException(
+                                    "Cannot write record to fresh sort buffer. Record too large.");
+                        }
+                    }
+                }
 
-						// do the actual sorting, combining, and data writing
-						sortAndCombine();
-						sorter.reset();
+                // sort, combine, and send the final batch
+                sortAndCombine();
 
-						// write the value again
-						if (!sorter.write(value)) {
-							throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
-						}
-					}
-				}
+                break;
+            case HASHED_PARTIAL_REDUCE:
+                table.open();
+                if (objectReuseEnabled) {
+                    T value = serializer.createInstance();
+                    while (running && (value = in.next(value)) != null) {
+                        numRecordsIn.inc();
+                        try {
+                            reduceFacade.updateTableEntryWithReduce(value);
+                        } catch (EOFException ex) {
+                            // the table has run out of memory
+                            reduceFacade.emitAndReset();
+                            // try again
+                            reduceFacade.updateTableEntryWithReduce(value);
+                        }
+                    }
+                } else {
+                    T value;
+                    while (running && (value = in.next()) != null) {
+                        numRecordsIn.inc();
+                        try {
+                            reduceFacade.updateTableEntryWithReduce(value);
+                        } catch (EOFException ex) {
+                            // the table has run out of memory
+                            reduceFacade.emitAndReset();
+                            // try again
+                            reduceFacade.updateTableEntryWithReduce(value);
+                        }
+                    }
+                }
 
-				// sort, combine, and send the final batch
-				sortAndCombine();
+                // send the final batch
+                reduceFacade.emit();
 
-				break;
-			case HASHED_PARTIAL_REDUCE:
-				table.open();
-				if (objectReuseEnabled) {
-					T value = serializer.createInstance();
-					while (running && (value = in.next(value)) != null) {
-						numRecordsIn.inc();
-						try {
-							reduceFacade.updateTableEntryWithReduce(value);
-						} catch (EOFException ex) {
-							// the table has run out of memory
-							reduceFacade.emitAndReset();
-							// try again
-							reduceFacade.updateTableEntryWithReduce(value);
-						}
-					}
-				} else {
-					T value;
-					while (running && (value = in.next()) != null) {
-						numRecordsIn.inc();
-						try {
-							reduceFacade.updateTableEntryWithReduce(value);
-						} catch (EOFException ex) {
-							// the table has run out of memory
-							reduceFacade.emitAndReset();
-							// try again
-							reduceFacade.updateTableEntryWithReduce(value);
-						}
-					}
-				}
+                table.close();
+                break;
+            default:
+                throw new Exception(
+                        "Invalid strategy "
+                                + taskContext.getTaskConfig().getDriverStrategy()
+                                + " for reduce combiner.");
+        }
+    }
 
-				// send the final batch
-				reduceFacade.emit();
+    private void sortAndCombine() throws Exception {
+        final InMemorySorter<T> sorter = this.sorter;
 
-				table.close();
-				break;
-			default:
-				throw new Exception("Invalid strategy " + taskContext.getTaskConfig().getDriverStrategy() + " for reduce combiner.");
-		}
-	}
+        if (!sorter.isEmpty()) {
+            sortAlgo.sort(sorter);
 
-	private void sortAndCombine() throws Exception {
-		final InMemorySorter<T> sorter = this.sorter;
+            final TypeSerializer<T> serializer = this.serializer;
+            final TypeComparator<T> comparator = this.comparator;
+            final ReduceFunction<T> function = this.reducer;
+            final Collector<T> output = this.output;
+            final MutableObjectIterator<T> input = sorter.getIterator();
 
-		if (!sorter.isEmpty()) {
-			sortAlgo.sort(sorter);
+            if (objectReuseEnabled) {
+                // We only need two objects. The first reference stores results and is
+                // eventually collected. New values are read into the second.
+                //
+                // The output value must have the same key fields as the input values.
 
-			final TypeSerializer<T> serializer = this.serializer;
-			final TypeComparator<T> comparator = this.comparator;
-			final ReduceFunction<T> function = this.reducer;
-			final Collector<T> output = this.output;
-			final MutableObjectIterator<T> input = sorter.getIterator();
+                T reuse1 = input.next();
+                T reuse2 = serializer.createInstance();
 
-			if (objectReuseEnabled) {
-				// We only need two objects. The first reference stores results and is
-				// eventually collected. New values are read into the second.
-				//
-				// The output value must have the same key fields as the input values.
+                T value = reuse1;
 
-				T reuse1 = input.next();
-				T reuse2 = serializer.createInstance();
+                // iterate over key groups
+                while (running && value != null) {
+                    comparator.setReference(value);
 
-				T value = reuse1;
+                    // iterate within a key group
+                    while ((reuse2 = input.next(reuse2)) != null) {
+                        if (comparator.equalToReference(reuse2)) {
+                            // same group, reduce
+                            value = function.reduce(value, reuse2);
 
-				// iterate over key groups
-				while (running && value != null) {
-					comparator.setReference(value);
+                            // we must never read into the object returned
+                            // by the user, so swap the reuse objects
+                            if (value == reuse2) {
+                                T tmp = reuse1;
+                                reuse1 = reuse2;
+                                reuse2 = tmp;
+                            }
+                        } else {
+                            // new key group
+                            break;
+                        }
+                    }
 
-					// iterate within a key group
-					while ((reuse2 = input.next(reuse2)) != null) {
-						if (comparator.equalToReference(reuse2)) {
-							// same group, reduce
-							value = function.reduce(value, reuse2);
+                    output.collect(value);
 
-							// we must never read into the object returned
-							// by the user, so swap the reuse objects
-							if (value == reuse2) {
-								T tmp = reuse1;
-								reuse1 = reuse2;
-								reuse2 = tmp;
-							}
-						} else {
-							// new key group
-							break;
-						}
-					}
+                    // swap the value from the new key group into the first object
+                    T tmp = reuse1;
+                    reuse1 = reuse2;
+                    reuse2 = tmp;
 
-					output.collect(value);
+                    value = reuse1;
+                }
+            } else {
+                T value = input.next();
 
-					// swap the value from the new key group into the first object
-					T tmp = reuse1;
-					reuse1 = reuse2;
-					reuse2 = tmp;
+                // iterate over key groups
+                while (running && value != null) {
+                    comparator.setReference(value);
+                    T res = value;
 
-					value = reuse1;
-				}
-			} else {
-				T value = input.next();
+                    // iterate within a key group
+                    while ((value = input.next()) != null) {
+                        if (comparator.equalToReference(value)) {
+                            // same group, reduce
+                            res = function.reduce(res, value);
+                        } else {
+                            // new key group
+                            break;
+                        }
+                    }
 
-				// iterate over key groups
-				while (running && value != null) {
-					comparator.setReference(value);
-					T res = value;
+                    output.collect(res);
+                }
+            }
+        }
+    }
 
-					// iterate within a key group
-					while ((value = input.next()) != null) {
-						if (comparator.equalToReference(value)) {
-							// same group, reduce
-							res = function.reduce(res, value);
-						} else {
-							// new key group
-							break;
-						}
-					}
+    @Override
+    public void cleanup() {
+        try {
+            if (sorter != null) {
+                sorter.dispose();
+            }
+            if (table != null) {
+                table.close();
+            }
+        } catch (Exception e) {
+            // may happen during concurrent modification
+        }
+        taskContext.getMemoryManager().release(memory);
+    }
 
-					output.collect(res);
-				}
-			}
-		}
-	}
+    @Override
+    public void cancel() {
+        running = false;
 
-	@Override
-	public void cleanup() {
-		try {
-			if (sorter != null) {
-				sorter.dispose();
-			}
-			if (table != null) {
-				table.close();
-			}
-		} catch (Exception e) {
-			// may happen during concurrent modification
-		}
-		taskContext.getMemoryManager().release(memory);
-	}
-
-	@Override
-	public void cancel() {
-		running = false;
-
-		cleanup();
-	}
+        cleanup();
+    }
 }

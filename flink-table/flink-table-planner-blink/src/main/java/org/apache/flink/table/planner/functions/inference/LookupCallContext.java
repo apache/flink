@@ -38,92 +38,91 @@ import java.util.Optional;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
-/**
- * The {@link CallContext} of a {@link LookupTableSource} runtime function.
- */
+/** The {@link CallContext} of a {@link LookupTableSource} runtime function. */
 @Internal
 public class LookupCallContext extends AbstractSqlCallContext {
 
-	private final Map<Integer, LookupKey> lookupKeys;
+    private final Map<Integer, LookupKey> lookupKeys;
 
-	private final int[] lookupKeyOrder;
+    private final int[] lookupKeyOrder;
 
-	private final List<DataType> argumentDataTypes;
+    private final List<DataType> argumentDataTypes;
 
-	private final DataType outputDataType;
+    private final DataType outputDataType;
 
-	public LookupCallContext(
-			DataTypeFactory dataTypeFactory,
-			UserDefinedFunction function,
-			LogicalType inputType,
-			Map<Integer, LookupKey> lookupKeys,
-			int[] lookupKeyOrder,
-			LogicalType lookupType) {
-		super(dataTypeFactory, function, function.functionIdentifier());
-		this.lookupKeys = lookupKeys;
-		this.lookupKeyOrder = lookupKeyOrder;
-		this.argumentDataTypes = new AbstractList<DataType>() {
-			@Override
-			public DataType get(int index) {
-				final LookupKey key = getKey(index);
-				final LogicalType keyType;
-				if (key instanceof ConstantLookupKey) {
-					keyType = ((ConstantLookupKey) key).sourceType;
-				} else if (key instanceof FieldRefLookupKey) {
-					keyType = getFieldTypes(inputType).get(((FieldRefLookupKey) key).index);
-				} else {
-					throw new IllegalArgumentException();
-				}
-				return fromLogicalToDataType(keyType);
-			}
+    public LookupCallContext(
+            DataTypeFactory dataTypeFactory,
+            UserDefinedFunction function,
+            LogicalType inputType,
+            Map<Integer, LookupKey> lookupKeys,
+            int[] lookupKeyOrder,
+            LogicalType lookupType) {
+        super(dataTypeFactory, function, function.functionIdentifier());
+        this.lookupKeys = lookupKeys;
+        this.lookupKeyOrder = lookupKeyOrder;
+        this.argumentDataTypes =
+                new AbstractList<DataType>() {
+                    @Override
+                    public DataType get(int index) {
+                        final LookupKey key = getKey(index);
+                        final LogicalType keyType;
+                        if (key instanceof ConstantLookupKey) {
+                            keyType = ((ConstantLookupKey) key).sourceType;
+                        } else if (key instanceof FieldRefLookupKey) {
+                            keyType = getFieldTypes(inputType).get(((FieldRefLookupKey) key).index);
+                        } else {
+                            throw new IllegalArgumentException();
+                        }
+                        return fromLogicalToDataType(keyType);
+                    }
 
-			@Override
-			public int size() {
-				return lookupKeyOrder.length;
-			}
-		};
-		this.outputDataType = fromLogicalToDataType(lookupType);
-	}
+                    @Override
+                    public int size() {
+                        return lookupKeyOrder.length;
+                    }
+                };
+        this.outputDataType = fromLogicalToDataType(lookupType);
+    }
 
-	@Override
-	public boolean isArgumentLiteral(int pos) {
-		return getKey(pos) instanceof ConstantLookupKey;
-	}
+    @Override
+    public boolean isArgumentLiteral(int pos) {
+        return getKey(pos) instanceof ConstantLookupKey;
+    }
 
-	@Override
-	public boolean isArgumentNull(int pos) {
-		final ConstantLookupKey key = (ConstantLookupKey) getKey(pos);
-		return key.literal.isNull();
-	}
+    @Override
+    public boolean isArgumentNull(int pos) {
+        final ConstantLookupKey key = (ConstantLookupKey) getKey(pos);
+        return key.literal.isNull();
+    }
 
-	@Override
-	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-		if (isArgumentNull(pos)) {
-			return Optional.empty();
-		}
-		try {
-			final ConstantLookupKey key = (ConstantLookupKey) getKey(pos);
-			final RexLiteral literal = key.literal;
-			return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));
-		} catch (IllegalArgumentException e) {
-			return Optional.empty();
-		}
-	}
+    @Override
+    public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+        if (isArgumentNull(pos)) {
+            return Optional.empty();
+        }
+        try {
+            final ConstantLookupKey key = (ConstantLookupKey) getKey(pos);
+            final RexLiteral literal = key.literal;
+            return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
 
-	@Override
-	public List<DataType> getArgumentDataTypes() {
-		return argumentDataTypes;
-	}
+    @Override
+    public List<DataType> getArgumentDataTypes() {
+        return argumentDataTypes;
+    }
 
-	@Override
-	public Optional<DataType> getOutputDataType() {
-		return Optional.of(outputDataType);
-	}
+    @Override
+    public Optional<DataType> getOutputDataType() {
+        return Optional.of(outputDataType);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private LookupKey getKey(int pos) {
-		final int index = lookupKeyOrder[pos];
-		return lookupKeys.get(index);
-	}
+    private LookupKey getKey(int pos) {
+        final int index = lookupKeyOrder[pos];
+        return lookupKeys.get(index);
+    }
 }

@@ -25,39 +25,37 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_TYPE_VALUE_JDBC;
 
-/**
- * Test for {@link JdbcCatalogDescriptor}.
- */
+/** Test for {@link JdbcCatalogDescriptor}. */
 public class JdbcCatalogDescriptorTest extends DescriptorTestBase {
 
-	private static final String TEST_DB = "db";
-	private static final String TEST_USERNAME = "user";
-	private static final String TEST_PWD = "pwd";
-	private static final String TEST_BASE_URL = "xxx";
+    private static final String TEST_DB = "db";
+    private static final String TEST_USERNAME = "user";
+    private static final String TEST_PWD = "pwd";
+    private static final String TEST_BASE_URL = "xxx";
 
-	@Override
-	protected List<Descriptor> descriptors() {
-		final Descriptor descriptor = new JdbcCatalogDescriptor(
-			TEST_DB, TEST_USERNAME, TEST_PWD, TEST_BASE_URL);
+    @Override
+    protected List<Descriptor> descriptors() {
+        final Descriptor descriptor =
+                new JdbcCatalogDescriptor(TEST_DB, TEST_USERNAME, TEST_PWD, TEST_BASE_URL);
 
-		return Arrays.asList(descriptor);
-	}
+        return Arrays.asList(descriptor);
+    }
 
-	@Override
-	protected List<Map<String, String>> properties() {
-		final Map<String, String> props = new HashMap<>();
-		props.put("type", CATALOG_TYPE_VALUE_JDBC);
-		props.put("property-version", "1");
-		props.put("default-database", TEST_DB);
-		props.put("username", TEST_USERNAME);
-		props.put("password", TEST_PWD);
-		props.put("base-url", TEST_BASE_URL);
+    @Override
+    protected List<Map<String, String>> properties() {
+        final Map<String, String> props = new HashMap<>();
+        props.put("type", CATALOG_TYPE_VALUE_JDBC);
+        props.put("property-version", "1");
+        props.put("default-database", TEST_DB);
+        props.put("username", TEST_USERNAME);
+        props.put("password", TEST_PWD);
+        props.put("base-url", TEST_BASE_URL);
 
-		return Arrays.asList(props);
-	}
+        return Arrays.asList(props);
+    }
 
-	@Override
-	protected DescriptorValidator validator() {
-		return new JdbcCatalogValidator();
-	}
+    @Override
+    protected DescriptorValidator validator() {
+        return new JdbcCatalogValidator();
+    }
 }

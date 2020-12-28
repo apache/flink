@@ -52,404 +52,424 @@ import java.util.TreeMap;
  */
 public class RetractableTopNFunction extends AbstractTopNFunction {
 
-	private static final long serialVersionUID = 1365312180599454479L;
+    private static final long serialVersionUID = 1365312180599454479L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(RetractableTopNFunction.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RetractableTopNFunction.class);
 
-	// Message to indicate the state is cleared because of ttl restriction. The message could be used to output to log.
-	private static final String STATE_CLEARED_WARN_MSG = "The state is cleared because of state ttl. " +
-			"This will result in incorrect result. You can increase the state ttl to avoid this.";
+    // Message to indicate the state is cleared because of ttl restriction. The message could be
+    // used to output to log.
+    private static final String STATE_CLEARED_WARN_MSG =
+            "The state is cleared because of state ttl. "
+                    + "This will result in incorrect result. You can increase the state ttl to avoid this.";
 
-	private final InternalTypeInfo<RowData> sortKeyType;
+    private final InternalTypeInfo<RowData> sortKeyType;
 
-	// flag to skip records with non-exist error instead to fail, true by default.
-	private final boolean lenient = true;
+    // flag to skip records with non-exist error instead to fail, true by default.
+    private final boolean lenient = true;
 
-	// a map state stores mapping from sort key to records list
-	private transient MapState<RowData, List<RowData>> dataState;
+    // a map state stores mapping from sort key to records list
+    private transient MapState<RowData, List<RowData>> dataState;
 
-	// a sorted map stores mapping from sort key to records count
-	private transient ValueState<SortedMap<RowData, Long>> treeMap;
+    // a sorted map stores mapping from sort key to records count
+    private transient ValueState<SortedMap<RowData, Long>> treeMap;
 
-	// The util to compare two RowData equals to each other.
-	private GeneratedRecordEqualiser generatedEqualiser;
-	private RecordEqualiser equaliser;
+    // The util to compare two RowData equals to each other.
+    private GeneratedRecordEqualiser generatedEqualiser;
+    private RecordEqualiser equaliser;
 
-	private final ComparableRecordComparator serializableComparator;
+    private final ComparableRecordComparator serializableComparator;
 
-	public RetractableTopNFunction(
-			long minRetentionTime,
-			long maxRetentionTime,
-			InternalTypeInfo<RowData> inputRowType,
-			ComparableRecordComparator comparableRecordComparator,
-			RowDataKeySelector sortKeySelector,
-			RankType rankType,
-			RankRange rankRange,
-			GeneratedRecordEqualiser generatedEqualiser,
-			boolean generateUpdateBefore,
-			boolean outputRankNumber) {
-		super(
-			minRetentionTime,
-			maxRetentionTime,
-			inputRowType,
-			comparableRecordComparator.getGeneratedRecordComparator(),
-			sortKeySelector,
-			rankType,
-			rankRange,
-			generateUpdateBefore,
-			outputRankNumber);
-		this.sortKeyType = sortKeySelector.getProducedType();
-		this.serializableComparator = comparableRecordComparator;
-		this.generatedEqualiser = generatedEqualiser;
-	}
+    public RetractableTopNFunction(
+            long minRetentionTime,
+            long maxRetentionTime,
+            InternalTypeInfo<RowData> inputRowType,
+            ComparableRecordComparator comparableRecordComparator,
+            RowDataKeySelector sortKeySelector,
+            RankType rankType,
+            RankRange rankRange,
+            GeneratedRecordEqualiser generatedEqualiser,
+            boolean generateUpdateBefore,
+            boolean outputRankNumber) {
+        super(
+                minRetentionTime,
+                maxRetentionTime,
+                inputRowType,
+                comparableRecordComparator.getGeneratedRecordComparator(),
+                sortKeySelector,
+                rankType,
+                rankRange,
+                generateUpdateBefore,
+                outputRankNumber);
+        this.sortKeyType = sortKeySelector.getProducedType();
+        this.serializableComparator = comparableRecordComparator;
+        this.generatedEqualiser = generatedEqualiser;
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
 
-		// compile equaliser
-		equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		generatedEqualiser = null;
+        // compile equaliser
+        equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
+        generatedEqualiser = null;
 
-		ListTypeInfo<RowData> valueTypeInfo = new ListTypeInfo<>(inputRowType);
-		MapStateDescriptor<RowData, List<RowData>> mapStateDescriptor = new MapStateDescriptor<>(
-				"data-state", sortKeyType, valueTypeInfo);
-		dataState = getRuntimeContext().getMapState(mapStateDescriptor);
+        ListTypeInfo<RowData> valueTypeInfo = new ListTypeInfo<>(inputRowType);
+        MapStateDescriptor<RowData, List<RowData>> mapStateDescriptor =
+                new MapStateDescriptor<>("data-state", sortKeyType, valueTypeInfo);
+        dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
-		ValueStateDescriptor<SortedMap<RowData, Long>> valueStateDescriptor = new ValueStateDescriptor<>(
-				"sorted-map",
-				new SortedMapTypeInfo<>(sortKeyType, BasicTypeInfo.LONG_TYPE_INFO, serializableComparator));
-		treeMap = getRuntimeContext().getState(valueStateDescriptor);
-	}
+        ValueStateDescriptor<SortedMap<RowData, Long>> valueStateDescriptor =
+                new ValueStateDescriptor<>(
+                        "sorted-map",
+                        new SortedMapTypeInfo<>(
+                                sortKeyType, BasicTypeInfo.LONG_TYPE_INFO, serializableComparator));
+        treeMap = getRuntimeContext().getState(valueStateDescriptor);
+    }
 
-	@Override
-	public void processElement(RowData input, Context ctx, Collector<RowData> out) throws Exception {
-		long currentTime = ctx.timerService().currentProcessingTime();
-		// register state-cleanup timer
-		registerProcessingCleanupTimer(ctx, currentTime);
-		initRankEnd(input);
-		SortedMap<RowData, Long> sortedMap = treeMap.value();
-		if (sortedMap == null) {
-			sortedMap = new TreeMap<>(sortKeyComparator);
-		}
-		RowData sortKey = sortKeySelector.getKey(input);
-		boolean isAccumulate = RowDataUtil.isAccumulateMsg(input);
-		input.setRowKind(RowKind.INSERT); // erase row kind for further state accessing
-		if (isAccumulate) {
-			// update sortedMap
-			if (sortedMap.containsKey(sortKey)) {
-				sortedMap.put(sortKey, sortedMap.get(sortKey) + 1);
-			} else {
-				sortedMap.put(sortKey, 1L);
-			}
+    @Override
+    public void processElement(RowData input, Context ctx, Collector<RowData> out)
+            throws Exception {
+        long currentTime = ctx.timerService().currentProcessingTime();
+        // register state-cleanup timer
+        registerProcessingCleanupTimer(ctx, currentTime);
+        initRankEnd(input);
+        SortedMap<RowData, Long> sortedMap = treeMap.value();
+        if (sortedMap == null) {
+            sortedMap = new TreeMap<>(sortKeyComparator);
+        }
+        RowData sortKey = sortKeySelector.getKey(input);
+        boolean isAccumulate = RowDataUtil.isAccumulateMsg(input);
+        input.setRowKind(RowKind.INSERT); // erase row kind for further state accessing
+        if (isAccumulate) {
+            // update sortedMap
+            if (sortedMap.containsKey(sortKey)) {
+                sortedMap.put(sortKey, sortedMap.get(sortKey) + 1);
+            } else {
+                sortedMap.put(sortKey, 1L);
+            }
 
-			// emit
-			if (outputRankNumber || hasOffset()) {
-				// the without-number-algorithm can't handle topN with offset,
-				// so use the with-number-algorithm to handle offset
-				emitRecordsWithRowNumber(sortedMap, sortKey, input, out);
-			} else {
-				emitRecordsWithoutRowNumber(sortedMap, sortKey, input, out);
-			}
-			// update data state
-			List<RowData> inputs = dataState.get(sortKey);
-			if (inputs == null) {
-				// the sort key is never seen
-				inputs = new ArrayList<>();
-			}
-			inputs.add(input);
-			dataState.put(sortKey, inputs);
-		} else {
-			final boolean stateRemoved;
-			// emit updates first
-			if (outputRankNumber || hasOffset()) {
-				// the without-number-algorithm can't handle topN with offset,
-				// so use the with-number-algorithm to handle offset
-				stateRemoved = retractRecordWithRowNumber(sortedMap, sortKey, input, out);
-			} else {
-				stateRemoved = retractRecordWithoutRowNumber(sortedMap, sortKey, input, out);
-			}
+            // emit
+            if (outputRankNumber || hasOffset()) {
+                // the without-number-algorithm can't handle topN with offset,
+                // so use the with-number-algorithm to handle offset
+                emitRecordsWithRowNumber(sortedMap, sortKey, input, out);
+            } else {
+                emitRecordsWithoutRowNumber(sortedMap, sortKey, input, out);
+            }
+            // update data state
+            List<RowData> inputs = dataState.get(sortKey);
+            if (inputs == null) {
+                // the sort key is never seen
+                inputs = new ArrayList<>();
+            }
+            inputs.add(input);
+            dataState.put(sortKey, inputs);
+        } else {
+            final boolean stateRemoved;
+            // emit updates first
+            if (outputRankNumber || hasOffset()) {
+                // the without-number-algorithm can't handle topN with offset,
+                // so use the with-number-algorithm to handle offset
+                stateRemoved = retractRecordWithRowNumber(sortedMap, sortKey, input, out);
+            } else {
+                stateRemoved = retractRecordWithoutRowNumber(sortedMap, sortKey, input, out);
+            }
 
-			// and then update sortedMap
-			if (sortedMap.containsKey(sortKey)) {
-				long count = sortedMap.get(sortKey) - 1;
-				if (count == 0) {
-					sortedMap.remove(sortKey);
-				} else {
-					sortedMap.put(sortKey, count);
-				}
-			} else {
-				if (sortedMap.isEmpty()) {
-					if (lenient) {
-						LOG.warn(STATE_CLEARED_WARN_MSG);
-					} else {
-						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
-					}
-				} else {
-					throw new RuntimeException(
-						"Can not retract a non-existent record. This should never happen.");
-				}
-			}
+            // and then update sortedMap
+            if (sortedMap.containsKey(sortKey)) {
+                long count = sortedMap.get(sortKey) - 1;
+                if (count == 0) {
+                    sortedMap.remove(sortKey);
+                } else {
+                    sortedMap.put(sortKey, count);
+                }
+            } else {
+                if (sortedMap.isEmpty()) {
+                    if (lenient) {
+                        LOG.warn(STATE_CLEARED_WARN_MSG);
+                    } else {
+                        throw new RuntimeException(STATE_CLEARED_WARN_MSG);
+                    }
+                } else {
+                    throw new RuntimeException(
+                            "Can not retract a non-existent record. This should never happen.");
+                }
+            }
 
-			if (!stateRemoved) {
-				// the input record has not been removed from state
-				// should update the data state
-				List<RowData> inputs = dataState.get(sortKey);
-				if (inputs != null) {
-					// comparing record by equaliser
-					Iterator<RowData> inputsIter = inputs.iterator();
-					while (inputsIter.hasNext()) {
-						if (equaliser.equals(inputsIter.next(), input)) {
-							inputsIter.remove();
-							break;
-						}
-					}
-					if (inputs.isEmpty()) {
-						dataState.remove(sortKey);
-					} else {
-						dataState.put(sortKey, inputs);
-					}
-				}
-			}
-		}
-		treeMap.update(sortedMap);
-	}
+            if (!stateRemoved) {
+                // the input record has not been removed from state
+                // should update the data state
+                List<RowData> inputs = dataState.get(sortKey);
+                if (inputs != null) {
+                    // comparing record by equaliser
+                    Iterator<RowData> inputsIter = inputs.iterator();
+                    while (inputsIter.hasNext()) {
+                        if (equaliser.equals(inputsIter.next(), input)) {
+                            inputsIter.remove();
+                            break;
+                        }
+                    }
+                    if (inputs.isEmpty()) {
+                        dataState.remove(sortKey);
+                    } else {
+                        dataState.put(sortKey, inputs);
+                    }
+                }
+            }
+        }
+        treeMap.update(sortedMap);
+    }
 
-	@Override
-	public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out) throws Exception {
-		if (stateCleaningEnabled) {
-			cleanupState(dataState, treeMap);
-		}
-	}
+    @Override
+    public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out)
+            throws Exception {
+        if (stateCleaningEnabled) {
+            cleanupState(dataState, treeMap);
+        }
+    }
 
-	// ------------- ROW_NUMBER-------------------------------
+    // ------------- ROW_NUMBER-------------------------------
 
-	private void emitRecordsWithRowNumber(
-			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
-			throws Exception {
-		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
-		long currentRank = 0L;
-		RowData currentRow = null;
-		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(currentRank)) {
-			Map.Entry<RowData, Long> entry = iterator.next();
-			RowData key = entry.getKey();
-			if (!findsSortKey && key.equals(sortKey)) {
-				currentRank += entry.getValue();
-				currentRow = inputRow;
-				findsSortKey = true;
-			} else if (findsSortKey) {
-				List<RowData> inputs = dataState.get(key);
-				if (inputs == null) {
-					// Skip the data if it's state is cleared because of state ttl.
-					if (lenient) {
-						LOG.warn(STATE_CLEARED_WARN_MSG);
-					} else {
-						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
-					}
-				} else {
-					int i = 0;
-					while (i < inputs.size() && isInRankEnd(currentRank)) {
-						RowData prevRow = inputs.get(i);
-						collectUpdateBefore(out, prevRow, currentRank);
-						collectUpdateAfter(out, currentRow, currentRank);
-						currentRow = prevRow;
-						currentRank += 1;
-						i++;
-					}
-				}
-			} else {
-				currentRank += entry.getValue();
-			}
-		}
-		if (isInRankEnd(currentRank)) {
-			// there is no enough elements in Top-N, emit INSERT message for the new record.
-			collectInsert(out, currentRow, currentRank);
-		}
-	}
+    private void emitRecordsWithRowNumber(
+            SortedMap<RowData, Long> sortedMap,
+            RowData sortKey,
+            RowData inputRow,
+            Collector<RowData> out)
+            throws Exception {
+        Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
+        long currentRank = 0L;
+        RowData currentRow = null;
+        boolean findsSortKey = false;
+        while (iterator.hasNext() && isInRankEnd(currentRank)) {
+            Map.Entry<RowData, Long> entry = iterator.next();
+            RowData key = entry.getKey();
+            if (!findsSortKey && key.equals(sortKey)) {
+                currentRank += entry.getValue();
+                currentRow = inputRow;
+                findsSortKey = true;
+            } else if (findsSortKey) {
+                List<RowData> inputs = dataState.get(key);
+                if (inputs == null) {
+                    // Skip the data if it's state is cleared because of state ttl.
+                    if (lenient) {
+                        LOG.warn(STATE_CLEARED_WARN_MSG);
+                    } else {
+                        throw new RuntimeException(STATE_CLEARED_WARN_MSG);
+                    }
+                } else {
+                    int i = 0;
+                    while (i < inputs.size() && isInRankEnd(currentRank)) {
+                        RowData prevRow = inputs.get(i);
+                        collectUpdateBefore(out, prevRow, currentRank);
+                        collectUpdateAfter(out, currentRow, currentRank);
+                        currentRow = prevRow;
+                        currentRank += 1;
+                        i++;
+                    }
+                }
+            } else {
+                currentRank += entry.getValue();
+            }
+        }
+        if (isInRankEnd(currentRank)) {
+            // there is no enough elements in Top-N, emit INSERT message for the new record.
+            collectInsert(out, currentRow, currentRank);
+        }
+    }
 
-	private void emitRecordsWithoutRowNumber(
-			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
-			throws Exception {
-		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
-		long curRank = 0L;
-		boolean findsSortKey = false;
-		RowData toCollect = null;
-		RowData toDelete = null;
-		while (iterator.hasNext() && isInRankEnd(curRank)) {
-			Map.Entry<RowData, Long> entry = iterator.next();
-			RowData key = entry.getKey();
-			if (!findsSortKey && key.equals(sortKey)) {
-				curRank += entry.getValue();
-				if (isInRankRange(curRank)) {
-					toCollect = inputRow;
-				}
-				findsSortKey = true;
-			} else if (findsSortKey) {
-				List<RowData> inputs = dataState.get(key);
-				if (inputs == null) {
-					// Skip the data if it's state is cleared because of state ttl.
-					if (lenient) {
-						LOG.warn(STATE_CLEARED_WARN_MSG);
-					} else {
-						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
-					}
-				} else {
-					long count = entry.getValue();
-					// gets the rank of last record with same sortKey
-					long rankOfLastRecord = curRank + count;
-					// deletes the record if there is a record recently downgrades to Top-(N+1)
-					if (isInRankEnd(rankOfLastRecord)) {
-						curRank = rankOfLastRecord;
-					} else {
-						int index = Long.valueOf(rankEnd - curRank).intValue();
-						toDelete = inputs.get(index);
-						break;
-					}
-				}
-			} else {
-				curRank += entry.getValue();
-			}
-		}
-		if (toDelete != null) {
-			collectDelete(out, toDelete);
-		}
-		if (toCollect != null) {
-			collectInsert(out, inputRow);
-		}
-	}
+    private void emitRecordsWithoutRowNumber(
+            SortedMap<RowData, Long> sortedMap,
+            RowData sortKey,
+            RowData inputRow,
+            Collector<RowData> out)
+            throws Exception {
+        Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
+        long curRank = 0L;
+        boolean findsSortKey = false;
+        RowData toCollect = null;
+        RowData toDelete = null;
+        while (iterator.hasNext() && isInRankEnd(curRank)) {
+            Map.Entry<RowData, Long> entry = iterator.next();
+            RowData key = entry.getKey();
+            if (!findsSortKey && key.equals(sortKey)) {
+                curRank += entry.getValue();
+                if (isInRankRange(curRank)) {
+                    toCollect = inputRow;
+                }
+                findsSortKey = true;
+            } else if (findsSortKey) {
+                List<RowData> inputs = dataState.get(key);
+                if (inputs == null) {
+                    // Skip the data if it's state is cleared because of state ttl.
+                    if (lenient) {
+                        LOG.warn(STATE_CLEARED_WARN_MSG);
+                    } else {
+                        throw new RuntimeException(STATE_CLEARED_WARN_MSG);
+                    }
+                } else {
+                    long count = entry.getValue();
+                    // gets the rank of last record with same sortKey
+                    long rankOfLastRecord = curRank + count;
+                    // deletes the record if there is a record recently downgrades to Top-(N+1)
+                    if (isInRankEnd(rankOfLastRecord)) {
+                        curRank = rankOfLastRecord;
+                    } else {
+                        int index = Long.valueOf(rankEnd - curRank).intValue();
+                        toDelete = inputs.get(index);
+                        break;
+                    }
+                }
+            } else {
+                curRank += entry.getValue();
+            }
+        }
+        if (toDelete != null) {
+            collectDelete(out, toDelete);
+        }
+        if (toCollect != null) {
+            collectInsert(out, inputRow);
+        }
+    }
 
-	/**
-	 * Retract the input record and emit updated records. This works for outputting with row_number.
-	 * @return true if the input record has been removed from {@link #dataState}.
-	 */
-	private boolean retractRecordWithRowNumber(
-			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
-			throws Exception {
-		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
-		long currentRank = 0L;
-		RowData prevRow = null;
-		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(currentRank)) {
-			Map.Entry<RowData, Long> entry = iterator.next();
-			RowData key = entry.getKey();
-			if (!findsSortKey && key.equals(sortKey)) {
-				List<RowData> inputs = dataState.get(key);
-				if (inputs == null) {
-					// Skip the data if it's state is cleared because of state ttl.
-					if (lenient) {
-						LOG.warn(STATE_CLEARED_WARN_MSG);
-					} else {
-						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
-					}
-				} else {
-					Iterator<RowData> inputIter = inputs.iterator();
-					while (inputIter.hasNext() && isInRankEnd(currentRank)) {
-						RowData currentRow = inputIter.next();
-						if (!findsSortKey && equaliser.equals(currentRow, inputRow)) {
-							prevRow = currentRow;
-							findsSortKey = true;
-							inputIter.remove();
-						} else if (findsSortKey) {
-							collectUpdateBefore(out, prevRow, currentRank);
-							collectUpdateAfter(out, currentRow, currentRank);
-							prevRow = currentRow;
-						}
-						currentRank += 1;
+    /**
+     * Retract the input record and emit updated records. This works for outputting with row_number.
+     *
+     * @return true if the input record has been removed from {@link #dataState}.
+     */
+    private boolean retractRecordWithRowNumber(
+            SortedMap<RowData, Long> sortedMap,
+            RowData sortKey,
+            RowData inputRow,
+            Collector<RowData> out)
+            throws Exception {
+        Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
+        long currentRank = 0L;
+        RowData prevRow = null;
+        boolean findsSortKey = false;
+        while (iterator.hasNext() && isInRankEnd(currentRank)) {
+            Map.Entry<RowData, Long> entry = iterator.next();
+            RowData key = entry.getKey();
+            if (!findsSortKey && key.equals(sortKey)) {
+                List<RowData> inputs = dataState.get(key);
+                if (inputs == null) {
+                    // Skip the data if it's state is cleared because of state ttl.
+                    if (lenient) {
+                        LOG.warn(STATE_CLEARED_WARN_MSG);
+                    } else {
+                        throw new RuntimeException(STATE_CLEARED_WARN_MSG);
+                    }
+                } else {
+                    Iterator<RowData> inputIter = inputs.iterator();
+                    while (inputIter.hasNext() && isInRankEnd(currentRank)) {
+                        RowData currentRow = inputIter.next();
+                        if (!findsSortKey && equaliser.equals(currentRow, inputRow)) {
+                            prevRow = currentRow;
+                            findsSortKey = true;
+                            inputIter.remove();
+                        } else if (findsSortKey) {
+                            collectUpdateBefore(out, prevRow, currentRank);
+                            collectUpdateAfter(out, currentRow, currentRank);
+                            prevRow = currentRow;
+                        }
+                        currentRank += 1;
+                    }
+                    if (inputs.isEmpty()) {
+                        dataState.remove(key);
+                    } else {
+                        dataState.put(key, inputs);
+                    }
+                }
+            } else if (findsSortKey) {
+                List<RowData> inputs = dataState.get(key);
+                int i = 0;
+                while (i < inputs.size() && isInRankEnd(currentRank)) {
+                    RowData currentRow = inputs.get(i);
+                    collectUpdateBefore(out, prevRow, currentRank);
+                    collectUpdateAfter(out, currentRow, currentRank);
+                    prevRow = currentRow;
+                    currentRank += 1;
+                    i++;
+                }
+            } else {
+                currentRank += entry.getValue();
+            }
+        }
+        if (isInRankEnd(currentRank)) {
+            // there is no enough elements in Top-N, emit DELETE message for the retract record.
+            collectDelete(out, prevRow, currentRank);
+        }
 
-					}
-					if (inputs.isEmpty()) {
-						dataState.remove(key);
-					} else {
-						dataState.put(key, inputs);
-					}
-				}
-			} else if (findsSortKey) {
-				List<RowData> inputs = dataState.get(key);
-				int i = 0;
-				while (i < inputs.size() && isInRankEnd(currentRank)) {
-					RowData currentRow = inputs.get(i);
-					collectUpdateBefore(out, prevRow, currentRank);
-					collectUpdateAfter(out, currentRow, currentRank);
-					prevRow = currentRow;
-					currentRank += 1;
-					i++;
-				}
-			} else {
-				currentRank += entry.getValue();
-			}
-		}
-		if (isInRankEnd(currentRank)) {
-			// there is no enough elements in Top-N, emit DELETE message for the retract record.
-			collectDelete(out, prevRow, currentRank);
-		}
+        return findsSortKey;
+    }
 
-		return findsSortKey;
-	}
+    /**
+     * Retract the input record and emit updated records. This works for outputting without
+     * row_number.
+     *
+     * @return true if the input record has been removed from {@link #dataState}.
+     */
+    private boolean retractRecordWithoutRowNumber(
+            SortedMap<RowData, Long> sortedMap,
+            RowData sortKey,
+            RowData inputRow,
+            Collector<RowData> out)
+            throws Exception {
+        Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
+        long nextRank = 1L; // the next rank number, should be in the rank range
+        boolean findsSortKey = false;
+        while (iterator.hasNext() && isInRankEnd(nextRank)) {
+            Map.Entry<RowData, Long> entry = iterator.next();
+            RowData key = entry.getKey();
+            if (!findsSortKey && key.equals(sortKey)) {
+                List<RowData> inputs = dataState.get(key);
+                if (inputs == null) {
+                    // Skip the data if it's state is cleared because of state ttl.
+                    if (lenient) {
+                        LOG.warn(STATE_CLEARED_WARN_MSG);
+                    } else {
+                        throw new RuntimeException(STATE_CLEARED_WARN_MSG);
+                    }
+                } else {
+                    Iterator<RowData> inputIter = inputs.iterator();
+                    while (inputIter.hasNext() && isInRankEnd(nextRank)) {
+                        RowData prevRow = inputIter.next();
+                        if (!findsSortKey && equaliser.equals(prevRow, inputRow)) {
+                            collectDelete(out, prevRow, nextRank);
+                            nextRank -= 1;
+                            findsSortKey = true;
+                            inputIter.remove();
+                        } else if (findsSortKey) {
+                            if (nextRank == rankEnd) {
+                                collectInsert(out, prevRow, nextRank);
+                            }
+                        }
+                        nextRank += 1;
+                    }
+                    if (inputs.isEmpty()) {
+                        dataState.remove(key);
+                    } else {
+                        dataState.put(key, inputs);
+                    }
+                }
+            } else if (findsSortKey) {
+                long count = entry.getValue();
+                // gets the rank of last record with same sortKey
+                long rankOfLastRecord = nextRank + count - 1;
+                if (rankOfLastRecord < rankEnd) {
+                    nextRank = rankOfLastRecord + 1;
+                } else {
+                    // sends the record if there is a record recently upgrades to Top-N
+                    int index = Long.valueOf(rankEnd - nextRank).intValue();
+                    List<RowData> inputs = dataState.get(key);
+                    RowData toAdd = inputs.get(index);
+                    collectInsert(out, toAdd);
+                    break;
+                }
+            } else {
+                nextRank += entry.getValue();
+            }
+        }
 
-	/**
-	 * Retract the input record and emit updated records. This works for outputting without row_number.
-	 * @return true if the input record has been removed from {@link #dataState}.
-	 */
-	private boolean retractRecordWithoutRowNumber(
-			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
-			throws Exception {
-		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
-		long nextRank = 1L; // the next rank number, should be in the rank range
-		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(nextRank)) {
-			Map.Entry<RowData, Long> entry = iterator.next();
-			RowData key = entry.getKey();
-			if (!findsSortKey && key.equals(sortKey)) {
-				List<RowData> inputs = dataState.get(key);
-				if (inputs == null) {
-					// Skip the data if it's state is cleared because of state ttl.
-					if (lenient) {
-						LOG.warn(STATE_CLEARED_WARN_MSG);
-					} else {
-						throw new RuntimeException(STATE_CLEARED_WARN_MSG);
-					}
-				} else {
-					Iterator<RowData> inputIter = inputs.iterator();
-					while (inputIter.hasNext() && isInRankEnd(nextRank)) {
-						RowData prevRow = inputIter.next();
-						if (!findsSortKey && equaliser.equals(prevRow, inputRow)) {
-							collectDelete(out, prevRow, nextRank);
-							nextRank -= 1;
-							findsSortKey = true;
-							inputIter.remove();
-						} else if (findsSortKey) {
-							if (nextRank == rankEnd) {
-								collectInsert(out, prevRow, nextRank);
-							}
-						}
-						nextRank += 1;
-					}
-					if (inputs.isEmpty()) {
-						dataState.remove(key);
-					} else {
-						dataState.put(key, inputs);
-					}
-				}
-			} else if (findsSortKey) {
-				long count = entry.getValue();
-				// gets the rank of last record with same sortKey
-				long rankOfLastRecord = nextRank + count - 1;
-				if (rankOfLastRecord < rankEnd) {
-					nextRank = rankOfLastRecord + 1;
-				} else {
-					// sends the record if there is a record recently upgrades to Top-N
-					int index = Long.valueOf(rankEnd - nextRank).intValue();
-					List<RowData> inputs = dataState.get(key);
-					RowData toAdd = inputs.get(index);
-					collectInsert(out, toAdd);
-					break;
-				}
-			} else {
-				nextRank += entry.getValue();
-			}
-		}
-
-		return findsSortKey;
-	}
+        return findsSortKey;
+    }
 }

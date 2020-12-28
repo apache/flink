@@ -48,79 +48,81 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
 @Internal
 public final class LegacyTypeInformationType<T> extends LogicalType {
 
-	private static final String FORMAT = "LEGACY('%s', '%s')";
+    private static final String FORMAT = "LEGACY('%s', '%s')";
 
-	private final TypeInformation<T> typeInfo;
+    private final TypeInformation<T> typeInfo;
 
-	public LegacyTypeInformationType(LogicalTypeRoot logicalTypeRoot, TypeInformation<T> typeInfo) {
-		super(true, logicalTypeRoot);
-		this.typeInfo = Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
-	}
+    public LegacyTypeInformationType(LogicalTypeRoot logicalTypeRoot, TypeInformation<T> typeInfo) {
+        super(true, logicalTypeRoot);
+        this.typeInfo = Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
+    }
 
-	public TypeInformation<T> getTypeInformation() {
-		return typeInfo;
-	}
+    public TypeInformation<T> getTypeInformation() {
+        return typeInfo;
+    }
 
-	@Override
-	public LogicalType copy(boolean isNullable) {
-		return new LegacyTypeInformationType<>(getTypeRoot(), typeInfo);
-	}
+    @Override
+    public LogicalType copy(boolean isNullable) {
+        return new LegacyTypeInformationType<>(getTypeRoot(), typeInfo);
+    }
 
-	@Override
-	public String asSerializableString() {
-		return withNullability(
-			FORMAT,
-			getTypeRoot(),
-			EncodingUtils.escapeSingleQuotes(TypeStringUtils.writeTypeInfo(typeInfo)));
-	}
+    @Override
+    public String asSerializableString() {
+        return withNullability(
+                FORMAT,
+                getTypeRoot(),
+                EncodingUtils.escapeSingleQuotes(TypeStringUtils.writeTypeInfo(typeInfo)));
+    }
 
-	@Override
-	public String asSummaryString() {
-		return asSerializableString();
-	}
+    @Override
+    public String asSummaryString() {
+        return asSerializableString();
+    }
 
-	@Override
-	public boolean supportsInputConversion(Class<?> clazz) {
-		return typeInfo.getTypeClass().isAssignableFrom(clazz) || clazz == toInternalConversionClass(this);
-	}
+    @Override
+    public boolean supportsInputConversion(Class<?> clazz) {
+        return typeInfo.getTypeClass().isAssignableFrom(clazz)
+                || clazz == toInternalConversionClass(this);
+    }
 
-	@Override
-	public boolean supportsOutputConversion(Class<?> clazz) {
-		return clazz.isAssignableFrom(typeInfo.getTypeClass()) || clazz == toInternalConversionClass(this);
-	}
+    @Override
+    public boolean supportsOutputConversion(Class<?> clazz) {
+        return clazz.isAssignableFrom(typeInfo.getTypeClass())
+                || clazz == toInternalConversionClass(this);
+    }
 
-	@Override
-	public Class<?> getDefaultConversion() {
-		return typeInfo.getTypeClass();
-	}
+    @Override
+    public Class<?> getDefaultConversion() {
+        return typeInfo.getTypeClass();
+    }
 
-	@Override
-	public List<LogicalType> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<LogicalType> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <R> R accept(LogicalTypeVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <R> R accept(LogicalTypeVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
-		LegacyTypeInformationType<?> that = (LegacyTypeInformationType<?>) o;
-		return typeInfo.equals(that.typeInfo);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        LegacyTypeInformationType<?> that = (LegacyTypeInformationType<?>) o;
+        return typeInfo.equals(that.typeInfo);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), typeInfo);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), typeInfo);
+    }
 }

@@ -26,50 +26,54 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * ALTER Database owner DDL for Hive dialect.
- */
+/** ALTER Database owner DDL for Hive dialect. */
 public class SqlAlterHiveDatabaseOwner extends SqlAlterHiveDatabase {
 
-	public static final String DATABASE_OWNER_NAME = "hive.database.owner.name";
-	public static final String DATABASE_OWNER_TYPE = "hive.database.owner.type";
-	public static final String USER_OWNER = "user";
-	public static final String ROLE_OWNER = "role";
+    public static final String DATABASE_OWNER_NAME = "hive.database.owner.name";
+    public static final String DATABASE_OWNER_TYPE = "hive.database.owner.type";
+    public static final String USER_OWNER = "user";
+    public static final String ROLE_OWNER = "role";
 
-	private final String ownerType;
-	private final SqlIdentifier ownerName;
+    private final String ownerType;
+    private final SqlIdentifier ownerName;
 
-	public SqlAlterHiveDatabaseOwner(SqlParserPos pos, SqlIdentifier databaseName,
-			String ownerType, SqlIdentifier ownerName) {
-		super(pos, databaseName, new SqlNodeList(pos));
-		SqlParserPos ownerPos = ownerName.getParserPosition();
-		getPropertyList().add(new SqlTableOption(
-				SqlLiteral.createCharString(DATABASE_OWNER_TYPE, ownerPos),
-				SqlLiteral.createCharString(ownerType, ownerPos),
-				ownerPos));
-		getPropertyList().add(new SqlTableOption(
-				SqlLiteral.createCharString(DATABASE_OWNER_NAME, ownerPos),
-				SqlLiteral.createCharString(ownerName.getSimple(), ownerPos),
-				ownerPos
-		));
-		this.ownerName = ownerName;
-		this.ownerType = ownerType;
-	}
+    public SqlAlterHiveDatabaseOwner(
+            SqlParserPos pos,
+            SqlIdentifier databaseName,
+            String ownerType,
+            SqlIdentifier ownerName) {
+        super(pos, databaseName, new SqlNodeList(pos));
+        SqlParserPos ownerPos = ownerName.getParserPosition();
+        getPropertyList()
+                .add(
+                        new SqlTableOption(
+                                SqlLiteral.createCharString(DATABASE_OWNER_TYPE, ownerPos),
+                                SqlLiteral.createCharString(ownerType, ownerPos),
+                                ownerPos));
+        getPropertyList()
+                .add(
+                        new SqlTableOption(
+                                SqlLiteral.createCharString(DATABASE_OWNER_NAME, ownerPos),
+                                SqlLiteral.createCharString(ownerName.getSimple(), ownerPos),
+                                ownerPos));
+        this.ownerName = ownerName;
+        this.ownerType = ownerType;
+    }
 
-	@Override
-	protected AlterHiveDatabaseOp getAlterOp() {
-		return AlterHiveDatabaseOp.CHANGE_OWNER;
-	}
+    @Override
+    protected AlterHiveDatabaseOp getAlterOp() {
+        return AlterHiveDatabaseOp.CHANGE_OWNER;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("OWNER");
-		if (ownerType.equalsIgnoreCase(USER_OWNER)) {
-			writer.keyword("USER");
-		} else {
-			writer.keyword("ROLE");
-		}
-		ownerName.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("OWNER");
+        if (ownerType.equalsIgnoreCase(USER_OWNER)) {
+            writer.keyword("USER");
+        } else {
+            writer.keyword("ROLE");
+        }
+        ownerName.unparse(writer, leftPrec, rightPrec);
+    }
 }

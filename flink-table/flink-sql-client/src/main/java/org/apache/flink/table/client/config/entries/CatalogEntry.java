@@ -27,44 +27,42 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 
-/**
- * Describes a catalog configuration entry.
- */
+/** Describes a catalog configuration entry. */
 public class CatalogEntry extends ConfigEntry {
 
-	public static final String CATALOG_NAME = "name";
+    public static final String CATALOG_NAME = "name";
 
-	private final String name;
+    private final String name;
 
-	protected CatalogEntry(String name, DescriptorProperties properties) {
-		super(properties);
-		this.name = name;
-	}
+    protected CatalogEntry(String name, DescriptorProperties properties) {
+        super(properties);
+        this.name = name;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		properties.validateString(CATALOG_TYPE, false, 1);
-		properties.validateInt(CATALOG_PROPERTY_VERSION, true, 0);
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        properties.validateString(CATALOG_TYPE, false, 1);
+        properties.validateInt(CATALOG_PROPERTY_VERSION, true, 0);
 
-		// further validation is performed by the discovered factory
-	}
+        // further validation is performed by the discovered factory
+    }
 
-	public static CatalogEntry create(Map<String, Object> config) {
-		return create(ConfigUtil.normalizeYaml(config));
-	}
+    public static CatalogEntry create(Map<String, Object> config) {
+        return create(ConfigUtil.normalizeYaml(config));
+    }
 
-	private static CatalogEntry create(DescriptorProperties properties) {
-		properties.validateString(CATALOG_NAME, false, 1);
+    private static CatalogEntry create(DescriptorProperties properties) {
+        properties.validateString(CATALOG_NAME, false, 1);
 
-		final String name = properties.getString(CATALOG_NAME);
+        final String name = properties.getString(CATALOG_NAME);
 
-		final DescriptorProperties cleanedProperties =
-			properties.withoutKeys(Collections.singletonList(CATALOG_NAME));
+        final DescriptorProperties cleanedProperties =
+                properties.withoutKeys(Collections.singletonList(CATALOG_NAME));
 
-		return new CatalogEntry(name, cleanedProperties);
-	}
+        return new CatalogEntry(name, cleanedProperties);
+    }
 }

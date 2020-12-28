@@ -26,30 +26,33 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.util.List;
 
-/**
- * Test iterator with an all-reduce.
- */
+/** Test iterator with an all-reduce. */
 public class IterationWithAllReducerITCase extends JavaProgramTestBase {
-	private static final String EXPECTED = "1\n";
+    private static final String EXPECTED = "1\n";
 
-	@Override
-	protected void testProgram() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+    @Override
+    protected void testProgram() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-		DataSet<String> initialInput = env.fromElements("1", "1", "1", "1", "1", "1", "1", "1");
+        DataSet<String> initialInput = env.fromElements("1", "1", "1", "1", "1", "1", "1", "1");
 
-		IterativeDataSet<String> iteration = initialInput.iterate(5).name("Loop");
+        IterativeDataSet<String> iteration = initialInput.iterate(5).name("Loop");
 
-		DataSet<String> sumReduce = iteration.reduce(new ReduceFunction<String>(){
-			@Override
-			public String reduce(String value1, String value2) throws Exception {
-				return value1;
-			}
-		}).name("Compute sum (Reduce)");
+        DataSet<String> sumReduce =
+                iteration
+                        .reduce(
+                                new ReduceFunction<String>() {
+                                    @Override
+                                    public String reduce(String value1, String value2)
+                                            throws Exception {
+                                        return value1;
+                                    }
+                                })
+                        .name("Compute sum (Reduce)");
 
-		List<String> result = iteration.closeWith(sumReduce).collect();
+        List<String> result = iteration.closeWith(sumReduce).collect();
 
-		compareResultAsText(result, EXPECTED);
-	}
+        compareResultAsText(result, EXPECTED);
+    }
 }

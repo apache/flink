@@ -31,44 +31,42 @@ import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * {@link DataTypeFactory} mock for testing purposes.
- */
+/** {@link DataTypeFactory} mock for testing purposes. */
 public class DataTypeFactoryMock implements DataTypeFactory {
 
-	public Optional<DataType> dataType = Optional.empty();
+    public Optional<DataType> dataType = Optional.empty();
 
-	public Optional<Class<?>> expectedClass = Optional.empty();
+    public Optional<Class<?>> expectedClass = Optional.empty();
 
-	@Override
-	public DataType createDataType(AbstractDataType<?> abstractDataType) {
-		if (abstractDataType instanceof DataType) {
-			return (DataType) abstractDataType;
-		} else if (abstractDataType instanceof UnresolvedDataType) {
-			return ((UnresolvedDataType) abstractDataType).toDataType(this);
-		}
-		throw new IllegalStateException();
-	}
+    @Override
+    public DataType createDataType(AbstractDataType<?> abstractDataType) {
+        if (abstractDataType instanceof DataType) {
+            return (DataType) abstractDataType;
+        } else if (abstractDataType instanceof UnresolvedDataType) {
+            return ((UnresolvedDataType) abstractDataType).toDataType(this);
+        }
+        throw new IllegalStateException();
+    }
 
-	@Override
-	public DataType createDataType(String name) {
-		return TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(name));
-	}
+    @Override
+    public DataType createDataType(String name) {
+        return TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(name));
+    }
 
-	@Override
-	public DataType createDataType(UnresolvedIdentifier identifier) {
-		return dataType.orElseThrow(() -> new ValidationException("No type found."));
-	}
+    @Override
+    public DataType createDataType(UnresolvedIdentifier identifier) {
+        return dataType.orElseThrow(() -> new ValidationException("No type found."));
+    }
 
-	@Override
-	public <T> DataType createDataType(Class<T> clazz) {
-		expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
-		return DataTypeExtractor.extractFromType(this, clazz);
-	}
+    @Override
+    public <T> DataType createDataType(Class<T> clazz) {
+        expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
+        return DataTypeExtractor.extractFromType(this, clazz);
+    }
 
-	@Override
-	public <T> DataType createRawDataType(Class<T> clazz) {
-		expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
-		return dataType.orElseThrow(IllegalStateException::new);
-	}
+    @Override
+    public <T> DataType createRawDataType(Class<T> clazz) {
+        expectedClass.ifPresent(expected -> assertEquals(expected, clazz));
+        return dataType.orElseThrow(IllegalStateException::new);
+    }
 }

@@ -51,81 +51,70 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
-/**
- * A utility class that exposes common methods over a {@link KafkaContainer}.
- */
+/** A utility class that exposes common methods over a {@link KafkaContainer}. */
 public class KafkaContainerClient {
-	private static final Logger LOG = LoggerFactory.getLogger(KafkaContainerClient.class);
-	private final KafkaContainer container;
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaContainerClient.class);
+    private final KafkaContainer container;
 
-	public KafkaContainerClient(KafkaContainer container) {
-		this.container = container;
-	}
+    public KafkaContainerClient(KafkaContainer container) {
+        this.container = container;
+    }
 
-	public void createTopic(
-			int replicationFactor,
-			int numPartitions,
-			String topic) {
-		Map<String, Object> properties = new HashMap<>();
-		properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, container.getBootstrapServers());
-		try (AdminClient admin = AdminClient.create(properties)) {
-			admin.createTopics(Collections.singletonList(new NewTopic(
-				topic,
-				numPartitions,
-				(short) replicationFactor)));
-		}
-	}
+    public void createTopic(int replicationFactor, int numPartitions, String topic) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put(
+                CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, container.getBootstrapServers());
+        try (AdminClient admin = AdminClient.create(properties)) {
+            admin.createTopics(
+                    Collections.singletonList(
+                            new NewTopic(topic, numPartitions, (short) replicationFactor)));
+        }
+    }
 
-	public <T> void sendMessages(String topic, Serializer<T> valueSerializer, T... messages) {
-		Properties props = new Properties();
-		props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, container.getBootstrapServers());
-		props.put(ProducerConfig.ACKS_CONFIG, "all");
+    public <T> void sendMessages(String topic, Serializer<T> valueSerializer, T... messages) {
+        Properties props = new Properties();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, container.getBootstrapServers());
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
 
-		try (
-			Producer<Bytes, T> producer = new KafkaProducer<>(
-				props,
-				new BytesSerializer(),
-				valueSerializer)) {
-			for (T message : messages) {
-				producer.send(new ProducerRecord<>(
-					topic,
-					message));
-			}
-		}
-	}
+        try (Producer<Bytes, T> producer =
+                new KafkaProducer<>(props, new BytesSerializer(), valueSerializer)) {
+            for (T message : messages) {
+                producer.send(new ProducerRecord<>(topic, message));
+            }
+        }
+    }
 
-	public <T> List<T> readMessages(
-			int expectedNumMessages,
-			String groupId,
-			String topic,
-			Deserializer<T> valueDeserializer) throws IOException {
-		Properties props = new Properties();
-		props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, container.getBootstrapServers());
-		props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-		props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
-		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    public <T> List<T> readMessages(
+            int expectedNumMessages,
+            String groupId,
+            String topic,
+            Deserializer<T> valueDeserializer)
+            throws IOException {
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, container.getBootstrapServers());
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-		final List<T> messages = Collections.synchronizedList(new ArrayList<>(
-			expectedNumMessages));
-		try (
-			Consumer<Bytes, T> consumer = new KafkaConsumer<>(
-				props,
-				new BytesDeserializer(),
-				valueDeserializer)) {
-			consumer.subscribe(Pattern.compile(topic));
-			final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
-			while (deadline.hasTimeLeft() && messages.size() < expectedNumMessages) {
-				LOG.info("Waiting for messages. Received {}/{}.", messages.size(),
-					expectedNumMessages);
-				ConsumerRecords<Bytes, T> records = consumer.poll(Duration.ofMillis(100));
-				for (ConsumerRecord<Bytes, T> record : records) {
-					messages.add(record.value());
-				}
-			}
-			if (messages.size() != expectedNumMessages) {
-				throw new IOException("Could not read expected number of messages.");
-			}
-			return messages;
-		}
-	}
+        final List<T> messages = Collections.synchronizedList(new ArrayList<>(expectedNumMessages));
+        try (Consumer<Bytes, T> consumer =
+                new KafkaConsumer<>(props, new BytesDeserializer(), valueDeserializer)) {
+            consumer.subscribe(Pattern.compile(topic));
+            final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
+            while (deadline.hasTimeLeft() && messages.size() < expectedNumMessages) {
+                LOG.info(
+                        "Waiting for messages. Received {}/{}.",
+                        messages.size(),
+                        expectedNumMessages);
+                ConsumerRecords<Bytes, T> records = consumer.poll(Duration.ofMillis(100));
+                for (ConsumerRecord<Bytes, T> record : records) {
+                    messages.add(record.value());
+                }
+            }
+            if (messages.size() != expectedNumMessages) {
+                throw new IOException("Could not read expected number of messages.");
+            }
+            return messages;
+        }
+    }
 }

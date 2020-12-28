@@ -51,111 +51,108 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
 
-/**
- * Test for {@link SourceFunction}.
- */
+/** Test for {@link SourceFunction}. */
 @RunWith(MockitoJUnitRunner.class)
 public class PubSubSourceTest {
-	@Mock
-	private PubSubDeserializationSchema<String> deserializationSchema;
-	@Mock
-	private PubSubSource.AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory;
-	@Mock
-	private AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint;
-	@Mock
-	private StreamingRuntimeContext streamingRuntimeContext;
-	@Mock
-	private MetricGroup metricGroup;
-	@Mock
-	private PubSubSubscriberFactory pubSubSubscriberFactory;
-	@Mock
-	private Credentials credentials;
-	@Mock
-	private PubSubSubscriber pubsubSubscriber;
-	@Mock
-	private FlinkConnectorRateLimiter rateLimiter;
+    @Mock private PubSubDeserializationSchema<String> deserializationSchema;
+    @Mock private PubSubSource.AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory;
+    @Mock private AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint;
+    @Mock private StreamingRuntimeContext streamingRuntimeContext;
+    @Mock private MetricGroup metricGroup;
+    @Mock private PubSubSubscriberFactory pubSubSubscriberFactory;
+    @Mock private Credentials credentials;
+    @Mock private PubSubSubscriber pubsubSubscriber;
+    @Mock private FlinkConnectorRateLimiter rateLimiter;
 
-	private PubSubSource<String> pubSubSource;
+    private PubSubSource<String> pubSubSource;
 
-	@Before
-	public void setup() throws Exception {
-		when(pubSubSubscriberFactory.getSubscriber(eq(credentials))).thenReturn(pubsubSubscriber);
-		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
-		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
-		when(metricGroup.addGroup(any(String.class))).thenReturn(metricGroup);
-		when(acknowledgeOnCheckpointFactory.create(any())).thenReturn(acknowledgeOnCheckpoint);
+    @Before
+    public void setup() throws Exception {
+        when(pubSubSubscriberFactory.getSubscriber(eq(credentials))).thenReturn(pubsubSubscriber);
+        when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+        when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
+        when(metricGroup.addGroup(any(String.class))).thenReturn(metricGroup);
+        when(acknowledgeOnCheckpointFactory.create(any())).thenReturn(acknowledgeOnCheckpoint);
 
-		pubSubSource = new PubSubSource<>(deserializationSchema,
-			pubSubSubscriberFactory,
-			credentials,
-			acknowledgeOnCheckpointFactory,
-			rateLimiter,
-			1024);
-		pubSubSource.setRuntimeContext(streamingRuntimeContext);
-	}
+        pubSubSource =
+                new PubSubSource<>(
+                        deserializationSchema,
+                        pubSubSubscriberFactory,
+                        credentials,
+                        acknowledgeOnCheckpointFactory,
+                        rateLimiter,
+                        1024);
+        pubSubSource.setRuntimeContext(streamingRuntimeContext);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testOpenWithoutCheckpointing() throws Exception {
-		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(false);
-		pubSubSource.open(null);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testOpenWithoutCheckpointing() throws Exception {
+        when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(false);
+        pubSubSource.open(null);
+    }
 
-	@Test
-	public void testOpenWithCheckpointing() throws Exception {
-		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+    @Test
+    public void testOpenWithCheckpointing() throws Exception {
+        when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
 
-		pubSubSource.open(null);
+        pubSubSource.open(null);
 
-		verify(pubSubSubscriberFactory, times(1)).getSubscriber(eq(credentials));
-		verify(acknowledgeOnCheckpointFactory, times(1)).create(pubsubSubscriber);
-	}
+        verify(pubSubSubscriberFactory, times(1)).getSubscriber(eq(credentials));
+        verify(acknowledgeOnCheckpointFactory, times(1)).create(pubsubSubscriber);
+    }
 
-	@Test
-	public void testTypeInformationFromDeserializationSchema() {
-		TypeInformation<String> schemaTypeInformation = TypeInformation.of(String.class);
-		when(deserializationSchema.getProducedType()).thenReturn(schemaTypeInformation);
+    @Test
+    public void testTypeInformationFromDeserializationSchema() {
+        TypeInformation<String> schemaTypeInformation = TypeInformation.of(String.class);
+        when(deserializationSchema.getProducedType()).thenReturn(schemaTypeInformation);
 
-		TypeInformation<String> actualTypeInformation = pubSubSource.getProducedType();
+        TypeInformation<String> actualTypeInformation = pubSubSource.getProducedType();
 
-		assertThat(actualTypeInformation, is(schemaTypeInformation));
-		verify(deserializationSchema, times(1)).getProducedType();
-	}
+        assertThat(actualTypeInformation, is(schemaTypeInformation));
+        verify(deserializationSchema, times(1)).getProducedType();
+    }
 
-	@Test
-	public void testNotifyCheckpointComplete() throws Exception {
-		pubSubSource.open(null);
-		pubSubSource.notifyCheckpointComplete(45L);
+    @Test
+    public void testNotifyCheckpointComplete() throws Exception {
+        pubSubSource.open(null);
+        pubSubSource.notifyCheckpointComplete(45L);
 
-		verify(acknowledgeOnCheckpoint, times(1)).notifyCheckpointComplete(45L);
-	}
+        verify(acknowledgeOnCheckpoint, times(1)).notifyCheckpointComplete(45L);
+    }
 
-	@Test
-	public void testRestoreState() throws Exception {
-		pubSubSource.open(null);
+    @Test
+    public void testRestoreState() throws Exception {
+        pubSubSource.open(null);
 
-		List<AcknowledgeIdsForCheckpoint<String>> input = new ArrayList<>();
-		pubSubSource.restoreState(input);
+        List<AcknowledgeIdsForCheckpoint<String>> input = new ArrayList<>();
+        pubSubSource.restoreState(input);
 
-		verify(acknowledgeOnCheckpoint, times(1)).restoreState(refEq(input));
-	}
+        verify(acknowledgeOnCheckpoint, times(1)).restoreState(refEq(input));
+    }
 
-	@Test
-	public void testSnapshotState() throws Exception {
-		pubSubSource.open(null);
-		pubSubSource.snapshotState(1337L, 15000L);
+    @Test
+    public void testSnapshotState() throws Exception {
+        pubSubSource.open(null);
+        pubSubSource.snapshotState(1337L, 15000L);
 
-		verify(acknowledgeOnCheckpoint, times(1)).snapshotState(1337L, 15000L);
-	}
+        verify(acknowledgeOnCheckpoint, times(1)).snapshotState(1337L, 15000L);
+    }
 
-	@Test
-	public void testOpen() throws Exception {
-		doAnswer((args) -> {
-			DeserializationSchema.InitializationContext context = args.getArgument(0);
-			Assert.assertThat(context.getMetricGroup(), Matchers.equalTo(metricGroup));
-			return null;
-		}).when(deserializationSchema).open(any(DeserializationSchema.InitializationContext.class));
-		pubSubSource.open(null);
+    @Test
+    public void testOpen() throws Exception {
+        doAnswer(
+                        (args) -> {
+                            DeserializationSchema.InitializationContext context =
+                                    args.getArgument(0);
+                            Assert.assertThat(
+                                    context.getMetricGroup(), Matchers.equalTo(metricGroup));
+                            return null;
+                        })
+                .when(deserializationSchema)
+                .open(any(DeserializationSchema.InitializationContext.class));
+        pubSubSource.open(null);
 
-		verify(deserializationSchema, times(1)).open(any(DeserializationSchema.InitializationContext.class));
-	}
+        verify(deserializationSchema, times(1))
+                .open(any(DeserializationSchema.InitializationContext.class));
+    }
 }

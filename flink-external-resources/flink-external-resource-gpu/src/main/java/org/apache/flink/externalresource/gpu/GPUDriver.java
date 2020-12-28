@@ -48,99 +48,143 @@ import java.util.concurrent.TimeoutException;
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * Driver takes the responsibility to discover GPU resources and provide the GPU resource information.
- * It retrieves the GPU information by executing a user-defined discovery script.
+ * Driver takes the responsibility to discover GPU resources and provide the GPU resource
+ * information. It retrieves the GPU information by executing a user-defined discovery script.
  */
 class GPUDriver implements ExternalResourceDriver {
 
-	private static final Logger LOG = LoggerFactory.getLogger(GPUDriver.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GPUDriver.class);
 
-	private static final long DISCOVERY_SCRIPT_TIMEOUT_MS = 10000;
+    private static final long DISCOVERY_SCRIPT_TIMEOUT_MS = 10000;
 
-	@VisibleForTesting
-	static final ConfigOption<String> DISCOVERY_SCRIPT_PATH =
-		key("discovery-script.path")
-			.stringType()
-			.defaultValue(String.format("%s/external-resource-gpu/nvidia-gpu-discovery.sh", ConfigConstants.DEFAULT_FLINK_PLUGINS_DIRS));
+    @VisibleForTesting
+    static final ConfigOption<String> DISCOVERY_SCRIPT_PATH =
+            key("discovery-script.path")
+                    .stringType()
+                    .defaultValue(
+                            String.format(
+                                    "%s/external-resource-gpu/nvidia-gpu-discovery.sh",
+                                    ConfigConstants.DEFAULT_FLINK_PLUGINS_DIRS));
 
-	@VisibleForTesting
-	static final ConfigOption<String> DISCOVERY_SCRIPT_ARG =
-		key("discovery-script.args")
-			.stringType()
-			.noDefaultValue();
+    @VisibleForTesting
+    static final ConfigOption<String> DISCOVERY_SCRIPT_ARG =
+            key("discovery-script.args").stringType().noDefaultValue();
 
-	private final File discoveryScriptFile;
-	private final String args;
+    private final File discoveryScriptFile;
+    private final String args;
 
-	GPUDriver(Configuration config) throws Exception {
-		final String discoveryScriptPathStr = config.getString(DISCOVERY_SCRIPT_PATH);
-		if (StringUtils.isNullOrWhitespaceOnly(discoveryScriptPathStr)) {
-			throw new IllegalConfigurationException(
-				String.format("GPU discovery script ('%s') is not configured.", ExternalResourceOptions.genericKeyWithSuffix(DISCOVERY_SCRIPT_PATH.key())));
-		}
+    GPUDriver(Configuration config) throws Exception {
+        final String discoveryScriptPathStr = config.getString(DISCOVERY_SCRIPT_PATH);
+        if (StringUtils.isNullOrWhitespaceOnly(discoveryScriptPathStr)) {
+            throw new IllegalConfigurationException(
+                    String.format(
+                            "GPU discovery script ('%s') is not configured.",
+                            ExternalResourceOptions.genericKeyWithSuffix(
+                                    DISCOVERY_SCRIPT_PATH.key())));
+        }
 
-		Path discoveryScriptPath = Paths.get(discoveryScriptPathStr);
-		if (!discoveryScriptPath.isAbsolute()) {
-			discoveryScriptPath = Paths.get(System.getenv().getOrDefault(ConfigConstants.ENV_FLINK_HOME_DIR, "."), discoveryScriptPathStr);
-		}
-		discoveryScriptFile = discoveryScriptPath.toFile();
+        Path discoveryScriptPath = Paths.get(discoveryScriptPathStr);
+        if (!discoveryScriptPath.isAbsolute()) {
+            discoveryScriptPath =
+                    Paths.get(
+                            System.getenv().getOrDefault(ConfigConstants.ENV_FLINK_HOME_DIR, "."),
+                            discoveryScriptPathStr);
+        }
+        discoveryScriptFile = discoveryScriptPath.toFile();
 
-		if (!discoveryScriptFile.exists()) {
-			throw new FileNotFoundException(String.format("The gpu discovery script does not exist in path %s.", discoveryScriptFile.getAbsolutePath()));
-		}
-		if (!discoveryScriptFile.canExecute()) {
-			throw new FlinkException(String.format("The discovery script %s is not executable.", discoveryScriptFile.getAbsolutePath()));
-		}
+        if (!discoveryScriptFile.exists()) {
+            throw new FileNotFoundException(
+                    String.format(
+                            "The gpu discovery script does not exist in path %s.",
+                            discoveryScriptFile.getAbsolutePath()));
+        }
+        if (!discoveryScriptFile.canExecute()) {
+            throw new FlinkException(
+                    String.format(
+                            "The discovery script %s is not executable.",
+                            discoveryScriptFile.getAbsolutePath()));
+        }
 
-		args = config.getString(DISCOVERY_SCRIPT_ARG);
-	}
+        args = config.getString(DISCOVERY_SCRIPT_ARG);
+    }
 
-	@Override
-	public Set<GPUInfo> retrieveResourceInfo(long gpuAmount) throws Exception {
-		Preconditions.checkArgument(gpuAmount > 0, "The gpuAmount should be positive when retrieving the GPU resource information.");
+    @Override
+    public Set<GPUInfo> retrieveResourceInfo(long gpuAmount) throws Exception {
+        Preconditions.checkArgument(
+                gpuAmount > 0,
+                "The gpuAmount should be positive when retrieving the GPU resource information.");
 
-		final Set<GPUInfo> gpuResources = new HashSet<>();
-		String output = executeDiscoveryScript(discoveryScriptFile, gpuAmount, args);
-		if (!output.isEmpty()) {
-			String[] indexes = output.split(",");
-			for (String index : indexes) {
-				if (!StringUtils.isNullOrWhitespaceOnly(index)) {
-					gpuResources.add(new GPUInfo(index.trim()));
-				}
-			}
-		}
-		LOG.info("Discover GPU resources: {}.", gpuResources);
-		return Collections.unmodifiableSet(gpuResources);
-	}
+        final Set<GPUInfo> gpuResources = new HashSet<>();
+        String output = executeDiscoveryScript(discoveryScriptFile, gpuAmount, args);
+        if (!output.isEmpty()) {
+            String[] indexes = output.split(",");
+            for (String index : indexes) {
+                if (!StringUtils.isNullOrWhitespaceOnly(index)) {
+                    gpuResources.add(new GPUInfo(index.trim()));
+                }
+            }
+        }
+        LOG.info("Discover GPU resources: {}.", gpuResources);
+        return Collections.unmodifiableSet(gpuResources);
+    }
 
-	private String executeDiscoveryScript(File discoveryScript, long gpuAmount, String args) throws Exception {
-		final String cmd = discoveryScript.getAbsolutePath() + " " + gpuAmount + " " + args;
-		final Process process = Runtime.getRuntime().exec(cmd);
-		try (final BufferedReader stdoutReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-			final BufferedReader stderrReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-			final boolean hasProcessTerminated = process.waitFor(DISCOVERY_SCRIPT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-			if (!hasProcessTerminated) {
-				throw new TimeoutException(String.format("The discovery script executed for over %d ms.", DISCOVERY_SCRIPT_TIMEOUT_MS));
-			}
+    private String executeDiscoveryScript(File discoveryScript, long gpuAmount, String args)
+            throws Exception {
+        final String cmd = discoveryScript.getAbsolutePath() + " " + gpuAmount + " " + args;
+        final Process process = Runtime.getRuntime().exec(cmd);
+        try (final BufferedReader stdoutReader =
+                        new BufferedReader(new InputStreamReader(process.getInputStream()));
+                final BufferedReader stderrReader =
+                        new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+            final boolean hasProcessTerminated =
+                    process.waitFor(DISCOVERY_SCRIPT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            if (!hasProcessTerminated) {
+                throw new TimeoutException(
+                        String.format(
+                                "The discovery script executed for over %d ms.",
+                                DISCOVERY_SCRIPT_TIMEOUT_MS));
+            }
 
-			final int exitVal = process.exitValue();
-			if (exitVal != 0) {
-				final String stdout = stdoutReader.lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
-				final String stderr = stderrReader.lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
-				LOG.warn("Discovery script exit with {}.\nSTDOUT: {}\nSTDERR: {}", exitVal, stdout, stderr);
-				throw new FlinkException(String.format("Discovery script exit with non-zero return code: %s.", exitVal));
-			}
-			Object[] stdout = stdoutReader.lines().toArray();
-			if (stdout.length > 1) {
-				LOG.warn(
-					"The output of the discovery script should only contain one single line. Finding {} lines with content: {}. Will only keep the first line.", stdout.length, Arrays.toString(stdout));
-			}
-			if (stdout.length == 0) {
-				return "";
-			}
-			return (String) stdout[0];
-		} finally {
-			process.destroyForcibly();
-		}
-	}
+            final int exitVal = process.exitValue();
+            if (exitVal != 0) {
+                final String stdout =
+                        stdoutReader
+                                .lines()
+                                .collect(
+                                        StringBuilder::new,
+                                        StringBuilder::append,
+                                        StringBuilder::append)
+                                .toString();
+                final String stderr =
+                        stderrReader
+                                .lines()
+                                .collect(
+                                        StringBuilder::new,
+                                        StringBuilder::append,
+                                        StringBuilder::append)
+                                .toString();
+                LOG.warn(
+                        "Discovery script exit with {}.\nSTDOUT: {}\nSTDERR: {}",
+                        exitVal,
+                        stdout,
+                        stderr);
+                throw new FlinkException(
+                        String.format(
+                                "Discovery script exit with non-zero return code: %s.", exitVal));
+            }
+            Object[] stdout = stdoutReader.lines().toArray();
+            if (stdout.length > 1) {
+                LOG.warn(
+                        "The output of the discovery script should only contain one single line. Finding {} lines with content: {}. Will only keep the first line.",
+                        stdout.length,
+                        Arrays.toString(stdout));
+            }
+            if (stdout.length == 0) {
+                return "";
+            }
+            return (String) stdout[0];
+        } finally {
+            process.destroyForcibly();
+        }
+    }
 }

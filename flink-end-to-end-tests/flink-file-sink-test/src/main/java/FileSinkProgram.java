@@ -44,137 +44,145 @@ import java.util.concurrent.TimeUnit;
 /**
  * Test program for the {@link StreamingFileSink} and {@link FileSink}.
  *
- * <p>Uses a source that steadily emits a deterministic set of records over 60 seconds,
- * after which it idles and waits for job cancellation. Every record has a unique index that is
- * written to the file.
+ * <p>Uses a source that steadily emits a deterministic set of records over 60 seconds, after which
+ * it idles and waits for job cancellation. Every record has a unique index that is written to the
+ * file.
  *
  * <p>The sink rolls on each checkpoint, with each part file containing a sequence of integers.
- * Adding all committed part files together, and numerically sorting the contents, should
- * result in a complete sequence from 0 (inclusive) to 60000 (exclusive).
+ * Adding all committed part files together, and numerically sorting the contents, should result in
+ * a complete sequence from 0 (inclusive) to 60000 (exclusive).
  */
 public enum FileSinkProgram {
-	;
+    ;
 
-	public static void main(final String[] args) throws Exception {
-		final ParameterTool params = ParameterTool.fromArgs(args);
-		final String outputPath = params.getRequired("outputPath");
-		final String sinkToTest = params.getRequired("sinkToTest");
+    public static void main(final String[] args) throws Exception {
+        final ParameterTool params = ParameterTool.fromArgs(args);
+        final String outputPath = params.getRequired("outputPath");
+        final String sinkToTest = params.getRequired("sinkToTest");
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setParallelism(4);
-		env.enableCheckpointing(5000L);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, Time.of(10L, TimeUnit.SECONDS)));
+        env.setParallelism(4);
+        env.enableCheckpointing(5000L);
+        env.setRestartStrategy(
+                RestartStrategies.fixedDelayRestart(
+                        Integer.MAX_VALUE, Time.of(10L, TimeUnit.SECONDS)));
 
-		// generate data, shuffle, sink
-		DataStream<Tuple2<Integer, Integer>> source = env.addSource(new Generator(10, 10, 60));
+        // generate data, shuffle, sink
+        DataStream<Tuple2<Integer, Integer>> source = env.addSource(new Generator(10, 10, 60));
 
-		if (sinkToTest.equalsIgnoreCase("StreamingFileSink")) {
-			final StreamingFileSink<Tuple2<Integer, Integer>> sink = StreamingFileSink
-					.forRowFormat(new Path(outputPath), (Encoder<Tuple2<Integer, Integer>>) (element, stream) -> {
-						PrintStream out = new PrintStream(stream);
-						out.println(element.f1);
-					})
-					.withBucketAssigner(new KeyBucketAssigner())
-					.withRollingPolicy(OnCheckpointRollingPolicy.build())
-					.build();
+        if (sinkToTest.equalsIgnoreCase("StreamingFileSink")) {
+            final StreamingFileSink<Tuple2<Integer, Integer>> sink =
+                    StreamingFileSink.forRowFormat(
+                                    new Path(outputPath),
+                                    (Encoder<Tuple2<Integer, Integer>>)
+                                            (element, stream) -> {
+                                                PrintStream out = new PrintStream(stream);
+                                                out.println(element.f1);
+                                            })
+                            .withBucketAssigner(new KeyBucketAssigner())
+                            .withRollingPolicy(OnCheckpointRollingPolicy.build())
+                            .build();
 
-			source.keyBy(0).addSink(sink);
-		} else if (sinkToTest.equalsIgnoreCase("FileSink")){
-			FileSink<Tuple2<Integer, Integer>> sink = FileSink
-					.forRowFormat(new Path(outputPath), (Encoder<Tuple2<Integer, Integer>>) (element, stream) -> {
-						PrintStream out = new PrintStream(stream);
-						out.println(element.f1);
-					})
-					.withBucketAssigner(new KeyBucketAssigner())
-					.withRollingPolicy(OnCheckpointRollingPolicy.build())
-					.build();
-			source.keyBy(0).sinkTo(sink);
-		} else {
-			throw new UnsupportedOperationException("Unsupported sink type: " + sinkToTest);
-		}
+            source.keyBy(0).addSink(sink);
+        } else if (sinkToTest.equalsIgnoreCase("FileSink")) {
+            FileSink<Tuple2<Integer, Integer>> sink =
+                    FileSink.forRowFormat(
+                                    new Path(outputPath),
+                                    (Encoder<Tuple2<Integer, Integer>>)
+                                            (element, stream) -> {
+                                                PrintStream out = new PrintStream(stream);
+                                                out.println(element.f1);
+                                            })
+                            .withBucketAssigner(new KeyBucketAssigner())
+                            .withRollingPolicy(OnCheckpointRollingPolicy.build())
+                            .build();
+            source.keyBy(0).sinkTo(sink);
+        } else {
+            throw new UnsupportedOperationException("Unsupported sink type: " + sinkToTest);
+        }
 
-		env.execute("StreamingFileSinkProgram");
-	}
+        env.execute("StreamingFileSinkProgram");
+    }
 
-	/**
-	 * Use first field for buckets.
-	 */
-	public static final class KeyBucketAssigner implements BucketAssigner<Tuple2<Integer, Integer>, String> {
+    /** Use first field for buckets. */
+    public static final class KeyBucketAssigner
+            implements BucketAssigner<Tuple2<Integer, Integer>, String> {
 
-		private static final long serialVersionUID = 987325769970523326L;
+        private static final long serialVersionUID = 987325769970523326L;
 
-		@Override
-		public String getBucketId(final Tuple2<Integer, Integer> element, final Context context) {
-			return String.valueOf(element.f0);
-		}
+        @Override
+        public String getBucketId(final Tuple2<Integer, Integer> element, final Context context) {
+            return String.valueOf(element.f0);
+        }
 
-		@Override
-		public SimpleVersionedSerializer<String> getSerializer() {
-			return SimpleVersionedStringSerializer.INSTANCE;
-		}
-	}
+        @Override
+        public SimpleVersionedSerializer<String> getSerializer() {
+            return SimpleVersionedStringSerializer.INSTANCE;
+        }
+    }
 
-	/**
-	 * Data-generating source function.
-	 */
-	public static final class Generator implements SourceFunction<Tuple2<Integer, Integer>>, CheckpointedFunction {
+    /** Data-generating source function. */
+    public static final class Generator
+            implements SourceFunction<Tuple2<Integer, Integer>>, CheckpointedFunction {
 
-		private static final long serialVersionUID = -2819385275681175792L;
+        private static final long serialVersionUID = -2819385275681175792L;
 
-		private final int numKeys;
-		private final int idlenessMs;
-		private final int recordsToEmit;
+        private final int numKeys;
+        private final int idlenessMs;
+        private final int recordsToEmit;
 
-		private volatile int numRecordsEmitted = 0;
-		private volatile boolean canceled = false;
+        private volatile int numRecordsEmitted = 0;
+        private volatile boolean canceled = false;
 
-		private ListState<Integer> state = null;
+        private ListState<Integer> state = null;
 
-		Generator(final int numKeys, final int idlenessMs, final int durationSeconds) {
-			this.numKeys = numKeys;
-			this.idlenessMs = idlenessMs;
+        Generator(final int numKeys, final int idlenessMs, final int durationSeconds) {
+            this.numKeys = numKeys;
+            this.idlenessMs = idlenessMs;
 
-			this.recordsToEmit = ((durationSeconds * 1000) / idlenessMs) * numKeys;
-		}
+            this.recordsToEmit = ((durationSeconds * 1000) / idlenessMs) * numKeys;
+        }
 
-		@Override
-		public void run(final SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
-			while (numRecordsEmitted < recordsToEmit) {
-				synchronized (ctx.getCheckpointLock()) {
-					for (int i = 0; i < numKeys; i++) {
-						ctx.collect(Tuple2.of(i, numRecordsEmitted));
-						numRecordsEmitted++;
-					}
-				}
-				Thread.sleep(idlenessMs);
-			}
+        @Override
+        public void run(final SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+            while (numRecordsEmitted < recordsToEmit) {
+                synchronized (ctx.getCheckpointLock()) {
+                    for (int i = 0; i < numKeys; i++) {
+                        ctx.collect(Tuple2.of(i, numRecordsEmitted));
+                        numRecordsEmitted++;
+                    }
+                }
+                Thread.sleep(idlenessMs);
+            }
 
-			while (!canceled) {
-				Thread.sleep(50);
-			}
+            while (!canceled) {
+                Thread.sleep(50);
+            }
+        }
 
-		}
+        @Override
+        public void cancel() {
+            canceled = true;
+        }
 
-		@Override
-		public void cancel() {
-			canceled = true;
-		}
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            state =
+                    context.getOperatorStateStore()
+                            .getListState(
+                                    new ListStateDescriptor<Integer>(
+                                            "state", IntSerializer.INSTANCE));
 
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			state = context.getOperatorStateStore().getListState(
-					new ListStateDescriptor<Integer>("state", IntSerializer.INSTANCE));
+            for (Integer i : state.get()) {
+                numRecordsEmitted += i;
+            }
+        }
 
-			for (Integer i : state.get()) {
-				numRecordsEmitted += i;
-			}
-		}
-
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			state.clear();
-			state.add(numRecordsEmitted);
-		}
-	}
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            state.clear();
+            state.add(numRecordsEmitted);
+        }
+    }
 }

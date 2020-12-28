@@ -20,13 +20,10 @@ package org.apache.flink.formats.compress;
 
 import org.apache.flink.formats.compress.extractor.Extractor;
 
-/**
- * Convenience builder for creating {@link CompressWriterFactory} instances.
- */
+/** Convenience builder for creating {@link CompressWriterFactory} instances. */
 public class CompressWriters {
 
-	public static <IN> CompressWriterFactory<IN> forExtractor(Extractor<IN> extractor) {
-		return new CompressWriterFactory<>(extractor);
-	}
+    public static <IN> CompressWriterFactory<IN> forExtractor(Extractor<IN> extractor) {
+        return new CompressWriterFactory<>(extractor);
+    }
 }
-

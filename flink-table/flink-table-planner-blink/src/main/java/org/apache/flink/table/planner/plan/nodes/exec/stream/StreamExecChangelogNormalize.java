@@ -43,74 +43,85 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.Collections;
 
 /**
- * Stream {@link ExecNode} which normalizes a changelog stream which maybe an upsert stream or
- * a changelog stream containing duplicate events. This node normalize such stream into a regular
- * changelog stream that contains INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE records without duplication.
+ * Stream {@link ExecNode} which normalizes a changelog stream which maybe an upsert stream or a
+ * changelog stream containing duplicate events. This node normalize such stream into a regular
+ * changelog stream that contains INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE records without
+ * duplication.
  */
-public class StreamExecChangelogNormalize extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
-	private final int[] uniqueKeys;
-	private final boolean generateUpdateBefore;
+public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData> {
+    private final int[] uniqueKeys;
+    private final boolean generateUpdateBefore;
 
-	public StreamExecChangelogNormalize(
-			int[] uniqueKeys,
-			boolean generateUpdateBefore,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-		this.uniqueKeys = uniqueKeys;
-		this.generateUpdateBefore = generateUpdateBefore;
-	}
+    public StreamExecChangelogNormalize(
+            int[] uniqueKeys,
+            boolean generateUpdateBefore,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputEdge), outputType, description);
+        this.uniqueKeys = uniqueKeys;
+        this.generateUpdateBefore = generateUpdateBefore;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final ExecNode<?> inputNode = getInputNodes().get(0);
-		final Transformation<RowData> inputTransform = (Transformation<RowData>) inputNode.translateToPlan(planner);
-		final InternalTypeInfo<RowData> rowTypeInfo = (InternalTypeInfo<RowData>) inputTransform.getOutputType();
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final ExecNode<?> inputNode = getInputNodes().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputNode.translateToPlan(planner);
+        final InternalTypeInfo<RowData> rowTypeInfo =
+                (InternalTypeInfo<RowData>) inputTransform.getOutputType();
 
-		final OneInputStreamOperator<RowData, RowData> operator;
-		final TableConfig tableConfig = planner.getTableConfig();
-		final long stateIdleTime = tableConfig.getIdleStateRetention().toMillis();
-		final boolean isMiniBatchEnabled = tableConfig.getConfiguration().getBoolean(
-				ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
-		if (isMiniBatchEnabled) {
-			TypeSerializer<RowData> rowSerializer = rowTypeInfo.createSerializer(planner.getExecEnv().getConfig());
-			ProcTimeMiniBatchDeduplicateKeepLastRowFunction processFunction = new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
-					rowTypeInfo,
-					rowSerializer,
-					stateIdleTime,
-					generateUpdateBefore,
-					true, // generateInsert
-					false); // inputInsertOnly
-			CountBundleTrigger<RowData> trigger = AggregateUtil.createMiniBatchTrigger(tableConfig);
-			operator = new KeyedMapBundleOperator<>(processFunction, trigger);
-		} else {
-			ProcTimeDeduplicateKeepLastRowFunction processFunction = new ProcTimeDeduplicateKeepLastRowFunction(
-					rowTypeInfo,
-					stateIdleTime,
-					generateUpdateBefore,
-					true, // generateInsert
-					false); // inputInsertOnly
-			operator = new KeyedProcessOperator<>(processFunction);
-		}
+        final OneInputStreamOperator<RowData, RowData> operator;
+        final TableConfig tableConfig = planner.getTableConfig();
+        final long stateIdleTime = tableConfig.getIdleStateRetention().toMillis();
+        final boolean isMiniBatchEnabled =
+                tableConfig
+                        .getConfiguration()
+                        .getBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
+        if (isMiniBatchEnabled) {
+            TypeSerializer<RowData> rowSerializer =
+                    rowTypeInfo.createSerializer(planner.getExecEnv().getConfig());
+            ProcTimeMiniBatchDeduplicateKeepLastRowFunction processFunction =
+                    new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
+                            rowTypeInfo,
+                            rowSerializer,
+                            stateIdleTime,
+                            generateUpdateBefore,
+                            true, // generateInsert
+                            false); // inputInsertOnly
+            CountBundleTrigger<RowData> trigger = AggregateUtil.createMiniBatchTrigger(tableConfig);
+            operator = new KeyedMapBundleOperator<>(processFunction, trigger);
+        } else {
+            ProcTimeDeduplicateKeepLastRowFunction processFunction =
+                    new ProcTimeDeduplicateKeepLastRowFunction(
+                            rowTypeInfo,
+                            stateIdleTime,
+                            generateUpdateBefore,
+                            true, // generateInsert
+                            false); // inputInsertOnly
+            operator = new KeyedProcessOperator<>(processFunction);
+        }
 
-		final OneInputTransformation<RowData, RowData> transform = new OneInputTransformation<>(
-				inputTransform,
-				getDesc(),
-				operator,
-				rowTypeInfo,
-				inputTransform.getParallelism());
+        final OneInputTransformation<RowData, RowData> transform =
+                new OneInputTransformation<>(
+                        inputTransform,
+                        getDesc(),
+                        operator,
+                        rowTypeInfo,
+                        inputTransform.getParallelism());
 
-		if (inputsContainSingleton()) {
-			transform.setParallelism(1);
-			transform.setMaxParallelism(1);
-		}
+        if (inputsContainSingleton()) {
+            transform.setParallelism(1);
+            transform.setMaxParallelism(1);
+        }
 
-		final RowDataKeySelector selector = KeySelectorUtil.getRowDataSelector(uniqueKeys, rowTypeInfo);
-		transform.setStateKeySelector(selector);
-		transform.setStateKeyType(selector.getProducedType());
+        final RowDataKeySelector selector =
+                KeySelectorUtil.getRowDataSelector(uniqueKeys, rowTypeInfo);
+        transform.setStateKeySelector(selector);
+        transform.setStateKeyType(selector.getProducedType());
 
-		return transform;
-	}
+        return transform;
+    }
 }

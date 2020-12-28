@@ -36,50 +36,50 @@ import org.apache.calcite.rex.RexNode;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Base {@link ExecNode} that can expand one row to multiple rows based on given projects.
- */
+/** Base {@link ExecNode} that can expand one row to multiple rows based on given projects. */
 public abstract class CommonExecExpand extends ExecNodeBase<RowData> {
 
-	private final List<List<RexNode>> projects;
-	private final boolean retainHeader;
+    private final List<List<RexNode>> projects;
+    private final boolean retainHeader;
 
-	public CommonExecExpand(
-			List<List<RexNode>> projects,
-			boolean retainHeader,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-		this.projects = projects;
-		this.retainHeader = retainHeader;
-	}
+    public CommonExecExpand(
+            List<List<RexNode>> projects,
+            boolean retainHeader,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputEdge), outputType, description);
+        this.projects = projects;
+        this.retainHeader = retainHeader;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-		final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
+        final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
 
-		final CodeGenOperatorFactory<RowData> operatorFactory = ExpandCodeGenerator.generateExpandOperator(
-				new CodeGeneratorContext(planner.getTableConfig()),
-				(RowType) inputNode.getOutputType(),
-				(RowType) getOutputType(),
-				projects,
-				retainHeader,
-				getClass().getSimpleName());
+        final CodeGenOperatorFactory<RowData> operatorFactory =
+                ExpandCodeGenerator.generateExpandOperator(
+                        new CodeGeneratorContext(planner.getTableConfig()),
+                        (RowType) inputNode.getOutputType(),
+                        (RowType) getOutputType(),
+                        projects,
+                        retainHeader,
+                        getClass().getSimpleName());
 
-		final Transformation<RowData> transform = new OneInputTransformation<>(
-				inputTransform,
-				getDesc(),
-				operatorFactory,
-				InternalTypeInfo.of(getOutputType()),
-				inputTransform.getParallelism());
+        final Transformation<RowData> transform =
+                new OneInputTransformation<>(
+                        inputTransform,
+                        getDesc(),
+                        operatorFactory,
+                        InternalTypeInfo.of(getOutputType()),
+                        inputTransform.getParallelism());
 
-		if (inputsContainSingleton()) {
-			transform.setParallelism(1);
-			transform.setMaxParallelism(1);
-		}
-		return transform;
-	}
+        if (inputsContainSingleton()) {
+            transform.setParallelism(1);
+            transform.setMaxParallelism(1);
+        }
+        return transform;
+    }
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.highavailability.zookeeper;
 
-import org.apache.curator.test.TestingServer;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -30,59 +29,62 @@ import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobScheduli
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-
 public class ZooKeeperRegistryTest extends TestLogger {
 
-	private TestingServer testingServer;
+    private TestingServer testingServer;
 
-	@Before
-	public void before() throws Exception {
-		testingServer = new TestingServer();
-	}
+    @Before
+    public void before() throws Exception {
+        testingServer = new TestingServer();
+    }
 
-	@After
-	public void after() throws Exception {
-		testingServer.stop();
-		testingServer = null;
-	}
+    @After
+    public void after() throws Exception {
+        testingServer.stop();
+        testingServer = null;
+    }
 
-	/**
-	 * Tests that the function of ZookeeperRegistry, setJobRunning(), setJobFinished(), isJobRunning()
-	 */
-	@Test
-	public void testZooKeeperRegistry() throws Exception {
-		Configuration configuration = new Configuration();
-		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
-		configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+    /**
+     * Tests that the function of ZookeeperRegistry, setJobRunning(), setJobFinished(),
+     * isJobRunning()
+     */
+    @Test
+    public void testZooKeeperRegistry() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
+        configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
-		final HighAvailabilityServices zkHaService = new ZooKeeperHaServices(
-				ZooKeeperUtils.startCuratorFramework(configuration),
-			Executors.directExecutor(),
-			configuration,
-			new VoidBlobStore());
+        final HighAvailabilityServices zkHaService =
+                new ZooKeeperHaServices(
+                        ZooKeeperUtils.startCuratorFramework(configuration),
+                        Executors.directExecutor(),
+                        configuration,
+                        new VoidBlobStore());
 
-		final RunningJobsRegistry zkRegistry = zkHaService.getRunningJobsRegistry();
+        final RunningJobsRegistry zkRegistry = zkHaService.getRunningJobsRegistry();
 
-		try {
-			JobID jobID = JobID.generate();
-			assertEquals(JobSchedulingStatus.PENDING, zkRegistry.getJobSchedulingStatus(jobID));
+        try {
+            JobID jobID = JobID.generate();
+            assertEquals(JobSchedulingStatus.PENDING, zkRegistry.getJobSchedulingStatus(jobID));
 
-			zkRegistry.setJobRunning(jobID);
-			assertEquals(JobSchedulingStatus.RUNNING, zkRegistry.getJobSchedulingStatus(jobID));
+            zkRegistry.setJobRunning(jobID);
+            assertEquals(JobSchedulingStatus.RUNNING, zkRegistry.getJobSchedulingStatus(jobID));
 
-			zkRegistry.setJobFinished(jobID);
-			assertEquals(JobSchedulingStatus.DONE, zkRegistry.getJobSchedulingStatus(jobID));
+            zkRegistry.setJobFinished(jobID);
+            assertEquals(JobSchedulingStatus.DONE, zkRegistry.getJobSchedulingStatus(jobID));
 
-			zkRegistry.clearJob(jobID);
-			assertEquals(JobSchedulingStatus.PENDING, zkRegistry.getJobSchedulingStatus(jobID));
-		} finally {
-			zkHaService.close();
-		}
-	}
+            zkRegistry.clearJob(jobID);
+            assertEquals(JobSchedulingStatus.PENDING, zkRegistry.getJobSchedulingStatus(jobID));
+        } finally {
+            zkHaService.close();
+        }
+    }
 }

@@ -31,37 +31,39 @@ import java.util.Properties;
  */
 class DynamicPropertiesUtil {
 
-	/**
-	 * Dynamic properties allow the user to specify additional configuration values with -D, such
-	 * as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.network.min=536346624</tt>.
-	 */
-	static final Option DYNAMIC_PROPERTIES = Option.builder("D")
-			.argName("property=value")
-			.numberOfArgs(2)
-			.valueSeparator('=')
-			.desc("Allows specifying multiple generic configuration options. The available " +
-					"options can be found at https://ci.apache.org/projects/flink/flink-docs-stable/ops/config.html")
-			.build();
+    /**
+     * Dynamic properties allow the user to specify additional configuration values with -D, such as
+     * <tt> -Dfs.overwrite-files=true -Dtaskmanager.memory.network.min=536346624</tt>.
+     */
+    static final Option DYNAMIC_PROPERTIES =
+            Option.builder("D")
+                    .argName("property=value")
+                    .numberOfArgs(2)
+                    .valueSeparator('=')
+                    .desc(
+                            "Allows specifying multiple generic configuration options. The available "
+                                    + "options can be found at https://ci.apache.org/projects/flink/flink-docs-stable/ops/config.html")
+                    .build();
 
-	/**
-	 * Parses dynamic properties from the given {@link CommandLine} and sets them on the {@link
-	 * Configuration}.
-	 */
-	static void encodeDynamicProperties(
-			final CommandLine commandLine,
-			final Configuration effectiveConfiguration) {
+    /**
+     * Parses dynamic properties from the given {@link CommandLine} and sets them on the {@link
+     * Configuration}.
+     */
+    static void encodeDynamicProperties(
+            final CommandLine commandLine, final Configuration effectiveConfiguration) {
 
-		final Properties properties = commandLine.getOptionProperties(DYNAMIC_PROPERTIES.getOpt());
+        final Properties properties = commandLine.getOptionProperties(DYNAMIC_PROPERTIES.getOpt());
 
-		properties.stringPropertyNames()
-				.forEach(key -> {
-					final String value = properties.getProperty(key);
-					if (value != null) {
-						effectiveConfiguration.setString(key, value);
-					} else {
-						effectiveConfiguration.setString(key, "true");
-					}
-				});
-	}
+        properties
+                .stringPropertyNames()
+                .forEach(
+                        key -> {
+                            final String value = properties.getProperty(key);
+                            if (value != null) {
+                                effectiveConfiguration.setString(key, value);
+                            } else {
+                                effectiveConfiguration.setString(key, "true");
+                            }
+                        });
+    }
 }

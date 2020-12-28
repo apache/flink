@@ -27,16 +27,11 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexProgram;
 
-/**
- * Batch {@link ExecNode} for Calc.
- */
+/** Batch {@link ExecNode} for Calc. */
 public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowData> {
 
-	public BatchExecCalc(
-			RexProgram calcProgram,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(calcProgram, TableStreamOperator.class, false, inputEdge, outputType, description);
-	}
+    public BatchExecCalc(
+            RexProgram calcProgram, ExecEdge inputEdge, RowType outputType, String description) {
+        super(calcProgram, TableStreamOperator.class, false, inputEdge, outputType, description);
+    }
 }

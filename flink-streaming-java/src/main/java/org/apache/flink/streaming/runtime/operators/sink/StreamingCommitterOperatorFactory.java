@@ -29,37 +29,43 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link StreamingCommitterOperator}.
+ * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link
+ * StreamingCommitterOperator}.
  *
  * @param <CommT> The committable type of the {@link Committer}.
  */
 @Internal
-public class StreamingCommitterOperatorFactory<CommT> extends AbstractStreamingCommitterOperatorFactory<CommT, CommT> {
+public class StreamingCommitterOperatorFactory<CommT>
+        extends AbstractStreamingCommitterOperatorFactory<CommT, CommT> {
 
-	private final Sink<?, CommT, ?, ?> sink;
+    private final Sink<?, CommT, ?, ?> sink;
 
-	public StreamingCommitterOperatorFactory(Sink<?, CommT, ?, ?> sink) {
-		this.sink = checkNotNull(sink);
-	}
+    public StreamingCommitterOperatorFactory(Sink<?, CommT, ?, ?> sink) {
+        this.sink = checkNotNull(sink);
+    }
 
-	@Override
-	AbstractStreamingCommitterOperator<CommT, CommT> createStreamingCommitterOperator() {
-		try {
-			return new StreamingCommitterOperator<>(
-					sink.createCommitter()
-							.orElseThrow(() -> new IllegalStateException(
-									"Could not create committer from the sink")),
-					sink.getCommittableSerializer()
-							.orElseThrow(() -> new IllegalStateException(
-									"Could not get committable serializer from the sink")));
-		} catch (IOException e) {
-			throw new FlinkRuntimeException("Could not create the Committer.", e);
-		}
-	}
+    @Override
+    AbstractStreamingCommitterOperator<CommT, CommT> createStreamingCommitterOperator() {
+        try {
+            return new StreamingCommitterOperator<>(
+                    sink.createCommitter()
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "Could not create committer from the sink")),
+                    sink.getCommittableSerializer()
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "Could not get committable serializer from the sink")));
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Could not create the Committer.", e);
+        }
+    }
 
-	@Override
-	@SuppressWarnings("rawtypes")
-	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return StreamingCommitterOperator.class;
-	}
+    @Override
+    @SuppressWarnings("rawtypes")
+    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+        return StreamingCommitterOperator.class;
+    }
 }

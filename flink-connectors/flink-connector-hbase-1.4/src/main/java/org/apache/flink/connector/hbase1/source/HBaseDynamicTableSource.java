@@ -27,27 +27,25 @@ import org.apache.flink.table.data.RowData;
 
 import org.apache.hadoop.conf.Configuration;
 
-/**
- * HBase table source implementation.
- */
+/** HBase table source implementation. */
 @Internal
 public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
 
-	public HBaseDynamicTableSource(
-			Configuration conf,
-			String tableName,
-			HBaseTableSchema hbaseSchema,
-			String nullStringLiteral) {
-		super(conf, tableName, hbaseSchema, nullStringLiteral);
-	}
+    public HBaseDynamicTableSource(
+            Configuration conf,
+            String tableName,
+            HBaseTableSchema hbaseSchema,
+            String nullStringLiteral) {
+        super(conf, tableName, hbaseSchema, nullStringLiteral);
+    }
 
-	@Override
-	public DynamicTableSource copy() {
-		return new HBaseDynamicTableSource(conf, tableName, hbaseSchema, nullStringLiteral);
-	}
+    @Override
+    public DynamicTableSource copy() {
+        return new HBaseDynamicTableSource(conf, tableName, hbaseSchema, nullStringLiteral);
+    }
 
-	@Override
-	public InputFormat<RowData, ?> getInputFormat() {
-		return new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral);
-	}
+    @Override
+    public InputFormat<RowData, ?> getInputFormat() {
+        return new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral);
+    }
 }

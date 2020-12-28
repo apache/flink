@@ -36,91 +36,85 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-/**
- * The Python {@link ScalarFunction} operator for the blink planner.
- */
+/** The Python {@link ScalarFunction} operator for the blink planner. */
 @Internal
 public abstract class AbstractRowDataPythonScalarFunctionOperator
-		extends AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> {
+        extends AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The collector used to collect records.
-	 */
-	protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
+    /** The collector used to collect records. */
+    protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
 
-	/**
-	 * The Projection which projects the forwarded fields from the input row.
-	 */
-	private transient Projection<RowData, BinaryRowData> forwardedFieldProjection;
+    /** The Projection which projects the forwarded fields from the input row. */
+    private transient Projection<RowData, BinaryRowData> forwardedFieldProjection;
 
-	/**
-	 * The Projection which projects the udf input fields from the input row.
-	 */
-	private transient Projection<RowData, BinaryRowData> udfInputProjection;
+    /** The Projection which projects the udf input fields from the input row. */
+    private transient Projection<RowData, BinaryRowData> udfInputProjection;
 
-	/**
-	 * The JoinedRowData reused holding the execution result.
-	 */
-	protected transient JoinedRowData reuseJoinedRow;
+    /** The JoinedRowData reused holding the execution result. */
+    protected transient JoinedRowData reuseJoinedRow;
 
-	public AbstractRowDataPythonScalarFunctionOperator(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-	}
+    public AbstractRowDataPythonScalarFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
-		reuseJoinedRow = new JoinedRowData();
+    @Override
+    public void open() throws Exception {
+        super.open();
+        rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
+        reuseJoinedRow = new JoinedRowData();
 
-		udfInputProjection = createUdfInputProjection();
-		forwardedFieldProjection = createForwardedFieldProjection();
-	}
+        udfInputProjection = createUdfInputProjection();
+        forwardedFieldProjection = createForwardedFieldProjection();
+    }
 
-	@Override
-	public void bufferInput(RowData input) {
-		// always copy the projection result as the generated Projection reuses the projection result
-		RowData forwardedFields = forwardedFieldProjection.apply(input).copy();
-		forwardedFields.setRowKind(input.getRowKind());
-		forwardedInputQueue.add(forwardedFields);
-	}
+    @Override
+    public void bufferInput(RowData input) {
+        // always copy the projection result as the generated Projection reuses the projection
+        // result
+        RowData forwardedFields = forwardedFieldProjection.apply(input).copy();
+        forwardedFields.setRowKind(input.getRowKind());
+        forwardedInputQueue.add(forwardedFields);
+    }
 
-	@Override
-	public RowData getFunctionInput(RowData element) {
-		return udfInputProjection.apply(element);
-	}
+    @Override
+    public RowData getFunctionInput(RowData element) {
+        return udfInputProjection.apply(element);
+    }
 
-	private Projection<RowData, BinaryRowData> createUdfInputProjection() {
-		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
-			CodeGeneratorContext.apply(new TableConfig()),
-			"UdfInputProjection",
-			inputType,
-			userDefinedFunctionInputType,
-			userDefinedFunctionInputOffsets);
-		// noinspection unchecked
-		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
-	}
+    private Projection<RowData, BinaryRowData> createUdfInputProjection() {
+        final GeneratedProjection generatedProjection =
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "UdfInputProjection",
+                        inputType,
+                        userDefinedFunctionInputType,
+                        userDefinedFunctionInputOffsets);
+        // noinspection unchecked
+        return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
+    }
 
-	private Projection<RowData, BinaryRowData> createForwardedFieldProjection() {
-		final RowType forwardedFieldType = new RowType(
-			Arrays.stream(forwardedFields)
-				.mapToObj(i -> inputType.getFields().get(i))
-				.collect(Collectors.toList()));
-		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
-			CodeGeneratorContext.apply(new TableConfig()),
-			"ForwardedFieldProjection",
-			inputType,
-			forwardedFieldType,
-			forwardedFields);
-		// noinspection unchecked
-		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
-	}
+    private Projection<RowData, BinaryRowData> createForwardedFieldProjection() {
+        final RowType forwardedFieldType =
+                new RowType(
+                        Arrays.stream(forwardedFields)
+                                .mapToObj(i -> inputType.getFields().get(i))
+                                .collect(Collectors.toList()));
+        final GeneratedProjection generatedProjection =
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "ForwardedFieldProjection",
+                        inputType,
+                        forwardedFieldType,
+                        forwardedFields);
+        // noinspection unchecked
+        return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
+    }
 }

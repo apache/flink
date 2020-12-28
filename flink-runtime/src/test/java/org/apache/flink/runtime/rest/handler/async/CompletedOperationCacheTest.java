@@ -36,72 +36,75 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link CompletedOperationCache}.
- */
+/** Tests for {@link CompletedOperationCache}. */
 public class CompletedOperationCacheTest extends TestLogger {
 
-	private static final OperationKey TEST_OPERATION_KEY = new OperationKey(new TriggerId());
+    private static final OperationKey TEST_OPERATION_KEY = new OperationKey(new TriggerId());
 
-	private static final CompletableFuture<String> TEST_OPERATION_RESULT = CompletableFuture.completedFuture("foo");
+    private static final CompletableFuture<String> TEST_OPERATION_RESULT =
+            CompletableFuture.completedFuture("foo");
 
-	private ManualTicker manualTicker;
+    private ManualTicker manualTicker;
 
-	private CompletedOperationCache<OperationKey, String> completedOperationCache;
+    private CompletedOperationCache<OperationKey, String> completedOperationCache;
 
-	@Before
-	public void setUp() {
-		manualTicker = new ManualTicker();
-		completedOperationCache = new CompletedOperationCache<>(manualTicker);
-	}
+    @Before
+    public void setUp() {
+        manualTicker = new ManualTicker();
+        completedOperationCache = new CompletedOperationCache<>(manualTicker);
+    }
 
-	@Test
-	public void testShouldFinishClosingCacheIfAllResultsAreEvicted() {
-		completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
-		final CompletableFuture<Void> closeCacheFuture = completedOperationCache.closeAsync();
-		assertThat(closeCacheFuture.isDone(), is(false));
+    @Test
+    public void testShouldFinishClosingCacheIfAllResultsAreEvicted() {
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+        final CompletableFuture<Void> closeCacheFuture = completedOperationCache.closeAsync();
+        assertThat(closeCacheFuture.isDone(), is(false));
 
-		manualTicker.advanceTime(300, TimeUnit.SECONDS);
-		completedOperationCache.cleanUp();
+        manualTicker.advanceTime(300, TimeUnit.SECONDS);
+        completedOperationCache.cleanUp();
 
-		assertThat(closeCacheFuture.isDone(), is(true));
-	}
+        assertThat(closeCacheFuture.isDone(), is(true));
+    }
 
-	@Test
-	public void testShouldFinishClosingCacheIfAllResultsAccessed() throws Exception {
-		completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
-		final CompletableFuture<Void> closeCacheFuture = completedOperationCache.closeAsync();
-		assertThat(closeCacheFuture.isDone(), is(false));
+    @Test
+    public void testShouldFinishClosingCacheIfAllResultsAccessed() throws Exception {
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+        final CompletableFuture<Void> closeCacheFuture = completedOperationCache.closeAsync();
+        assertThat(closeCacheFuture.isDone(), is(false));
 
-		final Either<Throwable, String> operationResultOrError = completedOperationCache.get(TEST_OPERATION_KEY);
+        final Either<Throwable, String> operationResultOrError =
+                completedOperationCache.get(TEST_OPERATION_KEY);
 
-		assertThat(operationResultOrError, is(notNullValue()));
-		assertThat(operationResultOrError.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
-		assertThat(closeCacheFuture.isDone(), is(true));
-	}
+        assertThat(operationResultOrError, is(notNullValue()));
+        assertThat(operationResultOrError.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
+        assertThat(closeCacheFuture.isDone(), is(true));
+    }
 
-	@Test
-	public void testCannotAddOperationAfterClosing() {
-		completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, new CompletableFuture<>());
-		final CompletableFuture<Void> terminationFuture = completedOperationCache.closeAsync();
+    @Test
+    public void testCannotAddOperationAfterClosing() {
+        completedOperationCache.registerOngoingOperation(
+                TEST_OPERATION_KEY, new CompletableFuture<>());
+        final CompletableFuture<Void> terminationFuture = completedOperationCache.closeAsync();
 
-		assertFalse(terminationFuture.isDone());
+        assertFalse(terminationFuture.isDone());
 
-		try {
-			completedOperationCache.registerOngoingOperation(new OperationKey(new TriggerId()), new CompletableFuture<>());
-			fail("It should no longer be possible to register new operations because the cache is shutting down.");
-		} catch (IllegalStateException ignored) {
-			// expected
-		}
-	}
+        try {
+            completedOperationCache.registerOngoingOperation(
+                    new OperationKey(new TriggerId()), new CompletableFuture<>());
+            fail(
+                    "It should no longer be possible to register new operations because the cache is shutting down.");
+        } catch (IllegalStateException ignored) {
+            // expected
+        }
+    }
 
-	@Test
-	public void testCanGetOperationResultAfterClosing() throws Exception {
-		completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
-		completedOperationCache.closeAsync();
+    @Test
+    public void testCanGetOperationResultAfterClosing() throws Exception {
+        completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+        completedOperationCache.closeAsync();
 
-		final Either<Throwable, String> result = completedOperationCache.get(TEST_OPERATION_KEY);
+        final Either<Throwable, String> result = completedOperationCache.get(TEST_OPERATION_KEY);
 
-		assertThat(result.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
-	}
+        assertThat(result.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
+    }
 }

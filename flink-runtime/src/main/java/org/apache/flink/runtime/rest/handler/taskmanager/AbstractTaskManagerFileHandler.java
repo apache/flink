@@ -59,128 +59,164 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Base class for serving files from the {@link TaskExecutor}.
- */
-public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessageParameters> extends AbstractHandler<RestfulGateway, EmptyRequestBody, M> {
+/** Base class for serving files from the {@link TaskExecutor}. */
+public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessageParameters>
+        extends AbstractHandler<RestfulGateway, EmptyRequestBody, M> {
 
-	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
-	private final TransientBlobService transientBlobService;
+    private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
+    private final TransientBlobService transientBlobService;
 
-	private final LoadingCache<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> fileBlobKeys;
+    private final LoadingCache<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>>
+            fileBlobKeys;
 
-	protected AbstractTaskManagerFileHandler(
-			@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			@Nonnull Time timeout,
-			@Nonnull Map<String, String> responseHeaders,
-			@Nonnull UntypedResponseMessageHeaders<EmptyRequestBody, M> untypedResponseMessageHeaders,
-			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-			@Nonnull TransientBlobService transientBlobService,
-			@Nonnull Time cacheEntryDuration) {
-		super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders);
+    protected AbstractTaskManagerFileHandler(
+            @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            @Nonnull Time timeout,
+            @Nonnull Map<String, String> responseHeaders,
+            @Nonnull
+                    UntypedResponseMessageHeaders<EmptyRequestBody, M>
+                            untypedResponseMessageHeaders,
+            @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            @Nonnull TransientBlobService transientBlobService,
+            @Nonnull Time cacheEntryDuration) {
+        super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders);
 
-		this.resourceManagerGatewayRetriever = Preconditions.checkNotNull(resourceManagerGatewayRetriever);
+        this.resourceManagerGatewayRetriever =
+                Preconditions.checkNotNull(resourceManagerGatewayRetriever);
 
-		this.transientBlobService = Preconditions.checkNotNull(transientBlobService);
+        this.transientBlobService = Preconditions.checkNotNull(transientBlobService);
 
-		this.fileBlobKeys = CacheBuilder
-			.newBuilder()
-			.expireAfterWrite(cacheEntryDuration.toMilliseconds(), TimeUnit.MILLISECONDS)
-			.removalListener(this::removeBlob)
-			.build(
-				new CacheLoader<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>>() {
-					@Override
-					public CompletableFuture<TransientBlobKey> load(Tuple2<ResourceID, String> taskManagerIdAndFileName) throws Exception {
-						return loadTaskManagerFile(taskManagerIdAndFileName);
-					}
-			});
-	}
+        this.fileBlobKeys =
+                CacheBuilder.newBuilder()
+                        .expireAfterWrite(
+                                cacheEntryDuration.toMilliseconds(), TimeUnit.MILLISECONDS)
+                        .removalListener(this::removeBlob)
+                        .build(
+                                new CacheLoader<
+                                        Tuple2<ResourceID, String>,
+                                        CompletableFuture<TransientBlobKey>>() {
+                                    @Override
+                                    public CompletableFuture<TransientBlobKey> load(
+                                            Tuple2<ResourceID, String> taskManagerIdAndFileName)
+                                            throws Exception {
+                                        return loadTaskManagerFile(taskManagerIdAndFileName);
+                                    }
+                                });
+    }
 
-	@Override
-	protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, M> handlerRequest, RestfulGateway gateway) throws RestHandlerException {
-		final ResourceID taskManagerId = handlerRequest.getPathParameter(TaskManagerIdPathParameter.class);
+    @Override
+    protected CompletableFuture<Void> respondToRequest(
+            ChannelHandlerContext ctx,
+            HttpRequest httpRequest,
+            HandlerRequest<EmptyRequestBody, M> handlerRequest,
+            RestfulGateway gateway)
+            throws RestHandlerException {
+        final ResourceID taskManagerId =
+                handlerRequest.getPathParameter(TaskManagerIdPathParameter.class);
 
-		String filename = getFileName(handlerRequest);
-		final Tuple2<ResourceID, String> taskManagerIdAndFileName = new Tuple2<>(taskManagerId, filename);
-		final CompletableFuture<TransientBlobKey> blobKeyFuture;
-		try {
-			blobKeyFuture = fileBlobKeys.get(taskManagerIdAndFileName);
-		} catch (ExecutionException e) {
-			final Throwable cause = ExceptionUtils.stripExecutionException(e);
-			throw new RestHandlerException("Could not retrieve file blob key future.", HttpResponseStatus.INTERNAL_SERVER_ERROR, cause);
-		}
+        String filename = getFileName(handlerRequest);
+        final Tuple2<ResourceID, String> taskManagerIdAndFileName =
+                new Tuple2<>(taskManagerId, filename);
+        final CompletableFuture<TransientBlobKey> blobKeyFuture;
+        try {
+            blobKeyFuture = fileBlobKeys.get(taskManagerIdAndFileName);
+        } catch (ExecutionException e) {
+            final Throwable cause = ExceptionUtils.stripExecutionException(e);
+            throw new RestHandlerException(
+                    "Could not retrieve file blob key future.",
+                    HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                    cause);
+        }
 
-		final CompletableFuture<Void> resultFuture = blobKeyFuture.thenAcceptAsync(
-			(TransientBlobKey blobKey) -> {
-				final File file;
-				try {
-					file = transientBlobService.getFile(blobKey);
-				} catch (IOException e) {
-					throw new CompletionException(new FlinkException("Could not retrieve file from transient blob store.", e));
-				}
+        final CompletableFuture<Void> resultFuture =
+                blobKeyFuture.thenAcceptAsync(
+                        (TransientBlobKey blobKey) -> {
+                            final File file;
+                            try {
+                                file = transientBlobService.getFile(blobKey);
+                            } catch (IOException e) {
+                                throw new CompletionException(
+                                        new FlinkException(
+                                                "Could not retrieve file from transient blob store.",
+                                                e));
+                            }
 
-				try {
-					HandlerUtils.transferFile(
-						ctx,
-						file,
-						httpRequest);
-				} catch (FlinkException e) {
-					throw new CompletionException(new FlinkException("Could not transfer file to client.", e));
-				}
-			},
-			ctx.executor());
+                            try {
+                                HandlerUtils.transferFile(ctx, file, httpRequest);
+                            } catch (FlinkException e) {
+                                throw new CompletionException(
+                                        new FlinkException(
+                                                "Could not transfer file to client.", e));
+                            }
+                        },
+                        ctx.executor());
 
-		return resultFuture.whenComplete(
-			(Void ignored, Throwable throwable) -> {
-				if (throwable != null) {
-					log.error("Failed to transfer file from TaskExecutor {}.", taskManagerId, throwable);
-					fileBlobKeys.invalidate(taskManagerId);
+        return resultFuture.whenComplete(
+                (Void ignored, Throwable throwable) -> {
+                    if (throwable != null) {
+                        log.error(
+                                "Failed to transfer file from TaskExecutor {}.",
+                                taskManagerId,
+                                throwable);
+                        fileBlobKeys.invalidate(taskManagerId);
 
-					final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+                        final Throwable strippedThrowable =
+                                ExceptionUtils.stripCompletionException(throwable);
 
-					if (strippedThrowable instanceof UnknownTaskExecutorException) {
-						throw new CompletionException(
-							new NotFoundException(
-								String.format("Failed to transfer file from TaskExecutor %s because it was unknown.", taskManagerId),
-								strippedThrowable));
-					} else {
-						throw new CompletionException(
-							new FlinkException(
-								String.format("Failed to transfer file from TaskExecutor %s.", taskManagerId),
-								strippedThrowable));
-					}
-				}
-			});
-	}
+                        if (strippedThrowable instanceof UnknownTaskExecutorException) {
+                            throw new CompletionException(
+                                    new NotFoundException(
+                                            String.format(
+                                                    "Failed to transfer file from TaskExecutor %s because it was unknown.",
+                                                    taskManagerId),
+                                            strippedThrowable));
+                        } else {
+                            throw new CompletionException(
+                                    new FlinkException(
+                                            String.format(
+                                                    "Failed to transfer file from TaskExecutor %s.",
+                                                    taskManagerId),
+                                            strippedThrowable));
+                        }
+                    }
+                });
+    }
 
-	private CompletableFuture<TransientBlobKey> loadTaskManagerFile(Tuple2<ResourceID, String> taskManagerIdAndFileName) throws RestHandlerException {
-		log.debug("Load file from TaskManager {}.", taskManagerIdAndFileName.f0);
+    private CompletableFuture<TransientBlobKey> loadTaskManagerFile(
+            Tuple2<ResourceID, String> taskManagerIdAndFileName) throws RestHandlerException {
+        log.debug("Load file from TaskManager {}.", taskManagerIdAndFileName.f0);
 
-		final ResourceManagerGateway resourceManagerGateway = resourceManagerGatewayRetriever
-			.getNow()
-			.orElseThrow(() -> {
-				log.debug("Could not connect to ResourceManager right now.");
-				return new RestHandlerException(
-					"Cannot connect to ResourceManager right now. Please try to refresh.",
-					HttpResponseStatus.NOT_FOUND);
-			});
+        final ResourceManagerGateway resourceManagerGateway =
+                resourceManagerGatewayRetriever
+                        .getNow()
+                        .orElseThrow(
+                                () -> {
+                                    log.debug("Could not connect to ResourceManager right now.");
+                                    return new RestHandlerException(
+                                            "Cannot connect to ResourceManager right now. Please try to refresh.",
+                                            HttpResponseStatus.NOT_FOUND);
+                                });
 
-		return requestFileUpload(resourceManagerGateway, taskManagerIdAndFileName);
-	}
+        return requestFileUpload(resourceManagerGateway, taskManagerIdAndFileName);
+    }
 
-	protected abstract CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskManagerIdAndFileName);
+    protected abstract CompletableFuture<TransientBlobKey> requestFileUpload(
+            ResourceManagerGateway resourceManagerGateway,
+            Tuple2<ResourceID, String> taskManagerIdAndFileName);
 
-	private void removeBlob(RemovalNotification<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> removalNotification) {
-		log.debug("Remove cached file for TaskExecutor {}.", removalNotification.getKey());
+    private void removeBlob(
+            RemovalNotification<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>>
+                    removalNotification) {
+        log.debug("Remove cached file for TaskExecutor {}.", removalNotification.getKey());
 
-		final CompletableFuture<TransientBlobKey> value = removalNotification.getValue();
+        final CompletableFuture<TransientBlobKey> value = removalNotification.getValue();
 
-		if (value != null) {
-			value.thenAccept(transientBlobService::deleteFromCache);
-		}
-	}
+        if (value != null) {
+            value.thenAccept(transientBlobService::deleteFromCache);
+        }
+    }
 
-	protected String getFileName(HandlerRequest<EmptyRequestBody, M> handlerRequest) {
-		return null;
-	}
+    protected String getFileName(HandlerRequest<EmptyRequestBody, M> handlerRequest) {
+        return null;
+    }
 }

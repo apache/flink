@@ -27,48 +27,51 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * {@link MessageHeaders} for retrieving watermarks.
- */
-public final class JobVertexWatermarksHeaders implements MessageHeaders<EmptyRequestBody, MetricCollectionResponseBody, JobVertexMessageParameters> {
+/** {@link MessageHeaders} for retrieving watermarks. */
+public final class JobVertexWatermarksHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, MetricCollectionResponseBody, JobVertexMessageParameters> {
 
-	public static final JobVertexWatermarksHeaders INSTANCE = new JobVertexWatermarksHeaders();
+    public static final JobVertexWatermarksHeaders INSTANCE = new JobVertexWatermarksHeaders();
 
-	private JobVertexWatermarksHeaders() {
-	}
+    private JobVertexWatermarksHeaders() {}
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" + JobVertexIdPathParameter.KEY + "/watermarks";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/jobs/:"
+                + JobIDPathParameter.KEY
+                + "/vertices/:"
+                + JobVertexIdPathParameter.KEY
+                + "/watermarks";
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the watermarks for all subtasks of a task.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the watermarks for all subtasks of a task.";
+    }
 
-	@Override
-	public Class<MetricCollectionResponseBody> getResponseClass() {
-		return MetricCollectionResponseBody.class;
-	}
+    @Override
+    public Class<MetricCollectionResponseBody> getResponseClass() {
+        return MetricCollectionResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public JobVertexMessageParameters getUnresolvedMessageParameters() {
-		return new JobVertexMessageParameters();
-	}
+    @Override
+    public JobVertexMessageParameters getUnresolvedMessageParameters() {
+        return new JobVertexMessageParameters();
+    }
 }

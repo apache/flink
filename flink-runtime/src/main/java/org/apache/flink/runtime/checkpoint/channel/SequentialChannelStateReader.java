@@ -22,31 +22,29 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import java.io.IOException;
 
-/**
- * Reads channel state saved during checkpoint/savepoint.
- */
+/** Reads channel state saved during checkpoint/savepoint. */
 @Internal
 public interface SequentialChannelStateReader extends AutoCloseable {
 
-	void readInputData(InputGate[] inputGates) throws IOException, InterruptedException;
+    void readInputData(InputGate[] inputGates) throws IOException, InterruptedException;
 
-	void readOutputData(ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion) throws IOException, InterruptedException;
+    void readOutputData(ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion)
+            throws IOException, InterruptedException;
 
-	@Override
-	void close() throws Exception;
+    @Override
+    void close() throws Exception;
 
-	SequentialChannelStateReader NO_OP = new SequentialChannelStateReader() {
+    SequentialChannelStateReader NO_OP =
+            new SequentialChannelStateReader() {
 
-		@Override
-		public void readInputData(InputGate[] inputGates) {
-		}
+                @Override
+                public void readInputData(InputGate[] inputGates) {}
 
-		@Override
-		public void readOutputData(ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion) {
-		}
+                @Override
+                public void readOutputData(
+                        ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion) {}
 
-		@Override
-		public void close() {
-		}
-	};
+                @Override
+                public void close() {}
+            };
 }

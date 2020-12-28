@@ -36,62 +36,66 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import java.io.IOException;
 import java.util.Map;
 
-/**
- * Entry point for Yarn per-job clusters.
- */
+/** Entry point for Yarn per-job clusters. */
 public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 
-	public YarnJobClusterEntrypoint(Configuration configuration) {
-		super(configuration);
-	}
+    public YarnJobClusterEntrypoint(Configuration configuration) {
+        super(configuration);
+    }
 
-	@Override
-	protected String getRPCPortRange(Configuration configuration) {
-		return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_PORT);
-	}
+    @Override
+    protected String getRPCPortRange(Configuration configuration) {
+        return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_PORT);
+    }
 
-	@Override
-	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
-		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
-			YarnResourceManagerFactory.getInstance(),
-			FileJobGraphRetriever.createFrom(
-					configuration,
-					YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null)));
-	}
+    @Override
+    protected DefaultDispatcherResourceManagerComponentFactory
+            createDispatcherResourceManagerComponentFactory(Configuration configuration)
+                    throws IOException {
+        return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
+                YarnResourceManagerFactory.getInstance(),
+                FileJobGraphRetriever.createFrom(
+                        configuration,
+                        YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null)));
+    }
 
-	// ------------------------------------------------------------------------
-	//  The executable entry point for the Yarn Application Master Process
-	//  for a single Flink job.
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  The executable entry point for the Yarn Application Master Process
+    //  for a single Flink job.
+    // ------------------------------------------------------------------------
 
-	public static void main(String[] args) {
-		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, YarnJobClusterEntrypoint.class.getSimpleName(), args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
+    public static void main(String[] args) {
+        // startup checks and logging
+        EnvironmentInformation.logEnvironmentInfo(
+                LOG, YarnJobClusterEntrypoint.class.getSimpleName(), args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		Map<String, String> env = System.getenv();
+        Map<String, String> env = System.getenv();
 
-		final String workingDirectory = env.get(ApplicationConstants.Environment.PWD.key());
-		Preconditions.checkArgument(
-			workingDirectory != null,
-			"Working directory variable (%s) not set",
-			ApplicationConstants.Environment.PWD.key());
+        final String workingDirectory = env.get(ApplicationConstants.Environment.PWD.key());
+        Preconditions.checkArgument(
+                workingDirectory != null,
+                "Working directory variable (%s) not set",
+                ApplicationConstants.Environment.PWD.key());
 
-		try {
-			YarnEntrypointUtils.logYarnEnvironmentInformation(env, LOG);
-		} catch (IOException e) {
-			LOG.warn("Could not log YARN environment information.", e);
-		}
+        try {
+            YarnEntrypointUtils.logYarnEnvironmentInformation(env, LOG);
+        } catch (IOException e) {
+            LOG.warn("Could not log YARN environment information.", e);
+        }
 
-		final Configuration dynamicParameters = ClusterEntrypointUtils.parseParametersOrExit(
-			args,
-			new DynamicParametersConfigurationParserFactory(),
-			YarnJobClusterEntrypoint.class);
-		final Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, dynamicParameters, env);
+        final Configuration dynamicParameters =
+                ClusterEntrypointUtils.parseParametersOrExit(
+                        args,
+                        new DynamicParametersConfigurationParserFactory(),
+                        YarnJobClusterEntrypoint.class);
+        final Configuration configuration =
+                YarnEntrypointUtils.loadConfiguration(workingDirectory, dynamicParameters, env);
 
-		YarnJobClusterEntrypoint yarnJobClusterEntrypoint = new YarnJobClusterEntrypoint(configuration);
+        YarnJobClusterEntrypoint yarnJobClusterEntrypoint =
+                new YarnJobClusterEntrypoint(configuration);
 
-		ClusterEntrypoint.runClusterEntrypoint(yarnJobClusterEntrypoint);
-	}
+        ClusterEntrypoint.runClusterEntrypoint(yarnJobClusterEntrypoint);
+    }
 }

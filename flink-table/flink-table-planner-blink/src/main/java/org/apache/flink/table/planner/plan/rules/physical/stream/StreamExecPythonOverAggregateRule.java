@@ -37,76 +37,84 @@ import org.apache.calcite.util.ImmutableBitSet;
 import java.util.List;
 
 /**
- * The physical rule is responsible for converting {@link FlinkLogicalOverAggregate} to
- * {@link StreamExecPythonOverAggregate}.
+ * The physical rule is responsible for converting {@link FlinkLogicalOverAggregate} to {@link
+ * StreamExecPythonOverAggregate}.
  */
 public class StreamExecPythonOverAggregateRule extends ConverterRule {
-	public static final StreamExecPythonOverAggregateRule INSTANCE = new StreamExecPythonOverAggregateRule();
+    public static final StreamExecPythonOverAggregateRule INSTANCE =
+            new StreamExecPythonOverAggregateRule();
 
-	private StreamExecPythonOverAggregateRule() {
-		super(FlinkLogicalOverAggregate.class,
-			FlinkConventions.LOGICAL(),
-			FlinkConventions.STREAM_PHYSICAL(),
-			"StreamExecPythonOverAggregateRule");
-	}
+    private StreamExecPythonOverAggregateRule() {
+        super(
+                FlinkLogicalOverAggregate.class,
+                FlinkConventions.LOGICAL(),
+                FlinkConventions.STREAM_PHYSICAL(),
+                "StreamExecPythonOverAggregateRule");
+    }
 
-	@Override
-	public boolean matches(RelOptRuleCall call) {
-		FlinkLogicalOverAggregate logicWindow = call.rel(0);
-		List<AggregateCall> aggCalls = logicWindow.groups.get(0).getAggregateCalls(logicWindow);
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        FlinkLogicalOverAggregate logicWindow = call.rel(0);
+        List<AggregateCall> aggCalls = logicWindow.groups.get(0).getAggregateCalls(logicWindow);
 
-		boolean existGeneralPythonFunction =
-			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
-		boolean existPandasFunction =
-			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
-		boolean existJavaFunction =
-			aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
-		if (existPandasFunction || existGeneralPythonFunction) {
-			if (existGeneralPythonFunction) {
-				throw new TableException("Non-Pandas Python UDAFs are not supported in stream mode currently.");
-			}
-			if (existJavaFunction) {
-				throw new TableException("Python UDAF and Java/Scala UDAF cannot be used together.");
-			}
-			return true;
-		} else {
-			return false;
-		}
-	}
+        boolean existGeneralPythonFunction =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
+        boolean existPandasFunction =
+                aggCalls.stream()
+                        .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
+        boolean existJavaFunction =
+                aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
+        if (existPandasFunction || existGeneralPythonFunction) {
+            if (existGeneralPythonFunction) {
+                throw new TableException(
+                        "Non-Pandas Python UDAFs are not supported in stream mode currently.");
+            }
+            if (existJavaFunction) {
+                throw new TableException(
+                        "Python UDAF and Java/Scala UDAF cannot be used together.");
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public RelNode convert(RelNode rel) {
-		FlinkLogicalOverAggregate logicWindow = (FlinkLogicalOverAggregate) rel;
+    @Override
+    public RelNode convert(RelNode rel) {
+        FlinkLogicalOverAggregate logicWindow = (FlinkLogicalOverAggregate) rel;
 
-		if (logicWindow.groups.size() > 1) {
-			throw new TableException(
-				"Over Agg: Unsupported use of OVER windows. " +
-					"All aggregates must be computed on the same window. " +
-					"please re-check the over window statement.");
-		}
+        if (logicWindow.groups.size() > 1) {
+            throw new TableException(
+                    "Over Agg: Unsupported use of OVER windows. "
+                            + "All aggregates must be computed on the same window. "
+                            + "please re-check the over window statement.");
+        }
 
-		ImmutableBitSet keys = logicWindow.groups.get(0).keys;
+        ImmutableBitSet keys = logicWindow.groups.get(0).keys;
 
-		FlinkRelDistribution requiredDistribution;
-		if (!keys.isEmpty()) {
-			requiredDistribution = FlinkRelDistribution.hash(keys.asList(), true);
-		} else {
-			requiredDistribution = FlinkRelDistribution.SINGLETON();
-		}
-		RelNode input = logicWindow.getInput();
-		RelTraitSet requiredTraitSet = input.getTraitSet()
-			.replace(FlinkConventions.STREAM_PHYSICAL())
-			.replace(requiredDistribution);
+        FlinkRelDistribution requiredDistribution;
+        if (!keys.isEmpty()) {
+            requiredDistribution = FlinkRelDistribution.hash(keys.asList(), true);
+        } else {
+            requiredDistribution = FlinkRelDistribution.SINGLETON();
+        }
+        RelNode input = logicWindow.getInput();
+        RelTraitSet requiredTraitSet =
+                input.getTraitSet()
+                        .replace(FlinkConventions.STREAM_PHYSICAL())
+                        .replace(requiredDistribution);
 
-		RelTraitSet providedTraitSet = rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
-		RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
+        RelTraitSet providedTraitSet =
+                rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
+        RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
 
-		return new StreamExecPythonOverAggregate(
-			rel.getCluster(),
-			providedTraitSet,
-			newInput,
-			rel.getRowType(),
-			newInput.getRowType(),
-			logicWindow);
-	}
+        return new StreamExecPythonOverAggregate(
+                rel.getCluster(),
+                providedTraitSet,
+                newInput,
+                rel.getRowType(),
+                newInput.getRowType(),
+                logicWindow);
+    }
 }

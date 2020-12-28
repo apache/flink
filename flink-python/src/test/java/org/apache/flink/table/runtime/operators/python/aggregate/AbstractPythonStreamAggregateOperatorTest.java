@@ -42,71 +42,77 @@ import java.util.Collections;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
 /**
- * Base class for {@link PythonStreamGroupAggregateOperatorTest} and {@link PythonStreamGroupTableAggregateOperatorTest}.
+ * Base class for {@link PythonStreamGroupAggregateOperatorTest} and {@link
+ * PythonStreamGroupTableAggregateOperatorTest}.
  */
 public abstract class AbstractPythonStreamAggregateOperatorTest {
 
-	private LogicalType[] getOutputLogicalType() {
-		return new LogicalType[]{
-			DataTypes.STRING().getLogicalType(),
-			DataTypes.BIGINT().getLogicalType()
-		};
-	}
+    private LogicalType[] getOutputLogicalType() {
+        return new LogicalType[] {
+            DataTypes.STRING().getLogicalType(), DataTypes.BIGINT().getLogicalType()
+        };
+    }
 
-	protected RowType getInputType() {
-		return new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new BigIntType())));
-	}
+    protected RowType getInputType() {
+        return new RowType(
+                Arrays.asList(
+                        new RowType.RowField("f1", new VarCharType()),
+                        new RowType.RowField("f2", new BigIntType())));
+    }
 
-	protected RowType getOutputType() {
-		return new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new BigIntType())));
-	}
+    protected RowType getOutputType() {
+        return new RowType(
+                Arrays.asList(
+                        new RowType.RowField("f1", new VarCharType()),
+                        new RowType.RowField("f2", new BigIntType())));
+    }
 
-	private RowType getKeyType() {
-		return new RowType(Collections.singletonList(
-			new RowType.RowField("f1", new VarCharType())));
-	}
+    private RowType getKeyType() {
+        return new RowType(
+                Collections.singletonList(new RowType.RowField("f1", new VarCharType())));
+    }
 
-	int[] getGrouping() {
-		return new int[]{0};
-	}
+    int[] getGrouping() {
+        return new int[] {0};
+    }
 
-	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(getOutputLogicalType());
+    private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(getOutputLogicalType());
 
-	protected OneInputStreamOperatorTestHarness getTestHarness(
-		Configuration config) throws Exception {
-		RowType outputType = getOutputType();
-		OneInputStreamOperator operator = getTestOperator(config);
+    protected OneInputStreamOperatorTestHarness getTestHarness(Configuration config)
+            throws Exception {
+        RowType outputType = getOutputType();
+        OneInputStreamOperator operator = getTestOperator(config);
 
-		KeyedOneInputStreamOperatorTestHarness testHarness =
-			new KeyedOneInputStreamOperatorTestHarness(
-				operator,
-				KeySelectorUtil.getRowDataSelector(getGrouping(), InternalTypeInfo.of(getInputType())),
-				InternalTypeInfo.of(getKeyType()),
-				1,
-				1,
-				0);
-		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
-		testHarness.setup(new RowDataSerializer(outputType));
-		return testHarness;
-	}
+        KeyedOneInputStreamOperatorTestHarness testHarness =
+                new KeyedOneInputStreamOperatorTestHarness(
+                        operator,
+                        KeySelectorUtil.getRowDataSelector(
+                                getGrouping(), InternalTypeInfo.of(getInputType())),
+                        InternalTypeInfo.of(getKeyType()),
+                        1,
+                        1,
+                        0);
+        testHarness
+                .getStreamConfig()
+                .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
+        testHarness.setup(new RowDataSerializer(outputType));
+        return testHarness;
+    }
 
-	protected RowData newRow(boolean accumulateMsg, Object... fields) {
-		if (accumulateMsg) {
-			return row(fields);
-		} else {
-			RowData row = row(fields);
-			row.setRowKind(RowKind.DELETE);
-			return row;
-		}
-	}
+    protected RowData newRow(boolean accumulateMsg, Object... fields) {
+        if (accumulateMsg) {
+            return row(fields);
+        } else {
+            RowData row = row(fields);
+            row.setRowKind(RowKind.DELETE);
+            return row;
+        }
+    }
 
-	protected void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
-		assertor.assertOutputEquals(message, expected, actual);
-	}
+    protected void assertOutputEquals(
+            String message, Collection<Object> expected, Collection<Object> actual) {
+        assertor.assertOutputEquals(message, expected, actual);
+    }
 
-	abstract OneInputStreamOperator getTestOperator(Configuration config);
+    abstract OneInputStreamOperator getTestOperator(Configuration config);
 }

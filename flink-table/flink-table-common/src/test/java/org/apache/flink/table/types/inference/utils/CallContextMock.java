@@ -26,65 +26,64 @@ import org.apache.flink.table.types.inference.CallContext;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * {@link CallContext} mock for testing purposes.
- */
+/** {@link CallContext} mock for testing purposes. */
 public class CallContextMock implements CallContext {
 
-	public DataTypeFactory typeFactory;
+    public DataTypeFactory typeFactory;
 
-	public List<DataType> argumentDataTypes;
+    public List<DataType> argumentDataTypes;
 
-	public FunctionDefinition functionDefinition;
+    public FunctionDefinition functionDefinition;
 
-	public List<Boolean> argumentLiterals;
+    public List<Boolean> argumentLiterals;
 
-	public List<Boolean> argumentNulls;
+    public List<Boolean> argumentNulls;
 
-	public List<Optional<?>> argumentValues;
+    public List<Optional<?>> argumentValues;
 
-	public String name;
+    public String name;
 
-	public Optional<DataType> outputDataType;
+    public Optional<DataType> outputDataType;
 
-	@Override
-	public DataTypeFactory getDataTypeFactory() {
-		return typeFactory;
-	}
+    @Override
+    public DataTypeFactory getDataTypeFactory() {
+        return typeFactory;
+    }
 
-	@Override
-	public FunctionDefinition getFunctionDefinition() {
-		return functionDefinition;
-	}
+    @Override
+    public FunctionDefinition getFunctionDefinition() {
+        return functionDefinition;
+    }
 
-	@Override
-	public boolean isArgumentLiteral(int pos) {
-		return argumentLiterals.get(pos);
-	}
+    @Override
+    public boolean isArgumentLiteral(int pos) {
+        return argumentLiterals.get(pos);
+    }
 
-	@Override
-	public boolean isArgumentNull(int pos) {
-		return argumentNulls.get(pos);
-	}
+    @Override
+    public boolean isArgumentNull(int pos) {
+        return argumentNulls.get(pos);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-		return (Optional<T>) argumentValues.get(pos).filter(v -> clazz.isAssignableFrom(v.getClass()));
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+        return (Optional<T>)
+                argumentValues.get(pos).filter(v -> clazz.isAssignableFrom(v.getClass()));
+    }
 
-	@Override
-	public String getName() {
-		return name;
-	}
+    @Override
+    public String getName() {
+        return name;
+    }
 
-	@Override
-	public List<DataType> getArgumentDataTypes() {
-		return argumentDataTypes;
-	}
+    @Override
+    public List<DataType> getArgumentDataTypes() {
+        return argumentDataTypes;
+    }
 
-	@Override
-	public Optional<DataType> getOutputDataType() {
-		return outputDataType;
-	}
+    @Override
+    public Optional<DataType> getOutputDataType() {
+        return outputDataType;
+    }
 }

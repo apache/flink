@@ -20,19 +20,16 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.junit.Test;
 
-/**
- * Tests for {@link StreamNetworkPointToPointBenchmark}.
- */
+/** Tests for {@link StreamNetworkPointToPointBenchmark}. */
 public class StreamNetworkPointToPointBenchmarkTest {
-	@Test
-	public void test() throws Exception {
-		StreamNetworkPointToPointBenchmark benchmark = new StreamNetworkPointToPointBenchmark();
-		benchmark.setUp(10);
-		try {
-			benchmark.executeBenchmark(100, false);
-		}
-		finally {
-			benchmark.tearDown();
-		}
-	}
+    @Test
+    public void test() throws Exception {
+        StreamNetworkPointToPointBenchmark benchmark = new StreamNetworkPointToPointBenchmark();
+        benchmark.setUp(10);
+        try {
+            benchmark.executeBenchmark(100, false);
+        } finally {
+            benchmark.tearDown();
+        }
+    }
 }

@@ -36,89 +36,91 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 
 /**
- * Strategy for inferring and validating an argument using a disjunction of multiple {@link ArgumentTypeStrategy}s
- * into one like {@code f(NUMERIC || STRING)}.
+ * Strategy for inferring and validating an argument using a disjunction of multiple {@link
+ * ArgumentTypeStrategy}s into one like {@code f(NUMERIC || STRING)}.
  *
  * <p>Some {@link ArgumentTypeStrategy}s cannot contribute an inferred type that is different from
- * the input type (e.g. {@link InputTypeStrategies#LITERAL}). Therefore, the order {@code f(X || Y)} or
- * {@code f(Y || X)} matters as it defines the precedence in case the result must be casted to a more
- * specific type.
+ * the input type (e.g. {@link InputTypeStrategies#LITERAL}). Therefore, the order {@code f(X || Y)}
+ * or {@code f(Y || X)} matters as it defines the precedence in case the result must be casted to a
+ * more specific type.
  *
- * <p>This strategy aims to infer a type that is equal to the input type (to prevent unnecessary casting)
- * or (if this is not possible) the first more specific, casted type.
+ * <p>This strategy aims to infer a type that is equal to the input type (to prevent unnecessary
+ * casting) or (if this is not possible) the first more specific, casted type.
  */
 @Internal
 public final class OrArgumentTypeStrategy implements ArgumentTypeStrategy {
 
-	private final List<? extends ArgumentTypeStrategy> argumentStrategies;
+    private final List<? extends ArgumentTypeStrategy> argumentStrategies;
 
-	public OrArgumentTypeStrategy(List<? extends ArgumentTypeStrategy> argumentStrategies) {
-		Preconditions.checkArgument(argumentStrategies.size() > 0);
-		this.argumentStrategies = argumentStrategies;
-	}
+    public OrArgumentTypeStrategy(List<? extends ArgumentTypeStrategy> argumentStrategies) {
+        Preconditions.checkArgument(argumentStrategies.size() > 0);
+        this.argumentStrategies = argumentStrategies;
+    }
 
-	@Override
-	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
-		final LogicalType actualType = callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
+    @Override
+    public Optional<DataType> inferArgumentType(
+            CallContext callContext, int argumentPos, boolean throwOnFailure) {
+        final LogicalType actualType =
+                callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
 
-		Optional<DataType> closestDataType = Optional.empty();
-		for (ArgumentTypeStrategy strategy : argumentStrategies) {
-			final Optional<DataType> inferredDataType = strategy.inferArgumentType(
-				callContext,
-				argumentPos,
-				false);
-			// argument type does not match at all
-			if (!inferredDataType.isPresent()) {
-				continue;
-			}
-			final LogicalType inferredType = inferredDataType.get().getLogicalType();
-			// argument type matches
-			// we prefer a strategy that does not require an implicit cast
-			if (supportsAvoidingCast(actualType, inferredType)) {
-				return inferredDataType;
-			}
-			// argument type requires a more specific, casted type
-			else if (!closestDataType.isPresent()) {
-				closestDataType = inferredDataType;
-			}
-		}
+        Optional<DataType> closestDataType = Optional.empty();
+        for (ArgumentTypeStrategy strategy : argumentStrategies) {
+            final Optional<DataType> inferredDataType =
+                    strategy.inferArgumentType(callContext, argumentPos, false);
+            // argument type does not match at all
+            if (!inferredDataType.isPresent()) {
+                continue;
+            }
+            final LogicalType inferredType = inferredDataType.get().getLogicalType();
+            // argument type matches
+            // we prefer a strategy that does not require an implicit cast
+            if (supportsAvoidingCast(actualType, inferredType)) {
+                return inferredDataType;
+            }
+            // argument type requires a more specific, casted type
+            else if (!closestDataType.isPresent()) {
+                closestDataType = inferredDataType;
+            }
+        }
 
-		if (closestDataType.isPresent()) {
-			return closestDataType;
-		}
+        if (closestDataType.isPresent()) {
+            return closestDataType;
+        }
 
-		// generate a helpful exception if possible
-		if (throwOnFailure) {
-			for (ArgumentTypeStrategy strategy : argumentStrategies) {
-				strategy.inferArgumentType(callContext, argumentPos, true);
-			}
-		}
+        // generate a helpful exception if possible
+        if (throwOnFailure) {
+            for (ArgumentTypeStrategy strategy : argumentStrategies) {
+                strategy.inferArgumentType(callContext, argumentPos, true);
+            }
+        }
 
-		return Optional.empty();
-	}
+        return Optional.empty();
+    }
 
-	@Override
-	public Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		final String argument = argumentStrategies.stream()
-			.map(v -> v.getExpectedArgument(functionDefinition, argumentPos).getType())
-			.collect(Collectors.joining(" | ", "[", "]"));
-		return Signature.Argument.of(argument);
-	}
+    @Override
+    public Signature.Argument getExpectedArgument(
+            FunctionDefinition functionDefinition, int argumentPos) {
+        final String argument =
+                argumentStrategies.stream()
+                        .map(v -> v.getExpectedArgument(functionDefinition, argumentPos).getType())
+                        .collect(Collectors.joining(" | ", "[", "]"));
+        return Signature.Argument.of(argument);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		OrArgumentTypeStrategy that = (OrArgumentTypeStrategy) o;
-		return Objects.equals(argumentStrategies, that.argumentStrategies);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        OrArgumentTypeStrategy that = (OrArgumentTypeStrategy) o;
+        return Objects.equals(argumentStrategies, that.argumentStrategies);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(argumentStrategies);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(argumentStrategies);
+    }
 }

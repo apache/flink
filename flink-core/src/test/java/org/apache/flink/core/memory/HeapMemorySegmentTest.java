@@ -29,52 +29,50 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link HeapMemorySegment} in off-heap mode.
- */
+/** Tests for the {@link HeapMemorySegment} in off-heap mode. */
 @RunWith(Parameterized.class)
 public class HeapMemorySegmentTest extends MemorySegmentTestBase {
 
-	public HeapMemorySegmentTest(int pageSize) {
-		super(pageSize);
-	}
+    public HeapMemorySegmentTest(int pageSize) {
+        super(pageSize);
+    }
 
-	@Override
-	MemorySegment createSegment(int size) {
-		return new HeapMemorySegment(new byte[size]);
-	}
+    @Override
+    MemorySegment createSegment(int size) {
+        return new HeapMemorySegment(new byte[size]);
+    }
 
-	@Override
-	MemorySegment createSegment(int size, Object owner) {
-		return new HeapMemorySegment(new byte[size], owner);
-	}
+    @Override
+    MemorySegment createSegment(int size, Object owner) {
+        return new HeapMemorySegment(new byte[size], owner);
+    }
 
-	@Test
-	public void testHeapSegmentSpecifics() {
-		final byte[] buffer = new byte[411];
-		HeapMemorySegment seg = new HeapMemorySegment(buffer);
+    @Test
+    public void testHeapSegmentSpecifics() {
+        final byte[] buffer = new byte[411];
+        HeapMemorySegment seg = new HeapMemorySegment(buffer);
 
-		assertFalse(seg.isFreed());
-		assertFalse(seg.isOffHeap());
-		assertEquals(buffer.length, seg.size());
-		assertTrue(buffer == seg.getArray());
+        assertFalse(seg.isFreed());
+        assertFalse(seg.isOffHeap());
+        assertEquals(buffer.length, seg.size());
+        assertTrue(buffer == seg.getArray());
 
-		ByteBuffer buf1 = seg.wrap(1, 2);
-		ByteBuffer buf2 = seg.wrap(3, 4);
+        ByteBuffer buf1 = seg.wrap(1, 2);
+        ByteBuffer buf2 = seg.wrap(3, 4);
 
-		assertTrue(buf1 != buf2);
-		assertEquals(1, buf1.position());
-		assertEquals(3, buf1.limit());
-		assertEquals(3, buf2.position());
-		assertEquals(7, buf2.limit());
-	}
+        assertTrue(buf1 != buf2);
+        assertEquals(1, buf1.position());
+        assertEquals(3, buf1.limit());
+        assertEquals(3, buf2.position());
+        assertEquals(7, buf2.limit());
+    }
 
-	@Test
-	public void testGetArrayAfterFree() {
-		final byte[] buffer = new byte[100];
-		HeapMemorySegment seg = new HeapMemorySegment(buffer);
+    @Test
+    public void testGetArrayAfterFree() {
+        final byte[] buffer = new byte[100];
+        HeapMemorySegment seg = new HeapMemorySegment(buffer);
 
-		seg.free();
-		assertNull(seg.getArray());
-	}
+        seg.free();
+        assertNull(seg.getArray());
+    }
 }

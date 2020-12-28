@@ -36,36 +36,39 @@ import static org.junit.Assert.fail;
 
 public class ExecutionGraphVariousFailuesTest extends TestLogger {
 
-	/**
-	 * Tests that a failing notifyPartitionDataAvailable call with a non-existing execution attempt
-	 * id, will not fail the execution graph.
-	 */
-	@Test
-	public void testFailingNotifyPartitionDataAvailable() throws Exception {
-		final SchedulerBase scheduler = SchedulerTestingUtils.newSchedulerBuilder(new JobGraph()).build();
-		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		scheduler.startScheduling();
+    /**
+     * Tests that a failing notifyPartitionDataAvailable call with a non-existing execution attempt
+     * id, will not fail the execution graph.
+     */
+    @Test
+    public void testFailingNotifyPartitionDataAvailable() throws Exception {
+        final SchedulerBase scheduler =
+                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph()).build();
+        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        scheduler.startScheduling();
 
-		final ExecutionGraph eg = scheduler.getExecutionGraph();
+        final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+        assertEquals(JobStatus.RUNNING, eg.getState());
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-		IntermediateResultPartitionID intermediateResultPartitionId = new IntermediateResultPartitionID();
-		ExecutionAttemptID producerId = new ExecutionAttemptID();
-		ResultPartitionID resultPartitionId = new ResultPartitionID(intermediateResultPartitionId, producerId);
+        IntermediateResultPartitionID intermediateResultPartitionId =
+                new IntermediateResultPartitionID();
+        ExecutionAttemptID producerId = new ExecutionAttemptID();
+        ResultPartitionID resultPartitionId =
+                new ResultPartitionID(intermediateResultPartitionId, producerId);
 
-		// The execution attempt id does not exist and thus the notifyPartitionDataAvailable call
-		// should fail
+        // The execution attempt id does not exist and thus the notifyPartitionDataAvailable call
+        // should fail
 
-		try {
-			scheduler.notifyPartitionDataAvailable(resultPartitionId);
-			fail("Error expected.");
-		} catch (IllegalStateException e) {
-			// we've expected this exception to occur
-			assertThat(e.getMessage(), containsString("Cannot find execution for execution Id"));
-		}
+        try {
+            scheduler.notifyPartitionDataAvailable(resultPartitionId);
+            fail("Error expected.");
+        } catch (IllegalStateException e) {
+            // we've expected this exception to occur
+            assertThat(e.getMessage(), containsString("Cannot find execution for execution Id"));
+        }
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
-	}
+        assertEquals(JobStatus.RUNNING, eg.getState());
+    }
 }

@@ -20,17 +20,13 @@ package org.apache.flink.runtime.iterative.concurrent;
 
 import org.apache.flink.runtime.iterative.task.RuntimeAggregatorRegistry;
 
-/**
- * {@link Broker} for {@link RuntimeAggregatorRegistry}.
- */
+/** {@link Broker} for {@link RuntimeAggregatorRegistry}. */
 public class IterationAggregatorBroker extends Broker<RuntimeAggregatorRegistry> {
 
-	private static final IterationAggregatorBroker INSTANCE = new IterationAggregatorBroker();
+    private static final IterationAggregatorBroker INSTANCE = new IterationAggregatorBroker();
 
-	/**
-	 * Retrieve singleton instance.
-	 */
-	public static IterationAggregatorBroker instance() {
-		return INSTANCE;
-	}
+    /** Retrieve singleton instance. */
+    public static IterationAggregatorBroker instance() {
+        return INSTANCE;
+    }
 }

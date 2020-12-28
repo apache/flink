@@ -23,24 +23,20 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-/**
- * An interface to access basic properties of an operator in the context of its coordinator.
- */
+/** An interface to access basic properties of an operator in the context of its coordinator. */
 public interface OperatorInfo {
 
-	OperatorID operatorId();
+    OperatorID operatorId();
 
-	int maxParallelism();
+    int maxParallelism();
 
-	int currentParallelism();
+    int currentParallelism();
 
-	// ------------------------------------------------------------------------
-	//  utils
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  utils
+    // ------------------------------------------------------------------------
 
-	static Collection<OperatorID> getIds(Collection<? extends OperatorInfo> infos) {
-		return infos.stream()
-			.map(OperatorInfo::operatorId)
-			.collect(Collectors.toList());
-	}
+    static Collection<OperatorID> getIds(Collection<? extends OperatorInfo> infos) {
+        return infos.stream().map(OperatorInfo::operatorId).collect(Collectors.toList());
+    }
 }

@@ -25,27 +25,31 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 /**
  * Interface for shuffle service factory implementations.
  *
- * <p>This component is a light-weight factory for {@link ShuffleMaster} and {@link ShuffleEnvironment}.
+ * <p>This component is a light-weight factory for {@link ShuffleMaster} and {@link
+ * ShuffleEnvironment}.
  *
- * @param <SD> partition shuffle descriptor used for producer/consumer deployment and their data exchange.
+ * @param <SD> partition shuffle descriptor used for producer/consumer deployment and their data
+ *     exchange.
  * @param <P> type of provided result partition writers
  * @param <G> type of provided input gates
  */
-public interface ShuffleServiceFactory<SD extends ShuffleDescriptor, P extends ResultPartitionWriter, G extends IndexedInputGate> {
+public interface ShuffleServiceFactory<
+        SD extends ShuffleDescriptor, P extends ResultPartitionWriter, G extends IndexedInputGate> {
 
-	/**
-	 * Factory method to create a specific {@link ShuffleMaster} implementation.
-	 *
-	 * @param configuration Flink configuration
-	 * @return shuffle manager implementation
-	 */
-	ShuffleMaster<SD> createShuffleMaster(Configuration configuration);
+    /**
+     * Factory method to create a specific {@link ShuffleMaster} implementation.
+     *
+     * @param configuration Flink configuration
+     * @return shuffle manager implementation
+     */
+    ShuffleMaster<SD> createShuffleMaster(Configuration configuration);
 
-	/**
-	 * Factory method to create a specific local {@link ShuffleEnvironment} implementation.
-	 *
-	 * @param shuffleEnvironmentContext local context
-	 * @return local shuffle service environment implementation
-	 */
-	ShuffleEnvironment<P, G> createShuffleEnvironment(ShuffleEnvironmentContext shuffleEnvironmentContext);
+    /**
+     * Factory method to create a specific local {@link ShuffleEnvironment} implementation.
+     *
+     * @param shuffleEnvironmentContext local context
+     * @return local shuffle service environment implementation
+     */
+    ShuffleEnvironment<P, G> createShuffleEnvironment(
+            ShuffleEnvironmentContext shuffleEnvironmentContext);
 }

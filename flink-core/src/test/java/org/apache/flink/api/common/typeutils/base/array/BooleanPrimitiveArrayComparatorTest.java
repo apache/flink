@@ -18,28 +18,30 @@
 package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+
 import org.junit.Assert;
 
-public class BooleanPrimitiveArrayComparatorTest extends PrimitiveArrayComparatorTestBase<boolean[]> {
-	public BooleanPrimitiveArrayComparatorTest() {
-		super(PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO);
-	}
+public class BooleanPrimitiveArrayComparatorTest
+        extends PrimitiveArrayComparatorTestBase<boolean[]> {
+    public BooleanPrimitiveArrayComparatorTest() {
+        super(PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO);
+    }
 
-	@Override
-	protected void deepEquals(String message, boolean[] should, boolean[] is) {
-		Assert.assertTrue(should.length == is.length);
-		for(int x=0; x< should.length; x++) {
-			Assert.assertEquals(should[x], is[x]);
-		}
-	}
+    @Override
+    protected void deepEquals(String message, boolean[] should, boolean[] is) {
+        Assert.assertTrue(should.length == is.length);
+        for (int x = 0; x < should.length; x++) {
+            Assert.assertEquals(should[x], is[x]);
+        }
+    }
 
-	@Override
-	protected boolean[][] getSortedTestData() {
-		return new boolean[][]{
-			new boolean[]{false, false},
-			new boolean[]{false, true},
-			new boolean[]{false, true, true},
-			new boolean[]{true},
-		};
-	}
+    @Override
+    protected boolean[][] getSortedTestData() {
+        return new boolean[][] {
+            new boolean[] {false, false},
+            new boolean[] {false, true},
+            new boolean[] {false, true, true},
+            new boolean[] {true},
+        };
+    }
 }

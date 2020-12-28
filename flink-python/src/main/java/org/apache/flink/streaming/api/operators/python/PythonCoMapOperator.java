@@ -33,38 +33,46 @@ import org.apache.flink.types.Row;
  * @param <OUT> The output type of the CoMap function
  */
 @Internal
-public class PythonCoMapOperator<IN1, IN2, OUT> extends TwoInputPythonFunctionOperator<IN1, IN2, OUT> {
+public class PythonCoMapOperator<IN1, IN2, OUT>
+        extends TwoInputPythonFunctionOperator<IN1, IN2, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final String MAP_CODER_URN = "flink:coder:map:v1";
+    private static final String MAP_CODER_URN = "flink:coder:map:v1";
 
-	public PythonCoMapOperator(
-		Configuration config,
-		TypeInformation<IN1> inputTypeInfo1,
-		TypeInformation<IN2> inputTypeInfo2,
-		TypeInformation<OUT> outputTypeInfo,
-		DataStreamPythonFunctionInfo pythonFunctionInfo,
-		boolean isKeyedStream) {
-		super(config, inputTypeInfo1, inputTypeInfo2, outputTypeInfo, pythonFunctionInfo, isKeyedStream);
-	}
+    public PythonCoMapOperator(
+            Configuration config,
+            TypeInformation<IN1> inputTypeInfo1,
+            TypeInformation<IN2> inputTypeInfo2,
+            TypeInformation<OUT> outputTypeInfo,
+            DataStreamPythonFunctionInfo pythonFunctionInfo,
+            boolean isKeyedStream) {
+        super(
+                config,
+                inputTypeInfo1,
+                inputTypeInfo2,
+                outputTypeInfo,
+                pythonFunctionInfo,
+                isKeyedStream);
+    }
 
-	@Override
-	public String getFunctionUrn() {
-		return MAP_CODER_URN;
-	}
+    @Override
+    public String getFunctionUrn() {
+        return MAP_CODER_URN;
+    }
 
-	@Override
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-		byte[] rawResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		bais.setBuffer(rawResult, 0, length);
-		Row outputRow = runnerOutputTypeSerializer.deserialize(baisWrapper);
-		if ((byte) outputRow.getField(0) == PythonOperatorUtils.CoMapFunctionOutputFlag.LEFT.value) {
-			collector.setAbsoluteTimestamp(bufferedTimestamp1.poll());
-		} else {
-			collector.setAbsoluteTimestamp(bufferedTimestamp2.poll());
-		}
-		collector.collect(outputRow.getField(1));
-	}
+    @Override
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+        byte[] rawResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        bais.setBuffer(rawResult, 0, length);
+        Row outputRow = runnerOutputTypeSerializer.deserialize(baisWrapper);
+        if ((byte) outputRow.getField(0)
+                == PythonOperatorUtils.CoMapFunctionOutputFlag.LEFT.value) {
+            collector.setAbsoluteTimestamp(bufferedTimestamp1.poll());
+        } else {
+            collector.setAbsoluteTimestamp(bufferedTimestamp2.poll());
+        }
+        collector.collect(outputRow.getField(1));
+    }
 }

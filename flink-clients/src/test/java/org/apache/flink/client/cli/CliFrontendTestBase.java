@@ -22,16 +22,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.util.TestLogger;
 
-/**
- * Base test class for {@link CliFrontend} tests.
- */
+/** Base test class for {@link CliFrontend} tests. */
 public abstract class CliFrontendTestBase extends TestLogger {
 
-	protected Configuration getConfiguration() {
-		return GlobalConfiguration.loadConfiguration(CliFrontendTestUtils.getConfigDir());
-	}
+    protected Configuration getConfiguration() {
+        return GlobalConfiguration.loadConfiguration(CliFrontendTestUtils.getConfigDir());
+    }
 
-	static AbstractCustomCommandLine getCli() {
-		return new DefaultCLI();
-	}
+    static AbstractCustomCommandLine getCli() {
+        return new DefaultCLI();
+    }
 }

@@ -34,12 +34,15 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * This class contains algorithm to detect and resolve input priority conflict in an {@link ExecNode} graph.
+ * This class contains algorithm to detect and resolve input priority conflict in an {@link
+ * ExecNode} graph.
  *
- * <p>Some batch operators (for example, hash join and nested loop join) have different priorities for their inputs.
- * When some operators are reused, a deadlock may occur due to the conflict in these priorities.
+ * <p>Some batch operators (for example, hash join and nested loop join) have different priorities
+ * for their inputs. When some operators are reused, a deadlock may occur due to the conflict in
+ * these priorities.
  *
  * <p>For example, consider the SQL query:
+ *
  * <pre>
  * WITH
  *   T1 AS (SELECT a, COUNT(*) AS cnt1 FROM x GROUP BY a),
@@ -51,6 +54,7 @@ import java.util.TreeMap;
  * </pre>
  *
  * <p>When sub-plan reuse are enabled, we'll get the following physical plan:
+ *
  * <pre>
  * Union(all=[true], union=[cnt1, cnt2])
  * :- Calc(select=[CAST(cnt1) AS cnt1, cnt2])
@@ -71,140 +75,151 @@ import java.util.TreeMap;
  *       +- Reused(reference_id=[2])
  * </pre>
  *
- * <p>Note that the first hash join needs to read all results from the hash aggregate whose reuse id is 1
- * before reading the results from the hash aggregate whose reuse id is 2, while the second hash join requires
- * the opposite. This physical plan will thus cause a deadlock.
+ * <p>Note that the first hash join needs to read all results from the hash aggregate whose reuse id
+ * is 1 before reading the results from the hash aggregate whose reuse id is 2, while the second
+ * hash join requires the opposite. This physical plan will thus cause a deadlock.
  *
- * <p>This class maintains a topological graph in which an edge pointing from vertex A to vertex B indicates
- * that the results from vertex A need to be read before those from vertex B. A loop in the graph indicates
- * a deadlock, and different subclasses of this class resolve the conflict in different ways.
+ * <p>This class maintains a topological graph in which an edge pointing from vertex A to vertex B
+ * indicates that the results from vertex A need to be read before those from vertex B. A loop in
+ * the graph indicates a deadlock, and different subclasses of this class resolve the conflict in
+ * different ways.
  *
- * <p>For a detailed explanation of the algorithm, see appendix of the
- * <a href="https://docs.google.com/document/d/1qKVohV12qn-bM51cBZ8Hcgp31ntwClxjoiNBUOqVHsI">design doc</a>.
+ * <p>For a detailed explanation of the algorithm, see appendix of the <a
+ * href="https://docs.google.com/document/d/1qKVohV12qn-bM51cBZ8Hcgp31ntwClxjoiNBUOqVHsI">design
+ * doc</a>.
  */
 @Internal
 public abstract class InputPriorityGraphGenerator {
 
-	private final List<ExecNode<?>> roots;
-	private final Set<ExecNode<?>> boundaries;
-	private final ExecEdge.DamBehavior safeDamBehavior;
+    private final List<ExecNode<?>> roots;
+    private final Set<ExecNode<?>> boundaries;
+    private final ExecEdge.DamBehavior safeDamBehavior;
 
-	protected TopologyGraph graph;
+    protected TopologyGraph graph;
 
-	/**
-	 * Create an {@link InputPriorityGraphGenerator} for the given {@link ExecNode} sub-graph.
-	 *
-	 * @param roots the first layer of nodes on the output side of the sub-graph
-	 * @param boundaries the first layer of nodes on the input side of the sub-graph
-	 * @param safeDamBehavior when checking for conflicts we'll ignore the edges with
-	 *                        {@link ExecEdge.DamBehavior} stricter or equal than this
-	 */
-	public InputPriorityGraphGenerator(
-			List<ExecNode<?>> roots,
-			Set<ExecNode<?>> boundaries,
-			ExecEdge.DamBehavior safeDamBehavior) {
-		Preconditions.checkArgument(
-			roots.stream().allMatch(r -> r instanceof LegacyBatchExecNode || r instanceof BatchExecNode),
-			"InputPriorityConflictResolver can only be used for batch jobs.");
-		this.roots = roots;
-		this.boundaries = boundaries;
-		this.safeDamBehavior = safeDamBehavior;
-	}
+    /**
+     * Create an {@link InputPriorityGraphGenerator} for the given {@link ExecNode} sub-graph.
+     *
+     * @param roots the first layer of nodes on the output side of the sub-graph
+     * @param boundaries the first layer of nodes on the input side of the sub-graph
+     * @param safeDamBehavior when checking for conflicts we'll ignore the edges with {@link
+     *     ExecEdge.DamBehavior} stricter or equal than this
+     */
+    public InputPriorityGraphGenerator(
+            List<ExecNode<?>> roots,
+            Set<ExecNode<?>> boundaries,
+            ExecEdge.DamBehavior safeDamBehavior) {
+        Preconditions.checkArgument(
+                roots.stream()
+                        .allMatch(
+                                r ->
+                                        r instanceof LegacyBatchExecNode
+                                                || r instanceof BatchExecNode),
+                "InputPriorityConflictResolver can only be used for batch jobs.");
+        this.roots = roots;
+        this.boundaries = boundaries;
+        this.safeDamBehavior = safeDamBehavior;
+    }
 
-	protected void createTopologyGraph() {
-		// build an initial topology graph
-		graph = new TopologyGraph(roots, boundaries);
+    protected void createTopologyGraph() {
+        // build an initial topology graph
+        graph = new TopologyGraph(roots, boundaries);
 
-		// check and resolve conflicts about input priorities
-		AbstractExecNodeExactlyOnceVisitor inputPriorityVisitor = new AbstractExecNodeExactlyOnceVisitor() {
-			@Override
-			protected void visitNode(ExecNode<?> node) {
-				if (!boundaries.contains(node)) {
-					visitInputs(node);
-				}
-				updateTopologyGraph(node);
-			}
-		};
-		roots.forEach(n -> n.accept(inputPriorityVisitor));
-	}
+        // check and resolve conflicts about input priorities
+        AbstractExecNodeExactlyOnceVisitor inputPriorityVisitor =
+                new AbstractExecNodeExactlyOnceVisitor() {
+                    @Override
+                    protected void visitNode(ExecNode<?> node) {
+                        if (!boundaries.contains(node)) {
+                            visitInputs(node);
+                        }
+                        updateTopologyGraph(node);
+                    }
+                };
+        roots.forEach(n -> n.accept(inputPriorityVisitor));
+    }
 
-	private void updateTopologyGraph(ExecNode<?> node) {
-		// group inputs by input priorities
-		TreeMap<Integer, List<Integer>> inputPriorityGroupMap = new TreeMap<>();
-		Preconditions.checkState(
-			node.getInputNodes().size() == node.getInputEdges().size(),
-			"Number of inputs nodes does not equal to number of input edges for node " +
-				node.getClass().getName() + ". This is a bug.");
-		for (int i = 0; i < node.getInputEdges().size(); i++) {
-			int priority = node.getInputEdges().get(i).getPriority();
-			inputPriorityGroupMap.computeIfAbsent(priority, k -> new ArrayList<>()).add(i);
-		}
+    private void updateTopologyGraph(ExecNode<?> node) {
+        // group inputs by input priorities
+        TreeMap<Integer, List<Integer>> inputPriorityGroupMap = new TreeMap<>();
+        Preconditions.checkState(
+                node.getInputNodes().size() == node.getInputEdges().size(),
+                "Number of inputs nodes does not equal to number of input edges for node "
+                        + node.getClass().getName()
+                        + ". This is a bug.");
+        for (int i = 0; i < node.getInputEdges().size(); i++) {
+            int priority = node.getInputEdges().get(i).getPriority();
+            inputPriorityGroupMap.computeIfAbsent(priority, k -> new ArrayList<>()).add(i);
+        }
 
-		// add edges between neighboring priority groups
-		List<List<Integer>> inputPriorityGroups = new ArrayList<>(inputPriorityGroupMap.values());
-		for (int i = 0; i + 1 < inputPriorityGroups.size(); i++) {
-			List<Integer> higherGroup = inputPriorityGroups.get(i);
-			List<Integer> lowerGroup = inputPriorityGroups.get(i + 1);
+        // add edges between neighboring priority groups
+        List<List<Integer>> inputPriorityGroups = new ArrayList<>(inputPriorityGroupMap.values());
+        for (int i = 0; i + 1 < inputPriorityGroups.size(); i++) {
+            List<Integer> higherGroup = inputPriorityGroups.get(i);
+            List<Integer> lowerGroup = inputPriorityGroups.get(i + 1);
 
-			for (int higher : higherGroup) {
-				for (int lower : lowerGroup) {
-					addTopologyEdges(node, higher, lower);
-				}
-			}
-		}
-	}
+            for (int higher : higherGroup) {
+                for (int lower : lowerGroup) {
+                    addTopologyEdges(node, higher, lower);
+                }
+            }
+        }
+    }
 
-	private void addTopologyEdges(ExecNode<?> node, int higherInput, int lowerInput) {
-		ExecNode<?> higherNode = node.getInputNodes().get(higherInput);
-		ExecNode<?> lowerNode = node.getInputNodes().get(lowerInput);
-		List<ExecNode<?>> lowerAncestors = calculatePipelinedAncestors(lowerNode);
+    private void addTopologyEdges(ExecNode<?> node, int higherInput, int lowerInput) {
+        ExecNode<?> higherNode = node.getInputNodes().get(higherInput);
+        ExecNode<?> lowerNode = node.getInputNodes().get(lowerInput);
+        List<ExecNode<?>> lowerAncestors = calculatePipelinedAncestors(lowerNode);
 
-		List<Tuple2<ExecNode<?>, ExecNode<?>>> linkedEdges = new ArrayList<>();
-		for (ExecNode<?> ancestor : lowerAncestors) {
-			if (graph.link(higherNode, ancestor)) {
-				linkedEdges.add(Tuple2.of(higherNode, ancestor));
-			} else {
-				// a conflict occurs, resolve it and revert all linked edges
-				resolveInputPriorityConflict(node, higherInput, lowerInput);
-				for (Tuple2<ExecNode<?>, ExecNode<?>> linkedEdge : linkedEdges) {
-					graph.unlink(linkedEdge.f0, linkedEdge.f1);
-				}
-				return;
-			}
-		}
-	}
+        List<Tuple2<ExecNode<?>, ExecNode<?>>> linkedEdges = new ArrayList<>();
+        for (ExecNode<?> ancestor : lowerAncestors) {
+            if (graph.link(higherNode, ancestor)) {
+                linkedEdges.add(Tuple2.of(higherNode, ancestor));
+            } else {
+                // a conflict occurs, resolve it and revert all linked edges
+                resolveInputPriorityConflict(node, higherInput, lowerInput);
+                for (Tuple2<ExecNode<?>, ExecNode<?>> linkedEdge : linkedEdges) {
+                    graph.unlink(linkedEdge.f0, linkedEdge.f1);
+                }
+                return;
+            }
+        }
+    }
 
-	/**
-	 * Find the ancestors by going through PIPELINED edges.
-	 */
-	@VisibleForTesting
-	List<ExecNode<?>> calculatePipelinedAncestors(ExecNode<?> node) {
-		List<ExecNode<?>> ret = new ArrayList<>();
-		AbstractExecNodeExactlyOnceVisitor ancestorVisitor = new AbstractExecNodeExactlyOnceVisitor() {
-			@Override
-			protected void visitNode(ExecNode<?> node) {
-				boolean hasAncestor = false;
+    /** Find the ancestors by going through PIPELINED edges. */
+    @VisibleForTesting
+    List<ExecNode<?>> calculatePipelinedAncestors(ExecNode<?> node) {
+        List<ExecNode<?>> ret = new ArrayList<>();
+        AbstractExecNodeExactlyOnceVisitor ancestorVisitor =
+                new AbstractExecNodeExactlyOnceVisitor() {
+                    @Override
+                    protected void visitNode(ExecNode<?> node) {
+                        boolean hasAncestor = false;
 
-				if (!boundaries.contains(node)) {
-					List<ExecEdge> inputEdges = node.getInputEdges();
-					for (int i = 0; i < inputEdges.size(); i++) {
-						// we only go through PIPELINED edges
-						if (inputEdges.get(i).getDamBehavior().stricterOrEqual(safeDamBehavior)) {
-							continue;
-						}
-						hasAncestor = true;
-						node.getInputNodes().get(i).accept(this);
-					}
-				}
+                        if (!boundaries.contains(node)) {
+                            List<ExecEdge> inputEdges = node.getInputEdges();
+                            for (int i = 0; i < inputEdges.size(); i++) {
+                                // we only go through PIPELINED edges
+                                if (inputEdges
+                                        .get(i)
+                                        .getDamBehavior()
+                                        .stricterOrEqual(safeDamBehavior)) {
+                                    continue;
+                                }
+                                hasAncestor = true;
+                                node.getInputNodes().get(i).accept(this);
+                            }
+                        }
 
-				if (!hasAncestor) {
-					ret.add(node);
-				}
-			}
-		};
-		node.accept(ancestorVisitor);
-		return ret;
-	}
+                        if (!hasAncestor) {
+                            ret.add(node);
+                        }
+                    }
+                };
+        node.accept(ancestorVisitor);
+        return ret;
+    }
 
-	protected abstract void resolveInputPriorityConflict(ExecNode<?> node, int higherInput, int lowerInput);
+    protected abstract void resolveInputPriorityConflict(
+            ExecNode<?> node, int higherInput, int lowerInput);
 }

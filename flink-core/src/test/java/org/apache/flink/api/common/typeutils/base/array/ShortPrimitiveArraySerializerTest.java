@@ -20,35 +20,34 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
 
 /**
- * A test for the {@link LongPrimitiveArraySerializer}.
+ * A test for the {@link
+ * org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer}.
  */
 public class ShortPrimitiveArraySerializerTest extends SerializerTestBase<short[]> {
 
-	@Override
-	protected TypeSerializer<short[]> createSerializer() {
-		return new ShortPrimitiveArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<short[]> createSerializer() {
+        return new ShortPrimitiveArraySerializer();
+    }
 
-	@Override
-	protected Class<short[]> getTypeClass() {
-		return short[].class;
-	}
-	
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected Class<short[]> getTypeClass() {
+        return short[].class;
+    }
 
-	@Override
-	protected short[][] getTestData() {
-		return new short[][] {
-			new short[] {0, 1, 2, 3, -1, -2, -3, Short.MAX_VALUE, Short.MIN_VALUE},
-			new short[] {},
-			new short[] {-1, -2, 9673, 26782, 0, 0, 0}
-		};
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
+
+    @Override
+    protected short[][] getTestData() {
+        return new short[][] {
+            new short[] {0, 1, 2, 3, -1, -2, -3, Short.MAX_VALUE, Short.MIN_VALUE},
+            new short[] {},
+            new short[] {-1, -2, 9673, 26782, 0, 0, 0}
+        };
+    }
 }

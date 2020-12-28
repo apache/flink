@@ -23,48 +23,45 @@ import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 
 import java.util.Collection;
 
-/**
- * Utility for tracking partitions.
- */
-public interface TaskExecutorPartitionTracker extends PartitionTracker<JobID, TaskExecutorPartitionInfo> {
+/** Utility for tracking partitions. */
+public interface TaskExecutorPartitionTracker
+        extends PartitionTracker<JobID, TaskExecutorPartitionInfo> {
 
-	/**
-	 * Starts the tracking of the given partition for the given job.
-	 *
-	 * @param producingJobId ID of job by which the partition is produced
-	 * @param partitionInfo information about the partition
-	 */
-	void startTrackingPartition(JobID producingJobId, TaskExecutorPartitionInfo partitionInfo);
+    /**
+     * Starts the tracking of the given partition for the given job.
+     *
+     * @param producingJobId ID of job by which the partition is produced
+     * @param partitionInfo information about the partition
+     */
+    void startTrackingPartition(JobID producingJobId, TaskExecutorPartitionInfo partitionInfo);
 
-	/**
-	 * Releases the given partitions and stop the tracking of partitions that were released.
-	 */
-	void stopTrackingAndReleaseJobPartitions(Collection<ResultPartitionID> resultPartitionIds);
+    /** Releases the given partitions and stop the tracking of partitions that were released. */
+    void stopTrackingAndReleaseJobPartitions(Collection<ResultPartitionID> resultPartitionIds);
 
-	/**
-	 * Releases all partitions for the given job and stop the tracking of partitions that were released.
-	 */
-	void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId);
+    /**
+     * Releases all partitions for the given job and stop the tracking of partitions that were
+     * released.
+     */
+    void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId);
 
-	/**
-	 * Promotes the given partitions.
-	 */
-	void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote);
+    /** Promotes the given partitions. */
+    void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote);
 
-	/**
-	 * Releases partitions associated with the given datasets and stops tracking of partitions that were released.
-	 *
-	 * @param dataSetsToRelease data sets to release
-	 */
-	void stopTrackingAndReleaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease);
+    /**
+     * Releases partitions associated with the given datasets and stops tracking of partitions that
+     * were released.
+     *
+     * @param dataSetsToRelease data sets to release
+     */
+    void stopTrackingAndReleaseClusterPartitions(
+            Collection<IntermediateDataSetID> dataSetsToRelease);
 
-	/**
-	 * Releases and stops tracking all partitions.
-	 */
-	void stopTrackingAndReleaseAllClusterPartitions();
+    /** Releases and stops tracking all partitions. */
+    void stopTrackingAndReleaseAllClusterPartitions();
 
-	/**
-	 * Creates a {@link ClusterPartitionReport}, describing which cluster partitions are currently available.
-	 */
-	ClusterPartitionReport createClusterPartitionReport();
+    /**
+     * Creates a {@link ClusterPartitionReport}, describing which cluster partitions are currently
+     * available.
+     */
+    ClusterPartitionReport createClusterPartitionReport();
 }

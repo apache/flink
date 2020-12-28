@@ -40,211 +40,208 @@ import static org.jline.keymap.KeyMap.del;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
 
-/**
- * CLI view for entering a string.
- */
+/** CLI view for entering a string. */
 public class CliInputView extends CliView<CliInputView.InputOperation, String> {
 
-	private final String inputTitle;
-	private final Function<String, Boolean> validation;
-	private final StringBuilder currentInput;
-	private int cursorPos;
-	private boolean isError;
+    private final String inputTitle;
+    private final Function<String, Boolean> validation;
+    private final StringBuilder currentInput;
+    private int cursorPos;
+    private boolean isError;
 
-	public CliInputView(CliClient client, String inputTitle, Function<String, Boolean> validation) {
-		super(client);
+    public CliInputView(CliClient client, String inputTitle, Function<String, Boolean> validation) {
+        super(client);
 
-		this.inputTitle = inputTitle;
-		this.validation = validation;
-		currentInput = new StringBuilder();
-		cursorPos = 0;
-	}
+        this.inputTitle = inputTitle;
+        this.validation = validation;
+        currentInput = new StringBuilder();
+        cursorPos = 0;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	protected void init() {
-		// nothing to do
-	}
+    @Override
+    protected void init() {
+        // nothing to do
+    }
 
-	@Override
-	protected KeyMap<InputOperation> getKeys() {
-		final KeyMap<InputOperation> keys = new KeyMap<>();
-		keys.setUnicode(INSERT);
-		keys.setAmbiguousTimeout(200); // make ESC quicker
-		for (char i = 32; i < 256; i++) {
-			keys.bind(INSERT, Character.toString(i));
-		}
-		keys.bind(LEFT, key(client.getTerminal(), Capability.key_left));
-		keys.bind(RIGHT, key(client.getTerminal(), Capability.key_right));
-		keys.bind(BACKSPACE, del());
+    @Override
+    protected KeyMap<InputOperation> getKeys() {
+        final KeyMap<InputOperation> keys = new KeyMap<>();
+        keys.setUnicode(INSERT);
+        keys.setAmbiguousTimeout(200); // make ESC quicker
+        for (char i = 32; i < 256; i++) {
+            keys.bind(INSERT, Character.toString(i));
+        }
+        keys.bind(LEFT, key(client.getTerminal(), Capability.key_left));
+        keys.bind(RIGHT, key(client.getTerminal(), Capability.key_right));
+        keys.bind(BACKSPACE, del());
 
-		if (client.isPlainTerminal()) {
-			keys.bind(ENTER, "\r", "$");
-			keys.bind(QUIT, key(client.getTerminal(), Capability.key_exit), "!");
-		} else {
-			keys.bind(ENTER, "\r");
-			keys.bind(QUIT, esc());
-		}
-		return keys;
-	}
+        if (client.isPlainTerminal()) {
+            keys.bind(ENTER, "\r", "$");
+            keys.bind(QUIT, key(client.getTerminal(), Capability.key_exit), "!");
+        } else {
+            keys.bind(ENTER, "\r");
+            keys.bind(QUIT, esc());
+        }
+        return keys;
+    }
 
-	@Override
-	protected void evaluate(InputOperation operation, String binding) {
-		switch (operation) {
-			case QUIT:
-				close();
-				break;
-			case INSERT:
-				insert(binding);
-				break;
-			case ENTER:
-				submit();
-				break;
-			case LEFT:
-				moveCursorLeft();
-				break;
-			case RIGHT:
-				moveCursorRight();
-				break;
-			case BACKSPACE:
-				deleteLeft();
-				break;
-		}
-	}
+    @Override
+    protected void evaluate(InputOperation operation, String binding) {
+        switch (operation) {
+            case QUIT:
+                close();
+                break;
+            case INSERT:
+                insert(binding);
+                break;
+            case ENTER:
+                submit();
+                break;
+            case LEFT:
+                moveCursorLeft();
+                break;
+            case RIGHT:
+                moveCursorRight();
+                break;
+            case BACKSPACE:
+                deleteLeft();
+                break;
+        }
+    }
 
-	@Override
-	protected String getTitle() {
-		return CliStrings.INPUT_TITLE;
-	}
+    @Override
+    protected String getTitle() {
+        return CliStrings.INPUT_TITLE;
+    }
 
-	@Override
-	protected List<AttributedString> computeHeaderLines() {
-		return Collections.emptyList();
-	}
+    @Override
+    protected List<AttributedString> computeHeaderLines() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	protected List<AttributedString> computeFooterLines() {
-		return Collections.singletonList(CliStrings.INPUT_HELP);
-	}
+    @Override
+    protected List<AttributedString> computeFooterLines() {
+        return Collections.singletonList(CliStrings.INPUT_HELP);
+    }
 
-	@Override
-	protected List<AttributedString> computeMainHeaderLines() {
-		return Collections.emptyList();
-	}
+    @Override
+    protected List<AttributedString> computeMainHeaderLines() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	protected List<AttributedString> computeMainLines() {
-		final List<AttributedString> lines = new ArrayList<>();
+    @Override
+    protected List<AttributedString> computeMainLines() {
+        final List<AttributedString> lines = new ArrayList<>();
 
-		// space
-		IntStream.range(0, getVisibleMainHeight() / 2 - 2).forEach((i) -> lines.add(AttributedString.EMPTY));
+        // space
+        IntStream.range(0, getVisibleMainHeight() / 2 - 2)
+                .forEach((i) -> lines.add(AttributedString.EMPTY));
 
-		// title
-		lines.add(new AttributedString(CliStrings.DEFAULT_MARGIN + inputTitle));
+        // title
+        lines.add(new AttributedString(CliStrings.DEFAULT_MARGIN + inputTitle));
 
-		// input line
-		final AttributedStringBuilder inputLine = new AttributedStringBuilder();
-		inputLine.append(CliStrings.DEFAULT_MARGIN + "> ");
-		final String input = currentInput.toString();
-		// add string left of cursor
-		inputLine.append(currentInput.substring(0, cursorPos));
-		inputLine.style(AttributedStyle.DEFAULT.inverse().blink());
-		if (cursorPos < input.length()) {
-			inputLine.append(input.charAt(cursorPos));
-			inputLine.style(AttributedStyle.DEFAULT);
-			inputLine.append(input.substring(cursorPos + 1, input.length()));
-		} else {
-			inputLine.append(' '); // show the cursor at the end
-		}
+        // input line
+        final AttributedStringBuilder inputLine = new AttributedStringBuilder();
+        inputLine.append(CliStrings.DEFAULT_MARGIN + "> ");
+        final String input = currentInput.toString();
+        // add string left of cursor
+        inputLine.append(currentInput.substring(0, cursorPos));
+        inputLine.style(AttributedStyle.DEFAULT.inverse().blink());
+        if (cursorPos < input.length()) {
+            inputLine.append(input.charAt(cursorPos));
+            inputLine.style(AttributedStyle.DEFAULT);
+            inputLine.append(input.substring(cursorPos + 1, input.length()));
+        } else {
+            inputLine.append(' '); // show the cursor at the end
+        }
 
-		lines.add(inputLine.toAttributedString());
+        lines.add(inputLine.toAttributedString());
 
-		// isError
-		if (isError) {
-			final AttributedStringBuilder errorLine = new AttributedStringBuilder();
-			errorLine.style(AttributedStyle.DEFAULT.foreground(AttributedStyle.RED));
-			errorLine.append(CliStrings.DEFAULT_MARGIN + CliStrings.INPUT_ERROR);
-			lines.add(AttributedString.EMPTY);
-			lines.add(errorLine.toAttributedString());
-		}
+        // isError
+        if (isError) {
+            final AttributedStringBuilder errorLine = new AttributedStringBuilder();
+            errorLine.style(AttributedStyle.DEFAULT.foreground(AttributedStyle.RED));
+            errorLine.append(CliStrings.DEFAULT_MARGIN + CliStrings.INPUT_ERROR);
+            lines.add(AttributedString.EMPTY);
+            lines.add(errorLine.toAttributedString());
+        }
 
-		return lines;
-	}
+        return lines;
+    }
 
-	@Override
-	protected void cleanUp() {
-		// nothing to do
-	}
+    @Override
+    protected void cleanUp() {
+        // nothing to do
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private void insert(String binding) {
-		currentInput.insert(cursorPos, binding);
-		cursorPos += binding.length();
+    private void insert(String binding) {
+        currentInput.insert(cursorPos, binding);
+        cursorPos += binding.length();
 
-		// reset view
-		resetMainPart();
-	}
+        // reset view
+        resetMainPart();
+    }
 
-	private void deleteLeft() {
-		if (cursorPos > 0) {
-			currentInput.deleteCharAt(cursorPos - 1);
-			cursorPos--;
-		}
+    private void deleteLeft() {
+        if (cursorPos > 0) {
+            currentInput.deleteCharAt(cursorPos - 1);
+            cursorPos--;
+        }
 
-		// reset view
-		resetMainPart();
-	}
+        // reset view
+        resetMainPart();
+    }
 
-	private void moveCursorLeft() {
-		if (cursorPos > 0) {
-			cursorPos--;
-		}
+    private void moveCursorLeft() {
+        if (cursorPos > 0) {
+            cursorPos--;
+        }
 
-		// reset view
-		resetMainPart();
-	}
+        // reset view
+        resetMainPart();
+    }
 
-	private void moveCursorRight() {
-		if (cursorPos < currentInput.length()) {
-			cursorPos++;
-		}
+    private void moveCursorRight() {
+        if (cursorPos < currentInput.length()) {
+            cursorPos++;
+        }
 
-		// reset view
-		resetMainPart();
-	}
+        // reset view
+        resetMainPart();
+    }
 
-	private void submit() {
-		isError = false;
-		final String s = currentInput.toString();
-		// input cancelled
-		if (s.isEmpty()) {
-			close();
-		}
-		// validate and return
-		else if (validation.apply(s)) {
-			close(s);
-		}
-		// show error
-		else {
-			isError = true;
-			// reset view
-			resetMainPart();
-		}
-	}
+    private void submit() {
+        isError = false;
+        final String s = currentInput.toString();
+        // input cancelled
+        if (s.isEmpty()) {
+            close();
+        }
+        // validate and return
+        else if (validation.apply(s)) {
+            close(s);
+        }
+        // show error
+        else {
+            isError = true;
+            // reset view
+            resetMainPart();
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Available operations for this view.
-	 */
-	public enum InputOperation {
-		QUIT, // leave input view
-		INSERT, // input
-		ENTER, // apply input
-		LEFT, // cursor navigation
-		RIGHT, // cursor navigation
-		BACKSPACE, // delete left
-	}
+    /** Available operations for this view. */
+    public enum InputOperation {
+        QUIT, // leave input view
+        INSERT, // input
+        ENTER, // apply input
+        LEFT, // cursor navigation
+        RIGHT, // cursor navigation
+        BACKSPACE, // delete left
+    }
 }

@@ -40,38 +40,39 @@ import static org.mockito.Mockito.mock;
 @RunWith(Parameterized.class)
 public abstract class HeapStateBackendTestBase {
 
-	@Parameterized.Parameters
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(false, true);
-	}
+    @Parameterized.Parameters
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(false, true);
+    }
 
-	@Parameterized.Parameter
-	public boolean async;
+    @Parameterized.Parameter public boolean async;
 
-	public HeapKeyedStateBackend<String> createKeyedBackend(Collection<KeyedStateHandle> stateHandles) throws Exception {
-		return createKeyedBackend(StringSerializer.INSTANCE, stateHandles);
-	}
+    public HeapKeyedStateBackend<String> createKeyedBackend(
+            Collection<KeyedStateHandle> stateHandles) throws Exception {
+        return createKeyedBackend(StringSerializer.INSTANCE, stateHandles);
+    }
 
-	public <K> HeapKeyedStateBackend<K> createKeyedBackend(
-		TypeSerializer<K> keySerializer,
-		Collection<KeyedStateHandle> stateHandles) throws Exception {
-		final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 15);
-		final int numKeyGroups = keyGroupRange.getNumberOfKeyGroups();
-		ExecutionConfig executionConfig = new ExecutionConfig();
+    public <K> HeapKeyedStateBackend<K> createKeyedBackend(
+            TypeSerializer<K> keySerializer, Collection<KeyedStateHandle> stateHandles)
+            throws Exception {
+        final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 15);
+        final int numKeyGroups = keyGroupRange.getNumberOfKeyGroups();
+        ExecutionConfig executionConfig = new ExecutionConfig();
 
-		return new HeapKeyedStateBackendBuilder<>(
-			mock(TaskKvStateRegistry.class),
-			keySerializer,
-			HeapStateBackendTestBase.class.getClassLoader(),
-			numKeyGroups,
-			keyGroupRange,
-			executionConfig,
-			TtlTimeProvider.DEFAULT,
-			stateHandles,
-			AbstractStateBackend.getCompressionDecorator(executionConfig),
-			TestLocalRecoveryConfig.disabled(),
-			new HeapPriorityQueueSetFactory(keyGroupRange, numKeyGroups, 128),
-			async,
-			new CloseableRegistry()).build();
-	}
+        return new HeapKeyedStateBackendBuilder<>(
+                        mock(TaskKvStateRegistry.class),
+                        keySerializer,
+                        HeapStateBackendTestBase.class.getClassLoader(),
+                        numKeyGroups,
+                        keyGroupRange,
+                        executionConfig,
+                        TtlTimeProvider.DEFAULT,
+                        stateHandles,
+                        AbstractStateBackend.getCompressionDecorator(executionConfig),
+                        TestLocalRecoveryConfig.disabled(),
+                        new HeapPriorityQueueSetFactory(keyGroupRange, numKeyGroups, 128),
+                        async,
+                        new CloseableRegistry())
+                .build();
+    }
 }

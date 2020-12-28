@@ -20,15 +20,13 @@ package org.apache.flink.graph.asm.result;
 
 import org.apache.flink.graph.GraphAlgorithm;
 
-/**
- * Base interface for {@link GraphAlgorithm} results.
- */
+/** Base interface for {@link GraphAlgorithm} results. */
 public interface PrintableResult {
 
-	/**
-	 * A human-readable representation of this value.
-	 *
-	 * @return printable string
-	 */
-	String toPrintableString();
+    /**
+     * A human-readable representation of this value.
+     *
+     * @return printable string
+     */
+    String toPrintableString();
 }

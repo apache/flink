@@ -31,48 +31,54 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-class TtlListStateVerifier extends AbstractTtlStateVerifier<
-	ListStateDescriptor<String>, ListState<String>, List<String>, String, List<String>> {
-	TtlListStateVerifier() {
-		super(new ListStateDescriptor<>(TtlListStateVerifier.class.getSimpleName(), StringSerializer.INSTANCE));
-	}
+class TtlListStateVerifier
+        extends AbstractTtlStateVerifier<
+                ListStateDescriptor<String>,
+                ListState<String>,
+                List<String>,
+                String,
+                List<String>> {
+    TtlListStateVerifier() {
+        super(
+                new ListStateDescriptor<>(
+                        TtlListStateVerifier.class.getSimpleName(), StringSerializer.INSTANCE));
+    }
 
-	@Override
-	@Nonnull
-	State createState(@Nonnull FunctionInitializationContext context) {
-		return context.getKeyedStateStore().getListState(stateDesc);
-	}
+    @Override
+    @Nonnull
+    State createState(@Nonnull FunctionInitializationContext context) {
+        return context.getKeyedStateStore().getListState(stateDesc);
+    }
 
-	@Override
-	@Nonnull
-	public TypeSerializer<String> getUpdateSerializer() {
-		return StringSerializer.INSTANCE;
-	}
+    @Override
+    @Nonnull
+    public TypeSerializer<String> getUpdateSerializer() {
+        return StringSerializer.INSTANCE;
+    }
 
-	@Override
-	@Nonnull
-	public String generateRandomUpdate() {
-		return randomString();
-	}
+    @Override
+    @Nonnull
+    public String generateRandomUpdate() {
+        return randomString();
+    }
 
-	@Override
-	@Nonnull
-	List<String> getInternal(@Nonnull ListState<String> state) throws Exception {
-		return StreamSupport.stream(state.get().spliterator(), false)
-			.collect(Collectors.toList());
-	}
+    @Override
+    @Nonnull
+    List<String> getInternal(@Nonnull ListState<String> state) throws Exception {
+        return StreamSupport.stream(state.get().spliterator(), false).collect(Collectors.toList());
+    }
 
-	@Override
-	void updateInternal(@Nonnull ListState<String> state, String update) throws Exception {
-		state.add(update);
-	}
+    @Override
+    void updateInternal(@Nonnull ListState<String> state, String update) throws Exception {
+        state.add(update);
+    }
 
-	@Override
-	@Nonnull
-	List<String> expected(@Nonnull List<ValueWithTs<String>> updates, long currentTimestamp) {
-		return updates.stream()
-			.filter(u -> !expired(u.getTimestamp(), currentTimestamp))
-			.map(ValueWithTs::getValue)
-			.collect(Collectors.toList());
-	}
+    @Override
+    @Nonnull
+    List<String> expected(@Nonnull List<ValueWithTs<String>> updates, long currentTimestamp) {
+        return updates.stream()
+                .filter(u -> !expired(u.getTimestamp(), currentTimestamp))
+                .map(ValueWithTs::getValue)
+                .collect(Collectors.toList());
+    }
 }

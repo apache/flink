@@ -36,108 +36,87 @@ import java.util.stream.Collectors;
 /**
  * File system format factory for creating configured instances of reader and writer.
  *
- * @deprecated This interface has been replaced by {@link BulkReaderFormatFactory} and
- *             {@link BulkWriterFormatFactory}.
+ * @deprecated This interface has been replaced by {@link BulkReaderFormatFactory} and {@link
+ *     BulkWriterFormatFactory}.
  */
 @Deprecated
 @Internal
 public interface FileSystemFormatFactory extends Factory {
 
-	/**
-	 * Create {@link InputFormat} reader.
-	 */
-	InputFormat<RowData, ?> createReader(ReaderContext context);
+    /** Create {@link InputFormat} reader. */
+    InputFormat<RowData, ?> createReader(ReaderContext context);
 
-	/**
-	 * Context of {@link #createReader}.
-	 */
-	interface ReaderContext {
+    /** Context of {@link #createReader}. */
+    interface ReaderContext {
 
-		/**
-		 * Full schema of the table.
-		 */
-		TableSchema getSchema();
+        /** Full schema of the table. */
+        TableSchema getSchema();
 
-		/**
-		 * Options of this format.
-		 */
-		ReadableConfig getFormatOptions();
+        /** Options of this format. */
+        ReadableConfig getFormatOptions();
 
-		/**
-		 * Partition keys of the table.
-		 */
-		List<String> getPartitionKeys();
+        /** Partition keys of the table. */
+        List<String> getPartitionKeys();
 
-		/**
-		 * The default partition name in case the dynamic partition column value is
-		 * null/empty string.
-		 */
-		String getDefaultPartName();
+        /**
+         * The default partition name in case the dynamic partition column value is null/empty
+         * string.
+         */
+        String getDefaultPartName();
 
-		/**
-		 * Read paths.
-		 */
-		Path[] getPaths();
+        /** Read paths. */
+        Path[] getPaths();
 
-		/**
-		 * Project the fields of the reader returned.
-		 */
-		int[] getProjectFields();
+        /** Project the fields of the reader returned. */
+        int[] getProjectFields();
 
-		/**
-		 * Limiting push-down to reader. Reader only needs to try its best to limit the number
-		 * of output records, but does not need to guarantee that the number must be less than or
-		 * equal to the limit.
-		 */
-		long getPushedDownLimit();
+        /**
+         * Limiting push-down to reader. Reader only needs to try its best to limit the number of
+         * output records, but does not need to guarantee that the number must be less than or equal
+         * to the limit.
+         */
+        long getPushedDownLimit();
 
-		/**
-		 * Pushed down filters, reader can try its best to filter records.
-		 * The follow up operator will filter the records again.
-		 */
-		List<ResolvedExpression> getPushedDownFilters();
+        /**
+         * Pushed down filters, reader can try its best to filter records. The follow up operator
+         * will filter the records again.
+         */
+        List<ResolvedExpression> getPushedDownFilters();
 
-		/**
-		 * Get field names without partition keys.
-		 */
-		default String[] getFormatFieldNames() {
-			return Arrays.stream(getSchema().getFieldNames())
-				.filter(name -> !getPartitionKeys().contains(name))
-				.toArray(String[]::new);
-		}
+        /** Get field names without partition keys. */
+        default String[] getFormatFieldNames() {
+            return Arrays.stream(getSchema().getFieldNames())
+                    .filter(name -> !getPartitionKeys().contains(name))
+                    .toArray(String[]::new);
+        }
 
-		/**
-		 * Get field types without partition keys.
-		 */
-		default DataType[] getFormatFieldTypes() {
-			return Arrays.stream(getSchema().getFieldNames())
-				.filter(name -> !getPartitionKeys().contains(name))
-				.map(name -> getSchema().getFieldDataType(name).get())
-				.toArray(DataType[]::new);
-		}
+        /** Get field types without partition keys. */
+        default DataType[] getFormatFieldTypes() {
+            return Arrays.stream(getSchema().getFieldNames())
+                    .filter(name -> !getPartitionKeys().contains(name))
+                    .map(name -> getSchema().getFieldDataType(name).get())
+                    .toArray(DataType[]::new);
+        }
 
-		/**
-		 * RowType of table that excludes partition key fields.
-		 */
-		default RowType getFormatRowType() {
-			return RowType.of(
-				false,
-				Arrays.stream(getFormatFieldTypes())
-					.map(DataType::getLogicalType)
-					.toArray(LogicalType[]::new),
-				getFormatFieldNames());
-		}
+        /** RowType of table that excludes partition key fields. */
+        default RowType getFormatRowType() {
+            return RowType.of(
+                    false,
+                    Arrays.stream(getFormatFieldTypes())
+                            .map(DataType::getLogicalType)
+                            .toArray(LogicalType[]::new),
+                    getFormatFieldNames());
+        }
 
-		/**
-		 * Mapping from non-partition project fields index to all project fields index.
-		 */
-		default List<String> getFormatProjectFields() {
-			final List<String> selectFieldNames = Arrays.stream(getProjectFields())
-				.mapToObj(i -> getSchema().getFieldNames()[i])
-				.collect(Collectors.toList());
-			return selectFieldNames.stream()
-				.filter(name -> !getPartitionKeys().contains(name))
-				.collect(Collectors.toList());
-		}
-	}
+        /** Mapping from non-partition project fields index to all project fields index. */
+        default List<String> getFormatProjectFields() {
+            final List<String> selectFieldNames =
+                    Arrays.stream(getProjectFields())
+                            .mapToObj(i -> getSchema().getFieldNames()[i])
+                            .collect(Collectors.toList());
+            return selectFieldNames.stream()
+                    .filter(name -> !getPartitionKeys().contains(name))
+                    .collect(Collectors.toList());
+        }
+    }
 }

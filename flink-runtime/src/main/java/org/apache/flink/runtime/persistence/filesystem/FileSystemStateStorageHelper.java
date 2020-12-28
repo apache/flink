@@ -32,45 +32,47 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * {@link RetrievableStateStorageHelper} implementation which stores the state in the given filesystem path.
+ * {@link RetrievableStateStorageHelper} implementation which stores the state in the given
+ * filesystem path.
  *
  * @param <T> The type of the data that can be stored by this storage helper.
  */
-public class FileSystemStateStorageHelper<T extends Serializable> implements RetrievableStateStorageHelper<T> {
+public class FileSystemStateStorageHelper<T extends Serializable>
+        implements RetrievableStateStorageHelper<T> {
 
-	private final Path rootPath;
+    private final Path rootPath;
 
-	private final String prefix;
+    private final String prefix;
 
-	private final FileSystem fs;
+    private final FileSystem fs;
 
-	public FileSystemStateStorageHelper(Path rootPath, String prefix) throws IOException {
-		this.rootPath = Preconditions.checkNotNull(rootPath, "Root path");
-		this.prefix = Preconditions.checkNotNull(prefix, "Prefix");
+    public FileSystemStateStorageHelper(Path rootPath, String prefix) throws IOException {
+        this.rootPath = Preconditions.checkNotNull(rootPath, "Root path");
+        this.prefix = Preconditions.checkNotNull(prefix, "Prefix");
 
-		fs = FileSystem.get(rootPath.toUri());
-	}
+        fs = FileSystem.get(rootPath.toUri());
+    }
 
-	@Override
-	public RetrievableStateHandle<T> store(T state) throws Exception {
-		Exception latestException = null;
+    @Override
+    public RetrievableStateHandle<T> store(T state) throws Exception {
+        Exception latestException = null;
 
-		for (int attempt = 0; attempt < 10; attempt++) {
-			Path filePath = getNewFilePath();
+        for (int attempt = 0; attempt < 10; attempt++) {
+            Path filePath = getNewFilePath();
 
-			try (FSDataOutputStream outStream = fs.create(filePath, FileSystem.WriteMode.NO_OVERWRITE)) {
-				InstantiationUtil.serializeObject(outStream, state);
-				return new RetrievableStreamStateHandle<T>(filePath, outStream.getPos());
-			}
-			catch (Exception e) {
-				latestException = e;
-			}
-		}
+            try (FSDataOutputStream outStream =
+                    fs.create(filePath, FileSystem.WriteMode.NO_OVERWRITE)) {
+                InstantiationUtil.serializeObject(outStream, state);
+                return new RetrievableStreamStateHandle<T>(filePath, outStream.getPos());
+            } catch (Exception e) {
+                latestException = e;
+            }
+        }
 
-		throw new Exception("Could not open output stream for state backend", latestException);
-	}
+        throw new Exception("Could not open output stream for state backend", latestException);
+    }
 
-	private Path getNewFilePath() {
-		return new Path(rootPath, FileUtils.getRandomFilename(prefix));
-	}
+    private Path getNewFilePath() {
+        return new Path(rootPath, FileUtils.getRandomFilename(prefix));
+    }
 }

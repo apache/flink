@@ -31,53 +31,49 @@ import java.io.Serializable;
  */
 public abstract class Mapper implements Serializable {
 
-	/**
-	 * Schema of the input rows.
-	 */
-	private final String[] dataFieldNames;
-	private final DataType[] dataFieldTypes;
+    /** Schema of the input rows. */
+    private final String[] dataFieldNames;
 
-	/**
-	 * Parameters for the Mapper.
-	 * Users can set the params before the Mapper is executed.
-	 */
-	protected final Params params;
+    private final DataType[] dataFieldTypes;
 
-	/**
-	 * Construct a Mapper.
-	 *
-	 * @param dataSchema The schema of input rows.
-	 * @param params The parameters for this mapper.
-	 */
-	public Mapper(TableSchema dataSchema, Params params) {
-		this.dataFieldNames = dataSchema.getFieldNames();
-		this.dataFieldTypes = dataSchema.getFieldDataTypes();
-		this.params = (null == params) ? new Params() : params.clone();
-	}
+    /** Parameters for the Mapper. Users can set the params before the Mapper is executed. */
+    protected final Params params;
 
-	/**
-	 * Get the schema of input rows.
-	 *
-	 * @return The schema of input rows.
-	 */
-	protected TableSchema getDataSchema() {
-		return TableSchema.builder().fields(dataFieldNames, dataFieldTypes).build();
-	}
+    /**
+     * Construct a Mapper.
+     *
+     * @param dataSchema The schema of input rows.
+     * @param params The parameters for this mapper.
+     */
+    public Mapper(TableSchema dataSchema, Params params) {
+        this.dataFieldNames = dataSchema.getFieldNames();
+        this.dataFieldTypes = dataSchema.getFieldDataTypes();
+        this.params = (null == params) ? new Params() : params.clone();
+    }
 
-	/**
-	 * Map a row to a new row.
-	 *
-	 * @param row The input row.
-	 * @return A new row.
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation to fail.
-	 */
-	public abstract Row map(Row row) throws Exception;
+    /**
+     * Get the schema of input rows.
+     *
+     * @return The schema of input rows.
+     */
+    protected TableSchema getDataSchema() {
+        return TableSchema.builder().fields(dataFieldNames, dataFieldTypes).build();
+    }
 
-	/**
-	 * Get the schema of the output rows of {@link #map(Row)} method.
-	 *
-	 * @return The table schema of the output rows of {@link #map(Row)} method.
-	 */
-	public abstract TableSchema getOutputSchema();
+    /**
+     * Map a row to a new row.
+     *
+     * @param row The input row.
+     * @return A new row.
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail.
+     */
+    public abstract Row map(Row row) throws Exception;
 
+    /**
+     * Get the schema of the output rows of {@link #map(Row)} method.
+     *
+     * @return The table schema of the output rows of {@link #map(Row)} method.
+     */
+    public abstract TableSchema getOutputSchema();
 }

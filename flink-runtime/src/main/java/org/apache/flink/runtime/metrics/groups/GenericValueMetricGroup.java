@@ -34,24 +34,24 @@ import java.util.Map;
  */
 @Internal
 public class GenericValueMetricGroup extends GenericMetricGroup {
-	private String key;
-	private final String value;
+    private String key;
+    private final String value;
 
-	GenericValueMetricGroup(MetricRegistry registry, GenericKeyMetricGroup parent, String value) {
-		super(registry, parent, value);
-		this.key = parent.getGroupName(name -> name);
-		this.value = value;
-	}
+    GenericValueMetricGroup(MetricRegistry registry, GenericKeyMetricGroup parent, String value) {
+        super(registry, parent, value);
+        this.key = parent.getGroupName(name -> name);
+        this.value = value;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	protected void putVariables(Map<String, String> variables) {
-		variables.put(ScopeFormat.asVariable(this.key), value);
-	}
+    @Override
+    protected void putVariables(Map<String, String> variables) {
+        variables.put(ScopeFormat.asVariable(this.key), value);
+    }
 
-	@Override
-	protected String createLogicalScope(CharacterFilter filter, char delimiter) {
-		return parent.getLogicalScope(filter, delimiter);
-	}
+    @Override
+    protected String createLogicalScope(CharacterFilter filter, char delimiter) {
+        return parent.getLogicalScope(filter, delimiter);
+    }
 }

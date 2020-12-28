@@ -24,48 +24,46 @@ import org.apache.flink.api.connector.source.SourceOutput;
 
 import java.util.ArrayList;
 
-/**
- * A {@code ReaderOutput} for testing that collects the emitted records.
- */
+/** A {@code ReaderOutput} for testing that collects the emitted records. */
 public class TestingReaderOutput<E> implements ReaderOutput<E> {
 
-	private final ArrayList<E> emittedRecords = new ArrayList<>();
+    private final ArrayList<E> emittedRecords = new ArrayList<>();
 
-	@Override
-	public void collect(E record) {
-		emittedRecords.add(record);
-	}
+    @Override
+    public void collect(E record) {
+        emittedRecords.add(record);
+    }
 
-	@Override
-	public void collect(E record, long timestamp) {
-		collect(record);
-	}
+    @Override
+    public void collect(E record, long timestamp) {
+        collect(record);
+    }
 
-	@Override
-	public void emitWatermark(Watermark watermark) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void emitWatermark(Watermark watermark) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void markIdle() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void markIdle() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public SourceOutput<E> createOutputForSplit(String splitId) {
-		return this;
-	}
+    @Override
+    public SourceOutput<E> createOutputForSplit(String splitId) {
+        return this;
+    }
 
-	@Override
-	public void releaseOutputForSplit(String splitId) {}
+    @Override
+    public void releaseOutputForSplit(String splitId) {}
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public ArrayList<E> getEmittedRecords() {
-		return emittedRecords;
-	}
+    public ArrayList<E> getEmittedRecords() {
+        return emittedRecords;
+    }
 
-	public void clearEmittedRecords() {
-		emittedRecords.clear();
-	}
+    public void clearEmittedRecords() {
+        emittedRecords.clear();
+    }
 }

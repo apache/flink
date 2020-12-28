@@ -23,43 +23,44 @@ import org.apache.flink.table.client.config.Environment;
 import java.util.Objects;
 
 /**
- * Context describing a session, it's mainly used for user to open a new session in the backend. If client request to
- * open a new session, the backend {@link Executor} will maintain a {@link org.apache.flink.table.client.gateway.local.ExecutionContext}
- * for it, and each interaction the client need to attach the session id.
+ * Context describing a session, it's mainly used for user to open a new session in the backend. If
+ * client request to open a new session, the backend {@link Executor} will maintain a {@link
+ * org.apache.flink.table.client.gateway.local.ExecutionContext} for it, and each interaction the
+ * client need to attach the session id.
  */
 public class SessionContext {
 
-	private final String sessionId;
-	private final Environment sessionEnv;
+    private final String sessionId;
+    private final Environment sessionEnv;
 
-	public SessionContext(String sessionId, Environment sessionEnv) {
-		this.sessionId = sessionId;
-		this.sessionEnv = sessionEnv;
-	}
+    public SessionContext(String sessionId, Environment sessionEnv) {
+        this.sessionId = sessionId;
+        this.sessionEnv = sessionEnv;
+    }
 
-	public String getSessionId() {
-		return this.sessionId;
-	}
+    public String getSessionId() {
+        return this.sessionId;
+    }
 
-	public Environment getSessionEnv() {
-		return this.sessionEnv;
-	}
+    public Environment getSessionEnv() {
+        return this.sessionEnv;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (!(o instanceof SessionContext)) {
-			return false;
-		}
-		SessionContext context = (SessionContext) o;
-		return Objects.equals(sessionId, context.sessionId) &&
-			Objects.equals(sessionEnv, context.sessionEnv);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof SessionContext)) {
+            return false;
+        }
+        SessionContext context = (SessionContext) o;
+        return Objects.equals(sessionId, context.sessionId)
+                && Objects.equals(sessionEnv, context.sessionEnv);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(sessionId, sessionEnv);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(sessionId, sessionEnv);
+    }
 }

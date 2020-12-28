@@ -38,35 +38,37 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoader {
 
-	private final Collection<JobID> submittedJobIds;
+    private final Collection<JobID> submittedJobIds;
 
-	private final DispatcherGateway dispatcherGateway;
+    private final DispatcherGateway dispatcherGateway;
 
-	private final ScheduledExecutor retryExecutor;
+    private final ScheduledExecutor retryExecutor;
 
-	/**
-	 * Creates an {@link EmbeddedExecutorServiceLoader}.
-	 * @param submittedJobIds a list that is going to be filled by the {@link EmbeddedExecutor} with the job ids of the
-	 *                        new jobs that will be submitted. This is essentially used to return the submitted job ids
-	 *                        to the caller.
-	 * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit jobs.
-	 */
-	public EmbeddedExecutorServiceLoader(
-			final Collection<JobID> submittedJobIds,
-			final DispatcherGateway dispatcherGateway,
-			final ScheduledExecutor retryExecutor) {
-		this.submittedJobIds = checkNotNull(submittedJobIds);
-		this.dispatcherGateway = checkNotNull(dispatcherGateway);
-		this.retryExecutor = checkNotNull(retryExecutor);
-	}
+    /**
+     * Creates an {@link EmbeddedExecutorServiceLoader}.
+     *
+     * @param submittedJobIds a list that is going to be filled by the {@link EmbeddedExecutor} with
+     *     the job ids of the new jobs that will be submitted. This is essentially used to return
+     *     the submitted job ids to the caller.
+     * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit
+     *     jobs.
+     */
+    public EmbeddedExecutorServiceLoader(
+            final Collection<JobID> submittedJobIds,
+            final DispatcherGateway dispatcherGateway,
+            final ScheduledExecutor retryExecutor) {
+        this.submittedJobIds = checkNotNull(submittedJobIds);
+        this.dispatcherGateway = checkNotNull(dispatcherGateway);
+        this.retryExecutor = checkNotNull(retryExecutor);
+    }
 
-	@Override
-	public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
-		return new EmbeddedExecutorFactory(submittedJobIds, dispatcherGateway, retryExecutor);
-	}
+    @Override
+    public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
+        return new EmbeddedExecutorFactory(submittedJobIds, dispatcherGateway, retryExecutor);
+    }
 
-	@Override
-	public Stream<String> getExecutorNames() {
-		return Stream.<String>builder().add(EmbeddedExecutor.NAME).build();
-	}
+    @Override
+    public Stream<String> getExecutorNames() {
+        return Stream.<String>builder().add(EmbeddedExecutor.NAME).build();
+    }
 }

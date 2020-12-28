@@ -28,55 +28,54 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 /** Testing utility and factory methods for {@link TaskSlotTable} and {@link TaskSlot}s. */
 public enum TaskSlotUtils {
-	;
+    ;
 
-	private static final long DEFAULT_SLOT_TIMEOUT = 10000L;
+    private static final long DEFAULT_SLOT_TIMEOUT = 10000L;
 
-	public static final ResourceProfile DEFAULT_RESOURCE_PROFILE = ResourceProfile.newBuilder()
-		.setCpuCores(1.0)
-		.setTaskHeapMemory(new MemorySize(100 * 1024))
-		.setTaskOffHeapMemory(MemorySize.ZERO)
-		.setManagedMemory(new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE))
-		.setNetworkMemory(new MemorySize(100 * 1024))
-		.build();
+    public static final ResourceProfile DEFAULT_RESOURCE_PROFILE =
+            ResourceProfile.newBuilder()
+                    .setCpuCores(1.0)
+                    .setTaskHeapMemory(new MemorySize(100 * 1024))
+                    .setTaskOffHeapMemory(MemorySize.ZERO)
+                    .setManagedMemory(new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE))
+                    .setNetworkMemory(new MemorySize(100 * 1024))
+                    .build();
 
-	public static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(int numberOfSlots) {
-		return createTaskSlotTable(
-			numberOfSlots,
-			createDefaultTimerService());
-	}
+    public static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(
+            int numberOfSlots) {
+        return createTaskSlotTable(numberOfSlots, createDefaultTimerService());
+    }
 
-	public static <T extends TaskSlotPayload> TaskSlotTable<T> createTaskSlotTable(int numberOfSlots, Time timeout) {
-		return createTaskSlotTable(
-			numberOfSlots,
-			createDefaultTimerService(timeout.toMilliseconds()));
-	}
+    public static <T extends TaskSlotPayload> TaskSlotTable<T> createTaskSlotTable(
+            int numberOfSlots, Time timeout) {
+        return createTaskSlotTable(
+                numberOfSlots, createDefaultTimerService(timeout.toMilliseconds()));
+    }
 
-	private static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(
-			int numberOfSlots,
-			TimerService<AllocationID> timerService) {
-		return new TaskSlotTableImpl<>(
-			numberOfSlots,
-			createTotalResourceProfile(numberOfSlots),
-			DEFAULT_RESOURCE_PROFILE,
-			MemoryManager.MIN_PAGE_SIZE,
-			timerService,
-			Executors.newDirectExecutorService());
-	}
+    private static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(
+            int numberOfSlots, TimerService<AllocationID> timerService) {
+        return new TaskSlotTableImpl<>(
+                numberOfSlots,
+                createTotalResourceProfile(numberOfSlots),
+                DEFAULT_RESOURCE_PROFILE,
+                MemoryManager.MIN_PAGE_SIZE,
+                timerService,
+                Executors.newDirectExecutorService());
+    }
 
-	public static ResourceProfile createTotalResourceProfile(int numberOfSlots) {
-		ResourceProfile result = DEFAULT_RESOURCE_PROFILE;
-		for (int i = 0; i < numberOfSlots - 1; ++i) {
-			result = result.merge(DEFAULT_RESOURCE_PROFILE);
-		}
-		return result;
-	}
+    public static ResourceProfile createTotalResourceProfile(int numberOfSlots) {
+        ResourceProfile result = DEFAULT_RESOURCE_PROFILE;
+        for (int i = 0; i < numberOfSlots - 1; ++i) {
+            result = result.merge(DEFAULT_RESOURCE_PROFILE);
+        }
+        return result;
+    }
 
-	public static TimerService<AllocationID> createDefaultTimerService() {
-		return createDefaultTimerService(DEFAULT_SLOT_TIMEOUT);
-	}
+    public static TimerService<AllocationID> createDefaultTimerService() {
+        return createDefaultTimerService(DEFAULT_SLOT_TIMEOUT);
+    }
 
-	public static TimerService<AllocationID> createDefaultTimerService(long shutdownTimeout) {
-		return new TimerService<>(TestingUtils.defaultExecutor(), shutdownTimeout);
-	}
+    public static TimerService<AllocationID> createDefaultTimerService(long shutdownTimeout) {
+        return new TimerService<>(TestingUtils.defaultExecutor(), shutdownTimeout);
+    }
 }

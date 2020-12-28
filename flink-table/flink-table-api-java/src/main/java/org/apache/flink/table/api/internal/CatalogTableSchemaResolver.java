@@ -40,104 +40,109 @@ import org.apache.flink.table.types.utils.TypeConversions;
  * The {@link CatalogTableSchemaResolver} is used to derive correct result type of computed column,
  * because the date type of computed column from catalog table is not trusted.
  *
- * <p>Such as `proctime()` function, its type in given TableSchema is Timestamp(3),
- * but its correct type is Timestamp(3) *PROCTIME*.
+ * <p>Such as `proctime()` function, its type in given TableSchema is Timestamp(3), but its correct
+ * type is Timestamp(3) *PROCTIME*.
  */
 @Internal
 public class CatalogTableSchemaResolver {
-	private final Parser parser;
-	// A flag to indicate the table environment should work in a batch or streaming
-	// TODO remove this once FLINK-18180 is finished
-	private final boolean isStreamingMode;
+    private final Parser parser;
+    // A flag to indicate the table environment should work in a batch or streaming
+    // TODO remove this once FLINK-18180 is finished
+    private final boolean isStreamingMode;
 
-	public CatalogTableSchemaResolver(Parser parser, boolean isStreamingMode) {
-		this.parser = parser;
-		this.isStreamingMode = isStreamingMode;
-	}
+    public CatalogTableSchemaResolver(Parser parser, boolean isStreamingMode) {
+        this.parser = parser;
+        this.isStreamingMode = isStreamingMode;
+    }
 
-	/**
-	 * Resolve the computed column's type for the given schema.
-	 *
-	 * @param tableSchema Table schema to derive table field names and data types
-	 * @return the resolved TableSchema
-	 */
-	public TableSchema resolve(TableSchema tableSchema) {
-		final String rowtime;
-		if (!tableSchema.getWatermarkSpecs().isEmpty()) {
-			// TODO: [FLINK-14473] we only support top-level rowtime attribute right now
-			rowtime = tableSchema.getWatermarkSpecs().get(0).getRowtimeAttribute();
-			if (rowtime.contains(".")) {
-				throw new ValidationException(
-						String.format("Nested field '%s' as rowtime attribute is not supported right now.", rowtime));
-			}
-		} else {
-			rowtime = null;
-		}
+    /**
+     * Resolve the computed column's type for the given schema.
+     *
+     * @param tableSchema Table schema to derive table field names and data types
+     * @return the resolved TableSchema
+     */
+    public TableSchema resolve(TableSchema tableSchema) {
+        final String rowtime;
+        if (!tableSchema.getWatermarkSpecs().isEmpty()) {
+            // TODO: [FLINK-14473] we only support top-level rowtime attribute right now
+            rowtime = tableSchema.getWatermarkSpecs().get(0).getRowtimeAttribute();
+            if (rowtime.contains(".")) {
+                throw new ValidationException(
+                        String.format(
+                                "Nested field '%s' as rowtime attribute is not supported right now.",
+                                rowtime));
+            }
+        } else {
+            rowtime = null;
+        }
 
-		String[] fieldNames = tableSchema.getFieldNames();
-		DataType[] fieldTypes = tableSchema.getFieldDataTypes();
+        String[] fieldNames = tableSchema.getFieldNames();
+        DataType[] fieldTypes = tableSchema.getFieldDataTypes();
 
-		TableSchema.Builder builder = TableSchema.builder();
-		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
-			TableColumn tableColumn = tableSchema.getTableColumns().get(i);
-			DataType fieldType = fieldTypes[i];
+        TableSchema.Builder builder = TableSchema.builder();
+        for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
+            TableColumn tableColumn = tableSchema.getTableColumns().get(i);
+            DataType fieldType = fieldTypes[i];
 
-			if (tableColumn instanceof ComputedColumn) {
-				final ComputedColumn computedColumn = (ComputedColumn) tableColumn;
-				fieldType = resolveExpressionDataType(computedColumn.getExpression(), tableSchema);
-				if (isProctime(fieldType)) {
-					if (fieldNames[i].equals(rowtime)) {
-						throw new TableException("Watermark can not be defined for a processing time attribute column.");
-					}
-				}
-			}
+            if (tableColumn instanceof ComputedColumn) {
+                final ComputedColumn computedColumn = (ComputedColumn) tableColumn;
+                fieldType = resolveExpressionDataType(computedColumn.getExpression(), tableSchema);
+                if (isProctime(fieldType)) {
+                    if (fieldNames[i].equals(rowtime)) {
+                        throw new TableException(
+                                "Watermark can not be defined for a processing time attribute column.");
+                    }
+                }
+            }
 
-			if (isStreamingMode && fieldNames[i].equals(rowtime)) {
-				TimestampType originalType = (TimestampType) fieldType.getLogicalType();
-				LogicalType rowtimeType = new TimestampType(
-						originalType.isNullable(),
-						TimestampKind.ROWTIME,
-						originalType.getPrecision());
-				fieldType = TypeConversions.fromLogicalToDataType(rowtimeType);
-			}
+            if (isStreamingMode && fieldNames[i].equals(rowtime)) {
+                TimestampType originalType = (TimestampType) fieldType.getLogicalType();
+                LogicalType rowtimeType =
+                        new TimestampType(
+                                originalType.isNullable(),
+                                TimestampKind.ROWTIME,
+                                originalType.getPrecision());
+                fieldType = TypeConversions.fromLogicalToDataType(rowtimeType);
+            }
 
-			if (tableColumn instanceof PhysicalColumn) {
-				builder.add(
-					TableColumn.physical(fieldNames[i], fieldType)
-				);
-			} else if (tableColumn instanceof ComputedColumn) {
-				final ComputedColumn computedColumn = (ComputedColumn) tableColumn;
-				builder.add(
-					TableColumn.computed(fieldNames[i], fieldType, computedColumn.getExpression())
-				);
-			} else if (tableColumn instanceof MetadataColumn) {
-				final MetadataColumn metadataColumn = (MetadataColumn) tableColumn;
-				builder.add(
-					TableColumn.metadata(
-						fieldNames[i],
-						fieldType,
-						metadataColumn.getMetadataAlias().orElse(null),
-						metadataColumn.isVirtual())
-				);
-			}
-		}
+            if (tableColumn instanceof PhysicalColumn) {
+                builder.add(TableColumn.physical(fieldNames[i], fieldType));
+            } else if (tableColumn instanceof ComputedColumn) {
+                final ComputedColumn computedColumn = (ComputedColumn) tableColumn;
+                builder.add(
+                        TableColumn.computed(
+                                fieldNames[i], fieldType, computedColumn.getExpression()));
+            } else if (tableColumn instanceof MetadataColumn) {
+                final MetadataColumn metadataColumn = (MetadataColumn) tableColumn;
+                builder.add(
+                        TableColumn.metadata(
+                                fieldNames[i],
+                                fieldType,
+                                metadataColumn.getMetadataAlias().orElse(null),
+                                metadataColumn.isVirtual()));
+            }
+        }
 
-		tableSchema.getWatermarkSpecs().forEach(builder::watermark);
-		tableSchema.getPrimaryKey().ifPresent(
-				pk -> builder.primaryKey(pk.getName(), pk.getColumns().toArray(new String[0])));
-		return builder.build();
-	}
+        tableSchema.getWatermarkSpecs().forEach(builder::watermark);
+        tableSchema
+                .getPrimaryKey()
+                .ifPresent(
+                        pk ->
+                                builder.primaryKey(
+                                        pk.getName(), pk.getColumns().toArray(new String[0])));
+        return builder.build();
+    }
 
-	private boolean isProctime(DataType exprType) {
-		return LogicalTypeChecks.hasFamily(exprType.getLogicalType(), LogicalTypeFamily.TIMESTAMP) &&
-			LogicalTypeChecks.isProctimeAttribute(exprType.getLogicalType());
-	}
+    private boolean isProctime(DataType exprType) {
+        return LogicalTypeChecks.hasFamily(exprType.getLogicalType(), LogicalTypeFamily.TIMESTAMP)
+                && LogicalTypeChecks.isProctimeAttribute(exprType.getLogicalType());
+    }
 
-	private DataType resolveExpressionDataType(String expr, TableSchema tableSchema) {
-		ResolvedExpression resolvedExpr = parser.parseSqlExpression(expr, tableSchema);
-		if (resolvedExpr == null) {
-			throw new ValidationException("Could not resolve field expression: " + expr);
-		}
-		return resolvedExpr.getOutputDataType();
-	}
+    private DataType resolveExpressionDataType(String expr, TableSchema tableSchema) {
+        ResolvedExpression resolvedExpr = parser.parseSqlExpression(expr, tableSchema);
+        if (resolvedExpr == null) {
+            throw new ValidationException("Could not resolve field expression: " + expr);
+        }
+        return resolvedExpr.getOutputDataType();
+    }
 }

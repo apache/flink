@@ -49,94 +49,101 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 import static org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER;
 
-/**
- * Stream {@link ExecNode} to connect a given {@link DataStream} and consume data from it.
- */
-public class StreamExecDataStreamScan extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
-	private final DataStream<?> dataStream;
-	private final DataType sourceType;
-	private final int[] fieldIndexes;
-	private final String[] fieldNames;
-	private final List<String> qualifiedName;
+/** Stream {@link ExecNode} to connect a given {@link DataStream} and consume data from it. */
+public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData> {
+    private final DataStream<?> dataStream;
+    private final DataType sourceType;
+    private final int[] fieldIndexes;
+    private final String[] fieldNames;
+    private final List<String> qualifiedName;
 
-	public StreamExecDataStreamScan(
-			DataStream<?> dataStream,
-			DataType sourceType,
-			int[] fieldIndexes,
-			String[] fieldNames,
-			List<String> qualifiedName,
-			RowType outputType,
-			String description) {
-		super(Collections.emptyList(), outputType, description);
-		this.dataStream = dataStream;
-		this.sourceType = sourceType;
-		this.fieldIndexes = fieldIndexes;
-		this.fieldNames = fieldNames;
-		this.qualifiedName = qualifiedName;
-	}
+    public StreamExecDataStreamScan(
+            DataStream<?> dataStream,
+            DataType sourceType,
+            int[] fieldIndexes,
+            String[] fieldNames,
+            List<String> qualifiedName,
+            RowType outputType,
+            String description) {
+        super(Collections.emptyList(), outputType, description);
+        this.dataStream = dataStream;
+        this.sourceType = sourceType;
+        this.fieldIndexes = fieldIndexes;
+        this.fieldNames = fieldNames;
+        this.qualifiedName = qualifiedName;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final Transformation<?> sourceTransform = dataStream.getTransformation();
-		final Optional<RexNode> rowtimeExpr = getRowtimeExpression(planner.getRelBuilder());
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final Transformation<?> sourceTransform = dataStream.getTransformation();
+        final Optional<RexNode> rowtimeExpr = getRowtimeExpression(planner.getRelBuilder());
 
-		final Transformation<RowData> transformation;
-		// when there is row time extraction expression, we need internal conversion
-		// when the physical type of the input date stream is not RowData, we need internal conversion.
-		if (rowtimeExpr.isPresent() || ScanUtil.needsConversion(sourceType)) {
-			final String extractElement, resetElement;
-			if (ScanUtil.hasTimeAttributeField(fieldIndexes)) {
-				String elementTerm = OperatorCodeGenerator.ELEMENT();
-				extractElement = String.format("ctx.%s = %s;", elementTerm, elementTerm);
-				resetElement = String.format("ctx.%s = null;", elementTerm);
-			} else {
-				extractElement = "";
-				resetElement = "";
-			}
-			CodeGeneratorContext ctx = new CodeGeneratorContext(planner.getTableConfig())
-					.setOperatorBaseClass(AbstractProcessStreamOperator.class);
-			transformation = ScanUtil.convertToInternalRow(
-					ctx,
-					(Transformation<Object>) sourceTransform,
-					fieldIndexes,
-					sourceType,
-					(RowType) getOutputType(),
-					qualifiedName,
-					JavaScalaConversionUtil.toScala(rowtimeExpr),
-					extractElement,
-					resetElement);
-		} else {
-			transformation = (Transformation<RowData>) sourceTransform;
-		}
-		return transformation;
-	}
+        final Transformation<RowData> transformation;
+        // when there is row time extraction expression, we need internal conversion
+        // when the physical type of the input date stream is not RowData, we need internal
+        // conversion.
+        if (rowtimeExpr.isPresent() || ScanUtil.needsConversion(sourceType)) {
+            final String extractElement, resetElement;
+            if (ScanUtil.hasTimeAttributeField(fieldIndexes)) {
+                String elementTerm = OperatorCodeGenerator.ELEMENT();
+                extractElement = String.format("ctx.%s = %s;", elementTerm, elementTerm);
+                resetElement = String.format("ctx.%s = null;", elementTerm);
+            } else {
+                extractElement = "";
+                resetElement = "";
+            }
+            CodeGeneratorContext ctx =
+                    new CodeGeneratorContext(planner.getTableConfig())
+                            .setOperatorBaseClass(AbstractProcessStreamOperator.class);
+            transformation =
+                    ScanUtil.convertToInternalRow(
+                            ctx,
+                            (Transformation<Object>) sourceTransform,
+                            fieldIndexes,
+                            sourceType,
+                            (RowType) getOutputType(),
+                            qualifiedName,
+                            JavaScalaConversionUtil.toScala(rowtimeExpr),
+                            extractElement,
+                            resetElement);
+        } else {
+            transformation = (Transformation<RowData>) sourceTransform;
+        }
+        return transformation;
+    }
 
-	private Optional<RexNode> getRowtimeExpression(FlinkRelBuilder relBuilder) {
-		final List<Integer> fields = Arrays.stream(fieldIndexes).boxed().collect(Collectors.toList());
-		if (!fields.contains(ROWTIME_STREAM_MARKER)) {
-			return Optional.empty();
-		} else {
-			String rowtimeField = fieldNames[fields.indexOf(ROWTIME_STREAM_MARKER)];
-			// get expression to extract timestamp
-			LogicalType logicalType = fromDataTypeToLogicalType(sourceType);
-			if (logicalType instanceof RowType) {
-				RowType rowType = (RowType) logicalType;
-				if (rowType.getFieldNames().contains(rowtimeField) &&
-						TypeCheckUtils.isRowTime(rowType.getTypeAt(rowType.getFieldIndex(rowtimeField)))) {
-					// if rowtimeField already existed in the data stream, use the default rowtime
-					return Optional.empty();
-				}
-			}
-			return Optional.of(
-					relBuilder.cast(
-							relBuilder.call(new StreamRecordTimestampSqlFunction()),
-							relBuilder.getTypeFactory().createFieldTypeFromLogicalType(
-									new TimestampType(true, TimestampKind.ROWTIME, 3)).getSqlTypeName()));
-		}
-	}
+    private Optional<RexNode> getRowtimeExpression(FlinkRelBuilder relBuilder) {
+        final List<Integer> fields =
+                Arrays.stream(fieldIndexes).boxed().collect(Collectors.toList());
+        if (!fields.contains(ROWTIME_STREAM_MARKER)) {
+            return Optional.empty();
+        } else {
+            String rowtimeField = fieldNames[fields.indexOf(ROWTIME_STREAM_MARKER)];
+            // get expression to extract timestamp
+            LogicalType logicalType = fromDataTypeToLogicalType(sourceType);
+            if (logicalType instanceof RowType) {
+                RowType rowType = (RowType) logicalType;
+                if (rowType.getFieldNames().contains(rowtimeField)
+                        && TypeCheckUtils.isRowTime(
+                                rowType.getTypeAt(rowType.getFieldIndex(rowtimeField)))) {
+                    // if rowtimeField already existed in the data stream, use the default rowtime
+                    return Optional.empty();
+                }
+            }
+            return Optional.of(
+                    relBuilder.cast(
+                            relBuilder.call(new StreamRecordTimestampSqlFunction()),
+                            relBuilder
+                                    .getTypeFactory()
+                                    .createFieldTypeFromLogicalType(
+                                            new TimestampType(true, TimestampKind.ROWTIME, 3))
+                                    .getSqlTypeName()));
+        }
+    }
 
-	public DataStream<?> getDataStream() {
-		return dataStream;
-	}
+    public DataStream<?> getDataStream() {
+        return dataStream;
+    }
 }

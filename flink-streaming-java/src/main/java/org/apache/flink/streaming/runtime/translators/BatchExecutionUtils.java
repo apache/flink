@@ -36,63 +36,55 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * A utility class for applying sorting inputs.
- */
+/** A utility class for applying sorting inputs. */
 class BatchExecutionUtils {
-	private static final Logger LOG = LoggerFactory.getLogger(BatchExecutionUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BatchExecutionUtils.class);
 
-	static void applySortingInputs(
-			int transformationId,
-			TransformationTranslator.Context context) {
-		StreamNode node = context.getStreamGraph().getStreamNode(transformationId);
-		boolean sortInputs = context.getGraphGeneratorConfig().get(ExecutionOptions.SORT_INPUTS);
-		boolean isInputSelectable = isInputSelectable(node);
+    static void applySortingInputs(int transformationId, TransformationTranslator.Context context) {
+        StreamNode node = context.getStreamGraph().getStreamNode(transformationId);
+        boolean sortInputs = context.getGraphGeneratorConfig().get(ExecutionOptions.SORT_INPUTS);
+        boolean isInputSelectable = isInputSelectable(node);
 
-		adjustChainingStrategy(node);
+        adjustChainingStrategy(node);
 
-		checkState(
-			!isInputSelectable || !sortInputs,
-			"Batch state backend and sorting inputs are not supported in graphs with an InputSelectable operator."
-		);
+        checkState(
+                !isInputSelectable || !sortInputs,
+                "Batch state backend and sorting inputs are not supported in graphs with an InputSelectable operator.");
 
-		if (sortInputs) {
-			LOG.debug("Enabling sorting inputs for an operator {}.", node);
-			node.setSortedInputs(true);
-			Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights = new HashMap<>();
-			operatorScopeUseCaseWeights.put(ManagedMemoryUseCase.BATCH_OP, 1);
-			node.setManagedMemoryUseCaseWeights(
-				operatorScopeUseCaseWeights,
-				Collections.emptySet()
-			);
-		}
-	}
+        if (sortInputs) {
+            LOG.debug("Enabling sorting inputs for an operator {}.", node);
+            node.setSortedInputs(true);
+            Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights = new HashMap<>();
+            operatorScopeUseCaseWeights.put(ManagedMemoryUseCase.BATCH_OP, 1);
+            node.setManagedMemoryUseCaseWeights(
+                    operatorScopeUseCaseWeights, Collections.emptySet());
+        }
+    }
 
-	@SuppressWarnings("rawtypes")
-	private static boolean isInputSelectable(StreamNode node) {
-		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-		Class<? extends StreamOperator> operatorClass = node.getOperatorFactory()
-			.getStreamOperatorClass(classLoader);
-		return InputSelectable.class.isAssignableFrom(operatorClass);
-	}
+    @SuppressWarnings("rawtypes")
+    private static boolean isInputSelectable(StreamNode node) {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        Class<? extends StreamOperator> operatorClass =
+                node.getOperatorFactory().getStreamOperatorClass(classLoader);
+        return InputSelectable.class.isAssignableFrom(operatorClass);
+    }
 
-	private static void adjustChainingStrategy(StreamNode node) {
-		StreamOperatorFactory<?> operatorFactory = node.getOperatorFactory();
-		ChainingStrategy currentChainingStrategy = operatorFactory.getChainingStrategy();
-		switch (currentChainingStrategy) {
-			case ALWAYS:
-			case HEAD_WITH_SOURCES:
-				LOG.debug(
-					"Setting chaining strategy to HEAD for operator {}, because of the BATCH execution mode.",
-					node);
-				operatorFactory.setChainingStrategy(ChainingStrategy.HEAD);
-				break;
-			case NEVER:
-			case HEAD:
-				break;
-		}
-	}
+    private static void adjustChainingStrategy(StreamNode node) {
+        StreamOperatorFactory<?> operatorFactory = node.getOperatorFactory();
+        ChainingStrategy currentChainingStrategy = operatorFactory.getChainingStrategy();
+        switch (currentChainingStrategy) {
+            case ALWAYS:
+            case HEAD_WITH_SOURCES:
+                LOG.debug(
+                        "Setting chaining strategy to HEAD for operator {}, because of the BATCH execution mode.",
+                        node);
+                operatorFactory.setChainingStrategy(ChainingStrategy.HEAD);
+                break;
+            case NEVER:
+            case HEAD:
+                break;
+        }
+    }
 
-	private BatchExecutionUtils() {
-	}
+    private BatchExecutionUtils() {}
 }

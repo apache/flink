@@ -29,41 +29,40 @@ import org.apache.flink.table.expressions.ResolvedFieldReference;
  * schema of a {@link TableSource} from one or more fields of the {@link TableSource}'s return type.
  *
  * @param <T> The result type of the provided expression.
- *
- * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
- *             which only works with the Blink planner. Use the concept of computed columns instead.
- *             See FLIP-95 for more information.
+ * @deprecated This interface will not be supported in the new source design around {@link
+ *     DynamicTableSource} which only works with the Blink planner. Use the concept of computed
+ *     columns instead. See FLIP-95 for more information.
  */
 @Deprecated
 @PublicEvolving
 public interface FieldComputer<T> {
 
-	/**
-	 * Returns the names of all fields that the expression of the field computer accesses.
-	 *
-	 * @return An array with the names of all accessed fields.
-	 */
-	String[] getArgumentFields();
+    /**
+     * Returns the names of all fields that the expression of the field computer accesses.
+     *
+     * @return An array with the names of all accessed fields.
+     */
+    String[] getArgumentFields();
 
-	/**
-	 * Returns the result type of the expression.
-	 *
-	 * @return The result type of the expression.
-	 */
-	TypeInformation<T> getReturnType();
+    /**
+     * Returns the result type of the expression.
+     *
+     * @return The result type of the expression.
+     */
+    TypeInformation<T> getReturnType();
 
-	/**
-	 * Validates that the fields that the expression references have the correct types.
-	 *
-	 * @param argumentFieldTypes The types of the physical input fields.
-	 */
-	void validateArgumentFields(TypeInformation<?>[] argumentFieldTypes);
+    /**
+     * Validates that the fields that the expression references have the correct types.
+     *
+     * @param argumentFieldTypes The types of the physical input fields.
+     */
+    void validateArgumentFields(TypeInformation<?>[] argumentFieldTypes);
 
-	/**
-	 * Returns the {@link Expression} that computes the value of the field.
-	 *
-	 * @param fieldAccesses Field access expressions for the argument fields.
-	 * @return The expression to extract the timestamp from the {@link TableSource} return type.
-	 */
-	Expression getExpression(ResolvedFieldReference[] fieldAccesses);
+    /**
+     * Returns the {@link Expression} that computes the value of the field.
+     *
+     * @param fieldAccesses Field access expressions for the argument fields.
+     * @return The expression to extract the timestamp from the {@link TableSource} return type.
+     */
+    Expression getExpression(ResolvedFieldReference[] fieldAccesses);
 }

@@ -24,25 +24,25 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Extended {@link MainThreadExecutable} interface which allows to run unfenced runnables
- * in the main thread.
+ * Extended {@link MainThreadExecutable} interface which allows to run unfenced runnables in the
+ * main thread.
  */
 public interface FencedMainThreadExecutable extends MainThreadExecutable {
 
-	/**
-	 * Run the given runnable in the main thread without attaching a fencing token.
-	 *
-	 * @param runnable to run in the main thread without validating the fencing token.
-	 */
-	void runAsyncWithoutFencing(Runnable runnable);
+    /**
+     * Run the given runnable in the main thread without attaching a fencing token.
+     *
+     * @param runnable to run in the main thread without validating the fencing token.
+     */
+    void runAsyncWithoutFencing(Runnable runnable);
 
-	/**
-	 * Run the given callable in the main thread without attaching a fencing token.
-	 *
-	 * @param callable to run in the main thread without validating the fencing token.
-	 * @param timeout for the operation
-	 * @param <V> type of the callable result
-	 * @return Future containing the callable result
-	 */
-	<V> CompletableFuture<V> callAsyncWithoutFencing(Callable<V> callable, Time timeout);
+    /**
+     * Run the given callable in the main thread without attaching a fencing token.
+     *
+     * @param callable to run in the main thread without validating the fencing token.
+     * @param timeout for the operation
+     * @param <V> type of the callable result
+     * @return Future containing the callable result
+     */
+    <V> CompletableFuture<V> callAsyncWithoutFencing(Callable<V> callable, Time timeout);
 }

@@ -30,27 +30,27 @@ import java.util.Queue;
  * @param <T> The type of the records being collected.
  */
 final class BufferingCollector<T> implements Collector<T>, Iterator<T> {
-	private final Queue<T> buffer;
+    private final Queue<T> buffer;
 
-	BufferingCollector() {
-		this.buffer = new ArrayDeque<>(1);
-	}
+    BufferingCollector() {
+        this.buffer = new ArrayDeque<>(1);
+    }
 
-	@Override
-	public boolean hasNext() {
-		return !buffer.isEmpty();
-	}
+    @Override
+    public boolean hasNext() {
+        return !buffer.isEmpty();
+    }
 
-	@Override
-	public T next() {
-		return buffer.poll();
-	}
+    @Override
+    public T next() {
+        return buffer.poll();
+    }
 
-	@Override
-	public void collect(T record) {
-		buffer.add(record);
-	}
+    @Override
+    public void collect(T record) {
+        buffer.add(record);
+    }
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 }

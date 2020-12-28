@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.data.vector;
 
-/**
- * Byte column vector.
- */
+/** Byte column vector. */
 public interface ByteColumnVector extends ColumnVector {
-	byte getByte(int i);
+    byte getByte(int i);
 }

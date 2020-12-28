@@ -30,44 +30,42 @@ import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidat
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_VERSION;
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_TYPE_VALUE_HIVE;
 
-/**
- * Catalog descriptor for {@link HiveCatalog}.
- */
+/** Catalog descriptor for {@link HiveCatalog}. */
 public class HiveCatalogDescriptor extends CatalogDescriptor {
 
-	private String hiveSitePath;
-	private String hiveVersion;
+    private String hiveSitePath;
+    private String hiveVersion;
 
-	// TODO : set default database
-	public HiveCatalogDescriptor() {
-		super(CATALOG_TYPE_VALUE_HIVE, 1);
-	}
+    // TODO : set default database
+    public HiveCatalogDescriptor() {
+        super(CATALOG_TYPE_VALUE_HIVE, 1);
+    }
 
-	public HiveCatalogDescriptor hiveSitePath(String hiveSitePath) {
-		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveSitePath));
-		this.hiveSitePath = hiveSitePath;
+    public HiveCatalogDescriptor hiveSitePath(String hiveSitePath) {
+        Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveSitePath));
+        this.hiveSitePath = hiveSitePath;
 
-		return this;
-	}
+        return this;
+    }
 
-	public HiveCatalogDescriptor hiveVersion(String hiveVersion) {
-		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion));
-		this.hiveVersion = hiveVersion;
-		return this;
-	}
+    public HiveCatalogDescriptor hiveVersion(String hiveVersion) {
+        Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion));
+        this.hiveVersion = hiveVersion;
+        return this;
+    }
 
-	@Override
-	protected Map<String, String> toCatalogProperties() {
-		final DescriptorProperties properties = new DescriptorProperties();
+    @Override
+    protected Map<String, String> toCatalogProperties() {
+        final DescriptorProperties properties = new DescriptorProperties();
 
-		if (hiveSitePath != null) {
-			properties.putString(CATALOG_HIVE_CONF_DIR, hiveSitePath);
-		}
+        if (hiveSitePath != null) {
+            properties.putString(CATALOG_HIVE_CONF_DIR, hiveSitePath);
+        }
 
-		if (hiveVersion != null) {
-			properties.putString(CATALOG_HIVE_VERSION, hiveVersion);
-		}
+        if (hiveVersion != null) {
+            properties.putString(CATALOG_HIVE_VERSION, hiveVersion);
+        }
 
-		return properties.asMap();
-	}
+        return properties.asMap();
+    }
 }

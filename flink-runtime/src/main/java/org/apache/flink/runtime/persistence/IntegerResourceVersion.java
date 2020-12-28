@@ -28,65 +28,64 @@ import javax.annotation.Nonnull;
  */
 public class IntegerResourceVersion implements ResourceVersion<IntegerResourceVersion> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final IntegerResourceVersion NOT_EXISTING = new IntegerResourceVersion(-1);
+    private static final IntegerResourceVersion NOT_EXISTING = new IntegerResourceVersion(-1);
 
-	private final int value;
+    private final int value;
 
-	private IntegerResourceVersion(int value) {
-		this.value = value;
-	}
+    private IntegerResourceVersion(int value) {
+        this.value = value;
+    }
 
-	@Override
-	public int compareTo(@Nonnull IntegerResourceVersion other) {
-		return Integer.compare(value, other.getValue());
-	}
+    @Override
+    public int compareTo(@Nonnull IntegerResourceVersion other) {
+        return Integer.compare(value, other.getValue());
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		} else if (obj != null && obj.getClass() == IntegerResourceVersion.class) {
-			final IntegerResourceVersion that = (IntegerResourceVersion) obj;
-			return this.value == that.getValue();
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj != null && obj.getClass() == IntegerResourceVersion.class) {
+            final IntegerResourceVersion that = (IntegerResourceVersion) obj;
+            return this.value == that.getValue();
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return Integer.hashCode(value);
-	}
+    @Override
+    public int hashCode() {
+        return Integer.hashCode(value);
+    }
 
-	@Override
-	public boolean isExisting() {
-		return this != NOT_EXISTING;
-	}
+    @Override
+    public boolean isExisting() {
+        return this != NOT_EXISTING;
+    }
 
-	@Override
-	public String toString() {
-		return "IntegerResourceVersion{" + "value='" + value + '\'' + '}';
-	}
+    @Override
+    public String toString() {
+        return "IntegerResourceVersion{" + "value='" + value + '\'' + '}';
+    }
 
-	public int getValue() {
-		return this.value;
-	}
+    public int getValue() {
+        return this.value;
+    }
 
-	public static IntegerResourceVersion notExisting() {
-		return NOT_EXISTING;
-	}
+    public static IntegerResourceVersion notExisting() {
+        return NOT_EXISTING;
+    }
 
-	/**
-	 * Create a {@link IntegerResourceVersion} with given integer value.
-	 *
-	 * @param value resource version integer value. The value should not be negative.
-	 *
-	 * @return {@link IntegerResourceVersion} with given value.
-	 */
-	public static IntegerResourceVersion valueOf(int value) {
-		Preconditions.checkArgument(value >= 0);
-		return new IntegerResourceVersion(value);
-	}
+    /**
+     * Create a {@link IntegerResourceVersion} with given integer value.
+     *
+     * @param value resource version integer value. The value should not be negative.
+     * @return {@link IntegerResourceVersion} with given value.
+     */
+    public static IntegerResourceVersion valueOf(int value) {
+        Preconditions.checkArgument(value >= 0);
+        return new IntegerResourceVersion(value);
+    }
 }

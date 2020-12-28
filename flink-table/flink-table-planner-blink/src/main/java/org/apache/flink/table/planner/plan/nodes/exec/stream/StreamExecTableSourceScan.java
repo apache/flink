@@ -29,25 +29,25 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 /**
- * Stream {@link ExecNode} to read data from an external source defined by a {@link ScanTableSource}.
+ * Stream {@link ExecNode} to read data from an external source defined by a {@link
+ * ScanTableSource}.
  */
-public class StreamExecTableSourceScan extends CommonExecTableSourceScan implements StreamExecNode<RowData> {
+public class StreamExecTableSourceScan extends CommonExecTableSourceScan
+        implements StreamExecNode<RowData> {
 
-	public StreamExecTableSourceScan(
-			ScanTableSource tableSource,
-			RowType outputType,
-			String description) {
-		super(tableSource, outputType, description);
-	}
+    public StreamExecTableSourceScan(
+            ScanTableSource tableSource, RowType outputType, String description) {
+        super(tableSource, outputType, description);
+    }
 
-	@Override
-	public Transformation<RowData> createInputFormatTransformation(
-			StreamExecutionEnvironment env,
-			InputFormat<RowData, ?> inputFormat,
-			InternalTypeInfo<RowData> outputTypeInfo,
-			String name) {
-		// It's better to use StreamExecutionEnvironment.createInput()
-		// rather than addLegacySource() for streaming, because it take care of checkpoint.
-		return env.createInput(inputFormat, outputTypeInfo).name(name).getTransformation();
-	}
+    @Override
+    public Transformation<RowData> createInputFormatTransformation(
+            StreamExecutionEnvironment env,
+            InputFormat<RowData, ?> inputFormat,
+            InternalTypeInfo<RowData> outputTypeInfo,
+            String name) {
+        // It's better to use StreamExecutionEnvironment.createInput()
+        // rather than addLegacySource() for streaming, because it take care of checkpoint.
+        return env.createInput(inputFormat, outputTypeInfo).name(name).getTransformation();
+    }
 }

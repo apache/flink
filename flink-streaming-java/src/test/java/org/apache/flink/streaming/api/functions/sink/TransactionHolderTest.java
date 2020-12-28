@@ -28,16 +28,14 @@ import java.time.ZoneOffset;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-/**
- * Unit tests {@link TransactionHolder}.
- */
+/** Unit tests {@link TransactionHolder}. */
 public class TransactionHolderTest {
 
-	@Test
-	public void testElapsedTime() {
-		final long elapsedTime = new TransactionHolder<>(new Object(), 0)
-			.elapsedTime(Clock.fixed(Instant.ofEpochMilli(1000), ZoneOffset.UTC));
-		assertThat(elapsedTime, equalTo(1000L));
-	}
-
+    @Test
+    public void testElapsedTime() {
+        final long elapsedTime =
+                new TransactionHolder<>(new Object(), 0)
+                        .elapsedTime(Clock.fixed(Instant.ofEpochMilli(1000), ZoneOffset.UTC));
+        assertThat(elapsedTime, equalTo(1000L));
+    }
 }

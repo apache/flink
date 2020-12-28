@@ -26,57 +26,58 @@ import org.rocksdb.RocksIterator;
 import javax.annotation.Nonnull;
 
 /**
- * Wrapper around {@link RocksIterator} that applies a given {@link StateSnapshotTransformer} to the elements
- * during the iteration.
+ * Wrapper around {@link RocksIterator} that applies a given {@link StateSnapshotTransformer} to the
+ * elements during the iteration.
  */
 public class RocksTransformingIteratorWrapper extends RocksIteratorWrapper {
 
-	@Nonnull
-	private final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
-	private byte[] current;
+    @Nonnull private final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
+    private byte[] current;
 
-	public RocksTransformingIteratorWrapper(
-		@Nonnull RocksIterator iterator,
-		@Nonnull StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
-		super(iterator);
-		this.stateSnapshotTransformer = stateSnapshotTransformer;
-	}
+    public RocksTransformingIteratorWrapper(
+            @Nonnull RocksIterator iterator,
+            @Nonnull StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
+        super(iterator);
+        this.stateSnapshotTransformer = stateSnapshotTransformer;
+    }
 
-	@Override
-	public void seekToFirst() {
-		super.seekToFirst();
-		filterOrTransform(super::next);
-	}
+    @Override
+    public void seekToFirst() {
+        super.seekToFirst();
+        filterOrTransform(super::next);
+    }
 
-	@Override
-	public void seekToLast() {
-		super.seekToLast();
-		filterOrTransform(super::prev);
-	}
+    @Override
+    public void seekToLast() {
+        super.seekToLast();
+        filterOrTransform(super::prev);
+    }
 
-	@Override
-	public void next() {
-		super.next();
-		filterOrTransform(super::next);
-	}
+    @Override
+    public void next() {
+        super.next();
+        filterOrTransform(super::next);
+    }
 
-	@Override
-	public void prev() {
-		super.prev();
-		filterOrTransform(super::prev);
-	}
+    @Override
+    public void prev() {
+        super.prev();
+        filterOrTransform(super::prev);
+    }
 
-	private void filterOrTransform(@Nonnull Runnable advance) {
-		while (isValid() && (current = stateSnapshotTransformer.filterOrTransform(super.value())) == null) {
-			advance.run();
-		}
-	}
+    private void filterOrTransform(@Nonnull Runnable advance) {
+        while (isValid()
+                && (current = stateSnapshotTransformer.filterOrTransform(super.value())) == null) {
+            advance.run();
+        }
+    }
 
-	@Override
-	public byte[] value() {
-		if (!isValid()) {
-			throw new IllegalStateException("value() method cannot be called if isValid() is false");
-		}
-		return current;
-	}
+    @Override
+    public byte[] value() {
+        if (!isValid()) {
+            throw new IllegalStateException(
+                    "value() method cannot be called if isValid() is false");
+        }
+        return current;
+    }
 }

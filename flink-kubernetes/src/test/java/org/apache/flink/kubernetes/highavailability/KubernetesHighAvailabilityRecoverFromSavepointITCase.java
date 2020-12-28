@@ -67,168 +67,186 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for recovering from savepoint when Kubernetes HA is enabled. The savepoint will be persisted as a checkpoint
- * and stored in the ConfigMap when recovered successfully.
+ * Tests for recovering from savepoint when Kubernetes HA is enabled. The savepoint will be
+ * persisted as a checkpoint and stored in the ConfigMap when recovered successfully.
  */
 public class KubernetesHighAvailabilityRecoverFromSavepointITCase extends TestLogger {
 
-	private static final long TIMEOUT = 60 * 1000;
+    private static final long TIMEOUT = 60 * 1000;
 
-	private static final String CLUSTER_ID = "flink-on-k8s-cluster-" + System.currentTimeMillis();
+    private static final String CLUSTER_ID = "flink-on-k8s-cluster-" + System.currentTimeMillis();
 
-	private static final String FLAT_MAP_UID = "my-flat-map";
+    private static final String FLAT_MAP_UID = "my-flat-map";
 
-	@ClassRule
-	public static KubernetesResource kubernetesResource = new KubernetesResource();
+    @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
 
-	@ClassRule
-	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Rule
-	public MiniClusterWithClientResource miniClusterResource = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberTaskManagers(1)
-			.setNumberSlotsPerTaskManager(1)
-			.build());
+    @Rule
+    public MiniClusterWithClientResource miniClusterResource =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
 
-	private FlinkKubeClient flinkKubeClient;
+    private FlinkKubeClient flinkKubeClient;
 
-	private ClusterClient<?> clusterClient;
+    private ClusterClient<?> clusterClient;
 
-	private String savepointPath;
+    private String savepointPath;
 
-	@Before
-	public void setup() throws Exception {
-		clusterClient = miniClusterResource.getClusterClient();
-		flinkKubeClient = kubernetesResource.getFlinkKubeClient();
-		savepointPath = temporaryFolder.newFolder("savepoints").getAbsolutePath();
-	}
+    @Before
+    public void setup() throws Exception {
+        clusterClient = miniClusterResource.getClusterClient();
+        flinkKubeClient = kubernetesResource.getFlinkKubeClient();
+        savepointPath = temporaryFolder.newFolder("savepoints").getAbsolutePath();
+    }
 
-	@After
-	public void teardown() throws Exception {
-		flinkKubeClient.deleteConfigMapsByLabels(
-			KubernetesUtils.getConfigMapLabels(CLUSTER_ID, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY)).get();
-	}
+    @After
+    public void teardown() throws Exception {
+        flinkKubeClient
+                .deleteConfigMapsByLabels(
+                        KubernetesUtils.getConfigMapLabels(
+                                CLUSTER_ID, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY))
+                .get();
+    }
 
-	@Test
-	public void testRecoverFromSavepoint() throws Exception {
-		final JobGraph jobGraph = createJobGraph();
-		clusterClient.submitJob(jobGraph).get(TIMEOUT, TimeUnit.MILLISECONDS);
+    @Test
+    public void testRecoverFromSavepoint() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        clusterClient.submitJob(jobGraph).get(TIMEOUT, TimeUnit.MILLISECONDS);
 
-		// Wait until all tasks running and getting a successful savepoint
-		CommonTestUtils.waitUntilCondition(
-			() -> triggerSavepoint(clusterClient, jobGraph.getJobID(), savepointPath) != null,
-			Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
-			1000);
+        // Wait until all tasks running and getting a successful savepoint
+        CommonTestUtils.waitUntilCondition(
+                () -> triggerSavepoint(clusterClient, jobGraph.getJobID(), savepointPath) != null,
+                Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
+                1000);
 
-		// Trigger savepoint 2
-		final String savepoint2Path = triggerSavepoint(clusterClient, jobGraph.getJobID(), savepointPath);
+        // Trigger savepoint 2
+        final String savepoint2Path =
+                triggerSavepoint(clusterClient, jobGraph.getJobID(), savepointPath);
 
-		// Cancel the old job
-		clusterClient.cancel(jobGraph.getJobID());
-		CommonTestUtils.waitUntilCondition(
-			() -> clusterClient.getJobStatus(jobGraph.getJobID()).get() == JobStatus.CANCELED,
-			Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
-			1000);
+        // Cancel the old job
+        clusterClient.cancel(jobGraph.getJobID());
+        CommonTestUtils.waitUntilCondition(
+                () -> clusterClient.getJobStatus(jobGraph.getJobID()).get() == JobStatus.CANCELED,
+                Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
+                1000);
 
-		// Start a new job with savepoint 2
-		final JobGraph jobGraphWithSavepoint = createJobGraph();
-		final JobID jobId = jobGraphWithSavepoint.getJobID();
-		jobGraphWithSavepoint.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepoint2Path));
-		clusterClient.submitJob(jobGraphWithSavepoint).get(TIMEOUT, TimeUnit.MILLISECONDS);
-		CommonTestUtils.waitUntilCondition(
-			() -> clusterClient.getJobStatus(jobId).get() == JobStatus.RUNNING,
-			Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
-			1000);
+        // Start a new job with savepoint 2
+        final JobGraph jobGraphWithSavepoint = createJobGraph();
+        final JobID jobId = jobGraphWithSavepoint.getJobID();
+        jobGraphWithSavepoint.setSavepointRestoreSettings(
+                SavepointRestoreSettings.forPath(savepoint2Path));
+        clusterClient.submitJob(jobGraphWithSavepoint).get(TIMEOUT, TimeUnit.MILLISECONDS);
+        CommonTestUtils.waitUntilCondition(
+                () -> clusterClient.getJobStatus(jobId).get() == JobStatus.RUNNING,
+                Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
+                1000);
 
-		// The savepoint 2 should be added to jobmanager leader ConfigMap
-		final String jobManagerConfigMapName = CLUSTER_ID + "-" + jobId + "-jobmanager-leader";
-		final Optional<KubernetesConfigMap> optional = flinkKubeClient.getConfigMap(jobManagerConfigMapName);
-		assertThat(optional.isPresent(), is(true));
-		final String checkpointIdKey = KubernetesCheckpointStoreUtil.INSTANCE.checkpointIDToName(2L);
-		assertThat(optional.get().getData().get(checkpointIdKey), is(notNullValue()));
-		assertThat(optional.get().getData().get(Constants.CHECKPOINT_COUNTER_KEY), is("3"));
-	}
+        // The savepoint 2 should be added to jobmanager leader ConfigMap
+        final String jobManagerConfigMapName = CLUSTER_ID + "-" + jobId + "-jobmanager-leader";
+        final Optional<KubernetesConfigMap> optional =
+                flinkKubeClient.getConfigMap(jobManagerConfigMapName);
+        assertThat(optional.isPresent(), is(true));
+        final String checkpointIdKey =
+                KubernetesCheckpointStoreUtil.INSTANCE.checkpointIDToName(2L);
+        assertThat(optional.get().getData().get(checkpointIdKey), is(notNullValue()));
+        assertThat(optional.get().getData().get(Constants.CHECKPOINT_COUNTER_KEY), is("3"));
+    }
 
-	private Configuration getConfiguration() {
-		Configuration configuration = new Configuration();
-		configuration.set(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-		configuration.set(HighAvailabilityOptions.HA_MODE, KubernetesHaServicesFactory.class.getCanonicalName());
-		try {
-			configuration.set(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getAbsolutePath());
-		} catch (IOException e) {
-			throw new FlinkRuntimeException("Failed to create HA storage", e);
-		}
-		return configuration;
-	}
+    private Configuration getConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.set(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
+        configuration.set(
+                HighAvailabilityOptions.HA_MODE,
+                KubernetesHaServicesFactory.class.getCanonicalName());
+        try {
+            configuration.set(
+                    HighAvailabilityOptions.HA_STORAGE_PATH,
+                    temporaryFolder.newFolder().getAbsolutePath());
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Failed to create HA storage", e);
+        }
+        return configuration;
+    }
 
-	private String triggerSavepoint(ClusterClient<?> clusterClient, JobID jobID, String path) {
-		try {
-			return String.valueOf(clusterClient.triggerSavepoint(jobID, path).get(TIMEOUT, TimeUnit.MILLISECONDS));
-		} catch (Exception ex) {
-			// ignore
-		}
-		return null;
-	}
+    private String triggerSavepoint(ClusterClient<?> clusterClient, JobID jobID, String path) {
+        try {
+            return String.valueOf(
+                    clusterClient
+                            .triggerSavepoint(jobID, path)
+                            .get(TIMEOUT, TimeUnit.MILLISECONDS));
+        } catch (Exception ex) {
+            // ignore
+        }
+        return null;
+    }
 
-	private JobGraph createJobGraph() throws Exception {
-		final StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-		final StateBackend stateBackend = new FsStateBackend(temporaryFolder.newFolder().toURI(), 1);
-		sEnv.setStateBackend(stateBackend);
+    private JobGraph createJobGraph() throws Exception {
+        final StreamExecutionEnvironment sEnv =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        final StateBackend stateBackend =
+                new FsStateBackend(temporaryFolder.newFolder().toURI(), 1);
+        sEnv.setStateBackend(stateBackend);
 
-		sEnv.addSource(new InfiniteSourceFunction())
-			.keyBy(e -> e)
-			.flatMap(new RichFlatMapFunction<Integer, Integer>() {
-				private static final long serialVersionUID = 1L;
-				ValueState<Integer> state;
+        sEnv.addSource(new InfiniteSourceFunction())
+                .keyBy(e -> e)
+                .flatMap(
+                        new RichFlatMapFunction<Integer, Integer>() {
+                            private static final long serialVersionUID = 1L;
+                            ValueState<Integer> state;
 
-				@Override
-				public void open(Configuration parameters) throws Exception {
-					super.open(parameters);
+                            @Override
+                            public void open(Configuration parameters) throws Exception {
+                                super.open(parameters);
 
-					ValueStateDescriptor<Integer> descriptor = new ValueStateDescriptor<>("total", Types.INT);
-					state = getRuntimeContext().getState(descriptor);
-				}
+                                ValueStateDescriptor<Integer> descriptor =
+                                        new ValueStateDescriptor<>("total", Types.INT);
+                                state = getRuntimeContext().getState(descriptor);
+                            }
 
-				@Override
-				public void flatMap(Integer value, Collector<Integer> out) throws Exception {
-					final Integer current = state.value();
-					if (current != null) {
-						value += current;
-					}
+                            @Override
+                            public void flatMap(Integer value, Collector<Integer> out)
+                                    throws Exception {
+                                final Integer current = state.value();
+                                if (current != null) {
+                                    value += current;
+                                }
 
-					state.update(value);
-					out.collect(value);
-				}
-			})
-			.uid(FLAT_MAP_UID)
-			.addSink(new DiscardingSink<>());
+                                state.update(value);
+                                out.collect(value);
+                            }
+                        })
+                .uid(FLAT_MAP_UID)
+                .addSink(new DiscardingSink<>());
 
-		return sEnv.getStreamGraph().getJobGraph();
-	}
+        return sEnv.getStreamGraph().getJobGraph();
+    }
 
-	private static final class InfiniteSourceFunction extends RichParallelSourceFunction<Integer> {
+    private static final class InfiniteSourceFunction extends RichParallelSourceFunction<Integer> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private volatile boolean running = true;
+        private volatile boolean running = true;
 
-		@Override
-		public void run(SourceContext<Integer> ctx) throws Exception {
-			final Random random = new Random();
-			while (running) {
-				synchronized (ctx.getCheckpointLock()) {
-					ctx.collect(random.nextInt());
-				}
+        @Override
+        public void run(SourceContext<Integer> ctx) throws Exception {
+            final Random random = new Random();
+            while (running) {
+                synchronized (ctx.getCheckpointLock()) {
+                    ctx.collect(random.nextInt());
+                }
 
-				Thread.sleep(5L);
-			}
-		}
+                Thread.sleep(5L);
+            }
+        }
 
-		@Override
-		public void cancel() {
-			running = false;
-		}
-	}
+        @Override
+        public void cancel() {
+            running = false;
+        }
+    }
 }

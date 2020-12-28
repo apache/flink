@@ -43,111 +43,118 @@ import java.util.concurrent.Executor;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Netty based shuffle service implementation.
- */
-public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettyShuffleDescriptor, ResultPartition, SingleInputGate> {
+/** Netty based shuffle service implementation. */
+public class NettyShuffleServiceFactory
+        implements ShuffleServiceFactory<NettyShuffleDescriptor, ResultPartition, SingleInputGate> {
 
-	private static final String DIR_NAME_PREFIX = "netty-shuffle";
+    private static final String DIR_NAME_PREFIX = "netty-shuffle";
 
-	@Override
-	public NettyShuffleMaster createShuffleMaster(Configuration configuration) {
-		return NettyShuffleMaster.INSTANCE;
-	}
+    @Override
+    public NettyShuffleMaster createShuffleMaster(Configuration configuration) {
+        return NettyShuffleMaster.INSTANCE;
+    }
 
-	@Override
-	public NettyShuffleEnvironment createShuffleEnvironment(ShuffleEnvironmentContext shuffleEnvironmentContext) {
-		checkNotNull(shuffleEnvironmentContext);
-		NettyShuffleEnvironmentConfiguration networkConfig = NettyShuffleEnvironmentConfiguration.fromConfiguration(
-			shuffleEnvironmentContext.getConfiguration(),
-			shuffleEnvironmentContext.getNetworkMemorySize(),
-			shuffleEnvironmentContext.isLocalCommunicationOnly(),
-			shuffleEnvironmentContext.getHostAddress());
-		return createNettyShuffleEnvironment(
-			networkConfig,
-			shuffleEnvironmentContext.getTaskExecutorResourceId(),
-			shuffleEnvironmentContext.getEventPublisher(),
-			shuffleEnvironmentContext.getParentMetricGroup(),
-			shuffleEnvironmentContext.getIoExecutor());
-	}
+    @Override
+    public NettyShuffleEnvironment createShuffleEnvironment(
+            ShuffleEnvironmentContext shuffleEnvironmentContext) {
+        checkNotNull(shuffleEnvironmentContext);
+        NettyShuffleEnvironmentConfiguration networkConfig =
+                NettyShuffleEnvironmentConfiguration.fromConfiguration(
+                        shuffleEnvironmentContext.getConfiguration(),
+                        shuffleEnvironmentContext.getNetworkMemorySize(),
+                        shuffleEnvironmentContext.isLocalCommunicationOnly(),
+                        shuffleEnvironmentContext.getHostAddress());
+        return createNettyShuffleEnvironment(
+                networkConfig,
+                shuffleEnvironmentContext.getTaskExecutorResourceId(),
+                shuffleEnvironmentContext.getEventPublisher(),
+                shuffleEnvironmentContext.getParentMetricGroup(),
+                shuffleEnvironmentContext.getIoExecutor());
+    }
 
-	@VisibleForTesting
-	static NettyShuffleEnvironment createNettyShuffleEnvironment(
-			NettyShuffleEnvironmentConfiguration config,
-			ResourceID taskExecutorResourceId,
-			TaskEventPublisher taskEventPublisher,
-			MetricGroup metricGroup,
-			Executor ioExecutor) {
-		return createNettyShuffleEnvironment(
-			config,
-			taskExecutorResourceId,
-			taskEventPublisher,
-			new ResultPartitionManager(),
-			metricGroup,
-			ioExecutor);
-	}
+    @VisibleForTesting
+    static NettyShuffleEnvironment createNettyShuffleEnvironment(
+            NettyShuffleEnvironmentConfiguration config,
+            ResourceID taskExecutorResourceId,
+            TaskEventPublisher taskEventPublisher,
+            MetricGroup metricGroup,
+            Executor ioExecutor) {
+        return createNettyShuffleEnvironment(
+                config,
+                taskExecutorResourceId,
+                taskEventPublisher,
+                new ResultPartitionManager(),
+                metricGroup,
+                ioExecutor);
+    }
 
-	@VisibleForTesting
-	static NettyShuffleEnvironment createNettyShuffleEnvironment(
-			NettyShuffleEnvironmentConfiguration config,
-			ResourceID taskExecutorResourceId,
-			TaskEventPublisher taskEventPublisher,
-			ResultPartitionManager resultPartitionManager,
-			MetricGroup metricGroup,
-			Executor ioExecutor) {
-		checkNotNull(config);
-		checkNotNull(taskExecutorResourceId);
-		checkNotNull(taskEventPublisher);
-		checkNotNull(resultPartitionManager);
-		checkNotNull(metricGroup);
+    @VisibleForTesting
+    static NettyShuffleEnvironment createNettyShuffleEnvironment(
+            NettyShuffleEnvironmentConfiguration config,
+            ResourceID taskExecutorResourceId,
+            TaskEventPublisher taskEventPublisher,
+            ResultPartitionManager resultPartitionManager,
+            MetricGroup metricGroup,
+            Executor ioExecutor) {
+        checkNotNull(config);
+        checkNotNull(taskExecutorResourceId);
+        checkNotNull(taskEventPublisher);
+        checkNotNull(resultPartitionManager);
+        checkNotNull(metricGroup);
 
-		NettyConfig nettyConfig = config.nettyConfig();
+        NettyConfig nettyConfig = config.nettyConfig();
 
-		FileChannelManager fileChannelManager = new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
+        FileChannelManager fileChannelManager =
+                new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
 
-		ConnectionManager connectionManager = nettyConfig != null ?
-			new NettyConnectionManager(resultPartitionManager, taskEventPublisher, nettyConfig) :
-			new LocalConnectionManager();
+        ConnectionManager connectionManager =
+                nettyConfig != null
+                        ? new NettyConnectionManager(
+                                resultPartitionManager, taskEventPublisher, nettyConfig)
+                        : new LocalConnectionManager();
 
-		NetworkBufferPool networkBufferPool = new NetworkBufferPool(
-			config.numNetworkBuffers(),
-			config.networkBufferSize(),
-			config.getRequestSegmentsTimeout());
+        NetworkBufferPool networkBufferPool =
+                new NetworkBufferPool(
+                        config.numNetworkBuffers(),
+                        config.networkBufferSize(),
+                        config.getRequestSegmentsTimeout());
 
-		registerShuffleMetrics(metricGroup, networkBufferPool);
+        registerShuffleMetrics(metricGroup, networkBufferPool);
 
-		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
-			resultPartitionManager,
-			fileChannelManager,
-			networkBufferPool,
-			config.getBlockingSubpartitionType(),
-			config.networkBuffersPerChannel(),
-			config.floatingNetworkBuffersPerGate(),
-			config.networkBufferSize(),
-			config.isBlockingShuffleCompressionEnabled(),
-			config.getCompressionCodec(),
-			config.getMaxBuffersPerChannel(),
-			config.sortShuffleMinBuffers(),
-			config.sortShuffleMinParallelism(),
-			config.isSSLEnabled());
+        ResultPartitionFactory resultPartitionFactory =
+                new ResultPartitionFactory(
+                        resultPartitionManager,
+                        fileChannelManager,
+                        networkBufferPool,
+                        config.getBlockingSubpartitionType(),
+                        config.networkBuffersPerChannel(),
+                        config.floatingNetworkBuffersPerGate(),
+                        config.networkBufferSize(),
+                        config.isBlockingShuffleCompressionEnabled(),
+                        config.getCompressionCodec(),
+                        config.getMaxBuffersPerChannel(),
+                        config.sortShuffleMinBuffers(),
+                        config.sortShuffleMinParallelism(),
+                        config.isSSLEnabled());
 
-		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
-			taskExecutorResourceId,
-			config,
-			connectionManager,
-			resultPartitionManager,
-			taskEventPublisher,
-			networkBufferPool);
+        SingleInputGateFactory singleInputGateFactory =
+                new SingleInputGateFactory(
+                        taskExecutorResourceId,
+                        config,
+                        connectionManager,
+                        resultPartitionManager,
+                        taskEventPublisher,
+                        networkBufferPool);
 
-		return new NettyShuffleEnvironment(
-			taskExecutorResourceId,
-			config,
-			networkBufferPool,
-			connectionManager,
-			resultPartitionManager,
-			fileChannelManager,
-			resultPartitionFactory,
-			singleInputGateFactory,
-			ioExecutor);
-	}
+        return new NettyShuffleEnvironment(
+                taskExecutorResourceId,
+                config,
+                networkBufferPool,
+                connectionManager,
+                resultPartitionManager,
+                fileChannelManager,
+                resultPartitionFactory,
+                singleInputGateFactory,
+                ioExecutor);
+    }
 }

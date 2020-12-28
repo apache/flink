@@ -36,85 +36,93 @@ import static org.apache.flink.kubernetes.utils.KubernetesUtils.getLeaderInforma
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The counterpart to the {@link KubernetesLeaderElectionDriver}.
- * {@link LeaderRetrievalDriver} implementation for Kubernetes. It retrieves the current leader which has
- * been elected by the {@link KubernetesLeaderElectionDriver}.
- * The leader address as well as the current leader session ID is retrieved from Kubernetes ConfigMap.
+ * The counterpart to the {@link KubernetesLeaderElectionDriver}. {@link LeaderRetrievalDriver}
+ * implementation for Kubernetes. It retrieves the current leader which has been elected by the
+ * {@link KubernetesLeaderElectionDriver}. The leader address as well as the current leader session
+ * ID is retrieved from Kubernetes ConfigMap.
  */
 public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KubernetesLeaderRetrievalDriver.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(KubernetesLeaderRetrievalDriver.class);
 
-	private final String configMapName;
+    private final String configMapName;
 
-	private final LeaderRetrievalEventHandler leaderRetrievalEventHandler;
+    private final LeaderRetrievalEventHandler leaderRetrievalEventHandler;
 
-	private final KubernetesWatch kubernetesWatch;
+    private final KubernetesWatch kubernetesWatch;
 
-	private final FatalErrorHandler fatalErrorHandler;
+    private final FatalErrorHandler fatalErrorHandler;
 
-	private volatile boolean running;
+    private volatile boolean running;
 
-	public KubernetesLeaderRetrievalDriver(
-			FlinkKubeClient kubeClient,
-			String configMapName,
-			LeaderRetrievalEventHandler leaderRetrievalEventHandler,
-			FatalErrorHandler fatalErrorHandler) {
-		checkNotNull(kubeClient, "Kubernetes client");
-		this.configMapName = checkNotNull(configMapName, "ConfigMap name");
-		this.leaderRetrievalEventHandler = checkNotNull(leaderRetrievalEventHandler, "LeaderRetrievalEventHandler");
-		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
+    public KubernetesLeaderRetrievalDriver(
+            FlinkKubeClient kubeClient,
+            String configMapName,
+            LeaderRetrievalEventHandler leaderRetrievalEventHandler,
+            FatalErrorHandler fatalErrorHandler) {
+        checkNotNull(kubeClient, "Kubernetes client");
+        this.configMapName = checkNotNull(configMapName, "ConfigMap name");
+        this.leaderRetrievalEventHandler =
+                checkNotNull(leaderRetrievalEventHandler, "LeaderRetrievalEventHandler");
+        this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
-		kubernetesWatch = kubeClient.watchConfigMaps(configMapName, new ConfigMapCallbackHandlerImpl());
+        kubernetesWatch =
+                kubeClient.watchConfigMaps(configMapName, new ConfigMapCallbackHandlerImpl());
 
-		running = true;
-	}
+        running = true;
+    }
 
-	@Override
-	public void close() {
-		if (!running) {
-			return;
-		}
-		running = false;
+    @Override
+    public void close() {
+        if (!running) {
+            return;
+        }
+        running = false;
 
-		LOG.info("Stopping {}.", this);
-		kubernetesWatch.close();
-	}
+        LOG.info("Stopping {}.", this);
+        kubernetesWatch.close();
+    }
 
-	private class ConfigMapCallbackHandlerImpl implements FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap> {
+    private class ConfigMapCallbackHandlerImpl
+            implements FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap> {
 
-		@Override
-		public void onAdded(List<KubernetesConfigMap> configMaps) {
-			// The ConfigMap is created by KubernetesLeaderElectionDriver with empty data. We do not process this
-			// useless event.
-		}
+        @Override
+        public void onAdded(List<KubernetesConfigMap> configMaps) {
+            // The ConfigMap is created by KubernetesLeaderElectionDriver with empty data. We do not
+            // process this
+            // useless event.
+        }
 
-		@Override
-		public void onModified(List<KubernetesConfigMap> configMaps) {
-			final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
-			leaderRetrievalEventHandler.notifyLeaderAddress(getLeaderInformationFromConfigMap(configMap));
-		}
+        @Override
+        public void onModified(List<KubernetesConfigMap> configMaps) {
+            final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
+            leaderRetrievalEventHandler.notifyLeaderAddress(
+                    getLeaderInformationFromConfigMap(configMap));
+        }
 
-		@Override
-		public void onDeleted(List<KubernetesConfigMap> configMaps) {
-			// Nothing to do since the delete event will be handled in the leader election part.
-		}
+        @Override
+        public void onDeleted(List<KubernetesConfigMap> configMaps) {
+            // Nothing to do since the delete event will be handled in the leader election part.
+        }
 
-		@Override
-		public void onError(List<KubernetesConfigMap> configMaps) {
-			fatalErrorHandler.onFatalError(
-				new LeaderRetrievalException("Error while watching the ConfigMap " + configMapName));
-		}
+        @Override
+        public void onError(List<KubernetesConfigMap> configMaps) {
+            fatalErrorHandler.onFatalError(
+                    new LeaderRetrievalException(
+                            "Error while watching the ConfigMap " + configMapName));
+        }
 
-		@Override
-		public void handleFatalError(Throwable throwable) {
-			fatalErrorHandler.onFatalError(
-				new LeaderRetrievalException("Error while watching the ConfigMap " + configMapName));
-		}
-	}
+        @Override
+        public void handleFatalError(Throwable throwable) {
+            fatalErrorHandler.onFatalError(
+                    new LeaderRetrievalException(
+                            "Error while watching the ConfigMap " + configMapName));
+        }
+    }
 
-	@Override
-	public String toString() {
-		return "KubernetesLeaderRetrievalDriver{configMapName='" + configMapName + "'}";
-	}
+    @Override
+    public String toString() {
+        return "KubernetesLeaderRetrievalDriver{configMapName='" + configMapName + "'}";
+    }
 }

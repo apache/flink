@@ -48,9 +48,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * +-----+              +---------------------+              +--------+
  * }</pre>
  *
- * <p>When deploying such a program in parallel, the intermediate result will be partitioned over its
- * producing parallel subtasks; each of these partitions is furthermore partitioned into one or more
- * subpartitions.
+ * <p>When deploying such a program in parallel, the intermediate result will be partitioned over
+ * its producing parallel subtasks; each of these partitions is furthermore partitioned into one or
+ * more subpartitions.
  *
  * <pre>{@code
  *                            Intermediate result
@@ -75,115 +75,117 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * will have an input gate attached to it. This will provide its input, which will consist of one
  * subpartition from each partition of the intermediate result.
  */
-public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>, AutoCloseable, ChannelStateHolder {
+public abstract class InputGate
+        implements PullingAsyncDataInput<BufferOrEvent>, AutoCloseable, ChannelStateHolder {
 
-	protected final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
+    protected final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
-	protected final AvailabilityHelper priorityAvailabilityHelper = new AvailabilityHelper();
+    protected final AvailabilityHelper priorityAvailabilityHelper = new AvailabilityHelper();
 
-	@Override
-	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
-		for (int index = 0, numChannels = getNumberOfInputChannels(); index < numChannels; index++) {
-			final InputChannel channel = getChannel(index);
-			if (channel instanceof ChannelStateHolder) {
-				((ChannelStateHolder) channel).setChannelStateWriter(channelStateWriter);
-			}
-		}
-	}
+    @Override
+    public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+        for (int index = 0, numChannels = getNumberOfInputChannels();
+                index < numChannels;
+                index++) {
+            final InputChannel channel = getChannel(index);
+            if (channel instanceof ChannelStateHolder) {
+                ((ChannelStateHolder) channel).setChannelStateWriter(channelStateWriter);
+            }
+        }
+    }
 
-	public abstract int getNumberOfInputChannels();
+    public abstract int getNumberOfInputChannels();
 
-	public abstract boolean isFinished();
+    public abstract boolean isFinished();
 
-	/**
-	 * Blocking call waiting for next {@link BufferOrEvent}.
-	 *
-	 * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before getting next one.
-	 *
-	 * @return {@code Optional.empty()} if {@link #isFinished()} returns true.
-	 */
-	public abstract Optional<BufferOrEvent> getNext() throws IOException, InterruptedException;
+    /**
+     * Blocking call waiting for next {@link BufferOrEvent}.
+     *
+     * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before
+     * getting next one.
+     *
+     * @return {@code Optional.empty()} if {@link #isFinished()} returns true.
+     */
+    public abstract Optional<BufferOrEvent> getNext() throws IOException, InterruptedException;
 
-	/**
-	 * Poll the {@link BufferOrEvent}.
-	 *
-	 * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before polling next one.
-	 *
-	 * @return {@code Optional.empty()} if there is no data to return or if {@link #isFinished()} returns true.
-	 */
-	public abstract Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException;
+    /**
+     * Poll the {@link BufferOrEvent}.
+     *
+     * <p>Note: It should be guaranteed that the previous returned buffer has been recycled before
+     * polling next one.
+     *
+     * @return {@code Optional.empty()} if there is no data to return or if {@link #isFinished()}
+     *     returns true.
+     */
+    public abstract Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException;
 
-	public abstract void sendTaskEvent(TaskEvent event) throws IOException;
+    public abstract void sendTaskEvent(TaskEvent event) throws IOException;
 
-	/**
-	 * @return a future that is completed if there are more records available. If there are more
-	 * records available immediately, {@link #AVAILABLE} should be returned. Previously returned
-	 * not completed futures should become completed once there are more records available.
-	 */
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return availabilityHelper.getAvailableFuture();
-	}
+    /**
+     * @return a future that is completed if there are more records available. If there are more
+     *     records available immediately, {@link #AVAILABLE} should be returned. Previously returned
+     *     not completed futures should become completed once there are more records available.
+     */
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return availabilityHelper.getAvailableFuture();
+    }
 
-	public abstract void resumeConsumption(InputChannelInfo channelInfo) throws IOException;
+    public abstract void resumeConsumption(InputChannelInfo channelInfo) throws IOException;
 
-	/**
-	 * Returns the channel of this gate.
-	 */
-	public abstract InputChannel getChannel(int channelIndex);
+    /** Returns the channel of this gate. */
+    public abstract InputChannel getChannel(int channelIndex);
 
-	/**
-	 * Returns the channel infos of this gate.
-	 */
-	public List<InputChannelInfo> getChannelInfos() {
-		return IntStream.range(0, getNumberOfInputChannels())
-			.mapToObj(index -> getChannel(index).getChannelInfo())
-			.collect(Collectors.toList());
-	}
+    /** Returns the channel infos of this gate. */
+    public List<InputChannelInfo> getChannelInfos() {
+        return IntStream.range(0, getNumberOfInputChannels())
+                .mapToObj(index -> getChannel(index).getChannelInfo())
+                .collect(Collectors.toList());
+    }
 
-	/**
-	 * Notifies when a priority event has been enqueued. If this future is queried from task thread, it is guaranteed
-	 * that a priority event is available and retrieved through {@link #getNext()}.
-	 */
-	public CompletableFuture<?> getPriorityEventAvailableFuture() {
-		return priorityAvailabilityHelper.getAvailableFuture();
-	}
+    /**
+     * Notifies when a priority event has been enqueued. If this future is queried from task thread,
+     * it is guaranteed that a priority event is available and retrieved through {@link #getNext()}.
+     */
+    public CompletableFuture<?> getPriorityEventAvailableFuture() {
+        return priorityAvailabilityHelper.getAvailableFuture();
+    }
 
-	/**
-	 * Simple pojo for INPUT, DATA and moreAvailable.
-	 */
-	protected static class InputWithData<INPUT, DATA> {
-		protected final INPUT input;
-		protected final DATA data;
-		protected final boolean moreAvailable;
-		protected final boolean morePriorityEvents;
+    /** Simple pojo for INPUT, DATA and moreAvailable. */
+    protected static class InputWithData<INPUT, DATA> {
+        protected final INPUT input;
+        protected final DATA data;
+        protected final boolean moreAvailable;
+        protected final boolean morePriorityEvents;
 
-		InputWithData(INPUT input, DATA data, boolean moreAvailable, boolean morePriorityEvents) {
-			this.input = checkNotNull(input);
-			this.data = checkNotNull(data);
-			this.moreAvailable = moreAvailable;
-			this.morePriorityEvents = morePriorityEvents;
-		}
+        InputWithData(INPUT input, DATA data, boolean moreAvailable, boolean morePriorityEvents) {
+            this.input = checkNotNull(input);
+            this.data = checkNotNull(data);
+            this.moreAvailable = moreAvailable;
+            this.morePriorityEvents = morePriorityEvents;
+        }
 
-		@Override
-		public String toString() {
-			return "InputWithData{" +
-				"input=" + input +
-				", data=" + data +
-				", moreAvailable=" + moreAvailable +
-				", morePriorityEvents=" + morePriorityEvents +
-				'}';
-		}
-	}
+        @Override
+        public String toString() {
+            return "InputWithData{"
+                    + "input="
+                    + input
+                    + ", data="
+                    + data
+                    + ", moreAvailable="
+                    + moreAvailable
+                    + ", morePriorityEvents="
+                    + morePriorityEvents
+                    + '}';
+        }
+    }
 
-	/**
-	 * Setup gate, potentially heavy-weight, blocking operation comparing to just creation.
-	 */
-	public abstract void setup() throws IOException;
+    /** Setup gate, potentially heavy-weight, blocking operation comparing to just creation. */
+    public abstract void setup() throws IOException;
 
-	public abstract void requestPartitions() throws IOException;
+    public abstract void requestPartitions() throws IOException;
 
-	public abstract CompletableFuture<Void> getStateConsumedFuture();
+    public abstract CompletableFuture<Void> getStateConsumedFuture();
 
-	public abstract void finishReadRecoveredState() throws IOException;
+    public abstract void finishReadRecoveredState() throws IOException;
 }

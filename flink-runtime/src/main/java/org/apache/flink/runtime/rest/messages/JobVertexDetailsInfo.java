@@ -36,71 +36,71 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Response type of the {@link JobVertexDetailsHandler}.
- */
+/** Response type of the {@link JobVertexDetailsHandler}. */
 public class JobVertexDetailsInfo implements ResponseBody {
-	public static final String FIELD_NAME_VERTEX_ID = "id";
-	public static final String FIELD_NAME_VERTEX_NAME = "name";
-	public static final String FIELD_NAME_PARALLELISM = "parallelism";
-	public static final String FIELD_NAME_NOW = "now";
-	public static final String FIELD_NAME_SUBTASKS = "subtasks";
+    public static final String FIELD_NAME_VERTEX_ID = "id";
+    public static final String FIELD_NAME_VERTEX_NAME = "name";
+    public static final String FIELD_NAME_PARALLELISM = "parallelism";
+    public static final String FIELD_NAME_NOW = "now";
+    public static final String FIELD_NAME_SUBTASKS = "subtasks";
 
-	@JsonProperty(FIELD_NAME_VERTEX_ID)
-	@JsonSerialize(using = JobVertexIDSerializer.class)
-	private final JobVertexID id;
+    @JsonProperty(FIELD_NAME_VERTEX_ID)
+    @JsonSerialize(using = JobVertexIDSerializer.class)
+    private final JobVertexID id;
 
-	@JsonProperty(FIELD_NAME_VERTEX_NAME)
-	private final String name;
+    @JsonProperty(FIELD_NAME_VERTEX_NAME)
+    private final String name;
 
-	@JsonProperty(FIELD_NAME_PARALLELISM)
-	private final int parallelism;
+    @JsonProperty(FIELD_NAME_PARALLELISM)
+    private final int parallelism;
 
-	@JsonProperty(FIELD_NAME_NOW)
-	private final long now;
+    @JsonProperty(FIELD_NAME_NOW)
+    private final long now;
 
-	@JsonProperty(FIELD_NAME_SUBTASKS)
-	private final List<SubtaskExecutionAttemptDetailsInfo> subtasks;
+    @JsonProperty(FIELD_NAME_SUBTASKS)
+    private final List<SubtaskExecutionAttemptDetailsInfo> subtasks;
 
-	@JsonCreator
-	public JobVertexDetailsInfo(
-			@JsonDeserialize(using = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_VERTEX_ID) JobVertexID id,
-			@JsonProperty(FIELD_NAME_VERTEX_NAME) String name,
-			@JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
-			@JsonProperty(FIELD_NAME_NOW) long now,
-			@JsonProperty(FIELD_NAME_SUBTASKS) List<SubtaskExecutionAttemptDetailsInfo> subtasks) {
-		this.id = checkNotNull(id);
-		this.name = checkNotNull(name);
-		this.parallelism = parallelism;
-		this.now = now;
-		this.subtasks = checkNotNull(subtasks);
-	}
+    @JsonCreator
+    public JobVertexDetailsInfo(
+            @JsonDeserialize(using = JobVertexIDDeserializer.class)
+                    @JsonProperty(FIELD_NAME_VERTEX_ID)
+                    JobVertexID id,
+            @JsonProperty(FIELD_NAME_VERTEX_NAME) String name,
+            @JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
+            @JsonProperty(FIELD_NAME_NOW) long now,
+            @JsonProperty(FIELD_NAME_SUBTASKS) List<SubtaskExecutionAttemptDetailsInfo> subtasks) {
+        this.id = checkNotNull(id);
+        this.name = checkNotNull(name);
+        this.parallelism = parallelism;
+        this.now = now;
+        this.subtasks = checkNotNull(subtasks);
+    }
 
-	@JsonIgnore
-	public List<SubtaskExecutionAttemptDetailsInfo> getSubtasks() {
-		return Collections.unmodifiableList(subtasks);
-	}
+    @JsonIgnore
+    public List<SubtaskExecutionAttemptDetailsInfo> getSubtasks() {
+        return Collections.unmodifiableList(subtasks);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
 
-		if (null == o || this.getClass() != o.getClass()) {
-			return false;
-		}
+        if (null == o || this.getClass() != o.getClass()) {
+            return false;
+        }
 
-		JobVertexDetailsInfo that = (JobVertexDetailsInfo) o;
-		return Objects.equals(id, that.id) &&
-			Objects.equals(name, that.name) &&
-			parallelism == that.parallelism &&
-			now == that.now &&
-			Objects.equals(subtasks, that.subtasks);
-	}
+        JobVertexDetailsInfo that = (JobVertexDetailsInfo) o;
+        return Objects.equals(id, that.id)
+                && Objects.equals(name, that.name)
+                && parallelism == that.parallelism
+                && now == that.now
+                && Objects.equals(subtasks, that.subtasks);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(id, name, parallelism, now, subtasks);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, parallelism, now, subtasks);
+    }
 }

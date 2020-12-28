@@ -31,89 +31,80 @@ import java.util.Objects;
 /**
  * Serialization schema that serializes {@link RowData} into Avro bytes.
  *
- * <p>Serializes objects that are represented in (nested) Flink RowData. It support types that
- * are compatible with Flink's Table & SQL API.
+ * <p>Serializes objects that are represented in (nested) Flink RowData. It support types that are
+ * compatible with Flink's Table & SQL API.
  *
- * <p>Note: Changes in this class need to be kept in sync with the corresponding runtime
- * class {@link AvroRowDataDeserializationSchema} and schema converter {@link AvroSchemaConverter}.
+ * <p>Note: Changes in this class need to be kept in sync with the corresponding runtime class
+ * {@link AvroRowDataDeserializationSchema} and schema converter {@link AvroSchemaConverter}.
  */
 public class AvroRowDataSerializationSchema implements SerializationSchema<RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** Nested schema to serialize the {@link GenericRecord} into bytes. **/
-	private final SerializationSchema<GenericRecord> nestedSchema;
+    /** Nested schema to serialize the {@link GenericRecord} into bytes. * */
+    private final SerializationSchema<GenericRecord> nestedSchema;
 
-	/**
-	 * Logical type describing the input type.
-	 */
-	private final RowType rowType;
+    /** Logical type describing the input type. */
+    private final RowType rowType;
 
-	/**
-	 * Avro serialization schema.
-	 */
-	private transient Schema schema;
+    /** Avro serialization schema. */
+    private transient Schema schema;
 
-	/**
-	 * Runtime instance that performs the actual work.
-	 */
-	private final RowDataToAvroConverters.RowDataToAvroConverter runtimeConverter;
+    /** Runtime instance that performs the actual work. */
+    private final RowDataToAvroConverters.RowDataToAvroConverter runtimeConverter;
 
-	/**
-	 * Creates an Avro serialization schema with the given record row type.
-	 */
-	public AvroRowDataSerializationSchema(RowType rowType) {
-		this(
-				rowType,
-				AvroSerializationSchema.forGeneric(AvroSchemaConverter.convertToSchema(rowType)),
-				RowDataToAvroConverters.createConverter(rowType));
-	}
+    /** Creates an Avro serialization schema with the given record row type. */
+    public AvroRowDataSerializationSchema(RowType rowType) {
+        this(
+                rowType,
+                AvroSerializationSchema.forGeneric(AvroSchemaConverter.convertToSchema(rowType)),
+                RowDataToAvroConverters.createConverter(rowType));
+    }
 
-	/**
-	 * Creates an Avro serialization schema with the given record row type, nested schema and
-	 * runtime converters.
-	 */
-	public AvroRowDataSerializationSchema(
-			RowType rowType,
-			SerializationSchema<GenericRecord> nestedSchema,
-			RowDataToAvroConverters.RowDataToAvroConverter runtimeConverter) {
-		this.rowType = rowType;
-		this.nestedSchema = nestedSchema;
-		this.runtimeConverter = runtimeConverter;
-	}
+    /**
+     * Creates an Avro serialization schema with the given record row type, nested schema and
+     * runtime converters.
+     */
+    public AvroRowDataSerializationSchema(
+            RowType rowType,
+            SerializationSchema<GenericRecord> nestedSchema,
+            RowDataToAvroConverters.RowDataToAvroConverter runtimeConverter) {
+        this.rowType = rowType;
+        this.nestedSchema = nestedSchema;
+        this.runtimeConverter = runtimeConverter;
+    }
 
-	@Override
-	public void open(InitializationContext context) throws Exception {
-		this.schema = AvroSchemaConverter.convertToSchema(rowType);
-		this.nestedSchema.open(context);
-	}
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        this.schema = AvroSchemaConverter.convertToSchema(rowType);
+        this.nestedSchema.open(context);
+    }
 
-	@Override
-	public byte[] serialize(RowData row) {
-		try {
-			// convert to record
-			final GenericRecord record = (GenericRecord) runtimeConverter.convert(schema, row);
-			return nestedSchema.serialize(record);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to serialize row.", e);
-		}
-	}
+    @Override
+    public byte[] serialize(RowData row) {
+        try {
+            // convert to record
+            final GenericRecord record = (GenericRecord) runtimeConverter.convert(schema, row);
+            return nestedSchema.serialize(record);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize row.", e);
+        }
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		AvroRowDataSerializationSchema that = (AvroRowDataSerializationSchema) o;
-		return nestedSchema.equals(that.nestedSchema) &&
-				rowType.equals(that.rowType);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        AvroRowDataSerializationSchema that = (AvroRowDataSerializationSchema) o;
+        return nestedSchema.equals(that.nestedSchema) && rowType.equals(that.rowType);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(nestedSchema, rowType);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(nestedSchema, rowType);
+    }
 }

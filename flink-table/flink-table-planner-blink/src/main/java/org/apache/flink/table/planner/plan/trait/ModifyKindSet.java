@@ -35,179 +35,161 @@ import java.util.Set;
  */
 public class ModifyKindSet {
 
-	/**
-	 * Insert-only modify kind set.
-	 */
-	public static final ModifyKindSet INSERT_ONLY = ModifyKindSet.newBuilder()
-		.addContainedKind(ModifyKind.INSERT)
-		.build();
+    /** Insert-only modify kind set. */
+    public static final ModifyKindSet INSERT_ONLY =
+            ModifyKindSet.newBuilder().addContainedKind(ModifyKind.INSERT).build();
 
-	/**
-	 * A modify kind set contains all change operations.
-	 */
-	public static final ModifyKindSet ALL_CHANGES = ModifyKindSet.newBuilder()
-		.addContainedKind(ModifyKind.INSERT)
-		.addContainedKind(ModifyKind.UPDATE)
-		.addContainedKind(ModifyKind.DELETE)
-		.build();
+    /** A modify kind set contains all change operations. */
+    public static final ModifyKindSet ALL_CHANGES =
+            ModifyKindSet.newBuilder()
+                    .addContainedKind(ModifyKind.INSERT)
+                    .addContainedKind(ModifyKind.UPDATE)
+                    .addContainedKind(ModifyKind.DELETE)
+                    .build();
 
-	private final Set<ModifyKind> kinds;
+    private final Set<ModifyKind> kinds;
 
-	private ModifyKindSet(Set<ModifyKind> kinds) {
-		this.kinds = Collections.unmodifiableSet(kinds);
-	}
+    private ModifyKindSet(Set<ModifyKind> kinds) {
+        this.kinds = Collections.unmodifiableSet(kinds);
+    }
 
-	public Set<ModifyKind> getContainedKinds() {
-		return kinds;
-	}
+    public Set<ModifyKind> getContainedKinds() {
+        return kinds;
+    }
 
-	public boolean contains(ModifyKind kind) {
-		return kinds.contains(kind);
-	}
+    public boolean contains(ModifyKind kind) {
+        return kinds.contains(kind);
+    }
 
-	public boolean containsOnly(ModifyKind kind) {
-		return kinds.size() == 1 && kinds.contains(kind);
-	}
+    public boolean containsOnly(ModifyKind kind) {
+        return kinds.size() == 1 && kinds.contains(kind);
+    }
 
-	public boolean isInsertOnly() {
-		return containsOnly(ModifyKind.INSERT);
-	}
+    public boolean isInsertOnly() {
+        return containsOnly(ModifyKind.INSERT);
+    }
 
-	public int size() {
-		return kinds.size();
-	}
+    public int size() {
+        return kinds.size();
+    }
 
-	public boolean isEmpty() {
-		return kinds.isEmpty();
-	}
+    public boolean isEmpty() {
+        return kinds.isEmpty();
+    }
 
-	/**
-	 * Returns a new set of ModifyKind which is this set minus the other set,
-	 * i.e. {@code this.kinds - that.kinds}. For example:
-	 * [I,U,D] minus [I] = [U,D]
-	 * [I,U] minus [U,D] = [I]
-	 * [I,U,D] minus [I,U,D] = []
-	 */
-	public ModifyKindSet minus(ModifyKindSet other) {
-		Set<ModifyKind> result = EnumSet.noneOf(ModifyKind.class);
-		result.addAll(this.kinds);
-		result.removeAll(other.kinds);
-		return new ModifyKindSet(result);
-	}
+    /**
+     * Returns a new set of ModifyKind which is this set minus the other set, i.e. {@code this.kinds
+     * - that.kinds}. For example: [I,U,D] minus [I] = [U,D] [I,U] minus [U,D] = [I] [I,U,D] minus
+     * [I,U,D] = []
+     */
+    public ModifyKindSet minus(ModifyKindSet other) {
+        Set<ModifyKind> result = EnumSet.noneOf(ModifyKind.class);
+        result.addAll(this.kinds);
+        result.removeAll(other.kinds);
+        return new ModifyKindSet(result);
+    }
 
-	/**
-	 * Returns a new ModifyKindSet with all kinds set in both this set and in another set.
-	 */
-	public ModifyKindSet intersect(ModifyKindSet other) {
-		Builder builder = new Builder();
-		for (ModifyKind kind : other.getContainedKinds()) {
-			if (this.contains(kind)) {
-				builder.addContainedKind(kind);
-			}
-		}
-		return builder.build();
-	}
+    /** Returns a new ModifyKindSet with all kinds set in both this set and in another set. */
+    public ModifyKindSet intersect(ModifyKindSet other) {
+        Builder builder = new Builder();
+        for (ModifyKind kind : other.getContainedKinds()) {
+            if (this.contains(kind)) {
+                builder.addContainedKind(kind);
+            }
+        }
+        return builder.build();
+    }
 
-	/**
-	 * Returns a new ModifyKindSet with the union of the other ModifyKindSet.
-	 */
-	public ModifyKindSet union(ModifyKindSet other) {
-		return union(this, other);
-	}
+    /** Returns a new ModifyKindSet with the union of the other ModifyKindSet. */
+    public ModifyKindSet union(ModifyKindSet other) {
+        return union(this, other);
+    }
 
-	/**
-	 * Returns the default {@link ChangelogMode} from this {@link ModifyKindSet}.
-	 */
-	public ChangelogMode toChangelogMode() {
-		ChangelogMode.Builder builder = ChangelogMode.newBuilder();
-		if (this.contains(ModifyKind.INSERT)) {
-			builder.addContainedKind(RowKind.INSERT);
-		}
-		if (this.contains(ModifyKind.UPDATE)) {
-			builder.addContainedKind(RowKind.UPDATE_BEFORE);
-			builder.addContainedKind(RowKind.UPDATE_AFTER);
-		}
-		if (this.contains(ModifyKind.DELETE)) {
-			builder.addContainedKind(RowKind.DELETE);
-		}
-		return builder.build();
-	}
+    /** Returns the default {@link ChangelogMode} from this {@link ModifyKindSet}. */
+    public ChangelogMode toChangelogMode() {
+        ChangelogMode.Builder builder = ChangelogMode.newBuilder();
+        if (this.contains(ModifyKind.INSERT)) {
+            builder.addContainedKind(RowKind.INSERT);
+        }
+        if (this.contains(ModifyKind.UPDATE)) {
+            builder.addContainedKind(RowKind.UPDATE_BEFORE);
+            builder.addContainedKind(RowKind.UPDATE_AFTER);
+        }
+        if (this.contains(ModifyKind.DELETE)) {
+            builder.addContainedKind(RowKind.DELETE);
+        }
+        return builder.build();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ModifyKindSet that = (ModifyKindSet) o;
-		return Objects.equals(kinds, that.kinds);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ModifyKindSet that = (ModifyKindSet) o;
+        return Objects.equals(kinds, that.kinds);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(kinds);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(kinds);
+    }
 
-	@Override
-	public String toString() {
-		if (kinds.isEmpty()) {
-			return "NONE";
-		}
-		List<String> modifyKinds = new ArrayList<>();
-		if (contains(ModifyKind.INSERT)) {
-			modifyKinds.add("I");
-		}
-		if (contains(ModifyKind.UPDATE)) {
-			modifyKinds.add("U");
-		}
-		if (contains(ModifyKind.DELETE)) {
-			modifyKinds.add("D");
-		}
-		return String.join(",", modifyKinds);
-	}
+    @Override
+    public String toString() {
+        if (kinds.isEmpty()) {
+            return "NONE";
+        }
+        List<String> modifyKinds = new ArrayList<>();
+        if (contains(ModifyKind.INSERT)) {
+            modifyKinds.add("I");
+        }
+        if (contains(ModifyKind.UPDATE)) {
+            modifyKinds.add("U");
+        }
+        if (contains(ModifyKind.DELETE)) {
+            modifyKinds.add("D");
+        }
+        return String.join(",", modifyKinds);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Returns the union of a number of ModifyKindSets.
-	 */
-	public static ModifyKindSet union(ModifyKindSet... modifyKindSets) {
-		Builder builder = newBuilder();
-		for (ModifyKindSet set : modifyKindSets) {
-			for (ModifyKind kind : set.getContainedKinds()) {
-				builder.addContainedKind(kind);
-			}
-		}
-		return builder.build();
-	}
+    /** Returns the union of a number of ModifyKindSets. */
+    public static ModifyKindSet union(ModifyKindSet... modifyKindSets) {
+        Builder builder = newBuilder();
+        for (ModifyKindSet set : modifyKindSets) {
+            for (ModifyKind kind : set.getContainedKinds()) {
+                builder.addContainedKind(kind);
+            }
+        }
+        return builder.build();
+    }
 
-	/**
-	 * Builder for configuring and creating instances of {@link ModifyKindSet}.
-	 */
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    /** Builder for configuring and creating instances of {@link ModifyKindSet}. */
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	/**
-	 * Builder for configuring and creating instances of {@link ModifyKindSet}.
-	 */
-	public static class Builder {
+    /** Builder for configuring and creating instances of {@link ModifyKindSet}. */
+    public static class Builder {
 
-		private final Set<ModifyKind> kinds = EnumSet.noneOf(ModifyKind.class);
+        private final Set<ModifyKind> kinds = EnumSet.noneOf(ModifyKind.class);
 
-		private Builder() {
-			// default constructor to allow a fluent definition
-		}
+        private Builder() {
+            // default constructor to allow a fluent definition
+        }
 
-		public Builder addContainedKind(ModifyKind kind) {
-			this.kinds.add(kind);
-			return this;
-		}
+        public Builder addContainedKind(ModifyKind kind) {
+            this.kinds.add(kind);
+            return this;
+        }
 
-		public ModifyKindSet build() {
-			return new ModifyKindSet(kinds);
-		}
-	}
+        public ModifyKindSet build() {
+            return new ModifyKindSet(kinds);
+        }
+    }
 }

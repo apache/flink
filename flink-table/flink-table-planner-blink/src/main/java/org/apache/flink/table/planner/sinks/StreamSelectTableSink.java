@@ -32,28 +32,29 @@ import org.apache.flink.types.RowKind;
 /**
  * A {@link RetractStreamTableSink} for streaming select job to collect the result to local.
  *
- * <p>{@link RowData} contains {@link RowKind} attribute which
- * can represents all kind of changes. The boolean flag is useless here,
- * only because {@link RetractStreamTableSink} requires Tuple2&lt;Boolean, T&gt; type.
+ * <p>{@link RowData} contains {@link RowKind} attribute which can represents all kind of changes.
+ * The boolean flag is useless here, only because {@link RetractStreamTableSink} requires
+ * Tuple2&lt;Boolean, T&gt; type.
  */
-public class StreamSelectTableSink
-		extends SelectTableSinkBase<Tuple2<Boolean, RowData>>
-		implements RetractStreamTableSink<RowData> {
+public class StreamSelectTableSink extends SelectTableSinkBase<Tuple2<Boolean, RowData>>
+        implements RetractStreamTableSink<RowData> {
 
-	public StreamSelectTableSink(TableSchema tableSchema) {
-		super(tableSchema, new TupleTypeInfo<Tuple2<Boolean, RowData>>(
-				Types.BOOLEAN,
-				createTypeInfo(tableSchema)).createSerializer(new ExecutionConfig()));
-	}
+    public StreamSelectTableSink(TableSchema tableSchema) {
+        super(
+                tableSchema,
+                new TupleTypeInfo<Tuple2<Boolean, RowData>>(
+                                Types.BOOLEAN, createTypeInfo(tableSchema))
+                        .createSerializer(new ExecutionConfig()));
+    }
 
-	@Override
-	public TypeInformation<RowData> getRecordType() {
-		return createTypeInfo(getTableSchema());
-	}
+    @Override
+    public TypeInformation<RowData> getRecordType() {
+        return createTypeInfo(getTableSchema());
+    }
 
-	@Override
-	protected Row convertToRow(Tuple2<Boolean, RowData> tuple2) {
-		// convert Tuple2<Boolean, RowData> to Row
-		return converter.toExternal(tuple2.f1);
-	}
+    @Override
+    protected Row convertToRow(Tuple2<Boolean, RowData> tuple2) {
+        // convert Tuple2<Boolean, RowData> to Row
+        return converter.toExternal(tuple2.f1);
+    }
 }

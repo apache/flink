@@ -35,108 +35,111 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link FileCommitter}.
- */
+/** Tests for {@link FileCommitter}. */
 public class FileCommitterTest {
 
-	@Test
-	public void testCommitPendingFile() throws Exception {
-		StubBucketWriter stubBucketWriter = new StubBucketWriter();
-		FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
+    @Test
+    public void testCommitPendingFile() throws Exception {
+        StubBucketWriter stubBucketWriter = new StubBucketWriter();
+        FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
 
-		FileSinkCommittable fileSinkCommittable = new FileSinkCommittable(
-				new FileSinkTestUtils.TestPendingFileRecoverable());
-		List<FileSinkCommittable> toRetry = fileCommitter.commit(
-				Collections.singletonList(fileSinkCommittable));
+        FileSinkCommittable fileSinkCommittable =
+                new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable());
+        List<FileSinkCommittable> toRetry =
+                fileCommitter.commit(Collections.singletonList(fileSinkCommittable));
 
-		assertEquals(1, stubBucketWriter.getRecoveredPendingFiles().size());
-		assertEquals(0, stubBucketWriter.getNumCleanUp());
-		assertTrue(stubBucketWriter.getRecoveredPendingFiles().get(0).isCommitted());
-		assertEquals(0, toRetry.size());
-	}
+        assertEquals(1, stubBucketWriter.getRecoveredPendingFiles().size());
+        assertEquals(0, stubBucketWriter.getNumCleanUp());
+        assertTrue(stubBucketWriter.getRecoveredPendingFiles().get(0).isCommitted());
+        assertEquals(0, toRetry.size());
+    }
 
-	@Test
-	public void testCleanupInProgressFiles() throws Exception {
-		StubBucketWriter stubBucketWriter = new StubBucketWriter();
-		FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
+    @Test
+    public void testCleanupInProgressFiles() throws Exception {
+        StubBucketWriter stubBucketWriter = new StubBucketWriter();
+        FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
 
-		FileSinkCommittable fileSinkCommittable = new FileSinkCommittable(
-				new FileSinkTestUtils.TestInProgressFileRecoverable());
-		List<FileSinkCommittable> toRetry = fileCommitter.commit(
-				Collections.singletonList(fileSinkCommittable));
+        FileSinkCommittable fileSinkCommittable =
+                new FileSinkCommittable(new FileSinkTestUtils.TestInProgressFileRecoverable());
+        List<FileSinkCommittable> toRetry =
+                fileCommitter.commit(Collections.singletonList(fileSinkCommittable));
 
-		assertEquals(0, stubBucketWriter.getRecoveredPendingFiles().size());
-		assertEquals(1, stubBucketWriter.getNumCleanUp());
-		assertEquals(0, toRetry.size());
-	}
+        assertEquals(0, stubBucketWriter.getRecoveredPendingFiles().size());
+        assertEquals(1, stubBucketWriter.getNumCleanUp());
+        assertEquals(0, toRetry.size());
+    }
 
-	@Test
-	public void testCommitMultiple() throws Exception {
-		StubBucketWriter stubBucketWriter = new StubBucketWriter();
-		FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
+    @Test
+    public void testCommitMultiple() throws Exception {
+        StubBucketWriter stubBucketWriter = new StubBucketWriter();
+        FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
 
-		List<FileSinkCommittable> committables = Arrays.asList(
-				new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable()),
-				new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable()),
-				new FileSinkCommittable(new FileSinkTestUtils.TestInProgressFileRecoverable()),
-				new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable()),
-				new FileSinkCommittable(new FileSinkTestUtils.TestInProgressFileRecoverable()));
-		List<FileSinkCommittable> toRetry = fileCommitter.commit(committables);
+        List<FileSinkCommittable> committables =
+                Arrays.asList(
+                        new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable()),
+                        new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable()),
+                        new FileSinkCommittable(
+                                new FileSinkTestUtils.TestInProgressFileRecoverable()),
+                        new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable()),
+                        new FileSinkCommittable(
+                                new FileSinkTestUtils.TestInProgressFileRecoverable()));
+        List<FileSinkCommittable> toRetry = fileCommitter.commit(committables);
 
-		assertEquals(3, stubBucketWriter.getRecoveredPendingFiles().size());
-		assertEquals(2, stubBucketWriter.getNumCleanUp());
-		stubBucketWriter
-				.getRecoveredPendingFiles()
-				.forEach(pendingFile -> assertTrue(pendingFile.isCommitted()));
-		assertEquals(0, toRetry.size());
-	}
+        assertEquals(3, stubBucketWriter.getRecoveredPendingFiles().size());
+        assertEquals(2, stubBucketWriter.getNumCleanUp());
+        stubBucketWriter
+                .getRecoveredPendingFiles()
+                .forEach(pendingFile -> assertTrue(pendingFile.isCommitted()));
+        assertEquals(0, toRetry.size());
+    }
 
-	// ------------------------------- Mock Classes --------------------------------
+    // ------------------------------- Mock Classes --------------------------------
 
-	private static class RecordingPendingFile implements BucketWriter.PendingFile {
-		private boolean committed;
+    private static class RecordingPendingFile implements BucketWriter.PendingFile {
+        private boolean committed;
 
-		@Override
-		public void commit() throws IOException {
-			commitAfterRecovery();
-		}
+        @Override
+        public void commit() throws IOException {
+            commitAfterRecovery();
+        }
 
-		@Override
-		public void commitAfterRecovery() throws IOException {
-			committed = true;
-		}
+        @Override
+        public void commitAfterRecovery() throws IOException {
+            committed = true;
+        }
 
-		public boolean isCommitted() {
-			return committed;
-		}
-	}
+        public boolean isCommitted() {
+            return committed;
+        }
+    }
 
-	private static class StubBucketWriter extends NoOpBucketWriter {
-		private final List<RecordingPendingFile> recoveredPendingFiles = new ArrayList<>();
-		private int numCleanUp;
+    private static class StubBucketWriter extends NoOpBucketWriter {
+        private final List<RecordingPendingFile> recoveredPendingFiles = new ArrayList<>();
+        private int numCleanUp;
 
-		@Override
-		public BucketWriter.PendingFile recoverPendingFile(
-				InProgressFileWriter.PendingFileRecoverable pendingFileRecoverable) throws IOException {
-			RecordingPendingFile pendingFile = new RecordingPendingFile();
-			recoveredPendingFiles.add(pendingFile);
-			return pendingFile;
-		}
+        @Override
+        public BucketWriter.PendingFile recoverPendingFile(
+                InProgressFileWriter.PendingFileRecoverable pendingFileRecoverable)
+                throws IOException {
+            RecordingPendingFile pendingFile = new RecordingPendingFile();
+            recoveredPendingFiles.add(pendingFile);
+            return pendingFile;
+        }
 
-		@Override
-		public boolean cleanupInProgressFileRecoverable(
-				InProgressFileWriter.InProgressFileRecoverable inProgressFileRecoverable) throws IOException {
-			numCleanUp++;
-			return true;
-		}
+        @Override
+        public boolean cleanupInProgressFileRecoverable(
+                InProgressFileWriter.InProgressFileRecoverable inProgressFileRecoverable)
+                throws IOException {
+            numCleanUp++;
+            return true;
+        }
 
-		public List<RecordingPendingFile> getRecoveredPendingFiles() {
-			return recoveredPendingFiles;
-		}
+        public List<RecordingPendingFile> getRecoveredPendingFiles() {
+            return recoveredPendingFiles;
+        }
 
-		public int getNumCleanUp() {
-			return numCleanUp;
-		}
-	}
+        public int getNumCleanUp() {
+            return numCleanUp;
+        }
+    }
 }

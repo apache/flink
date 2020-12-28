@@ -34,102 +34,105 @@ import java.util.List;
  */
 public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
-	private final Counter numBytesIn;
-	private final Counter numBytesOut;
-	private final SumCounter numRecordsIn;
-	private final SumCounter numRecordsOut;
-	private final Counter numBuffersOut;
+    private final Counter numBytesIn;
+    private final Counter numBytesOut;
+    private final SumCounter numRecordsIn;
+    private final SumCounter numRecordsOut;
+    private final Counter numBuffersOut;
 
-	private final Meter numBytesInRate;
-	private final Meter numBytesOutRate;
-	private final Meter numRecordsInRate;
-	private final Meter numRecordsOutRate;
-	private final Meter numBuffersOutRate;
-	private final Meter idleTimePerSecond;
+    private final Meter numBytesInRate;
+    private final Meter numBytesOutRate;
+    private final Meter numRecordsInRate;
+    private final Meter numRecordsOutRate;
+    private final Meter numBuffersOutRate;
+    private final Meter idleTimePerSecond;
 
-	public TaskIOMetricGroup(TaskMetricGroup parent) {
-		super(parent);
+    public TaskIOMetricGroup(TaskMetricGroup parent) {
+        super(parent);
 
-		this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
-		this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
-		this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
-		this.numBytesOutRate = meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut));
+        this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
+        this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
+        this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
+        this.numBytesOutRate = meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut));
 
-		this.numRecordsIn = counter(MetricNames.IO_NUM_RECORDS_IN, new SumCounter());
-		this.numRecordsOut = counter(MetricNames.IO_NUM_RECORDS_OUT, new SumCounter());
-		this.numRecordsInRate = meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn));
-		this.numRecordsOutRate = meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
+        this.numRecordsIn = counter(MetricNames.IO_NUM_RECORDS_IN, new SumCounter());
+        this.numRecordsOut = counter(MetricNames.IO_NUM_RECORDS_OUT, new SumCounter());
+        this.numRecordsInRate =
+                meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn));
+        this.numRecordsOutRate =
+                meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
 
-		this.numBuffersOut = counter(MetricNames.IO_NUM_BUFFERS_OUT);
-		this.numBuffersOutRate = meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
+        this.numBuffersOut = counter(MetricNames.IO_NUM_BUFFERS_OUT);
+        this.numBuffersOutRate =
+                meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
 
-		this.idleTimePerSecond = meter(MetricNames.TASK_IDLE_TIME, new MeterView(new SimpleCounter()));
-	}
+        this.idleTimePerSecond =
+                meter(MetricNames.TASK_IDLE_TIME, new MeterView(new SimpleCounter()));
+    }
 
-	public IOMetrics createSnapshot() {
-		return new IOMetrics(numRecordsInRate, numRecordsOutRate, numBytesInRate, numBytesOutRate);
-	}
+    public IOMetrics createSnapshot() {
+        return new IOMetrics(numRecordsInRate, numRecordsOutRate, numBytesInRate, numBytesOutRate);
+    }
 
-	// ============================================================================================
-	// Getters
-	// ============================================================================================
+    // ============================================================================================
+    // Getters
+    // ============================================================================================
 
-	public Counter getNumBytesInCounter() {
-		return numBytesIn;
-	}
+    public Counter getNumBytesInCounter() {
+        return numBytesIn;
+    }
 
-	public Counter getNumBytesOutCounter() {
-		return numBytesOut;
-	}
+    public Counter getNumBytesOutCounter() {
+        return numBytesOut;
+    }
 
-	public Counter getNumRecordsInCounter() {
-		return numRecordsIn;
-	}
+    public Counter getNumRecordsInCounter() {
+        return numRecordsIn;
+    }
 
-	public Counter getNumRecordsOutCounter() {
-		return numRecordsOut;
-	}
+    public Counter getNumRecordsOutCounter() {
+        return numRecordsOut;
+    }
 
-	public Counter getNumBuffersOutCounter() {
-		return numBuffersOut;
-	}
+    public Counter getNumBuffersOutCounter() {
+        return numBuffersOut;
+    }
 
-	public Meter getIdleTimeMsPerSecond() {
-		return idleTimePerSecond;
-	}
+    public Meter getIdleTimeMsPerSecond() {
+        return idleTimePerSecond;
+    }
 
-	// ============================================================================================
-	// Metric Reuse
-	// ============================================================================================
-	public void reuseRecordsInputCounter(Counter numRecordsInCounter) {
-		this.numRecordsIn.addCounter(numRecordsInCounter);
-	}
+    // ============================================================================================
+    // Metric Reuse
+    // ============================================================================================
+    public void reuseRecordsInputCounter(Counter numRecordsInCounter) {
+        this.numRecordsIn.addCounter(numRecordsInCounter);
+    }
 
-	public void reuseRecordsOutputCounter(Counter numRecordsOutCounter) {
-		this.numRecordsOut.addCounter(numRecordsOutCounter);
-	}
+    public void reuseRecordsOutputCounter(Counter numRecordsOutCounter) {
+        this.numRecordsOut.addCounter(numRecordsOutCounter);
+    }
 
-	/**
-	 * A {@link SimpleCounter} that can contain other {@link Counter}s. A call to {@link SumCounter#getCount()} returns
-	 * the sum of this counters and all contained counters.
-	 */
-	private static class SumCounter extends SimpleCounter {
-		private final List<Counter> internalCounters = new ArrayList<>();
+    /**
+     * A {@link SimpleCounter} that can contain other {@link Counter}s. A call to {@link
+     * SumCounter#getCount()} returns the sum of this counters and all contained counters.
+     */
+    private static class SumCounter extends SimpleCounter {
+        private final List<Counter> internalCounters = new ArrayList<>();
 
-		SumCounter() {
-		}
+        SumCounter() {}
 
-		public void addCounter(Counter toAdd) {
-			internalCounters.add(toAdd);
-		}
+        public void addCounter(Counter toAdd) {
+            internalCounters.add(toAdd);
+        }
 
-		@Override
-		public long getCount() {
-			long sum = super.getCount();
-			for (Counter counter : internalCounters) {
-				sum += counter.getCount();
-			}
-			return sum;
-		}
-	}
+        @Override
+        public long getCount() {
+            long sum = super.getCount();
+            for (Counter counter : internalCounters) {
+                sum += counter.getCount();
+            }
+            return sum;
+        }
+    }
 }

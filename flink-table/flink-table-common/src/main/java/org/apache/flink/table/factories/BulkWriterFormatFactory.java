@@ -28,6 +28,7 @@ import org.apache.flink.table.data.RowData;
  * @see FactoryUtil#createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)
  */
 @Internal
-public interface BulkWriterFormatFactory extends EncodingFormatFactory<BulkWriter.Factory<RowData>> {
-	// interface is used for discovery but is already fully specified by the generics
+public interface BulkWriterFormatFactory
+        extends EncodingFormatFactory<BulkWriter.Factory<RowData>> {
+    // interface is used for discovery but is already fully specified by the generics
 }

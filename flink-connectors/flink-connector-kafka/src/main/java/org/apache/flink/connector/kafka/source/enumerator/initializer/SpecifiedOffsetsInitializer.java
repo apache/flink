@@ -29,54 +29,54 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * An implementation of {@link OffsetsInitializer} which initializes the offsets
- * of the partition according to the user specified offsets.
+ * An implementation of {@link OffsetsInitializer} which initializes the offsets of the partition
+ * according to the user specified offsets.
  *
- * <P>Package private and should be instantiated via {@link OffsetsInitializer}.
+ * <p>Package private and should be instantiated via {@link OffsetsInitializer}.
  */
 class SpecifiedOffsetsInitializer implements OffsetsInitializer {
-	private static final long serialVersionUID = 1649702397250402877L;
-	private final Map<TopicPartition, Long> initialOffsets;
-	private final OffsetResetStrategy offsetResetStrategy;
+    private static final long serialVersionUID = 1649702397250402877L;
+    private final Map<TopicPartition, Long> initialOffsets;
+    private final OffsetResetStrategy offsetResetStrategy;
 
-	SpecifiedOffsetsInitializer(
-			Map<TopicPartition, Long> initialOffsets,
-			OffsetResetStrategy offsetResetStrategy) {
-		this.initialOffsets = Collections.unmodifiableMap(initialOffsets);
-		this.offsetResetStrategy = offsetResetStrategy;
-	}
+    SpecifiedOffsetsInitializer(
+            Map<TopicPartition, Long> initialOffsets, OffsetResetStrategy offsetResetStrategy) {
+        this.initialOffsets = Collections.unmodifiableMap(initialOffsets);
+        this.offsetResetStrategy = offsetResetStrategy;
+    }
 
-	@Override
-	public Map<TopicPartition, Long> getPartitionOffsets(
-			Collection<TopicPartition> partitions,
-			PartitionOffsetsRetriever partitionOffsetsRetriever) {
-		Map<TopicPartition, Long> offsets = new HashMap<>();
-		List<TopicPartition> toLookup = new ArrayList<>();
-		for (TopicPartition tp : partitions) {
-			Long offset = initialOffsets.get(tp);
-			if (offset == null) {
-				toLookup.add(tp);
-			} else {
-				offsets.put(tp, offset);
-			}
-		}
-		if (!toLookup.isEmpty()) {
-			switch (offsetResetStrategy) {
-				case EARLIEST:
-					offsets.putAll(partitionOffsetsRetriever.beginningOffsets(toLookup));
-					break;
-				case LATEST:
-					offsets.putAll(partitionOffsetsRetriever.endOffsets(toLookup));
-					break;
-				default:
-					throw new IllegalStateException("Cannot find initial offsets for partitions: " + toLookup);
-			}
-		}
-		return offsets;
-	}
+    @Override
+    public Map<TopicPartition, Long> getPartitionOffsets(
+            Collection<TopicPartition> partitions,
+            PartitionOffsetsRetriever partitionOffsetsRetriever) {
+        Map<TopicPartition, Long> offsets = new HashMap<>();
+        List<TopicPartition> toLookup = new ArrayList<>();
+        for (TopicPartition tp : partitions) {
+            Long offset = initialOffsets.get(tp);
+            if (offset == null) {
+                toLookup.add(tp);
+            } else {
+                offsets.put(tp, offset);
+            }
+        }
+        if (!toLookup.isEmpty()) {
+            switch (offsetResetStrategy) {
+                case EARLIEST:
+                    offsets.putAll(partitionOffsetsRetriever.beginningOffsets(toLookup));
+                    break;
+                case LATEST:
+                    offsets.putAll(partitionOffsetsRetriever.endOffsets(toLookup));
+                    break;
+                default:
+                    throw new IllegalStateException(
+                            "Cannot find initial offsets for partitions: " + toLookup);
+            }
+        }
+        return offsets;
+    }
 
-	@Override
-	public OffsetResetStrategy getAutoOffsetResetStrategy() {
-		return offsetResetStrategy;
-	}
+    @Override
+    public OffsetResetStrategy getAutoOffsetResetStrategy() {
+        return offsetResetStrategy;
+    }
 }

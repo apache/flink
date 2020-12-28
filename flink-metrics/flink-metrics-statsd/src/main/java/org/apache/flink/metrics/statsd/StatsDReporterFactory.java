@@ -27,11 +27,12 @@ import java.util.Properties;
 /**
  * A {@link MetricReporterFactory} implementation that creates a {@link StatsDReporter} instance.
  */
-@InterceptInstantiationViaReflection(reporterClassName = "org.apache.flink.metrics.statsd.StatsDReporter")
+@InterceptInstantiationViaReflection(
+        reporterClassName = "org.apache.flink.metrics.statsd.StatsDReporter")
 public class StatsDReporterFactory implements MetricReporterFactory {
 
-	@Override
-	public MetricReporter createMetricReporter(Properties properties) {
-		return new StatsDReporter();
-	}
+    @Override
+    public MetricReporter createMetricReporter(Properties properties) {
+        return new StatsDReporter();
+    }
 }

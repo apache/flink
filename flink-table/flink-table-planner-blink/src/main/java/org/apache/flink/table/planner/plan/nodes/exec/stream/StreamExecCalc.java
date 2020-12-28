@@ -27,16 +27,17 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexProgram;
 
-/**
- * Stream {@link ExecNode} for Calc.
- */
+/** Stream {@link ExecNode} for Calc. */
 public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<RowData> {
 
-	public StreamExecCalc(
-			RexProgram calcProgram,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(calcProgram, AbstractProcessStreamOperator.class, true, inputEdge, outputType, description);
-	}
+    public StreamExecCalc(
+            RexProgram calcProgram, ExecEdge inputEdge, RowType outputType, String description) {
+        super(
+                calcProgram,
+                AbstractProcessStreamOperator.class,
+                true,
+                inputEdge,
+                outputType,
+                description);
+    }
 }

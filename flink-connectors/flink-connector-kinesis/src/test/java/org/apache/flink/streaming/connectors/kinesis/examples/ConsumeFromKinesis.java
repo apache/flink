@@ -26,30 +26,30 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 
 import java.util.Properties;
 
-/**
- * This is an example on how to consume data from Kinesis.
- */
+/** This is an example on how to consume data from Kinesis. */
 public class ConsumeFromKinesis {
 
-	public static void main(String[] args) throws Exception {
-		ParameterTool pt = ParameterTool.fromArgs(args);
+    public static void main(String[] args) throws Exception {
+        ParameterTool pt = ParameterTool.fromArgs(args);
 
-		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.setParallelism(1);
+        StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+        see.setParallelism(1);
 
-		Properties kinesisConsumerConfig = new Properties();
-		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_REGION, pt.getRequired("region"));
-		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, pt.getRequired("accesskey"));
-		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, pt.getRequired("secretkey"));
+        Properties kinesisConsumerConfig = new Properties();
+        kinesisConsumerConfig.setProperty(
+                ConsumerConfigConstants.AWS_REGION, pt.getRequired("region"));
+        kinesisConsumerConfig.setProperty(
+                ConsumerConfigConstants.AWS_ACCESS_KEY_ID, pt.getRequired("accesskey"));
+        kinesisConsumerConfig.setProperty(
+                ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, pt.getRequired("secretkey"));
 
-		DataStream<String> kinesis = see.addSource(new FlinkKinesisConsumer<>(
-			"flink-test",
-			new SimpleStringSchema(),
-			kinesisConsumerConfig));
+        DataStream<String> kinesis =
+                see.addSource(
+                        new FlinkKinesisConsumer<>(
+                                "flink-test", new SimpleStringSchema(), kinesisConsumerConfig));
 
-		kinesis.print();
+        kinesis.print();
 
-		see.execute();
-	}
-
+        see.execute();
+    }
 }

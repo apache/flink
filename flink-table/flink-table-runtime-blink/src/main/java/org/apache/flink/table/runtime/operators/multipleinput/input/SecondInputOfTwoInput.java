@@ -25,29 +25,27 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 
-/**
- * {@link Input} for the second input of {@link TwoInputStreamOperator}.
- */
+/** {@link Input} for the second input of {@link TwoInputStreamOperator}. */
 public class SecondInputOfTwoInput extends InputBase {
 
-	private final TwoInputStreamOperator<RowData, RowData, RowData> operator;
+    private final TwoInputStreamOperator<RowData, RowData, RowData> operator;
 
-	public SecondInputOfTwoInput(TwoInputStreamOperator<RowData, RowData, RowData> operator) {
-		this.operator = operator;
-	}
+    public SecondInputOfTwoInput(TwoInputStreamOperator<RowData, RowData, RowData> operator) {
+        this.operator = operator;
+    }
 
-	@Override
-	public void processElement(StreamRecord<RowData> element) throws Exception {
-		operator.processElement2(element);
-	}
+    @Override
+    public void processElement(StreamRecord<RowData> element) throws Exception {
+        operator.processElement2(element);
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		operator.processWatermark2(mark);
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        operator.processWatermark2(mark);
+    }
 
-	@Override
-	public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
-		operator.processLatencyMarker2(latencyMarker);
-	}
+    @Override
+    public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+        operator.processLatencyMarker2(latencyMarker);
+    }
 }

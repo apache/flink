@@ -23,23 +23,24 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.types.Row;
 
 /**
- * A class that helps adapt a {@link Mapper} to a {@link MapFunction} so that the mapper can run in Flink.
+ * A class that helps adapt a {@link Mapper} to a {@link MapFunction} so that the mapper can run in
+ * Flink.
  */
 public class MapperAdapter implements MapFunction<Row, Row> {
 
-	private final Mapper mapper;
+    private final Mapper mapper;
 
-	/**
-	 * Construct a MapperAdapter with the given mapper.
-	 *
-	 * @param mapper The {@link Mapper} to adapt.
-	 */
-	public MapperAdapter(Mapper mapper) {
-		this.mapper = mapper;
-	}
+    /**
+     * Construct a MapperAdapter with the given mapper.
+     *
+     * @param mapper The {@link Mapper} to adapt.
+     */
+    public MapperAdapter(Mapper mapper) {
+        this.mapper = mapper;
+    }
 
-	@Override
-	public Row map(Row row) throws Exception {
-		return this.mapper.map(row);
-	}
+    @Override
+    public Row map(Row row) throws Exception {
+        return this.mapper.map(row);
+    }
 }

@@ -29,38 +29,37 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
  * @param <IN> The type of the input.
  */
 @PublicEvolving
-public abstract class BroadcastStateBootstrapFunction<IN> extends AbstractRichFunction  {
+public abstract class BroadcastStateBootstrapFunction<IN> extends AbstractRichFunction {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Writes the given value to operator state. This function is called for every record.
-	 *
-	 * @param value The input record.
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the
-	 *     operation to fail and may trigger recovery.
-	 */
-	public abstract void processElement(IN value, Context ctx) throws Exception;
+    /**
+     * Writes the given value to operator state. This function is called for every record.
+     *
+     * @param value The input record.
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    public abstract void processElement(IN value, Context ctx) throws Exception;
 
-	/**
-	 * Context that {@link BroadcastStateBootstrapFunction}'s can use for getting additional data about an input
-	 * record.
-	 *
-	 * <p>The context is only valid for the duration of a {@link
-	 * #processElement(Object, Context)} call. Do not store the context and use
-	 * afterwards!
-	 */
-	public interface Context {
+    /**
+     * Context that {@link BroadcastStateBootstrapFunction}'s can use for getting additional data
+     * about an input record.
+     *
+     * <p>The context is only valid for the duration of a {@link #processElement(Object, Context)}
+     * call. Do not store the context and use afterwards!
+     */
+    public interface Context {
 
-		/** Returns the current processing time. */
-		long currentProcessingTime();
+        /** Returns the current processing time. */
+        long currentProcessingTime();
 
-		/**
-		 * Fetches the {@link BroadcastState} with the specified name.
-		 *
-		 * @param descriptor the {@link MapStateDescriptor} of the state to be fetched.
-		 * @return The required {@link BroadcastState broadcast state}.
-		 */
-		<K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> descriptor);
-	}
+        /**
+         * Fetches the {@link BroadcastState} with the specified name.
+         *
+         * @param descriptor the {@link MapStateDescriptor} of the state to be fetched.
+         * @return The required {@link BroadcastState broadcast state}.
+         */
+        <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> descriptor);
+    }
 }

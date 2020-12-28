@@ -25,25 +25,27 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/**
- * Factory for {@link TestingSlotManager}.
- */
+/** Factory for {@link TestingSlotManager}. */
 public class TestingSlotManagerBuilder {
 
-	private Consumer<Boolean> setFailUnfulfillableRequestConsumer = ignored -> {};
-	private Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier = () -> Collections.emptyMap();
+    private Consumer<Boolean> setFailUnfulfillableRequestConsumer = ignored -> {};
+    private Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier =
+            () -> Collections.emptyMap();
 
-	public TestingSlotManagerBuilder setSetFailUnfulfillableRequestConsumer(Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
-		this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
-		return this;
-	}
+    public TestingSlotManagerBuilder setSetFailUnfulfillableRequestConsumer(
+            Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
+        this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
+        return this;
+    }
 
-	public TestingSlotManagerBuilder setGetRequiredResourcesSupplier(Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier) {
-		this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
-		return this;
-	}
+    public TestingSlotManagerBuilder setGetRequiredResourcesSupplier(
+            Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier) {
+        this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
+        return this;
+    }
 
-	public TestingSlotManager createSlotManager() {
-		return new TestingSlotManager(setFailUnfulfillableRequestConsumer, getRequiredResourcesSupplier);
-	}
+    public TestingSlotManager createSlotManager() {
+        return new TestingSlotManager(
+                setFailUnfulfillableRequestConsumer, getRequiredResourcesSupplier);
+    }
 }

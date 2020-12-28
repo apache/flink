@@ -33,70 +33,77 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * This test deals with sql driver class loading issues, write it alone so it won't be
- * interfered by other tests.
+ * This test deals with sql driver class loading issues, write it alone so it won't be interfered by
+ * other tests.
  */
 public class SimpleJdbcConnectionProviderDriverClassConcurrentLoadingTest {
-	private static boolean isClassLoaded(ClassLoader classLoader, String className) throws Exception {
-		do {
-			Method m = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
-			m.setAccessible(true);
-			Object loadedClass = m.invoke(classLoader, className);
-			if (loadedClass != null) {
-				return true;
-			}
-			classLoader = classLoader.getParent();
-		} while (classLoader != null);
-		return false;
-	}
+    private static boolean isClassLoaded(ClassLoader classLoader, String className)
+            throws Exception {
+        do {
+            Method m = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
+            m.setAccessible(true);
+            Object loadedClass = m.invoke(classLoader, className);
+            if (loadedClass != null) {
+                return true;
+            }
+            classLoader = classLoader.getParent();
+        } while (classLoader != null);
+        return false;
+    }
 
-	@Test(timeout = 5000)
-	public void testDriverClassConcurrentLoading() throws Exception {
-		ClassLoader classLoader = getClass().getClassLoader();
+    @Test(timeout = 5000)
+    public void testDriverClassConcurrentLoading() throws Exception {
+        ClassLoader classLoader = getClass().getClassLoader();
 
-		assertFalse(isClassLoaded(classLoader, FakeDBUtils.DRIVER1_CLASS_NAME));
-		assertFalse(isClassLoaded(classLoader, FakeDBUtils.DRIVER2_CLASS_NAME));
+        assertFalse(isClassLoaded(classLoader, FakeDBUtils.DRIVER1_CLASS_NAME));
+        assertFalse(isClassLoaded(classLoader, FakeDBUtils.DRIVER2_CLASS_NAME));
 
-		JdbcConnectionOptions connectionOptions1 = new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-			.withUrl(FakeDBUtils.TEST_DB_URL)
-			.withDriverName(FakeDBUtils.DRIVER1_CLASS_NAME)
-			.build();
+        JdbcConnectionOptions connectionOptions1 =
+                new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                        .withUrl(FakeDBUtils.TEST_DB_URL)
+                        .withDriverName(FakeDBUtils.DRIVER1_CLASS_NAME)
+                        .build();
 
-		JdbcConnectionOptions connectionOptions2 = new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-			.withUrl(FakeDBUtils.TEST_DB_URL)
-			.withDriverName(FakeDBUtils.DRIVER2_CLASS_NAME)
-			.build();
+        JdbcConnectionOptions connectionOptions2 =
+                new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                        .withUrl(FakeDBUtils.TEST_DB_URL)
+                        .withDriverName(FakeDBUtils.DRIVER2_CLASS_NAME)
+                        .build();
 
-		CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch startLatch = new CountDownLatch(1);
 
-		Function<JdbcConnectionOptions, CheckedThread> connectionThreadCreator = options -> {
-			CheckedThread thread = new CheckedThread() {
-				@Override
-				public void go() throws Exception {
-					startLatch.await();
-					JdbcConnectionProvider connectionProvider = new SimpleJdbcConnectionProvider(options);
-					Connection connection = connectionProvider.getOrEstablishConnection();
-					connection.close();
-				}
-			};
-			thread.setName("Loading " + options.getDriverName());
-			thread.setDaemon(true);
-			return thread;
-		};
+        Function<JdbcConnectionOptions, CheckedThread> connectionThreadCreator =
+                options -> {
+                    CheckedThread thread =
+                            new CheckedThread() {
+                                @Override
+                                public void go() throws Exception {
+                                    startLatch.await();
+                                    JdbcConnectionProvider connectionProvider =
+                                            new SimpleJdbcConnectionProvider(options);
+                                    Connection connection =
+                                            connectionProvider.getOrEstablishConnection();
+                                    connection.close();
+                                }
+                            };
+                    thread.setName("Loading " + options.getDriverName());
+                    thread.setDaemon(true);
+                    return thread;
+                };
 
-		CheckedThread connectionThread1 = connectionThreadCreator.apply(connectionOptions1);
-		CheckedThread connectionThread2 = connectionThreadCreator.apply(connectionOptions2);
+        CheckedThread connectionThread1 = connectionThreadCreator.apply(connectionOptions1);
+        CheckedThread connectionThread2 = connectionThreadCreator.apply(connectionOptions2);
 
-		connectionThread1.start();
-		connectionThread2.start();
+        connectionThread1.start();
+        connectionThread2.start();
 
-		Thread.sleep(2);
-		startLatch.countDown();
+        Thread.sleep(2);
+        startLatch.countDown();
 
-		connectionThread1.sync();
-		connectionThread2.sync();
+        connectionThread1.sync();
+        connectionThread2.sync();
 
-		assertTrue(isClassLoaded(classLoader, FakeDBUtils.DRIVER1_CLASS_NAME));
-		assertTrue(isClassLoaded(classLoader, FakeDBUtils.DRIVER2_CLASS_NAME));
-	}
+        assertTrue(isClassLoaded(classLoader, FakeDBUtils.DRIVER1_CLASS_NAME));
+        assertTrue(isClassLoaded(classLoader, FakeDBUtils.DRIVER2_CLASS_NAME));
+    }
 }

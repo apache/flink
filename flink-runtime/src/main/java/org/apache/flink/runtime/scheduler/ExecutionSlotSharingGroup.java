@@ -24,22 +24,20 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Represents execution vertices that will run the same shared slot.
- */
+/** Represents execution vertices that will run the same shared slot. */
 class ExecutionSlotSharingGroup {
 
-	private final Set<ExecutionVertexID> executionVertexIds;
+    private final Set<ExecutionVertexID> executionVertexIds;
 
-	ExecutionSlotSharingGroup() {
-		this.executionVertexIds = new HashSet<>();
-	}
+    ExecutionSlotSharingGroup() {
+        this.executionVertexIds = new HashSet<>();
+    }
 
-	void addVertex(final ExecutionVertexID executionVertexId) {
-		executionVertexIds.add(executionVertexId);
-	}
+    void addVertex(final ExecutionVertexID executionVertexId) {
+        executionVertexIds.add(executionVertexId);
+    }
 
-	Set<ExecutionVertexID> getExecutionVertexIds() {
-		return Collections.unmodifiableSet(executionVertexIds);
-	}
+    Set<ExecutionVertexID> getExecutionVertexIds() {
+        return Collections.unmodifiableSet(executionVertexIds);
+    }
 }

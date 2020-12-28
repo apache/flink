@@ -28,24 +28,27 @@ import java.util.stream.StreamSupport;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
-/**
- * Test utils for metric reporters.
- */
+/** Test utils for metric reporters. */
 public class MetricReporterTestUtils {
 
-	/**
-	 * Verifies that the given {@link MetricReporterFactory} class can be loaded by the {@link ServiceLoader}.
-	 *
-	 * <p>Essentially, this verifies that the {@code META-INF/services/org.apache.flink.metrics.reporter.MetricReporterFactory}
-	 * file exists and contains the expected factory class references.
-	 *
-	 * @param clazz class to load
-	 */
-	public static void testMetricReporterSetupViaSPI(final Class<? extends MetricReporterFactory> clazz) {
-		final Set<Class<? extends MetricReporterFactory>> loadedFactories = StreamSupport
-			.stream(ServiceLoader.load(MetricReporterFactory.class).spliterator(), false)
-			.map(MetricReporterFactory::getClass)
-			.collect(Collectors.toSet());
-		assertThat(loadedFactories , hasItem(clazz));
-	}
+    /**
+     * Verifies that the given {@link MetricReporterFactory} class can be loaded by the {@link
+     * ServiceLoader}.
+     *
+     * <p>Essentially, this verifies that the {@code
+     * META-INF/services/org.apache.flink.metrics.reporter.MetricReporterFactory} file exists and
+     * contains the expected factory class references.
+     *
+     * @param clazz class to load
+     */
+    public static void testMetricReporterSetupViaSPI(
+            final Class<? extends MetricReporterFactory> clazz) {
+        final Set<Class<? extends MetricReporterFactory>> loadedFactories =
+                StreamSupport.stream(
+                                ServiceLoader.load(MetricReporterFactory.class).spliterator(),
+                                false)
+                        .map(MetricReporterFactory::getClass)
+                        .collect(Collectors.toSet());
+        assertThat(loadedFactories, hasItem(clazz));
+    }
 }

@@ -46,106 +46,105 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests that co-location constraints work as expected in the case of task restarts.
- */
+/** Tests that co-location constraints work as expected in the case of task restarts. */
 public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
-	private static final int NUM_TASKS = 31;
+    private static final int NUM_TASKS = 31;
 
-	@Override
-	protected ComponentMainThreadExecutor getComponentMainThreadExecutor() {
-		return ComponentMainThreadExecutorServiceAdapter.forMainThread();
-	}
+    @Override
+    protected ComponentMainThreadExecutor getComponentMainThreadExecutor() {
+        return ComponentMainThreadExecutorServiceAdapter.forMainThread();
+    }
 
-	@Test
-	public void testConstraintsAfterRestart() throws Exception {
+    @Test
+    public void testConstraintsAfterRestart() throws Exception {
 
-		final long timeout = 5000L;
+        final long timeout = 5000L;
 
-		//setting up
-		testingSlotProvider.addTaskManager(NUM_TASKS);
+        // setting up
+        testingSlotProvider.addTaskManager(NUM_TASKS);
 
-		JobVertex groupVertex = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
-		JobVertex groupVertex2 = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
-		groupVertex2.connectNewDataSetAsInput(groupVertex, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        JobVertex groupVertex = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
+        JobVertex groupVertex2 = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
+        groupVertex2.connectNewDataSetAsInput(
+                groupVertex, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-		SlotSharingGroup sharingGroup = new SlotSharingGroup();
-		groupVertex.setSlotSharingGroup(sharingGroup);
-		groupVertex2.setSlotSharingGroup(sharingGroup);
-		groupVertex.setStrictlyCoLocatedWith(groupVertex2);
+        SlotSharingGroup sharingGroup = new SlotSharingGroup();
+        groupVertex.setSlotSharingGroup(sharingGroup);
+        groupVertex2.setSlotSharingGroup(sharingGroup);
+        groupVertex.setStrictlyCoLocatedWith(groupVertex2);
 
-		// initiate and schedule job
-		final JobGraph jobGraph = new JobGraph(groupVertex, groupVertex2);
-		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+        // initiate and schedule job
+        final JobGraph jobGraph = new JobGraph(groupVertex, groupVertex2);
+        jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
-		final ManuallyTriggeredScheduledExecutorService delayExecutor = new ManuallyTriggeredScheduledExecutorService();
-		final SchedulerBase scheduler = SchedulerTestingUtils
-			.newSchedulerBuilderWithDefaultSlotAllocator(jobGraph, testingSlotProvider)
-			.setDelayExecutor(delayExecutor)
-			.setRestartBackoffTimeStrategy(
-				new FixedDelayRestartBackoffTimeStrategy.FixedDelayRestartBackoffTimeStrategyFactory(1, 0).create())
-			.build();
+        final ManuallyTriggeredScheduledExecutorService delayExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        final SchedulerBase scheduler =
+                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
+                                jobGraph, testingSlotProvider)
+                        .setDelayExecutor(delayExecutor)
+                        .setRestartBackoffTimeStrategy(
+                                new FixedDelayRestartBackoffTimeStrategy
+                                                .FixedDelayRestartBackoffTimeStrategyFactory(1, 0)
+                                        .create())
+                        .build();
 
-		final ExecutionGraph eg = scheduler.getExecutionGraph();
+        final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-		// enable the queued scheduling for the slot pool
-		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        // enable the queued scheduling for the slot pool
+        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
-		assertEquals(JobStatus.CREATED, eg.getState());
+        assertEquals(JobStatus.CREATED, eg.getState());
 
-		scheduler.startScheduling();
+        scheduler.startScheduling();
 
-		Predicate<AccessExecution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
-		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
-			eg,
-			isDeploying,
-			timeout);
+        Predicate<AccessExecution> isDeploying =
+                ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
+        ExecutionGraphTestUtils.waitForAllExecutionsPredicate(eg, isDeploying, timeout);
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
+        assertEquals(JobStatus.RUNNING, eg.getState());
 
-		//sanity checks
-		validateConstraints(eg);
+        // sanity checks
+        validateConstraints(eg);
 
-		eg.getAllExecutionVertices().iterator().next().fail(new FlinkException("Test exception"));
+        eg.getAllExecutionVertices().iterator().next().fail(new FlinkException("Test exception"));
 
-		assertEquals(JobStatus.RESTARTING, eg.getState());
+        assertEquals(JobStatus.RESTARTING, eg.getState());
 
-		// trigger registration of restartTasks(...) callback to cancelFuture before completing the
-		// cancellation. This ensures the restarting actions to be performed in main thread.
-		delayExecutor.triggerNonPeriodicScheduledTask();
+        // trigger registration of restartTasks(...) callback to cancelFuture before completing the
+        // cancellation. This ensures the restarting actions to be performed in main thread.
+        delayExecutor.triggerNonPeriodicScheduledTask();
 
-		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-			if (vertex.getExecutionState() == ExecutionState.CANCELING) {
-				vertex.getCurrentExecutionAttempt().completeCancelling();
-			}
-		}
+        for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+            if (vertex.getExecutionState() == ExecutionState.CANCELING) {
+                vertex.getCurrentExecutionAttempt().completeCancelling();
+            }
+        }
 
-		// wait until we have restarted
-		ExecutionGraphTestUtils.waitUntilJobStatus(eg, JobStatus.RUNNING, timeout);
+        // wait until we have restarted
+        ExecutionGraphTestUtils.waitUntilJobStatus(eg, JobStatus.RUNNING, timeout);
 
-		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
-			eg,
-			isDeploying,
-			timeout);
+        ExecutionGraphTestUtils.waitForAllExecutionsPredicate(eg, isDeploying, timeout);
 
-		//checking execution vertex properties
-		validateConstraints(eg);
+        // checking execution vertex properties
+        validateConstraints(eg);
 
-		ExecutionGraphTestUtils.finishAllVertices(eg);
+        ExecutionGraphTestUtils.finishAllVertices(eg);
 
-		assertThat(eg.getState(), is(FINISHED));
-	}
+        assertThat(eg.getState(), is(FINISHED));
+    }
 
-	private void validateConstraints(ExecutionGraph eg) {
+    private void validateConstraints(ExecutionGraph eg) {
 
-		ExecutionJobVertex[] tasks = eg.getAllVertices().values().toArray(new ExecutionJobVertex[2]);
+        ExecutionJobVertex[] tasks =
+                eg.getAllVertices().values().toArray(new ExecutionJobVertex[2]);
 
-		for (int i = 0; i < NUM_TASKS; i++) {
-			CoLocationConstraint constr1 = tasks[0].getTaskVertices()[i].getLocationConstraint();
-			CoLocationConstraint constr2 = tasks[1].getTaskVertices()[i].getLocationConstraint();
-			assertThat(constr1.isAssigned(), is(true));
-			assertThat(constr1.getLocation(), equalTo(constr2.getLocation()));
-		}
-	}
+        for (int i = 0; i < NUM_TASKS; i++) {
+            CoLocationConstraint constr1 = tasks[0].getTaskVertices()[i].getLocationConstraint();
+            CoLocationConstraint constr2 = tasks[1].getTaskVertices()[i].getLocationConstraint();
+            assertThat(constr1.isAssigned(), is(true));
+            assertThat(constr1.getLocation(), equalTo(constr2.getLocation()));
+        }
+    }
 }

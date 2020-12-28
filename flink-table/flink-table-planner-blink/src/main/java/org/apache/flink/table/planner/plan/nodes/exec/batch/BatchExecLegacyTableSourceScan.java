@@ -45,59 +45,61 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Batch {@link ExecNode} to read data from an external source defined by a bounded {@link StreamTableSource}.
+ * Batch {@link ExecNode} to read data from an external source defined by a bounded {@link
+ * StreamTableSource}.
  */
-public class BatchExecLegacyTableSourceScan
-		extends CommonExecLegacyTableSourceScan
-		implements BatchExecNode<RowData> {
+public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceScan
+        implements BatchExecNode<RowData> {
 
-	public BatchExecLegacyTableSourceScan(
-			TableSource<?> tableSource,
-			List<String> qualifiedName,
-			RowType outputType,
-			String description) {
-		super(tableSource, qualifiedName, outputType, description);
-	}
+    public BatchExecLegacyTableSourceScan(
+            TableSource<?> tableSource,
+            List<String> qualifiedName,
+            RowType outputType,
+            String description) {
+        super(tableSource, qualifiedName, outputType, description);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> createConversionTransformationIfNeeded(
-			PlannerBase planner,
-			Transformation<?> sourceTransform,
-			@Nullable RexNode rowtimeExpression) {
-		final int[] fieldIndexes = computeIndexMapping(false);
-		if (needInternalConversion(fieldIndexes)) {
-			// the produced type may not carry the correct precision user defined in DDL, because
-			// it may be converted from legacy type. Fix precision using logical schema from DDL.
-			// code generation requires the correct precision of input fields.
-			DataType fixedProducedDataType = TableSourceUtil.fixPrecisionForProducedDataType(
-					tableSource, (RowType) getOutputType());
-			return ScanUtil.convertToInternalRow(
-					new CodeGeneratorContext(planner.getTableConfig()),
-					(Transformation<Object>) sourceTransform,
-					fieldIndexes,
-					fixedProducedDataType,
-					(RowType) getOutputType(),
-					qualifiedName,
-					JavaScalaConversionUtil.toScala(Optional.ofNullable(rowtimeExpression)),
-					"",
-					"");
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> createConversionTransformationIfNeeded(
+            PlannerBase planner,
+            Transformation<?> sourceTransform,
+            @Nullable RexNode rowtimeExpression) {
+        final int[] fieldIndexes = computeIndexMapping(false);
+        if (needInternalConversion(fieldIndexes)) {
+            // the produced type may not carry the correct precision user defined in DDL, because
+            // it may be converted from legacy type. Fix precision using logical schema from DDL.
+            // code generation requires the correct precision of input fields.
+            DataType fixedProducedDataType =
+                    TableSourceUtil.fixPrecisionForProducedDataType(
+                            tableSource, (RowType) getOutputType());
+            return ScanUtil.convertToInternalRow(
+                    new CodeGeneratorContext(planner.getTableConfig()),
+                    (Transformation<Object>) sourceTransform,
+                    fieldIndexes,
+                    fixedProducedDataType,
+                    (RowType) getOutputType(),
+                    qualifiedName,
+                    JavaScalaConversionUtil.toScala(Optional.ofNullable(rowtimeExpression)),
+                    "",
+                    "");
 
-		} else {
-			return (Transformation<RowData>) sourceTransform;
-		}
-	}
+        } else {
+            return (Transformation<RowData>) sourceTransform;
+        }
+    }
 
-	@Override
-	protected <IN> Transformation<IN> createInput(
-			StreamExecutionEnvironment env,
-			InputFormat<IN, ? extends InputSplit> inputFormat,
-			TypeInformation<IN> typeInfo) {
-		// env.createInput will use ContinuousFileReaderOperator, but it do not support multiple
-		// paths. If read partitioned source, after partition pruning, we need let InputFormat
-		// to read multiple partitions which are multiple paths.
-		// We can use InputFormatSourceFunction directly to support InputFormat.
-		InputFormatSourceFunction<IN> function = new InputFormatSourceFunction<>(inputFormat, typeInfo);
-		return env.addSource(function, tableSource.explainSource(), typeInfo).getTransformation();
-	}
+    @Override
+    protected <IN> Transformation<IN> createInput(
+            StreamExecutionEnvironment env,
+            InputFormat<IN, ? extends InputSplit> inputFormat,
+            TypeInformation<IN> typeInfo) {
+        // env.createInput will use ContinuousFileReaderOperator, but it do not support multiple
+        // paths. If read partitioned source, after partition pruning, we need let InputFormat
+        // to read multiple partitions which are multiple paths.
+        // We can use InputFormatSourceFunction directly to support InputFormat.
+        InputFormatSourceFunction<IN> function =
+                new InputFormatSourceFunction<>(inputFormat, typeInfo);
+        return env.addSource(function, tableSource.explainSource(), typeInfo).getTransformation();
+    }
 }

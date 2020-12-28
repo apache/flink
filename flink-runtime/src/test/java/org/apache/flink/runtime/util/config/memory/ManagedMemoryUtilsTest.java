@@ -38,143 +38,178 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link ManagedMemoryUtils}.
- */
+/** Tests for {@link ManagedMemoryUtils}. */
 public class ManagedMemoryUtilsTest extends TestLogger {
 
-	private static final double DELTA = 0.000001;
+    private static final double DELTA = 0.000001;
 
-	private static final int DATA_PROC_WEIGHT = 111;
-	private static final int PYTHON_WEIGHT = 222;
+    private static final int DATA_PROC_WEIGHT = 111;
+    private static final int PYTHON_WEIGHT = 222;
 
-	private static final UnmodifiableConfiguration CONFIG_WITH_ALL_USE_CASES =
-		new UnmodifiableConfiguration(new Configuration() {{
-			set(
-				TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
-				new HashMap<String, String>() {{
-					put(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC, String.valueOf(DATA_PROC_WEIGHT));
-					put(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_PYTHON, String.valueOf(PYTHON_WEIGHT));
-				}});
-		}});
+    private static final UnmodifiableConfiguration CONFIG_WITH_ALL_USE_CASES =
+            new UnmodifiableConfiguration(
+                    new Configuration() {
+                        {
+                            set(
+                                    TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
+                                    new HashMap<String, String>() {
+                                        {
+                                            put(
+                                                    TaskManagerOptions
+                                                            .MANAGED_MEMORY_CONSUMER_NAME_DATAPROC,
+                                                    String.valueOf(DATA_PROC_WEIGHT));
+                                            put(
+                                                    TaskManagerOptions
+                                                            .MANAGED_MEMORY_CONSUMER_NAME_PYTHON,
+                                                    String.valueOf(PYTHON_WEIGHT));
+                                        }
+                                    });
+                        }
+                    });
 
-	@Test
-	public void testGetWeightsFromConfig() {
-		final Map<ManagedMemoryUseCase, Integer> expectedWeights = new HashMap<ManagedMemoryUseCase, Integer>() {{
-			put(ManagedMemoryUseCase.STATE_BACKEND, DATA_PROC_WEIGHT);
-			put(ManagedMemoryUseCase.BATCH_OP, DATA_PROC_WEIGHT);
-			put(ManagedMemoryUseCase.PYTHON, PYTHON_WEIGHT);
-		}};
+    @Test
+    public void testGetWeightsFromConfig() {
+        final Map<ManagedMemoryUseCase, Integer> expectedWeights =
+                new HashMap<ManagedMemoryUseCase, Integer>() {
+                    {
+                        put(ManagedMemoryUseCase.STATE_BACKEND, DATA_PROC_WEIGHT);
+                        put(ManagedMemoryUseCase.BATCH_OP, DATA_PROC_WEIGHT);
+                        put(ManagedMemoryUseCase.PYTHON, PYTHON_WEIGHT);
+                    }
+                };
 
-		final Map<ManagedMemoryUseCase, Integer> configuredWeights =
-			ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(CONFIG_WITH_ALL_USE_CASES);
+        final Map<ManagedMemoryUseCase, Integer> configuredWeights =
+                ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(
+                        CONFIG_WITH_ALL_USE_CASES);
 
-		assertThat(configuredWeights, is(expectedWeights));
-	}
+        assertThat(configuredWeights, is(expectedWeights));
+    }
 
-	@Test(expected = IllegalConfigurationException.class)
-	public void testGetWeightsFromConfigFailUnknownUseCase() {
-		final Configuration config = new Configuration() {{
-			set(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS, Collections.singletonMap("UNKNOWN_KEY", "123"));
-		}};
+    @Test(expected = IllegalConfigurationException.class)
+    public void testGetWeightsFromConfigFailUnknownUseCase() {
+        final Configuration config =
+                new Configuration() {
+                    {
+                        set(
+                                TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
+                                Collections.singletonMap("UNKNOWN_KEY", "123"));
+                    }
+                };
 
-		ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config);
-	}
+        ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config);
+    }
 
-	@Test(expected = IllegalConfigurationException.class)
-	public void testGetWeightsFromConfigFailNegativeWeight() {
-		final Configuration config = new Configuration() {{
-			set(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
-				Collections.singletonMap(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC, "-123"));
-		}};
+    @Test(expected = IllegalConfigurationException.class)
+    public void testGetWeightsFromConfigFailNegativeWeight() {
+        final Configuration config =
+                new Configuration() {
+                    {
+                        set(
+                                TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
+                                Collections.singletonMap(
+                                        TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC,
+                                        "-123"));
+                    }
+                };
 
-		ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config);
-	}
+        ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config);
+    }
 
-	@Test
-	public void testConvertToFractionOfSlot() {
-		final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.BATCH_OP;
-		final double fractionOfUseCase = 0.3;
+    @Test
+    public void testConvertToFractionOfSlot() {
+        final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.BATCH_OP;
+        final double fractionOfUseCase = 0.3;
 
-		final double fractionOfSlot = ManagedMemoryUtils.convertToFractionOfSlot(
-			useCase,
-			fractionOfUseCase,
-			new HashSet<ManagedMemoryUseCase>() {{
-				add(ManagedMemoryUseCase.BATCH_OP);
-				add(ManagedMemoryUseCase.PYTHON);
-			}},
-			CONFIG_WITH_ALL_USE_CASES,
-			Optional.empty(),
-			ClassLoader.getSystemClassLoader());
+        final double fractionOfSlot =
+                ManagedMemoryUtils.convertToFractionOfSlot(
+                        useCase,
+                        fractionOfUseCase,
+                        new HashSet<ManagedMemoryUseCase>() {
+                            {
+                                add(ManagedMemoryUseCase.BATCH_OP);
+                                add(ManagedMemoryUseCase.PYTHON);
+                            }
+                        },
+                        CONFIG_WITH_ALL_USE_CASES,
+                        Optional.empty(),
+                        ClassLoader.getSystemClassLoader());
 
-		assertEquals(fractionOfUseCase / 3, fractionOfSlot, DELTA);
-	}
+        assertEquals(fractionOfUseCase / 3, fractionOfSlot, DELTA);
+    }
 
-	@Test
-	public void testConvertToFractionOfSlotWeightNotConfigured() {
-		final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.BATCH_OP;
-		final double fractionOfUseCase = 0.3;
+    @Test
+    public void testConvertToFractionOfSlotWeightNotConfigured() {
+        final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.BATCH_OP;
+        final double fractionOfUseCase = 0.3;
 
-		final Configuration config = new Configuration() {{
-			set(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS, Collections.emptyMap());
-		}};
+        final Configuration config =
+                new Configuration() {
+                    {
+                        set(
+                                TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
+                                Collections.emptyMap());
+                    }
+                };
 
-		final double fractionOfSlot = ManagedMemoryUtils.convertToFractionOfSlot(
-			useCase,
-			fractionOfUseCase,
-			new HashSet<ManagedMemoryUseCase>() {{
-				add(ManagedMemoryUseCase.BATCH_OP);
-				add(ManagedMemoryUseCase.PYTHON);
-			}},
-			config,
-			Optional.empty(),
-			ClassLoader.getSystemClassLoader());
+        final double fractionOfSlot =
+                ManagedMemoryUtils.convertToFractionOfSlot(
+                        useCase,
+                        fractionOfUseCase,
+                        new HashSet<ManagedMemoryUseCase>() {
+                            {
+                                add(ManagedMemoryUseCase.BATCH_OP);
+                                add(ManagedMemoryUseCase.PYTHON);
+                            }
+                        },
+                        config,
+                        Optional.empty(),
+                        ClassLoader.getSystemClassLoader());
 
-		assertEquals(0.0, fractionOfSlot, DELTA);
-	}
+        assertEquals(0.0, fractionOfSlot, DELTA);
+    }
 
-	@Test
-	public void testConvertToFractionOfSlotStateBackendUseManagedMemory() {
-		testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(
-			true,
-			1.0 / 3,
-			1.0 * 2 / 3);
-	}
+    @Test
+    public void testConvertToFractionOfSlotStateBackendUseManagedMemory() {
+        testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(
+                true, 1.0 / 3, 1.0 * 2 / 3);
+    }
 
-	@Test
-	public void testConvertToFractionOfSlotStateBackendNotUserManagedMemory() {
-		testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(
-			false,
-			0.0,
-			1.0);
-	}
+    @Test
+    public void testConvertToFractionOfSlotStateBackendNotUserManagedMemory() {
+        testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(false, 0.0, 1.0);
+    }
 
-	private void testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(
-			boolean stateBackendUsesManagedMemory,
-			double expectedStateFractionOfSlot,
-			double expectedPythonFractionOfSlot) {
+    private void testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(
+            boolean stateBackendUsesManagedMemory,
+            double expectedStateFractionOfSlot,
+            double expectedPythonFractionOfSlot) {
 
-		final Set<ManagedMemoryUseCase> allUseCases = new HashSet<ManagedMemoryUseCase>() {{
-			add(ManagedMemoryUseCase.STATE_BACKEND);
-			add(ManagedMemoryUseCase.PYTHON);
-		}};
+        final Set<ManagedMemoryUseCase> allUseCases =
+                new HashSet<ManagedMemoryUseCase>() {
+                    {
+                        add(ManagedMemoryUseCase.STATE_BACKEND);
+                        add(ManagedMemoryUseCase.PYTHON);
+                    }
+                };
 
-		final double stateFractionOfSlot = ManagedMemoryUtils.convertToFractionOfSlot(
-			ManagedMemoryUseCase.STATE_BACKEND,
-			1.0,
-			allUseCases,
-			CONFIG_WITH_ALL_USE_CASES,
-			Optional.of(stateBackendUsesManagedMemory),
-			ClassLoader.getSystemClassLoader());
-		final double pythonFractionOfSlot = ManagedMemoryUtils.convertToFractionOfSlot(
-			ManagedMemoryUseCase.PYTHON,
-			1.0,
-			allUseCases,
-			CONFIG_WITH_ALL_USE_CASES,
-			Optional.of(stateBackendUsesManagedMemory),
-			ClassLoader.getSystemClassLoader());
+        final double stateFractionOfSlot =
+                ManagedMemoryUtils.convertToFractionOfSlot(
+                        ManagedMemoryUseCase.STATE_BACKEND,
+                        1.0,
+                        allUseCases,
+                        CONFIG_WITH_ALL_USE_CASES,
+                        Optional.of(stateBackendUsesManagedMemory),
+                        ClassLoader.getSystemClassLoader());
+        final double pythonFractionOfSlot =
+                ManagedMemoryUtils.convertToFractionOfSlot(
+                        ManagedMemoryUseCase.PYTHON,
+                        1.0,
+                        allUseCases,
+                        CONFIG_WITH_ALL_USE_CASES,
+                        Optional.of(stateBackendUsesManagedMemory),
+                        ClassLoader.getSystemClassLoader());
 
-		assertEquals(expectedStateFractionOfSlot, stateFractionOfSlot, DELTA);
-		assertEquals(expectedPythonFractionOfSlot, pythonFractionOfSlot, DELTA);
-	}
+        assertEquals(expectedStateFractionOfSlot, stateFractionOfSlot, DELTA);
+        assertEquals(expectedPythonFractionOfSlot, pythonFractionOfSlot, DELTA);
+    }
 }

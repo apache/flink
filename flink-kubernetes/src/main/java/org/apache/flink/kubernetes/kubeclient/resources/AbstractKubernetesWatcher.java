@@ -26,26 +26,26 @@ import io.fabric8.kubernetes.client.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Watcher for resources in Kubernetes.
- */
-public abstract class AbstractKubernetesWatcher<T extends HasMetadata, K extends KubernetesResource<T>> implements Watcher<T> {
+/** Watcher for resources in Kubernetes. */
+public abstract class AbstractKubernetesWatcher<
+                T extends HasMetadata, K extends KubernetesResource<T>>
+        implements Watcher<T> {
 
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
+    protected final Logger logger = LoggerFactory.getLogger(getClass());
 
-	protected final FlinkKubeClient.WatchCallbackHandler<K> callbackHandler;
+    protected final FlinkKubeClient.WatchCallbackHandler<K> callbackHandler;
 
-	AbstractKubernetesWatcher(FlinkKubeClient.WatchCallbackHandler<K> callbackHandler) {
-		this.callbackHandler = callbackHandler;
-	}
+    AbstractKubernetesWatcher(FlinkKubeClient.WatchCallbackHandler<K> callbackHandler) {
+        this.callbackHandler = callbackHandler;
+    }
 
-	@Override
-	public void onClose(KubernetesClientException cause) {
-		// null means the watcher is closed normally.
-		if (cause == null) {
-			logger.info("The watcher is closing.");
-		} else {
-			callbackHandler.handleFatalError(cause);
-		}
-	}
+    @Override
+    public void onClose(KubernetesClientException cause) {
+        // null means the watcher is closed normally.
+        if (cause == null) {
+            logger.info("The watcher is closing.");
+        } else {
+            callbackHandler.handleFatalError(cause);
+        }
+    }
 }

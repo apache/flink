@@ -35,37 +35,36 @@ import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFu
  * <p>The state stores a boolean flag to indicate whether key appears before as an optimization.
  */
 public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunction
-		extends MiniBatchDeduplicateFunctionBase<Boolean, RowData, RowData, RowData, RowData> {
+        extends MiniBatchDeduplicateFunctionBase<Boolean, RowData, RowData, RowData, RowData> {
 
-	private static final long serialVersionUID = -7994602893547654994L;
-	private final TypeSerializer<RowData> serializer;
+    private static final long serialVersionUID = -7994602893547654994L;
+    private final TypeSerializer<RowData> serializer;
 
-	public ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-			TypeSerializer<RowData> serializer,
-			long stateRetentionTime) {
-		super(Types.BOOLEAN, stateRetentionTime);
-		this.serializer = serializer;
-	}
+    public ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
+            TypeSerializer<RowData> serializer, long stateRetentionTime) {
+        super(Types.BOOLEAN, stateRetentionTime);
+        this.serializer = serializer;
+    }
 
-	@Override
-	public RowData addInput(@Nullable RowData value, RowData input) {
-		if (value == null) {
-			// put the input into buffer
-			return serializer.copy(input);
-		} else {
-			// the input is not first row, ignore it
-			return value;
-		}
-	}
+    @Override
+    public RowData addInput(@Nullable RowData value, RowData input) {
+        if (value == null) {
+            // put the input into buffer
+            return serializer.copy(input);
+        } else {
+            // the input is not first row, ignore it
+            return value;
+        }
+    }
 
-	@Override
-	public void finishBundle(
-			Map<RowData, RowData> buffer, Collector<RowData> out) throws Exception {
-		for (Map.Entry<RowData, RowData> entry : buffer.entrySet()) {
-			RowData currentKey = entry.getKey();
-			RowData currentRow = entry.getValue();
-			ctx.setCurrentKey(currentKey);
-			processFirstRowOnProcTime(currentRow, state, out);
-		}
-	}
+    @Override
+    public void finishBundle(Map<RowData, RowData> buffer, Collector<RowData> out)
+            throws Exception {
+        for (Map.Entry<RowData, RowData> entry : buffer.entrySet()) {
+            RowData currentKey = entry.getKey();
+            RowData currentRow = entry.getValue();
+            ctx.setCurrentKey(currentKey);
+            processFirstRowOnProcTime(currentRow, state, out);
+        }
+    }
 }

@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.data.vector;
 
-/**
- * Short column vector.
- */
+/** Short column vector. */
 public interface ShortColumnVector extends ColumnVector {
-	short getShort(int i);
+    short getShort(int i);
 }

@@ -26,16 +26,14 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rex.RexProgram;
 
-/**
- * Batch {@link ExecNode} for Python ScalarFunctions.
- */
+/** Batch {@link ExecNode} for Python ScalarFunctions. */
 public class BatchExecPythonCalc extends CommonExecPythonCalc implements BatchExecNode<RowData> {
 
-	public BatchExecPythonCalc(
-		RexProgram calcProgram,
-		ExecEdge inputEdge,
-		LogicalType outputType,
-		String description) {
-		super(calcProgram, inputEdge, outputType, description);
-	}
+    public BatchExecPythonCalc(
+            RexProgram calcProgram,
+            ExecEdge inputEdge,
+            LogicalType outputType,
+            String description) {
+        super(calcProgram, inputEdge, outputType, description);
+    }
 }

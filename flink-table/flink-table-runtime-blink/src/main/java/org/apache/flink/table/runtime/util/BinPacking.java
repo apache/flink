@@ -25,69 +25,66 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
 
-/**
- * A bin packing implementation.
- */
+/** A bin packing implementation. */
 public class BinPacking {
-	private BinPacking() {
-	}
+    private BinPacking() {}
 
-	public static <T> List<List<T>> pack(
-			Iterable<T> items, Function<T, Long> weightFunc, long targetWeight) {
-		List<List<T>> packed = new ArrayList<>();
-		Deque<Bin<T>> bins = new LinkedList<>();
+    public static <T> List<List<T>> pack(
+            Iterable<T> items, Function<T, Long> weightFunc, long targetWeight) {
+        List<List<T>> packed = new ArrayList<>();
+        Deque<Bin<T>> bins = new LinkedList<>();
 
-		for (T item : items) {
-			long weight = weightFunc.apply(item);
-			Bin<T> bin = findBin(bins, weight);
+        for (T item : items) {
+            long weight = weightFunc.apply(item);
+            Bin<T> bin = findBin(bins, weight);
 
-			if (bin != null) {
-				bin.add(item, weight);
-			} else {
-				bin = new Bin<>(targetWeight);
-				bin.add(item, weight);
-				bins.addLast(bin);
+            if (bin != null) {
+                bin.add(item, weight);
+            } else {
+                bin = new Bin<>(targetWeight);
+                bin.add(item, weight);
+                bins.addLast(bin);
 
-				// avoid n * n algorithm complexity
-				if (bins.size() > 10) {
-					packed.add(bins.removeFirst().items());
-				}
-			}
-		}
+                // avoid n * n algorithm complexity
+                if (bins.size() > 10) {
+                    packed.add(bins.removeFirst().items());
+                }
+            }
+        }
 
-		bins.forEach(bin -> packed.add(bin.items));
-		return packed;
-	}
+        bins.forEach(bin -> packed.add(bin.items));
+        return packed;
+    }
 
-	private static <T> Bin<T> findBin(Iterable<Bin<T>> bins, long weight) {
-		for (Bin<T> bin : bins) {
-			if (bin.canAdd(weight)) {
-				return bin;
-			}
-		}
-		return null;
-	}
+    private static <T> Bin<T> findBin(Iterable<Bin<T>> bins, long weight) {
+        for (Bin<T> bin : bins) {
+            if (bin.canAdd(weight)) {
+                return bin;
+            }
+        }
+        return null;
+    }
 
-	private static class Bin<T> {
-		private final long targetWeight;
-		private final List<T> items = new ArrayList<>();
-		private long binWeight = 0L;
+    private static class Bin<T> {
+        private final long targetWeight;
+        private final List<T> items = new ArrayList<>();
+        private long binWeight = 0L;
 
-		Bin(long targetWeight) {
-			this.targetWeight = targetWeight;
-		}
+        Bin(long targetWeight) {
+            this.targetWeight = targetWeight;
+        }
 
-		List<T> items() {
-			return items;
-		}
+        List<T> items() {
+            return items;
+        }
 
-		boolean canAdd(long weight) {
-			return binWeight + weight <= targetWeight;
-		}
+        boolean canAdd(long weight) {
+            return binWeight + weight <= targetWeight;
+        }
 
-		void add(T item, long weight) {
-			this.binWeight += weight;
-			items.add(item);
-		}
-	}
+        void add(T item, long weight) {
+            this.binWeight += weight;
+            items.add(item);
+        }
+    }
 }

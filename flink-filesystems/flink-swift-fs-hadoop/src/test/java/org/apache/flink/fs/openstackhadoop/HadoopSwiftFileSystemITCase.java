@@ -44,165 +44,179 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Integration tests for the Swift file system support.
- */
+/** Integration tests for the Swift file system support. */
 public class HadoopSwiftFileSystemITCase extends TestLogger {
 
-	private static final String SERVICENAME = "privatecloud";
+    private static final String SERVICENAME = "privatecloud";
 
-	private static final String CONTAINER = System.getenv("ARTIFACTS_OS_CONTAINER");
+    private static final String CONTAINER = System.getenv("ARTIFACTS_OS_CONTAINER");
 
-	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
+    private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-	private static final String AUTH_URL = System.getenv("ARTIFACTS_OS_AUTH_URL");
-	private static final String USERNAME = System.getenv("ARTIFACTS_OS_USERNAME");
-	private static final String PASSWORD = System.getenv("ARTIFACTS_OS_PASSWORD");
-	private static final String TENANT = System.getenv("ARTIFACTS_OS_TENANT");
-	private static final String REGION = System.getenv("ARTIFACTS_OS_REGION");
+    private static final String AUTH_URL = System.getenv("ARTIFACTS_OS_AUTH_URL");
+    private static final String USERNAME = System.getenv("ARTIFACTS_OS_USERNAME");
+    private static final String PASSWORD = System.getenv("ARTIFACTS_OS_PASSWORD");
+    private static final String TENANT = System.getenv("ARTIFACTS_OS_TENANT");
+    private static final String REGION = System.getenv("ARTIFACTS_OS_REGION");
 
-	/**
-	 * Will be updated by {@link #checkCredentialsAndSetup()} if the test is not skipped.
-	 */
-	private static boolean skipTest = true;
+    /** Will be updated by {@link #checkCredentialsAndSetup()} if the test is not skipped. */
+    private static boolean skipTest = true;
 
-	@BeforeClass
-	public static void checkCredentialsAndSetup() throws IOException {
-		// check whether credentials exist
-		Assume.assumeTrue("Swift container not configured, skipping test...", CONTAINER != null);
-		Assume.assumeTrue("Swift username not configured, skipping test...", USERNAME != null);
-		Assume.assumeTrue("Swift password not configured, skipping test...", PASSWORD != null);
-		Assume.assumeTrue("Swift tenant not configured, skipping test...", TENANT != null);
-		Assume.assumeTrue("Swift region not configured, skipping test...", REGION != null);
+    @BeforeClass
+    public static void checkCredentialsAndSetup() throws IOException {
+        // check whether credentials exist
+        Assume.assumeTrue("Swift container not configured, skipping test...", CONTAINER != null);
+        Assume.assumeTrue("Swift username not configured, skipping test...", USERNAME != null);
+        Assume.assumeTrue("Swift password not configured, skipping test...", PASSWORD != null);
+        Assume.assumeTrue("Swift tenant not configured, skipping test...", TENANT != null);
+        Assume.assumeTrue("Swift region not configured, skipping test...", REGION != null);
 
-		// initialize configuration with valid credentials
-		final Configuration conf = createConfiguration();
+        // initialize configuration with valid credentials
+        final Configuration conf = createConfiguration();
 
-		FileSystem.initialize(conf);
+        FileSystem.initialize(conf);
 
-		// check for uniqueness of the test directory
-		final Path directory = new Path("swift://" + CONTAINER + '.' + SERVICENAME + '/' + TEST_DATA_DIR);
-		final FileSystem fs = directory.getFileSystem();
+        // check for uniqueness of the test directory
+        final Path directory =
+                new Path("swift://" + CONTAINER + '.' + SERVICENAME + '/' + TEST_DATA_DIR);
+        final FileSystem fs = directory.getFileSystem();
 
-		// directory must not yet exist
-		assertFalse(fs.exists(directory));
+        // directory must not yet exist
+        assertFalse(fs.exists(directory));
 
-		// reset configuration
-		FileSystem.initialize(new Configuration());
+        // reset configuration
+        FileSystem.initialize(new Configuration());
 
-		skipTest = false;
-	}
+        skipTest = false;
+    }
 
-	@AfterClass
-	public static void cleanUp() throws IOException {
-		if (!skipTest) {
-			// initialize configuration with valid credentials
-			final Configuration conf = createConfiguration();
-			FileSystem.initialize(conf);
+    @AfterClass
+    public static void cleanUp() throws IOException {
+        if (!skipTest) {
+            // initialize configuration with valid credentials
+            final Configuration conf = createConfiguration();
+            FileSystem.initialize(conf);
 
-			final Path directory = new Path("swift://" + CONTAINER + '.' + SERVICENAME + '/' + TEST_DATA_DIR);
-			final FileSystem fs = directory.getFileSystem();
+            final Path directory =
+                    new Path("swift://" + CONTAINER + '.' + SERVICENAME + '/' + TEST_DATA_DIR);
+            final FileSystem fs = directory.getFileSystem();
 
-			// clean up
-			fs.delete(directory, true);
+            // clean up
+            fs.delete(directory, true);
 
-			// now directory must be gone
-			assertFalse(fs.exists(directory));
+            // now directory must be gone
+            assertFalse(fs.exists(directory));
 
-			// reset configuration
-			FileSystem.initialize(new Configuration());
-		}
-	}
+            // reset configuration
+            FileSystem.initialize(new Configuration());
+        }
+    }
 
-	@Test
-	public void testSimpleFileWriteAndRead() throws Exception {
-		final Configuration conf = createConfiguration();
+    @Test
+    public void testSimpleFileWriteAndRead() throws Exception {
+        final Configuration conf = createConfiguration();
 
-		final String testLine = "Hello Upload!";
+        final String testLine = "Hello Upload!";
 
-		FileSystem.initialize(conf);
+        FileSystem.initialize(conf);
 
-		final Path path = new Path("swift://" + CONTAINER + '.' + SERVICENAME + '/' + TEST_DATA_DIR + "/test.txt");
-		final FileSystem fs = path.getFileSystem();
+        final Path path =
+                new Path(
+                        "swift://"
+                                + CONTAINER
+                                + '.'
+                                + SERVICENAME
+                                + '/'
+                                + TEST_DATA_DIR
+                                + "/test.txt");
+        final FileSystem fs = path.getFileSystem();
 
-		try {
-			try (FSDataOutputStream out = fs.create(path, WriteMode.OVERWRITE);
-				OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-				writer.write(testLine);
-			}
+        try {
+            try (FSDataOutputStream out = fs.create(path, WriteMode.OVERWRITE);
+                    OutputStreamWriter writer =
+                            new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+                writer.write(testLine);
+            }
 
-			try (FSDataInputStream in = fs.open(path);
-				InputStreamReader ir = new InputStreamReader(in, StandardCharsets.UTF_8);
-				BufferedReader reader = new BufferedReader(ir)) {
-				String line = reader.readLine();
-				assertEquals(testLine, line);
-			}
-		}
-		finally {
-			fs.delete(path, false);
-		}
-	}
+            try (FSDataInputStream in = fs.open(path);
+                    InputStreamReader ir = new InputStreamReader(in, StandardCharsets.UTF_8);
+                    BufferedReader reader = new BufferedReader(ir)) {
+                String line = reader.readLine();
+                assertEquals(testLine, line);
+            }
+        } finally {
+            fs.delete(path, false);
+        }
+    }
 
-	@Test
-	public void testDirectoryListing() throws Exception {
-		final Configuration conf = createConfiguration();
+    @Test
+    public void testDirectoryListing() throws Exception {
+        final Configuration conf = createConfiguration();
 
-		FileSystem.initialize(conf);
+        FileSystem.initialize(conf);
 
-		final Path directory = new Path("swift://" + CONTAINER + '.' + SERVICENAME + '/' + TEST_DATA_DIR + "/testdir/");
-		final FileSystem fs = directory.getFileSystem();
+        final Path directory =
+                new Path(
+                        "swift://"
+                                + CONTAINER
+                                + '.'
+                                + SERVICENAME
+                                + '/'
+                                + TEST_DATA_DIR
+                                + "/testdir/");
+        final FileSystem fs = directory.getFileSystem();
 
-		// directory must not yet exist
-		assertFalse(fs.exists(directory));
+        // directory must not yet exist
+        assertFalse(fs.exists(directory));
 
-		try {
-			// create directory
-			assertTrue(fs.mkdirs(directory));
+        try {
+            // create directory
+            assertTrue(fs.mkdirs(directory));
 
-			// seems the file system does not assume existence of empty directories
-			assertTrue(fs.exists(directory));
+            // seems the file system does not assume existence of empty directories
+            assertTrue(fs.exists(directory));
 
-			// directory empty
-			assertEquals(0, fs.listStatus(directory).length);
+            // directory empty
+            assertEquals(0, fs.listStatus(directory).length);
 
-			// create some files
-			final int numFiles = 3;
-			for (int i = 0; i < numFiles; i++) {
-				Path file = new Path(directory, "/file-" + i);
-				try (FSDataOutputStream out = fs.create(file, FileSystem.WriteMode.NO_OVERWRITE);
-					OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-					writer.write("hello-" + i + "\n");
-				}
-			}
+            // create some files
+            final int numFiles = 3;
+            for (int i = 0; i < numFiles; i++) {
+                Path file = new Path(directory, "/file-" + i);
+                try (FSDataOutputStream out = fs.create(file, FileSystem.WriteMode.NO_OVERWRITE);
+                        OutputStreamWriter writer =
+                                new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+                    writer.write("hello-" + i + "\n");
+                }
+            }
 
-			FileStatus[] files = fs.listStatus(directory);
-			assertNotNull(files);
-			assertEquals(3, files.length);
+            FileStatus[] files = fs.listStatus(directory);
+            assertNotNull(files);
+            assertEquals(3, files.length);
 
-			for (FileStatus status : files) {
-				assertFalse(status.isDir());
-			}
+            for (FileStatus status : files) {
+                assertFalse(status.isDir());
+            }
 
-			// now that there are files, the directory must exist
-			assertTrue(fs.exists(directory));
-		}
-		finally {
-			// clean up
-			fs.delete(directory, true);
-		}
+            // now that there are files, the directory must exist
+            assertTrue(fs.exists(directory));
+        } finally {
+            // clean up
+            fs.delete(directory, true);
+        }
 
-		// now directory must be gone
-		assertFalse(fs.exists(directory));
-	}
+        // now directory must be gone
+        assertFalse(fs.exists(directory));
+    }
 
-	private static Configuration createConfiguration() {
-		final Configuration conf = new Configuration();
-		conf.setString("swift.service." + SERVICENAME + ".auth.url", AUTH_URL);
-		conf.setString("swift.service." + SERVICENAME + ".username", USERNAME);
-		conf.setString("swift.service." + SERVICENAME + ".password", PASSWORD);
-		conf.setString("swift.service." + SERVICENAME + ".tenant", TENANT);
-		conf.setString("swift.service." + SERVICENAME + ".region", REGION);
-		conf.setString("swift.service." + SERVICENAME + ".public", "true");
-		return conf;
-	}
+    private static Configuration createConfiguration() {
+        final Configuration conf = new Configuration();
+        conf.setString("swift.service." + SERVICENAME + ".auth.url", AUTH_URL);
+        conf.setString("swift.service." + SERVICENAME + ".username", USERNAME);
+        conf.setString("swift.service." + SERVICENAME + ".password", PASSWORD);
+        conf.setString("swift.service." + SERVICENAME + ".tenant", TENANT);
+        conf.setString("swift.service." + SERVICENAME + ".region", REGION);
+        conf.setString("swift.service." + SERVICENAME + ".public", "true");
+        return conf;
+    }
 }

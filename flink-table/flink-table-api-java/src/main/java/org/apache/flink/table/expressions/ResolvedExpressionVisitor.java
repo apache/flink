@@ -29,16 +29,16 @@ import org.apache.flink.table.api.TableException;
 @Internal
 public abstract class ResolvedExpressionVisitor<R> implements ExpressionVisitor<R> {
 
-	public final R visit(Expression other) {
-		if (other instanceof TableReferenceExpression) {
-			return visit((TableReferenceExpression) other);
-		} else if (other instanceof LocalReferenceExpression) {
-			return visit((LocalReferenceExpression) other);
-		}
-		throw new TableException("Unexpected unresolved expression received: " + other);
-	}
+    public final R visit(Expression other) {
+        if (other instanceof TableReferenceExpression) {
+            return visit((TableReferenceExpression) other);
+        } else if (other instanceof LocalReferenceExpression) {
+            return visit((LocalReferenceExpression) other);
+        }
+        throw new TableException("Unexpected unresolved expression received: " + other);
+    }
 
-	public abstract R visit(TableReferenceExpression tableReference);
+    public abstract R visit(TableReferenceExpression tableReference);
 
-	public abstract R visit(LocalReferenceExpression localReference);
+    public abstract R visit(LocalReferenceExpression localReference);
 }

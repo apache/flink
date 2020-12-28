@@ -29,40 +29,37 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link VariableLengthByteKeyComparator}.
- */
-public class VariableLengthByteKeyComparatorTest extends ComparatorTestBase<Tuple2<byte[], StreamRecord<String>>> {
-	@Override
-	protected Order[] getTestedOrder() {
-		return new Order[]{Order.ASCENDING};
-	}
+/** Tests for {@link VariableLengthByteKeyComparator}. */
+public class VariableLengthByteKeyComparatorTest
+        extends ComparatorTestBase<Tuple2<byte[], StreamRecord<String>>> {
+    @Override
+    protected Order[] getTestedOrder() {
+        return new Order[] {Order.ASCENDING};
+    }
 
-	@Override
-	protected TypeComparator<Tuple2<byte[], StreamRecord<String>>> createComparator(boolean ascending) {
-		return new VariableLengthByteKeyComparator<>();
-	}
+    @Override
+    protected TypeComparator<Tuple2<byte[], StreamRecord<String>>> createComparator(
+            boolean ascending) {
+        return new VariableLengthByteKeyComparator<>();
+    }
 
-	@Override
-	protected TypeSerializer<Tuple2<byte[], StreamRecord<String>>> createSerializer() {
-		StringSerializer stringSerializer = new StringSerializer();
-		return new KeyAndValueSerializer<>(
-			stringSerializer,
-			stringSerializer.getLength()
-		);
-	}
+    @Override
+    protected TypeSerializer<Tuple2<byte[], StreamRecord<String>>> createSerializer() {
+        StringSerializer stringSerializer = new StringSerializer();
+        return new KeyAndValueSerializer<>(stringSerializer, stringSerializer.getLength());
+    }
 
-	@Override
-	protected void deepEquals(
-			String message,
-			Tuple2<byte[], StreamRecord<String>> should,
-			Tuple2<byte[], StreamRecord<String>> is) {
-		assertThat(message, should.f0, equalTo(is.f0));
-		assertThat(message, should.f1, equalTo(is.f1));
-	}
+    @Override
+    protected void deepEquals(
+            String message,
+            Tuple2<byte[], StreamRecord<String>> should,
+            Tuple2<byte[], StreamRecord<String>> is) {
+        assertThat(message, should.f0, equalTo(is.f0));
+        assertThat(message, should.f1, equalTo(is.f1));
+    }
 
-	@Override
-	protected Tuple2<byte[], StreamRecord<String>>[] getSortedTestData() {
-		return SerializerComparatorTestData.getOrderedStringTestData();
-	}
+    @Override
+    protected Tuple2<byte[], StreamRecord<String>>[] getSortedTestData() {
+        return SerializerComparatorTestData.getOrderedStringTestData();
+    }
 }

@@ -29,156 +29,172 @@ import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Options for the JDBC connector.
- */
+/** Options for the JDBC connector. */
 public class JdbcOptions extends JdbcConnectionOptions {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private String tableName;
-	private JdbcDialect dialect;
-	private final @Nullable Integer parallelism;
+    private String tableName;
+    private JdbcDialect dialect;
+    private final @Nullable Integer parallelism;
 
-	private JdbcOptions(String dbURL, String tableName, String driverName, String username, String password, JdbcDialect dialect, Integer parallelism, int connectionCheckTimeoutSeconds) {
-		super(dbURL, driverName, username, password, connectionCheckTimeoutSeconds);
-		this.tableName = tableName;
-		this.dialect = dialect;
-		this.parallelism = parallelism;
-	}
+    private JdbcOptions(
+            String dbURL,
+            String tableName,
+            String driverName,
+            String username,
+            String password,
+            JdbcDialect dialect,
+            Integer parallelism,
+            int connectionCheckTimeoutSeconds) {
+        super(dbURL, driverName, username, password, connectionCheckTimeoutSeconds);
+        this.tableName = tableName;
+        this.dialect = dialect;
+        this.parallelism = parallelism;
+    }
 
-	public String getTableName() {
-		return tableName;
-	}
+    public String getTableName() {
+        return tableName;
+    }
 
-	public JdbcDialect getDialect() {
-		return dialect;
-	}
+    public JdbcDialect getDialect() {
+        return dialect;
+    }
 
-	public Integer getParallelism() {
-		return parallelism;
-	}
+    public Integer getParallelism() {
+        return parallelism;
+    }
 
-	public static Builder builder() {
-		return new Builder();
-	}
+    public static Builder builder() {
+        return new Builder();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (o instanceof JdbcOptions) {
-			JdbcOptions options = (JdbcOptions) o;
-			return Objects.equals(url, options.url) &&
-				Objects.equals(tableName, options.tableName) &&
-				Objects.equals(driverName, options.driverName) &&
-				Objects.equals(username, options.username) &&
-				Objects.equals(password, options.password) &&
-				Objects.equals(dialect.getClass().getName(), options.dialect.getClass().getName()) &&
-				Objects.equals(parallelism, options.parallelism) &&
-				Objects.equals(connectionCheckTimeoutSeconds, options.connectionCheckTimeoutSeconds);
-		} else {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof JdbcOptions) {
+            JdbcOptions options = (JdbcOptions) o;
+            return Objects.equals(url, options.url)
+                    && Objects.equals(tableName, options.tableName)
+                    && Objects.equals(driverName, options.driverName)
+                    && Objects.equals(username, options.username)
+                    && Objects.equals(password, options.password)
+                    && Objects.equals(
+                            dialect.getClass().getName(), options.dialect.getClass().getName())
+                    && Objects.equals(parallelism, options.parallelism)
+                    && Objects.equals(
+                            connectionCheckTimeoutSeconds, options.connectionCheckTimeoutSeconds);
+        } else {
+            return false;
+        }
+    }
 
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                url,
+                tableName,
+                driverName,
+                username,
+                password,
+                dialect.getClass().getName(),
+                parallelism,
+                connectionCheckTimeoutSeconds);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(url, tableName, driverName, username, password, dialect.getClass().getName(), parallelism, connectionCheckTimeoutSeconds);
-	}
+    /** Builder of {@link JdbcOptions}. */
+    public static class Builder {
+        private String dbURL;
+        private String tableName;
+        private String driverName;
+        private String username;
+        private String password;
+        private JdbcDialect dialect;
+        private Integer parallelism;
+        private int connectionCheckTimeoutSeconds = 60;
 
-	/**
-	 * Builder of {@link JdbcOptions}.
-	 */
-	public static class Builder {
-		private String dbURL;
-		private String tableName;
-		private String driverName;
-		private String username;
-		private String password;
-		private JdbcDialect dialect;
-		private Integer parallelism;
-		private int connectionCheckTimeoutSeconds = 60;
+        /** required, table name. */
+        public Builder setTableName(String tableName) {
+            this.tableName = tableName;
+            return this;
+        }
 
-		/**
-		 * required, table name.
-		 */
-		public Builder setTableName(String tableName) {
-			this.tableName = tableName;
-			return this;
-		}
+        /** optional, user name. */
+        public Builder setUsername(String username) {
+            this.username = username;
+            return this;
+        }
 
-		/**
-		 * optional, user name.
-		 */
-		public Builder setUsername(String username) {
-			this.username = username;
-			return this;
-		}
+        /** optional, password. */
+        public Builder setPassword(String password) {
+            this.password = password;
+            return this;
+        }
 
-		/**
-		 * optional, password.
-		 */
-		public Builder setPassword(String password) {
-			this.password = password;
-			return this;
-		}
+        /** optional, connectionCheckTimeoutSeconds. */
+        public Builder setConnectionCheckTimeoutSeconds(int connectionCheckTimeoutSeconds) {
+            this.connectionCheckTimeoutSeconds = connectionCheckTimeoutSeconds;
+            return this;
+        }
 
-		/**
-		 * optional, connectionCheckTimeoutSeconds.
-		 */
-		public Builder setConnectionCheckTimeoutSeconds(int connectionCheckTimeoutSeconds) {
-			this.connectionCheckTimeoutSeconds = connectionCheckTimeoutSeconds;
-			return this;
-		}
+        /**
+         * optional, driver name, dialect has a default driver name, See {@link
+         * JdbcDialect#defaultDriverName}.
+         */
+        public Builder setDriverName(String driverName) {
+            this.driverName = driverName;
+            return this;
+        }
 
-		/**
-		 * optional, driver name, dialect has a default driver name,
-		 * See {@link JdbcDialect#defaultDriverName}.
-		 */
-		public Builder setDriverName(String driverName) {
-			this.driverName = driverName;
-			return this;
-		}
+        /** required, JDBC DB url. */
+        public Builder setDBUrl(String dbURL) {
+            this.dbURL = dbURL;
+            return this;
+        }
 
-		/**
-		 * required, JDBC DB url.
-		 */
-		public Builder setDBUrl(String dbURL) {
-			this.dbURL = dbURL;
-			return this;
-		}
+        /**
+         * optional, Handle the SQL dialect of jdbc driver. If not set, it will be infer by {@link
+         * JdbcDialects#get} from DB url.
+         */
+        public Builder setDialect(JdbcDialect dialect) {
+            this.dialect = dialect;
+            return this;
+        }
 
-		/**
-		 * optional, Handle the SQL dialect of jdbc driver. If not set, it will be infer by
-		 * {@link JdbcDialects#get} from DB url.
-		 */
-		public Builder setDialect(JdbcDialect dialect) {
-			this.dialect = dialect;
-			return this;
-		}
+        public Builder setParallelism(Integer parallelism) {
+            this.parallelism = parallelism;
+            return this;
+        }
 
-		public Builder setParallelism(Integer parallelism) {
-			this.parallelism = parallelism;
-			return this;
-		}
+        public JdbcOptions build() {
+            checkNotNull(dbURL, "No dbURL supplied.");
+            checkNotNull(tableName, "No tableName supplied.");
+            if (this.dialect == null) {
+                Optional<JdbcDialect> optional = JdbcDialects.get(dbURL);
+                this.dialect =
+                        optional.orElseGet(
+                                () -> {
+                                    throw new NullPointerException(
+                                            "Unknown dbURL,can not find proper dialect.");
+                                });
+            }
+            if (this.driverName == null) {
+                Optional<String> optional = dialect.defaultDriverName();
+                this.driverName =
+                        optional.orElseGet(
+                                () -> {
+                                    throw new NullPointerException("No driverName supplied.");
+                                });
+            }
 
-		public JdbcOptions build() {
-			checkNotNull(dbURL, "No dbURL supplied.");
-			checkNotNull(tableName, "No tableName supplied.");
-			if (this.dialect == null) {
-				Optional<JdbcDialect> optional = JdbcDialects.get(dbURL);
-				this.dialect = optional.orElseGet(() -> {
-					throw new NullPointerException("Unknown dbURL,can not find proper dialect.");
-				});
-			}
-			if (this.driverName == null) {
-				Optional<String> optional = dialect.defaultDriverName();
-				this.driverName = optional.orElseGet(() -> {
-					throw new NullPointerException("No driverName supplied.");
-				});
-			}
-
-			return new JdbcOptions(dbURL, tableName, driverName, username, password, dialect, parallelism, connectionCheckTimeoutSeconds);
-		}
-	}
+            return new JdbcOptions(
+                    dbURL,
+                    tableName,
+                    driverName,
+                    username,
+                    password,
+                    dialect,
+                    parallelism,
+                    connectionCheckTimeoutSeconds);
+        }
+    }
 }

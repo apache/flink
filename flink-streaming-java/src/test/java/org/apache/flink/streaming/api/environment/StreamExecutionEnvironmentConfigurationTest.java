@@ -37,138 +37,139 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for configuring {@link StreamExecutionEnvironment} via
- * {@link StreamExecutionEnvironment#configure(ReadableConfig, ClassLoader)}.
+ * Tests for configuring {@link StreamExecutionEnvironment} via {@link
+ * StreamExecutionEnvironment#configure(ReadableConfig, ClassLoader)}.
  *
  * @see StreamExecutionEnvironmentComplexConfigurationTest
  */
 @RunWith(Parameterized.class)
 public class StreamExecutionEnvironmentConfigurationTest {
 
-	@Parameterized.Parameters(name = "{0}")
-	public static Collection<TestSpec> specs() {
-		return Arrays.asList(
-			TestSpec.testValue(TimeCharacteristic.IngestionTime)
-				.whenSetFromFile("pipeline.time-characteristic", "IngestionTime")
-				.viaSetter(StreamExecutionEnvironment::setStreamTimeCharacteristic)
-				.getterVia(StreamExecutionEnvironment::getStreamTimeCharacteristic)
-				.nonDefaultValue(TimeCharacteristic.EventTime),
+    @Parameterized.Parameters(name = "{0}")
+    public static Collection<TestSpec> specs() {
+        return Arrays.asList(
+                TestSpec.testValue(TimeCharacteristic.IngestionTime)
+                        .whenSetFromFile("pipeline.time-characteristic", "IngestionTime")
+                        .viaSetter(StreamExecutionEnvironment::setStreamTimeCharacteristic)
+                        .getterVia(StreamExecutionEnvironment::getStreamTimeCharacteristic)
+                        .nonDefaultValue(TimeCharacteristic.EventTime),
+                TestSpec.testValue(60000L)
+                        .whenSetFromFile("execution.buffer-timeout", "1 min")
+                        .viaSetter(StreamExecutionEnvironment::setBufferTimeout)
+                        .getterVia(StreamExecutionEnvironment::getBufferTimeout)
+                        .nonDefaultValue(12000L),
+                TestSpec.testValue(false)
+                        .whenSetFromFile("pipeline.operator-chaining", "false")
+                        .viaSetter(
+                                (env, b) -> {
+                                    if (b) {
+                                        throw new IllegalArgumentException(
+                                                "Cannot programmatically enable operator chaining");
+                                    } else {
+                                        env.disableOperatorChaining();
+                                    }
+                                })
+                        .getterVia(StreamExecutionEnvironment::isChainingEnabled)
+                        .nonDefaultValue(false),
+                TestSpec.testValue(ExecutionConfig.ClosureCleanerLevel.TOP_LEVEL)
+                        .whenSetFromFile("pipeline.closure-cleaner-level", "TOP_LEVEL")
+                        .viaSetter((env, v) -> env.getConfig().setClosureCleanerLevel(v))
+                        .getterVia(env -> env.getConfig().getClosureCleanerLevel())
+                        .nonDefaultValue(ExecutionConfig.ClosureCleanerLevel.NONE),
+                TestSpec.testValue(12000L)
+                        .whenSetFromFile("execution.checkpointing.timeout", "12 s")
+                        .viaSetter((env, v) -> env.getCheckpointConfig().setCheckpointTimeout(v))
+                        .getterVia(env -> env.getCheckpointConfig().getCheckpointTimeout())
+                        .nonDefaultValue(100L));
+    }
 
-			TestSpec.testValue(60000L)
-				.whenSetFromFile("execution.buffer-timeout", "1 min")
-				.viaSetter(StreamExecutionEnvironment::setBufferTimeout)
-				.getterVia(StreamExecutionEnvironment::getBufferTimeout)
-				.nonDefaultValue(12000L),
+    @Parameterized.Parameter public TestSpec spec;
 
-			TestSpec.testValue(false)
-				.whenSetFromFile("pipeline.operator-chaining", "false")
-				.viaSetter((env, b) -> {
-					if (b) {
-						throw new IllegalArgumentException("Cannot programmatically enable operator chaining");
-					} else {
-						env.disableOperatorChaining();
-					}
-				})
-				.getterVia(StreamExecutionEnvironment::isChainingEnabled)
-				.nonDefaultValue(false),
+    @Test
+    public void testLoadingFromConfiguration() {
+        StreamExecutionEnvironment configFromSetters =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment configFromFile =
+                StreamExecutionEnvironment.getExecutionEnvironment();
 
-			TestSpec.testValue(ExecutionConfig.ClosureCleanerLevel.TOP_LEVEL)
-				.whenSetFromFile("pipeline.closure-cleaner-level", "TOP_LEVEL")
-				.viaSetter((env, v) -> env.getConfig().setClosureCleanerLevel(v))
-				.getterVia(env -> env.getConfig().getClosureCleanerLevel())
-				.nonDefaultValue(ExecutionConfig.ClosureCleanerLevel.NONE),
+        Configuration configuration = new Configuration();
+        configuration.setString(spec.key, spec.value);
+        configFromFile.configure(configuration, ExecutionConfigTest.class.getClassLoader());
 
-			TestSpec.testValue(12000L)
-				.whenSetFromFile("execution.checkpointing.timeout", "12 s")
-				.viaSetter((env, v) -> env.getCheckpointConfig().setCheckpointTimeout(v))
-				.getterVia(env -> env.getCheckpointConfig().getCheckpointTimeout())
-				.nonDefaultValue(100L)
-		);
-	}
+        spec.setValue(configFromSetters);
+        spec.assertEqual(configFromFile, configFromSetters);
+    }
 
-	@Parameterized.Parameter
-	public TestSpec spec;
+    @Test
+    public void testNotOverridingIfNotSet() {
+        StreamExecutionEnvironment environment =
+                StreamExecutionEnvironment.getExecutionEnvironment();
 
-	@Test
-	public void testLoadingFromConfiguration() {
-		StreamExecutionEnvironment configFromSetters = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamExecutionEnvironment configFromFile = StreamExecutionEnvironment.getExecutionEnvironment();
+        spec.setNonDefaultValue(environment);
+        Configuration configuration = new Configuration();
+        environment.configure(configuration, ExecutionConfigTest.class.getClassLoader());
 
-		Configuration configuration = new Configuration();
-		configuration.setString(spec.key, spec.value);
-		configFromFile.configure(configuration, ExecutionConfigTest.class.getClassLoader());
+        spec.assertEqualNonDefault(environment);
+    }
 
-		spec.setValue(configFromSetters);
-		spec.assertEqual(configFromFile, configFromSetters);
-	}
+    private static class TestSpec<T> {
+        private String key;
+        private String value;
+        private final T objectValue;
+        private T nonDefaultValue;
+        private BiConsumer<StreamExecutionEnvironment, T> setter;
+        private Function<StreamExecutionEnvironment, T> getter;
 
-	@Test
-	public void testNotOverridingIfNotSet() {
-		StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
+        private TestSpec(T value) {
+            this.objectValue = value;
+        }
 
-		spec.setNonDefaultValue(environment);
-		Configuration configuration = new Configuration();
-		environment.configure(configuration, ExecutionConfigTest.class.getClassLoader());
+        public static <T> TestSpec<T> testValue(T value) {
+            return new TestSpec<>(value);
+        }
 
-		spec.assertEqualNonDefault(environment);
-	}
+        public TestSpec<T> whenSetFromFile(String key, String value) {
+            this.key = key;
+            this.value = value;
+            return this;
+        }
 
-	private static class TestSpec<T> {
-		private String key;
-		private String value;
-		private final T objectValue;
-		private T nonDefaultValue;
-		private BiConsumer<StreamExecutionEnvironment, T> setter;
-		private Function<StreamExecutionEnvironment, T> getter;
+        public TestSpec<T> viaSetter(BiConsumer<StreamExecutionEnvironment, T> setter) {
+            this.setter = setter;
+            return this;
+        }
 
-		private TestSpec(T value) {
-			this.objectValue = value;
-		}
+        public TestSpec<T> getterVia(Function<StreamExecutionEnvironment, T> getter) {
+            this.getter = getter;
+            return this;
+        }
 
-		public static <T> TestSpec<T> testValue(T value) {
-			return new TestSpec<>(value);
-		}
+        public TestSpec<T> nonDefaultValue(T nonDefaultValue) {
+            this.nonDefaultValue = nonDefaultValue;
+            return this;
+        }
 
-		public TestSpec<T> whenSetFromFile(String key, String value) {
-			this.key = key;
-			this.value = value;
-			return this;
-		}
+        public void setValue(StreamExecutionEnvironment config) {
+            setter.accept(config, objectValue);
+        }
 
-		public TestSpec<T> viaSetter(BiConsumer<StreamExecutionEnvironment, T> setter) {
-			this.setter = setter;
-			return this;
-		}
+        public void setNonDefaultValue(StreamExecutionEnvironment config) {
+            setter.accept(config, nonDefaultValue);
+        }
 
-		public TestSpec<T> getterVia(Function<StreamExecutionEnvironment, T> getter) {
-			this.getter = getter;
-			return this;
-		}
+        public void assertEqual(
+                StreamExecutionEnvironment configFromFile,
+                StreamExecutionEnvironment configFromSetters) {
+            assertThat(getter.apply(configFromFile), equalTo(getter.apply(configFromSetters)));
+        }
 
-		public TestSpec<T> nonDefaultValue(T nonDefaultValue) {
-			this.nonDefaultValue = nonDefaultValue;
-			return this;
-		}
+        public void assertEqualNonDefault(StreamExecutionEnvironment configFromFile) {
+            assertThat(getter.apply(configFromFile), equalTo(nonDefaultValue));
+        }
 
-		public void setValue(StreamExecutionEnvironment config) {
-			setter.accept(config, objectValue);
-		}
-
-		public void setNonDefaultValue(StreamExecutionEnvironment config) {
-			setter.accept(config, nonDefaultValue);
-		}
-
-		public void assertEqual(StreamExecutionEnvironment configFromFile, StreamExecutionEnvironment configFromSetters) {
-			assertThat(getter.apply(configFromFile), equalTo(getter.apply(configFromSetters)));
-		}
-
-		public void assertEqualNonDefault(StreamExecutionEnvironment configFromFile) {
-			assertThat(getter.apply(configFromFile), equalTo(nonDefaultValue));
-		}
-
-		@Override
-		public String toString() {
-			return "key='" + key + '\'';
-		}
-	}
+        @Override
+        public String toString() {
+            return "key='" + key + '\'';
+        }
+    }
 }

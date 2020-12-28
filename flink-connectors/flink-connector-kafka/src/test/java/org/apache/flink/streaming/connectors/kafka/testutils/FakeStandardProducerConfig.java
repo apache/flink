@@ -22,17 +22,14 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 import java.util.Properties;
 
-/**
- * Test configuration for a kafka producer.
- */
+/** Test configuration for a kafka producer. */
 public class FakeStandardProducerConfig {
 
-	public static Properties get() {
-		Properties p = new Properties();
-		p.setProperty("bootstrap.servers", "localhost:12345");
-		p.setProperty("key.serializer", ByteArraySerializer.class.getName());
-		p.setProperty("value.serializer", ByteArraySerializer.class.getName());
-		return p;
-	}
-
+    public static Properties get() {
+        Properties p = new Properties();
+        p.setProperty("bootstrap.servers", "localhost:12345");
+        p.setProperty("key.serializer", ByteArraySerializer.class.getName());
+        p.setProperty("value.serializer", ByteArraySerializer.class.getName());
+        return p;
+    }
 }

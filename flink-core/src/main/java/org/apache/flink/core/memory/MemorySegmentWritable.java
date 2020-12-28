@@ -22,20 +22,18 @@ import org.apache.flink.annotation.Internal;
 
 import java.io.IOException;
 
-/**
- * Provides the interface for write(Segment).
- */
+/** Provides the interface for write(Segment). */
 @Internal
 public interface MemorySegmentWritable {
 
-	/**
-	 * Writes {@code len} bytes from memory segment {@code segment} starting at offset {@code off}, in order,
-	 * to the output.
-	 *
-	 * @param segment memory segment to copy the bytes from.
-	 * @param off the start offset in the memory segment.
-	 * @param len The number of bytes to copy.
-	 * @throws IOException if an I/O error occurs.
-	 */
-	void write(MemorySegment segment, int off, int len) throws IOException;
+    /**
+     * Writes {@code len} bytes from memory segment {@code segment} starting at offset {@code off},
+     * in order, to the output.
+     *
+     * @param segment memory segment to copy the bytes from.
+     * @param off the start offset in the memory segment.
+     * @param len The number of bytes to copy.
+     * @throws IOException if an I/O error occurs.
+     */
+    void write(MemorySegment segment, int off, int len) throws IOException;
 }

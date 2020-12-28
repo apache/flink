@@ -21,21 +21,21 @@ import org.junit.After;
 import org.junit.Before;
 
 /**
- * Base class for JDBC test using DDL from {@link JdbcTestFixture}. It uses create tables before each test and drops afterwards.
+ * Base class for JDBC test using DDL from {@link JdbcTestFixture}. It uses create tables before
+ * each test and drops afterwards.
  */
 public abstract class JdbcTestBase {
 
-	@Before
-	public final void before() throws Exception {
-		JdbcTestFixture.initSchema(getDbMetadata());
-	}
+    @Before
+    public final void before() throws Exception {
+        JdbcTestFixture.initSchema(getDbMetadata());
+    }
 
-	@After
-	public final void after() throws Exception {
-		JdbcTestFixture.cleanupData(getDbMetadata().getUrl());
-		JdbcTestFixture.cleanUpDatabasesStatic(getDbMetadata());
-	}
+    @After
+    public final void after() throws Exception {
+        JdbcTestFixture.cleanupData(getDbMetadata().getUrl());
+        JdbcTestFixture.cleanUpDatabasesStatic(getDbMetadata());
+    }
 
-	protected abstract DbMetadata getDbMetadata();
-
+    protected abstract DbMetadata getDbMetadata();
 }

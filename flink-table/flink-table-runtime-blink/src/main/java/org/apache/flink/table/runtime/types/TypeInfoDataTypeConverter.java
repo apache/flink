@@ -71,125 +71,135 @@ import static org.apache.flink.table.runtime.types.PlannerTypeUtils.isPrimitive;
  *
  * <p>Don't override {@link TypeConversions#fromLegacyInfoToDataType}. It is a user interface.
  *
- * <p>The different with {@link TypeConversions#fromDataTypeToLegacyInfo}:
- * 1.Deal with VARCHAR and VARBINARY with precision.
- * 2.Deal with RowData.
- * 3.Deal with DecimalData.
+ * <p>The different with {@link TypeConversions#fromDataTypeToLegacyInfo}: 1.Deal with VARCHAR and
+ * VARBINARY with precision. 2.Deal with RowData. 3.Deal with DecimalData.
  *
- * <p>This class is for:
- * 1.See {@link TableFunctionDefinition#getResultType()}.
- * 2.See {@link AggregateFunctionDefinition#getAccumulatorTypeInfo()}.
- * 3.See {@link MapViewTypeInfo#getKeyType()}.
+ * <p>This class is for: 1.See {@link TableFunctionDefinition#getResultType()}. 2.See {@link
+ * AggregateFunctionDefinition#getAccumulatorTypeInfo()}. 3.See {@link
+ * MapViewTypeInfo#getKeyType()}.
  *
- * @deprecated Use {@link InternalTypeInfo#of(LogicalType)} instead if {@link TypeInformation} is really
- *             required. In many cases, {@link InternalSerializers#create(LogicalType)} should be sufficient.
+ * @deprecated Use {@link InternalTypeInfo#of(LogicalType)} instead if {@link TypeInformation} is
+ *     really required. In many cases, {@link InternalSerializers#create(LogicalType)} should be
+ *     sufficient.
  */
 @Deprecated
 public class TypeInfoDataTypeConverter {
-	private static final Map<String, TypeInformation<?>> primitiveDataTypeTypeInfoMap = new HashMap<>();
+    private static final Map<String, TypeInformation<?>> primitiveDataTypeTypeInfoMap =
+            new HashMap<>();
 
-	static {
-		addDefaultTypeInfo(boolean.class, Types.BOOLEAN);
-		addDefaultTypeInfo(byte.class, Types.BYTE);
-		addDefaultTypeInfo(short.class, Types.SHORT);
-		addDefaultTypeInfo(int.class, Types.INT);
-		addDefaultTypeInfo(long.class, Types.LONG);
-		addDefaultTypeInfo(float.class, Types.FLOAT);
-		addDefaultTypeInfo(double.class, Types.DOUBLE);
-	}
+    static {
+        addDefaultTypeInfo(boolean.class, Types.BOOLEAN);
+        addDefaultTypeInfo(byte.class, Types.BYTE);
+        addDefaultTypeInfo(short.class, Types.SHORT);
+        addDefaultTypeInfo(int.class, Types.INT);
+        addDefaultTypeInfo(long.class, Types.LONG);
+        addDefaultTypeInfo(float.class, Types.FLOAT);
+        addDefaultTypeInfo(double.class, Types.DOUBLE);
+    }
 
-	private static void addDefaultTypeInfo(Class<?> clazz, TypeInformation<?> typeInformation) {
-		Preconditions.checkArgument(clazz.isPrimitive());
-		primitiveDataTypeTypeInfoMap.put(clazz.getName(), typeInformation);
-	}
+    private static void addDefaultTypeInfo(Class<?> clazz, TypeInformation<?> typeInformation) {
+        Preconditions.checkArgument(clazz.isPrimitive());
+        primitiveDataTypeTypeInfoMap.put(clazz.getName(), typeInformation);
+    }
 
-	public static TypeInformation<?> fromDataTypeToTypeInfo(DataType dataType) {
-		Class<?> clazz = dataType.getConversionClass();
-		if (clazz.isPrimitive()) {
-			final TypeInformation<?> foundTypeInfo = primitiveDataTypeTypeInfoMap.get(clazz.getName());
-			if (foundTypeInfo != null) {
-				return foundTypeInfo;
-			}
-		}
-		LogicalType logicalType = fromDataTypeToLogicalType(dataType);
-		switch (logicalType.getTypeRoot()) {
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				TimestampType timestampType = (TimestampType) logicalType;
-				int precision = timestampType.getPrecision();
-				if (timestampType.getKind() == TimestampKind.REGULAR) {
-					return clazz == TimestampData.class ?
-						new TimestampDataTypeInfo(precision) :
-						(clazz == LocalDateTime.class ?
-							((3 == precision) ?
-								Types.LOCAL_DATE_TIME : new LegacyLocalDateTimeTypeInfo(precision)) :
-							((3 == precision) ?
-								Types.SQL_TIMESTAMP : new LegacyTimestampTypeInfo(precision)));
-				} else {
-					return TypeConversions.fromDataTypeToLegacyInfo(dataType);
-				}
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) logicalType;
-				int precisionLzTs = lzTs.getPrecision();
-				return clazz == TimestampData.class ?
-					new TimestampDataTypeInfo(precisionLzTs) :
-					(clazz == Instant.class ?
-						((3 == precisionLzTs) ? Types.INSTANT : new LegacyInstantTypeInfo(precisionLzTs)) :
-						TypeConversions.fromDataTypeToLegacyInfo(dataType));
+    public static TypeInformation<?> fromDataTypeToTypeInfo(DataType dataType) {
+        Class<?> clazz = dataType.getConversionClass();
+        if (clazz.isPrimitive()) {
+            final TypeInformation<?> foundTypeInfo =
+                    primitiveDataTypeTypeInfoMap.get(clazz.getName());
+            if (foundTypeInfo != null) {
+                return foundTypeInfo;
+            }
+        }
+        LogicalType logicalType = fromDataTypeToLogicalType(dataType);
+        switch (logicalType.getTypeRoot()) {
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                TimestampType timestampType = (TimestampType) logicalType;
+                int precision = timestampType.getPrecision();
+                if (timestampType.getKind() == TimestampKind.REGULAR) {
+                    return clazz == TimestampData.class
+                            ? new TimestampDataTypeInfo(precision)
+                            : (clazz == LocalDateTime.class
+                                    ? ((3 == precision)
+                                            ? Types.LOCAL_DATE_TIME
+                                            : new LegacyLocalDateTimeTypeInfo(precision))
+                                    : ((3 == precision)
+                                            ? Types.SQL_TIMESTAMP
+                                            : new LegacyTimestampTypeInfo(precision)));
+                } else {
+                    return TypeConversions.fromDataTypeToLegacyInfo(dataType);
+                }
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                LocalZonedTimestampType lzTs = (LocalZonedTimestampType) logicalType;
+                int precisionLzTs = lzTs.getPrecision();
+                return clazz == TimestampData.class
+                        ? new TimestampDataTypeInfo(precisionLzTs)
+                        : (clazz == Instant.class
+                                ? ((3 == precisionLzTs)
+                                        ? Types.INSTANT
+                                        : new LegacyInstantTypeInfo(precisionLzTs))
+                                : TypeConversions.fromDataTypeToLegacyInfo(dataType));
 
-			case DECIMAL:
-				DecimalType decimalType = (DecimalType) logicalType;
-				return clazz == DecimalData.class ?
-						new DecimalDataTypeInfo(decimalType.getPrecision(), decimalType.getScale()) :
-						new BigDecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale());
-			case CHAR:
-			case VARCHAR: // ignore precision
-				return clazz == StringData.class ?
-						StringDataTypeInfo.INSTANCE :
-						BasicTypeInfo.STRING_TYPE_INFO;
-			case BINARY:
-			case VARBINARY: // ignore precision
-				return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
-			case INTERVAL_YEAR_MONTH:
-				return TimeIntervalTypeInfo.INTERVAL_MONTHS;
-			case INTERVAL_DAY_TIME:
-				return TimeIntervalTypeInfo.INTERVAL_MILLIS;
-			case ARRAY:
-				if (dataType instanceof CollectionDataType &&
-						!isPrimitive(((CollectionDataType) dataType).getElementDataType().getLogicalType())) {
-					return ObjectArrayTypeInfo.getInfoFor(
-							fromDataTypeToTypeInfo(((CollectionDataType) dataType).getElementDataType()));
-				} else {
-					return TypeConversions.fromDataTypeToLegacyInfo(dataType);
-				}
-			case MAP:
-				KeyValueDataType mapType = (KeyValueDataType) dataType;
-				return new MapTypeInfo(
-						fromDataTypeToTypeInfo(mapType.getKeyDataType()),
-						fromDataTypeToTypeInfo(mapType.getValueDataType()));
-			case MULTISET:
-				return MultisetTypeInfo.getInfoFor(
-						fromDataTypeToTypeInfo(((CollectionDataType) dataType).getElementDataType()));
-			case ROW:
-				if (RowData.class.isAssignableFrom(dataType.getConversionClass())) {
-					return InternalTypeInfo.of((RowType) fromDataTypeToLogicalType(dataType));
-				} else if (Row.class == dataType.getConversionClass()) {
-					RowType logicalRowType = (RowType) logicalType;
-					return new RowTypeInfo(
-						dataType.getChildren()
-							.stream()
-							.map(TypeInfoDataTypeConverter::fromDataTypeToTypeInfo)
-							.toArray(TypeInformation[]::new),
-						logicalRowType.getFieldNames().toArray(new String[0]));
-				} else {
-					return TypeConversions.fromDataTypeToLegacyInfo(dataType);
-				}
-			case RAW:
-				if (logicalType instanceof RawType) {
-					return ExternalTypeInfo.of(dataType);
-				}
-				return TypeConversions.fromDataTypeToLegacyInfo(dataType);
-			default:
-				return TypeConversions.fromDataTypeToLegacyInfo(dataType);
-		}
-	}
+            case DECIMAL:
+                DecimalType decimalType = (DecimalType) logicalType;
+                return clazz == DecimalData.class
+                        ? new DecimalDataTypeInfo(
+                                decimalType.getPrecision(), decimalType.getScale())
+                        : new BigDecimalTypeInfo(
+                                decimalType.getPrecision(), decimalType.getScale());
+            case CHAR:
+            case VARCHAR: // ignore precision
+                return clazz == StringData.class
+                        ? StringDataTypeInfo.INSTANCE
+                        : BasicTypeInfo.STRING_TYPE_INFO;
+            case BINARY:
+            case VARBINARY: // ignore precision
+                return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
+            case INTERVAL_YEAR_MONTH:
+                return TimeIntervalTypeInfo.INTERVAL_MONTHS;
+            case INTERVAL_DAY_TIME:
+                return TimeIntervalTypeInfo.INTERVAL_MILLIS;
+            case ARRAY:
+                if (dataType instanceof CollectionDataType
+                        && !isPrimitive(
+                                ((CollectionDataType) dataType)
+                                        .getElementDataType()
+                                        .getLogicalType())) {
+                    return ObjectArrayTypeInfo.getInfoFor(
+                            fromDataTypeToTypeInfo(
+                                    ((CollectionDataType) dataType).getElementDataType()));
+                } else {
+                    return TypeConversions.fromDataTypeToLegacyInfo(dataType);
+                }
+            case MAP:
+                KeyValueDataType mapType = (KeyValueDataType) dataType;
+                return new MapTypeInfo(
+                        fromDataTypeToTypeInfo(mapType.getKeyDataType()),
+                        fromDataTypeToTypeInfo(mapType.getValueDataType()));
+            case MULTISET:
+                return MultisetTypeInfo.getInfoFor(
+                        fromDataTypeToTypeInfo(
+                                ((CollectionDataType) dataType).getElementDataType()));
+            case ROW:
+                if (RowData.class.isAssignableFrom(dataType.getConversionClass())) {
+                    return InternalTypeInfo.of((RowType) fromDataTypeToLogicalType(dataType));
+                } else if (Row.class == dataType.getConversionClass()) {
+                    RowType logicalRowType = (RowType) logicalType;
+                    return new RowTypeInfo(
+                            dataType.getChildren().stream()
+                                    .map(TypeInfoDataTypeConverter::fromDataTypeToTypeInfo)
+                                    .toArray(TypeInformation[]::new),
+                            logicalRowType.getFieldNames().toArray(new String[0]));
+                } else {
+                    return TypeConversions.fromDataTypeToLegacyInfo(dataType);
+                }
+            case RAW:
+                if (logicalType instanceof RawType) {
+                    return ExternalTypeInfo.of(dataType);
+                }
+                return TypeConversions.fromDataTypeToLegacyInfo(dataType);
+            default:
+                return TypeConversions.fromDataTypeToLegacyInfo(dataType);
+        }
+    }
 }

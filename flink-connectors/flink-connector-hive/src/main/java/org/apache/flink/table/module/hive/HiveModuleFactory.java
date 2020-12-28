@@ -32,40 +32,40 @@ import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODUL
 import static org.apache.flink.table.module.hive.HiveModuleDescriptorValidator.MODULE_HIVE_VERSION;
 import static org.apache.flink.table.module.hive.HiveModuleDescriptorValidator.MODULE_TYPE_HIVE;
 
-/**
- * Factory for {@link HiveModule}.
- */
+/** Factory for {@link HiveModule}. */
 public class HiveModuleFactory implements ModuleFactory {
 
-	@Override
-	public Module createModule(Map<String, String> properties) {
-		final DescriptorProperties descProperties = getValidatedProperties(properties);
+    @Override
+    public Module createModule(Map<String, String> properties) {
+        final DescriptorProperties descProperties = getValidatedProperties(properties);
 
-		final String hiveVersion = descProperties.getOptionalString(MODULE_HIVE_VERSION)
-			.orElse(HiveShimLoader.getHiveVersion());
+        final String hiveVersion =
+                descProperties
+                        .getOptionalString(MODULE_HIVE_VERSION)
+                        .orElse(HiveShimLoader.getHiveVersion());
 
-		return new HiveModule(hiveVersion);
-	}
+        return new HiveModule(hiveVersion);
+    }
 
-	private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putProperties(properties);
+    private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
+        final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+        descriptorProperties.putProperties(properties);
 
-		new HiveModuleDescriptorValidator().validate(descriptorProperties);
+        new HiveModuleDescriptorValidator().validate(descriptorProperties);
 
-		return descriptorProperties;
-	}
+        return descriptorProperties;
+    }
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(MODULE_TYPE, MODULE_TYPE_HIVE);
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>();
+        context.put(MODULE_TYPE, MODULE_TYPE_HIVE);
 
-		return context;
-	}
+        return context;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		return Arrays.asList(MODULE_HIVE_VERSION);
-	}
+    @Override
+    public List<String> supportedProperties() {
+        return Arrays.asList(MODULE_HIVE_VERSION);
+    }
 }

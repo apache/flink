@@ -35,23 +35,25 @@ import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNA
  * {@code DynamicParametersConfigurationParserFactory} can be used to extract the dynamic parameters
  * from command line.
  */
-public class DynamicParametersConfigurationParserFactory implements ParserResultFactory<Configuration> {
+public class DynamicParametersConfigurationParserFactory
+        implements ParserResultFactory<Configuration> {
 
-	public static Options options() {
-		final Options options = new Options();
-		options.addOption(DYNAMIC_PROPERTY_OPTION);
+    public static Options options() {
+        final Options options = new Options();
+        options.addOption(DYNAMIC_PROPERTY_OPTION);
 
-		return options;
-	}
+        return options;
+    }
 
-	@Override
-	public Options getOptions() {
-		return options();
-	}
+    @Override
+    public Options getOptions() {
+        return options();
+    }
 
-	@Override
-	public Configuration createResult(@Nonnull CommandLine commandLine) {
-		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
-		return ConfigurationUtils.createConfiguration(dynamicProperties);
-	}
+    @Override
+    public Configuration createResult(@Nonnull CommandLine commandLine) {
+        final Properties dynamicProperties =
+                commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
+        return ConfigurationUtils.createConfiguration(dynamicProperties);
+    }
 }

@@ -40,76 +40,77 @@ import java.net.URI;
  */
 public class HiveTableFileInputFormat extends FileInputFormat<RowData> {
 
-	private final HiveTableInputFormat inputFormat;
-	private final HiveTablePartition hiveTablePartition;
+    private final HiveTableInputFormat inputFormat;
+    private final HiveTablePartition hiveTablePartition;
 
-	public HiveTableFileInputFormat(
-			HiveTableInputFormat inputFormat,
-			HiveTablePartition hiveTablePartition) {
-		this.inputFormat = inputFormat;
-		this.hiveTablePartition = hiveTablePartition;
-		setFilePath(hiveTablePartition.getStorageDescriptor().getLocation());
-	}
+    public HiveTableFileInputFormat(
+            HiveTableInputFormat inputFormat, HiveTablePartition hiveTablePartition) {
+        this.inputFormat = inputFormat;
+        this.hiveTablePartition = hiveTablePartition;
+        setFilePath(hiveTablePartition.getStorageDescriptor().getLocation());
+    }
 
-	@Override
-	public void open(FileInputSplit fileSplit) throws IOException {
-		HiveTableInputSplit split = new HiveTableInputSplit(
-				fileSplit.getSplitNumber(),
-				toHadoopFileSplit(fileSplit),
-				inputFormat.getJobConf(),
-				hiveTablePartition);
-		inputFormat.open(split);
-	}
+    @Override
+    public void open(FileInputSplit fileSplit) throws IOException {
+        HiveTableInputSplit split =
+                new HiveTableInputSplit(
+                        fileSplit.getSplitNumber(),
+                        toHadoopFileSplit(fileSplit),
+                        inputFormat.getJobConf(),
+                        hiveTablePartition);
+        inputFormat.open(split);
+    }
 
-	@VisibleForTesting
-	static FileSplit toHadoopFileSplit(FileInputSplit fileSplit) throws IOException {
-		URI uri = fileSplit.getPath().toUri();
-		long length = fileSplit.getLength();
-		// Hadoop FileSplit should not have -1 length.
-		if (length == -1) {
-			length = fileSplit.getPath().getFileSystem().getFileStatus(fileSplit.getPath()).getLen() -
-					fileSplit.getStart();
-		}
-		return new FileSplit(new Path(uri), fileSplit.getStart(), length, (String[]) null);
-	}
+    @VisibleForTesting
+    static FileSplit toHadoopFileSplit(FileInputSplit fileSplit) throws IOException {
+        URI uri = fileSplit.getPath().toUri();
+        long length = fileSplit.getLength();
+        // Hadoop FileSplit should not have -1 length.
+        if (length == -1) {
+            length =
+                    fileSplit.getPath().getFileSystem().getFileStatus(fileSplit.getPath()).getLen()
+                            - fileSplit.getStart();
+        }
+        return new FileSplit(new Path(uri), fileSplit.getStart(), length, (String[]) null);
+    }
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return inputFormat.reachedEnd();
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return inputFormat.reachedEnd();
+    }
 
-	@Override
-	public RowData nextRecord(RowData reuse) throws IOException {
-		return inputFormat.nextRecord(reuse);
-	}
+    @Override
+    public RowData nextRecord(RowData reuse) throws IOException {
+        return inputFormat.nextRecord(reuse);
+    }
 
-	@Override
-	public void configure(Configuration parameters) {
-		super.configure(parameters);
-		inputFormat.configure(parameters);
-	}
+    @Override
+    public void configure(Configuration parameters) {
+        super.configure(parameters);
+        inputFormat.configure(parameters);
+    }
 
-	@Override
-	public void close() throws IOException {
-		super.close();
-		inputFormat.close();
-	}
+    @Override
+    public void close() throws IOException {
+        super.close();
+        inputFormat.close();
+    }
 
-	@Override
-	public void setRuntimeContext(RuntimeContext t) {
-		super.setRuntimeContext(t);
-		inputFormat.setRuntimeContext(t);
-	}
+    @Override
+    public void setRuntimeContext(RuntimeContext t) {
+        super.setRuntimeContext(t);
+        inputFormat.setRuntimeContext(t);
+    }
 
-	@Override
-	public void openInputFormat() throws IOException {
-		super.openInputFormat();
-		inputFormat.openInputFormat();
-	}
+    @Override
+    public void openInputFormat() throws IOException {
+        super.openInputFormat();
+        inputFormat.openInputFormat();
+    }
 
-	@Override
-	public void closeInputFormat() throws IOException {
-		super.closeInputFormat();
-		inputFormat.closeInputFormat();
-	}
+    @Override
+    public void closeInputFormat() throws IOException {
+        super.closeInputFormat();
+        inputFormat.closeInputFormat();
+    }
 }

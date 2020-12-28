@@ -30,41 +30,45 @@ import org.junit.rules.ExternalResource;
 import java.util.HashMap;
 import java.util.Queue;
 
-/**
- * The mock server that host MixedDispatcher.
- */
+/** The mock server that host MixedDispatcher. */
 public class MixedKubernetesServer extends ExternalResource {
 
-	private KubernetesMockServer mock;
-	private NamespacedKubernetesClient client;
-	private boolean https;
+    private KubernetesMockServer mock;
+    private NamespacedKubernetesClient client;
+    private boolean https;
 
-	private boolean crudMode;
+    private boolean crudMode;
 
-	public MixedKubernetesServer(boolean https, boolean crudMode) {
-		this.https = https;
-		this.crudMode = crudMode;
-	}
+    public MixedKubernetesServer(boolean https, boolean crudMode) {
+        this.https = https;
+        this.crudMode = crudMode;
+    }
 
-	public void before() {
-		HashMap<ServerRequest, Queue<ServerResponse>> response = new HashMap<>();
-		mock = crudMode
-			? new KubernetesMockServer(new Context(), new MockWebServer(), response, new MixedDispatcher(response), true)
-			: new KubernetesMockServer(https);
-		mock.init();
-		client = mock.createClient();
-	}
+    public void before() {
+        HashMap<ServerRequest, Queue<ServerResponse>> response = new HashMap<>();
+        mock =
+                crudMode
+                        ? new KubernetesMockServer(
+                                new Context(),
+                                new MockWebServer(),
+                                response,
+                                new MixedDispatcher(response),
+                                true)
+                        : new KubernetesMockServer(https);
+        mock.init();
+        client = mock.createClient();
+    }
 
-	public void after() {
-		mock.destroy();
-		client.close();
-	}
+    public void after() {
+        mock.destroy();
+        client.close();
+    }
 
-	public NamespacedKubernetesClient getClient() {
-		return client;
-	}
+    public NamespacedKubernetesClient getClient() {
+        return client;
+    }
 
-	public MockServerExpectation expect() {
-		return mock.expect();
-	}
+    public MockServerExpectation expect() {
+        return mock.expect();
+    }
 }

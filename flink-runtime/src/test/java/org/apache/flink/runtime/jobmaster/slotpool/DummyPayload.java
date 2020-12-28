@@ -23,28 +23,26 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * {@link LogicalSlot.Payload} implementation for test purposes.
- */
+/** {@link LogicalSlot.Payload} implementation for test purposes. */
 public final class DummyPayload implements LogicalSlot.Payload {
 
-	private final CompletableFuture<?> terminalStateFuture;
+    private final CompletableFuture<?> terminalStateFuture;
 
-	DummyPayload() {
-		this(new CompletableFuture<>());
-	}
+    DummyPayload() {
+        this(new CompletableFuture<>());
+    }
 
-	public DummyPayload(CompletableFuture<?> terminalStateFuture) {
-		this.terminalStateFuture = Preconditions.checkNotNull(terminalStateFuture);
-	}
+    public DummyPayload(CompletableFuture<?> terminalStateFuture) {
+        this.terminalStateFuture = Preconditions.checkNotNull(terminalStateFuture);
+    }
 
-	@Override
-	public void fail(Throwable cause) {
-		terminalStateFuture.complete(null);
-	}
+    @Override
+    public void fail(Throwable cause) {
+        terminalStateFuture.complete(null);
+    }
 
-	@Override
-	public CompletableFuture<?> getTerminalStateFuture() {
-		return terminalStateFuture;
-	}
+    @Override
+    public CompletableFuture<?> getTerminalStateFuture() {
+        return terminalStateFuture;
+    }
 }

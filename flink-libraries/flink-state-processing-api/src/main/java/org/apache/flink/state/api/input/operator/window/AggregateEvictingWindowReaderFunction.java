@@ -26,28 +26,29 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collections;
 
-/**
- * A wrapper for reading an evicting window operator with an aggregate function.
- */
+/** A wrapper for reading an evicting window operator with an aggregate function. */
 @Internal
-public class AggregateEvictingWindowReaderFunction<IN, ACC, R, OUT, KEY, W extends Window> extends EvictingWindowReaderFunction<IN, R, OUT, KEY, W> {
+public class AggregateEvictingWindowReaderFunction<IN, ACC, R, OUT, KEY, W extends Window>
+        extends EvictingWindowReaderFunction<IN, R, OUT, KEY, W> {
 
-	private final AggregateFunction<IN, ACC, R> aggFunction;
+    private final AggregateFunction<IN, ACC, R> aggFunction;
 
-	public AggregateEvictingWindowReaderFunction(WindowReaderFunction<R, OUT, KEY, W> wrappedFunction, AggregateFunction<IN, ACC, R> aggFunction) {
-		super(wrappedFunction);
-		this.aggFunction = aggFunction;
-	}
+    public AggregateEvictingWindowReaderFunction(
+            WindowReaderFunction<R, OUT, KEY, W> wrappedFunction,
+            AggregateFunction<IN, ACC, R> aggFunction) {
+        super(wrappedFunction);
+        this.aggFunction = aggFunction;
+    }
 
-	@Override
-	public Iterable<R> transform(Iterable<StreamRecord<IN>> elements) throws Exception {
-		ACC acc = aggFunction.createAccumulator();
+    @Override
+    public Iterable<R> transform(Iterable<StreamRecord<IN>> elements) throws Exception {
+        ACC acc = aggFunction.createAccumulator();
 
-		for (StreamRecord<IN> element : elements) {
-			acc = aggFunction.add(element.getValue(), acc);
-		}
+        for (StreamRecord<IN> element : elements) {
+            acc = aggFunction.add(element.getValue(), acc);
+        }
 
-		R result = aggFunction.getResult(acc);
-		return Collections.singletonList(result);
-	}
+        R result = aggFunction.getResult(acc);
+        return Collections.singletonList(result);
+    }
 }

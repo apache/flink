@@ -31,88 +31,83 @@ import org.apache.flink.table.api.Table;
  */
 public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOperator<T> {
 
-	public BatchOperator() {
-		super();
-	}
+    public BatchOperator() {
+        super();
+    }
 
-	/**
-	 * The constructor of BatchOperator with {@link Params}.
-	 * @param params the initial Params.
-	 */
-	public BatchOperator(Params params) {
-		super(params);
-	}
+    /**
+     * The constructor of BatchOperator with {@link Params}.
+     *
+     * @param params the initial Params.
+     */
+    public BatchOperator(Params params) {
+        super(params);
+    }
 
-	/**
-	 * Link to another {@link BatchOperator}.
-	 *
-	 * <p>Link the <code>next</code> BatchOperator using this BatchOperator as its input.
-	 *
-	 * <p>For example:
-	 *
-	 * <pre>
-	 * {@code
-	 * BatchOperator a = ...;
-	 * BatchOperator b = ...;
-	 * BatchOperator c = a.link(b)
-	 * }
-	 * </pre>
-	 *
-	 * <p>The BatchOperator <code>c</code> in the above code
-	 * is the same instance as <code>b</code> which takes
-	 * <code>a</code> as its input.
-	 * Note that BatchOperator <code>b</code> will be changed
-	 * to link from BatchOperator <code>a</code>.
-	 *
-	 * @param next The operator that will be modified to add this operator to its input.
-	 * @param <B>  type of BatchOperator returned
-	 * @return the linked next
-	 * @see #linkFrom(BatchOperator[])
-	 */
-	public <B extends BatchOperator<?>> B link(B next) {
-		next.linkFrom(this);
-		return next;
-	}
+    /**
+     * Link to another {@link BatchOperator}.
+     *
+     * <p>Link the <code>next</code> BatchOperator using this BatchOperator as its input.
+     *
+     * <p>For example:
+     *
+     * <pre>{@code
+     * BatchOperator a = ...;
+     * BatchOperator b = ...;
+     * BatchOperator c = a.link(b)
+     * }</pre>
+     *
+     * <p>The BatchOperator <code>c</code> in the above code is the same instance as <code>b</code>
+     * which takes <code>a</code> as its input. Note that BatchOperator <code>b</code> will be
+     * changed to link from BatchOperator <code>a</code>.
+     *
+     * @param next The operator that will be modified to add this operator to its input.
+     * @param <B> type of BatchOperator returned
+     * @return the linked next
+     * @see #linkFrom(BatchOperator[])
+     */
+    public <B extends BatchOperator<?>> B link(B next) {
+        next.linkFrom(this);
+        return next;
+    }
 
-	/**
-	 * Link from others {@link BatchOperator}.
-	 *
-	 * <p>Link this object to BatchOperator using the BatchOperators as its input.
-	 *
-	 * <p>For example:
-	 *
-	 * <pre>
-	 * {@code
-	 * BatchOperator a = ...;
-	 * BatchOperator b = ...;
-	 * BatchOperator c = ...;
-	 *
-	 * BatchOperator d = c.linkFrom(a, b)
-	 * }
-	 * </pre>
-	 *
-	 * <p>The <code>d</code> in the above code is the same
-	 * instance as BatchOperator <code>c</code> which takes
-	 * both <code>a</code> and <code>b</code> as its input.
-	 *
-	 * <p>note: It is not recommended to linkFrom itself or linkFrom the same group inputs twice.
-	 *
-	 * @param inputs the linked inputs
-	 * @return the linked this object
-	 */
-	public abstract T linkFrom(BatchOperator<?>... inputs);
+    /**
+     * Link from others {@link BatchOperator}.
+     *
+     * <p>Link this object to BatchOperator using the BatchOperators as its input.
+     *
+     * <p>For example:
+     *
+     * <pre>{@code
+     * BatchOperator a = ...;
+     * BatchOperator b = ...;
+     * BatchOperator c = ...;
+     *
+     * BatchOperator d = c.linkFrom(a, b)
+     * }</pre>
+     *
+     * <p>The <code>d</code> in the above code is the same instance as BatchOperator <code>c</code>
+     * which takes both <code>a</code> and <code>b</code> as its input.
+     *
+     * <p>note: It is not recommended to linkFrom itself or linkFrom the same group inputs twice.
+     *
+     * @param inputs the linked inputs
+     * @return the linked this object
+     */
+    public abstract T linkFrom(BatchOperator<?>... inputs);
 
-	/**
-	 * create a new BatchOperator from table.
-	 * @param table the input table
-	 * @return the new BatchOperator
-	 */
-	public static BatchOperator<?> fromTable(Table table) {
-		return new TableSourceBatchOp(table);
-	}
+    /**
+     * create a new BatchOperator from table.
+     *
+     * @param table the input table
+     * @return the new BatchOperator
+     */
+    public static BatchOperator<?> fromTable(Table table) {
+        return new TableSourceBatchOp(table);
+    }
 
-	protected static BatchOperator<?> checkAndGetFirst(BatchOperator<?> ... inputs) {
-		checkOpSize(1, inputs);
-		return inputs[0];
-	}
+    protected static BatchOperator<?> checkAndGetFirst(BatchOperator<?>... inputs) {
+        checkOpSize(1, inputs);
+        return inputs[0];
+    }
 }
