@@ -18,28 +18,17 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.MemorySize
-import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, SimpleOperatorFactory}
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
-import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSort
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
-import org.apache.flink.table.runtime.operators.sort.SortOperator
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -48,18 +37,15 @@ import scala.collection.JavaConversions._
   *
   * This node will output all data rather than `limit` records.
   */
-class BatchExecSort(
+class BatchPhysicalSort(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     sortCollation: RelCollation)
   extends Sort(cluster, traitSet, inputRel, sortCollation)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData] {
+  with BatchPhysicalRel {
 
   require(sortCollation.getFieldCollations.size() > 0)
-  private val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(
-    sortCollation.getFieldCollations)
 
   override def copy(
       traitSet: RelTraitSet,
@@ -67,7 +53,7 @@ class BatchExecSort(
       newCollation: RelCollation,
       offset: RexNode,
       fetch: RexNode): Sort = {
-    new BatchExecSort(cluster, traitSet, newInput, newCollation)
+    new BatchPhysicalSort(cluster, traitSet, newInput, newCollation)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -90,38 +76,13 @@ class BatchExecSort(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(
-    ExecEdge.builder()
-      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
-      .build())
-
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val input = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[RowData]]
-
-    val conf = planner.getTableConfig
-    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
-    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
-
-    // sort code gen
-    val keyTypes = keys.map(inputType.getTypeAt)
-    val codeGen = new SortCodeGenerator(conf, keys, keyTypes, orders, nullsIsLast)
-
-    val operator = new SortOperator(
-      codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
-      codeGen.generateRecordComparator("BatchExecSortComparator"))
-
-    val sortMemory = MemorySize.parse(conf.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)).getBytes
-    ExecNodeUtil.createOneInputTransformation(
-      input,
-      getRelDetailedDescription,
-      SimpleOperatorFactory.of(operator.asInstanceOf[OneInputStreamOperator[RowData, RowData]]),
-      InternalTypeInfo.of(outputType),
-      input.getParallelism,
-      sortMemory)
+  @Override
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecSort(
+      SortUtil.getSortSpec(sortCollation.getFieldCollations),
+      ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build(),
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }

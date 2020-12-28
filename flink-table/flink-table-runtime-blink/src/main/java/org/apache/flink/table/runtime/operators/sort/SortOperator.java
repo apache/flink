@@ -39,8 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Operator for batch sort. */
-public class SortOperator extends TableStreamOperator<BinaryRowData>
-        implements OneInputStreamOperator<RowData, BinaryRowData>, BoundedOneInput {
+public class SortOperator extends TableStreamOperator<RowData>
+        implements OneInputStreamOperator<RowData, RowData>, BoundedOneInput {
 
     private static final Logger LOG = LoggerFactory.getLogger(SortOperator.class);
 
@@ -48,7 +48,7 @@ public class SortOperator extends TableStreamOperator<BinaryRowData>
     private GeneratedRecordComparator gComparator;
 
     private transient BinaryExternalSorter sorter;
-    private transient StreamRecordCollector<BinaryRowData> collector;
+    private transient StreamRecordCollector<RowData> collector;
     private transient BinaryRowDataSerializer binarySerializer;
 
     public SortOperator(

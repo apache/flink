@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSort
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSort
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -35,13 +35,13 @@ import java.lang.{Boolean => JBoolean}
 
 /**
   * Rule that matches [[FlinkLogicalSort]] which sort fields is non-empty and both `fetch` and
-  * `offset` are null, and converts it to [[BatchExecSort]].
+  * `offset` are null, and converts it to [[BatchPhysicalSort]].
   */
-class BatchExecSortRule extends ConverterRule(
+class BatchPhysicalSortRule extends ConverterRule(
   classOf[FlinkLogicalSort],
   FlinkConventions.LOGICAL,
   FlinkConventions.BATCH_PHYSICAL,
-  "BatchExecSortRule") {
+  "BatchPhysicalSortRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
@@ -54,7 +54,7 @@ class BatchExecSortRule extends ConverterRule(
     val input = sort.getInput
     val config = sort.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val enableRangeSort = config.getConfiguration.getBoolean(
-      BatchExecSortRule.TABLE_EXEC_SORT_RANGE_ENABLED)
+      BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED)
     val distribution = if (enableRangeSort) {
       FlinkRelDistribution.range(sort.getCollation.getFieldCollations)
     } else {
@@ -68,7 +68,7 @@ class BatchExecSortRule extends ConverterRule(
       .replace(FlinkConventions.BATCH_PHYSICAL)
 
     val newInput = RelOptRule.convert(input, requiredTraitSet)
-    new BatchExecSort(
+    new BatchPhysicalSort(
       sort.getCluster,
       providedTraitSet,
       newInput,
@@ -76,12 +76,12 @@ class BatchExecSortRule extends ConverterRule(
   }
 }
 
-object BatchExecSortRule {
-  val INSTANCE: RelOptRule = new BatchExecSortRule
+object BatchPhysicalSortRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalSortRule
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val TABLE_EXEC_SORT_RANGE_ENABLED: ConfigOption[JBoolean] =
+  val TABLE_EXEC_RANGE_SORT_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.range-sort.enabled")
       .defaultValue(JBoolean.valueOf(false))
       .withDescription("Sets whether to enable range sort, use range sort to sort all data in" +
