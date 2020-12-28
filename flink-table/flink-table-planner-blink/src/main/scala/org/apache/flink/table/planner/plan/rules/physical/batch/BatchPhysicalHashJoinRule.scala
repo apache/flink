@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecHashJoin
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalHashJoin
 import org.apache.flink.table.planner.plan.utils.OperatorType
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
@@ -40,15 +40,15 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that converts [[FlinkLogicalJoin]] to [[BatchExecHashJoin]]
+  * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalHashJoin]]
   * if there exists at least one equal-join condition and
   * ShuffleHashJoin or BroadcastHashJoin are enabled.
   */
-class BatchExecHashJoinRule
+class BatchPhysicalHashJoinRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalJoin],
       operand(classOf[RelNode], any)),
-    "BatchExecHashJoinRule")
+    "BatchPhysicalHashJoinRule")
   with BatchExecJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -112,7 +112,7 @@ class BatchExecHashJoinRule
       val newRight = RelOptRule.convert(right, rightRequiredTrait)
       val providedTraitSet = join.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
 
-      val newJoin = new BatchExecHashJoin(
+      val newJoin = new BatchPhysicalHashJoin(
         join.getCluster,
         providedTraitSet,
         newLeft,
@@ -191,6 +191,6 @@ class BatchExecHashJoinRule
   }
 }
 
-object BatchExecHashJoinRule {
-  val INSTANCE = new BatchExecHashJoinRule
+object BatchPhysicalHashJoinRule {
+  val INSTANCE = new BatchPhysicalHashJoinRule
 }

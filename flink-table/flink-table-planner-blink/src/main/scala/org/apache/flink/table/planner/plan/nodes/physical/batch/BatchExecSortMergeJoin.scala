@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
@@ -61,7 +61,8 @@ class BatchExecSortMergeJoin(
     val leftSorted: Boolean,
     // true if RHS is sorted by right join key, else false
     val rightSorted: Boolean)
-  extends BatchExecJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
+  extends BatchPhysicalJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType)
+  with LegacyBatchExecNode[RowData] {
 
   protected lazy val (leftAllKey, rightAllKey) =
     JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight)

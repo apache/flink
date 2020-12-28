@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer, InternalTypeInfo}
 
@@ -54,7 +54,8 @@ class BatchExecNestedLoopJoin(
     val leftIsBuild: Boolean,
     // true if one side returns single row, else false
     val singleRowJoin: Boolean)
-  extends BatchExecJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
+  extends BatchPhysicalJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType)
+  with LegacyBatchExecNode[RowData] {
 
   override def copy(
       traitSet: RelTraitSet,
