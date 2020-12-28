@@ -23,22 +23,20 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.IntVector;
 
-/**
- * {@link ArrowFieldWriter} for Int.
- */
+/** {@link ArrowFieldWriter} for Int. */
 @Internal
 public final class RowIntWriter extends ArrowFieldWriter<Row> {
 
-	public RowIntWriter(IntVector intVector) {
-		super(intVector);
-	}
+    public RowIntWriter(IntVector intVector) {
+        super(intVector);
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((IntVector) getValueVector()).setNull(getCount());
-		} else {
-			((IntVector) getValueVector()).setSafe(getCount(), (int) value.getField(ordinal));
-		}
-	}
+    @Override
+    public void doWrite(Row value, int ordinal) {
+        if (value.getField(ordinal) == null) {
+            ((IntVector) getValueVector()).setNull(getCount());
+        } else {
+            ((IntVector) getValueVector()).setSafe(getCount(), (int) value.getField(ordinal));
+        }
+    }
 }

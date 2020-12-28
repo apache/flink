@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.data.vector;
 
-/**
- * Float column vector.
- */
+/** Float column vector. */
 public interface FloatColumnVector extends ColumnVector {
-	float getFloat(int i);
+    float getFloat(int i);
 }

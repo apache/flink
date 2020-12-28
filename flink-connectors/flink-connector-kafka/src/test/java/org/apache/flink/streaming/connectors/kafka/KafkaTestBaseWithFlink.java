@@ -22,21 +22,20 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.ClassRule;
 
-/**
- * The base for the Kafka tests with Flink's MiniCluster.
- */
+/** The base for the Kafka tests with Flink's MiniCluster. */
 @SuppressWarnings("serial")
 public abstract class KafkaTestBaseWithFlink extends KafkaTestBase {
 
-	protected static final int NUM_TMS = 1;
+    protected static final int NUM_TMS = 1;
 
-	protected static final int TM_SLOTS = 8;
+    protected static final int TM_SLOTS = 8;
 
-	@ClassRule
-	public static MiniClusterWithClientResource flink = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getFlinkConfiguration())
-			.setNumberTaskManagers(NUM_TMS)
-			.setNumberSlotsPerTaskManager(TM_SLOTS)
-			.build());
+    @ClassRule
+    public static MiniClusterWithClientResource flink =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getFlinkConfiguration())
+                            .setNumberTaskManagers(NUM_TMS)
+                            .setNumberSlotsPerTaskManager(TM_SLOTS)
+                            .build());
 }

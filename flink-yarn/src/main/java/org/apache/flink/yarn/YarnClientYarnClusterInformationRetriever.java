@@ -27,30 +27,31 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import java.io.IOException;
 
 /**
- * {@link YarnClusterInformationRetriever} implementation which queries the Yarn cluster using
- * a {@link YarnClient} instance.
+ * {@link YarnClusterInformationRetriever} implementation which queries the Yarn cluster using a
+ * {@link YarnClient} instance.
  */
-public final class YarnClientYarnClusterInformationRetriever implements YarnClusterInformationRetriever {
-	private final YarnClient yarnClient;
+public final class YarnClientYarnClusterInformationRetriever
+        implements YarnClusterInformationRetriever {
+    private final YarnClient yarnClient;
 
-	private YarnClientYarnClusterInformationRetriever(YarnClient yarnClient) {
-		this.yarnClient = yarnClient;
-	}
+    private YarnClientYarnClusterInformationRetriever(YarnClient yarnClient) {
+        this.yarnClient = yarnClient;
+    }
 
-	@Override
-	public int getMaxVcores() throws FlinkException {
-		try {
-			return yarnClient.getNodeReports(NodeState.RUNNING)
-				.stream()
-				.mapToInt(report -> report.getCapability().getVirtualCores())
-				.max()
-				.orElse(0);
-		} catch (YarnException | IOException e) {
-			throw new FlinkException("Couldn't get cluster description, please check on the YarnConfiguration", e);
-		}
-	}
+    @Override
+    public int getMaxVcores() throws FlinkException {
+        try {
+            return yarnClient.getNodeReports(NodeState.RUNNING).stream()
+                    .mapToInt(report -> report.getCapability().getVirtualCores())
+                    .max()
+                    .orElse(0);
+        } catch (YarnException | IOException e) {
+            throw new FlinkException(
+                    "Couldn't get cluster description, please check on the YarnConfiguration", e);
+        }
+    }
 
-	public static YarnClientYarnClusterInformationRetriever create(YarnClient yarnClient) {
-		return new YarnClientYarnClusterInformationRetriever(yarnClient);
-	}
+    public static YarnClientYarnClusterInformationRetriever create(YarnClient yarnClient) {
+        return new YarnClientYarnClusterInformationRetriever(yarnClient);
+    }
 }

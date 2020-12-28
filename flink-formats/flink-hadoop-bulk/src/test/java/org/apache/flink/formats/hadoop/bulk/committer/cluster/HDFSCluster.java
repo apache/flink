@@ -26,26 +26,22 @@ import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 
-/**
- * Utility class for testing with HDFS FileSystem.
- */
+/** Utility class for testing with HDFS FileSystem. */
 public class HDFSCluster {
 
-	public final MiniDFSCluster miniCluster;
+    public final MiniDFSCluster miniCluster;
 
-	public HDFSCluster(File tmpDir) throws IOException {
-		Configuration hdfsConfig = new Configuration();
-		hdfsConfig.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpDir.getAbsolutePath());
-		miniCluster = new MiniDFSCluster.Builder(hdfsConfig).build();
-	}
+    public HDFSCluster(File tmpDir) throws IOException {
+        Configuration hdfsConfig = new Configuration();
+        hdfsConfig.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpDir.getAbsolutePath());
+        miniCluster = new MiniDFSCluster.Builder(hdfsConfig).build();
+    }
 
-	public void shutdown() {
-		miniCluster.shutdown();
-	}
+    public void shutdown() {
+        miniCluster.shutdown();
+    }
 
-	public Path newFolder() {
-		return new Path(
-			new Path(miniCluster.getURI() + "/"),
-			UUID.randomUUID().toString());
-	}
+    public Path newFolder() {
+        return new Path(new Path(miniCluster.getURI() + "/"), UUID.randomUUID().toString());
+    }
 }

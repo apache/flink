@@ -33,85 +33,84 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Factory for {@link MergingSharedSlotProfileRetriever}.
- */
-class MergingSharedSlotProfileRetrieverFactory implements SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory {
-	private final SyncPreferredLocationsRetriever preferredLocationsRetriever;
+/** Factory for {@link MergingSharedSlotProfileRetriever}. */
+class MergingSharedSlotProfileRetrieverFactory
+        implements SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory {
+    private final SyncPreferredLocationsRetriever preferredLocationsRetriever;
 
-	private final Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever;
+    private final Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever;
 
-	MergingSharedSlotProfileRetrieverFactory(
-			SyncPreferredLocationsRetriever preferredLocationsRetriever,
-			Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever) {
-		this.preferredLocationsRetriever = Preconditions.checkNotNull(preferredLocationsRetriever);
-		this.priorAllocationIdRetriever = Preconditions.checkNotNull(priorAllocationIdRetriever);
-	}
+    MergingSharedSlotProfileRetrieverFactory(
+            SyncPreferredLocationsRetriever preferredLocationsRetriever,
+            Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever) {
+        this.preferredLocationsRetriever = Preconditions.checkNotNull(preferredLocationsRetriever);
+        this.priorAllocationIdRetriever = Preconditions.checkNotNull(priorAllocationIdRetriever);
+    }
 
-	@Override
-	public SharedSlotProfileRetriever createFromBulk(Set<ExecutionVertexID> bulk) {
-		Set<AllocationID> allPriorAllocationIds = bulk
-			.stream()
-			.map(priorAllocationIdRetriever)
-			.filter(Objects::nonNull)
-			.collect(Collectors.toSet());
-		return new MergingSharedSlotProfileRetriever(allPriorAllocationIds, bulk);
-	}
+    @Override
+    public SharedSlotProfileRetriever createFromBulk(Set<ExecutionVertexID> bulk) {
+        Set<AllocationID> allPriorAllocationIds =
+                bulk.stream()
+                        .map(priorAllocationIdRetriever)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+        return new MergingSharedSlotProfileRetriever(allPriorAllocationIds, bulk);
+    }
 
-	/**
-	 * Computes a merged {@link SlotProfile} of an execution slot sharing group within a bulk to schedule.
-	 */
-	private class MergingSharedSlotProfileRetriever implements SharedSlotProfileRetriever {
-		/**
-		 * All previous {@link AllocationID}s of the bulk to schedule.
-		 */
-		private final Set<AllocationID> allBulkPriorAllocationIds;
+    /**
+     * Computes a merged {@link SlotProfile} of an execution slot sharing group within a bulk to
+     * schedule.
+     */
+    private class MergingSharedSlotProfileRetriever implements SharedSlotProfileRetriever {
+        /** All previous {@link AllocationID}s of the bulk to schedule. */
+        private final Set<AllocationID> allBulkPriorAllocationIds;
 
-		/**
-		 * All {@link ExecutionVertexID}s of the bulk.
-		 */
-		private final Set<ExecutionVertexID> producersToIgnore;
+        /** All {@link ExecutionVertexID}s of the bulk. */
+        private final Set<ExecutionVertexID> producersToIgnore;
 
-		private MergingSharedSlotProfileRetriever(
-				Set<AllocationID> allBulkPriorAllocationIds,
-				Set<ExecutionVertexID> producersToIgnore) {
-			this.allBulkPriorAllocationIds = Preconditions.checkNotNull(allBulkPriorAllocationIds);
-			this.producersToIgnore = Preconditions.checkNotNull(producersToIgnore);
-		}
+        private MergingSharedSlotProfileRetriever(
+                Set<AllocationID> allBulkPriorAllocationIds,
+                Set<ExecutionVertexID> producersToIgnore) {
+            this.allBulkPriorAllocationIds = Preconditions.checkNotNull(allBulkPriorAllocationIds);
+            this.producersToIgnore = Preconditions.checkNotNull(producersToIgnore);
+        }
 
-		/**
-		 * Computes a {@link SlotProfile} of an execution slot sharing group.
-		 *
-		 * <p>The preferred locations of the {@link SlotProfile} is a union of the preferred locations
-		 * of all executions sharing the slot. The input locations within the bulk are ignored to avoid cyclic dependencies
-		 * within the region, e.g. in case of all-to-all pipelined connections, so that the allocations do not block each other.
-		 *
-		 * <p>The preferred {@link AllocationID}s of the {@link SlotProfile} are all previous {@link AllocationID}s
-		 * of all executions sharing the slot.
-		 *
-		 * <p>The {@link SlotProfile} also refers to all previous {@link AllocationID}s
-		 * of all executions within the bulk.
-		 *
-		 * @param executionSlotSharingGroup executions sharing the slot.
-		 * @param physicalSlotResourceProfile {@link ResourceProfile} of the slot.
-		 * @return {@link SlotProfile} to allocate for the {@code executionSlotSharingGroup}.
-		 */
-		@Override
-		public SlotProfile getSlotProfile(
-				ExecutionSlotSharingGroup executionSlotSharingGroup,
-				ResourceProfile physicalSlotResourceProfile) {
-			Collection<AllocationID> priorAllocations = new HashSet<>();
-			Collection<TaskManagerLocation> preferredLocations = new ArrayList<>();
-			for (ExecutionVertexID execution : executionSlotSharingGroup.getExecutionVertexIds()) {
-				priorAllocations.add(priorAllocationIdRetriever.apply(execution));
-				preferredLocations.addAll(preferredLocationsRetriever.getPreferredLocations(execution, producersToIgnore));
-			}
-			return SlotProfile.priorAllocation(
-				physicalSlotResourceProfile,
-				physicalSlotResourceProfile,
-				preferredLocations,
-				priorAllocations,
-				allBulkPriorAllocationIds);
-		}
-	}
+        /**
+         * Computes a {@link SlotProfile} of an execution slot sharing group.
+         *
+         * <p>The preferred locations of the {@link SlotProfile} is a union of the preferred
+         * locations of all executions sharing the slot. The input locations within the bulk are
+         * ignored to avoid cyclic dependencies within the region, e.g. in case of all-to-all
+         * pipelined connections, so that the allocations do not block each other.
+         *
+         * <p>The preferred {@link AllocationID}s of the {@link SlotProfile} are all previous {@link
+         * AllocationID}s of all executions sharing the slot.
+         *
+         * <p>The {@link SlotProfile} also refers to all previous {@link AllocationID}s of all
+         * executions within the bulk.
+         *
+         * @param executionSlotSharingGroup executions sharing the slot.
+         * @param physicalSlotResourceProfile {@link ResourceProfile} of the slot.
+         * @return {@link SlotProfile} to allocate for the {@code executionSlotSharingGroup}.
+         */
+        @Override
+        public SlotProfile getSlotProfile(
+                ExecutionSlotSharingGroup executionSlotSharingGroup,
+                ResourceProfile physicalSlotResourceProfile) {
+            Collection<AllocationID> priorAllocations = new HashSet<>();
+            Collection<TaskManagerLocation> preferredLocations = new ArrayList<>();
+            for (ExecutionVertexID execution : executionSlotSharingGroup.getExecutionVertexIds()) {
+                priorAllocations.add(priorAllocationIdRetriever.apply(execution));
+                preferredLocations.addAll(
+                        preferredLocationsRetriever.getPreferredLocations(
+                                execution, producersToIgnore));
+            }
+            return SlotProfile.priorAllocation(
+                    physicalSlotResourceProfile,
+                    physicalSlotResourceProfile,
+                    preferredLocations,
+                    priorAllocations,
+                    allBulkPriorAllocationIds);
+        }
+    }
 }

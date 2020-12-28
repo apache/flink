@@ -46,130 +46,133 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A continuously monitoring enumerator.
- */
+/** A continuously monitoring enumerator. */
 @Internal
-public class ContinuousFileSplitEnumerator implements SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>> {
+public class ContinuousFileSplitEnumerator
+        implements SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ContinuousFileSplitEnumerator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ContinuousFileSplitEnumerator.class);
 
-	private final SplitEnumeratorContext<FileSourceSplit> context;
+    private final SplitEnumeratorContext<FileSourceSplit> context;
 
-	private final FileSplitAssigner splitAssigner;
+    private final FileSplitAssigner splitAssigner;
 
-	private final FileEnumerator enumerator;
+    private final FileEnumerator enumerator;
 
-	private final HashSet<Path> pathsAlreadyProcessed;
+    private final HashSet<Path> pathsAlreadyProcessed;
 
-	private final LinkedHashMap<Integer, String> readersAwaitingSplit;
+    private final LinkedHashMap<Integer, String> readersAwaitingSplit;
 
-	private final Path[] paths;
+    private final Path[] paths;
 
-	private final long discoveryInterval;
+    private final long discoveryInterval;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public ContinuousFileSplitEnumerator(
-			SplitEnumeratorContext<FileSourceSplit> context,
-			FileEnumerator enumerator,
-			FileSplitAssigner splitAssigner,
-			Path[] paths,
-			Collection<Path> alreadyDiscoveredPaths,
-			long discoveryInterval) {
+    public ContinuousFileSplitEnumerator(
+            SplitEnumeratorContext<FileSourceSplit> context,
+            FileEnumerator enumerator,
+            FileSplitAssigner splitAssigner,
+            Path[] paths,
+            Collection<Path> alreadyDiscoveredPaths,
+            long discoveryInterval) {
 
-		checkArgument(discoveryInterval > 0L);
-		this.context = checkNotNull(context);
-		this.enumerator = checkNotNull(enumerator);
-		this.splitAssigner = checkNotNull(splitAssigner);
-		this.paths = paths;
-		this.discoveryInterval = discoveryInterval;
-		this.pathsAlreadyProcessed = new HashSet<>(alreadyDiscoveredPaths);
-		this.readersAwaitingSplit = new LinkedHashMap<>();
-	}
+        checkArgument(discoveryInterval > 0L);
+        this.context = checkNotNull(context);
+        this.enumerator = checkNotNull(enumerator);
+        this.splitAssigner = checkNotNull(splitAssigner);
+        this.paths = paths;
+        this.discoveryInterval = discoveryInterval;
+        this.pathsAlreadyProcessed = new HashSet<>(alreadyDiscoveredPaths);
+        this.readersAwaitingSplit = new LinkedHashMap<>();
+    }
 
-	@Override
-	public void start() {
-		context.callAsync(
-			() -> enumerator.enumerateSplits(paths, 1),
-			this::processDiscoveredSplits,
-			discoveryInterval, discoveryInterval);
-	}
+    @Override
+    public void start() {
+        context.callAsync(
+                () -> enumerator.enumerateSplits(paths, 1),
+                this::processDiscoveredSplits,
+                discoveryInterval,
+                discoveryInterval);
+    }
 
-	@Override
-	public void close() throws IOException {
-		// no resources to close
-	}
+    @Override
+    public void close() throws IOException {
+        // no resources to close
+    }
 
-	@Override
-	public void addReader(int subtaskId) {
-		// this source is purely lazy-pull-based, nothing to do upon registration
-	}
+    @Override
+    public void addReader(int subtaskId) {
+        // this source is purely lazy-pull-based, nothing to do upon registration
+    }
 
-	@Override
-	public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
-		readersAwaitingSplit.put(subtaskId, requesterHostname);
-		assignSplits();
-	}
+    @Override
+    public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
+        readersAwaitingSplit.put(subtaskId, requesterHostname);
+        assignSplits();
+    }
 
-	@Override
-	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-		LOG.error("Received unrecognized event: {}", sourceEvent);
-	}
+    @Override
+    public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
+        LOG.error("Received unrecognized event: {}", sourceEvent);
+    }
 
-	@Override
-	public void addSplitsBack(List<FileSourceSplit> splits, int subtaskId) {
-		LOG.debug("File Source Enumerator adds splits back: {}", splits);
-		splitAssigner.addSplits(splits);
-	}
+    @Override
+    public void addSplitsBack(List<FileSourceSplit> splits, int subtaskId) {
+        LOG.debug("File Source Enumerator adds splits back: {}", splits);
+        splitAssigner.addSplits(splits);
+    }
 
-	@Override
-	public PendingSplitsCheckpoint<FileSourceSplit> snapshotState() throws Exception {
-		final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
-				PendingSplitsCheckpoint.fromCollectionSnapshot(splitAssigner.remainingSplits(), pathsAlreadyProcessed);
+    @Override
+    public PendingSplitsCheckpoint<FileSourceSplit> snapshotState() throws Exception {
+        final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
+                PendingSplitsCheckpoint.fromCollectionSnapshot(
+                        splitAssigner.remainingSplits(), pathsAlreadyProcessed);
 
-		LOG.debug("Source Checkpoint is {}", checkpoint);
-		return checkpoint;
-	}
+        LOG.debug("Source Checkpoint is {}", checkpoint);
+        return checkpoint;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private void processDiscoveredSplits(Collection<FileSourceSplit> splits, Throwable error) {
-		if (error != null) {
-			LOG.error("Failed to enumerate files", error);
-			return;
-		}
+    private void processDiscoveredSplits(Collection<FileSourceSplit> splits, Throwable error) {
+        if (error != null) {
+            LOG.error("Failed to enumerate files", error);
+            return;
+        }
 
-		final Collection<FileSourceSplit> newSplits = splits.stream()
-				.filter((split) -> pathsAlreadyProcessed.add(split.path()))
-				.collect(Collectors.toList());
-		splitAssigner.addSplits(newSplits);
+        final Collection<FileSourceSplit> newSplits =
+                splits.stream()
+                        .filter((split) -> pathsAlreadyProcessed.add(split.path()))
+                        .collect(Collectors.toList());
+        splitAssigner.addSplits(newSplits);
 
-		assignSplits();
-	}
+        assignSplits();
+    }
 
-	private void assignSplits() {
-		final Iterator<Map.Entry<Integer, String>> awaitingReader = readersAwaitingSplit.entrySet().iterator();
+    private void assignSplits() {
+        final Iterator<Map.Entry<Integer, String>> awaitingReader =
+                readersAwaitingSplit.entrySet().iterator();
 
-		while (awaitingReader.hasNext()) {
-			final Map.Entry<Integer, String> nextAwaiting = awaitingReader.next();
+        while (awaitingReader.hasNext()) {
+            final Map.Entry<Integer, String> nextAwaiting = awaitingReader.next();
 
-			// if the reader that requested another split has failed in the meantime, remove
-			// it from the list of waiting readers
-			if (!context.registeredReaders().containsKey(nextAwaiting.getKey())) {
-				awaitingReader.remove();
-				continue;
-			}
+            // if the reader that requested another split has failed in the meantime, remove
+            // it from the list of waiting readers
+            if (!context.registeredReaders().containsKey(nextAwaiting.getKey())) {
+                awaitingReader.remove();
+                continue;
+            }
 
-			final String hostname = nextAwaiting.getValue();
-			final int awaitingSubtask = nextAwaiting.getKey();
-			final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
-			if (nextSplit.isPresent()) {
-				context.assignSplit(nextSplit.get(), awaitingSubtask);
-				awaitingReader.remove();
-			} else {
-				break;
-			}
-		}
-	}
+            final String hostname = nextAwaiting.getValue();
+            final int awaitingSubtask = nextAwaiting.getKey();
+            final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
+            if (nextSplit.isPresent()) {
+                context.assignSplit(nextSplit.get(), awaitingSubtask);
+                awaitingReader.remove();
+            } else {
+                break;
+            }
+        }
+    }
 }

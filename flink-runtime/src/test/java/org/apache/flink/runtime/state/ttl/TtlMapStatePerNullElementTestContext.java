@@ -19,14 +19,14 @@
 package org.apache.flink.runtime.state.ttl;
 
 class TtlMapStatePerNullElementTestContext extends TtlMapStatePerElementTestContext {
-	@Override
-	void initTestValues() {
-		updateEmpty = null;
-		updateUnexpired = null;
-		updateExpired = null;
+    @Override
+    void initTestValues() {
+        updateEmpty = null;
+        updateUnexpired = null;
+        updateExpired = null;
 
-		getUpdateEmpty = null;
-		getUnexpired = null;
-		getUpdateExpired = null;
-	}
+        getUpdateEmpty = null;
+        getUnexpired = null;
+        getUpdateExpired = null;
+    }
 }

@@ -26,73 +26,72 @@ import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Information about leader including the confirmed leader session id and leader address.
- */
+/** Information about leader including the confirmed leader session id and leader address. */
 public class LeaderInformation implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Nullable
-	private final UUID leaderSessionID;
+    @Nullable private final UUID leaderSessionID;
 
-	@Nullable
-	private final String leaderAddress;
+    @Nullable private final String leaderAddress;
 
-	private static final LeaderInformation EMPTY = new LeaderInformation(null, null);
+    private static final LeaderInformation EMPTY = new LeaderInformation(null, null);
 
-	private LeaderInformation(@Nullable UUID leaderSessionID, @Nullable String leaderAddress) {
-		this.leaderSessionID = leaderSessionID;
-		this.leaderAddress = leaderAddress;
-	}
+    private LeaderInformation(@Nullable UUID leaderSessionID, @Nullable String leaderAddress) {
+        this.leaderSessionID = leaderSessionID;
+        this.leaderAddress = leaderAddress;
+    }
 
-	@Nullable
-	public UUID getLeaderSessionID() {
-		return leaderSessionID;
-	}
+    @Nullable
+    public UUID getLeaderSessionID() {
+        return leaderSessionID;
+    }
 
-	@Nullable
-	public String getLeaderAddress() {
-		return leaderAddress;
-	}
+    @Nullable
+    public String getLeaderAddress() {
+        return leaderAddress;
+    }
 
-	public boolean isEmpty() {
-		return this == EMPTY;
-	}
+    public boolean isEmpty() {
+        return this == EMPTY;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		} else if (obj != null && obj.getClass() == LeaderInformation.class) {
-			final LeaderInformation that = (LeaderInformation) obj;
-			return Objects.equals(this.leaderSessionID, that.leaderSessionID) &&
-				Objects.equals(this.leaderAddress, that.leaderAddress);
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj != null && obj.getClass() == LeaderInformation.class) {
+            final LeaderInformation that = (LeaderInformation) obj;
+            return Objects.equals(this.leaderSessionID, that.leaderSessionID)
+                    && Objects.equals(this.leaderAddress, that.leaderAddress);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		int result = Objects.hashCode(leaderSessionID);
-		result = 31 * result + Objects.hashCode(leaderAddress);
-		return result;
-	}
+    @Override
+    public int hashCode() {
+        int result = Objects.hashCode(leaderSessionID);
+        result = 31 * result + Objects.hashCode(leaderAddress);
+        return result;
+    }
 
-	public static LeaderInformation known(UUID leaderSessionID, String leaderAddress) {
-		return new LeaderInformation(checkNotNull(leaderSessionID), checkNotNull(leaderAddress));
-	}
+    public static LeaderInformation known(UUID leaderSessionID, String leaderAddress) {
+        return new LeaderInformation(checkNotNull(leaderSessionID), checkNotNull(leaderAddress));
+    }
 
-	public static LeaderInformation empty() {
-		return EMPTY;
-	}
+    public static LeaderInformation empty() {
+        return EMPTY;
+    }
 
-	@Override
-	public String toString() {
-		return "LeaderInformation{" +
-			"leaderSessionID='" + leaderSessionID + '\'' +
-			", leaderAddress=" + leaderAddress +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "LeaderInformation{"
+                + "leaderSessionID='"
+                + leaderSessionID
+                + '\''
+                + ", leaderAddress="
+                + leaderAddress
+                + '}';
+    }
 }

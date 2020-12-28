@@ -25,75 +25,72 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link SimpleVersionedSerializerTypeSerializerProxy}.
- */
+/** Tests for {@link SimpleVersionedSerializerTypeSerializerProxy}. */
 public class SimpleVersionedSerializerTypeSerializerProxyTest extends SerializerTestBase<String> {
 
-	@Override
-	protected TypeSerializer<String> createSerializer() {
-		return new SimpleVersionedSerializerTypeSerializerProxy<>(TestStringSerializer::new);
-	}
+    @Override
+    protected TypeSerializer<String> createSerializer() {
+        return new SimpleVersionedSerializerTypeSerializerProxy<>(TestStringSerializer::new);
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<String> getTypeClass() {
-		return String.class;
-	}
+    @Override
+    protected Class<String> getTypeClass() {
+        return String.class;
+    }
 
-	@Override
-	protected String[] getTestData() {
-		return new String[]{"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
-	}
+    @Override
+    protected String[] getTestData() {
+        return new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
+    }
 
-	@Override
-	public void testInstantiate() {
-		// this serializer does not support instantiation
-	}
+    @Override
+    public void testInstantiate() {
+        // this serializer does not support instantiation
+    }
 
-	@Override
-	public void testConfigSnapshotInstantiation() {
-		// this serializer does not support snapshots
-	}
+    @Override
+    public void testConfigSnapshotInstantiation() {
+        // this serializer does not support snapshots
+    }
 
-	@Override
-	public void testSnapshotConfigurationAndReconfigure() {
-		// this serializer does not support snapshots
-	}
+    @Override
+    public void testSnapshotConfigurationAndReconfigure() {
+        // this serializer does not support snapshots
+    }
 
-	private static final class TestStringSerializer implements SimpleVersionedSerializer<String> {
+    private static final class TestStringSerializer implements SimpleVersionedSerializer<String> {
 
-		private static final int VERSION = 1;
+        private static final int VERSION = 1;
 
-		@Override
-		public int getVersion() {
-			return VERSION;
-		}
+        @Override
+        public int getVersion() {
+            return VERSION;
+        }
 
-		@Override
-		public byte[] serialize(String str) {
-			return str.getBytes(StandardCharsets.UTF_8);
-		}
+        @Override
+        public byte[] serialize(String str) {
+            return str.getBytes(StandardCharsets.UTF_8);
+        }
 
-		@Override
-		public String deserialize(int version, byte[] serialized) {
-			assertEquals(VERSION, version);
-			return new String(serialized, StandardCharsets.UTF_8);
-		}
+        @Override
+        public String deserialize(int version, byte[] serialized) {
+            assertEquals(VERSION, version);
+            return new String(serialized, StandardCharsets.UTF_8);
+        }
 
-		@Override
-		public int hashCode() {
-			return 1;
-		}
+        @Override
+        public int hashCode() {
+            return 1;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof TestStringSerializer;
-		}
-	}
-
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof TestStringSerializer;
+        }
+    }
 }

@@ -27,49 +27,49 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing
- * {@link Committer} in the streaming execution mode.
+ * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
+ * Committer} in the streaming execution mode.
  *
  * @param <CommT> The committable type of the {@link Committer}.
  */
-final class StreamingCommitterOperator<CommT> extends AbstractStreamingCommitterOperator<CommT, CommT> {
+final class StreamingCommitterOperator<CommT>
+        extends AbstractStreamingCommitterOperator<CommT, CommT> {
 
-	/** The committables that might need to be committed again after recovering from a failover. */
-	private final List<CommT> recoveredCommittables;
+    /** The committables that might need to be committed again after recovering from a failover. */
+    private final List<CommT> recoveredCommittables;
 
-	/** Responsible for committing the committable to the external system. **/
-	private final Committer<CommT> committer;
+    /** Responsible for committing the committable to the external system. * */
+    private final Committer<CommT> committer;
 
-	StreamingCommitterOperator(
-			Committer<CommT> committer,
-			SimpleVersionedSerializer<CommT> committableSerializer) {
-		super(committableSerializer);
-		this.committer = checkNotNull(committer);
-		this.recoveredCommittables = new ArrayList<>();
-	}
+    StreamingCommitterOperator(
+            Committer<CommT> committer, SimpleVersionedSerializer<CommT> committableSerializer) {
+        super(committableSerializer);
+        this.committer = checkNotNull(committer);
+        this.recoveredCommittables = new ArrayList<>();
+    }
 
-	@Override
-	void recoveredCommittables(List<CommT> committables) {
-		recoveredCommittables.addAll(checkNotNull(committables));
-	}
+    @Override
+    void recoveredCommittables(List<CommT> committables) {
+        recoveredCommittables.addAll(checkNotNull(committables));
+    }
 
-	@Override
-	List<CommT> prepareCommit(List<CommT> input) {
-		checkNotNull(input);
-		final List<CommT> result = new ArrayList<>(recoveredCommittables);
-		recoveredCommittables.clear();
-		result.addAll(input);
-		return result;
-	}
+    @Override
+    List<CommT> prepareCommit(List<CommT> input) {
+        checkNotNull(input);
+        final List<CommT> result = new ArrayList<>(recoveredCommittables);
+        recoveredCommittables.clear();
+        result.addAll(input);
+        return result;
+    }
 
-	@Override
-	List<CommT> commit(List<CommT> committables) throws Exception {
-		return committer.commit(checkNotNull(committables));
-	}
+    @Override
+    List<CommT> commit(List<CommT> committables) throws Exception {
+        return committer.commit(checkNotNull(committables));
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		committer.close();
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        committer.close();
+    }
 }

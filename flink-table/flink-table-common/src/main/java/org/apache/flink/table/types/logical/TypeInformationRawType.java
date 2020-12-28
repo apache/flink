@@ -40,8 +40,8 @@ import java.util.Set;
  *
  * <p>Compared to an {@link RawType}, this type does not contain a {@link TypeSerializer} yet. The
  * serializer will be generated from the enclosed {@link TypeInformation} but needs access to the
- * {@link ExecutionConfig} of the current execution environment. Thus, this type is just a placeholder
- * for the fully resolved {@link RawType} returned by {@link #resolve(ExecutionConfig)}.
+ * {@link ExecutionConfig} of the current execution environment. Thus, this type is just a
+ * placeholder for the fully resolved {@link RawType} returned by {@link #resolve(ExecutionConfig)}.
  *
  * <p>This type has no serializable string representation.
  *
@@ -53,100 +53,101 @@ import java.util.Set;
 @Deprecated
 public final class TypeInformationRawType<T> extends LogicalType {
 
-	private static final String FORMAT = "RAW('%s', ?)";
+    private static final String FORMAT = "RAW('%s', ?)";
 
-	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
-		byte[].class.getName(),
-		RawValueData.class.getName());
+    private static final Set<String> INPUT_OUTPUT_CONVERSION =
+            conversionSet(byte[].class.getName(), RawValueData.class.getName());
 
-	private static final TypeInformation<?> DEFAULT_TYPE_INFO = Types.GENERIC(Object.class);
+    private static final TypeInformation<?> DEFAULT_TYPE_INFO = Types.GENERIC(Object.class);
 
-	private final TypeInformation<T> typeInfo;
+    private final TypeInformation<T> typeInfo;
 
-	public TypeInformationRawType(boolean isNullable, TypeInformation<T> typeInfo) {
-		super(isNullable, LogicalTypeRoot.RAW);
-		this.typeInfo = Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
-	}
+    public TypeInformationRawType(boolean isNullable, TypeInformation<T> typeInfo) {
+        super(isNullable, LogicalTypeRoot.RAW);
+        this.typeInfo = Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
+    }
 
-	public TypeInformationRawType(TypeInformation<T> typeInfo) {
-		this(true, typeInfo);
-	}
+    public TypeInformationRawType(TypeInformation<T> typeInfo) {
+        this(true, typeInfo);
+    }
 
-	@SuppressWarnings("unchecked")
-	public TypeInformationRawType() {
-		this(true, (TypeInformation<T>) DEFAULT_TYPE_INFO);
-	}
+    @SuppressWarnings("unchecked")
+    public TypeInformationRawType() {
+        this(true, (TypeInformation<T>) DEFAULT_TYPE_INFO);
+    }
 
-	public TypeInformation<T> getTypeInformation() {
-		return typeInfo;
-	}
+    public TypeInformation<T> getTypeInformation() {
+        return typeInfo;
+    }
 
-	@Internal
-	public RawType<T> resolve(ExecutionConfig config) {
-		return new RawType<>(isNullable(), typeInfo.getTypeClass(), typeInfo.createSerializer(config));
-	}
+    @Internal
+    public RawType<T> resolve(ExecutionConfig config) {
+        return new RawType<>(
+                isNullable(), typeInfo.getTypeClass(), typeInfo.createSerializer(config));
+    }
 
-	@Override
-	public LogicalType copy(boolean isNullable) {
-		return new TypeInformationRawType<>(isNullable, typeInfo); // we must assume immutability here
-	}
+    @Override
+    public LogicalType copy(boolean isNullable) {
+        return new TypeInformationRawType<>(
+                isNullable, typeInfo); // we must assume immutability here
+    }
 
-	@Override
-	public String asSummaryString() {
-		return withNullability(FORMAT, typeInfo.getTypeClass().getName());
-	}
+    @Override
+    public String asSummaryString() {
+        return withNullability(FORMAT, typeInfo.getTypeClass().getName());
+    }
 
-	@Override
-	public String asSerializableString() {
-		throw new TableException(
-			"A raw type backed by type information has no serializable string representation. It " +
-				"needs to be resolved into a proper raw type.");
-	}
+    @Override
+    public String asSerializableString() {
+        throw new TableException(
+                "A raw type backed by type information has no serializable string representation. It "
+                        + "needs to be resolved into a proper raw type.");
+    }
 
-	@Override
-	public boolean supportsInputConversion(Class<?> clazz) {
-		return typeInfo.getTypeClass().isAssignableFrom(clazz) ||
-			INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
-	}
+    @Override
+    public boolean supportsInputConversion(Class<?> clazz) {
+        return typeInfo.getTypeClass().isAssignableFrom(clazz)
+                || INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+    }
 
-	@Override
-	public boolean supportsOutputConversion(Class<?> clazz) {
-		return clazz.isAssignableFrom(typeInfo.getTypeClass()) ||
-			INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
-	}
+    @Override
+    public boolean supportsOutputConversion(Class<?> clazz) {
+        return clazz.isAssignableFrom(typeInfo.getTypeClass())
+                || INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+    }
 
-	@Override
-	public Class<?> getDefaultConversion() {
-		return typeInfo.getTypeClass();
-	}
+    @Override
+    public Class<?> getDefaultConversion() {
+        return typeInfo.getTypeClass();
+    }
 
-	@Override
-	public List<LogicalType> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<LogicalType> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <R> R accept(LogicalTypeVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <R> R accept(LogicalTypeVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
-		TypeInformationRawType<?> that = (TypeInformationRawType<?>) o;
-		return typeInfo.equals(that.typeInfo);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        TypeInformationRawType<?> that = (TypeInformationRawType<?>) o;
+        return typeInfo.equals(that.typeInfo);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), typeInfo);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), typeInfo);
+    }
 }

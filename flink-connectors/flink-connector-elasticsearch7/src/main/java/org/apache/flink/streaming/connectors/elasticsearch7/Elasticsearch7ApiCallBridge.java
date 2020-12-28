@@ -42,105 +42,105 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 7 and later versions.
- */
+/** Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 7 and later versions. */
 @Internal
-public class Elasticsearch7ApiCallBridge implements ElasticsearchApiCallBridge<RestHighLevelClient> {
+public class Elasticsearch7ApiCallBridge
+        implements ElasticsearchApiCallBridge<RestHighLevelClient> {
 
-	private static final long serialVersionUID = -5222683870097809633L;
+    private static final long serialVersionUID = -5222683870097809633L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7ApiCallBridge.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7ApiCallBridge.class);
 
-	/**
-	 * User-provided HTTP Host.
-	 */
-	private final List<HttpHost> httpHosts;
+    /** User-provided HTTP Host. */
+    private final List<HttpHost> httpHosts;
 
-	/**
-	 * The factory to configure the rest client.
-	 */
-	private final RestClientFactory restClientFactory;
+    /** The factory to configure the rest client. */
+    private final RestClientFactory restClientFactory;
 
-	Elasticsearch7ApiCallBridge(List<HttpHost> httpHosts, RestClientFactory restClientFactory) {
-		Preconditions.checkArgument(httpHosts != null && !httpHosts.isEmpty());
-		this.httpHosts = httpHosts;
-		this.restClientFactory = Preconditions.checkNotNull(restClientFactory);
-	}
+    Elasticsearch7ApiCallBridge(List<HttpHost> httpHosts, RestClientFactory restClientFactory) {
+        Preconditions.checkArgument(httpHosts != null && !httpHosts.isEmpty());
+        this.httpHosts = httpHosts;
+        this.restClientFactory = Preconditions.checkNotNull(restClientFactory);
+    }
 
-	@Override
-	public RestHighLevelClient createClient(Map<String, String> clientConfig) {
-		RestClientBuilder builder = RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()]));
-		restClientFactory.configureRestClientBuilder(builder);
+    @Override
+    public RestHighLevelClient createClient(Map<String, String> clientConfig) {
+        RestClientBuilder builder =
+                RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()]));
+        restClientFactory.configureRestClientBuilder(builder);
 
-		RestHighLevelClient rhlClient = new RestHighLevelClient(builder);
+        RestHighLevelClient rhlClient = new RestHighLevelClient(builder);
 
-		return rhlClient;
-	}
+        return rhlClient;
+    }
 
-	@Override
-	public BulkProcessor.Builder createBulkProcessorBuilder(RestHighLevelClient client, BulkProcessor.Listener listener) {
-		return BulkProcessor.builder((request, bulkListener) -> client.bulkAsync(request, RequestOptions.DEFAULT, bulkListener), listener);
-	}
+    @Override
+    public BulkProcessor.Builder createBulkProcessorBuilder(
+            RestHighLevelClient client, BulkProcessor.Listener listener) {
+        return BulkProcessor.builder(
+                (request, bulkListener) ->
+                        client.bulkAsync(request, RequestOptions.DEFAULT, bulkListener),
+                listener);
+    }
 
-	@Override
-	public Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse) {
-		if (!bulkItemResponse.isFailed()) {
-			return null;
-		} else {
-			return bulkItemResponse.getFailure().getCause();
-		}
-	}
+    @Override
+    public Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse) {
+        if (!bulkItemResponse.isFailed()) {
+            return null;
+        } else {
+            return bulkItemResponse.getFailure().getCause();
+        }
+    }
 
-	@Override
-	public void configureBulkProcessorBackoff(
-		BulkProcessor.Builder builder,
-		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
+    @Override
+    public void configureBulkProcessorBackoff(
+            BulkProcessor.Builder builder,
+            @Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
 
-		BackoffPolicy backoffPolicy;
-		if (flushBackoffPolicy != null) {
-			switch (flushBackoffPolicy.getBackoffType()) {
-				case CONSTANT:
-					backoffPolicy = BackoffPolicy.constantBackoff(
-						new TimeValue(flushBackoffPolicy.getDelayMillis()),
-						flushBackoffPolicy.getMaxRetryCount());
-					break;
-				case EXPONENTIAL:
-				default:
-					backoffPolicy = BackoffPolicy.exponentialBackoff(
-						new TimeValue(flushBackoffPolicy.getDelayMillis()),
-						flushBackoffPolicy.getMaxRetryCount());
-			}
-		} else {
-			backoffPolicy = BackoffPolicy.noBackoff();
-		}
+        BackoffPolicy backoffPolicy;
+        if (flushBackoffPolicy != null) {
+            switch (flushBackoffPolicy.getBackoffType()) {
+                case CONSTANT:
+                    backoffPolicy =
+                            BackoffPolicy.constantBackoff(
+                                    new TimeValue(flushBackoffPolicy.getDelayMillis()),
+                                    flushBackoffPolicy.getMaxRetryCount());
+                    break;
+                case EXPONENTIAL:
+                default:
+                    backoffPolicy =
+                            BackoffPolicy.exponentialBackoff(
+                                    new TimeValue(flushBackoffPolicy.getDelayMillis()),
+                                    flushBackoffPolicy.getMaxRetryCount());
+            }
+        } else {
+            backoffPolicy = BackoffPolicy.noBackoff();
+        }
 
-		builder.setBackoffPolicy(backoffPolicy);
-	}
+        builder.setBackoffPolicy(backoffPolicy);
+    }
 
-	@Override
-	public RequestIndexer createBulkProcessorIndexer(
-			BulkProcessor bulkProcessor,
-			boolean flushOnCheckpoint,
-			AtomicLong numPendingRequestsRef) {
-		return new Elasticsearch7BulkProcessorIndexer(
-			bulkProcessor,
-			flushOnCheckpoint,
-			numPendingRequestsRef);
-	}
+    @Override
+    public RequestIndexer createBulkProcessorIndexer(
+            BulkProcessor bulkProcessor,
+            boolean flushOnCheckpoint,
+            AtomicLong numPendingRequestsRef) {
+        return new Elasticsearch7BulkProcessorIndexer(
+                bulkProcessor, flushOnCheckpoint, numPendingRequestsRef);
+    }
 
-	@Override
-	public void verifyClientConnection(RestHighLevelClient client) throws IOException {
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Pinging Elasticsearch cluster via hosts {} ...", httpHosts);
-		}
+    @Override
+    public void verifyClientConnection(RestHighLevelClient client) throws IOException {
+        if (LOG.isInfoEnabled()) {
+            LOG.info("Pinging Elasticsearch cluster via hosts {} ...", httpHosts);
+        }
 
-		if (!client.ping(RequestOptions.DEFAULT)) {
-			throw new RuntimeException("There are no reachable Elasticsearch nodes!");
-		}
+        if (!client.ping(RequestOptions.DEFAULT)) {
+            throw new RuntimeException("There are no reachable Elasticsearch nodes!");
+        }
 
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Elasticsearch RestHighLevelClient is connected to {}", httpHosts.toString());
-		}
-	}
+        if (LOG.isInfoEnabled()) {
+            LOG.info("Elasticsearch RestHighLevelClient is connected to {}", httpHosts.toString());
+        }
+    }
 }

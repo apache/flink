@@ -27,26 +27,24 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link RestClusterClientConfiguration}.
- */
+/** Tests for {@link RestClusterClientConfiguration}. */
 public class RestClusterClientConfigurationTest extends TestLogger {
 
-	private RestClusterClientConfiguration restClusterClientConfiguration;
+    private RestClusterClientConfiguration restClusterClientConfiguration;
 
-	@Before
-	public void setUp() throws Exception {
-		final Configuration config = new Configuration();
-		config.setLong(RestOptions.AWAIT_LEADER_TIMEOUT, 1);
-		config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 2);
-		config.setLong(RestOptions.RETRY_DELAY, 3);
-		restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(config);
-	}
+    @Before
+    public void setUp() throws Exception {
+        final Configuration config = new Configuration();
+        config.setLong(RestOptions.AWAIT_LEADER_TIMEOUT, 1);
+        config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 2);
+        config.setLong(RestOptions.RETRY_DELAY, 3);
+        restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(config);
+    }
 
-	@Test
-	public void testConfiguration() {
-		assertEquals(1, restClusterClientConfiguration.getAwaitLeaderTimeout());
-		assertEquals(2, restClusterClientConfiguration.getRetryMaxAttempts());
-		assertEquals(3, restClusterClientConfiguration.getRetryDelay());
-	}
+    @Test
+    public void testConfiguration() {
+        assertEquals(1, restClusterClientConfiguration.getAwaitLeaderTimeout());
+        assertEquals(2, restClusterClientConfiguration.getRetryMaxAttempts());
+        assertEquals(3, restClusterClientConfiguration.getRetryDelay());
+    }
 }

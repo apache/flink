@@ -24,41 +24,39 @@ import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
-/**
- * The function to execute processing time interval stream inner-join.
- */
+/** The function to execute processing time interval stream inner-join. */
 public final class ProcTimeIntervalJoin extends TimeIntervalJoin {
 
-	private static final long serialVersionUID = 9204647938032023101L;
+    private static final long serialVersionUID = 9204647938032023101L;
 
-	public ProcTimeIntervalJoin(
-			FlinkJoinType joinType,
-			long leftLowerBound,
-			long leftUpperBound,
-			InternalTypeInfo<RowData> leftType,
-			InternalTypeInfo<RowData> rightType,
-			GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc) {
-		super(joinType, leftLowerBound, leftUpperBound, 0L, leftType, rightType, genJoinFunc);
-	}
+    public ProcTimeIntervalJoin(
+            FlinkJoinType joinType,
+            long leftLowerBound,
+            long leftUpperBound,
+            InternalTypeInfo<RowData> leftType,
+            InternalTypeInfo<RowData> rightType,
+            GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc) {
+        super(joinType, leftLowerBound, leftUpperBound, 0L, leftType, rightType, genJoinFunc);
+    }
 
-	@Override
-	void updateOperatorTime(Context ctx) {
-		leftOperatorTime = ctx.timerService().currentProcessingTime();
-		rightOperatorTime = leftOperatorTime;
-	}
+    @Override
+    void updateOperatorTime(Context ctx) {
+        leftOperatorTime = ctx.timerService().currentProcessingTime();
+        rightOperatorTime = leftOperatorTime;
+    }
 
-	@Override
-	long getTimeForLeftStream(Context ctx, RowData row) {
-		return leftOperatorTime;
-	}
+    @Override
+    long getTimeForLeftStream(Context ctx, RowData row) {
+        return leftOperatorTime;
+    }
 
-	@Override
-	long getTimeForRightStream(Context ctx, RowData row) {
-		return rightOperatorTime;
-	}
+    @Override
+    long getTimeForRightStream(Context ctx, RowData row) {
+        return rightOperatorTime;
+    }
 
-	@Override
-	void registerTimer(Context ctx, long cleanupTime) {
-		ctx.timerService().registerProcessingTimeTimer(cleanupTime);
-	}
+    @Override
+    void registerTimer(Context ctx, long cleanupTime) {
+        ctx.timerService().registerProcessingTimeTimer(cleanupTime);
+    }
 }

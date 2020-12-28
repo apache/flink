@@ -29,51 +29,54 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-/**
- * Test translation of {@link CheckpointingMode}.
- */
+/** Test translation of {@link CheckpointingMode}. */
 @SuppressWarnings("serial")
 public class TranslationTest {
 
-	@Test
-	public void testCheckpointModeTranslation() {
-		try {
-			// with deactivated fault tolerance, the checkpoint mode should be at-least-once
-			StreamExecutionEnvironment deactivated = getSimpleJob();
+    @Test
+    public void testCheckpointModeTranslation() {
+        try {
+            // with deactivated fault tolerance, the checkpoint mode should be at-least-once
+            StreamExecutionEnvironment deactivated = getSimpleJob();
 
-			for (JobVertex vertex : deactivated.getStreamGraph().getJobGraph().getVertices()) {
-				assertEquals(CheckpointingMode.AT_LEAST_ONCE, new StreamConfig(vertex.getConfiguration()).getCheckpointMode());
-			}
+            for (JobVertex vertex : deactivated.getStreamGraph().getJobGraph().getVertices()) {
+                assertEquals(
+                        CheckpointingMode.AT_LEAST_ONCE,
+                        new StreamConfig(vertex.getConfiguration()).getCheckpointMode());
+            }
 
-			// with activated fault tolerance, the checkpoint mode should be by default exactly once
-			StreamExecutionEnvironment activated = getSimpleJob();
-			activated.enableCheckpointing(1000L);
-			for (JobVertex vertex : activated.getStreamGraph().getJobGraph().getVertices()) {
-				assertEquals(CheckpointingMode.EXACTLY_ONCE, new StreamConfig(vertex.getConfiguration()).getCheckpointMode());
-			}
+            // with activated fault tolerance, the checkpoint mode should be by default exactly once
+            StreamExecutionEnvironment activated = getSimpleJob();
+            activated.enableCheckpointing(1000L);
+            for (JobVertex vertex : activated.getStreamGraph().getJobGraph().getVertices()) {
+                assertEquals(
+                        CheckpointingMode.EXACTLY_ONCE,
+                        new StreamConfig(vertex.getConfiguration()).getCheckpointMode());
+            }
 
-			// explicitly setting the mode
-			StreamExecutionEnvironment explicit = getSimpleJob();
-			explicit.enableCheckpointing(1000L, CheckpointingMode.AT_LEAST_ONCE);
-			for (JobVertex vertex : explicit.getStreamGraph().getJobGraph().getVertices()) {
-				assertEquals(CheckpointingMode.AT_LEAST_ONCE, new StreamConfig(vertex.getConfiguration()).getCheckpointMode());
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            // explicitly setting the mode
+            StreamExecutionEnvironment explicit = getSimpleJob();
+            explicit.enableCheckpointing(1000L, CheckpointingMode.AT_LEAST_ONCE);
+            for (JobVertex vertex : explicit.getStreamGraph().getJobGraph().getVertices()) {
+                assertEquals(
+                        CheckpointingMode.AT_LEAST_ONCE,
+                        new StreamConfig(vertex.getConfiguration()).getCheckpointMode());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	private static StreamExecutionEnvironment getSimpleJob() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.generateSequence(1, 10000000)
-				.addSink(new SinkFunction<Long>() {
-					@Override
-					public void invoke(Long value) {
-					}
-				});
+    private static StreamExecutionEnvironment getSimpleJob() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.generateSequence(1, 10000000)
+                .addSink(
+                        new SinkFunction<Long>() {
+                            @Override
+                            public void invoke(Long value) {}
+                        });
 
-		return env;
-	}
+        return env;
+    }
 }

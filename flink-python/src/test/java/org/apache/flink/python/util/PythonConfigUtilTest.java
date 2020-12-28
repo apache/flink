@@ -31,27 +31,30 @@ import java.util.Collections;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * A test class to test PythonConfigUtil getting executionEnvironment correctly.
- */
+/** A test class to test PythonConfigUtil getting executionEnvironment correctly. */
 public class PythonConfigUtilTest {
 
-	@Test
-	public void testGetEnvironmentConfig() throws IllegalAccessException, NoSuchMethodException, InvocationTargetException {
-		StreamExecutionEnvironment executionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		Configuration envConfig = PythonConfigUtil.getEnvConfigWithDependencies(executionEnvironment);
-		assertNotNull(envConfig);
-	}
+    @Test
+    public void testGetEnvironmentConfig()
+            throws IllegalAccessException, NoSuchMethodException, InvocationTargetException {
+        StreamExecutionEnvironment executionEnvironment =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration envConfig =
+                PythonConfigUtil.getEnvConfigWithDependencies(executionEnvironment);
+        assertNotNull(envConfig);
+    }
 
-	@Test
-	public void testJobName() throws IllegalAccessException, NoSuchMethodException, InvocationTargetException, NoSuchFieldException {
-		String jobName = "MyTestJob";
-		Configuration config = new Configuration();
-		config.set(PipelineOptions.NAME, jobName);
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+    @Test
+    public void testJobName()
+            throws IllegalAccessException, NoSuchMethodException, InvocationTargetException,
+                    NoSuchFieldException {
+        String jobName = "MyTestJob";
+        Configuration config = new Configuration();
+        config.set(PipelineOptions.NAME, jobName);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 
-		env.fromCollection(Collections.singletonList("test")).addSink(new DiscardingSink<>());
-		StreamGraph streamGraph = PythonConfigUtil.generateStreamGraphWithDependencies(env, true);
-		assertEquals(jobName, streamGraph.getJobName());
-	}
+        env.fromCollection(Collections.singletonList("test")).addSink(new DiscardingSink<>());
+        StreamGraph streamGraph = PythonConfigUtil.generateStreamGraphWithDependencies(env, true);
+        assertEquals(jobName, streamGraph.getJobName());
+    }
 }

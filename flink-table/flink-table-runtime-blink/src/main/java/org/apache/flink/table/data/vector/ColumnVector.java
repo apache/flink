@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.data.vector;
 
-/**
- * Nullable column vector. Access data through specific subclasses.
- */
+/** Nullable column vector. Access data through specific subclasses. */
 public interface ColumnVector {
-	boolean isNullAt(int i);
+    boolean isNullAt(int i);
 }

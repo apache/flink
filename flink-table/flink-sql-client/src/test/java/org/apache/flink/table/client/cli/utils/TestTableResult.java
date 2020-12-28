@@ -32,61 +32,59 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * {@link TableResult} for testing.
- */
+/** {@link TableResult} for testing. */
 public class TestTableResult implements TableResult {
-	private final TableSchema tableSchema;
-	private final ResultKind resultKind;
-	private final CloseableIterator<Row> data;
+    private final TableSchema tableSchema;
+    private final ResultKind resultKind;
+    private final CloseableIterator<Row> data;
 
-	public static final TestTableResult TABLE_RESULT_OK = new TestTableResult(
-			ResultKind.SUCCESS,
-			TableSchema.builder().field("result", DataTypes.STRING()).build(),
-			CloseableIterator.adapterForIterator(Collections.singletonList(Row.of("OK")).iterator()));
+    public static final TestTableResult TABLE_RESULT_OK =
+            new TestTableResult(
+                    ResultKind.SUCCESS,
+                    TableSchema.builder().field("result", DataTypes.STRING()).build(),
+                    CloseableIterator.adapterForIterator(
+                            Collections.singletonList(Row.of("OK")).iterator()));
 
-	public TestTableResult(ResultKind resultKind, TableSchema tableSchema) {
-		this(resultKind, tableSchema, CloseableIterator.empty());
-	}
+    public TestTableResult(ResultKind resultKind, TableSchema tableSchema) {
+        this(resultKind, tableSchema, CloseableIterator.empty());
+    }
 
-	public TestTableResult(ResultKind resultKind, TableSchema tableSchema, CloseableIterator<Row> data) {
-		this.resultKind = resultKind;
-		this.tableSchema = tableSchema;
-		this.data = data;
-	}
+    public TestTableResult(
+            ResultKind resultKind, TableSchema tableSchema, CloseableIterator<Row> data) {
+        this.resultKind = resultKind;
+        this.tableSchema = tableSchema;
+        this.data = data;
+    }
 
-	@Override
-	public Optional<JobClient> getJobClient() {
-		return Optional.empty();
-	}
+    @Override
+    public Optional<JobClient> getJobClient() {
+        return Optional.empty();
+    }
 
-	@Override
-	public void await() throws InterruptedException, ExecutionException {
+    @Override
+    public void await() throws InterruptedException, ExecutionException {}
 
-	}
+    @Override
+    public void await(long timeout, TimeUnit unit)
+            throws InterruptedException, ExecutionException, TimeoutException {}
 
-	@Override
-	public void await(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 
-	}
+    @Override
+    public ResultKind getResultKind() {
+        return resultKind;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public CloseableIterator<Row> collect() {
+        return data;
+    }
 
-	@Override
-	public ResultKind getResultKind() {
-		return resultKind;
-	}
-
-	@Override
-	public CloseableIterator<Row> collect() {
-		return data;
-	}
-
-	@Override
-	public void print() {
-		// do nothing
-	}
+    @Override
+    public void print() {
+        // do nothing
+    }
 }

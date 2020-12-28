@@ -29,111 +29,108 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 
 /**
- * The default window into which all data is placed (via
- * {@link org.apache.flink.streaming.api.windowing.assigners.GlobalWindows}).
+ * The default window into which all data is placed (via {@link
+ * org.apache.flink.streaming.api.windowing.assigners.GlobalWindows}).
  */
 @PublicEvolving
 public class GlobalWindow extends Window {
 
-	private static final GlobalWindow INSTANCE = new GlobalWindow();
+    private static final GlobalWindow INSTANCE = new GlobalWindow();
 
-	private GlobalWindow() { }
+    private GlobalWindow() {}
 
-	public static GlobalWindow get() {
-		return INSTANCE;
-	}
+    public static GlobalWindow get() {
+        return INSTANCE;
+    }
 
-	@Override
-	public long maxTimestamp() {
-		return Long.MAX_VALUE;
-	}
+    @Override
+    public long maxTimestamp() {
+        return Long.MAX_VALUE;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		return this == o || !(o == null || getClass() != o.getClass());
-	}
+    @Override
+    public boolean equals(Object o) {
+        return this == o || !(o == null || getClass() != o.getClass());
+    }
 
-	@Override
-	public int hashCode() {
-		return 0;
-	}
+    @Override
+    public int hashCode() {
+        return 0;
+    }
 
-	@Override
-	public String toString() {
-		return "GlobalWindow";
-	}
+    @Override
+    public String toString() {
+        return "GlobalWindow";
+    }
 
-	/**
-	 * A {@link TypeSerializer} for {@link GlobalWindow}.
-	 */
-	public static class Serializer extends TypeSerializerSingleton<GlobalWindow> {
-		private static final long serialVersionUID = 1L;
+    /** A {@link TypeSerializer} for {@link GlobalWindow}. */
+    public static class Serializer extends TypeSerializerSingleton<GlobalWindow> {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public boolean isImmutableType() {
-			return true;
-		}
+        @Override
+        public boolean isImmutableType() {
+            return true;
+        }
 
-		@Override
-		public GlobalWindow createInstance() {
-			return GlobalWindow.INSTANCE;
-		}
+        @Override
+        public GlobalWindow createInstance() {
+            return GlobalWindow.INSTANCE;
+        }
 
-		@Override
-		public GlobalWindow copy(GlobalWindow from) {
-			return from;
-		}
+        @Override
+        public GlobalWindow copy(GlobalWindow from) {
+            return from;
+        }
 
-		@Override
-		public GlobalWindow copy(GlobalWindow from, GlobalWindow reuse) {
-			return from;
-		}
+        @Override
+        public GlobalWindow copy(GlobalWindow from, GlobalWindow reuse) {
+            return from;
+        }
 
-		@Override
-		public int getLength() {
-			return 0;
-		}
+        @Override
+        public int getLength() {
+            return 0;
+        }
 
-		@Override
-		public void serialize(GlobalWindow record, DataOutputView target) throws IOException {
-			target.writeByte(0);
-		}
+        @Override
+        public void serialize(GlobalWindow record, DataOutputView target) throws IOException {
+            target.writeByte(0);
+        }
 
-		@Override
-		public GlobalWindow deserialize(DataInputView source) throws IOException {
-			source.readByte();
-			return GlobalWindow.INSTANCE;
-		}
+        @Override
+        public GlobalWindow deserialize(DataInputView source) throws IOException {
+            source.readByte();
+            return GlobalWindow.INSTANCE;
+        }
 
-		@Override
-		public GlobalWindow deserialize(GlobalWindow reuse,
-				DataInputView source) throws IOException {
-			source.readByte();
-			return GlobalWindow.INSTANCE;
-		}
+        @Override
+        public GlobalWindow deserialize(GlobalWindow reuse, DataInputView source)
+                throws IOException {
+            source.readByte();
+            return GlobalWindow.INSTANCE;
+        }
 
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			source.readByte();
-			target.writeByte(0);
-		}
+        @Override
+        public void copy(DataInputView source, DataOutputView target) throws IOException {
+            source.readByte();
+            target.writeByte(0);
+        }
 
-		// ------------------------------------------------------------------------
+        // ------------------------------------------------------------------------
 
-		@Override
-		public TypeSerializerSnapshot<GlobalWindow> snapshotConfiguration() {
-			return new GlobalWindowSerializerSnapshot();
-		}
+        @Override
+        public TypeSerializerSnapshot<GlobalWindow> snapshotConfiguration() {
+            return new GlobalWindowSerializerSnapshot();
+        }
 
-		/**
-		 * Serializer configuration snapshot for compatibility and format evolution.
-		 */
-		@SuppressWarnings("WeakerAccess")
-		public static final class GlobalWindowSerializerSnapshot extends SimpleTypeSerializerSnapshot<GlobalWindow> {
+        /** Serializer configuration snapshot for compatibility and format evolution. */
+        @SuppressWarnings("WeakerAccess")
+        public static final class GlobalWindowSerializerSnapshot
+                extends SimpleTypeSerializerSnapshot<GlobalWindow> {
 
-			public GlobalWindowSerializerSnapshot() {
-				super(GlobalWindow.Serializer::new);
-			}
-		}
-	}
+            public GlobalWindowSerializerSnapshot() {
+                super(GlobalWindow.Serializer::new);
+            }
+        }
+    }
 }

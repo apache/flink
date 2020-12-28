@@ -24,61 +24,74 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The (potentially aggregated) result of a compatibility check that may also contain a list of {@link AssertionError}
- * for each found incompatibility.
+ * The (potentially aggregated) result of a compatibility check that may also contain a list of
+ * {@link AssertionError} for each found incompatibility.
  */
 final class CompatibilityCheckResult {
 
-	private final Compatibility backwardCompatibility;
-	private final int backwardCompatibilityGrade;
-	private final Collection<AssertionError> backwardCompatibilityErrors;
+    private final Compatibility backwardCompatibility;
+    private final int backwardCompatibilityGrade;
+    private final Collection<AssertionError> backwardCompatibilityErrors;
 
-	private CompatibilityCheckResult(final Compatibility backwardCompatibility) {
-		this(backwardCompatibility, 1, Collections.emptyList());
-		if (backwardCompatibility == Compatibility.INCOMPATIBLE) {
-			throw new RuntimeException("This constructor must not be used for incompatible results.");
-		}
-	}
+    private CompatibilityCheckResult(final Compatibility backwardCompatibility) {
+        this(backwardCompatibility, 1, Collections.emptyList());
+        if (backwardCompatibility == Compatibility.INCOMPATIBLE) {
+            throw new RuntimeException(
+                    "This constructor must not be used for incompatible results.");
+        }
+    }
 
-	private CompatibilityCheckResult(final Compatibility backwardCompatibility, final int backwardCompatibilityGrade, final Collection<AssertionError> backwardCompatibilityErrors) {
-		this.backwardCompatibility = backwardCompatibility;
-		this.backwardCompatibilityGrade = backwardCompatibilityGrade;
-		this.backwardCompatibilityErrors = Collections.unmodifiableCollection(backwardCompatibilityErrors);
-	}
+    private CompatibilityCheckResult(
+            final Compatibility backwardCompatibility,
+            final int backwardCompatibilityGrade,
+            final Collection<AssertionError> backwardCompatibilityErrors) {
+        this.backwardCompatibility = backwardCompatibility;
+        this.backwardCompatibilityGrade = backwardCompatibilityGrade;
+        this.backwardCompatibilityErrors =
+                Collections.unmodifiableCollection(backwardCompatibilityErrors);
+    }
 
-	public Compatibility getBackwardCompatibility() {
-		return backwardCompatibility;
-	}
+    public Compatibility getBackwardCompatibility() {
+        return backwardCompatibility;
+    }
 
-	public int getBackwardCompatibilityGrade() {
-		return backwardCompatibilityGrade;
-	}
+    public int getBackwardCompatibilityGrade() {
+        return backwardCompatibilityGrade;
+    }
 
-	public Collection<AssertionError> getBackwardCompatibilityErrors() {
-		return backwardCompatibilityErrors;
-	}
+    public Collection<AssertionError> getBackwardCompatibilityErrors() {
+        return backwardCompatibilityErrors;
+    }
 
-	CompatibilityCheckResult merge(final CompatibilityCheckResult other) {
-		final Compatibility mergedCompatibility = this.backwardCompatibility.merge(other.backwardCompatibility);
+    CompatibilityCheckResult merge(final CompatibilityCheckResult other) {
+        final Compatibility mergedCompatibility =
+                this.backwardCompatibility.merge(other.backwardCompatibility);
 
-		final int mergedGrade = this.backwardCompatibilityGrade + other.backwardCompatibilityGrade;
+        final int mergedGrade = this.backwardCompatibilityGrade + other.backwardCompatibilityGrade;
 
-		final List<AssertionError> mergedErrors = new ArrayList<>(this.backwardCompatibilityErrors.size() + other.backwardCompatibilityErrors.size());
-		mergedErrors.addAll(this.backwardCompatibilityErrors);
-		mergedErrors.addAll(other.backwardCompatibilityErrors);
+        final List<AssertionError> mergedErrors =
+                new ArrayList<>(
+                        this.backwardCompatibilityErrors.size()
+                                + other.backwardCompatibilityErrors.size());
+        mergedErrors.addAll(this.backwardCompatibilityErrors);
+        mergedErrors.addAll(other.backwardCompatibilityErrors);
 
-		return new CompatibilityCheckResult(mergedCompatibility, mergedGrade, mergedErrors);
-	}
+        return new CompatibilityCheckResult(mergedCompatibility, mergedGrade, mergedErrors);
+    }
 
-	public static CompatibilityCheckResult identical() {
-		return new CompatibilityCheckResult(Compatibility.IDENTICAL);
-	}
+    public static CompatibilityCheckResult identical() {
+        return new CompatibilityCheckResult(Compatibility.IDENTICAL);
+    }
 
-	public static CompatibilityCheckResult compatible() {
-		return new CompatibilityCheckResult(Compatibility.COMPATIBLE);
-	}
+    public static CompatibilityCheckResult compatible() {
+        return new CompatibilityCheckResult(Compatibility.COMPATIBLE);
+    }
 
-	public static CompatibilityCheckResult incompatible(final AssertionError backwardCompatibilityError) {
-		return new CompatibilityCheckResult(Compatibility.INCOMPATIBLE, 0, Collections.singletonList(backwardCompatibilityError));
-	}
+    public static CompatibilityCheckResult incompatible(
+            final AssertionError backwardCompatibilityError) {
+        return new CompatibilityCheckResult(
+                Compatibility.INCOMPATIBLE,
+                0,
+                Collections.singletonList(backwardCompatibilityError));
+    }
 }

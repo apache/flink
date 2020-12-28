@@ -27,32 +27,31 @@ import org.apache.flink.types.NullValue;
 import static org.apache.flink.graph.generator.EchoGraph.MINIMUM_VERTEX_COUNT;
 import static org.apache.flink.graph.generator.EchoGraph.MINIMUM_VERTEX_DEGREE;
 
-/**
- * Generate an {@link org.apache.flink.graph.generator.EchoGraph}.
- */
-public class EchoGraph
-extends GeneratedGraph<LongValue> {
+/** Generate an {@link org.apache.flink.graph.generator.EchoGraph}. */
+public class EchoGraph extends GeneratedGraph<LongValue> {
 
-	private LongParameter vertexCount = new LongParameter(this, "vertex_count")
-		.setMinimumValue(MINIMUM_VERTEX_COUNT);
+    private LongParameter vertexCount =
+            new LongParameter(this, "vertex_count").setMinimumValue(MINIMUM_VERTEX_COUNT);
 
-	private LongParameter vertexDegree = new LongParameter(this, "vertex_degree")
-		.setMinimumValue(MINIMUM_VERTEX_DEGREE);
+    private LongParameter vertexDegree =
+            new LongParameter(this, "vertex_degree").setMinimumValue(MINIMUM_VERTEX_DEGREE);
 
-	@Override
-	public String getIdentity() {
-		return getName() + " (" + vertexCount.getValue() + ":" + vertexDegree.getValue() + ")";
-	}
+    @Override
+    public String getIdentity() {
+        return getName() + " (" + vertexCount.getValue() + ":" + vertexDegree.getValue() + ")";
+    }
 
-	@Override
-	protected long vertexCount() {
-		return vertexCount.getValue();
-	}
+    @Override
+    protected long vertexCount() {
+        return vertexCount.getValue();
+    }
 
-	@Override
-	public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) throws Exception {
-		return new org.apache.flink.graph.generator.EchoGraph(env, vertexCount.getValue(), vertexDegree.getValue())
-			.setParallelism(parallelism.getValue().intValue())
-			.generate();
-	}
+    @Override
+    public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env)
+            throws Exception {
+        return new org.apache.flink.graph.generator.EchoGraph(
+                        env, vertexCount.getValue(), vertexDegree.getValue())
+                .setParallelism(parallelism.getValue().intValue())
+                .generate();
+    }
 }

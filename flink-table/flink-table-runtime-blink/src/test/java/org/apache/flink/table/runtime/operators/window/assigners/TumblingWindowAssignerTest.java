@@ -36,58 +36,56 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link TumblingWindowAssigner}.
- */
+/** Tests for {@link TumblingWindowAssigner}. */
 public class TumblingWindowAssignerTest {
 
-	private static final RowData ELEMENT = GenericRowData.of("String");
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    private static final RowData ELEMENT = GenericRowData.of("String");
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testWindowAssignment() {
-		TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofMillis(5000));
+    @Test
+    public void testWindowAssignment() {
+        TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofMillis(5000));
 
-		assertThat(assigner.assignWindows(ELEMENT, 0L), contains(timeWindow(0, 5000)));
-		assertThat(assigner.assignWindows(ELEMENT, 4999L), contains(timeWindow(0, 5000)));
-		assertThat(assigner.assignWindows(ELEMENT, 5000L), contains(timeWindow(5000, 10000)));
-	}
+        assertThat(assigner.assignWindows(ELEMENT, 0L), contains(timeWindow(0, 5000)));
+        assertThat(assigner.assignWindows(ELEMENT, 4999L), contains(timeWindow(0, 5000)));
+        assertThat(assigner.assignWindows(ELEMENT, 5000L), contains(timeWindow(5000, 10000)));
+    }
 
-	@Test
-	public void testWindowAssignmentWithOffset() {
-		TumblingWindowAssigner assigner = TumblingWindowAssigner
-				.of(Duration.ofMillis(5000))
-				.withOffset(Duration.ofMillis(100));
+    @Test
+    public void testWindowAssignmentWithOffset() {
+        TumblingWindowAssigner assigner =
+                TumblingWindowAssigner.of(Duration.ofMillis(5000))
+                        .withOffset(Duration.ofMillis(100));
 
-		assertThat(assigner.assignWindows(ELEMENT, 100L), contains(timeWindow(100, 5100)));
-		assertThat(assigner.assignWindows(ELEMENT, 5099L), contains(timeWindow(100, 5100)));
-		assertThat(assigner.assignWindows(ELEMENT, 5100L), contains(timeWindow(5100, 10100)));
-	}
+        assertThat(assigner.assignWindows(ELEMENT, 100L), contains(timeWindow(100, 5100)));
+        assertThat(assigner.assignWindows(ELEMENT, 5099L), contains(timeWindow(100, 5100)));
+        assertThat(assigner.assignWindows(ELEMENT, 5100L), contains(timeWindow(5100, 10100)));
+    }
 
-	@Test
-	public void testInvalidParameters() {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("size > 0");
-		TumblingWindowAssigner.of(Duration.ofSeconds(-1));
+    @Test
+    public void testInvalidParameters() {
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("size > 0");
+        TumblingWindowAssigner.of(Duration.ofSeconds(-1));
 
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("size > 0");
-		TumblingWindowAssigner.of(Duration.ofSeconds(10)).withOffset(Duration.ofSeconds(20));
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("size > 0");
+        TumblingWindowAssigner.of(Duration.ofSeconds(10)).withOffset(Duration.ofSeconds(20));
 
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("size > 0");
-		TumblingWindowAssigner.of(Duration.ofSeconds(10)).withOffset(Duration.ofSeconds(-1));
-	}
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("size > 0");
+        TumblingWindowAssigner.of(Duration.ofSeconds(10)).withOffset(Duration.ofSeconds(-1));
+    }
 
-	@Test
-	public void testProperties() {
-		TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofMillis(5000));
+    @Test
+    public void testProperties() {
+        TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofMillis(5000));
 
-		assertTrue(assigner.isEventTime());
-		assertEquals(new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
+        assertTrue(assigner.isEventTime());
+        assertEquals(
+                new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
 
-		assertTrue(assigner.withEventTime().isEventTime());
-		assertFalse(assigner.withProcessingTime().isEventTime());
-	}
+        assertTrue(assigner.withEventTime().isEventTime());
+        assertFalse(assigner.withProcessingTime().isEventTime());
+    }
 }

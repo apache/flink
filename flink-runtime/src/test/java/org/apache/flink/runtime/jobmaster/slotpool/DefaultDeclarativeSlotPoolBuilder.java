@@ -24,48 +24,50 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import java.util.Collection;
 import java.util.function.Consumer;
 
-/**
- * Builder for {@link DefaultDeclarativeSlotPool}.
- */
+/** Builder for {@link DefaultDeclarativeSlotPool}. */
 final class DefaultDeclarativeSlotPoolBuilder {
 
-	private AllocatedSlotPool allocatedSlotPool = new DefaultAllocatedSlotPool();
-	private Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements = ignored -> {};
-	private Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots = ignored -> {};
-	private Time idleSlotTimeout = Time.seconds(20);
-	private Time rpcTimeout = Time.seconds(20);
+    private AllocatedSlotPool allocatedSlotPool = new DefaultAllocatedSlotPool();
+    private Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements =
+            ignored -> {};
+    private Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots = ignored -> {};
+    private Time idleSlotTimeout = Time.seconds(20);
+    private Time rpcTimeout = Time.seconds(20);
 
-	public DefaultDeclarativeSlotPoolBuilder setAllocatedSlotPool(AllocatedSlotPool allocatedSlotPool) {
-		this.allocatedSlotPool = allocatedSlotPool;
-		return this;
-	}
+    public DefaultDeclarativeSlotPoolBuilder setAllocatedSlotPool(
+            AllocatedSlotPool allocatedSlotPool) {
+        this.allocatedSlotPool = allocatedSlotPool;
+        return this;
+    }
 
-	public DefaultDeclarativeSlotPoolBuilder setNotifyNewResourceRequirements(Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements) {
-		this.notifyNewResourceRequirements = notifyNewResourceRequirements;
-		return this;
-	}
+    public DefaultDeclarativeSlotPoolBuilder setNotifyNewResourceRequirements(
+            Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements) {
+        this.notifyNewResourceRequirements = notifyNewResourceRequirements;
+        return this;
+    }
 
-	public DefaultDeclarativeSlotPoolBuilder setNotifyNewSlots(Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots) {
-		this.notifyNewSlots = notifyNewSlots;
-		return this;
-	}
+    public DefaultDeclarativeSlotPoolBuilder setNotifyNewSlots(
+            Consumer<? super Collection<? extends PhysicalSlot>> notifyNewSlots) {
+        this.notifyNewSlots = notifyNewSlots;
+        return this;
+    }
 
-	public DefaultDeclarativeSlotPoolBuilder setIdleSlotTimeout(Time idleSlotTimeout) {
-		this.idleSlotTimeout = idleSlotTimeout;
-		return this;
-	}
+    public DefaultDeclarativeSlotPoolBuilder setIdleSlotTimeout(Time idleSlotTimeout) {
+        this.idleSlotTimeout = idleSlotTimeout;
+        return this;
+    }
 
-	public DefaultDeclarativeSlotPool build() {
-		return new DefaultDeclarativeSlotPool(
-				new JobID(),
-				allocatedSlotPool,
-				notifyNewResourceRequirements,
-				notifyNewSlots,
-				idleSlotTimeout,
-				rpcTimeout);
-	}
+    public DefaultDeclarativeSlotPool build() {
+        return new DefaultDeclarativeSlotPool(
+                new JobID(),
+                allocatedSlotPool,
+                notifyNewResourceRequirements,
+                notifyNewSlots,
+                idleSlotTimeout,
+                rpcTimeout);
+    }
 
-	public static DefaultDeclarativeSlotPoolBuilder builder() {
-		return new DefaultDeclarativeSlotPoolBuilder();
-	}
+    public static DefaultDeclarativeSlotPoolBuilder builder() {
+        return new DefaultDeclarativeSlotPoolBuilder();
+    }
 }

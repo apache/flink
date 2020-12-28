@@ -18,10 +18,8 @@
 
 package org.apache.flink.connector.hbase.util;
 
-/**
- * Planner type to use.
- */
+/** Planner type to use. */
 public enum PlannerType {
-	BLINK_PLANNER,
-	OLD_PLANNER
+    BLINK_PLANNER,
+    OLD_PLANNER
 }

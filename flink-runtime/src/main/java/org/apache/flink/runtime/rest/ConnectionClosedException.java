@@ -18,22 +18,19 @@
 
 package org.apache.flink.runtime.rest;
 
-/**
- * Exception which is thrown if the {@link RestClient} detects that a connection
- * was closed.
- */
+/** Exception which is thrown if the {@link RestClient} detects that a connection was closed. */
 public class ConnectionClosedException extends ConnectionException {
-	private static final long serialVersionUID = 3802002501688542472L;
+    private static final long serialVersionUID = 3802002501688542472L;
 
-	public ConnectionClosedException(String message) {
-		super(message);
-	}
+    public ConnectionClosedException(String message) {
+        super(message);
+    }
 
-	public ConnectionClosedException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public ConnectionClosedException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public ConnectionClosedException(Throwable cause) {
-		super(cause);
-	}
+    public ConnectionClosedException(Throwable cause) {
+        super(cause);
+    }
 }

@@ -29,10 +29,10 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.table.data.RowData;
 
 /**
- * A stream operator that emits mini-batch marker in a given period.
- * This mini-batch assigner works in processing time, which means the mini-batch marker is generated
- * in the given period using the processing time. The downstream operators will trigger mini-batch
- * once the received mini-batch id advanced.
+ * A stream operator that emits mini-batch marker in a given period. This mini-batch assigner works
+ * in processing time, which means the mini-batch marker is generated in the given period using the
+ * processing time. The downstream operators will trigger mini-batch once the received mini-batch id
+ * advanced.
  *
  * <p>NOTE: currently, we use {@link Watermark} to represents the mini-batch marker.
  *
@@ -41,73 +41,74 @@ import org.apache.flink.table.data.RowData;
  * watermarks from upstream.
  */
 public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<RowData>
-	implements OneInputStreamOperator<RowData, RowData>, ProcessingTimeCallback {
+        implements OneInputStreamOperator<RowData, RowData>, ProcessingTimeCallback {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final long intervalMs;
+    private final long intervalMs;
 
-	private transient long currentWatermark;
+    private transient long currentWatermark;
 
-	public ProcTimeMiniBatchAssignerOperator(long intervalMs) {
-		this.intervalMs = intervalMs;
-		this.chainingStrategy = ChainingStrategy.ALWAYS;
-	}
+    public ProcTimeMiniBatchAssignerOperator(long intervalMs) {
+        this.intervalMs = intervalMs;
+        this.chainingStrategy = ChainingStrategy.ALWAYS;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
+    @Override
+    public void open() throws Exception {
+        super.open();
 
-		currentWatermark = 0;
+        currentWatermark = 0;
 
-		long now = getProcessingTimeService().getCurrentProcessingTime();
-		getProcessingTimeService().registerTimer(now + intervalMs, this);
+        long now = getProcessingTimeService().getCurrentProcessingTime();
+        getProcessingTimeService().registerTimer(now + intervalMs, this);
 
-		// report marker metric
-		getRuntimeContext().getMetricGroup().gauge("currentBatch", (Gauge<Long>) () -> currentWatermark);
-	}
+        // report marker metric
+        getRuntimeContext()
+                .getMetricGroup()
+                .gauge("currentBatch", (Gauge<Long>) () -> currentWatermark);
+    }
 
-	@Override
-	public void processElement(StreamRecord<RowData> element) throws Exception {
-		long now = getProcessingTimeService().getCurrentProcessingTime();
-		long currentBatch = now - now % intervalMs;
-		if (currentBatch > currentWatermark) {
-			currentWatermark = currentBatch;
-			// emit
-			output.emitWatermark(new Watermark(currentBatch));
-		}
-		output.collect(element);
-	}
+    @Override
+    public void processElement(StreamRecord<RowData> element) throws Exception {
+        long now = getProcessingTimeService().getCurrentProcessingTime();
+        long currentBatch = now - now % intervalMs;
+        if (currentBatch > currentWatermark) {
+            currentWatermark = currentBatch;
+            // emit
+            output.emitWatermark(new Watermark(currentBatch));
+        }
+        output.collect(element);
+    }
 
-	@Override
-	public void onProcessingTime(long timestamp) throws Exception {
-		long now = getProcessingTimeService().getCurrentProcessingTime();
-		long currentBatch = now - now % intervalMs;
-		if (currentBatch > currentWatermark) {
-			currentWatermark = currentBatch;
-			// emit
-			output.emitWatermark(new Watermark(currentBatch));
-		}
-		getProcessingTimeService().registerTimer(currentBatch + intervalMs, this);
-	}
+    @Override
+    public void onProcessingTime(long timestamp) throws Exception {
+        long now = getProcessingTimeService().getCurrentProcessingTime();
+        long currentBatch = now - now % intervalMs;
+        if (currentBatch > currentWatermark) {
+            currentWatermark = currentBatch;
+            // emit
+            output.emitWatermark(new Watermark(currentBatch));
+        }
+        getProcessingTimeService().registerTimer(currentBatch + intervalMs, this);
+    }
 
-	/**
-	 * Override the base implementation to completely ignore watermarks propagated from
-	 * upstream (we rely only on the {@link AssignerWithPeriodicWatermarks} to emit
-	 * watermarks from here).
-	 */
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		// if we receive a Long.MAX_VALUE watermark we forward it since it is used
-		// to signal the end of input and to not block watermark progress downstream
-		if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
-			currentWatermark = Long.MAX_VALUE;
-			output.emitWatermark(mark);
-		}
-	}
+    /**
+     * Override the base implementation to completely ignore watermarks propagated from upstream (we
+     * rely only on the {@link AssignerWithPeriodicWatermarks} to emit watermarks from here).
+     */
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        // if we receive a Long.MAX_VALUE watermark we forward it since it is used
+        // to signal the end of input and to not block watermark progress downstream
+        if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
+            currentWatermark = Long.MAX_VALUE;
+            output.emitWatermark(mark);
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+    }
 }

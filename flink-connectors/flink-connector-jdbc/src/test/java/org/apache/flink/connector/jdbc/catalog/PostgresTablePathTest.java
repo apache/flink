@@ -22,12 +22,12 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for {@link PostgresTablePath}.
- */
+/** Test for {@link PostgresTablePath}. */
 public class PostgresTablePathTest {
-	@Test
-	public void testFromFlinkTableName() {
-		assertEquals(new PostgresTablePath("public", "topic"), PostgresTablePath.fromFlinkTableName("public.topic"));
-	}
+    @Test
+    public void testFromFlinkTableName() {
+        assertEquals(
+                new PostgresTablePath("public", "topic"),
+                PostgresTablePath.fromFlinkTableName("public.topic"));
+    }
 }

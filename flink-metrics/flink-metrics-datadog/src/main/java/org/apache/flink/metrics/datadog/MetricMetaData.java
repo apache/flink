@@ -20,42 +20,41 @@ package org.apache.flink.metrics.datadog;
 
 import java.util.List;
 
-/**
- * All metadata associated with a given metric.
- */
+/** All metadata associated with a given metric. */
 public final class MetricMetaData {
 
-	private final String metricName;
-	private final MetricType type;
-	private final String host;
-	private final List<String> tags;
-	private final Clock clock;
+    private final String metricName;
+    private final MetricType type;
+    private final String host;
+    private final List<String> tags;
+    private final Clock clock;
 
-	public MetricMetaData(MetricType metricType, String metricName, String host, List<String> tags, Clock clock) {
-		this.type = metricType;
-		this.metricName = metricName;
-		this.host = host;
-		this.tags = tags;
-		this.clock = clock;
-	}
+    public MetricMetaData(
+            MetricType metricType, String metricName, String host, List<String> tags, Clock clock) {
+        this.type = metricType;
+        this.metricName = metricName;
+        this.host = host;
+        this.tags = tags;
+        this.clock = clock;
+    }
 
-	public MetricType getType() {
-		return type;
-	}
+    public MetricType getType() {
+        return type;
+    }
 
-	public String getMetricName() {
-		return metricName;
-	}
+    public String getMetricName() {
+        return metricName;
+    }
 
-	public String getHost() {
-		return host;
-	}
+    public String getHost() {
+        return host;
+    }
 
-	public List<String> getTags() {
-		return tags;
-	}
+    public List<String> getTags() {
+        return tags;
+    }
 
-	public Clock getClock() {
-		return clock;
-	}
+    public Clock getClock() {
+        return clock;
+    }
 }

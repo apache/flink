@@ -27,27 +27,28 @@ import java.io.IOException;
  * The serialization schema for the {@link KafkaEvent} type. This class defines how to transform a
  * Kafka record's bytes to a {@link KafkaEvent}, and vice-versa.
  */
-public class KafkaEventSchema implements DeserializationSchema<KafkaEvent>, SerializationSchema<KafkaEvent> {
+public class KafkaEventSchema
+        implements DeserializationSchema<KafkaEvent>, SerializationSchema<KafkaEvent> {
 
-	private static final long serialVersionUID = 6154188370181669758L;
+    private static final long serialVersionUID = 6154188370181669758L;
 
-	@Override
-	public byte[] serialize(KafkaEvent event) {
-		return event.toString().getBytes();
-	}
+    @Override
+    public byte[] serialize(KafkaEvent event) {
+        return event.toString().getBytes();
+    }
 
-	@Override
-	public KafkaEvent deserialize(byte[] message) throws IOException {
-		return KafkaEvent.fromString(new String(message));
-	}
+    @Override
+    public KafkaEvent deserialize(byte[] message) throws IOException {
+        return KafkaEvent.fromString(new String(message));
+    }
 
-	@Override
-	public boolean isEndOfStream(KafkaEvent nextElement) {
-		return false;
-	}
+    @Override
+    public boolean isEndOfStream(KafkaEvent nextElement) {
+        return false;
+    }
 
-	@Override
-	public TypeInformation<KafkaEvent> getProducedType() {
-		return TypeInformation.of(KafkaEvent.class);
-	}
+    @Override
+    public TypeInformation<KafkaEvent> getProducedType() {
+        return TypeInformation.of(KafkaEvent.class);
+    }
 }

@@ -24,29 +24,25 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.VarCharVector;
 
-/**
- * Arrow column vector for VarChar.
- */
+/** Arrow column vector for VarChar. */
 @Internal
 public final class ArrowVarCharColumnVector implements BytesColumnVector {
 
-	/**
-	 * Container which is used to store the sequence of varchar values of a column to read.
-	 */
-	private final VarCharVector varCharVector;
+    /** Container which is used to store the sequence of varchar values of a column to read. */
+    private final VarCharVector varCharVector;
 
-	public ArrowVarCharColumnVector(VarCharVector varCharVector) {
-		this.varCharVector = Preconditions.checkNotNull(varCharVector);
-	}
+    public ArrowVarCharColumnVector(VarCharVector varCharVector) {
+        this.varCharVector = Preconditions.checkNotNull(varCharVector);
+    }
 
-	@Override
-	public Bytes getBytes(int i) {
-		byte[] bytes = varCharVector.get(i);
-		return new Bytes(bytes, 0, bytes.length);
-	}
+    @Override
+    public Bytes getBytes(int i) {
+        byte[] bytes = varCharVector.get(i);
+        return new Bytes(bytes, 0, bytes.length);
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return varCharVector.isNull(i);
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return varCharVector.isNull(i);
+    }
 }

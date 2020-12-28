@@ -32,82 +32,91 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A pipelined in-memory only subpartition, which allows to reconnecting after failure.
- * Only one view is allowed at a time to read teh subpartition.
+ * A pipelined in-memory only subpartition, which allows to reconnecting after failure. Only one
+ * view is allowed at a time to read teh subpartition.
  */
 public class PipelinedApproximateSubpartition extends PipelinedSubpartition {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PipelinedApproximateSubpartition.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(PipelinedApproximateSubpartition.class);
 
-	@GuardedBy("buffers")
-	private boolean isPartialBufferCleanupRequired = false;
+    @GuardedBy("buffers")
+    private boolean isPartialBufferCleanupRequired = false;
 
-	PipelinedApproximateSubpartition(int index, ResultPartition parent) {
-		super(index, parent);
-	}
+    PipelinedApproximateSubpartition(int index, ResultPartition parent) {
+        super(index, parent);
+    }
 
-	/**
-	 * To simply the view releasing threading model, {@link PipelinedApproximateSubpartition#releaseView()} is called
-	 * only before creating a new view.
-	 *
-	 * <p>There is still one corner case when a downstream task fails continuously in a short period of time
-	 * then multiple netty worker threads can createReadView at the same time.
-	 * TODO: This problem will be solved in FLINK-19774
-	 */
-	@Override
-	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) {
-		synchronized (buffers) {
-			checkState(!isReleased);
+    /**
+     * To simply the view releasing threading model, {@link
+     * PipelinedApproximateSubpartition#releaseView()} is called only before creating a new view.
+     *
+     * <p>There is still one corner case when a downstream task fails continuously in a short period
+     * of time then multiple netty worker threads can createReadView at the same time. TODO: This
+     * problem will be solved in FLINK-19774
+     */
+    @Override
+    public PipelinedSubpartitionView createReadView(
+            BufferAvailabilityListener availabilityListener) {
+        synchronized (buffers) {
+            checkState(!isReleased);
 
-			releaseView();
+            releaseView();
 
-			LOG.debug("{}: Creating read view for subpartition {} of partition {}.",
-				parent.getOwningTaskName(), getSubPartitionIndex(), parent.getPartitionId());
+            LOG.debug(
+                    "{}: Creating read view for subpartition {} of partition {}.",
+                    parent.getOwningTaskName(),
+                    getSubPartitionIndex(),
+                    parent.getPartitionId());
 
-			readView = new PipelinedApproximateSubpartitionView(this, availabilityListener);
-		}
+            readView = new PipelinedApproximateSubpartitionView(this, availabilityListener);
+        }
 
-		return readView;
-	}
+        return readView;
+    }
 
-	@Override
-	Buffer buildSliceBuffer(BufferConsumerWithPartialRecordLength buffer) {
-		if (isPartialBufferCleanupRequired) {
-			isPartialBufferCleanupRequired = !buffer.cleanupPartialRecord();
-		}
+    @Override
+    Buffer buildSliceBuffer(BufferConsumerWithPartialRecordLength buffer) {
+        if (isPartialBufferCleanupRequired) {
+            isPartialBufferCleanupRequired = !buffer.cleanupPartialRecord();
+        }
 
-		return buffer.build();
-	}
+        return buffer.build();
+    }
 
-	private void releaseView() {
-		assert Thread.holdsLock(buffers);
-		if (readView != null) {
-			// upon reconnecting, two netty threads may require the same view to release
-			LOG.debug("Releasing view of subpartition {} of {}.", getSubPartitionIndex(), parent.getPartitionId());
+    private void releaseView() {
+        assert Thread.holdsLock(buffers);
+        if (readView != null) {
+            // upon reconnecting, two netty threads may require the same view to release
+            LOG.debug(
+                    "Releasing view of subpartition {} of {}.",
+                    getSubPartitionIndex(),
+                    parent.getPartitionId());
 
-			readView.releaseAllResources();
-			readView = null;
+            readView.releaseAllResources();
+            readView = null;
 
-			isPartialBufferCleanupRequired = true;
-			isBlocked = false;
-			sequenceNumber = 0;
-		}
-	}
+            isPartialBufferCleanupRequired = true;
+            isBlocked = false;
+            sequenceNumber = 0;
+        }
+    }
 
-	@Override
-	public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException {
-		// The Approximate Local Recovery can not work with unaligned checkpoint for now, so no need to recover channel state
-	}
+    @Override
+    public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException {
+        // The Approximate Local Recovery can not work with unaligned checkpoint for now, so no need
+        // to recover channel state
+    }
 
-	/** for testing only. */
-	@VisibleForTesting
-	boolean isPartialBufferCleanupRequired() {
-		return isPartialBufferCleanupRequired;
-	}
+    /** for testing only. */
+    @VisibleForTesting
+    boolean isPartialBufferCleanupRequired() {
+        return isPartialBufferCleanupRequired;
+    }
 
-	/** for testing only. */
-	@VisibleForTesting
-	void setIsPartialBufferCleanupRequired() {
-		isPartialBufferCleanupRequired = true;
-	}
+    /** for testing only. */
+    @VisibleForTesting
+    void setIsPartialBufferCleanupRequired() {
+        isPartialBufferCleanupRequired = true;
+    }
 }

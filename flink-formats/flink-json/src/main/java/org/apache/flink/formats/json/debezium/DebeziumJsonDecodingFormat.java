@@ -42,241 +42,241 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- * {@link DecodingFormat} for Debezium using JSON encoding.
- */
+/** {@link DecodingFormat} for Debezium using JSON encoding. */
 public class DebeziumJsonDecodingFormat implements DecodingFormat<DeserializationSchema<RowData>> {
 
-	// --------------------------------------------------------------------------------------------
-	// Mutable attributes
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Mutable attributes
+    // --------------------------------------------------------------------------------------------
 
-	private List<String> metadataKeys;
+    private List<String> metadataKeys;
 
-	// --------------------------------------------------------------------------------------------
-	// Debezium-specific attributes
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Debezium-specific attributes
+    // --------------------------------------------------------------------------------------------
 
-	private final boolean schemaInclude;
+    private final boolean schemaInclude;
 
-	private final boolean ignoreParseErrors;
+    private final boolean ignoreParseErrors;
 
-	private final TimestampFormat timestampFormat;
+    private final TimestampFormat timestampFormat;
 
-	public DebeziumJsonDecodingFormat(
-			boolean schemaInclude,
-			boolean ignoreParseErrors,
-			TimestampFormat timestampFormat) {
-		this.schemaInclude = schemaInclude;
-		this.ignoreParseErrors = ignoreParseErrors;
-		this.timestampFormat = timestampFormat;
-		this.metadataKeys = Collections.emptyList();
-	}
+    public DebeziumJsonDecodingFormat(
+            boolean schemaInclude, boolean ignoreParseErrors, TimestampFormat timestampFormat) {
+        this.schemaInclude = schemaInclude;
+        this.ignoreParseErrors = ignoreParseErrors;
+        this.timestampFormat = timestampFormat;
+        this.metadataKeys = Collections.emptyList();
+    }
 
-	@Override
-	public DeserializationSchema<RowData> createRuntimeDecoder(
-			DynamicTableSource.Context context,
-			DataType physicalDataType) {
+    @Override
+    public DeserializationSchema<RowData> createRuntimeDecoder(
+            DynamicTableSource.Context context, DataType physicalDataType) {
 
-		final List<ReadableMetadata> readableMetadata = metadataKeys.stream()
-				.map(k ->
-						Stream.of(ReadableMetadata.values())
-							.filter(rm -> rm.key.equals(k))
-							.findFirst()
-							.orElseThrow(IllegalStateException::new))
-				.collect(Collectors.toList());
+        final List<ReadableMetadata> readableMetadata =
+                metadataKeys.stream()
+                        .map(
+                                k ->
+                                        Stream.of(ReadableMetadata.values())
+                                                .filter(rm -> rm.key.equals(k))
+                                                .findFirst()
+                                                .orElseThrow(IllegalStateException::new))
+                        .collect(Collectors.toList());
 
-		final List<DataTypes.Field> metadataFields = readableMetadata.stream()
-				.map(m -> DataTypes.FIELD(m.key, m.dataType))
-				.collect(Collectors.toList());
+        final List<DataTypes.Field> metadataFields =
+                readableMetadata.stream()
+                        .map(m -> DataTypes.FIELD(m.key, m.dataType))
+                        .collect(Collectors.toList());
 
-		final DataType producedDataType = DataTypeUtils.appendRowFields(physicalDataType, metadataFields);
+        final DataType producedDataType =
+                DataTypeUtils.appendRowFields(physicalDataType, metadataFields);
 
-		final TypeInformation<RowData> producedTypeInfo =
-				context.createTypeInformation(producedDataType);
+        final TypeInformation<RowData> producedTypeInfo =
+                context.createTypeInformation(producedDataType);
 
-		return new DebeziumJsonDeserializationSchema(
-				physicalDataType,
-				readableMetadata,
-				producedTypeInfo,
-				schemaInclude,
-				ignoreParseErrors,
-				timestampFormat);
-	}
+        return new DebeziumJsonDeserializationSchema(
+                physicalDataType,
+                readableMetadata,
+                producedTypeInfo,
+                schemaInclude,
+                ignoreParseErrors,
+                timestampFormat);
+    }
 
-	@Override
-	public Map<String, DataType> listReadableMetadata() {
-		final Map<String, DataType> metadataMap = new LinkedHashMap<>();
-		Stream.of(ReadableMetadata.values()).forEachOrdered(m -> metadataMap.put(m.key, m.dataType));
-		return metadataMap;
-	}
+    @Override
+    public Map<String, DataType> listReadableMetadata() {
+        final Map<String, DataType> metadataMap = new LinkedHashMap<>();
+        Stream.of(ReadableMetadata.values())
+                .forEachOrdered(m -> metadataMap.put(m.key, m.dataType));
+        return metadataMap;
+    }
 
-	@Override
-	public void applyReadableMetadata(List<String> metadataKeys) {
-		this.metadataKeys = metadataKeys;
-	}
+    @Override
+    public void applyReadableMetadata(List<String> metadataKeys) {
+        this.metadataKeys = metadataKeys;
+    }
 
-	@Override
-	public ChangelogMode getChangelogMode() {
-		return ChangelogMode.newBuilder()
-				.addContainedKind(RowKind.INSERT)
-				.addContainedKind(RowKind.UPDATE_BEFORE)
-				.addContainedKind(RowKind.UPDATE_AFTER)
-				.addContainedKind(RowKind.DELETE)
-				.build();
-	}
+    @Override
+    public ChangelogMode getChangelogMode() {
+        return ChangelogMode.newBuilder()
+                .addContainedKind(RowKind.INSERT)
+                .addContainedKind(RowKind.UPDATE_BEFORE)
+                .addContainedKind(RowKind.UPDATE_AFTER)
+                .addContainedKind(RowKind.DELETE)
+                .build();
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Metadata handling
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Metadata handling
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * List of metadata that can be read with this format.
-	 */
-	enum ReadableMetadata {
-		SCHEMA(
-			"schema",
-			DataTypes.STRING().nullable(),
-			false,
-			DataTypes.FIELD("schema", DataTypes.STRING()),
-			new MetadataConverter() {
-				private static final long serialVersionUID = 1L;
-				@Override
-				public Object convert(GenericRowData row, int pos) {
-					return row.getString(pos);
-				}
-			}
-		),
+    /** List of metadata that can be read with this format. */
+    enum ReadableMetadata {
+        SCHEMA(
+                "schema",
+                DataTypes.STRING().nullable(),
+                false,
+                DataTypes.FIELD("schema", DataTypes.STRING()),
+                new MetadataConverter() {
+                    private static final long serialVersionUID = 1L;
 
-		INGESTION_TIMESTAMP(
-			"ingestion-timestamp",
-			DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
-			true,
-			DataTypes.FIELD("ts_ms", DataTypes.BIGINT()),
-			new MetadataConverter() {
-				private static final long serialVersionUID = 1L;
-				@Override
-				public Object convert(GenericRowData row, int pos) {
-					if (row.isNullAt(pos)) {
-						return null;
-					}
-					return TimestampData.fromEpochMillis(row.getLong(pos));
-				}
-			}
-		),
+                    @Override
+                    public Object convert(GenericRowData row, int pos) {
+                        return row.getString(pos);
+                    }
+                }),
 
-		SOURCE_TIMESTAMP(
-			"source.timestamp",
-			DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
-			true,
-			DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-			new MetadataConverter() {
-				private static final long serialVersionUID = 1L;
-				@Override
-				public Object convert(GenericRowData row, int pos) {
-					final StringData timestamp = (StringData) readProperty(row, pos, KEY_SOURCE_TIMESTAMP);
-					if (timestamp == null) {
-						return null;
-					}
-					return TimestampData.fromEpochMillis(Long.parseLong(timestamp.toString()));
-				}
-			}
-		),
+        INGESTION_TIMESTAMP(
+                "ingestion-timestamp",
+                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
+                true,
+                DataTypes.FIELD("ts_ms", DataTypes.BIGINT()),
+                new MetadataConverter() {
+                    private static final long serialVersionUID = 1L;
 
-		SOURCE_DATABASE(
-			"source.database",
-			DataTypes.STRING().nullable(),
-			true,
-			DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-			new MetadataConverter() {
-				private static final long serialVersionUID = 1L;
-				@Override
-				public Object convert(GenericRowData row, int pos) {
-					return readProperty(row, pos, KEY_SOURCE_DATABASE);
-				}
-			}
-		),
+                    @Override
+                    public Object convert(GenericRowData row, int pos) {
+                        if (row.isNullAt(pos)) {
+                            return null;
+                        }
+                        return TimestampData.fromEpochMillis(row.getLong(pos));
+                    }
+                }),
 
-		SOURCE_SCHEMA(
-			"source.schema",
-			DataTypes.STRING().nullable(),
-			true,
-			DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-			new MetadataConverter() {
-				private static final long serialVersionUID = 1L;
-				@Override
-				public Object convert(GenericRowData row, int pos) {
-					return readProperty(row, pos, KEY_SOURCE_SCHEMA);
-				}
-			}
-		),
+        SOURCE_TIMESTAMP(
+                "source.timestamp",
+                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
+                true,
+                DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+                new MetadataConverter() {
+                    private static final long serialVersionUID = 1L;
 
-		SOURCE_TABLE(
-			"source.table",
-			DataTypes.STRING().nullable(),
-			true,
-			DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-			new MetadataConverter() {
-				private static final long serialVersionUID = 1L;
-				@Override
-				public Object convert(GenericRowData row, int pos) {
-					return readProperty(row, pos, KEY_SOURCE_TABLE);
-				}
-			}
-		),
+                    @Override
+                    public Object convert(GenericRowData row, int pos) {
+                        final StringData timestamp =
+                                (StringData) readProperty(row, pos, KEY_SOURCE_TIMESTAMP);
+                        if (timestamp == null) {
+                            return null;
+                        }
+                        return TimestampData.fromEpochMillis(Long.parseLong(timestamp.toString()));
+                    }
+                }),
 
-		SOURCE_PROPERTIES(
-			"source.properties",
-			// key and value of the map are nullable to make handling easier in queries
-			DataTypes.MAP(DataTypes.STRING().nullable(), DataTypes.STRING().nullable()).nullable(),
-			true,
-			DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-			new MetadataConverter() {
-				private static final long serialVersionUID = 1L;
-				@Override
-				public Object convert(GenericRowData row, int pos) {
-					return row.getMap(pos);
-				}
-			}
-		);
+        SOURCE_DATABASE(
+                "source.database",
+                DataTypes.STRING().nullable(),
+                true,
+                DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+                new MetadataConverter() {
+                    private static final long serialVersionUID = 1L;
 
-		final String key;
+                    @Override
+                    public Object convert(GenericRowData row, int pos) {
+                        return readProperty(row, pos, KEY_SOURCE_DATABASE);
+                    }
+                }),
 
-		final DataType dataType;
+        SOURCE_SCHEMA(
+                "source.schema",
+                DataTypes.STRING().nullable(),
+                true,
+                DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+                new MetadataConverter() {
+                    private static final long serialVersionUID = 1L;
 
-		final boolean isJsonPayload;
+                    @Override
+                    public Object convert(GenericRowData row, int pos) {
+                        return readProperty(row, pos, KEY_SOURCE_SCHEMA);
+                    }
+                }),
 
-		final DataTypes.Field requiredJsonField;
+        SOURCE_TABLE(
+                "source.table",
+                DataTypes.STRING().nullable(),
+                true,
+                DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+                new MetadataConverter() {
+                    private static final long serialVersionUID = 1L;
 
-		final MetadataConverter converter;
+                    @Override
+                    public Object convert(GenericRowData row, int pos) {
+                        return readProperty(row, pos, KEY_SOURCE_TABLE);
+                    }
+                }),
 
-		ReadableMetadata(
-				String key,
-				DataType dataType,
-				boolean isJsonPayload,
-				DataTypes.Field requiredJsonField,
-				MetadataConverter converter) {
-			this.key = key;
-			this.dataType = dataType;
-			this.isJsonPayload = isJsonPayload;
-			this.requiredJsonField = requiredJsonField;
-			this.converter = converter;
-		}
-	}
+        SOURCE_PROPERTIES(
+                "source.properties",
+                // key and value of the map are nullable to make handling easier in queries
+                DataTypes.MAP(DataTypes.STRING().nullable(), DataTypes.STRING().nullable())
+                        .nullable(),
+                true,
+                DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+                new MetadataConverter() {
+                    private static final long serialVersionUID = 1L;
 
-	private static final StringData KEY_SOURCE_TIMESTAMP = StringData.fromString("ts_ms");
+                    @Override
+                    public Object convert(GenericRowData row, int pos) {
+                        return row.getMap(pos);
+                    }
+                });
 
-	private static final StringData KEY_SOURCE_DATABASE = StringData.fromString("db");
+        final String key;
 
-	private static final StringData KEY_SOURCE_SCHEMA = StringData.fromString("schema");
+        final DataType dataType;
 
-	private static final StringData KEY_SOURCE_TABLE = StringData.fromString("table");
+        final boolean isJsonPayload;
 
-	private static Object readProperty(GenericRowData row, int pos, StringData key) {
-		final GenericMapData map = (GenericMapData) row.getMap(pos);
-		if (map == null) {
-			return null;
-		}
-		return map.get(key);
-	}
+        final DataTypes.Field requiredJsonField;
+
+        final MetadataConverter converter;
+
+        ReadableMetadata(
+                String key,
+                DataType dataType,
+                boolean isJsonPayload,
+                DataTypes.Field requiredJsonField,
+                MetadataConverter converter) {
+            this.key = key;
+            this.dataType = dataType;
+            this.isJsonPayload = isJsonPayload;
+            this.requiredJsonField = requiredJsonField;
+            this.converter = converter;
+        }
+    }
+
+    private static final StringData KEY_SOURCE_TIMESTAMP = StringData.fromString("ts_ms");
+
+    private static final StringData KEY_SOURCE_DATABASE = StringData.fromString("db");
+
+    private static final StringData KEY_SOURCE_SCHEMA = StringData.fromString("schema");
+
+    private static final StringData KEY_SOURCE_TABLE = StringData.fromString("table");
+
+    private static Object readProperty(GenericRowData row, int pos, StringData key) {
+        final GenericMapData map = (GenericMapData) row.getMap(pos);
+        if (map == null) {
+            return null;
+        }
+        return map.get(key);
+    }
 }

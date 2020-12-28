@@ -22,26 +22,26 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.table.runtime.operators.bundle.trigger.BundleTrigger;
 
 /**
- * The {@link MapBundleOperator} uses a {@link KeySelector} to extract bundle key, thus can be
- * used with non-keyed-stream.
+ * The {@link MapBundleOperator} uses a {@link KeySelector} to extract bundle key, thus can be used
+ * with non-keyed-stream.
  */
 public class MapBundleOperator<K, V, IN, OUT> extends AbstractMapBundleOperator<K, V, IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** KeySelector is used to extract key for bundle map. */
-	private final KeySelector<IN, K> keySelector;
+    /** KeySelector is used to extract key for bundle map. */
+    private final KeySelector<IN, K> keySelector;
 
-	public MapBundleOperator(
-			MapBundleFunction<K, V, IN, OUT> function,
-			BundleTrigger<IN> bundleTrigger,
-			KeySelector<IN, K> keySelector) {
-		super(function, bundleTrigger);
-		this.keySelector = keySelector;
-	}
+    public MapBundleOperator(
+            MapBundleFunction<K, V, IN, OUT> function,
+            BundleTrigger<IN> bundleTrigger,
+            KeySelector<IN, K> keySelector) {
+        super(function, bundleTrigger);
+        this.keySelector = keySelector;
+    }
 
-	@Override
-	protected K getKey(IN input) throws Exception {
-		return this.keySelector.getKey(input);
-	}
+    @Override
+    protected K getKey(IN input) throws Exception {
+        return this.keySelector.getKey(input);
+    }
 }

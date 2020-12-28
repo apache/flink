@@ -25,53 +25,52 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 
-/**
- * A factory returning {@link Bucket buckets}.
- */
+/** A factory returning {@link Bucket buckets}. */
 @Internal
 public class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, BucketID> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public Bucket<IN, BucketID> getNewBucket(
-			final int subtaskIndex,
-			final BucketID bucketId,
-			final Path bucketPath,
-			final long initialPartCounter,
-			final BucketWriter<IN, BucketID> bucketWriter,
-			final RollingPolicy<IN, BucketID> rollingPolicy,
-			@Nullable final FileLifeCycleListener<BucketID> fileListener,
-			final OutputFileConfig outputFileConfig) {
+    @Override
+    public Bucket<IN, BucketID> getNewBucket(
+            final int subtaskIndex,
+            final BucketID bucketId,
+            final Path bucketPath,
+            final long initialPartCounter,
+            final BucketWriter<IN, BucketID> bucketWriter,
+            final RollingPolicy<IN, BucketID> rollingPolicy,
+            @Nullable final FileLifeCycleListener<BucketID> fileListener,
+            final OutputFileConfig outputFileConfig) {
 
-		return Bucket.getNew(
-				subtaskIndex,
-				bucketId,
-				bucketPath,
-				initialPartCounter,
-				bucketWriter,
-				rollingPolicy,
-				fileListener,
-				outputFileConfig);
-	}
+        return Bucket.getNew(
+                subtaskIndex,
+                bucketId,
+                bucketPath,
+                initialPartCounter,
+                bucketWriter,
+                rollingPolicy,
+                fileListener,
+                outputFileConfig);
+    }
 
-	@Override
-	public Bucket<IN, BucketID> restoreBucket(
-			final int subtaskIndex,
-			final long initialPartCounter,
-			final BucketWriter<IN, BucketID> bucketWriter,
-			final RollingPolicy<IN, BucketID> rollingPolicy,
-			final BucketState<BucketID> bucketState,
-			@Nullable final FileLifeCycleListener<BucketID> fileListener,
-			final OutputFileConfig outputFileConfig) throws IOException {
+    @Override
+    public Bucket<IN, BucketID> restoreBucket(
+            final int subtaskIndex,
+            final long initialPartCounter,
+            final BucketWriter<IN, BucketID> bucketWriter,
+            final RollingPolicy<IN, BucketID> rollingPolicy,
+            final BucketState<BucketID> bucketState,
+            @Nullable final FileLifeCycleListener<BucketID> fileListener,
+            final OutputFileConfig outputFileConfig)
+            throws IOException {
 
-		return Bucket.restore(
-				subtaskIndex,
-				initialPartCounter,
-				bucketWriter,
-				rollingPolicy,
-				bucketState,
-				fileListener,
-				outputFileConfig);
-	}
+        return Bucket.restore(
+                subtaskIndex,
+                initialPartCounter,
+                bucketWriter,
+                rollingPolicy,
+                bucketState,
+                fileListener,
+                outputFileConfig);
+    }
 }

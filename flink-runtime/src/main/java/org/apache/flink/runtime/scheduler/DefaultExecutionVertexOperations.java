@@ -26,18 +26,18 @@ import java.util.concurrent.CompletableFuture;
 
 class DefaultExecutionVertexOperations implements ExecutionVertexOperations {
 
-	@Override
-	public void deploy(final ExecutionVertex executionVertex) throws JobException {
-		executionVertex.deploy();
-	}
+    @Override
+    public void deploy(final ExecutionVertex executionVertex) throws JobException {
+        executionVertex.deploy();
+    }
 
-	@Override
-	public CompletableFuture<?> cancel(final ExecutionVertex executionVertex) {
-		return executionVertex.cancel();
-	}
+    @Override
+    public CompletableFuture<?> cancel(final ExecutionVertex executionVertex) {
+        return executionVertex.cancel();
+    }
 
-	@Override
-	public void markFailed(final ExecutionVertex executionVertex, final Throwable cause) {
-		executionVertex.markFailed(cause);
-	}
+    @Override
+    public void markFailed(final ExecutionVertex executionVertex, final Throwable cause) {
+        executionVertex.markFailed(cause);
+    }
 }

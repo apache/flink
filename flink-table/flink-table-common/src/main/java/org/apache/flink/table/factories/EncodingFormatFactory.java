@@ -30,21 +30,21 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
  * <p>Depending on the kind of external system, a connector might support different encodings for
  * reading and writing rows. This interface helps in making such formats pluggable.
  *
- * <p>The created {@link Format} instance is an intermediate representation that can be used to construct
- * runtime implementation in a later step.
+ * <p>The created {@link Format} instance is an intermediate representation that can be used to
+ * construct runtime implementation in a later step.
  *
  * @see FactoryUtil#createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)
- *
  * @param <I> runtime interface needed by the table sink
  */
 @PublicEvolving
 public interface EncodingFormatFactory<I> extends Factory {
 
-	/**
-	 * Creates a format from the given context and format options.
-	 *
-	 * <p>The format options have been projected to top-level options (e.g. from {@code format.ignore-errors}
-	 * to {@code ignore-errors}).
-	 */
-	EncodingFormat<I> createEncodingFormat(DynamicTableFactory.Context context, ReadableConfig formatOptions);
+    /**
+     * Creates a format from the given context and format options.
+     *
+     * <p>The format options have been projected to top-level options (e.g. from {@code
+     * format.ignore-errors} to {@code ignore-errors}).
+     */
+    EncodingFormat<I> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions);
 }

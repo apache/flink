@@ -27,12 +27,10 @@ import org.apache.calcite.rex.RexLiteral;
 
 import java.util.List;
 
-/**
- * Batch {@link ExecNode} that read records from given values.
- */
+/** Batch {@link ExecNode} that read records from given values. */
 public class BatchExecValues extends CommonExecValues implements BatchExecNode<RowData> {
 
-	public BatchExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
-		super(tuples, outputType, description);
-	}
+    public BatchExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
+        super(tuples, outputType, description);
+    }
 }

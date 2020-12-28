@@ -19,18 +19,16 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 interface ChannelStateWriteRequestDispatcher {
 
-	void dispatch(ChannelStateWriteRequest request) throws Exception;
+    void dispatch(ChannelStateWriteRequest request) throws Exception;
 
-	void fail(Throwable cause);
+    void fail(Throwable cause);
 
-	ChannelStateWriteRequestDispatcher NO_OP = new ChannelStateWriteRequestDispatcher() {
-		@Override
-		public void dispatch(ChannelStateWriteRequest request) {
-		}
+    ChannelStateWriteRequestDispatcher NO_OP =
+            new ChannelStateWriteRequestDispatcher() {
+                @Override
+                public void dispatch(ChannelStateWriteRequest request) {}
 
-		@Override
-		public void fail(Throwable cause) {
-		}
-	};
+                @Override
+                public void fail(Throwable cause) {}
+            };
 }
-

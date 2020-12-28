@@ -22,25 +22,23 @@ import org.apache.flink.configuration.Configuration;
 
 import java.util.concurrent.Executor;
 
-/**
- * Factory to create {@link FlinkKubeClient}.
- */
+/** Factory to create {@link FlinkKubeClient}. */
 public interface KubeClientFactory {
 
-	/**
-	 * Get the kubernetes client with the given configuration.
-	 *
-	 * @param configuration flink configuration
-	 * @return Return the kubernetes client with the specified configuration.
-	 */
-	FlinkKubeClient fromConfiguration(Configuration configuration);
+    /**
+     * Get the kubernetes client with the given configuration.
+     *
+     * @param configuration flink configuration
+     * @return Return the kubernetes client with the specified configuration.
+     */
+    FlinkKubeClient fromConfiguration(Configuration configuration);
 
-	/**
-	 * Get the kubernetes client with the given configuration and io executor.
-	 *
-	 * @param configuration flink configuration
-	 * @param ioExecutor IO executor
-	 * @return Return the kubernetes client with the specified flink configuration and IO executor.
-	 */
-	FlinkKubeClient fromConfiguration(Configuration configuration, Executor ioExecutor);
+    /**
+     * Get the kubernetes client with the given configuration and io executor.
+     *
+     * @param configuration flink configuration
+     * @param ioExecutor IO executor
+     * @return Return the kubernetes client with the specified flink configuration and IO executor.
+     */
+    FlinkKubeClient fromConfiguration(Configuration configuration, Executor ioExecutor);
 }

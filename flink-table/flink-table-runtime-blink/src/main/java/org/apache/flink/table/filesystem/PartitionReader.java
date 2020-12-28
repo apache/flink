@@ -30,7 +30,7 @@ import java.util.List;
 /**
  * Reader that reads record from given partitions.
  *
- *<P>This reader should only use in non-parallel instance, e.g. : used by lookup function.
+ * <p>This reader should only use in non-parallel instance, e.g. : used by lookup function.
  *
  * @param <P> The type of partition.
  * @param <OUT> The type of returned record.
@@ -38,26 +38,25 @@ import java.util.List;
 @Internal
 public interface PartitionReader<P, OUT> extends Closeable, Serializable {
 
-	/**
-	 * Opens the reader with given partitions.
-	 */
-	void open(List<P> partitions) throws IOException;
+    /** Opens the reader with given partitions. */
+    void open(List<P> partitions) throws IOException;
 
-	/**
-	 * Reads the next record from the partitions.
-	 *
-	 * <p>When this method is called, the reader it guaranteed to be opened.
-	 *
-	 * @param reuse Object that may be reused.
-	 * @return Read record.
-	 */
-	@Nullable OUT read(OUT reuse) throws IOException;
+    /**
+     * Reads the next record from the partitions.
+     *
+     * <p>When this method is called, the reader it guaranteed to be opened.
+     *
+     * @param reuse Object that may be reused.
+     * @return Read record.
+     */
+    @Nullable
+    OUT read(OUT reuse) throws IOException;
 
-	/**
-	 * Close the reader, this method should release all resources.
-	 *
-	 *<p>When this method is called, the reader it guaranteed to be opened.
-	 */
-	@Override
-	void close() throws IOException;
+    /**
+     * Close the reader, this method should release all resources.
+     *
+     * <p>When this method is called, the reader it guaranteed to be opened.
+     */
+    @Override
+    void close() throws IOException;
 }

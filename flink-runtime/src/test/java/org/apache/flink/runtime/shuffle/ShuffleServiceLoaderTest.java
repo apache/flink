@@ -31,52 +31,59 @@ import static org.apache.flink.runtime.shuffle.ShuffleServiceOptions.SHUFFLE_SER
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertThat;
 
-/**
- * Test suite for {@link ShuffleServiceLoader} utility.
- */
+/** Test suite for {@link ShuffleServiceLoader} utility. */
 public class ShuffleServiceLoaderTest extends TestLogger {
 
-	@Test
-	public void testLoadDefaultNettyShuffleServiceFactory() throws FlinkException {
-		Configuration configuration = new Configuration();
-		ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory = ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
-		assertThat(
-			"Loaded shuffle service factory is not the default netty implementation",
-			shuffleServiceFactory,
-			instanceOf(NettyShuffleServiceFactory.class));
-	}
+    @Test
+    public void testLoadDefaultNettyShuffleServiceFactory() throws FlinkException {
+        Configuration configuration = new Configuration();
+        ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory =
+                ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+        assertThat(
+                "Loaded shuffle service factory is not the default netty implementation",
+                shuffleServiceFactory,
+                instanceOf(NettyShuffleServiceFactory.class));
+    }
 
-	@Test
-	public void testLoadCustomShuffleServiceFactory() throws FlinkException {
-		Configuration configuration = new Configuration();
-		configuration.setString(SHUFFLE_SERVICE_FACTORY_CLASS, "org.apache.flink.runtime.shuffle.ShuffleServiceLoaderTest$CustomShuffleServiceFactory");
-		ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory = ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
-		assertThat(
-			"Loaded shuffle service factory is not the custom test implementation",
-			shuffleServiceFactory,
-			instanceOf(CustomShuffleServiceFactory.class));
-	}
+    @Test
+    public void testLoadCustomShuffleServiceFactory() throws FlinkException {
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                SHUFFLE_SERVICE_FACTORY_CLASS,
+                "org.apache.flink.runtime.shuffle.ShuffleServiceLoaderTest$CustomShuffleServiceFactory");
+        ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory =
+                ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+        assertThat(
+                "Loaded shuffle service factory is not the custom test implementation",
+                shuffleServiceFactory,
+                instanceOf(CustomShuffleServiceFactory.class));
+    }
 
-	@Test(expected = FlinkException.class)
-	public void testLoadShuffleServiceFactoryFailure() throws FlinkException {
-		Configuration configuration = new Configuration();
-		configuration.setString(SHUFFLE_SERVICE_FACTORY_CLASS, "org.apache.flink.runtime.shuffle.UnavailableShuffleServiceFactory");
-		ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
-	}
+    @Test(expected = FlinkException.class)
+    public void testLoadShuffleServiceFactoryFailure() throws FlinkException {
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                SHUFFLE_SERVICE_FACTORY_CLASS,
+                "org.apache.flink.runtime.shuffle.UnavailableShuffleServiceFactory");
+        ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+    }
 
-	/**
-	 * Stub implementation of {@link ShuffleServiceFactory} to test {@link ShuffleServiceLoader} utility.
-	 */
-	public static class CustomShuffleServiceFactory implements ShuffleServiceFactory<ShuffleDescriptor, ResultPartitionWriter, IndexedInputGate> {
-		@Override
-		public ShuffleMaster<ShuffleDescriptor> createShuffleMaster(Configuration configuration) {
-			throw new UnsupportedOperationException();
-		}
+    /**
+     * Stub implementation of {@link ShuffleServiceFactory} to test {@link ShuffleServiceLoader}
+     * utility.
+     */
+    public static class CustomShuffleServiceFactory
+            implements ShuffleServiceFactory<
+                    ShuffleDescriptor, ResultPartitionWriter, IndexedInputGate> {
+        @Override
+        public ShuffleMaster<ShuffleDescriptor> createShuffleMaster(Configuration configuration) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public ShuffleEnvironment<ResultPartitionWriter, IndexedInputGate> createShuffleEnvironment(
-				ShuffleEnvironmentContext shuffleEnvironmentContext) {
-			throw new UnsupportedOperationException();
-		}
-	}
+        @Override
+        public ShuffleEnvironment<ResultPartitionWriter, IndexedInputGate> createShuffleEnvironment(
+                ShuffleEnvironmentContext shuffleEnvironmentContext) {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

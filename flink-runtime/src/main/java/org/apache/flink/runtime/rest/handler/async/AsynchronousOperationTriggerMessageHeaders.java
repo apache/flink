@@ -28,23 +28,25 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
  * @param <R> type of the request
  * @param <M> type of the message parameters
  */
-public abstract class AsynchronousOperationTriggerMessageHeaders<R extends RequestBody, M extends MessageParameters>
-	implements MessageHeaders<R, TriggerResponse, M> {
+public abstract class AsynchronousOperationTriggerMessageHeaders<
+                R extends RequestBody, M extends MessageParameters>
+        implements MessageHeaders<R, TriggerResponse, M> {
 
-	@Override
-	public Class<TriggerResponse> getResponseClass() {
-		return TriggerResponse.class;
-	}
+    @Override
+    public Class<TriggerResponse> getResponseClass() {
+        return TriggerResponse.class;
+    }
 
-	@Override
-	public String getDescription() {
-		return getAsyncOperationDescription() + " This async operation would return a 'triggerid' for further query identifier.";
-	}
+    @Override
+    public String getDescription() {
+        return getAsyncOperationDescription()
+                + " This async operation would return a 'triggerid' for further query identifier.";
+    }
 
-	/**
-	 * Returns the description for this async operation header.
-	 *
-	 * @return the description for this async operation header.
-	 */
-	protected abstract String getAsyncOperationDescription();
+    /**
+     * Returns the description for this async operation header.
+     *
+     * @return the description for this async operation header.
+     */
+    protected abstract String getAsyncOperationDescription();
 }

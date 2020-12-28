@@ -26,16 +26,16 @@ import org.apache.flink.util.WrappingRuntimeException;
 import java.io.IOException;
 
 /**
- * An abstract implementation fo {@link BinaryFormat} which is lazily serialized into binary
- * or lazily deserialized into Java object.
+ * An abstract implementation fo {@link BinaryFormat} which is lazily serialized into binary or
+ * lazily deserialized into Java object.
  *
- * <p>The reason why we introduce this data structure is in order to save (de)serialization
- * in nested function calls. Consider the following function call chain:
+ * <p>The reason why we introduce this data structure is in order to save (de)serialization in
+ * nested function calls. Consider the following function call chain:
  *
  * <pre>UDF0(input) -> UDF1(result0) -> UDF2(result1) -> UDF3(result2)</pre>
  *
- * <p>Such nested calls, if the return values of UDFs are Java object format,
- * it will result in multiple conversions between Java object and binary format:
+ * <p>Such nested calls, if the return values of UDFs are Java object format, it will result in
+ * multiple conversions between Java object and binary format:
  *
  * <pre>
  * converterToBinary(UDF0(converterToJavaObject(input))) ->
@@ -45,98 +45,94 @@ import java.io.IOException;
  * </pre>
  *
  * <p>So we introduced {@link LazyBinaryFormat} to avoid the redundant cost, it has three forms:
+ *
  * <ul>
- *     <li>Binary form</li>
- *     <li>Java object form</li>
- *     <li>Binary and Java object both exist</li>
+ *   <li>Binary form
+ *   <li>Java object form
+ *   <li>Binary and Java object both exist
  * </ul>
  *
- * <p>It can lazy the conversions as much as possible. It will be converted into required form
- * only when it is needed.
+ * <p>It can lazy the conversions as much as possible. It will be converted into required form only
+ * when it is needed.
  */
 @Internal
 public abstract class LazyBinaryFormat<T> implements BinaryFormat {
 
-	T javaObject;
-	BinarySection binarySection;
+    T javaObject;
+    BinarySection binarySection;
 
-	public LazyBinaryFormat() {
-		this(null, -1, -1, null);
-	}
+    public LazyBinaryFormat() {
+        this(null, -1, -1, null);
+    }
 
-	public LazyBinaryFormat(MemorySegment[] segments, int offset, int sizeInBytes, T javaObject) {
-		this(javaObject, new BinarySection(segments, offset, sizeInBytes));
-	}
+    public LazyBinaryFormat(MemorySegment[] segments, int offset, int sizeInBytes, T javaObject) {
+        this(javaObject, new BinarySection(segments, offset, sizeInBytes));
+    }
 
-	public LazyBinaryFormat(MemorySegment[] segments, int offset, int sizeInBytes) {
-		this(null, new BinarySection(segments, offset, sizeInBytes));
-	}
+    public LazyBinaryFormat(MemorySegment[] segments, int offset, int sizeInBytes) {
+        this(null, new BinarySection(segments, offset, sizeInBytes));
+    }
 
-	public LazyBinaryFormat(T javaObject) {
-		this(javaObject, null);
-	}
+    public LazyBinaryFormat(T javaObject) {
+        this(javaObject, null);
+    }
 
-	public LazyBinaryFormat(T javaObject, BinarySection binarySection) {
-		this.javaObject = javaObject;
-		this.binarySection = binarySection;
-	}
+    public LazyBinaryFormat(T javaObject, BinarySection binarySection) {
+        this.javaObject = javaObject;
+        this.binarySection = binarySection;
+    }
 
-	public T getJavaObject() {
-		return javaObject;
-	}
+    public T getJavaObject() {
+        return javaObject;
+    }
 
-	public BinarySection getBinarySection() {
-		return binarySection;
-	}
+    public BinarySection getBinarySection() {
+        return binarySection;
+    }
 
-	/**
-	 * Must be public as it is used during code generation.
-	 */
-	public void setJavaObject(T javaObject) {
-		this.javaObject = javaObject;
-	}
+    /** Must be public as it is used during code generation. */
+    public void setJavaObject(T javaObject) {
+        this.javaObject = javaObject;
+    }
 
-	@Override
-	public MemorySegment[] getSegments() {
-		if (binarySection == null) {
-			throw new IllegalStateException("Lazy Binary Format was not materialized");
-		}
-		return binarySection.segments;
-	}
+    @Override
+    public MemorySegment[] getSegments() {
+        if (binarySection == null) {
+            throw new IllegalStateException("Lazy Binary Format was not materialized");
+        }
+        return binarySection.segments;
+    }
 
-	@Override
-	public int getOffset() {
-		if (binarySection == null) {
-			throw new IllegalStateException("Lazy Binary Format was not materialized");
-		}
-		return binarySection.offset;
-	}
+    @Override
+    public int getOffset() {
+        if (binarySection == null) {
+            throw new IllegalStateException("Lazy Binary Format was not materialized");
+        }
+        return binarySection.offset;
+    }
 
-	@Override
-	public int getSizeInBytes() {
-		if (binarySection == null) {
-			throw new IllegalStateException("Lazy Binary Format was not materialized");
-		}
-		return binarySection.sizeInBytes;
-	}
+    @Override
+    public int getSizeInBytes() {
+        if (binarySection == null) {
+            throw new IllegalStateException("Lazy Binary Format was not materialized");
+        }
+        return binarySection.sizeInBytes;
+    }
 
-	/**
-	 * Ensure we have materialized binary format.
-	 */
-	public final void ensureMaterialized(TypeSerializer<T> serializer) {
-		if (binarySection == null) {
-			try {
-				this.binarySection = materialize(serializer);
-			} catch (IOException e) {
-				throw new WrappingRuntimeException(e);
-			}
-		}
-	}
+    /** Ensure we have materialized binary format. */
+    public final void ensureMaterialized(TypeSerializer<T> serializer) {
+        if (binarySection == null) {
+            try {
+                this.binarySection = materialize(serializer);
+            } catch (IOException e) {
+                throw new WrappingRuntimeException(e);
+            }
+        }
+    }
 
-	/**
-	 * Materialize java object to binary format.
-	 * Inherited classes need to hold the information they need.
-	 * (For example, {@link RawValueData} needs javaObjectSerializer).
-	 */
-	protected abstract BinarySection materialize(TypeSerializer<T> serializer) throws IOException;
+    /**
+     * Materialize java object to binary format. Inherited classes need to hold the information they
+     * need. (For example, {@link RawValueData} needs javaObjectSerializer).
+     */
+    protected abstract BinarySection materialize(TypeSerializer<T> serializer) throws IOException;
 }

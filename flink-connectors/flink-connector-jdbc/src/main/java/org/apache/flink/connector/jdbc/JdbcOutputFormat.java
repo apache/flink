@@ -34,110 +34,117 @@ import java.util.function.Function;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStatement;
 
 /**
- * OutputFormat to write Rows into a JDBC database.
- * The OutputFormat has to be configured using the supplied OutputFormatBuilder.
+ * OutputFormat to write Rows into a JDBC database. The OutputFormat has to be configured using the
+ * supplied OutputFormatBuilder.
  */
 @Experimental
-public class JdbcOutputFormat extends JdbcBatchingOutputFormat<Row, Row, JdbcBatchStatementExecutor<Row>> {
+public class JdbcOutputFormat
+        extends JdbcBatchingOutputFormat<Row, Row, JdbcBatchStatementExecutor<Row>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(JdbcOutputFormat.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcOutputFormat.class);
 
-	private JdbcOutputFormat(JdbcConnectionProvider connectionProvider, String sql, int[] typesArray, int batchSize) {
-		super(
-			connectionProvider,
-			new JdbcExecutionOptions.Builder().withBatchSize(batchSize).build(),
-			ctx -> createRowExecutor(sql, typesArray, ctx),
-			JdbcBatchingOutputFormat.RecordExtractor.identity());
-	}
+    private JdbcOutputFormat(
+            JdbcConnectionProvider connectionProvider,
+            String sql,
+            int[] typesArray,
+            int batchSize) {
+        super(
+                connectionProvider,
+                new JdbcExecutionOptions.Builder().withBatchSize(batchSize).build(),
+                ctx -> createRowExecutor(sql, typesArray, ctx),
+                JdbcBatchingOutputFormat.RecordExtractor.identity());
+    }
 
-	private static JdbcBatchStatementExecutor<Row> createRowExecutor(String sql, int[] typesArray, RuntimeContext ctx) {
-		JdbcStatementBuilder<Row> statementBuilder = (st, record) -> setRecordToStatement(st, typesArray, record);
-		return JdbcBatchStatementExecutor.simple(
-			sql,
-			statementBuilder,
-			ctx.getExecutionConfig().isObjectReuseEnabled() ? Row::copy : Function.identity());
-	}
+    private static JdbcBatchStatementExecutor<Row> createRowExecutor(
+            String sql, int[] typesArray, RuntimeContext ctx) {
+        JdbcStatementBuilder<Row> statementBuilder =
+                (st, record) -> setRecordToStatement(st, typesArray, record);
+        return JdbcBatchStatementExecutor.simple(
+                sql,
+                statementBuilder,
+                ctx.getExecutionConfig().isObjectReuseEnabled() ? Row::copy : Function.identity());
+    }
 
-	public static JdbcOutputFormatBuilder buildJdbcOutputFormat() {
-		return new JdbcOutputFormatBuilder();
-	}
+    public static JdbcOutputFormatBuilder buildJdbcOutputFormat() {
+        return new JdbcOutputFormatBuilder();
+    }
 
-	/**
-	 * Builder for {@link JdbcOutputFormat}.
-	 */
-	public static class JdbcOutputFormatBuilder {
-		private String username;
-		private String password;
-		private String drivername;
-		private String dbURL;
-		private String query;
-		private int batchSize = JdbcExecutionOptions.DEFAULT_SIZE;
-		private int[] typesArray;
+    /** Builder for {@link JdbcOutputFormat}. */
+    public static class JdbcOutputFormatBuilder {
+        private String username;
+        private String password;
+        private String drivername;
+        private String dbURL;
+        private String query;
+        private int batchSize = JdbcExecutionOptions.DEFAULT_SIZE;
+        private int[] typesArray;
 
-		private JdbcOutputFormatBuilder() {}
+        private JdbcOutputFormatBuilder() {}
 
-		public JdbcOutputFormatBuilder setUsername(String username) {
-			this.username = username;
-			return this;
-		}
+        public JdbcOutputFormatBuilder setUsername(String username) {
+            this.username = username;
+            return this;
+        }
 
-		public JdbcOutputFormatBuilder setPassword(String password) {
-			this.password = password;
-			return this;
-		}
+        public JdbcOutputFormatBuilder setPassword(String password) {
+            this.password = password;
+            return this;
+        }
 
-		public JdbcOutputFormatBuilder setDrivername(String drivername) {
-			this.drivername = drivername;
-			return this;
-		}
+        public JdbcOutputFormatBuilder setDrivername(String drivername) {
+            this.drivername = drivername;
+            return this;
+        }
 
-		public JdbcOutputFormatBuilder setDBUrl(String dbURL) {
-			this.dbURL = dbURL;
-			return this;
-		}
+        public JdbcOutputFormatBuilder setDBUrl(String dbURL) {
+            this.dbURL = dbURL;
+            return this;
+        }
 
-		public JdbcOutputFormatBuilder setQuery(String query) {
-			this.query = query;
-			return this;
-		}
+        public JdbcOutputFormatBuilder setQuery(String query) {
+            this.query = query;
+            return this;
+        }
 
-		public JdbcOutputFormatBuilder setBatchSize(int batchSize) {
-			this.batchSize = batchSize;
-			return this;
-		}
+        public JdbcOutputFormatBuilder setBatchSize(int batchSize) {
+            this.batchSize = batchSize;
+            return this;
+        }
 
-		public JdbcOutputFormatBuilder setSqlTypes(int[] typesArray) {
-			this.typesArray = typesArray;
-			return this;
-		}
+        public JdbcOutputFormatBuilder setSqlTypes(int[] typesArray) {
+            this.typesArray = typesArray;
+            return this;
+        }
 
-		/**
-		 * Finalizes the configuration and checks validity.
-		 *
-		 * @return Configured JdbcOutputFormat
-		 */
-		public JdbcOutputFormat finish() {
-			return new JdbcOutputFormat(new SimpleJdbcConnectionProvider(buildConnectionOptions()), query,
-				typesArray, batchSize);
-		}
+        /**
+         * Finalizes the configuration and checks validity.
+         *
+         * @return Configured JdbcOutputFormat
+         */
+        public JdbcOutputFormat finish() {
+            return new JdbcOutputFormat(
+                    new SimpleJdbcConnectionProvider(buildConnectionOptions()),
+                    query,
+                    typesArray,
+                    batchSize);
+        }
 
-		public JdbcConnectionOptions buildConnectionOptions() {
-			if (this.username == null) {
-				LOG.info("Username was not supplied.");
-			}
-			if (this.password == null) {
-				LOG.info("Password was not supplied.");
-			}
+        public JdbcConnectionOptions buildConnectionOptions() {
+            if (this.username == null) {
+                LOG.info("Username was not supplied.");
+            }
+            if (this.password == null) {
+                LOG.info("Password was not supplied.");
+            }
 
-			return new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-				.withUrl(dbURL)
-				.withDriverName(drivername)
-				.withUsername(username)
-				.withPassword(password)
-				.build();
-		}
-	}
-
+            return new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                    .withUrl(dbURL)
+                    .withDriverName(drivername)
+                    .withUsername(username)
+                    .withPassword(password)
+                    .build();
+        }
+    }
 }

@@ -23,21 +23,19 @@ import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.types.logical.ArrayType;
 
-/**
- * Converter for {@link ArrayType} of {@code boolean[]} external type.
- */
+/** Converter for {@link ArrayType} of {@code boolean[]} external type. */
 @Internal
 public class ArrayBooleanArrayConverter implements DataStructureConverter<ArrayData, boolean[]> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public ArrayData toInternal(boolean[] external) {
-		return new GenericArrayData(external);
-	}
+    @Override
+    public ArrayData toInternal(boolean[] external) {
+        return new GenericArrayData(external);
+    }
 
-	@Override
-	public boolean[] toExternal(ArrayData internal) {
-		return internal.toBooleanArray();
-	}
+    @Override
+    public boolean[] toExternal(ArrayData internal) {
+        return internal.toBooleanArray();
+    }
 }

@@ -29,10 +29,9 @@ import org.apache.flink.connector.hbase1.source.HBaseInputFormat;
  */
 @Deprecated
 public abstract class TableInputFormat<T extends Tuple> extends HBaseInputFormat<T> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public TableInputFormat(org.apache.hadoop.conf.Configuration hConf) {
-		super(hConf);
-	}
-
+    public TableInputFormat(org.apache.hadoop.conf.Configuration hConf) {
+        super(hConf);
+    }
 }

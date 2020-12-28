@@ -18,187 +18,195 @@
 
 package org.apache.flink.runtime.metrics.dump;
 
-/**
- * Container for scope related information as required by the MetricQueryService.
- */
+/** Container for scope related information as required by the MetricQueryService. */
 public abstract class QueryScopeInfo {
-	/** Categories to be returned by {@link QueryScopeInfo#getCategory()} to avoid instanceof checks. */
-	public static final byte INFO_CATEGORY_JM = 0;
-	public static final byte INFO_CATEGORY_TM = 1;
-	public static final byte INFO_CATEGORY_JOB = 2;
-	public static final byte INFO_CATEGORY_TASK = 3;
-	public static final byte INFO_CATEGORY_OPERATOR = 4;
-
-	/** The remaining scope not covered by specific fields. */
-	public final String scope;
-
-	private QueryScopeInfo(String scope) {
-		this.scope = scope;
-	}
-
-	/**
-	 * Create a copy of this QueryScopeInfo and append the given scope.
-	 *
-	 * @param userScope scope to append
-	 * @return modified copy of this QueryScopeInfo
-	 */
-	public abstract QueryScopeInfo copy(String userScope);
-
-	/**
-	 * Returns the category for this QueryScopeInfo.
-	 *
-	 * @return category
+    /**
+     * Categories to be returned by {@link QueryScopeInfo#getCategory()} to avoid instanceof checks.
      */
-	public abstract byte getCategory();
+    public static final byte INFO_CATEGORY_JM = 0;
 
-	@Override
-	public String toString() {
-		return "QueryScopeInfo{" +
-			"scope='" + scope + '\'' +
-			", category='" + getCategory() + '\'' +
-			'}';
-	}
+    public static final byte INFO_CATEGORY_TM = 1;
+    public static final byte INFO_CATEGORY_JOB = 2;
+    public static final byte INFO_CATEGORY_TASK = 3;
+    public static final byte INFO_CATEGORY_OPERATOR = 4;
 
-	protected String concatScopes(String additionalScope) {
-		return scope.isEmpty()
-			? additionalScope
-			: scope + "." + additionalScope;
-	}
+    /** The remaining scope not covered by specific fields. */
+    public final String scope;
 
-	/**
-	 * Container for the job manager scope. Stores no additional information.
+    private QueryScopeInfo(String scope) {
+        this.scope = scope;
+    }
+
+    /**
+     * Create a copy of this QueryScopeInfo and append the given scope.
+     *
+     * @param userScope scope to append
+     * @return modified copy of this QueryScopeInfo
      */
-	public static class JobManagerQueryScopeInfo extends QueryScopeInfo {
-		public JobManagerQueryScopeInfo() {
-			super("");
-		}
+    public abstract QueryScopeInfo copy(String userScope);
 
-		public JobManagerQueryScopeInfo(String scope) {
-			super(scope);
-		}
-
-		@Override
-		public JobManagerQueryScopeInfo copy(String additionalScope) {
-			return new JobManagerQueryScopeInfo(concatScopes(additionalScope));
-		}
-
-		@Override
-		public byte getCategory() {
-			return INFO_CATEGORY_JM;
-		}
-	}
-
-	/**
-	 * Container for the task manager scope. Stores the ID of the task manager.
+    /**
+     * Returns the category for this QueryScopeInfo.
+     *
+     * @return category
      */
-	public static class TaskManagerQueryScopeInfo extends QueryScopeInfo {
-		public final String taskManagerID;
+    public abstract byte getCategory();
 
-		public TaskManagerQueryScopeInfo(String taskManagerId) {
-			this(taskManagerId, "");
-		}
+    @Override
+    public String toString() {
+        return "QueryScopeInfo{"
+                + "scope='"
+                + scope
+                + '\''
+                + ", category='"
+                + getCategory()
+                + '\''
+                + '}';
+    }
 
-		public TaskManagerQueryScopeInfo(String taskManagerId, String scope) {
-			super(scope);
-			this.taskManagerID = taskManagerId;
-		}
+    protected String concatScopes(String additionalScope) {
+        return scope.isEmpty() ? additionalScope : scope + "." + additionalScope;
+    }
 
-		@Override
-		public TaskManagerQueryScopeInfo copy(String additionalScope) {
-			return new TaskManagerQueryScopeInfo(this.taskManagerID, concatScopes(additionalScope));
-		}
+    /** Container for the job manager scope. Stores no additional information. */
+    public static class JobManagerQueryScopeInfo extends QueryScopeInfo {
+        public JobManagerQueryScopeInfo() {
+            super("");
+        }
 
-		@Override
-		public byte getCategory() {
-			return INFO_CATEGORY_TM;
-		}
-	}
+        public JobManagerQueryScopeInfo(String scope) {
+            super(scope);
+        }
 
-	/**
-	 * Container for the job scope. Stores the ID of the job.
+        @Override
+        public JobManagerQueryScopeInfo copy(String additionalScope) {
+            return new JobManagerQueryScopeInfo(concatScopes(additionalScope));
+        }
+
+        @Override
+        public byte getCategory() {
+            return INFO_CATEGORY_JM;
+        }
+    }
+
+    /** Container for the task manager scope. Stores the ID of the task manager. */
+    public static class TaskManagerQueryScopeInfo extends QueryScopeInfo {
+        public final String taskManagerID;
+
+        public TaskManagerQueryScopeInfo(String taskManagerId) {
+            this(taskManagerId, "");
+        }
+
+        public TaskManagerQueryScopeInfo(String taskManagerId, String scope) {
+            super(scope);
+            this.taskManagerID = taskManagerId;
+        }
+
+        @Override
+        public TaskManagerQueryScopeInfo copy(String additionalScope) {
+            return new TaskManagerQueryScopeInfo(this.taskManagerID, concatScopes(additionalScope));
+        }
+
+        @Override
+        public byte getCategory() {
+            return INFO_CATEGORY_TM;
+        }
+    }
+
+    /** Container for the job scope. Stores the ID of the job. */
+    public static class JobQueryScopeInfo extends QueryScopeInfo {
+        public final String jobID;
+
+        public JobQueryScopeInfo(String jobID) {
+            this(jobID, "");
+        }
+
+        public JobQueryScopeInfo(String jobID, String scope) {
+            super(scope);
+            this.jobID = jobID;
+        }
+
+        @Override
+        public JobQueryScopeInfo copy(String additionalScope) {
+            return new JobQueryScopeInfo(this.jobID, concatScopes(additionalScope));
+        }
+
+        @Override
+        public byte getCategory() {
+            return INFO_CATEGORY_JOB;
+        }
+    }
+
+    /** Container for the task scope. Stores the ID of the job/vertex and subtask index. */
+    public static class TaskQueryScopeInfo extends QueryScopeInfo {
+        public final String jobID;
+        public final String vertexID;
+        public final int subtaskIndex;
+
+        public TaskQueryScopeInfo(String jobID, String vertexid, int subtaskIndex) {
+            this(jobID, vertexid, subtaskIndex, "");
+        }
+
+        public TaskQueryScopeInfo(String jobID, String vertexid, int subtaskIndex, String scope) {
+            super(scope);
+            this.jobID = jobID;
+            this.vertexID = vertexid;
+            this.subtaskIndex = subtaskIndex;
+        }
+
+        @Override
+        public TaskQueryScopeInfo copy(String additionalScope) {
+            return new TaskQueryScopeInfo(
+                    this.jobID, this.vertexID, this.subtaskIndex, concatScopes(additionalScope));
+        }
+
+        @Override
+        public byte getCategory() {
+            return INFO_CATEGORY_TASK;
+        }
+    }
+
+    /**
+     * Container for the operator scope. Stores the ID of the job/vertex, the subtask index and the
+     * name of the operator.
      */
-	public static class JobQueryScopeInfo extends QueryScopeInfo {
-		public final String jobID;
+    public static class OperatorQueryScopeInfo extends QueryScopeInfo {
+        public final String jobID;
+        public final String vertexID;
+        public final int subtaskIndex;
+        public final String operatorName;
 
-		public JobQueryScopeInfo(String jobID) {
-			this(jobID, "");
-		}
+        public OperatorQueryScopeInfo(
+                String jobID, String vertexid, int subtaskIndex, String operatorName) {
+            this(jobID, vertexid, subtaskIndex, operatorName, "");
+        }
 
-		public JobQueryScopeInfo(String jobID, String scope) {
-			super(scope);
-			this.jobID = jobID;
-		}
+        public OperatorQueryScopeInfo(
+                String jobID,
+                String vertexid,
+                int subtaskIndex,
+                String operatorName,
+                String scope) {
+            super(scope);
+            this.jobID = jobID;
+            this.vertexID = vertexid;
+            this.subtaskIndex = subtaskIndex;
+            this.operatorName = operatorName;
+        }
 
-		@Override
-		public JobQueryScopeInfo copy(String additionalScope) {
-			return new JobQueryScopeInfo(this.jobID, concatScopes(additionalScope));
-		}
+        @Override
+        public OperatorQueryScopeInfo copy(String additionalScope) {
+            return new OperatorQueryScopeInfo(
+                    this.jobID,
+                    this.vertexID,
+                    this.subtaskIndex,
+                    this.operatorName,
+                    concatScopes(additionalScope));
+        }
 
-		@Override
-		public byte getCategory() {
-			return INFO_CATEGORY_JOB;
-		}
-	}
-
-	/**
-	 * Container for the task scope. Stores the ID of the job/vertex and subtask index.
-     */
-	public static class TaskQueryScopeInfo extends QueryScopeInfo {
-		public final String jobID;
-		public final String vertexID;
-		public final int subtaskIndex;
-
-		public TaskQueryScopeInfo(String jobID, String vertexid, int subtaskIndex) {
-			this(jobID, vertexid, subtaskIndex, "");
-		}
-
-		public TaskQueryScopeInfo(String jobID, String vertexid, int subtaskIndex, String scope) {
-			super(scope);
-			this.jobID = jobID;
-			this.vertexID = vertexid;
-			this.subtaskIndex = subtaskIndex;
-		}
-
-		@Override
-		public TaskQueryScopeInfo copy(String additionalScope) {
-			return new TaskQueryScopeInfo(this.jobID, this.vertexID, this.subtaskIndex, concatScopes(additionalScope));
-		}
-
-		@Override
-		public byte getCategory() {
-			return INFO_CATEGORY_TASK;
-		}
-	}
-
-	/**
-	 * Container for the operator scope. Stores the ID of the job/vertex, the subtask index and the name of the operator.
-     */
-	public static class OperatorQueryScopeInfo extends QueryScopeInfo {
-		public final String jobID;
-		public final String vertexID;
-		public final int subtaskIndex;
-		public final String operatorName;
-
-		public OperatorQueryScopeInfo(String jobID, String vertexid, int subtaskIndex, String operatorName) {
-			this(jobID, vertexid, subtaskIndex, operatorName, "");
-		}
-
-		public OperatorQueryScopeInfo(String jobID, String vertexid, int subtaskIndex, String operatorName, String scope) {
-			super(scope);
-			this.jobID = jobID;
-			this.vertexID = vertexid;
-			this.subtaskIndex = subtaskIndex;
-			this.operatorName = operatorName;
-		}
-
-		@Override
-		public OperatorQueryScopeInfo copy(String additionalScope) {
-			return new OperatorQueryScopeInfo(this.jobID, this.vertexID, this.subtaskIndex, this.operatorName, concatScopes(additionalScope));
-		}
-
-		@Override
-		public byte getCategory() {
-			return INFO_CATEGORY_OPERATOR;
-		}
-	}
+        @Override
+        public byte getCategory() {
+            return INFO_CATEGORY_OPERATOR;
+        }
+    }
 }

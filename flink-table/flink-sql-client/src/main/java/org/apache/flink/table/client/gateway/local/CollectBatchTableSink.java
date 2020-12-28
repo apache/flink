@@ -31,52 +31,49 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
-/**
- * Table sink for collecting the results locally all at once using accumulators.
- */
-public class CollectBatchTableSink extends OutputFormatTableSink<Row> implements BatchTableSink<Row> {
+/** Table sink for collecting the results locally all at once using accumulators. */
+public class CollectBatchTableSink extends OutputFormatTableSink<Row>
+        implements BatchTableSink<Row> {
 
-	private final String accumulatorName;
-	private final TypeSerializer<Row> serializer;
-	private final TableSchema tableSchema;
+    private final String accumulatorName;
+    private final TypeSerializer<Row> serializer;
+    private final TableSchema tableSchema;
 
-	public CollectBatchTableSink(String accumulatorName, TypeSerializer<Row> serializer, TableSchema tableSchema) {
-		this.accumulatorName = accumulatorName;
-		this.serializer = serializer;
-		this.tableSchema = TableSchemaUtils.checkOnlyPhysicalColumns(tableSchema);
-	}
+    public CollectBatchTableSink(
+            String accumulatorName, TypeSerializer<Row> serializer, TableSchema tableSchema) {
+        this.accumulatorName = accumulatorName;
+        this.serializer = serializer;
+        this.tableSchema = TableSchemaUtils.checkOnlyPhysicalColumns(tableSchema);
+    }
 
-	/**
-	 * Returns the serializer for deserializing the collected result.
-	 */
-	public TypeSerializer<Row> getSerializer() {
-		return serializer;
-	}
+    /** Returns the serializer for deserializing the collected result. */
+    public TypeSerializer<Row> getSerializer() {
+        return serializer;
+    }
 
-	@Override
-	public DataType getConsumedDataType() {
-		return getTableSchema().toRowDataType();
-	}
+    @Override
+    public DataType getConsumedDataType() {
+        return getTableSchema().toRowDataType();
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 
-	@Override
-	public CollectBatchTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		return new CollectBatchTableSink(accumulatorName, serializer, tableSchema);
-	}
+    @Override
+    public CollectBatchTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+        return new CollectBatchTableSink(accumulatorName, serializer, tableSchema);
+    }
 
-	@Override
-	public DataSink<?> consumeDataSet(DataSet<Row> dataSet) {
-		return dataSet
-			.output(new Utils.CollectHelper<>(accumulatorName, serializer))
-			.name("SQL Client Batch Collect Sink");
-	}
+    @Override
+    public DataSink<?> consumeDataSet(DataSet<Row> dataSet) {
+        return dataSet.output(new Utils.CollectHelper<>(accumulatorName, serializer))
+                .name("SQL Client Batch Collect Sink");
+    }
 
-	@Override
-	public OutputFormat<Row> getOutputFormat() {
-		return new Utils.CollectHelper<>(accumulatorName, serializer);
-	}
+    @Override
+    public OutputFormat<Row> getOutputFormat() {
+        return new Utils.CollectHelper<>(accumulatorName, serializer);
+    }
 }

@@ -27,31 +27,28 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.complex.StructVector;
 
-/**
- * Arrow column vector for Row.
- */
+/** Arrow column vector for Row. */
 @Internal
 public final class ArrowRowColumnVector implements RowColumnVector {
 
-	/**
-	 * Container which is used to store the sequence of row values of a column to read.
-	 */
-	private final StructVector structVector;
-	private final ColumnVector[] fieldColumns;
+    /** Container which is used to store the sequence of row values of a column to read. */
+    private final StructVector structVector;
 
-	public ArrowRowColumnVector(StructVector structVector, ColumnVector[] fieldColumns) {
-		this.structVector = Preconditions.checkNotNull(structVector);
-		this.fieldColumns = Preconditions.checkNotNull(fieldColumns);
-	}
+    private final ColumnVector[] fieldColumns;
 
-	@Override
-	public ColumnarRowData getRow(int i) {
-		VectorizedColumnBatch vectorizedColumnBatch = new VectorizedColumnBatch(fieldColumns);
-		return new ColumnarRowData(vectorizedColumnBatch, i);
-	}
+    public ArrowRowColumnVector(StructVector structVector, ColumnVector[] fieldColumns) {
+        this.structVector = Preconditions.checkNotNull(structVector);
+        this.fieldColumns = Preconditions.checkNotNull(fieldColumns);
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return structVector.isNull(i);
-	}
+    @Override
+    public ColumnarRowData getRow(int i) {
+        VectorizedColumnBatch vectorizedColumnBatch = new VectorizedColumnBatch(fieldColumns);
+        return new ColumnarRowData(vectorizedColumnBatch, i);
+    }
+
+    @Override
+    public boolean isNullAt(int i) {
+        return structVector.isNull(i);
+    }
 }

@@ -37,53 +37,51 @@ import javax.annotation.Nullable;
  * the {@code state-processor-api}.
  */
 final class SavepointTaskStateManager implements TaskStateManager {
-	private static final String MSG = "This method should never be called";
+    private static final String MSG = "This method should never be called";
 
-	@Nonnull
-	private final PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState;
+    @Nonnull private final PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState;
 
-	SavepointTaskStateManager(PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
-		Preconditions.checkNotNull(prioritizedOperatorSubtaskState, "Operator subtask state must not be null");
-		this.prioritizedOperatorSubtaskState = prioritizedOperatorSubtaskState;
-	}
+    SavepointTaskStateManager(PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
+        Preconditions.checkNotNull(
+                prioritizedOperatorSubtaskState, "Operator subtask state must not be null");
+        this.prioritizedOperatorSubtaskState = prioritizedOperatorSubtaskState;
+    }
 
-	@Override
-	public void reportTaskStateSnapshots(
-		@Nonnull CheckpointMetaData checkpointMetaData,
-		@Nonnull CheckpointMetrics checkpointMetrics,
-		@Nullable TaskStateSnapshot acknowledgedState,
-		@Nullable TaskStateSnapshot localState) {}
+    @Override
+    public void reportTaskStateSnapshots(
+            @Nonnull CheckpointMetaData checkpointMetaData,
+            @Nonnull CheckpointMetrics checkpointMetrics,
+            @Nullable TaskStateSnapshot acknowledgedState,
+            @Nullable TaskStateSnapshot localState) {}
 
-	@Nonnull
-	@Override
-	public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
-		return prioritizedOperatorSubtaskState;
-	}
+    @Nonnull
+    @Override
+    public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
+        return prioritizedOperatorSubtaskState;
+    }
 
-	@Nonnull
-	@Override
-	public LocalRecoveryConfig createLocalRecoveryConfig() {
-		LocalRecoveryDirectoryProvider provider = new SavepointLocalRecoveryProvider();
-		return new LocalRecoveryConfig(false, provider);
-	}
+    @Nonnull
+    @Override
+    public LocalRecoveryConfig createLocalRecoveryConfig() {
+        LocalRecoveryDirectoryProvider provider = new SavepointLocalRecoveryProvider();
+        return new LocalRecoveryConfig(false, provider);
+    }
 
-	@Override
-	public SequentialChannelStateReader getSequentialChannelStateReader() {
-		return SequentialChannelStateReader.NO_OP;
-	}
+    @Override
+    public SequentialChannelStateReader getSequentialChannelStateReader() {
+        return SequentialChannelStateReader.NO_OP;
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
-		throw new UnsupportedOperationException(MSG);
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {
+        throw new UnsupportedOperationException(MSG);
+    }
 
-	@Override
-	public void notifyCheckpointAborted(long checkpointId) {
-		throw new UnsupportedOperationException(MSG);
-	}
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) {
+        throw new UnsupportedOperationException(MSG);
+    }
 
-	@Override
-	public void close() {
-	}
+    @Override
+    public void close() {}
 }
-

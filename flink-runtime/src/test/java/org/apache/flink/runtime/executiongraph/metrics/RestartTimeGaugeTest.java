@@ -31,52 +31,54 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link RestartTimeGauge}.
- */
+/** Tests for {@link RestartTimeGauge}. */
 public class RestartTimeGaugeTest extends TestLogger {
 
-	@Test
-	public void testNotRestarted() {
-		final RestartTimeGauge gauge = new RestartTimeGauge(new TestingJobStatusProvider(JobStatus.RUNNING, -1));
-		assertThat(gauge.getValue(), is(0L));
-	}
+    @Test
+    public void testNotRestarted() {
+        final RestartTimeGauge gauge =
+                new RestartTimeGauge(new TestingJobStatusProvider(JobStatus.RUNNING, -1));
+        assertThat(gauge.getValue(), is(0L));
+    }
 
-	@Test
-	public void testInRestarting() {
-		final Map<JobStatus, Long> statusTimestampMap = new HashMap<>();
-		statusTimestampMap.put(JobStatus.RESTARTING, 1L);
+    @Test
+    public void testInRestarting() {
+        final Map<JobStatus, Long> statusTimestampMap = new HashMap<>();
+        statusTimestampMap.put(JobStatus.RESTARTING, 1L);
 
-		final RestartTimeGauge gauge = new RestartTimeGauge(
-			new TestingJobStatusProvider(
-				JobStatus.RESTARTING,
-				status -> statusTimestampMap.getOrDefault(status, -1L)));
-		assertThat(gauge.getValue(), greaterThan(0L));
-	}
+        final RestartTimeGauge gauge =
+                new RestartTimeGauge(
+                        new TestingJobStatusProvider(
+                                JobStatus.RESTARTING,
+                                status -> statusTimestampMap.getOrDefault(status, -1L)));
+        assertThat(gauge.getValue(), greaterThan(0L));
+    }
 
-	@Test
-	public void testRunningAfterRestarting() {
-		final Map<JobStatus, Long> statusTimestampMap = new HashMap<>();
-		statusTimestampMap.put(JobStatus.RESTARTING, 123L);
-		statusTimestampMap.put(JobStatus.RUNNING, 234L);
+    @Test
+    public void testRunningAfterRestarting() {
+        final Map<JobStatus, Long> statusTimestampMap = new HashMap<>();
+        statusTimestampMap.put(JobStatus.RESTARTING, 123L);
+        statusTimestampMap.put(JobStatus.RUNNING, 234L);
 
-		final RestartTimeGauge gauge = new RestartTimeGauge(
-			new TestingJobStatusProvider(
-				JobStatus.RUNNING,
-				status -> statusTimestampMap.getOrDefault(status, -1L)));
-		assertThat(gauge.getValue(), is(111L));
-	}
+        final RestartTimeGauge gauge =
+                new RestartTimeGauge(
+                        new TestingJobStatusProvider(
+                                JobStatus.RUNNING,
+                                status -> statusTimestampMap.getOrDefault(status, -1L)));
+        assertThat(gauge.getValue(), is(111L));
+    }
 
-	@Test
-	public void testFailedAfterRestarting() {
-		final Map<JobStatus, Long> statusTimestampMap = new HashMap<>();
-		statusTimestampMap.put(JobStatus.RESTARTING, 123L);
-		statusTimestampMap.put(JobStatus.FAILED, 456L);
+    @Test
+    public void testFailedAfterRestarting() {
+        final Map<JobStatus, Long> statusTimestampMap = new HashMap<>();
+        statusTimestampMap.put(JobStatus.RESTARTING, 123L);
+        statusTimestampMap.put(JobStatus.FAILED, 456L);
 
-		final RestartTimeGauge gauge = new RestartTimeGauge(
-			new TestingJobStatusProvider(
-				JobStatus.FAILED,
-				status -> statusTimestampMap.getOrDefault(status, -1L)));
-		assertThat(gauge.getValue(), is(333L));
-	}
+        final RestartTimeGauge gauge =
+                new RestartTimeGauge(
+                        new TestingJobStatusProvider(
+                                JobStatus.FAILED,
+                                status -> statusTimestampMap.getOrDefault(status, -1L)));
+        assertThat(gauge.getValue(), is(333L));
+    }
 }

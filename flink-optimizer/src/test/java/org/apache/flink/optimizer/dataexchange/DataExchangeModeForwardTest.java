@@ -31,14 +31,15 @@ import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
 import org.apache.flink.optimizer.testfunctions.Top1GroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
- * This test verifies that the optimizer assigns the correct
- * data exchange mode to a simple forward / shuffle plan.
+ * This test verifies that the optimizer assigns the correct data exchange mode to a simple forward
+ * / shuffle plan.
  *
  * <pre>
  *     (source) -> (map) -> (filter) -> (groupBy / reduce)
@@ -47,93 +48,110 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public class DataExchangeModeForwardTest extends CompilerTestBase {
 
+    @Test
+    public void testPipelinedForced() {
+        // PIPELINED_FORCED should result in pipelining all the way
+        verifySimpleForwardPlan(
+                ExecutionMode.PIPELINED_FORCED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED);
+    }
 
-	@Test
-	public void testPipelinedForced() {
-		// PIPELINED_FORCED should result in pipelining all the way
-		verifySimpleForwardPlan(ExecutionMode.PIPELINED_FORCED,
-				DataExchangeMode.PIPELINED, DataExchangeMode.PIPELINED,
-				DataExchangeMode.PIPELINED, DataExchangeMode.PIPELINED,
-				DataExchangeMode.PIPELINED, DataExchangeMode.PIPELINED);
-	}
+    @Test
+    public void testPipelined() {
+        // PIPELINED should result in pipelining all the way
+        verifySimpleForwardPlan(
+                ExecutionMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED);
+    }
 
-	@Test
-	public void testPipelined() {
-		// PIPELINED should result in pipelining all the way
-		verifySimpleForwardPlan(ExecutionMode.PIPELINED,
-				DataExchangeMode.PIPELINED, DataExchangeMode.PIPELINED,
-				DataExchangeMode.PIPELINED, DataExchangeMode.PIPELINED,
-				DataExchangeMode.PIPELINED, DataExchangeMode.PIPELINED);
-	}
+    @Test
+    public void testBatch() {
+        // BATCH should result in batching the shuffle all the way
+        verifySimpleForwardPlan(
+                ExecutionMode.BATCH,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.BATCH,
+                DataExchangeMode.PIPELINED);
+    }
 
-	@Test
-	public void testBatch() {
-		// BATCH should result in batching the shuffle all the way
-		verifySimpleForwardPlan(ExecutionMode.BATCH,
-				DataExchangeMode.PIPELINED, DataExchangeMode.PIPELINED,
-				DataExchangeMode.PIPELINED, DataExchangeMode.PIPELINED,
-				DataExchangeMode.BATCH, DataExchangeMode.PIPELINED);
-	}
+    @Test
+    public void testBatchForced() {
+        // BATCH_FORCED should result in batching all the way
+        verifySimpleForwardPlan(
+                ExecutionMode.BATCH_FORCED,
+                DataExchangeMode.BATCH,
+                DataExchangeMode.BATCH,
+                DataExchangeMode.BATCH,
+                DataExchangeMode.PIPELINED,
+                DataExchangeMode.BATCH,
+                DataExchangeMode.BATCH);
+    }
 
-	@Test
-	public void testBatchForced() {
-		// BATCH_FORCED should result in batching all the way
-		verifySimpleForwardPlan(ExecutionMode.BATCH_FORCED,
-				DataExchangeMode.BATCH, DataExchangeMode.BATCH,
-				DataExchangeMode.BATCH, DataExchangeMode.PIPELINED,
-				DataExchangeMode.BATCH, DataExchangeMode.BATCH);
-	}
+    private void verifySimpleForwardPlan(
+            ExecutionMode execMode,
+            DataExchangeMode toMap,
+            DataExchangeMode toFilter,
+            DataExchangeMode toKeyExtractor,
+            DataExchangeMode toCombiner,
+            DataExchangeMode toReduce,
+            DataExchangeMode toSink) {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.getConfig().setExecutionMode(execMode);
 
-	private void verifySimpleForwardPlan(ExecutionMode execMode,
-										DataExchangeMode toMap,
-										DataExchangeMode toFilter,
-										DataExchangeMode toKeyExtractor,
-										DataExchangeMode toCombiner,
-										DataExchangeMode toReduce,
-										DataExchangeMode toSink)
-	{
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.getConfig().setExecutionMode(execMode);
+            DataSet<String> dataSet = env.readTextFile("/never/accessed");
+            dataSet.map(
+                            new MapFunction<String, Integer>() {
+                                @Override
+                                public Integer map(String value) {
+                                    return 0;
+                                }
+                            })
+                    .filter(
+                            new FilterFunction<Integer>() {
+                                @Override
+                                public boolean filter(Integer value) {
+                                    return false;
+                                }
+                            })
+                    .groupBy(new IdentityKeyExtractor<Integer>())
+                    .reduceGroup(new Top1GroupReducer<Integer>())
+                    .output(new DiscardingOutputFormat<Integer>());
 
-			DataSet<String> dataSet = env.readTextFile("/never/accessed");
-			dataSet
-				.map(new MapFunction<String, Integer>() {
-					@Override
-					public Integer map(String value) {
-						return 0;
-					}
-				})
-				.filter(new FilterFunction<Integer>() {
-					@Override
-					public boolean filter(Integer value) {
-						return false;
-					}
-				})
-				.groupBy(new IdentityKeyExtractor<Integer>())
-				.reduceGroup(new Top1GroupReducer<Integer>())
-				.output(new DiscardingOutputFormat<Integer>());
+            OptimizedPlan optPlan = compileNoStats(env.createProgramPlan());
+            SinkPlanNode sinkNode = optPlan.getDataSinks().iterator().next();
 
-			OptimizedPlan optPlan = compileNoStats(env.createProgramPlan());
-			SinkPlanNode sinkNode = optPlan.getDataSinks().iterator().next();
+            SingleInputPlanNode reduceNode = (SingleInputPlanNode) sinkNode.getPredecessor();
+            SingleInputPlanNode combineNode = (SingleInputPlanNode) reduceNode.getPredecessor();
+            SingleInputPlanNode keyExtractorNode =
+                    (SingleInputPlanNode) combineNode.getPredecessor();
 
-			SingleInputPlanNode reduceNode = (SingleInputPlanNode) sinkNode.getPredecessor();
-			SingleInputPlanNode combineNode = (SingleInputPlanNode) reduceNode.getPredecessor();
-			SingleInputPlanNode keyExtractorNode = (SingleInputPlanNode) combineNode.getPredecessor();
+            SingleInputPlanNode filterNode =
+                    (SingleInputPlanNode) keyExtractorNode.getPredecessor();
+            SingleInputPlanNode mapNode = (SingleInputPlanNode) filterNode.getPredecessor();
 
-			SingleInputPlanNode filterNode = (SingleInputPlanNode) keyExtractorNode.getPredecessor();
-			SingleInputPlanNode mapNode = (SingleInputPlanNode) filterNode.getPredecessor();
-
-			assertEquals(toMap, mapNode.getInput().getDataExchangeMode());
-			assertEquals(toFilter, filterNode.getInput().getDataExchangeMode());
-			assertEquals(toKeyExtractor, keyExtractorNode.getInput().getDataExchangeMode());
-			assertEquals(toCombiner, combineNode.getInput().getDataExchangeMode());
-			assertEquals(toReduce, reduceNode.getInput().getDataExchangeMode());
-			assertEquals(toSink, sinkNode.getInput().getDataExchangeMode());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertEquals(toMap, mapNode.getInput().getDataExchangeMode());
+            assertEquals(toFilter, filterNode.getInput().getDataExchangeMode());
+            assertEquals(toKeyExtractor, keyExtractorNode.getInput().getDataExchangeMode());
+            assertEquals(toCombiner, combineNode.getInput().getDataExchangeMode());
+            assertEquals(toReduce, reduceNode.getInput().getDataExchangeMode());
+            assertEquals(toSink, sinkNode.getInput().getDataExchangeMode());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

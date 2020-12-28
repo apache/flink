@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
-
 public class ExternalTokenizer2 extends ExternalTokenizer {
-	public void dummyMethod() {}
+    public void dummyMethod() {}
 }

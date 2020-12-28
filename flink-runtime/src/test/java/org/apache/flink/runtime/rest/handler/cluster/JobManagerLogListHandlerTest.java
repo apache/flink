@@ -54,78 +54,81 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Unit tests for {@link JobManagerLogListHandler}.
- */
+/** Unit tests for {@link JobManagerLogListHandler}. */
 public class JobManagerLogListHandlerTest extends TestLogger {
 
-	private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> testRequest;
+    private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> testRequest;
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private DispatcherGateway dispatcherGateway;
+    private DispatcherGateway dispatcherGateway;
 
-	@BeforeClass
-	public static void setupClass() throws HandlerRequestException {
-		testRequest = new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			EmptyMessageParameters.getInstance(),
-			Collections.emptyMap(),
-			Collections.emptyMap());
-	}
+    @BeforeClass
+    public static void setupClass() throws HandlerRequestException {
+        testRequest =
+                new HandlerRequest<>(
+                        EmptyRequestBody.getInstance(),
+                        EmptyMessageParameters.getInstance(),
+                        Collections.emptyMap(),
+                        Collections.emptyMap());
+    }
 
-	@Before
-	public void setUp() {
-		dispatcherGateway = new TestingDispatcherGateway.Builder().build();
-	}
+    @Before
+    public void setUp() {
+        dispatcherGateway = new TestingDispatcherGateway.Builder().build();
+    }
 
-	@Test
-	public void testGetJobManagerLogsList() throws Exception {
-		File logRoot = temporaryFolder.getRoot();
-		List<LogInfo> expectedLogInfo = Arrays.asList(
-			new LogInfo("jobmanager.log", 5),
-			new LogInfo("jobmanager.out", 7),
-			new LogInfo("test.log", 13));
-		createLogFiles(logRoot, expectedLogInfo);
+    @Test
+    public void testGetJobManagerLogsList() throws Exception {
+        File logRoot = temporaryFolder.getRoot();
+        List<LogInfo> expectedLogInfo =
+                Arrays.asList(
+                        new LogInfo("jobmanager.log", 5),
+                        new LogInfo("jobmanager.out", 7),
+                        new LogInfo("test.log", 13));
+        createLogFiles(logRoot, expectedLogInfo);
 
-		JobManagerLogListHandler jobManagerLogListHandler = createHandler(logRoot);
-		LogListInfo logListInfo = jobManagerLogListHandler.handleRequest(testRequest, dispatcherGateway).get();
+        JobManagerLogListHandler jobManagerLogListHandler = createHandler(logRoot);
+        LogListInfo logListInfo =
+                jobManagerLogListHandler.handleRequest(testRequest, dispatcherGateway).get();
 
-		assertThat(logListInfo.getLogInfos(), containsInAnyOrder(expectedLogInfo.toArray(new LogInfo[0])));
-	}
+        assertThat(
+                logListInfo.getLogInfos(),
+                containsInAnyOrder(expectedLogInfo.toArray(new LogInfo[0])));
+    }
 
-	@Test
-	public void testGetJobManagerLogsListWhenLogDirIsNull() throws Exception {
-		JobManagerLogListHandler jobManagerLogListHandler = createHandler(null);
-		LogListInfo logListInfo = jobManagerLogListHandler.handleRequest(testRequest, dispatcherGateway).get();
+    @Test
+    public void testGetJobManagerLogsListWhenLogDirIsNull() throws Exception {
+        JobManagerLogListHandler jobManagerLogListHandler = createHandler(null);
+        LogListInfo logListInfo =
+                jobManagerLogListHandler.handleRequest(testRequest, dispatcherGateway).get();
 
-		assertThat(logListInfo.getLogInfos(), is(empty()));
-	}
+        assertThat(logListInfo.getLogInfos(), is(empty()));
+    }
 
-	private JobManagerLogListHandler createHandler(@Nullable final File jobManagerLogRoot) {
-		return new JobManagerLogListHandler(
-			() -> CompletableFuture.completedFuture(dispatcherGateway),
-			TestingUtils.TIMEOUT(),
-			Collections.emptyMap(),
-			JobManagerLogListHeaders.getInstance(),
-			jobManagerLogRoot);
-	}
+    private JobManagerLogListHandler createHandler(@Nullable final File jobManagerLogRoot) {
+        return new JobManagerLogListHandler(
+                () -> CompletableFuture.completedFuture(dispatcherGateway),
+                TestingUtils.TIMEOUT(),
+                Collections.emptyMap(),
+                JobManagerLogListHeaders.getInstance(),
+                jobManagerLogRoot);
+    }
 
-	private void createLogFiles(final File logRoot, final List<LogInfo> expectedLogFiles) {
-		for (LogInfo logInfo : expectedLogFiles) {
-			createFile(new File(logRoot, logInfo.getName()), logInfo.getSize());
-		}
-	}
+    private void createLogFiles(final File logRoot, final List<LogInfo> expectedLogFiles) {
+        for (LogInfo logInfo : expectedLogFiles) {
+            createFile(new File(logRoot, logInfo.getName()), logInfo.getSize());
+        }
+    }
 
-	private void createFile(final File file, final long size) {
-		try {
-			final String randomFileContent = StringUtils.generateRandomAlphanumericString(
-				ThreadLocalRandom.current(),
-				Math.toIntExact(size));
-			FileUtils.writeStringToFile(file, randomFileContent, StandardCharsets.UTF_8);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private void createFile(final File file, final long size) {
+        try {
+            final String randomFileContent =
+                    StringUtils.generateRandomAlphanumericString(
+                            ThreadLocalRandom.current(), Math.toIntExact(size));
+            FileUtils.writeStringToFile(file, randomFileContent, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

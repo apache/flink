@@ -39,11 +39,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Batch {@link ExecNode} for multiple input which contains a sub-graph of {@link ExecNode}s.
- * The root node of the sub-graph is {@link #rootNode}, and the leaf nodes of the sub-graph are
- * the output nodes of the {@link #getInputNodes()}.
+ * Batch {@link ExecNode} for multiple input which contains a sub-graph of {@link ExecNode}s. The
+ * root node of the sub-graph is {@link #rootNode}, and the leaf nodes of the sub-graph are the
+ * output nodes of the {@link #getInputNodes()}.
  *
  * <p>The following example shows a graph of {@code ExecNode}s with multiple input node:
+ *
  * <pre>{@code
  *          Sink
  *           |
@@ -60,60 +61,64 @@ import java.util.stream.Collectors;
  *    Scan1   Scan2
  * }</pre>
  *
- * <p>The multiple input node contains three nodes: `Join`, `Agg1` and `Agg2`.
- * `Join` is the root node ({@link #rootNode}) of the sub-graph,
- * `Agg1` and `Agg2` are the leaf nodes of the sub-graph,
+ * <p>The multiple input node contains three nodes: `Join`, `Agg1` and `Agg2`. `Join` is the root
+ * node ({@link #rootNode}) of the sub-graph, `Agg1` and `Agg2` are the leaf nodes of the sub-graph,
  * `Exchange1` and `Exchange2` are the input nodes of the multiple input node.
  */
-public class BatchExecMultipleInput extends ExecNodeBase<RowData> implements BatchExecNode<RowData> {
+public class BatchExecMultipleInput extends ExecNodeBase<RowData>
+        implements BatchExecNode<RowData> {
 
-	private final ExecNode<?> rootNode;
+    private final ExecNode<?> rootNode;
 
-	public BatchExecMultipleInput(
-			List<ExecEdge> inputEdges,
-			ExecNode<?> rootNode,
-			String description) {
-		super(inputEdges, rootNode.getOutputType(), description);
-		this.rootNode = rootNode;
-	}
+    public BatchExecMultipleInput(
+            List<ExecEdge> inputEdges, ExecNode<?> rootNode, String description) {
+        super(inputEdges, rootNode.getOutputType(), description);
+        this.rootNode = rootNode;
+    }
 
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final List<Transformation<?>> inputTransforms = new ArrayList<>();
-		for (ExecNode<?> input : getInputNodes()) {
-			inputTransforms.add(input.translateToPlan(planner));
-		}
-		final Transformation<?> outputTransform = rootNode.translateToPlan(planner);
-		final int[] readOrders = getInputEdges().stream().map(ExecEdge::getPriority).mapToInt(i -> i).toArray();
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final List<Transformation<?>> inputTransforms = new ArrayList<>();
+        for (ExecNode<?> input : getInputNodes()) {
+            inputTransforms.add(input.translateToPlan(planner));
+        }
+        final Transformation<?> outputTransform = rootNode.translateToPlan(planner);
+        final int[] readOrders =
+                getInputEdges().stream().map(ExecEdge::getPriority).mapToInt(i -> i).toArray();
 
-		final TableOperatorWrapperGenerator generator = new TableOperatorWrapperGenerator(
-				inputTransforms, outputTransform, readOrders);
-		generator.generate();
+        final TableOperatorWrapperGenerator generator =
+                new TableOperatorWrapperGenerator(inputTransforms, outputTransform, readOrders);
+        generator.generate();
 
-		final List<Pair<Transformation<?>, InputSpec>> inputTransformAndInputSpecPairs =
-				generator.getInputTransformAndInputSpecPairs();
+        final List<Pair<Transformation<?>, InputSpec>> inputTransformAndInputSpecPairs =
+                generator.getInputTransformAndInputSpecPairs();
 
-		final MultipleInputTransformation<RowData> multipleInputTransform = new MultipleInputTransformation<>(
-				getDesc(),
-				new BatchMultipleInputStreamOperatorFactory(
-						inputTransformAndInputSpecPairs.stream().map(Pair::getValue).collect(Collectors.toList()),
-						generator.getHeadWrappers(),
-						generator.getTailWrapper()),
-				InternalTypeInfo.of(getOutputType()),
-				generator.getParallelism());
-		inputTransformAndInputSpecPairs.forEach(input -> multipleInputTransform.addInput(input.getKey()));
+        final MultipleInputTransformation<RowData> multipleInputTransform =
+                new MultipleInputTransformation<>(
+                        getDesc(),
+                        new BatchMultipleInputStreamOperatorFactory(
+                                inputTransformAndInputSpecPairs.stream()
+                                        .map(Pair::getValue)
+                                        .collect(Collectors.toList()),
+                                generator.getHeadWrappers(),
+                                generator.getTailWrapper()),
+                        InternalTypeInfo.of(getOutputType()),
+                        generator.getParallelism());
+        inputTransformAndInputSpecPairs.forEach(
+                input -> multipleInputTransform.addInput(input.getKey()));
 
-		if (generator.getMaxParallelism() > 0) {
-			multipleInputTransform.setMaxParallelism(generator.getMaxParallelism());
-		}
-		// set resources
-		multipleInputTransform.setResources(generator.getMinResources(), generator.getPreferredResources());
-		long memoryKB = generator.getManagedMemoryWeight();
-		ExecNodeUtil.setManagedMemoryWeight(multipleInputTransform, memoryKB * 1024L);
+        if (generator.getMaxParallelism() > 0) {
+            multipleInputTransform.setMaxParallelism(generator.getMaxParallelism());
+        }
+        // set resources
+        multipleInputTransform.setResources(
+                generator.getMinResources(), generator.getPreferredResources());
+        long memoryKB = generator.getManagedMemoryWeight();
+        ExecNodeUtil.setManagedMemoryWeight(multipleInputTransform, memoryKB * 1024L);
 
-		// set chaining strategy for source chaining
-		multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
+        // set chaining strategy for source chaining
+        multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
 
-		return multipleInputTransform;
-	}
+        return multipleInputTransform;
+    }
 }

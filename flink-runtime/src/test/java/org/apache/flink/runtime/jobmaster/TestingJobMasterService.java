@@ -26,65 +26,59 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Implementation of the {@link JobMasterService} for testing purposes.
- */
+/** Implementation of the {@link JobMasterService} for testing purposes. */
 public class TestingJobMasterService implements JobMasterService {
 
-	@Nonnull
-	private final String address;
+    @Nonnull private final String address;
 
-	private final JobMasterGateway jobMasterGateway;
+    private final JobMasterGateway jobMasterGateway;
 
-	private final CompletableFuture<Void> terminationFuture;
+    private final CompletableFuture<Void> terminationFuture;
 
-	private final boolean completeTerminationFutureOnCloseAsync;
+    private final boolean completeTerminationFutureOnCloseAsync;
 
-	public TestingJobMasterService(
-			@Nonnull String address,
-			@Nullable CompletableFuture<Void> terminationFuture) {
-		this.address = address;
+    public TestingJobMasterService(
+            @Nonnull String address, @Nullable CompletableFuture<Void> terminationFuture) {
+        this.address = address;
 
-		jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
+        jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
 
-		if (terminationFuture == null) {
-			this.terminationFuture = new CompletableFuture<>();
-			this.completeTerminationFutureOnCloseAsync = true;
-		} else {
-			this.terminationFuture = terminationFuture;
-			this.completeTerminationFutureOnCloseAsync = false;
-		}
+        if (terminationFuture == null) {
+            this.terminationFuture = new CompletableFuture<>();
+            this.completeTerminationFutureOnCloseAsync = true;
+        } else {
+            this.terminationFuture = terminationFuture;
+            this.completeTerminationFutureOnCloseAsync = false;
+        }
+    }
 
-	}
+    public TestingJobMasterService() {
+        this("localhost", null);
+    }
 
-	public TestingJobMasterService() {
-		this(
-			"localhost",
-			null);
-	}
+    @Override
+    public JobMasterGateway getGateway() {
+        Preconditions.checkNotNull(
+                jobMasterGateway, "TestingJobMasterService has not been started yet.");
+        return jobMasterGateway;
+    }
 
-	@Override
-	public JobMasterGateway getGateway() {
-		Preconditions.checkNotNull(jobMasterGateway, "TestingJobMasterService has not been started yet.");
-		return jobMasterGateway;
-	}
+    @Override
+    public String getAddress() {
+        return address;
+    }
 
-	@Override
-	public String getAddress() {
-		return address;
-	}
+    @Override
+    public CompletableFuture<Void> getTerminationFuture() {
+        return terminationFuture;
+    }
 
-	@Override
-	public CompletableFuture<Void> getTerminationFuture() {
-		return terminationFuture;
-	}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        if (completeTerminationFutureOnCloseAsync) {
+            terminationFuture.complete(null);
+        }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		if (completeTerminationFutureOnCloseAsync) {
-			terminationFuture.complete(null);
-		}
-
-		return terminationFuture;
-	}
+        return terminationFuture;
+    }
 }

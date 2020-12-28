@@ -63,302 +63,300 @@ import static org.apache.flink.runtime.concurrent.Executors.directExecutor;
  * @param <IN> type of PubSubSink messages to write
  */
 public class PubSubSink<IN> extends RichSinkFunction<IN> implements CheckpointedFunction {
-	private static final Logger LOG = LoggerFactory.getLogger(PubSubSink.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PubSubSink.class);
 
-	private final AtomicReference<Exception> exceptionAtomicReference;
-	private final ApiFutureCallback<String> failureHandler;
-	private final AtomicInteger numPendingFutures;
-	private final Credentials credentials;
-	private final SerializationSchema<IN> serializationSchema;
-	private final String projectName;
-	private final String topicName;
-	private final String hostAndPortForEmulator;
+    private final AtomicReference<Exception> exceptionAtomicReference;
+    private final ApiFutureCallback<String> failureHandler;
+    private final AtomicInteger numPendingFutures;
+    private final Credentials credentials;
+    private final SerializationSchema<IN> serializationSchema;
+    private final String projectName;
+    private final String topicName;
+    private final String hostAndPortForEmulator;
 
-	private transient Publisher publisher;
-	private volatile boolean isRunning;
+    private transient Publisher publisher;
+    private volatile boolean isRunning;
 
-	private PubSubSink(
-		Credentials credentials,
-		SerializationSchema<IN> serializationSchema,
-		String projectName,
-		String topicName,
-		String hostAndPortForEmulator) {
-		this.exceptionAtomicReference = new AtomicReference<>();
-		this.failureHandler = new FailureHandler();
-		this.numPendingFutures = new AtomicInteger(0);
-		this.credentials = credentials;
-		this.serializationSchema = serializationSchema;
-		this.projectName = projectName;
-		this.topicName = topicName;
-		this.hostAndPortForEmulator = hostAndPortForEmulator;
-	}
+    private PubSubSink(
+            Credentials credentials,
+            SerializationSchema<IN> serializationSchema,
+            String projectName,
+            String topicName,
+            String hostAndPortForEmulator) {
+        this.exceptionAtomicReference = new AtomicReference<>();
+        this.failureHandler = new FailureHandler();
+        this.numPendingFutures = new AtomicInteger(0);
+        this.credentials = credentials;
+        this.serializationSchema = serializationSchema;
+        this.projectName = projectName;
+        this.topicName = topicName;
+        this.hostAndPortForEmulator = hostAndPortForEmulator;
+    }
 
-	private transient ManagedChannel managedChannel = null;
-	private transient TransportChannel channel = null;
+    private transient ManagedChannel managedChannel = null;
+    private transient TransportChannel channel = null;
 
-	@Override
-	public void open(Configuration configuration) throws Exception {
-		serializationSchema.open(RuntimeContextInitializationContextAdapters.serializationAdapter(
-				getRuntimeContext(),
-				metricGroup -> metricGroup.addGroup("user")
-		));
+    @Override
+    public void open(Configuration configuration) throws Exception {
+        serializationSchema.open(
+                RuntimeContextInitializationContextAdapters.serializationAdapter(
+                        getRuntimeContext(), metricGroup -> metricGroup.addGroup("user")));
 
-		Publisher.Builder builder = Publisher
-			.newBuilder(TopicName.of(projectName, topicName))
-			.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
+        Publisher.Builder builder =
+                Publisher.newBuilder(TopicName.of(projectName, topicName))
+                        .setCredentialsProvider(FixedCredentialsProvider.create(credentials));
 
-		// Having the host and port for the emulator means we are in a testing scenario.
-		if (hostAndPortForEmulator != null) {
-			managedChannel = ManagedChannelBuilder
-				.forTarget(hostAndPortForEmulator)
-				.usePlaintext() // This is 'Ok' because this is ONLY used for testing.
-				.build();
-			channel = GrpcTransportChannel.newBuilder().setManagedChannel(managedChannel).build();
-			builder.setChannelProvider(FixedTransportChannelProvider.create(channel))
-					.setCredentialsProvider(EmulatorCredentialsProvider.create())
-					// In test scenarios we are limiting the Retry settings.
-					// The values here are based on the default settings with lower attempts and timeouts.
-					.setRetrySettings(
-						RetrySettings.newBuilder()
-							.setMaxAttempts(10)
-							.setTotalTimeout(Duration.ofSeconds(10))
-							.setInitialRetryDelay(Duration.ofMillis(100))
-							.setRetryDelayMultiplier(1.3)
-							.setMaxRetryDelay(Duration.ofSeconds(5))
-							.setInitialRpcTimeout(Duration.ofSeconds(5))
-							.setRpcTimeoutMultiplier(1)
-							.setMaxRpcTimeout(Duration.ofSeconds(10))
-							.build());
-		}
+        // Having the host and port for the emulator means we are in a testing scenario.
+        if (hostAndPortForEmulator != null) {
+            managedChannel =
+                    ManagedChannelBuilder.forTarget(hostAndPortForEmulator)
+                            .usePlaintext() // This is 'Ok' because this is ONLY used for testing.
+                            .build();
+            channel = GrpcTransportChannel.newBuilder().setManagedChannel(managedChannel).build();
+            builder.setChannelProvider(FixedTransportChannelProvider.create(channel))
+                    .setCredentialsProvider(EmulatorCredentialsProvider.create())
+                    // In test scenarios we are limiting the Retry settings.
+                    // The values here are based on the default settings with lower attempts and
+                    // timeouts.
+                    .setRetrySettings(
+                            RetrySettings.newBuilder()
+                                    .setMaxAttempts(10)
+                                    .setTotalTimeout(Duration.ofSeconds(10))
+                                    .setInitialRetryDelay(Duration.ofMillis(100))
+                                    .setRetryDelayMultiplier(1.3)
+                                    .setMaxRetryDelay(Duration.ofSeconds(5))
+                                    .setInitialRpcTimeout(Duration.ofSeconds(5))
+                                    .setRpcTimeoutMultiplier(1)
+                                    .setMaxRpcTimeout(Duration.ofSeconds(10))
+                                    .build());
+        }
 
-		publisher = builder.build();
-		isRunning = true;
-	}
+        publisher = builder.build();
+        isRunning = true;
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		shutdownPublisher();
-		shutdownTransportChannel();
-		shutdownManagedChannel();
-		isRunning = false;
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        shutdownPublisher();
+        shutdownTransportChannel();
+        shutdownManagedChannel();
+        isRunning = false;
+    }
 
-	private void shutdownPublisher() {
-		try {
-			if (publisher != null) {
-				publisher.shutdown();
-			}
-		} catch (Exception e) {
-			LOG.info("Shutting down Publisher failed.", e);
-		}
-	}
+    private void shutdownPublisher() {
+        try {
+            if (publisher != null) {
+                publisher.shutdown();
+            }
+        } catch (Exception e) {
+            LOG.info("Shutting down Publisher failed.", e);
+        }
+    }
 
-	private void shutdownTransportChannel() {
-		if (channel == null) {
-			return;
-		}
-		try {
-			channel.close();
-		} catch (Exception e) {
-			LOG.info("Shutting down TransportChannel failed.", e);
-		}
-	}
+    private void shutdownTransportChannel() {
+        if (channel == null) {
+            return;
+        }
+        try {
+            channel.close();
+        } catch (Exception e) {
+            LOG.info("Shutting down TransportChannel failed.", e);
+        }
+    }
 
-	private void shutdownManagedChannel() {
-		if (managedChannel == null) {
-			return;
-		}
-		try {
-			managedChannel.shutdownNow();
-			managedChannel.awaitTermination(1000L, TimeUnit.MILLISECONDS);
-		} catch (Exception e) {
-			LOG.info("Shutting down ManagedChannel failed.", e);
-		}
-	}
+    private void shutdownManagedChannel() {
+        if (managedChannel == null) {
+            return;
+        }
+        try {
+            managedChannel.shutdownNow();
+            managedChannel.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            LOG.info("Shutting down ManagedChannel failed.", e);
+        }
+    }
 
-	@Override
-	public void invoke(IN message, SinkFunction.Context context) {
-		PubsubMessage pubsubMessage = PubsubMessage
-			.newBuilder()
-			.setData(ByteString.copyFrom(serializationSchema.serialize(message)))
-			.build();
+    @Override
+    public void invoke(IN message, SinkFunction.Context context) {
+        PubsubMessage pubsubMessage =
+                PubsubMessage.newBuilder()
+                        .setData(ByteString.copyFrom(serializationSchema.serialize(message)))
+                        .build();
 
-		ApiFuture<String> future = publisher.publish(pubsubMessage);
-		numPendingFutures.incrementAndGet();
-		ApiFutures.addCallback(future, failureHandler, directExecutor());
-	}
+        ApiFuture<String> future = publisher.publish(pubsubMessage);
+        numPendingFutures.incrementAndGet();
+        ApiFutures.addCallback(future, failureHandler, directExecutor());
+    }
 
-	/**
-	 * Create a builder for a new PubSubSink.
-	 *
-	 * @return a new PubSubSinkBuilder instance
-	 */
-	public static SerializationSchemaBuilder newBuilder() {
-		return new SerializationSchemaBuilder();
-	}
+    /**
+     * Create a builder for a new PubSubSink.
+     *
+     * @return a new PubSubSinkBuilder instance
+     */
+    public static SerializationSchemaBuilder newBuilder() {
+        return new SerializationSchemaBuilder();
+    }
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		//before checkpoints make sure all the batched / buffered pubsub messages have actually been sent
-		publisher.publishAllOutstanding();
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        // before checkpoints make sure all the batched / buffered pubsub messages have actually
+        // been sent
+        publisher.publishAllOutstanding();
 
-		// At this point, no new messages will be published because this thread has successfully acquired
-		// the checkpoint lock. So we just wait for all the pending futures to complete.
-		waitForFuturesToComplete();
-		if (exceptionAtomicReference.get() != null) {
-			throw exceptionAtomicReference.get();
-		}
-	}
+        // At this point, no new messages will be published because this thread has successfully
+        // acquired
+        // the checkpoint lock. So we just wait for all the pending futures to complete.
+        waitForFuturesToComplete();
+        if (exceptionAtomicReference.get() != null) {
+            throw exceptionAtomicReference.get();
+        }
+    }
 
-	private void waitForFuturesToComplete() {
-		// We have to synchronize on numPendingFutures here to ensure the notification won't be missed.
-		synchronized (numPendingFutures) {
-			while (isRunning && numPendingFutures.get() > 0) {
-				try {
-					numPendingFutures.wait();
-				} catch (InterruptedException e) {
-					// Simply cache the interrupted exception. Supposedly the thread will exit the loop
-					// gracefully when it checks the isRunning flag.
-					LOG.info("Interrupted when waiting for futures to complete");
-				}
-			}
-		}
-	}
+    private void waitForFuturesToComplete() {
+        // We have to synchronize on numPendingFutures here to ensure the notification won't be
+        // missed.
+        synchronized (numPendingFutures) {
+            while (isRunning && numPendingFutures.get() > 0) {
+                try {
+                    numPendingFutures.wait();
+                } catch (InterruptedException e) {
+                    // Simply cache the interrupted exception. Supposedly the thread will exit the
+                    // loop
+                    // gracefully when it checks the isRunning flag.
+                    LOG.info("Interrupted when waiting for futures to complete");
+                }
+            }
+        }
+    }
 
-	@Override
-	public void initializeState(FunctionInitializationContext context) {
-	}
+    @Override
+    public void initializeState(FunctionInitializationContext context) {}
 
-	/**
-	 * PubSubSinkBuilder to create a PubSubSink.
-	 *
-	 * @param <IN> Type of PubSubSink to create.
-	 */
-	public static class PubSubSinkBuilder<IN> implements ProjectNameBuilder<IN>, TopicNameBuilder<IN> {
-		private SerializationSchema<IN> serializationSchema;
-		private String projectName;
-		private String topicName;
+    /**
+     * PubSubSinkBuilder to create a PubSubSink.
+     *
+     * @param <IN> Type of PubSubSink to create.
+     */
+    public static class PubSubSinkBuilder<IN>
+            implements ProjectNameBuilder<IN>, TopicNameBuilder<IN> {
+        private SerializationSchema<IN> serializationSchema;
+        private String projectName;
+        private String topicName;
 
-		private Credentials credentials;
-		private String hostAndPort;
+        private Credentials credentials;
+        private String hostAndPort;
 
-		private PubSubSinkBuilder(SerializationSchema<IN> serializationSchema) {
-			this.serializationSchema = serializationSchema;
-		}
+        private PubSubSinkBuilder(SerializationSchema<IN> serializationSchema) {
+            this.serializationSchema = serializationSchema;
+        }
 
-		/**
-		 * Set the credentials.
-		 * If this is not used then the credentials are picked up from the environment variables.
-		 *
-		 * @param credentials the Credentials needed to connect.
-		 * @return The current PubSubSinkBuilder instance
-		 */
-		public PubSubSinkBuilder<IN> withCredentials(Credentials credentials) {
-			this.credentials = credentials;
-			return this;
-		}
+        /**
+         * Set the credentials. If this is not used then the credentials are picked up from the
+         * environment variables.
+         *
+         * @param credentials the Credentials needed to connect.
+         * @return The current PubSubSinkBuilder instance
+         */
+        public PubSubSinkBuilder<IN> withCredentials(Credentials credentials) {
+            this.credentials = credentials;
+            return this;
+        }
 
-		@Override
-		public TopicNameBuilder<IN> withProjectName(String projectName) {
-			Preconditions.checkNotNull(projectName);
-			this.projectName = projectName;
-			return this;
-		}
+        @Override
+        public TopicNameBuilder<IN> withProjectName(String projectName) {
+            Preconditions.checkNotNull(projectName);
+            this.projectName = projectName;
+            return this;
+        }
 
-		@Override
-		public PubSubSinkBuilder<IN> withTopicName(String topicName) {
-			Preconditions.checkNotNull(topicName);
-			this.topicName = topicName;
-			return this;
-		}
+        @Override
+        public PubSubSinkBuilder<IN> withTopicName(String topicName) {
+            Preconditions.checkNotNull(topicName);
+            this.topicName = topicName;
+            return this;
+        }
 
-		/**
-		 * Set the custom hostname/port combination of PubSub.
-		 * The ONLY reason to use this is during tests with the emulator provided by Google.
-		 *
-		 * @param hostAndPort The combination of hostname and port to connect to ("hostname:1234")
-		 * @return The current PubSubSinkBuilder instance
-		 */
-		public PubSubSinkBuilder<IN> withHostAndPortForEmulator(String hostAndPort) {
-			this.hostAndPort = hostAndPort;
-			return this;
-		}
+        /**
+         * Set the custom hostname/port combination of PubSub. The ONLY reason to use this is during
+         * tests with the emulator provided by Google.
+         *
+         * @param hostAndPort The combination of hostname and port to connect to ("hostname:1234")
+         * @return The current PubSubSinkBuilder instance
+         */
+        public PubSubSinkBuilder<IN> withHostAndPortForEmulator(String hostAndPort) {
+            this.hostAndPort = hostAndPort;
+            return this;
+        }
 
-		/**
-		 * Actually builder the desired instance of the PubSubSink.
-		 *
-		 * @return a brand new PubSubSink
-		 * @throws IOException              in case of a problem getting the credentials
-		 * @throws IllegalArgumentException in case required fields were not specified.
-		 */
-		public PubSubSink<IN> build() throws IOException {
-			if (credentials == null) {
-				if (hostAndPort == null) {
-					// No hostAndPort is the normal scenario so we use the default credentials.
-					credentials = defaultCredentialsProviderBuilder().build().getCredentials();
-				} else {
-					// With hostAndPort the PubSub emulator is used so we do not have credentials.
-					credentials = EmulatorCredentials.getInstance();
-				}
-			}
-			return new PubSubSink<>(credentials, serializationSchema, projectName, topicName, hostAndPort);
-		}
-	}
+        /**
+         * Actually builder the desired instance of the PubSubSink.
+         *
+         * @return a brand new PubSubSink
+         * @throws IOException in case of a problem getting the credentials
+         * @throws IllegalArgumentException in case required fields were not specified.
+         */
+        public PubSubSink<IN> build() throws IOException {
+            if (credentials == null) {
+                if (hostAndPort == null) {
+                    // No hostAndPort is the normal scenario so we use the default credentials.
+                    credentials = defaultCredentialsProviderBuilder().build().getCredentials();
+                } else {
+                    // With hostAndPort the PubSub emulator is used so we do not have credentials.
+                    credentials = EmulatorCredentials.getInstance();
+                }
+            }
+            return new PubSubSink<>(
+                    credentials, serializationSchema, projectName, topicName, hostAndPort);
+        }
+    }
 
-	/**
-	 * Part of {@link PubSubSinkBuilder} to set required fields.
-	 */
-	public static class SerializationSchemaBuilder {
-		/**
-		 * Set the SerializationSchema used to Serialize objects to be added as payloads of PubSubMessages.
-		 */
-		public <IN> ProjectNameBuilder<IN> withSerializationSchema(SerializationSchema<IN> deserializationSchema) {
-			return new PubSubSinkBuilder<>(deserializationSchema);
-		}
-	}
+    /** Part of {@link PubSubSinkBuilder} to set required fields. */
+    public static class SerializationSchemaBuilder {
+        /**
+         * Set the SerializationSchema used to Serialize objects to be added as payloads of
+         * PubSubMessages.
+         */
+        public <IN> ProjectNameBuilder<IN> withSerializationSchema(
+                SerializationSchema<IN> deserializationSchema) {
+            return new PubSubSinkBuilder<>(deserializationSchema);
+        }
+    }
 
-	/**
-	 * Part of {@link PubSubSinkBuilder} to set required fields.
-	 */
-	public interface ProjectNameBuilder<IN> {
-		/**
-		 * Set the project name of the subscription to pull messages from.
-		 */
-		TopicNameBuilder<IN> withProjectName(String projectName);
-	}
+    /** Part of {@link PubSubSinkBuilder} to set required fields. */
+    public interface ProjectNameBuilder<IN> {
+        /** Set the project name of the subscription to pull messages from. */
+        TopicNameBuilder<IN> withProjectName(String projectName);
+    }
 
-	/**
-	 * Part of {@link PubSubSinkBuilder} to set required fields.
-	 */
-	public interface TopicNameBuilder<IN> {
-		/**
-		 * Set the subscription name of the subscription to pull messages from.
-		 */
-		PubSubSinkBuilder<IN> withTopicName(String topicName);
-	}
+    /** Part of {@link PubSubSinkBuilder} to set required fields. */
+    public interface TopicNameBuilder<IN> {
+        /** Set the subscription name of the subscription to pull messages from. */
+        PubSubSinkBuilder<IN> withTopicName(String topicName);
+    }
 
-	private class FailureHandler implements ApiFutureCallback<String>, Serializable {
-		@Override
-		public void onFailure(Throwable t) {
-			ackAndMaybeNotifyNoPendingFutures();
-			exceptionAtomicReference.set(new RuntimeException("Failed trying to publish message", t));
-		}
+    private class FailureHandler implements ApiFutureCallback<String>, Serializable {
+        @Override
+        public void onFailure(Throwable t) {
+            ackAndMaybeNotifyNoPendingFutures();
+            exceptionAtomicReference.set(
+                    new RuntimeException("Failed trying to publish message", t));
+        }
 
-		@Override
-		public void onSuccess(String result) {
-			ackAndMaybeNotifyNoPendingFutures();
-			LOG.debug("Successfully published message with id: {}", result);
-		}
+        @Override
+        public void onSuccess(String result) {
+            ackAndMaybeNotifyNoPendingFutures();
+            LOG.debug("Successfully published message with id: {}", result);
+        }
 
-		private void ackAndMaybeNotifyNoPendingFutures() {
-			// When there are no pending futures anymore, notify the thread that is waiting for
-			// all the pending futures to be completed.
-			if (numPendingFutures.decrementAndGet() == 0) {
-				synchronized (numPendingFutures) {
-					numPendingFutures.notify();
-				}
-			}
-		}
-	}
+        private void ackAndMaybeNotifyNoPendingFutures() {
+            // When there are no pending futures anymore, notify the thread that is waiting for
+            // all the pending futures to be completed.
+            if (numPendingFutures.decrementAndGet() == 0) {
+                synchronized (numPendingFutures) {
+                    numPendingFutures.notify();
+                }
+            }
+        }
+    }
 }

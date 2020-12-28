@@ -38,82 +38,78 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType;
 
-/**
- * Abstract class to resolve the expressions in {@link DeclarativeAggregateFunction}.
- */
-public abstract class DeclarativeExpressionResolver extends ExpressionDefaultVisitor<ResolvedExpression> {
+/** Abstract class to resolve the expressions in {@link DeclarativeAggregateFunction}. */
+public abstract class DeclarativeExpressionResolver
+        extends ExpressionDefaultVisitor<ResolvedExpression> {
 
-	private final DeclarativeAggregateFunction function;
-	private final boolean isMerge;
-	private final CallExpressionResolver resolver;
+    private final DeclarativeAggregateFunction function;
+    private final boolean isMerge;
+    private final CallExpressionResolver resolver;
 
-	public DeclarativeExpressionResolver(
-		RelBuilder relBuilder, DeclarativeAggregateFunction function, boolean isMerge) {
-		this.function = function;
-		this.isMerge = isMerge;
-		this.resolver = new CallExpressionResolver(relBuilder);
-	}
+    public DeclarativeExpressionResolver(
+            RelBuilder relBuilder, DeclarativeAggregateFunction function, boolean isMerge) {
+        this.function = function;
+        this.isMerge = isMerge;
+        this.resolver = new CallExpressionResolver(relBuilder);
+    }
 
-	@Override
-	protected ResolvedExpression defaultMethod(Expression expression) {
-		if (expression instanceof UnresolvedReferenceExpression) {
-			UnresolvedReferenceExpression expr = (UnresolvedReferenceExpression) expression;
-			String name = expr.getName();
-			int localIndex = ArrayUtils.indexOf(function.aggBufferAttributes(), expr);
-			if (localIndex == -1) {
-				// We always use UnresolvedFieldReference to represent reference of input field.
-				// In non-merge case, the input is operand of the aggregate function. But in merge
-				// case, the input is aggregate buffers which sent by local aggregate.
-				if (isMerge) {
-					return toMergeInputExpr(name, ArrayUtils.indexOf(function.mergeOperands(), expr));
-				} else {
-					return toAccInputExpr(name, ArrayUtils.indexOf(function.operands(), expr));
-				}
-			} else {
-				return toAggBufferExpr(name, localIndex);
-			}
-		} else if (expression instanceof UnresolvedCallExpression) {
-			UnresolvedCallExpression unresolvedCall = (UnresolvedCallExpression) expression;
-			return resolver.resolve(ApiExpressionUtils.unresolvedCall(
-				unresolvedCall.getFunctionDefinition(),
-				unresolvedCall.getChildren().stream()
-					.map(c -> c.accept(DeclarativeExpressionResolver.this))
-					.collect(Collectors.toList())));
-		} else if (expression instanceof ResolvedExpression) {
-			return (ResolvedExpression) expression;
-		} else {
-			return resolver.resolve(expression);
-		}
-	}
+    @Override
+    protected ResolvedExpression defaultMethod(Expression expression) {
+        if (expression instanceof UnresolvedReferenceExpression) {
+            UnresolvedReferenceExpression expr = (UnresolvedReferenceExpression) expression;
+            String name = expr.getName();
+            int localIndex = ArrayUtils.indexOf(function.aggBufferAttributes(), expr);
+            if (localIndex == -1) {
+                // We always use UnresolvedFieldReference to represent reference of input field.
+                // In non-merge case, the input is operand of the aggregate function. But in merge
+                // case, the input is aggregate buffers which sent by local aggregate.
+                if (isMerge) {
+                    return toMergeInputExpr(
+                            name, ArrayUtils.indexOf(function.mergeOperands(), expr));
+                } else {
+                    return toAccInputExpr(name, ArrayUtils.indexOf(function.operands(), expr));
+                }
+            } else {
+                return toAggBufferExpr(name, localIndex);
+            }
+        } else if (expression instanceof UnresolvedCallExpression) {
+            UnresolvedCallExpression unresolvedCall = (UnresolvedCallExpression) expression;
+            return resolver.resolve(
+                    ApiExpressionUtils.unresolvedCall(
+                            unresolvedCall.getFunctionDefinition(),
+                            unresolvedCall.getChildren().stream()
+                                    .map(c -> c.accept(DeclarativeExpressionResolver.this))
+                                    .collect(Collectors.toList())));
+        } else if (expression instanceof ResolvedExpression) {
+            return (ResolvedExpression) expression;
+        } else {
+            return resolver.resolve(expression);
+        }
+    }
 
-	/**
-	 * When merge phase, for inputs.
-	 */
-	public abstract ResolvedExpression toMergeInputExpr(String name, int localIndex);
+    /** When merge phase, for inputs. */
+    public abstract ResolvedExpression toMergeInputExpr(String name, int localIndex);
 
-	/**
-	 * When accumulate phase, for inputs.
-	 */
-	public abstract ResolvedExpression toAccInputExpr(String name, int localIndex);
+    /** When accumulate phase, for inputs. */
+    public abstract ResolvedExpression toAccInputExpr(String name, int localIndex);
 
-	/**
-	 * For aggregate buffer.
-	 */
-	public abstract ResolvedExpression toAggBufferExpr(String name, int localIndex);
+    /** For aggregate buffer. */
+    public abstract ResolvedExpression toAggBufferExpr(String name, int localIndex);
 
-	public static ResolvedExpression toRexInputRef(RelBuilder builder, int i, LogicalType t) {
-		RelDataType tp = ((FlinkTypeFactory) builder.getTypeFactory())
-			.createFieldTypeFromLogicalType(t);
-		return new RexNodeExpression(new RexInputRef(i, tp), fromLogicalTypeToDataType(t));
-	}
+    public static ResolvedExpression toRexInputRef(RelBuilder builder, int i, LogicalType t) {
+        RelDataType tp =
+                ((FlinkTypeFactory) builder.getTypeFactory()).createFieldTypeFromLogicalType(t);
+        return new RexNodeExpression(new RexInputRef(i, tp), fromLogicalTypeToDataType(t));
+    }
 
-	public static ResolvedExpression toRexDistinctKey(RelBuilder builder, String name, LogicalType t) {
-		return new RexNodeExpression(
-			new RexDistinctKeyVariable(
-				name,
-				((FlinkTypeFactory) builder.getTypeFactory())
-					.createFieldTypeFromLogicalType(t),
-				t),
-			fromLogicalTypeToDataType(t));
-	}
+    public static ResolvedExpression toRexDistinctKey(
+            RelBuilder builder, String name, LogicalType t) {
+        return new RexNodeExpression(
+                new RexDistinctKeyVariable(
+                        name,
+                        ((FlinkTypeFactory) builder.getTypeFactory())
+                                .createFieldTypeFromLogicalType(t),
+                        t),
+                fromLogicalTypeToDataType(t));
+    }
 }

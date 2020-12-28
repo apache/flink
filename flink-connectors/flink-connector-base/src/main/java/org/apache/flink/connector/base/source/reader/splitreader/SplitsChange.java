@@ -21,21 +21,16 @@ package org.apache.flink.connector.base.source.reader.splitreader;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * An abstract class to host splits change.
- */
+/** An abstract class to host splits change. */
 public abstract class SplitsChange<SplitT> {
-	private final List<SplitT> splits;
+    private final List<SplitT> splits;
 
-	SplitsChange(List<SplitT> splits) {
-		this.splits = splits;
-	}
+    SplitsChange(List<SplitT> splits) {
+        this.splits = splits;
+    }
 
-	/**
-	 * @return the list of splits.
-	 */
-	public List<SplitT> splits() {
-		return Collections.unmodifiableList(splits);
-	}
-
+    /** @return the list of splits. */
+    public List<SplitT> splits() {
+        return Collections.unmodifiableList(splits);
+    }
 }

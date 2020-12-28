@@ -26,24 +26,20 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link MesosWorkerStore}.
- */
+/** Tests for the {@link MesosWorkerStore}. */
 public class MesosWorkerStoreTest extends TestLogger {
 
-	/**
-	 * Tests that {@link MesosWorkerStore.Worker} is serializable.
-	 */
-	@Test
-	public void workerIsSerializable() {
-		final Protos.TaskID taskId = Protos.TaskID.newBuilder().setValue("foobar").build();
-		final Protos.SlaveID slaveId = Protos.SlaveID.newBuilder().setValue("barfoo").build();
-		final String hostname = "foobar";
+    /** Tests that {@link MesosWorkerStore.Worker} is serializable. */
+    @Test
+    public void workerIsSerializable() {
+        final Protos.TaskID taskId = Protos.TaskID.newBuilder().setValue("foobar").build();
+        final Protos.SlaveID slaveId = Protos.SlaveID.newBuilder().setValue("barfoo").build();
+        final String hostname = "foobar";
 
-		final MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(taskId);
-		final MesosWorkerStore.Worker launchedWorker = worker.launchWorker(slaveId, hostname);
+        final MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(taskId);
+        final MesosWorkerStore.Worker launchedWorker = worker.launchWorker(slaveId, hostname);
 
-		assertTrue(InstantiationUtil.isSerializable(worker));
-		assertTrue(InstantiationUtil.isSerializable(launchedWorker));
-	}
+        assertTrue(InstantiationUtil.isSerializable(worker));
+        assertTrue(InstantiationUtil.isSerializable(launchedWorker));
+    }
 }

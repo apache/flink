@@ -25,44 +25,46 @@ import org.apache.flink.table.connector.source.ScanTableSource;
  * Enables to push down a (possibly nested) projection into a {@link ScanTableSource}.
  *
  * <p>Given the following SQL:
+ *
  * <pre>{@code
- *   CREATE TABLE t (i INT, r ROW < d DOUBLE, b BOOLEAN>, s STRING);
- *   SELECT s, r.d FROM t;
+ * CREATE TABLE t (i INT, r ROW < d DOUBLE, b BOOLEAN>, s STRING);
+ * SELECT s, r.d FROM t;
  * }</pre>
  *
- * <p>In the above example, {@code r.d} and {@code s} are required fields. Other fields can be skipped
- * in a projection. Compared to table's schema, fields are reordered.
+ * <p>In the above example, {@code r.d} and {@code s} are required fields. Other fields can be
+ * skipped in a projection. Compared to table's schema, fields are reordered.
  *
- * <p>By default, if this interface is not implemented, a projection is applied in a subsequent operation
- * after the source.
+ * <p>By default, if this interface is not implemented, a projection is applied in a subsequent
+ * operation after the source.
  *
  * <p>For efficiency, a source can push a projection further down in order to be close to the actual
- * data generation. A projection is only selecting fields that are used by a query (possibly in a different
- * field order). It does not contain any computation. A projection can either be performed on the fields of
- * the top-level row only or consider nested fields as well (see {@link #supportsNestedProjection()}).
+ * data generation. A projection is only selecting fields that are used by a query (possibly in a
+ * different field order). It does not contain any computation. A projection can either be performed
+ * on the fields of the top-level row only or consider nested fields as well (see {@link
+ * #supportsNestedProjection()}).
  */
 @PublicEvolving
 public interface SupportsProjectionPushDown {
 
-	/**
-	 * Returns whether this source supports nested projection.
-	 */
-	boolean supportsNestedProjection();
+    /** Returns whether this source supports nested projection. */
+    boolean supportsNestedProjection();
 
-	/**
-	 * Provides the field index paths that should be used for a projection. The indices are 0-based and
-	 * support fields within (possibly nested) structures if this is enabled via {@link #supportsNestedProjection()}.
-	 *
-	 * <p>In the example mentioned in {@link SupportsProjectionPushDown}, this method would receive:
-	 * <ul>
-	 *     <li>{@code [[2], [1]]} which is equivalent to {@code [["s"], ["r"]]} if {@link #supportsNestedProjection()}
-	 *     returns false.
-	 *     <li>{@code [[2], [1, 0]]} which is equivalent to {@code [["s"], ["r", "d"]]]} if {@link #supportsNestedProjection()}
-	 *     returns true.
-	 * </ul>
-	 *
-	 * @param projectedFields field index paths of all fields that must be present in the physically
-	 *                        produced data
-	 */
-	void applyProjection(int[][] projectedFields);
+    /**
+     * Provides the field index paths that should be used for a projection. The indices are 0-based
+     * and support fields within (possibly nested) structures if this is enabled via {@link
+     * #supportsNestedProjection()}.
+     *
+     * <p>In the example mentioned in {@link SupportsProjectionPushDown}, this method would receive:
+     *
+     * <ul>
+     *   <li>{@code [[2], [1]]} which is equivalent to {@code [["s"], ["r"]]} if {@link
+     *       #supportsNestedProjection()} returns false.
+     *   <li>{@code [[2], [1, 0]]} which is equivalent to {@code [["s"], ["r", "d"]]]} if {@link
+     *       #supportsNestedProjection()} returns true.
+     * </ul>
+     *
+     * @param projectedFields field index paths of all fields that must be present in the physically
+     *     produced data
+     */
+    void applyProjection(int[][] projectedFields);
 }

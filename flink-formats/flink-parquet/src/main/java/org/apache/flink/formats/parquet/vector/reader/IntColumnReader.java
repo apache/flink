@@ -26,75 +26,72 @@ import org.apache.parquet.schema.PrimitiveType;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * Int {@link ColumnReader}.
- */
+/** Int {@link ColumnReader}. */
 public class IntColumnReader extends AbstractColumnReader<WritableIntVector> {
 
-	public IntColumnReader(
-			ColumnDescriptor descriptor,
-			PageReader pageReader) throws IOException {
-		super(descriptor, pageReader);
-		checkTypeName(PrimitiveType.PrimitiveTypeName.INT32);
-	}
+    public IntColumnReader(ColumnDescriptor descriptor, PageReader pageReader) throws IOException {
+        super(descriptor, pageReader);
+        checkTypeName(PrimitiveType.PrimitiveTypeName.INT32);
+    }
 
-	@Override
-	protected void readBatch(int rowId, int num, WritableIntVector column) {
-		int left = num;
-		while (left > 0) {
-			if (runLenDecoder.currentCount == 0) {
-				runLenDecoder.readNextGroup();
-			}
-			int n = Math.min(left, runLenDecoder.currentCount);
-			switch (runLenDecoder.mode) {
-				case RLE:
-					if (runLenDecoder.currentValue == maxDefLevel) {
-						readIntegers(n, column, rowId);
-					} else {
-						column.setNulls(rowId, n);
-					}
-					break;
-				case PACKED:
-					for (int i = 0; i < n; ++i) {
-						if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++] == maxDefLevel) {
-							column.setInt(rowId + i, readInteger());
-						} else {
-							column.setNullAt(rowId + i);
-						}
-					}
-					break;
-			}
-			rowId += n;
-			left -= n;
-			runLenDecoder.currentCount -= n;
-		}
-	}
+    @Override
+    protected void readBatch(int rowId, int num, WritableIntVector column) {
+        int left = num;
+        while (left > 0) {
+            if (runLenDecoder.currentCount == 0) {
+                runLenDecoder.readNextGroup();
+            }
+            int n = Math.min(left, runLenDecoder.currentCount);
+            switch (runLenDecoder.mode) {
+                case RLE:
+                    if (runLenDecoder.currentValue == maxDefLevel) {
+                        readIntegers(n, column, rowId);
+                    } else {
+                        column.setNulls(rowId, n);
+                    }
+                    break;
+                case PACKED:
+                    for (int i = 0; i < n; ++i) {
+                        if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++]
+                                == maxDefLevel) {
+                            column.setInt(rowId + i, readInteger());
+                        } else {
+                            column.setNullAt(rowId + i);
+                        }
+                    }
+                    break;
+            }
+            rowId += n;
+            left -= n;
+            runLenDecoder.currentCount -= n;
+        }
+    }
 
-	@Override
-	protected void readBatchFromDictionaryIds(int rowId, int num, WritableIntVector column,
-			WritableIntVector dictionaryIds) {
-		for (int i = rowId; i < rowId + num; ++i) {
-			if (!column.isNullAt(i)) {
-				column.setInt(i, dictionary.decodeToInt(dictionaryIds.getInt(i)));
-			}
-		}
-	}
+    @Override
+    protected void readBatchFromDictionaryIds(
+            int rowId, int num, WritableIntVector column, WritableIntVector dictionaryIds) {
+        for (int i = rowId; i < rowId + num; ++i) {
+            if (!column.isNullAt(i)) {
+                column.setInt(i, dictionary.decodeToInt(dictionaryIds.getInt(i)));
+            }
+        }
+    }
 
-	private int readInteger() {
-		return readDataBuffer(4).getInt();
-	}
+    private int readInteger() {
+        return readDataBuffer(4).getInt();
+    }
 
-	private void readIntegers(int total, WritableIntVector c, int rowId) {
-		int requiredBytes = total * 4;
-		ByteBuffer buffer = readDataBuffer(requiredBytes);
+    private void readIntegers(int total, WritableIntVector c, int rowId) {
+        int requiredBytes = total * 4;
+        ByteBuffer buffer = readDataBuffer(requiredBytes);
 
-		if (buffer.hasArray()) {
-			int offset = buffer.arrayOffset() + buffer.position();
-			c.setIntsFromBinary(rowId, total, buffer.array(), offset);
-		} else {
-			for (int i = 0; i < total; i += 1) {
-				c.setInt(rowId + i, buffer.getInt());
-			}
-		}
-	}
+        if (buffer.hasArray()) {
+            int offset = buffer.arrayOffset() + buffer.position();
+            c.setIntsFromBinary(rowId, total, buffer.array(), offset);
+        } else {
+            for (int i = 0; i < total; i += 1) {
+                c.setInt(rowId + i, buffer.getInt());
+            }
+        }
+    }
 }

@@ -25,36 +25,37 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * {@link JobStatusProvider} implementation for testing purposes.
- */
+/** {@link JobStatusProvider} implementation for testing purposes. */
 public class TestingJobStatusProvider implements JobStatusProvider {
 
-	private final Supplier<JobStatus> statusSupplier;
-	private final Function<JobStatus, Long> statusTimestampRetriever;
+    private final Supplier<JobStatus> statusSupplier;
+    private final Function<JobStatus, Long> statusTimestampRetriever;
 
-	public TestingJobStatusProvider(Supplier<JobStatus> statusSupplier, Function<JobStatus, Long> statusTimestampRetriever) {
-		this.statusSupplier = checkNotNull(statusSupplier);
-		this.statusTimestampRetriever = checkNotNull(statusTimestampRetriever);
-	}
+    public TestingJobStatusProvider(
+            Supplier<JobStatus> statusSupplier,
+            Function<JobStatus, Long> statusTimestampRetriever) {
+        this.statusSupplier = checkNotNull(statusSupplier);
+        this.statusTimestampRetriever = checkNotNull(statusTimestampRetriever);
+    }
 
-	public TestingJobStatusProvider(JobStatus state, Function<JobStatus, Long> statusTimestampRetriever) {
-		this.statusSupplier = () -> checkNotNull(state);
-		this.statusTimestampRetriever = checkNotNull(statusTimestampRetriever);
-	}
+    public TestingJobStatusProvider(
+            JobStatus state, Function<JobStatus, Long> statusTimestampRetriever) {
+        this.statusSupplier = () -> checkNotNull(state);
+        this.statusTimestampRetriever = checkNotNull(statusTimestampRetriever);
+    }
 
-	public TestingJobStatusProvider(JobStatus state, long statusTimestamp) {
-		this.statusSupplier = () -> checkNotNull(state);
-		this.statusTimestampRetriever = s -> statusTimestamp;
-	}
+    public TestingJobStatusProvider(JobStatus state, long statusTimestamp) {
+        this.statusSupplier = () -> checkNotNull(state);
+        this.statusTimestampRetriever = s -> statusTimestamp;
+    }
 
-	@Override
-	public JobStatus getState() {
-		return statusSupplier.get();
-	}
+    @Override
+    public JobStatus getState() {
+        return statusSupplier.get();
+    }
 
-	@Override
-	public long getStatusTimestamp(JobStatus status) {
-		return statusTimestampRetriever.apply(status);
-	}
+    @Override
+    public long getStatusTimestamp(JobStatus status) {
+        return statusTimestampRetriever.apply(status);
+    }
 }

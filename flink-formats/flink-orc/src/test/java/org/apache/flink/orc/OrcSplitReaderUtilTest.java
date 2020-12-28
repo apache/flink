@@ -26,43 +26,41 @@ import org.junit.Test;
 
 import static org.apache.flink.orc.OrcSplitReaderUtil.logicalTypeToOrcType;
 
-/**
- * Test for {@link OrcSplitReaderUtil}.
- */
+/** Test for {@link OrcSplitReaderUtil}. */
 public class OrcSplitReaderUtilTest {
 
-	@Test
-	public void testLogicalTypeToOrcType() {
-		test("boolean", DataTypes.BOOLEAN());
-		test("char(123)", DataTypes.CHAR(123));
-		test("varchar(123)", DataTypes.VARCHAR(123));
-		test("string", DataTypes.STRING());
-		test("binary", DataTypes.BYTES());
-		test("tinyint", DataTypes.TINYINT());
-		test("smallint", DataTypes.SMALLINT());
-		test("int", DataTypes.INT());
-		test("bigint", DataTypes.BIGINT());
-		test("float", DataTypes.FLOAT());
-		test("double", DataTypes.DOUBLE());
-		test("date", DataTypes.DATE());
-		test("timestamp", DataTypes.TIMESTAMP());
-		test("array<float>", DataTypes.ARRAY(DataTypes.FLOAT()));
-		test("map<float,bigint>", DataTypes.MAP(DataTypes.FLOAT(), DataTypes.BIGINT()));
-		test("struct<int0:int,str1:string,double2:double,row3:struct<int0:int,int1:int>>",
-				DataTypes.ROW(
-						DataTypes.FIELD("int0", DataTypes.INT()),
-						DataTypes.FIELD("str1", DataTypes.STRING()),
-						DataTypes.FIELD("double2", DataTypes.DOUBLE()),
-						DataTypes.FIELD(
-								"row3",
-								DataTypes.ROW(
-										DataTypes.FIELD("int0", DataTypes.INT()),
-										DataTypes.FIELD("int1", DataTypes.INT()))
-						)));
-		test("decimal(4,2)", DataTypes.DECIMAL(4, 2));
-	}
+    @Test
+    public void testLogicalTypeToOrcType() {
+        test("boolean", DataTypes.BOOLEAN());
+        test("char(123)", DataTypes.CHAR(123));
+        test("varchar(123)", DataTypes.VARCHAR(123));
+        test("string", DataTypes.STRING());
+        test("binary", DataTypes.BYTES());
+        test("tinyint", DataTypes.TINYINT());
+        test("smallint", DataTypes.SMALLINT());
+        test("int", DataTypes.INT());
+        test("bigint", DataTypes.BIGINT());
+        test("float", DataTypes.FLOAT());
+        test("double", DataTypes.DOUBLE());
+        test("date", DataTypes.DATE());
+        test("timestamp", DataTypes.TIMESTAMP());
+        test("array<float>", DataTypes.ARRAY(DataTypes.FLOAT()));
+        test("map<float,bigint>", DataTypes.MAP(DataTypes.FLOAT(), DataTypes.BIGINT()));
+        test(
+                "struct<int0:int,str1:string,double2:double,row3:struct<int0:int,int1:int>>",
+                DataTypes.ROW(
+                        DataTypes.FIELD("int0", DataTypes.INT()),
+                        DataTypes.FIELD("str1", DataTypes.STRING()),
+                        DataTypes.FIELD("double2", DataTypes.DOUBLE()),
+                        DataTypes.FIELD(
+                                "row3",
+                                DataTypes.ROW(
+                                        DataTypes.FIELD("int0", DataTypes.INT()),
+                                        DataTypes.FIELD("int1", DataTypes.INT())))));
+        test("decimal(4,2)", DataTypes.DECIMAL(4, 2));
+    }
 
-	private void test(String expected, DataType type) {
-		Assert.assertEquals(expected, logicalTypeToOrcType(type.getLogicalType()).toString());
-	}
+    private void test(String expected, DataType type) {
+        Assert.assertEquals(expected, logicalTypeToOrcType(type.getLogicalType()).toString());
+    }
 }

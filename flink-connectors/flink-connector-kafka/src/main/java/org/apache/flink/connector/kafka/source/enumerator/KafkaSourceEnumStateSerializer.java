@@ -29,36 +29,37 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The {@link org.apache.flink.core.io.SimpleVersionedSerializer Serializer} for the enumerator state of
- * Kafka source.
+ * The {@link org.apache.flink.core.io.SimpleVersionedSerializer Serializer} for the enumerator
+ * state of Kafka source.
  */
-public class KafkaSourceEnumStateSerializer implements SimpleVersionedSerializer<KafkaSourceEnumState> {
+public class KafkaSourceEnumStateSerializer
+        implements SimpleVersionedSerializer<KafkaSourceEnumState> {
 
-	private static final int CURRENT_VERSION = 0;
+    private static final int CURRENT_VERSION = 0;
 
-	@Override
-	public int getVersion() {
-		return CURRENT_VERSION;
-	}
+    @Override
+    public int getVersion() {
+        return CURRENT_VERSION;
+    }
 
-	@Override
-	public byte[] serialize(KafkaSourceEnumState enumState) throws IOException {
-		return SerdeUtils.serializeSplitAssignments(
-				enumState.getCurrentAssignment(),
-				new KafkaPartitionSplitSerializer());
-	}
+    @Override
+    public byte[] serialize(KafkaSourceEnumState enumState) throws IOException {
+        return SerdeUtils.serializeSplitAssignments(
+                enumState.getCurrentAssignment(), new KafkaPartitionSplitSerializer());
+    }
 
-	@Override
-	public KafkaSourceEnumState deserialize(int version, byte[] serialized) throws IOException {
-		if (version == 0) {
-			Map<Integer, Set<KafkaPartitionSplit>> currentPartitionAssignment =
-					SerdeUtils.deserializeSplitAssignments(
-							serialized,
-							new KafkaPartitionSplitSerializer(),
-							HashSet::new);
-			return new KafkaSourceEnumState(currentPartitionAssignment);
-		}
-		throw new IOException(String.format("The bytes are serialized with version %d, " +
-				"while this deserializer only supports version up to %d", version, CURRENT_VERSION));
-	}
+    @Override
+    public KafkaSourceEnumState deserialize(int version, byte[] serialized) throws IOException {
+        if (version == 0) {
+            Map<Integer, Set<KafkaPartitionSplit>> currentPartitionAssignment =
+                    SerdeUtils.deserializeSplitAssignments(
+                            serialized, new KafkaPartitionSplitSerializer(), HashSet::new);
+            return new KafkaSourceEnumState(currentPartitionAssignment);
+        }
+        throw new IOException(
+                String.format(
+                        "The bytes are serialized with version %d, "
+                                + "while this deserializer only supports version up to %d",
+                        version, CURRENT_VERSION));
+    }
 }

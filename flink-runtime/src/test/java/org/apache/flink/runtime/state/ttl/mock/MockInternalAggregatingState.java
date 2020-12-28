@@ -27,34 +27,34 @@ import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 
 /** In memory mock internal aggregating state. */
 class MockInternalAggregatingState<K, N, IN, ACC, OUT>
-	extends MockInternalMergingState<K, N, IN, ACC, OUT> implements InternalAggregatingState<K, N, IN, ACC, OUT> {
-	private final AggregateFunction<IN, ACC, OUT> aggregateFunction;
+        extends MockInternalMergingState<K, N, IN, ACC, OUT>
+        implements InternalAggregatingState<K, N, IN, ACC, OUT> {
+    private final AggregateFunction<IN, ACC, OUT> aggregateFunction;
 
-	private MockInternalAggregatingState(AggregateFunction<IN, ACC, OUT> aggregateFunction) {
-		this.aggregateFunction = aggregateFunction;
-	}
+    private MockInternalAggregatingState(AggregateFunction<IN, ACC, OUT> aggregateFunction) {
+        this.aggregateFunction = aggregateFunction;
+    }
 
-	@Override
-	public OUT get() {
-		return aggregateFunction.getResult(getInternal());
-	}
+    @Override
+    public OUT get() {
+        return aggregateFunction.getResult(getInternal());
+    }
 
-	@Override
-	public void add(IN value) {
-		updateInternal(aggregateFunction.add(value,  getInternal()));
-	}
+    @Override
+    public void add(IN value) {
+        updateInternal(aggregateFunction.add(value, getInternal()));
+    }
 
-	@Override
-	ACC mergeState(ACC acc, ACC nAcc) {
-		return aggregateFunction.merge(acc, nAcc);
-	}
+    @Override
+    ACC mergeState(ACC acc, ACC nAcc) {
+        return aggregateFunction.merge(acc, nAcc);
+    }
 
-	@SuppressWarnings({"unchecked", "unused"})
-	static <IN, OUT, N, ACC, S extends State, IS extends S> IS createState(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, ACC> stateDesc) {
-		AggregatingStateDescriptor<IN, ACC, OUT> aggregatingStateDesc =
-			(AggregatingStateDescriptor<IN, ACC, OUT>) stateDesc;
-		return (IS) new MockInternalAggregatingState<>(aggregatingStateDesc.getAggregateFunction());
-	}
+    @SuppressWarnings({"unchecked", "unused"})
+    static <IN, OUT, N, ACC, S extends State, IS extends S> IS createState(
+            TypeSerializer<N> namespaceSerializer, StateDescriptor<S, ACC> stateDesc) {
+        AggregatingStateDescriptor<IN, ACC, OUT> aggregatingStateDesc =
+                (AggregatingStateDescriptor<IN, ACC, OUT>) stateDesc;
+        return (IS) new MockInternalAggregatingState<>(aggregatingStateDesc.getAggregateFunction());
+    }
 }

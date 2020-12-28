@@ -28,51 +28,49 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Asserter for output from {@link OneInputStreamOperatorTestHarness}.
- */
+/** Asserter for output from {@link OneInputStreamOperatorTestHarness}. */
 public class OutputAsserter {
 
-	private final Queue<?> output;
+    private final Queue<?> output;
 
-	private OutputAsserter(Queue<?> output) {
-		this.output = output;
-	}
+    private OutputAsserter(Queue<?> output) {
+        this.output = output;
+    }
 
-	public static OutputAsserter assertOutput(Queue<?> output) {
-		return new OutputAsserter(output);
-	}
+    public static OutputAsserter assertOutput(Queue<?> output) {
+        return new OutputAsserter(output);
+    }
 
-	private AssertionError fail(Object record) {
-		return new AssertionError("Received unexpected element: " + record);
-	}
+    private AssertionError fail(Object record) {
+        return new AssertionError("Received unexpected element: " + record);
+    }
 
-	public <T> OutputAsserter nextElementEquals(T expected) {
-		final Object record = output.poll();
-		final Object actual;
-		if (record instanceof StreamRecord) {
-			// This is in case we assert side output
-			actual = ((StreamRecord) record).getValue();
-		} else {
-			// This is in case we assert the main output
-			actual = record;
-		}
-		assertThat(actual, is(expected));
-		return this;
-	}
+    public <T> OutputAsserter nextElementEquals(T expected) {
+        final Object record = output.poll();
+        final Object actual;
+        if (record instanceof StreamRecord) {
+            // This is in case we assert side output
+            actual = ((StreamRecord) record).getValue();
+        } else {
+            // This is in case we assert the main output
+            actual = record;
+        }
+        assertThat(actual, is(expected));
+        return this;
+    }
 
-	public void hasNoMoreElements() {
-		assertTrue(output.isEmpty());
-	}
+    public void hasNoMoreElements() {
+        assertTrue(output.isEmpty());
+    }
 
-	public OutputAsserter watermarkEquals(long timestamp) {
-		Object record = output.poll();
-		if (record instanceof Watermark) {
-			Watermark watermark = (Watermark) record;
-			assertThat(watermark.getTimestamp(), is(timestamp));
-		} else {
-			throw fail(record);
-		}
-		return this;
-	}
+    public OutputAsserter watermarkEquals(long timestamp) {
+        Object record = output.poll();
+        if (record instanceof Watermark) {
+            Watermark watermark = (Watermark) record;
+            assertThat(watermark.getTimestamp(), is(timestamp));
+        } else {
+            throw fail(record);
+        }
+        return this;
+    }
 }

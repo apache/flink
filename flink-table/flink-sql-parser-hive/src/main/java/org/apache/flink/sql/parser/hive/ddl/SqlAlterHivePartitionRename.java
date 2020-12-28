@@ -32,41 +32,43 @@ import javax.annotation.Nonnull;
 
 import java.util.List;
 
-/**
- * ALTER TABLE DDL to change the specifications of a Hive partition.
- */
+/** ALTER TABLE DDL to change the specifications of a Hive partition. */
 public class SqlAlterHivePartitionRename extends SqlAlterTable {
 
-	private final SqlNodeList newPartSpec;
+    private final SqlNodeList newPartSpec;
 
-	public SqlAlterHivePartitionRename(SqlParserPos pos, SqlIdentifier tableName,
-			SqlNodeList partSpec, SqlNodeList newPartSpec) throws ParseException {
-		super(pos, tableName, partSpec);
-		if (partSpec == null || newPartSpec == null) {
-			throw new ParseException("Both old and new partition spec have to be specified");
-		}
-		HiveDDLUtils.unescapePartitionSpec(partSpec);
-		HiveDDLUtils.unescapePartitionSpec(newPartSpec);
-		this.newPartSpec = newPartSpec;
-	}
+    public SqlAlterHivePartitionRename(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList partSpec,
+            SqlNodeList newPartSpec)
+            throws ParseException {
+        super(pos, tableName, partSpec);
+        if (partSpec == null || newPartSpec == null) {
+            throw new ParseException("Both old and new partition spec have to be specified");
+        }
+        HiveDDLUtils.unescapePartitionSpec(partSpec);
+        HiveDDLUtils.unescapePartitionSpec(newPartSpec);
+        this.newPartSpec = newPartSpec;
+    }
 
-	@Nonnull
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(tableIdentifier, getPartitionSpec(), newPartSpec);
-	}
+    @Nonnull
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(tableIdentifier, getPartitionSpec(), newPartSpec);
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.newlineAndIndent();
-		writer.keyword("RENAME TO");
-		writer.newlineAndIndent();
-		writer.keyword("PARTITION");
-		newPartSpec.unparse(writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.newlineAndIndent();
+        writer.keyword("RENAME TO");
+        writer.newlineAndIndent();
+        writer.keyword("PARTITION");
+        newPartSpec.unparse(writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
+    }
 
-	public SqlNodeList getNewPartSpec() {
-		return newPartSpec;
-	}
+    public SqlNodeList getNewPartSpec() {
+        return newPartSpec;
+    }
 }

@@ -46,69 +46,84 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * Request handler that returns the aggregated accumulators of a job.
- */
-public class JobAccumulatorsHandler extends AbstractExecutionGraphHandler<JobAccumulatorsInfo, JobAccumulatorsMessageParameters> implements JsonArchivist {
+/** Request handler that returns the aggregated accumulators of a job. */
+public class JobAccumulatorsHandler
+        extends AbstractExecutionGraphHandler<JobAccumulatorsInfo, JobAccumulatorsMessageParameters>
+        implements JsonArchivist {
 
-	public JobAccumulatorsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor) {
-		super(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders,
-			executionGraphCache,
-			executor);
-	}
+    public JobAccumulatorsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters>
+                    messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor);
+    }
 
-	@Override
-	protected JobAccumulatorsInfo handleRequest(HandlerRequest<EmptyRequestBody, JobAccumulatorsMessageParameters> request, AccessExecutionGraph graph) throws RestHandlerException {
-		List<Boolean> queryParams = request.getQueryParameter(AccumulatorsIncludeSerializedValueQueryParameter.class);
+    @Override
+    protected JobAccumulatorsInfo handleRequest(
+            HandlerRequest<EmptyRequestBody, JobAccumulatorsMessageParameters> request,
+            AccessExecutionGraph graph)
+            throws RestHandlerException {
+        List<Boolean> queryParams =
+                request.getQueryParameter(AccumulatorsIncludeSerializedValueQueryParameter.class);
 
-		final boolean includeSerializedValue;
-		if (!queryParams.isEmpty()) {
-			includeSerializedValue = queryParams.get(0);
-		} else {
-			includeSerializedValue = false;
-		}
+        final boolean includeSerializedValue;
+        if (!queryParams.isEmpty()) {
+            includeSerializedValue = queryParams.get(0);
+        } else {
+            includeSerializedValue = false;
+        }
 
-		return createJobAccumulatorsInfo(graph, includeSerializedValue);
-	}
+        return createJobAccumulatorsInfo(graph, includeSerializedValue);
+    }
 
-	@Override
-	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-		ResponseBody json = createJobAccumulatorsInfo(graph, true);
-		String path = getMessageHeaders().getTargetRestEndpointURL()
-			.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString());
-		return Collections.singleton(new ArchivedJson(path, json));
-	}
+    @Override
+    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+            throws IOException {
+        ResponseBody json = createJobAccumulatorsInfo(graph, true);
+        String path =
+                getMessageHeaders()
+                        .getTargetRestEndpointURL()
+                        .replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString());
+        return Collections.singleton(new ArchivedJson(path, json));
+    }
 
-	private static JobAccumulatorsInfo createJobAccumulatorsInfo(AccessExecutionGraph graph, boolean includeSerializedValue) {
-		StringifiedAccumulatorResult[] stringifiedAccs = graph.getAccumulatorResultsStringified();
-		List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators = new ArrayList<>(stringifiedAccs.length);
+    private static JobAccumulatorsInfo createJobAccumulatorsInfo(
+            AccessExecutionGraph graph, boolean includeSerializedValue) {
+        StringifiedAccumulatorResult[] stringifiedAccs = graph.getAccumulatorResultsStringified();
+        List<JobAccumulatorsInfo.UserTaskAccumulator> userTaskAccumulators =
+                new ArrayList<>(stringifiedAccs.length);
 
-		for (StringifiedAccumulatorResult acc : stringifiedAccs) {
-			userTaskAccumulators.add(
-				new JobAccumulatorsInfo.UserTaskAccumulator(
-					acc.getName(),
-					acc.getType(),
-					acc.getValue()));
-		}
+        for (StringifiedAccumulatorResult acc : stringifiedAccs) {
+            userTaskAccumulators.add(
+                    new JobAccumulatorsInfo.UserTaskAccumulator(
+                            acc.getName(), acc.getType(), acc.getValue()));
+        }
 
-		JobAccumulatorsInfo accumulatorsInfo;
-		if (includeSerializedValue) {
-			Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserTaskAccumulators = graph.getAccumulatorsSerialized();
-			accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, serializedUserTaskAccumulators);
-		} else {
-			accumulatorsInfo = new JobAccumulatorsInfo(Collections.emptyList(), userTaskAccumulators, Collections.emptyMap());
-		}
+        JobAccumulatorsInfo accumulatorsInfo;
+        if (includeSerializedValue) {
+            Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserTaskAccumulators =
+                    graph.getAccumulatorsSerialized();
+            accumulatorsInfo =
+                    new JobAccumulatorsInfo(
+                            Collections.emptyList(),
+                            userTaskAccumulators,
+                            serializedUserTaskAccumulators);
+        } else {
+            accumulatorsInfo =
+                    new JobAccumulatorsInfo(
+                            Collections.emptyList(), userTaskAccumulators, Collections.emptyMap());
+        }
 
-		return accumulatorsInfo;
-	}
+        return accumulatorsInfo;
+    }
 }

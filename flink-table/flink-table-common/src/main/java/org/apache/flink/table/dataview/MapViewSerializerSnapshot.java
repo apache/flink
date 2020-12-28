@@ -34,38 +34,36 @@ import java.util.Map;
  */
 @Internal
 @Deprecated
-public class MapViewSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<MapView<K, V>, MapViewSerializer<K, V>> {
+public class MapViewSerializerSnapshot<K, V>
+        extends CompositeTypeSerializerSnapshot<MapView<K, V>, MapViewSerializer<K, V>> {
 
-	private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 1;
 
-	/**
-	 * Constructor for read instantiation.
-	 */
-	public MapViewSerializerSnapshot() {
-		super(MapViewSerializer.class);
-	}
+    /** Constructor for read instantiation. */
+    public MapViewSerializerSnapshot() {
+        super(MapViewSerializer.class);
+    }
 
-	/**
-	 * Constructor to create the snapshot for writing.
-	 */
-	public MapViewSerializerSnapshot(MapViewSerializer<K, V> mapViewSerializer) {
-		super(mapViewSerializer);
-	}
+    /** Constructor to create the snapshot for writing. */
+    public MapViewSerializerSnapshot(MapViewSerializer<K, V> mapViewSerializer) {
+        super(mapViewSerializer);
+    }
 
-	@Override
-	public int getCurrentOuterSnapshotVersion() {
-		return CURRENT_VERSION;
-	}
+    @Override
+    public int getCurrentOuterSnapshotVersion() {
+        return CURRENT_VERSION;
+    }
 
-	@Override
-	protected MapViewSerializer<K, V> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		@SuppressWarnings("unchecked")
-		TypeSerializer<Map<K, V>> mapSerializer = (TypeSerializer<Map<K, V>>) nestedSerializers[0];
-		return new MapViewSerializer<>(mapSerializer);
-	}
+    @Override
+    protected MapViewSerializer<K, V> createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+        @SuppressWarnings("unchecked")
+        TypeSerializer<Map<K, V>> mapSerializer = (TypeSerializer<Map<K, V>>) nestedSerializers[0];
+        return new MapViewSerializer<>(mapSerializer);
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(MapViewSerializer<K, V> outerSerializer) {
-		return new TypeSerializer<?>[] { outerSerializer.getMapSerializer() };
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(MapViewSerializer<K, V> outerSerializer) {
+        return new TypeSerializer<?>[] {outerSerializer.getMapSerializer()};
+    }
 }

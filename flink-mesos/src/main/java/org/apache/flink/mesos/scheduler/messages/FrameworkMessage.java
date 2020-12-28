@@ -24,44 +24,46 @@ import java.io.Serializable;
 import java.util.Arrays;
 
 /**
- * Message sent when an executor sends a message. These messages are best
- * effort; do not expect a framework message to be retransmitted in
- * any reliable fashion.
+ * Message sent when an executor sends a message. These messages are best effort; do not expect a
+ * framework message to be retransmitted in any reliable fashion.
  */
 public class FrameworkMessage implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Protos.ExecutorID executorId;
+    private final Protos.ExecutorID executorId;
 
-	private final Protos.SlaveID slaveId;
+    private final Protos.SlaveID slaveId;
 
-	private final byte[] data;
+    private final byte[] data;
 
-	public FrameworkMessage(Protos.ExecutorID executorId, Protos.SlaveID slaveId, byte[] data) {
-		this.executorId = executorId;
-		this.slaveId = slaveId;
-		this.data = data;
-	}
+    public FrameworkMessage(Protos.ExecutorID executorId, Protos.SlaveID slaveId, byte[] data) {
+        this.executorId = executorId;
+        this.slaveId = slaveId;
+        this.data = data;
+    }
 
-	public Protos.ExecutorID executorId() {
-		return executorId;
-	}
+    public Protos.ExecutorID executorId() {
+        return executorId;
+    }
 
-	public Protos.SlaveID slaveId() {
-		return slaveId;
-	}
+    public Protos.SlaveID slaveId() {
+        return slaveId;
+    }
 
-	public byte[] data() {
-		return data;
-	}
+    public byte[] data() {
+        return data;
+    }
 
-	@Override
-	public String toString() {
-		return "FrameworkMessage{" +
-			"executorId=" + executorId +
-			", slaveId=" + slaveId +
-			", data=" + Arrays.toString(data) +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "FrameworkMessage{"
+                + "executorId="
+                + executorId
+                + ", slaveId="
+                + slaveId
+                + ", data="
+                + Arrays.toString(data)
+                + '}';
+    }
 }

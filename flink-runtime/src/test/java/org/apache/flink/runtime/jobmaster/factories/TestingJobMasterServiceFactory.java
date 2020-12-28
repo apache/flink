@@ -28,22 +28,28 @@ import org.apache.flink.runtime.jobmaster.TestingJobMasterService;
 import java.util.function.Supplier;
 
 /**
- * Testing implementation of the {@link JobMasterServiceFactory} which returns a {@link JobMaster} mock.
+ * Testing implementation of the {@link JobMasterServiceFactory} which returns a {@link JobMaster}
+ * mock.
  */
 public class TestingJobMasterServiceFactory implements JobMasterServiceFactory {
 
-	private final Supplier<JobMasterService> jobMasterServiceSupplier;
+    private final Supplier<JobMasterService> jobMasterServiceSupplier;
 
-	public TestingJobMasterServiceFactory(Supplier<JobMasterService> jobMasterServiceSupplier) {
-		this.jobMasterServiceSupplier = jobMasterServiceSupplier;
-	}
+    public TestingJobMasterServiceFactory(Supplier<JobMasterService> jobMasterServiceSupplier) {
+        this.jobMasterServiceSupplier = jobMasterServiceSupplier;
+    }
 
-	public TestingJobMasterServiceFactory() {
-		this(TestingJobMasterService::new);
-	}
+    public TestingJobMasterServiceFactory() {
+        this(TestingJobMasterService::new);
+    }
 
-	@Override
-	public JobMasterService createJobMasterService(JobGraph jobGraph, JobMasterId jobMasterId, OnCompletionActions jobCompletionActions, ClassLoader userCodeClassloader, long initializationTimestamp) {
-		return jobMasterServiceSupplier.get();
-	}
+    @Override
+    public JobMasterService createJobMasterService(
+            JobGraph jobGraph,
+            JobMasterId jobMasterId,
+            OnCompletionActions jobCompletionActions,
+            ClassLoader userCodeClassloader,
+            long initializationTimestamp) {
+        return jobMasterServiceSupplier.get();
+    }
 }

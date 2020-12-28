@@ -34,9 +34,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * This Transformation represents the application of a
- * {@link org.apache.flink.streaming.api.operators.OneInputStreamOperator} to one input
- * {@link Transformation}.
+ * This Transformation represents the application of a {@link
+ * org.apache.flink.streaming.api.operators.OneInputStreamOperator} to one input {@link
+ * Transformation}.
  *
  * @param <IN> The type of the elements in the input {@code Transformation}
  * @param <OUT> The type of the elements that result from this {@code OneInputTransformation}
@@ -44,105 +44,104 @@ import java.util.List;
 @Internal
 public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT> {
 
-	private final Transformation<IN> input;
+    private final Transformation<IN> input;
 
-	private final StreamOperatorFactory<OUT> operatorFactory;
+    private final StreamOperatorFactory<OUT> operatorFactory;
 
-	private KeySelector<IN, ?> stateKeySelector;
+    private KeySelector<IN, ?> stateKeySelector;
 
-	private TypeInformation<?> stateKeyType;
+    private TypeInformation<?> stateKeyType;
 
-	/**
-	 * Creates a new {@code OneInputTransformation} from the given input and operator.
-	 *
-	 * @param input The input {@code Transformation}
-	 * @param name The name of the {@code Transformation}, this will be shown in Visualizations and the Log
-	 * @param operator The {@code TwoInputStreamOperator}
-	 * @param outputType The type of the elements produced by this {@code OneInputTransformation}
-	 * @param parallelism The parallelism of this {@code OneInputTransformation}
-	 */
-	public OneInputTransformation(
-			Transformation<IN> input,
-			String name,
-			OneInputStreamOperator<IN, OUT> operator,
-			TypeInformation<OUT> outputType,
-			int parallelism) {
-		this(input, name, SimpleOperatorFactory.of(operator), outputType, parallelism);
-	}
+    /**
+     * Creates a new {@code OneInputTransformation} from the given input and operator.
+     *
+     * @param input The input {@code Transformation}
+     * @param name The name of the {@code Transformation}, this will be shown in Visualizations and
+     *     the Log
+     * @param operator The {@code TwoInputStreamOperator}
+     * @param outputType The type of the elements produced by this {@code OneInputTransformation}
+     * @param parallelism The parallelism of this {@code OneInputTransformation}
+     */
+    public OneInputTransformation(
+            Transformation<IN> input,
+            String name,
+            OneInputStreamOperator<IN, OUT> operator,
+            TypeInformation<OUT> outputType,
+            int parallelism) {
+        this(input, name, SimpleOperatorFactory.of(operator), outputType, parallelism);
+    }
 
-	public OneInputTransformation(
-			Transformation<IN> input,
-			String name,
-			StreamOperatorFactory<OUT> operatorFactory,
-			TypeInformation<OUT> outputType,
-			int parallelism) {
-		super(name, outputType, parallelism);
-		this.input = input;
-		this.operatorFactory = operatorFactory;
-	}
+    public OneInputTransformation(
+            Transformation<IN> input,
+            String name,
+            StreamOperatorFactory<OUT> operatorFactory,
+            TypeInformation<OUT> outputType,
+            int parallelism) {
+        super(name, outputType, parallelism);
+        this.input = input;
+        this.operatorFactory = operatorFactory;
+    }
 
-	/**
-	 * Returns the {@code TypeInformation} for the elements of the input.
-	 */
-	public TypeInformation<IN> getInputType() {
-		return input.getOutputType();
-	}
+    /** Returns the {@code TypeInformation} for the elements of the input. */
+    public TypeInformation<IN> getInputType() {
+        return input.getOutputType();
+    }
 
-	@VisibleForTesting
-	public OneInputStreamOperator<IN, OUT> getOperator() {
-		return (OneInputStreamOperator<IN, OUT>) ((SimpleOperatorFactory) operatorFactory).getOperator();
-	}
+    @VisibleForTesting
+    public OneInputStreamOperator<IN, OUT> getOperator() {
+        return (OneInputStreamOperator<IN, OUT>)
+                ((SimpleOperatorFactory) operatorFactory).getOperator();
+    }
 
-	/**
-	 * Returns the {@code StreamOperatorFactory} of this Transformation.
-	 */
-	public StreamOperatorFactory<OUT> getOperatorFactory() {
-		return operatorFactory;
-	}
+    /** Returns the {@code StreamOperatorFactory} of this Transformation. */
+    public StreamOperatorFactory<OUT> getOperatorFactory() {
+        return operatorFactory;
+    }
 
-	/**
-	 * Sets the {@link KeySelector} that must be used for partitioning keyed state of this operation.
-	 *
-	 * @param stateKeySelector The {@code KeySelector} to set
-	 */
-	public void setStateKeySelector(KeySelector<IN, ?> stateKeySelector) {
-		this.stateKeySelector = stateKeySelector;
-		updateManagedMemoryStateBackendUseCase(stateKeySelector != null);
-	}
+    /**
+     * Sets the {@link KeySelector} that must be used for partitioning keyed state of this
+     * operation.
+     *
+     * @param stateKeySelector The {@code KeySelector} to set
+     */
+    public void setStateKeySelector(KeySelector<IN, ?> stateKeySelector) {
+        this.stateKeySelector = stateKeySelector;
+        updateManagedMemoryStateBackendUseCase(stateKeySelector != null);
+    }
 
-	/**
-	 * Returns the {@code KeySelector} that must be used for partitioning keyed state in this
-	 * Operation.
-	 *
-	 * @see #setStateKeySelector
-	 */
-	public KeySelector<IN, ?> getStateKeySelector() {
-		return stateKeySelector;
-	}
+    /**
+     * Returns the {@code KeySelector} that must be used for partitioning keyed state in this
+     * Operation.
+     *
+     * @see #setStateKeySelector
+     */
+    public KeySelector<IN, ?> getStateKeySelector() {
+        return stateKeySelector;
+    }
 
-	public void setStateKeyType(TypeInformation<?> stateKeyType) {
-		this.stateKeyType = stateKeyType;
-	}
+    public void setStateKeyType(TypeInformation<?> stateKeyType) {
+        this.stateKeyType = stateKeyType;
+    }
 
-	public TypeInformation<?> getStateKeyType() {
-		return stateKeyType;
-	}
+    public TypeInformation<?> getStateKeyType() {
+        return stateKeyType;
+    }
 
-	@Override
-	public List<Transformation<?>> getTransitivePredecessors() {
-		List<Transformation<?>> result = Lists.newArrayList();
-		result.add(this);
-		result.addAll(input.getTransitivePredecessors());
-		return result;
-	}
+    @Override
+    public List<Transformation<?>> getTransitivePredecessors() {
+        List<Transformation<?>> result = Lists.newArrayList();
+        result.add(this);
+        result.addAll(input.getTransitivePredecessors());
+        return result;
+    }
 
-	@Override
-	public List<Transformation<?>> getInputs() {
-		return Collections.singletonList(input);
-	}
+    @Override
+    public List<Transformation<?>> getInputs() {
+        return Collections.singletonList(input);
+    }
 
-	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		operatorFactory.setChainingStrategy(strategy);
-	}
+    @Override
+    public final void setChainingStrategy(ChainingStrategy strategy) {
+        operatorFactory.setChainingStrategy(strategy);
+    }
 }

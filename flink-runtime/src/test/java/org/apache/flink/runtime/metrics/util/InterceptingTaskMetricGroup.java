@@ -25,29 +25,28 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * A {@link TaskMetricGroup} that exposes all registered metrics.
- */
-public class InterceptingTaskMetricGroup extends UnregisteredMetricGroups.UnregisteredTaskMetricGroup {
+/** A {@link TaskMetricGroup} that exposes all registered metrics. */
+public class InterceptingTaskMetricGroup
+        extends UnregisteredMetricGroups.UnregisteredTaskMetricGroup {
 
-	private Map<String, Metric> intercepted;
+    private Map<String, Metric> intercepted;
 
-	/**
-	 * Returns the registered metric for the given name, or null if it was never registered.
-	 *
-	 * @param name metric name
-	 * @return registered metric for the given name, or null if it was never registered
-	 */
-	public Metric get(String name) {
-		return intercepted.get(name);
-	}
+    /**
+     * Returns the registered metric for the given name, or null if it was never registered.
+     *
+     * @param name metric name
+     * @return registered metric for the given name, or null if it was never registered
+     */
+    public Metric get(String name) {
+        return intercepted.get(name);
+    }
 
-	@Override
-	protected void addMetric(String name, Metric metric) {
-		if (intercepted == null) {
-			intercepted = new HashMap<>();
-		}
-		intercepted.put(name, metric);
-		super.addMetric(name, metric);
-	}
+    @Override
+    protected void addMetric(String name, Metric metric) {
+        if (intercepted == null) {
+            intercepted = new HashMap<>();
+        }
+        intercepted.put(name, metric);
+        super.addMetric(name, metric);
+    }
 }

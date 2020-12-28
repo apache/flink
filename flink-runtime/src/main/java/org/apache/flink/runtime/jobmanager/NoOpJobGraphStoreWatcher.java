@@ -18,19 +18,17 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-/**
- * Singleton {@link JobGraphStoreWatcher} empty implementation.
- */
-public enum  NoOpJobGraphStoreWatcher implements JobGraphStoreWatcher {
-	INSTANCE;
+/** Singleton {@link JobGraphStoreWatcher} empty implementation. */
+public enum NoOpJobGraphStoreWatcher implements JobGraphStoreWatcher {
+    INSTANCE;
 
-	@Override
-	public void start(JobGraphStore.JobGraphListener jobGraphListener) {
-		// noop
-	}
+    @Override
+    public void start(JobGraphStore.JobGraphListener jobGraphListener) {
+        // noop
+    }
 
-	@Override
-	public void stop() {
-		// noop
-	}
+    @Override
+    public void stop() {
+        // noop
+    }
 }

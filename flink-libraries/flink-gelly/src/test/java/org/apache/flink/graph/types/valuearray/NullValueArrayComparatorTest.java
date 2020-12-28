@@ -23,32 +23,30 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.NullValue;
 
-/**
- * Tests for {@link NullValueArrayComparator}.
- */
+/** Tests for {@link NullValueArrayComparator}. */
 public class NullValueArrayComparatorTest extends ComparatorTestBase<NullValueArray> {
 
-	@Override
-	protected TypeComparator<NullValueArray> createComparator(boolean ascending) {
-		return new NullValueArrayComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<NullValueArray> createComparator(boolean ascending) {
+        return new NullValueArrayComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<NullValueArray> createSerializer() {
-		return new NullValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<NullValueArray> createSerializer() {
+        return new NullValueArraySerializer();
+    }
 
-	@Override
-	protected NullValueArray[] getSortedTestData() {
-		NullValueArray nva0 = new NullValueArray();
+    @Override
+    protected NullValueArray[] getSortedTestData() {
+        NullValueArray nva0 = new NullValueArray();
 
-		NullValueArray nva1 = new NullValueArray();
-		nva1.add(NullValue.getInstance());
+        NullValueArray nva1 = new NullValueArray();
+        nva1.add(NullValue.getInstance());
 
-		NullValueArray nva2 = new NullValueArray();
-		nva2.add(NullValue.getInstance());
-		nva2.add(NullValue.getInstance());
+        NullValueArray nva2 = new NullValueArray();
+        nva2.add(NullValue.getInstance());
+        nva2.add(NullValue.getInstance());
 
-		return new NullValueArray[]{ nva0, nva1 };
-	}
+        return new NullValueArray[] {nva0, nva1};
+    }
 }

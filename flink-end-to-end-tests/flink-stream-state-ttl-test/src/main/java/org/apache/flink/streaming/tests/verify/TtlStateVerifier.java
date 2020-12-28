@@ -30,30 +30,31 @@ import java.util.List;
 
 /** TTL state verifier interface. */
 public interface TtlStateVerifier<UV, GV> {
-	List<TtlStateVerifier<?, ?>> VERIFIERS = Arrays.asList(
-		new TtlValueStateVerifier(),
-		new TtlListStateVerifier(),
-		new TtlMapStateVerifier(),
-		new TtlAggregatingStateVerifier(),
-		new TtlReducingStateVerifier()
-	);
+    List<TtlStateVerifier<?, ?>> VERIFIERS =
+            Arrays.asList(
+                    new TtlValueStateVerifier(),
+                    new TtlListStateVerifier(),
+                    new TtlMapStateVerifier(),
+                    new TtlAggregatingStateVerifier(),
+                    new TtlReducingStateVerifier());
 
-	@Nonnull
-	default String getId() {
-		return this.getClass().getSimpleName();
-	}
+    @Nonnull
+    default String getId() {
+        return this.getClass().getSimpleName();
+    }
 
-	@Nonnull
-	State createState(@Nonnull FunctionInitializationContext context, @Nonnull StateTtlConfig ttlConfig);
+    @Nonnull
+    State createState(
+            @Nonnull FunctionInitializationContext context, @Nonnull StateTtlConfig ttlConfig);
 
-	@Nonnull
-	TypeSerializer<UV> getUpdateSerializer();
+    @Nonnull
+    TypeSerializer<UV> getUpdateSerializer();
 
-	UV generateRandomUpdate();
+    UV generateRandomUpdate();
 
-	GV get(@Nonnull State state) throws Exception;
+    GV get(@Nonnull State state) throws Exception;
 
-	void update(@Nonnull State state, Object update) throws Exception;
+    void update(@Nonnull State state, Object update) throws Exception;
 
-	boolean verify(@Nonnull TtlVerificationContext<?, ?> verificationContext);
+    boolean verify(@Nonnull TtlVerificationContext<?, ?> verificationContext);
 }

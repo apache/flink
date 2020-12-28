@@ -22,16 +22,13 @@ import org.apache.flink.annotation.Internal;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/**
- * Internal options used during deployment.
- */
+/** Internal options used during deployment. */
 @Internal
 public class DeploymentOptionsInternal {
 
-	public static final ConfigOption<String> CONF_DIR =
-			key("$internal.deployment.config-dir")
-					.stringType()
-					.noDefaultValue()
-					.withDescription("**DO NOT USE** The path to the configuration directory.");
-
+    public static final ConfigOption<String> CONF_DIR =
+            key("$internal.deployment.config-dir")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("**DO NOT USE** The path to the configuration directory.");
 }

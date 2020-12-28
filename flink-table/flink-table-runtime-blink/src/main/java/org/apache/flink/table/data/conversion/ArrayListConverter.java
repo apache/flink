@@ -30,58 +30,54 @@ import java.util.List;
 
 import static org.apache.commons.lang3.ClassUtils.primitiveToWrapper;
 
-/**
- * Converter for {@link ArrayType} of {@link List} external type.
- */
+/** Converter for {@link ArrayType} of {@link List} external type. */
 @Internal
 public class ArrayListConverter<E> implements DataStructureConverter<ArrayData, List<E>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final E[] arrayKind;
+    private final E[] arrayKind;
 
-	private final ArrayObjectArrayConverter<E> elementsConverter;
+    private final ArrayObjectArrayConverter<E> elementsConverter;
 
-	private ArrayListConverter(E[] arrayKind, ArrayObjectArrayConverter<E> elementsConverter) {
-		this.arrayKind = arrayKind;
-		this.elementsConverter = elementsConverter;
-	}
+    private ArrayListConverter(E[] arrayKind, ArrayObjectArrayConverter<E> elementsConverter) {
+        this.arrayKind = arrayKind;
+        this.elementsConverter = elementsConverter;
+    }
 
-	@Override
-	public void open(ClassLoader classLoader) {
-		elementsConverter.open(classLoader);
-	}
+    @Override
+    public void open(ClassLoader classLoader) {
+        elementsConverter.open(classLoader);
+    }
 
-	@Override
-	public ArrayData toInternal(List<E> external) {
-		return elementsConverter.toInternal(external.toArray(arrayKind));
-	}
+    @Override
+    public ArrayData toInternal(List<E> external) {
+        return elementsConverter.toInternal(external.toArray(arrayKind));
+    }
 
-	@Override
-	public List<E> toExternal(ArrayData internal) {
-		return new ArrayList<>(Arrays.asList(elementsConverter.toExternal(internal)));
-	}
+    @Override
+    public List<E> toExternal(ArrayData internal) {
+        return new ArrayList<>(Arrays.asList(elementsConverter.toExternal(internal)));
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Factory method
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Factory method
+    // --------------------------------------------------------------------------------------------
 
-	public static ArrayListConverter<?> create(DataType dataType) {
-		final DataType elementDataType = dataType.getChildren().get(0);
-		return new ArrayListConverter<>(
-			createObjectArrayKind(elementDataType.getConversionClass()),
-			ArrayObjectArrayConverter.createForElement(elementDataType));
-	}
+    public static ArrayListConverter<?> create(DataType dataType) {
+        final DataType elementDataType = dataType.getChildren().get(0);
+        return new ArrayListConverter<>(
+                createObjectArrayKind(elementDataType.getConversionClass()),
+                ArrayObjectArrayConverter.createForElement(elementDataType));
+    }
 
-	/**
-	 * Creates the kind of array for {@link List#toArray(Object[])}.
-	 */
-	private static Object[] createObjectArrayKind(Class<?> elementClazz) {
-		// e.g. int[] is not a Object[]
-		if (elementClazz.isPrimitive()) {
-			return (Object[]) Array.newInstance(primitiveToWrapper(elementClazz), 0);
-		}
-		// e.g. int[][] and Integer[] are Object[]
-		return (Object[]) Array.newInstance(elementClazz, 0);
-	}
+    /** Creates the kind of array for {@link List#toArray(Object[])}. */
+    private static Object[] createObjectArrayKind(Class<?> elementClazz) {
+        // e.g. int[] is not a Object[]
+        if (elementClazz.isPrimitive()) {
+            return (Object[]) Array.newInstance(primitiveToWrapper(elementClazz), 0);
+        }
+        // e.g. int[][] and Integer[] are Object[]
+        return (Object[]) Array.newInstance(elementClazz, 0);
+    }
 }

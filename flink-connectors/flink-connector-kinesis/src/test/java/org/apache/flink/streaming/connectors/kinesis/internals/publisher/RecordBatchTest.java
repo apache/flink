@@ -34,61 +34,59 @@ import static java.util.Collections.singletonList;
 import static org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.createDummyStreamShardHandle;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link RecordBatch}.
- */
+/** Tests for {@link RecordBatch}. */
 public class RecordBatchTest {
 
-	@Test
-	public void testDeaggregateRecordsPassThrough() {
-		RecordBatch result = new RecordBatch(Arrays.asList(
-			record("1"),
-			record("2"),
-			record("3"),
-			record("4")
-		), createDummyStreamShardHandle(), 100L);
+    @Test
+    public void testDeaggregateRecordsPassThrough() {
+        RecordBatch result =
+                new RecordBatch(
+                        Arrays.asList(record("1"), record("2"), record("3"), record("4")),
+                        createDummyStreamShardHandle(),
+                        100L);
 
-		assertEquals(4, result.getAggregatedRecordSize());
-		assertEquals(4, result.getDeaggregatedRecordSize());
-		assertEquals(128, result.getTotalSizeInBytes());
-		assertEquals(32, result.getAverageRecordSizeBytes());
-	}
+        assertEquals(4, result.getAggregatedRecordSize());
+        assertEquals(4, result.getDeaggregatedRecordSize());
+        assertEquals(128, result.getTotalSizeInBytes());
+        assertEquals(32, result.getAverageRecordSizeBytes());
+    }
 
-	@Test
-	public void testDeaggregateRecordsWithAggregatedRecords() {
-		final List<Record> records = TestUtils.createAggregatedRecordBatch(5, 5, new AtomicInteger());
-		RecordBatch result = new RecordBatch(records, createDummyStreamShardHandle(), 100L);
+    @Test
+    public void testDeaggregateRecordsWithAggregatedRecords() {
+        final List<Record> records =
+                TestUtils.createAggregatedRecordBatch(5, 5, new AtomicInteger());
+        RecordBatch result = new RecordBatch(records, createDummyStreamShardHandle(), 100L);
 
-		assertEquals(5, result.getAggregatedRecordSize());
-		assertEquals(25, result.getDeaggregatedRecordSize());
-		assertEquals(25 * 1024, result.getTotalSizeInBytes());
-		assertEquals(1024, result.getAverageRecordSizeBytes());
-	}
+        assertEquals(5, result.getAggregatedRecordSize());
+        assertEquals(25, result.getDeaggregatedRecordSize());
+        assertEquals(25 * 1024, result.getTotalSizeInBytes());
+        assertEquals(1024, result.getAverageRecordSizeBytes());
+    }
 
-	@Test
-	public void testGetAverageRecordSizeBytesEmptyList() {
-		RecordBatch result = new RecordBatch(emptyList(), createDummyStreamShardHandle(), 100L);
+    @Test
+    public void testGetAverageRecordSizeBytesEmptyList() {
+        RecordBatch result = new RecordBatch(emptyList(), createDummyStreamShardHandle(), 100L);
 
-		assertEquals(0, result.getAggregatedRecordSize());
-		assertEquals(0, result.getDeaggregatedRecordSize());
-		assertEquals(0, result.getAverageRecordSizeBytes());
-	}
+        assertEquals(0, result.getAggregatedRecordSize());
+        assertEquals(0, result.getDeaggregatedRecordSize());
+        assertEquals(0, result.getAverageRecordSizeBytes());
+    }
 
-	@Test
-	public void testGetMillisBehindLatest() {
-		RecordBatch result = new RecordBatch(singletonList(record("1")), createDummyStreamShardHandle(), 100L);
+    @Test
+    public void testGetMillisBehindLatest() {
+        RecordBatch result =
+                new RecordBatch(singletonList(record("1")), createDummyStreamShardHandle(), 100L);
 
-		assertEquals(Long.valueOf(100), result.getMillisBehindLatest());
-	}
+        assertEquals(Long.valueOf(100), result.getMillisBehindLatest());
+    }
 
-	private Record record(final String sequenceNumber) {
-		byte[] data = RandomStringUtils.randomAlphabetic(32)
-			.getBytes(ConfigConstants.DEFAULT_CHARSET);
+    private Record record(final String sequenceNumber) {
+        byte[] data =
+                RandomStringUtils.randomAlphabetic(32).getBytes(ConfigConstants.DEFAULT_CHARSET);
 
-		return new Record()
-			.withData(ByteBuffer.wrap(data))
-			.withPartitionKey("pk")
-			.withSequenceNumber(sequenceNumber);
-	}
-
+        return new Record()
+                .withData(ByteBuffer.wrap(data))
+                .withPartitionKey("pk")
+                .withSequenceNumber(sequenceNumber);
+    }
 }

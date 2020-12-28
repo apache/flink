@@ -45,119 +45,129 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Test that runs an iterative job after a failure in another iterative job.
- * This test validates that task slots in co-location constraints are properly
- * freed in the presence of failures.
+ * Test that runs an iterative job after a failure in another iterative job. This test validates
+ * that task slots in co-location constraints are properly freed in the presence of failures.
  */
 public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
-	private static final int PARALLELISM = 16;
+    private static final int PARALLELISM = 16;
 
-	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberTaskManagers(2)
-			.setNumberSlotsPerTaskManager(8)
-			.build());
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberTaskManagers(2)
+                            .setNumberSlotsPerTaskManager(8)
+                            .build());
 
-	private static Configuration getConfiguration() {
-		Configuration config = new Configuration();
-		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("80m"));
-		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(32L));
-		config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(32L));
-		return config;
-	}
+    private static Configuration getConfiguration() {
+        Configuration config = new Configuration();
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("80m"));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(32L));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(32L));
+        return config;
+    }
 
-	@Test
-	public void testSuccessfulProgramAfterFailure() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testSuccessfulProgramAfterFailure() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		runConnectedComponents(env);
+        runConnectedComponents(env);
 
-		try {
-			runKMeans(env);
-			fail("This program execution should have failed.");
-		}
-		catch (JobExecutionException e) {
-			assertTrue(findThrowableWithMessage(e, "Insufficient number of network buffers").isPresent());
-		}
+        try {
+            runKMeans(env);
+            fail("This program execution should have failed.");
+        } catch (JobExecutionException e) {
+            assertTrue(
+                    findThrowableWithMessage(e, "Insufficient number of network buffers")
+                            .isPresent());
+        }
 
-		runConnectedComponents(env);
-	}
+        runConnectedComponents(env);
+    }
 
-	private static void runConnectedComponents(ExecutionEnvironment env) throws Exception {
+    private static void runConnectedComponents(ExecutionEnvironment env) throws Exception {
 
-		env.setParallelism(PARALLELISM);
+        env.setParallelism(PARALLELISM);
 
-		// read vertex and edge data
-		DataSet<Long> vertices = ConnectedComponentsData.getDefaultVertexDataSet(env)
-				.rebalance();
+        // read vertex and edge data
+        DataSet<Long> vertices = ConnectedComponentsData.getDefaultVertexDataSet(env).rebalance();
 
-		DataSet<Tuple2<Long, Long>> edges = ConnectedComponentsData.getDefaultEdgeDataSet(env)
-				.rebalance()
-				.flatMap(new ConnectedComponents.UndirectEdge());
+        DataSet<Tuple2<Long, Long>> edges =
+                ConnectedComponentsData.getDefaultEdgeDataSet(env)
+                        .rebalance()
+                        .flatMap(new ConnectedComponents.UndirectEdge());
 
-		// assign the initial components (equal to the vertex id)
-		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices
-				.map(new ConnectedComponents.DuplicateValue<Long>());
+        // assign the initial components (equal to the vertex id)
+        DataSet<Tuple2<Long, Long>> verticesWithInitialId =
+                vertices.map(new ConnectedComponents.DuplicateValue<Long>());
 
-		// open a delta iteration
-		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
-				verticesWithInitialId.iterateDelta(verticesWithInitialId, 100, 0);
+        // open a delta iteration
+        DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+                verticesWithInitialId.iterateDelta(verticesWithInitialId, 100, 0);
 
-		// apply the step logic: join with the edges, select the minimum neighbor,
-		// update if the component of the candidate is smaller
-		DataSet<Tuple2<Long, Long>> changes = iteration.getWorkset().join(edges)
-				.where(0).equalTo(0)
-				.with(new ConnectedComponents.NeighborWithComponentIDJoin())
+        // apply the step logic: join with the edges, select the minimum neighbor,
+        // update if the component of the candidate is smaller
+        DataSet<Tuple2<Long, Long>> changes =
+                iteration
+                        .getWorkset()
+                        .join(edges)
+                        .where(0)
+                        .equalTo(0)
+                        .with(new ConnectedComponents.NeighborWithComponentIDJoin())
+                        .groupBy(0)
+                        .aggregate(Aggregations.MIN, 1)
+                        .join(iteration.getSolutionSet())
+                        .where(0)
+                        .equalTo(0)
+                        .with(new ConnectedComponents.ComponentIdFilter());
 
-				.groupBy(0).aggregate(Aggregations.MIN, 1)
+        // close the delta iteration (delta and new workset are identical)
+        DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
 
-				.join(iteration.getSolutionSet())
-				.where(0).equalTo(0)
-				.with(new ConnectedComponents.ComponentIdFilter());
+        result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 
-		// close the delta iteration (delta and new workset are identical)
-		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
+        env.execute();
+    }
 
-		result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+    private static void runKMeans(ExecutionEnvironment env) throws Exception {
 
-		env.execute();
-	}
+        env.setParallelism(PARALLELISM);
 
-	private static void runKMeans(ExecutionEnvironment env) throws Exception {
+        // get input data
+        DataSet<KMeans.Point> points = KMeansData.getDefaultPointDataSet(env).rebalance();
+        DataSet<KMeans.Centroid> centroids = KMeansData.getDefaultCentroidDataSet(env).rebalance();
 
-		env.setParallelism(PARALLELISM);
+        // set number of bulk iterations for KMeans algorithm
+        IterativeDataSet<KMeans.Centroid> loop = centroids.iterate(20);
 
-		// get input data
-		DataSet<KMeans.Point> points =  KMeansData.getDefaultPointDataSet(env).rebalance();
-		DataSet<KMeans.Centroid> centroids =  KMeansData.getDefaultCentroidDataSet(env).rebalance();
+        // add some re-partitions to increase network buffer use
+        DataSet<KMeans.Centroid> newCentroids =
+                points
+                        // compute closest centroid for each point
+                        .map(new KMeans.SelectNearestCenter())
+                        .withBroadcastSet(loop, "centroids")
+                        .rebalance()
+                        // count and sum point coordinates for each centroid
+                        .map(new KMeans.CountAppender())
+                        .groupBy(0)
+                        .reduce(new KMeans.CentroidAccumulator())
+                        // compute new centroids from point counts and coordinate sums
+                        .rebalance()
+                        .map(new KMeans.CentroidAverager());
 
-		// set number of bulk iterations for KMeans algorithm
-		IterativeDataSet<KMeans.Centroid> loop = centroids.iterate(20);
+        // feed new centroids back into next iteration
+        DataSet<KMeans.Centroid> finalCentroids = loop.closeWith(newCentroids);
 
-		// add some re-partitions to increase network buffer use
-		DataSet<KMeans.Centroid> newCentroids = points
-				// compute closest centroid for each point
-				.map(new KMeans.SelectNearestCenter()).withBroadcastSet(loop, "centroids")
-				.rebalance()
-				// count and sum point coordinates for each centroid
-				.map(new KMeans.CountAppender())
-				.groupBy(0).reduce(new KMeans.CentroidAccumulator())
-				// compute new centroids from point counts and coordinate sums
-				.rebalance()
-				.map(new KMeans.CentroidAverager());
+        DataSet<Tuple2<Integer, KMeans.Point>> clusteredPoints =
+                points
+                        // assign points to final clusters
+                        .map(new KMeans.SelectNearestCenter())
+                        .withBroadcastSet(finalCentroids, "centroids");
 
-		// feed new centroids back into next iteration
-		DataSet<KMeans.Centroid> finalCentroids = loop.closeWith(newCentroids);
+        clusteredPoints.output(new DiscardingOutputFormat<Tuple2<Integer, KMeans.Point>>());
 
-		DataSet<Tuple2<Integer, KMeans.Point>> clusteredPoints = points
-				// assign points to final clusters
-				.map(new KMeans.SelectNearestCenter()).withBroadcastSet(finalCentroids, "centroids");
-
-		clusteredPoints.output(new DiscardingOutputFormat<Tuple2<Integer, KMeans.Point>>());
-
-		env.execute("KMeans Example");
-	}
+        env.execute("KMeans Example");
+    }
 }

@@ -22,37 +22,37 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 /**
- * A simple wrapper for using the SerializationSchema with the KeyedSerializationSchema
- * interface.
+ * A simple wrapper for using the SerializationSchema with the KeyedSerializationSchema interface.
+ *
  * @param <T> The type to serialize
  */
 @Internal
 public class KeyedSerializationSchemaWrapper<T> implements KeyedSerializationSchema<T> {
 
-	private static final long serialVersionUID = 1351665280744549933L;
+    private static final long serialVersionUID = 1351665280744549933L;
 
-	private final SerializationSchema<T> serializationSchema;
+    private final SerializationSchema<T> serializationSchema;
 
-	public KeyedSerializationSchemaWrapper(SerializationSchema<T> serializationSchema) {
-		this.serializationSchema = serializationSchema;
-	}
+    public KeyedSerializationSchemaWrapper(SerializationSchema<T> serializationSchema) {
+        this.serializationSchema = serializationSchema;
+    }
 
-	public SerializationSchema<T> getSerializationSchema() {
-		return serializationSchema;
-	}
+    public SerializationSchema<T> getSerializationSchema() {
+        return serializationSchema;
+    }
 
-	@Override
-	public byte[] serializeKey(T element) {
-		return null;
-	}
+    @Override
+    public byte[] serializeKey(T element) {
+        return null;
+    }
 
-	@Override
-	public byte[] serializeValue(T element) {
-		return serializationSchema.serialize(element);
-	}
+    @Override
+    public byte[] serializeValue(T element) {
+        return serializationSchema.serialize(element);
+    }
 
-	@Override
-	public String getTargetTopic(T element) {
-		return null; // we are never overriding the topic
-	}
+    @Override
+    public String getTargetTopic(T element) {
+        return null; // we are never overriding the topic
+    }
 }

@@ -26,25 +26,24 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import java.util.List;
 
 /**
- * Extends a {@link TableSource} to specify rowtime attributes via a
- * {@link RowtimeAttributeDescriptor}.
+ * Extends a {@link TableSource} to specify rowtime attributes via a {@link
+ * RowtimeAttributeDescriptor}.
  *
- * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
- *             which only works with the Blink planner. Use the concept of computed columns instead.
- *             See FLIP-95 for more information.
+ * @deprecated This interface will not be supported in the new source design around {@link
+ *     DynamicTableSource} which only works with the Blink planner. Use the concept of computed
+ *     columns instead. See FLIP-95 for more information.
  */
 @Deprecated
 @PublicEvolving
 public interface DefinedRowtimeAttributes {
 
-	/**
-	 * Returns a list of {@link RowtimeAttributeDescriptor} for all rowtime
-	 * attributes of the table.
-	 *
-	 * <p>All referenced attributes must be present in the {@link TableSchema}
-	 * of the {@link TableSource} and of type {@link Types#SQL_TIMESTAMP}.
-	 *
-	 * @return A list of {@link RowtimeAttributeDescriptor}.
-	 */
-	List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors();
+    /**
+     * Returns a list of {@link RowtimeAttributeDescriptor} for all rowtime attributes of the table.
+     *
+     * <p>All referenced attributes must be present in the {@link TableSchema} of the {@link
+     * TableSource} and of type {@link Types#SQL_TIMESTAMP}.
+     *
+     * @return A list of {@link RowtimeAttributeDescriptor}.
+     */
+    List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors();
 }

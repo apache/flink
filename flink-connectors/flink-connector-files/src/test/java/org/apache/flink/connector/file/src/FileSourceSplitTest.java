@@ -22,13 +22,12 @@ import org.apache.flink.core.fs.Path;
 
 import org.junit.Test;
 
-/**
- * Unit tests for the {@link FileSourceSplit}.
- */
+/** Unit tests for the {@link FileSourceSplit}. */
 public class FileSourceSplitTest {
 
-	@Test(expected = IllegalArgumentException.class)
-	public void noNullHostsAllowed() {
-		new FileSourceSplit("id", new Path("file:/some/random/path"), 0, 10, "host1", null, "host2");
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void noNullHostsAllowed() {
+        new FileSourceSplit(
+                "id", new Path("file:/some/random/path"), 0, 10, "host1", null, "host2");
+    }
 }

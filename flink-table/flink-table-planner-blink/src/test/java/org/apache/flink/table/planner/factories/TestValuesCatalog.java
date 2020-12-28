@@ -44,73 +44,84 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-
-/**
- * Use TestValuesCatalog to test partition push down.
- * */
+/** Use TestValuesCatalog to test partition push down. */
 public class TestValuesCatalog extends GenericInMemoryCatalog {
-	private final boolean supportListPartitionByFilter;
-	public TestValuesCatalog(String name, String defaultDatabase, boolean supportListPartitionByFilter) {
-		super(name, defaultDatabase);
-		this.supportListPartitionByFilter = supportListPartitionByFilter;
-	}
+    private final boolean supportListPartitionByFilter;
 
-	@Override
-	public List<CatalogPartitionSpec> listPartitionsByFilter(ObjectPath tablePath, List<Expression> filters)
-			throws TableNotExistException, TableNotPartitionedException, CatalogException {
-		if (!supportListPartitionByFilter) {
-			throw new UnsupportedOperationException("TestValuesCatalog doesn't support list partition by filters");
-		}
+    public TestValuesCatalog(
+            String name, String defaultDatabase, boolean supportListPartitionByFilter) {
+        super(name, defaultDatabase);
+        this.supportListPartitionByFilter = supportListPartitionByFilter;
+    }
 
-		List<CatalogPartitionSpec> partitions = listPartitions(tablePath);
-		if (partitions.isEmpty()) {
-			return partitions;
-		}
+    @Override
+    public List<CatalogPartitionSpec> listPartitionsByFilter(
+            ObjectPath tablePath, List<Expression> filters)
+            throws TableNotExistException, TableNotPartitionedException, CatalogException {
+        if (!supportListPartitionByFilter) {
+            throw new UnsupportedOperationException(
+                    "TestValuesCatalog doesn't support list partition by filters");
+        }
 
-		CatalogBaseTable table = this.getTable(tablePath);
-		TableSchema schema = table.getSchema();
-		List<ResolvedExpression> resolvedExpressions = filters.stream()
-			.map(filter -> {
-				if (filter instanceof ResolvedExpression) {
-					return (ResolvedExpression) filter;
-				}
-				throw new UnsupportedOperationException(
-					String.format("TestValuesCatalog only works with resolved expressions. Get unresolved expression: %s",
-						filter));
-			})
-			.collect(Collectors.toList());
+        List<CatalogPartitionSpec> partitions = listPartitions(tablePath);
+        if (partitions.isEmpty()) {
+            return partitions;
+        }
 
-		return partitions.stream()
-			.filter(
-				partition -> {
-					Function<String, Comparable<?>> getter = getValueGetter(partition.getPartitionSpec(), schema);
-					return FilterUtils.isRetainedAfterApplyingFilterPredicates(resolvedExpressions, getter); })
-			.collect(Collectors.toList());
-	}
+        CatalogBaseTable table = this.getTable(tablePath);
+        TableSchema schema = table.getSchema();
+        List<ResolvedExpression> resolvedExpressions =
+                filters.stream()
+                        .map(
+                                filter -> {
+                                    if (filter instanceof ResolvedExpression) {
+                                        return (ResolvedExpression) filter;
+                                    }
+                                    throw new UnsupportedOperationException(
+                                            String.format(
+                                                    "TestValuesCatalog only works with resolved expressions. Get unresolved expression: %s",
+                                                    filter));
+                                })
+                        .collect(Collectors.toList());
 
-	private Function<String, Comparable<?>> getValueGetter(Map<String, String> spec, TableSchema schema) {
-		return field -> {
-			Optional<DataType> optionalDataType = schema.getFieldDataType(field);
-			if (!optionalDataType.isPresent()) {
-				throw new TableException(String.format("Field %s is not found in table schema.", field));
-			}
-			return convertValue(optionalDataType.get().getLogicalType(), spec.getOrDefault(field, null));
-		};
-	}
+        return partitions.stream()
+                .filter(
+                        partition -> {
+                            Function<String, Comparable<?>> getter =
+                                    getValueGetter(partition.getPartitionSpec(), schema);
+                            return FilterUtils.isRetainedAfterApplyingFilterPredicates(
+                                    resolvedExpressions, getter);
+                        })
+                .collect(Collectors.toList());
+    }
 
-	private Comparable<?> convertValue(LogicalType type, String value) {
-		if (type instanceof BooleanType) {
-			return Boolean.valueOf(value);
-		} else if (type instanceof CharType) {
-			return value.charAt(0);
-		} else if (type instanceof DoubleType) {
-			return Double.valueOf(value);
-		} else if (type instanceof IntType) {
-			return Integer.valueOf(value);
-		} else if (type instanceof VarCharType) {
-			return value;
-		} else {
-			throw new UnsupportedOperationException(String.format("Unsupported data type: %s.", type));
-		}
-	}
+    private Function<String, Comparable<?>> getValueGetter(
+            Map<String, String> spec, TableSchema schema) {
+        return field -> {
+            Optional<DataType> optionalDataType = schema.getFieldDataType(field);
+            if (!optionalDataType.isPresent()) {
+                throw new TableException(
+                        String.format("Field %s is not found in table schema.", field));
+            }
+            return convertValue(
+                    optionalDataType.get().getLogicalType(), spec.getOrDefault(field, null));
+        };
+    }
+
+    private Comparable<?> convertValue(LogicalType type, String value) {
+        if (type instanceof BooleanType) {
+            return Boolean.valueOf(value);
+        } else if (type instanceof CharType) {
+            return value.charAt(0);
+        } else if (type instanceof DoubleType) {
+            return Double.valueOf(value);
+        } else if (type instanceof IntType) {
+            return Integer.valueOf(value);
+        } else if (type instanceof VarCharType) {
+            return value;
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format("Unsupported data type: %s.", type));
+        }
+    }
 }

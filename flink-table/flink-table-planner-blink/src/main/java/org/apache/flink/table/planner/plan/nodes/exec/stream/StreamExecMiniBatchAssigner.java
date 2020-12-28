@@ -47,40 +47,42 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * because runtime doesn't support customized events and the watermark mechanism fully meets
  * mini-batch needs.
  */
-public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
-	private final MiniBatchInterval miniBatchInterval;
+public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData> {
+    private final MiniBatchInterval miniBatchInterval;
 
-	public StreamExecMiniBatchAssigner(
-			MiniBatchInterval miniBatchInterval,
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-		this.miniBatchInterval = checkNotNull(miniBatchInterval);
-	}
+    public StreamExecMiniBatchAssigner(
+            MiniBatchInterval miniBatchInterval,
+            ExecEdge inputEdge,
+            RowType outputType,
+            String description) {
+        super(Collections.singletonList(inputEdge), outputType, description);
+        this.miniBatchInterval = checkNotNull(miniBatchInterval);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		final Transformation<RowData> inputTransform =
-				(Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
 
-		final OneInputStreamOperator<RowData, RowData> operator;
-		if (miniBatchInterval.mode() == MiniBatchMode.ProcTime()) {
-			operator = new ProcTimeMiniBatchAssignerOperator(miniBatchInterval.interval());
-		} else if (miniBatchInterval.mode() == MiniBatchMode.RowTime()) {
-			operator = new RowTimeMiniBatchAssginerOperator(miniBatchInterval.interval());
-		} else {
-			throw new TableException(
-					String.format("MiniBatchAssigner shouldn't be in %s mode this is a bug, please file an issue.",
-							miniBatchInterval.mode()));
-		}
+        final OneInputStreamOperator<RowData, RowData> operator;
+        if (miniBatchInterval.mode() == MiniBatchMode.ProcTime()) {
+            operator = new ProcTimeMiniBatchAssignerOperator(miniBatchInterval.interval());
+        } else if (miniBatchInterval.mode() == MiniBatchMode.RowTime()) {
+            operator = new RowTimeMiniBatchAssginerOperator(miniBatchInterval.interval());
+        } else {
+            throw new TableException(
+                    String.format(
+                            "MiniBatchAssigner shouldn't be in %s mode this is a bug, please file an issue.",
+                            miniBatchInterval.mode()));
+        }
 
-		return new OneInputTransformation<>(
-				inputTransform,
-				getDesc(),
-				operator,
-				InternalTypeInfo.of(getOutputType()),
-				inputTransform.getParallelism());
-	}
+        return new OneInputTransformation<>(
+                inputTransform,
+                getDesc(),
+                operator,
+                InternalTypeInfo.of(getOutputType()),
+                inputTransform.getParallelism());
+    }
 }

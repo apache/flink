@@ -28,26 +28,22 @@ import java.util.TreeMap;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/**
- * Test {@link StreamingCommitterState}.
- */
+/** Test {@link StreamingCommitterState}. */
 public class StreamingCommitterStateTest {
 
-	@Test
-	public void constructFromMap() {
-		final NavigableMap<Long, List<Integer>> r = new TreeMap<>();
-		final List<Integer> expectedList = Arrays.asList(0, 1, 2, 3, 10, 11, 12, 13, 30, 31, 32, 33);
+    @Test
+    public void constructFromMap() {
+        final NavigableMap<Long, List<Integer>> r = new TreeMap<>();
+        final List<Integer> expectedList =
+                Arrays.asList(0, 1, 2, 3, 10, 11, 12, 13, 30, 31, 32, 33);
 
-		r.put(1L, Arrays.asList(10, 11, 12, 13));
-		r.put(0L, Arrays.asList(0, 1, 2, 3));
-		r.put(3L, Arrays.asList(30, 31, 32, 33));
+        r.put(1L, Arrays.asList(10, 11, 12, 13));
+        r.put(0L, Arrays.asList(0, 1, 2, 3));
+        r.put(3L, Arrays.asList(30, 31, 32, 33));
 
-		final StreamingCommitterState<Integer> streamingCommitterState = new StreamingCommitterState<>(
-				r);
+        final StreamingCommitterState<Integer> streamingCommitterState =
+                new StreamingCommitterState<>(r);
 
-		assertThat(
-				streamingCommitterState.getCommittables(),
-				equalTo(
-						expectedList));
-	}
+        assertThat(streamingCommitterState.getCommittables(), equalTo(expectedList));
+    }
 }

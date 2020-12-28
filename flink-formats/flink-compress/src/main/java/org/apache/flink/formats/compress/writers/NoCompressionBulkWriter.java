@@ -35,26 +35,26 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class NoCompressionBulkWriter<T> implements BulkWriter<T> {
 
-	private final Extractor<T> extractor;
-	private final FSDataOutputStream outputStream;
+    private final Extractor<T> extractor;
+    private final FSDataOutputStream outputStream;
 
-	public NoCompressionBulkWriter(FSDataOutputStream outputStream, Extractor<T> extractor) {
-		this.outputStream = checkNotNull(outputStream);
-		this.extractor = checkNotNull(extractor);
-	}
+    public NoCompressionBulkWriter(FSDataOutputStream outputStream, Extractor<T> extractor) {
+        this.outputStream = checkNotNull(outputStream);
+        this.extractor = checkNotNull(extractor);
+    }
 
-	@Override
-	public void addElement(T element) throws IOException {
-		outputStream.write(extractor.extract(element));
-	}
+    @Override
+    public void addElement(T element) throws IOException {
+        outputStream.write(extractor.extract(element));
+    }
 
-	@Override
-	public void flush() throws IOException {
-		outputStream.flush();
-	}
+    @Override
+    public void flush() throws IOException {
+        outputStream.flush();
+    }
 
-	@Override
-	public void finish() throws IOException {
-		outputStream.sync();
-	}
+    @Override
+    public void finish() throws IOException {
+        outputStream.sync();
+    }
 }

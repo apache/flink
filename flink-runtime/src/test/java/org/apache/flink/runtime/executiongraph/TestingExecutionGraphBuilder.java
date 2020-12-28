@@ -45,132 +45,137 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
-/**
- * Builder of {@link ExecutionGraph} used in testing.
- */
+/** Builder of {@link ExecutionGraph} used in testing. */
 public class TestingExecutionGraphBuilder {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TestingExecutionGraphBuilder.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TestingExecutionGraphBuilder.class);
 
-	public static TestingExecutionGraphBuilder newBuilder() {
-		return new TestingExecutionGraphBuilder();
-	}
+    public static TestingExecutionGraphBuilder newBuilder() {
+        return new TestingExecutionGraphBuilder();
+    }
 
-	private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
-	private Executor ioExecutor = TestingUtils.defaultExecutor();
-	private Time rpcTimeout = AkkaUtils.getDefaultTimeout();
-	private SlotProvider slotProvider = new TestingSlotProvider(slotRequestId -> CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
-	private ClassLoader userClassLoader = ExecutionGraph.class.getClassLoader();
-	private BlobWriter blobWriter = VoidBlobWriter.getInstance();
-	private Time allocationTimeout = AkkaUtils.getDefaultTimeout();
-	private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
-	private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
-	private Configuration jobMasterConfig = new Configuration();
-	private JobGraph jobGraph = new JobGraph();
-	private MetricGroup metricGroup = new UnregisteredMetricsGroup();
-	private CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
-	private ExecutionDeploymentListener executionDeploymentListener = NoOpExecutionDeploymentListener.get();
-	private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
+    private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
+    private Executor ioExecutor = TestingUtils.defaultExecutor();
+    private Time rpcTimeout = AkkaUtils.getDefaultTimeout();
+    private SlotProvider slotProvider =
+            new TestingSlotProvider(
+                    slotRequestId ->
+                            CompletableFuture.completedFuture(
+                                    new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
+    private ClassLoader userClassLoader = ExecutionGraph.class.getClassLoader();
+    private BlobWriter blobWriter = VoidBlobWriter.getInstance();
+    private Time allocationTimeout = AkkaUtils.getDefaultTimeout();
+    private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+    private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
+    private Configuration jobMasterConfig = new Configuration();
+    private JobGraph jobGraph = new JobGraph();
+    private MetricGroup metricGroup = new UnregisteredMetricsGroup();
+    private CheckpointRecoveryFactory checkpointRecoveryFactory =
+            new StandaloneCheckpointRecoveryFactory();
+    private ExecutionDeploymentListener executionDeploymentListener =
+            NoOpExecutionDeploymentListener.get();
+    private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
 
-	private TestingExecutionGraphBuilder() {
+    private TestingExecutionGraphBuilder() {}
 
-	}
+    public TestingExecutionGraphBuilder setJobMasterConfig(Configuration jobMasterConfig) {
+        this.jobMasterConfig = jobMasterConfig;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setJobMasterConfig(Configuration jobMasterConfig) {
-		this.jobMasterConfig = jobMasterConfig;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setJobGraph(JobGraph jobGraph) {
+        this.jobGraph = jobGraph;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setJobGraph(JobGraph jobGraph) {
-		this.jobGraph = jobGraph;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setFutureExecutor(ScheduledExecutorService futureExecutor) {
+        this.futureExecutor = futureExecutor;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setFutureExecutor(ScheduledExecutorService futureExecutor) {
-		this.futureExecutor = futureExecutor;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setIoExecutor(Executor ioExecutor) {
+        this.ioExecutor = ioExecutor;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setIoExecutor(Executor ioExecutor) {
-		this.ioExecutor = ioExecutor;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setRpcTimeout(Time rpcTimeout) {
+        this.rpcTimeout = rpcTimeout;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setRpcTimeout(Time rpcTimeout) {
-		this.rpcTimeout = rpcTimeout;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setSlotProvider(SlotProvider slotProvider) {
+        this.slotProvider = slotProvider;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setSlotProvider(SlotProvider slotProvider) {
-		this.slotProvider = slotProvider;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setUserClassLoader(ClassLoader userClassLoader) {
+        this.userClassLoader = userClassLoader;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setUserClassLoader(ClassLoader userClassLoader) {
-		this.userClassLoader = userClassLoader;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setBlobWriter(BlobWriter blobWriter) {
+        this.blobWriter = blobWriter;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setBlobWriter(BlobWriter blobWriter) {
-		this.blobWriter = blobWriter;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setAllocationTimeout(Time allocationTimeout) {
+        this.allocationTimeout = allocationTimeout;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setAllocationTimeout(Time allocationTimeout) {
-		this.allocationTimeout = allocationTimeout;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setShuffleMaster(ShuffleMaster<?> shuffleMaster) {
+        this.shuffleMaster = shuffleMaster;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setShuffleMaster(ShuffleMaster<?> shuffleMaster) {
-		this.shuffleMaster = shuffleMaster;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setPartitionTracker(
+            JobMasterPartitionTracker partitionTracker) {
+        this.partitionTracker = partitionTracker;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setPartitionTracker(JobMasterPartitionTracker partitionTracker) {
-		this.partitionTracker = partitionTracker;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setMetricGroup(MetricGroup metricGroup) {
+        this.metricGroup = metricGroup;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setMetricGroup(MetricGroup metricGroup) {
-		this.metricGroup = metricGroup;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setCheckpointRecoveryFactory(
+            CheckpointRecoveryFactory checkpointRecoveryFactory) {
+        this.checkpointRecoveryFactory = checkpointRecoveryFactory;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setCheckpointRecoveryFactory(CheckpointRecoveryFactory checkpointRecoveryFactory) {
-		this.checkpointRecoveryFactory = checkpointRecoveryFactory;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setExecutionDeploymentListener(
+            ExecutionDeploymentListener executionDeploymentListener) {
+        this.executionDeploymentListener = executionDeploymentListener;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setExecutionDeploymentListener(ExecutionDeploymentListener executionDeploymentListener) {
-		this.executionDeploymentListener = executionDeploymentListener;
-		return this;
-	}
+    public TestingExecutionGraphBuilder setExecutionStateUpdateListener(
+            ExecutionStateUpdateListener executionStateUpdateListener) {
+        this.executionStateUpdateListener = executionStateUpdateListener;
+        return this;
+    }
 
-	public TestingExecutionGraphBuilder setExecutionStateUpdateListener(ExecutionStateUpdateListener executionStateUpdateListener) {
-		this.executionStateUpdateListener = executionStateUpdateListener;
-		return this;
-	}
-
-	public ExecutionGraph build() throws JobException, JobExecutionException {
-		return ExecutionGraphBuilder.buildGraph(
-			null,
-			jobGraph,
-			jobMasterConfig,
-			futureExecutor,
-			ioExecutor,
-			slotProvider,
-			userClassLoader,
-			checkpointRecoveryFactory,
-			rpcTimeout,
-			metricGroup,
-			blobWriter,
-			allocationTimeout,
-			LOG,
-			shuffleMaster,
-			partitionTracker,
-			executionDeploymentListener,
-			executionStateUpdateListener,
-			System.currentTimeMillis());
-	}
-
+    public ExecutionGraph build() throws JobException, JobExecutionException {
+        return ExecutionGraphBuilder.buildGraph(
+                null,
+                jobGraph,
+                jobMasterConfig,
+                futureExecutor,
+                ioExecutor,
+                slotProvider,
+                userClassLoader,
+                checkpointRecoveryFactory,
+                rpcTimeout,
+                metricGroup,
+                blobWriter,
+                allocationTimeout,
+                LOG,
+                shuffleMaster,
+                partitionTracker,
+                executionDeploymentListener,
+                executionStateUpdateListener,
+                System.currentTimeMillis());
+    }
 }

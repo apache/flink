@@ -45,65 +45,67 @@ import java.util.List;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
 
-/**
- * Extends Calcite's {@link SqlValidator} by Flink-specific behavior.
- */
+/** Extends Calcite's {@link SqlValidator} by Flink-specific behavior. */
 @Internal
 public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 
-	public FlinkCalciteSqlValidator(
-			SqlOperatorTable opTab,
-			SqlValidatorCatalogReader catalogReader,
-			RelDataTypeFactory typeFactory,
-			SqlValidator.Config config) {
-		super(opTab, catalogReader, typeFactory, config);
-	}
+    public FlinkCalciteSqlValidator(
+            SqlOperatorTable opTab,
+            SqlValidatorCatalogReader catalogReader,
+            RelDataTypeFactory typeFactory,
+            SqlValidator.Config config) {
+        super(opTab, catalogReader, typeFactory, config);
+    }
 
-	@Override
-	public void validateLiteral(SqlLiteral literal) {
-		if (literal.getTypeName() == DECIMAL) {
-			final BigDecimal decimal = literal.getValueAs(BigDecimal.class);
-			if (decimal.precision() > DecimalType.MAX_PRECISION) {
-				throw newValidationError(
-					literal,
-					Static.RESOURCE.numberLiteralOutOfRange(decimal.toString()));
-			}
-		}
-		super.validateLiteral(literal);
-	}
+    @Override
+    public void validateLiteral(SqlLiteral literal) {
+        if (literal.getTypeName() == DECIMAL) {
+            final BigDecimal decimal = literal.getValueAs(BigDecimal.class);
+            if (decimal.precision() > DecimalType.MAX_PRECISION) {
+                throw newValidationError(
+                        literal, Static.RESOURCE.numberLiteralOutOfRange(decimal.toString()));
+            }
+        }
+        super.validateLiteral(literal);
+    }
 
-	@Override
-	protected void validateJoin(SqlJoin join, SqlValidatorScope scope) {
-		// Due to the improper translation of lateral table left outer join in Calcite, we need to
-		// temporarily forbid the common predicates until the problem is fixed (see FLINK-7865).
-		if (join.getJoinType() == JoinType.LEFT &&
-				SqlUtil.stripAs(join.getRight()).getKind() == SqlKind.COLLECTION_TABLE) {
-			SqlNode right = SqlUtil.stripAs(join.getRight());
-			if (right instanceof SqlBasicCall) {
-				SqlBasicCall call = (SqlBasicCall) right;
-				SqlNode operand0 = call.operand(0);
-				if (operand0 instanceof SqlBasicCall
-						&& ((SqlBasicCall) operand0).getOperator() instanceof SqlWindowTableFunction) {
-					return;
-				}
-			}
-			final SqlNode condition = join.getCondition();
-			if (condition != null &&
-					(!SqlUtil.isLiteral(condition) || ((SqlLiteral) condition).getValueAs(Boolean.class) != Boolean.TRUE)) {
-				throw new ValidationException(
-					String.format(
-						"Left outer joins with a table function do not accept a predicate such as %s. " +
-						"Only literal TRUE is accepted.",
-						condition));
-			}
-		}
-		super.validateJoin(join, scope);
-	}
+    @Override
+    protected void validateJoin(SqlJoin join, SqlValidatorScope scope) {
+        // Due to the improper translation of lateral table left outer join in Calcite, we need to
+        // temporarily forbid the common predicates until the problem is fixed (see FLINK-7865).
+        if (join.getJoinType() == JoinType.LEFT
+                && SqlUtil.stripAs(join.getRight()).getKind() == SqlKind.COLLECTION_TABLE) {
+            SqlNode right = SqlUtil.stripAs(join.getRight());
+            if (right instanceof SqlBasicCall) {
+                SqlBasicCall call = (SqlBasicCall) right;
+                SqlNode operand0 = call.operand(0);
+                if (operand0 instanceof SqlBasicCall
+                        && ((SqlBasicCall) operand0).getOperator()
+                                instanceof SqlWindowTableFunction) {
+                    return;
+                }
+            }
+            final SqlNode condition = join.getCondition();
+            if (condition != null
+                    && (!SqlUtil.isLiteral(condition)
+                            || ((SqlLiteral) condition).getValueAs(Boolean.class)
+                                    != Boolean.TRUE)) {
+                throw new ValidationException(
+                        String.format(
+                                "Left outer joins with a table function do not accept a predicate such as %s. "
+                                        + "Only literal TRUE is accepted.",
+                                condition));
+            }
+        }
+        super.validateJoin(join, scope);
+    }
 
-	@Override
-	public void validateColumnListParams(SqlFunction function, List<RelDataType> argTypes, List<SqlNode> operands) {
-		// we don't support column lists and translate them into the unknown type in the type factory,
-		// this makes it possible to ignore them in the validator and fall back to regular row types
-		// see also SqlFunction#deriveType
-	}
+    @Override
+    public void validateColumnListParams(
+            SqlFunction function, List<RelDataType> argTypes, List<SqlNode> operands) {
+        // we don't support column lists and translate them into the unknown type in the type
+        // factory,
+        // this makes it possible to ignore them in the validator and fall back to regular row types
+        // see also SqlFunction#deriveType
+    }
 }

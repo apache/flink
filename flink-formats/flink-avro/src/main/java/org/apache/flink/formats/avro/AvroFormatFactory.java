@@ -40,73 +40,67 @@ import java.util.Collections;
 import java.util.Set;
 
 /**
- * Table format factory for providing configured instances of Avro to RowData {@link SerializationSchema}
- * and {@link DeserializationSchema}.
+ * Table format factory for providing configured instances of Avro to RowData {@link
+ * SerializationSchema} and {@link DeserializationSchema}.
  */
-public class AvroFormatFactory implements
-		DeserializationFormatFactory,
-		SerializationFormatFactory {
+public class AvroFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
 
-	public static final String IDENTIFIER = "avro";
+    public static final String IDENTIFIER = "avro";
 
-	@Override
-	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
+    @Override
+    public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-		return new DecodingFormat<DeserializationSchema<RowData>>() {
-			@Override
-			public DeserializationSchema<RowData> createRuntimeDecoder(
-					DynamicTableSource.Context context,
-					DataType producedDataType) {
-				final RowType rowType = (RowType) producedDataType.getLogicalType();
-				final TypeInformation<RowData> rowDataTypeInfo =
-						context.createTypeInformation(producedDataType);
-				return new AvroRowDataDeserializationSchema(rowType, rowDataTypeInfo);
-			}
+        return new DecodingFormat<DeserializationSchema<RowData>>() {
+            @Override
+            public DeserializationSchema<RowData> createRuntimeDecoder(
+                    DynamicTableSource.Context context, DataType producedDataType) {
+                final RowType rowType = (RowType) producedDataType.getLogicalType();
+                final TypeInformation<RowData> rowDataTypeInfo =
+                        context.createTypeInformation(producedDataType);
+                return new AvroRowDataDeserializationSchema(rowType, rowDataTypeInfo);
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 
-	@Override
-	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
+    @Override
+    public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-		return new EncodingFormat<SerializationSchema<RowData>>() {
-			@Override
-			public SerializationSchema<RowData> createRuntimeEncoder(
-					DynamicTableSink.Context context,
-					DataType consumedDataType) {
-				final RowType rowType = (RowType) consumedDataType.getLogicalType();
-				return new AvroRowDataSerializationSchema(rowType);
-			}
+        return new EncodingFormat<SerializationSchema<RowData>>() {
+            @Override
+            public SerializationSchema<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType consumedDataType) {
+                final RowType rowType = (RowType) consumedDataType.getLogicalType();
+                return new AvroRowDataSerializationSchema(rowType);
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return Collections.emptySet();
+    }
 }

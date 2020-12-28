@@ -20,13 +20,11 @@ package org.apache.flink.formats.parquet;
 
 import org.apache.flink.table.planner.runtime.stream.sql.FileCompactionITCaseBase;
 
-/**
- * Compaction it case for {@link ParquetFileFormatFactory}.
- */
+/** Compaction it case for {@link ParquetFileFormatFactory}. */
 public class ParquetFileCompactionITCase extends FileCompactionITCaseBase {
 
-	@Override
-	protected String format() {
-		return "parquet";
-	}
+    @Override
+    protected String format() {
+        return "parquet";
+    }
 }

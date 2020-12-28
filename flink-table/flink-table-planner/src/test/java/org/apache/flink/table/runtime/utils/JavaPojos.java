@@ -21,25 +21,18 @@ package org.apache.flink.table.runtime.utils;
 import java.io.Serializable;
 import java.sql.Timestamp;
 
-/**
- * POJOs for Table API testing.
- */
+/** POJOs for Table API testing. */
 public class JavaPojos {
 
-	/**
-	 * Pojo1 for test.
-	 */
-	public static class Pojo1 implements Serializable {
+    /** Pojo1 for test. */
+    public static class Pojo1 implements Serializable {
 
-		public Timestamp ts;
-		public String msg;
+        public Timestamp ts;
+        public String msg;
 
-		@Override
-		public String toString() {
-			return "Pojo1{" +
-					"ts=" + ts +
-					", msg='" + msg + '\'' +
-					'}';
-		}
-	}
+        @Override
+        public String toString() {
+            return "Pojo1{" + "ts=" + ts + ", msg='" + msg + '\'' + '}';
+        }
+    }
 }

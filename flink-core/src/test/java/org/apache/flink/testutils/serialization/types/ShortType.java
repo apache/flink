@@ -16,59 +16,58 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.testutils.serialization.types;
-
-import java.io.IOException;
-import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.util.Random;
+
 public class ShortType implements SerializationTestType {
 
-	private short value;
+    private short value;
 
-	public ShortType() {
-		this.value = (short) 0;
-	}
+    public ShortType() {
+        this.value = (short) 0;
+    }
 
-	private ShortType(short value) {
-		this.value = value;
-	}
+    private ShortType(short value) {
+        this.value = value;
+    }
 
-	@Override
-	public ShortType getRandom(Random rnd) {
-		return new ShortType((short) rnd.nextInt(65536));
-	}
+    @Override
+    public ShortType getRandom(Random rnd) {
+        return new ShortType((short) rnd.nextInt(65536));
+    }
 
-	@Override
-	public int length() {
-		return 2;
-	}
+    @Override
+    public int length() {
+        return 2;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeShort(this.value);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeShort(this.value);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.value = in.readShort();
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        this.value = in.readShort();
+    }
 
-	@Override
-	public int hashCode() {
-		return this.value;
-	}
+    @Override
+    public int hashCode() {
+        return this.value;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof ShortType) {
-			ShortType other = (ShortType) obj;
-			return this.value == other.value;
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ShortType) {
+            ShortType other = (ShortType) obj;
+            return this.value == other.value;
+        } else {
+            return false;
+        }
+    }
 }

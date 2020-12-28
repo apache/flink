@@ -34,64 +34,64 @@ import java.io.IOException;
 
 import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 
-/**
- * Orc {@link SplitReader} to read files using {@link ParquetColumnarRowSplitReader}.
- */
+/** Orc {@link SplitReader} to read files using {@link ParquetColumnarRowSplitReader}. */
 public class HiveVectorizedParquetSplitReader implements SplitReader {
 
-	private ParquetColumnarRowSplitReader reader;
+    private ParquetColumnarRowSplitReader reader;
 
-	public HiveVectorizedParquetSplitReader(
-			String hiveVersion,
-			JobConf jobConf,
-			String[] fieldNames,
-			DataType[] fieldTypes,
-			int[] selectedFields,
-			HiveTableInputSplit split) throws IOException {
-		StorageDescriptor sd = split.getHiveTablePartition().getStorageDescriptor();
+    public HiveVectorizedParquetSplitReader(
+            String hiveVersion,
+            JobConf jobConf,
+            String[] fieldNames,
+            DataType[] fieldTypes,
+            int[] selectedFields,
+            HiveTableInputSplit split)
+            throws IOException {
+        StorageDescriptor sd = split.getHiveTablePartition().getStorageDescriptor();
 
-		Configuration conf = new Configuration(jobConf);
-		sd.getSerdeInfo().getParameters().forEach(conf::set);
+        Configuration conf = new Configuration(jobConf);
+        sd.getSerdeInfo().getParameters().forEach(conf::set);
 
-		InputSplit hadoopSplit = split.getHadoopInputSplit();
-		FileSplit fileSplit;
-		if (hadoopSplit instanceof FileSplit) {
-			fileSplit = (FileSplit) hadoopSplit;
-		} else {
-			throw new IllegalArgumentException("Unknown split type: " + hadoopSplit);
-		}
+        InputSplit hadoopSplit = split.getHadoopInputSplit();
+        FileSplit fileSplit;
+        if (hadoopSplit instanceof FileSplit) {
+            fileSplit = (FileSplit) hadoopSplit;
+        } else {
+            throw new IllegalArgumentException("Unknown split type: " + hadoopSplit);
+        }
 
-		this.reader = ParquetSplitReaderUtil.genPartColumnarRowReader(
-				hiveVersion.startsWith("3"),
-				false, // hive case insensitive
-				conf,
-				fieldNames,
-				fieldTypes,
-				split.getHiveTablePartition().getPartitionSpec(),
-				selectedFields,
-				DEFAULT_SIZE,
-				new Path(fileSplit.getPath().toString()),
-				fileSplit.getStart(),
-				fileSplit.getLength());
-	}
+        this.reader =
+                ParquetSplitReaderUtil.genPartColumnarRowReader(
+                        hiveVersion.startsWith("3"),
+                        false, // hive case insensitive
+                        conf,
+                        fieldNames,
+                        fieldTypes,
+                        split.getHiveTablePartition().getPartitionSpec(),
+                        selectedFields,
+                        DEFAULT_SIZE,
+                        new Path(fileSplit.getPath().toString()),
+                        fileSplit.getStart(),
+                        fileSplit.getLength());
+    }
 
-	@Override
-	public void seekToRow(long rowCount, RowData reuse) throws IOException {
-		this.reader.seekToRow(rowCount);
-	}
+    @Override
+    public void seekToRow(long rowCount, RowData reuse) throws IOException {
+        this.reader.seekToRow(rowCount);
+    }
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return this.reader.reachedEnd();
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return this.reader.reachedEnd();
+    }
 
-	@Override
-	public RowData nextRecord(RowData reuse) {
-		return this.reader.nextRecord();
-	}
+    @Override
+    public RowData nextRecord(RowData reuse) {
+        return this.reader.nextRecord();
+    }
 
-	@Override
-	public void close() throws IOException {
-		this.reader.close();
-	}
+    @Override
+    public void close() throws IOException {
+        this.reader.close();
+    }
 }

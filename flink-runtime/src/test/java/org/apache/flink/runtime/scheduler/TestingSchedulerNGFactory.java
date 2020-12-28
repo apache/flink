@@ -36,35 +36,36 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * Testing implementation of {@link SchedulerNGFactory} which returns a configurable
- * {@link SchedulerNG} instance.
+ * Testing implementation of {@link SchedulerNGFactory} which returns a configurable {@link
+ * SchedulerNG} instance.
  */
 public class TestingSchedulerNGFactory implements SchedulerNGFactory {
-	private final SchedulerNG schedulerNG;
+    private final SchedulerNG schedulerNG;
 
-	public TestingSchedulerNGFactory(SchedulerNG schedulerNG) {
-		this.schedulerNG = schedulerNG;
-	}
+    public TestingSchedulerNGFactory(SchedulerNG schedulerNG) {
+        this.schedulerNG = schedulerNG;
+    }
 
-	@Override
-	public SchedulerNG createInstance(
-			Logger log,
-			JobGraph jobGraph,
-			BackPressureStatsTracker backPressureStatsTracker,
-			Executor ioExecutor,
-			Configuration jobMasterConfiguration,
-			SlotPool slotPool,
-			ScheduledExecutorService futureExecutor,
-			ClassLoader userCodeLoader,
-			CheckpointRecoveryFactory checkpointRecoveryFactory,
-			Time rpcTimeout,
-			BlobWriter blobWriter,
-			JobManagerJobMetricGroup jobManagerJobMetricGroup,
-			Time slotRequestTimeout,
-			ShuffleMaster<?> shuffleMaster,
-			JobMasterPartitionTracker partitionTracker,
-			ExecutionDeploymentTracker executionDeploymentTracker,
-			long initializationTimestamp) throws Exception {
-		return schedulerNG;
-	}
+    @Override
+    public SchedulerNG createInstance(
+            Logger log,
+            JobGraph jobGraph,
+            BackPressureStatsTracker backPressureStatsTracker,
+            Executor ioExecutor,
+            Configuration jobMasterConfiguration,
+            SlotPool slotPool,
+            ScheduledExecutorService futureExecutor,
+            ClassLoader userCodeLoader,
+            CheckpointRecoveryFactory checkpointRecoveryFactory,
+            Time rpcTimeout,
+            BlobWriter blobWriter,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            Time slotRequestTimeout,
+            ShuffleMaster<?> shuffleMaster,
+            JobMasterPartitionTracker partitionTracker,
+            ExecutionDeploymentTracker executionDeploymentTracker,
+            long initializationTimestamp)
+            throws Exception {
+        return schedulerNG;
+    }
 }

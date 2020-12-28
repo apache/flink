@@ -29,58 +29,63 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 /**
  * A test job for State TTL feature.
  *
- * <p>The test pipeline does the following:
- * - generates random keyed state updates for each state TTL verifier (state type)
- * - performs update of created state with TTL for each verifier
- * - keeps previous updates in other state
- * - verifies expected result of last update against preserved history of updates
+ * <p>The test pipeline does the following: - generates random keyed state updates for each state
+ * TTL verifier (state type) - performs update of created state with TTL for each verifier - keeps
+ * previous updates in other state - verifies expected result of last update against preserved
+ * history of updates
  *
  * <p>Program parameters:
+ *
  * <ul>
- *     <li>update_generator_source.keyspace (int, default - 100): Number of different keys for updates emitted by the update generator.</li>
- *     <li>update_generator_source.sleep_time (long, default - 0): Milliseconds to sleep after emitting updates in the update generator. Set to 0 to disable sleeping.</li>
- *     <li>update_generator_source.sleep_after_elements (long, default - 0): Number of updates to emit before sleeping in the update generator. Set to 0 to disable sleeping.</li>
- *     <li>state_ttl_verifier.ttl_milli (long, default - 1000): State time-to-live.</li>
- *     <li>report_stat.after_updates_num (long, default - 200): Report state update statistics after certain number of updates (average update chain length and clashes).</li>
+ *   <li>update_generator_source.keyspace (int, default - 100): Number of different keys for updates
+ *       emitted by the update generator.
+ *   <li>update_generator_source.sleep_time (long, default - 0): Milliseconds to sleep after
+ *       emitting updates in the update generator. Set to 0 to disable sleeping.
+ *   <li>update_generator_source.sleep_after_elements (long, default - 0): Number of updates to emit
+ *       before sleeping in the update generator. Set to 0 to disable sleeping.
+ *   <li>state_ttl_verifier.ttl_milli (long, default - 1000): State time-to-live.
+ *   <li>report_stat.after_updates_num (long, default - 200): Report state update statistics after
+ *       certain number of updates (average update chain length and clashes).
  * </ul>
  */
 public class DataStreamStateTTLTestProgram {
-	public static void main(String[] args) throws Exception {
-		final ParameterTool pt = ParameterTool.fromArgs(args);
+    public static void main(String[] args) throws Exception {
+        final ParameterTool pt = ParameterTool.fromArgs(args);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		setupEnvironment(env, pt);
+        setupEnvironment(env, pt);
 
-		setBackendWithCustomTTLTimeProvider(env);
+        setBackendWithCustomTTLTimeProvider(env);
 
-		TtlTestConfig config = TtlTestConfig.fromArgs(pt);
-		StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(config.ttl)
-			.cleanupFullSnapshot()
-			.build();
+        TtlTestConfig config = TtlTestConfig.fromArgs(pt);
+        StateTtlConfig ttlConfig =
+                StateTtlConfig.newBuilder(config.ttl).cleanupFullSnapshot().build();
 
-		env
-			.addSource(new TtlStateUpdateSource(config.keySpace, config.sleepAfterElements, config.sleepTime))
-			.name("TtlStateUpdateSource")
-			.keyBy(TtlStateUpdate::getKey)
-			.flatMap(new TtlVerifyUpdateFunction(ttlConfig, config.reportStatAfterUpdatesNum))
-			.name("TtlVerifyUpdateFunction")
-			.addSink(new PrintSinkFunction<>())
-			.name("PrintFailedVerifications");
+        env.addSource(
+                        new TtlStateUpdateSource(
+                                config.keySpace, config.sleepAfterElements, config.sleepTime))
+                .name("TtlStateUpdateSource")
+                .keyBy(TtlStateUpdate::getKey)
+                .flatMap(new TtlVerifyUpdateFunction(ttlConfig, config.reportStatAfterUpdatesNum))
+                .name("TtlVerifyUpdateFunction")
+                .addSink(new PrintSinkFunction<>())
+                .name("PrintFailedVerifications");
 
-		env.execute("State TTL test job");
-	}
+        env.execute("State TTL test job");
+    }
 
-	/**
-	 * Sets the state backend to a new {@link StubStateBackend} which has a {@link MonotonicTTLTimeProvider}.
-	 *
-	 * @param env The {@link StreamExecutionEnvironment} of the job.
-	 */
-	private static void setBackendWithCustomTTLTimeProvider(StreamExecutionEnvironment env) {
-		final MonotonicTTLTimeProvider ttlTimeProvider = new MonotonicTTLTimeProvider();
+    /**
+     * Sets the state backend to a new {@link StubStateBackend} which has a {@link
+     * MonotonicTTLTimeProvider}.
+     *
+     * @param env The {@link StreamExecutionEnvironment} of the job.
+     */
+    private static void setBackendWithCustomTTLTimeProvider(StreamExecutionEnvironment env) {
+        final MonotonicTTLTimeProvider ttlTimeProvider = new MonotonicTTLTimeProvider();
 
-		final StateBackend configuredBackend = env.getStateBackend();
-		final StateBackend stubBackend = new StubStateBackend(configuredBackend, ttlTimeProvider);
-		env.setStateBackend(stubBackend);
-	}
+        final StateBackend configuredBackend = env.getStateBackend();
+        final StateBackend stubBackend = new StubStateBackend(configuredBackend, ttlTimeProvider);
+        env.setStateBackend(stubBackend);
+    }
 }

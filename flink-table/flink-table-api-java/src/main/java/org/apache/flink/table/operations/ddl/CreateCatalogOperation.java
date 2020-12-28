@@ -27,36 +27,31 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Operation to describe a CREATE CATALOG statement.
- */
+/** Operation to describe a CREATE CATALOG statement. */
 public class CreateCatalogOperation implements CreateOperation {
-	private final String catalogName;
-	private final Map<String, String> properties;
+    private final String catalogName;
+    private final Map<String, String> properties;
 
-	public CreateCatalogOperation(String catalogName, Map<String, String> properties) {
-		this.catalogName = checkNotNull(catalogName);
-		this.properties = checkNotNull(properties);
-	}
+    public CreateCatalogOperation(String catalogName, Map<String, String> properties) {
+        this.catalogName = checkNotNull(catalogName);
+        this.properties = checkNotNull(properties);
+    }
 
-	public String getCatalogName() {
-		return catalogName;
-	}
+    public String getCatalogName() {
+        return catalogName;
+    }
 
-	public Map<String, String> getProperties() {
-		return Collections.unmodifiableMap(properties);
-	}
+    public Map<String, String> getProperties() {
+        return Collections.unmodifiableMap(properties);
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("catalogName", catalogName);
-		params.put("properties", properties);
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("catalogName", catalogName);
+        params.put("properties", properties);
 
-		return OperationUtils.formatWithChildren(
-			"CREATE CATALOG",
-			params,
-			Collections.emptyList(),
-			Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "CREATE CATALOG", params, Collections.emptyList(), Operation::asSummaryString);
+    }
 }

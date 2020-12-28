@@ -23,33 +23,32 @@ import org.junit.Test;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link StateUtil}.
- */
+/** Tests for {@link StateUtil}. */
 public class StateUtilTest {
 
-	@Test
-	public void unexpectedStateExceptionForSingleExpectedType() {
-		Exception exception = StateUtil.unexpectedStateHandleException(
-				KeyGroupsStateHandle.class,
-				KeyGroupsStateHandle.class);
+    @Test
+    public void unexpectedStateExceptionForSingleExpectedType() {
+        Exception exception =
+                StateUtil.unexpectedStateHandleException(
+                        KeyGroupsStateHandle.class, KeyGroupsStateHandle.class);
 
-		assertThat(
-				exception.getMessage(),
-				containsString(
-						"Unexpected state handle type, expected one of: class org.apache.flink.runtime.state.KeyGroupsStateHandle, but found: class org.apache.flink.runtime.state.KeyGroupsStateHandle. This can mostly happen when a different StateBackend from the one that was used for taking a checkpoint/savepoint is used when restoring."));
-	}
+        assertThat(
+                exception.getMessage(),
+                containsString(
+                        "Unexpected state handle type, expected one of: class org.apache.flink.runtime.state.KeyGroupsStateHandle, but found: class org.apache.flink.runtime.state.KeyGroupsStateHandle. This can mostly happen when a different StateBackend from the one that was used for taking a checkpoint/savepoint is used when restoring."));
+    }
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void unexpectedStateExceptionForMultipleExpectedTypes() {
-		Exception exception = StateUtil.unexpectedStateHandleException(
-				new Class[]{KeyGroupsStateHandle.class, KeyGroupsStateHandle.class},
-				KeyGroupsStateHandle.class);
+    @Test
+    @SuppressWarnings("unchecked")
+    public void unexpectedStateExceptionForMultipleExpectedTypes() {
+        Exception exception =
+                StateUtil.unexpectedStateHandleException(
+                        new Class[] {KeyGroupsStateHandle.class, KeyGroupsStateHandle.class},
+                        KeyGroupsStateHandle.class);
 
-		assertThat(
-				exception.getMessage(),
-				containsString(
-						"Unexpected state handle type, expected one of: class org.apache.flink.runtime.state.KeyGroupsStateHandle, class org.apache.flink.runtime.state.KeyGroupsStateHandle, but found: class org.apache.flink.runtime.state.KeyGroupsStateHandle. This can mostly happen when a different StateBackend from the one that was used for taking a checkpoint/savepoint is used when restoring."));
-	}
+        assertThat(
+                exception.getMessage(),
+                containsString(
+                        "Unexpected state handle type, expected one of: class org.apache.flink.runtime.state.KeyGroupsStateHandle, class org.apache.flink.runtime.state.KeyGroupsStateHandle, but found: class org.apache.flink.runtime.state.KeyGroupsStateHandle. This can mostly happen when a different StateBackend from the one that was used for taking a checkpoint/savepoint is used when restoring."));
+    }
 }

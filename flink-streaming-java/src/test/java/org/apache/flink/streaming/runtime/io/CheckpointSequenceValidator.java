@@ -30,63 +30,73 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * {@link AbstractInvokable} that validates expected order of completed and aborted checkpoints.
- */
+/** {@link AbstractInvokable} that validates expected order of completed and aborted checkpoints. */
 class CheckpointSequenceValidator extends AbstractInvokable {
 
-	private final long[] checkpointIDs;
+    private final long[] checkpointIDs;
 
-	private int i = 0;
+    private int i = 0;
 
-	CheckpointSequenceValidator(long... checkpointIDs) {
-		super(new DummyEnvironment("test", 1, 0));
-		this.checkpointIDs = checkpointIDs;
-	}
+    CheckpointSequenceValidator(long... checkpointIDs) {
+        super(new DummyEnvironment("test", 1, 0));
+        this.checkpointIDs = checkpointIDs;
+    }
 
-	@Override
-	public void invoke() {
-		throw new UnsupportedOperationException("should never be called");
-	}
+    @Override
+    public void invoke() {
+        throw new UnsupportedOperationException("should never be called");
+    }
 
-	@Override
-	public Future<Boolean> triggerCheckpointAsync(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
-		throw new UnsupportedOperationException("should never be called");
-	}
+    @Override
+    public Future<Boolean> triggerCheckpointAsync(
+            CheckpointMetaData checkpointMetaData,
+            CheckpointOptions checkpointOptions,
+            boolean advanceToEndOfEventTime) {
+        throw new UnsupportedOperationException("should never be called");
+    }
 
-	@Override
-	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetricsBuilder checkpointMetrics) {
-		assertTrue("Unexpected triggerCheckpointOnBarrier(" + checkpointMetaData.getCheckpointId() + ")", i < checkpointIDs.length);
+    @Override
+    public void triggerCheckpointOnBarrier(
+            CheckpointMetaData checkpointMetaData,
+            CheckpointOptions checkpointOptions,
+            CheckpointMetricsBuilder checkpointMetrics) {
+        assertTrue(
+                "Unexpected triggerCheckpointOnBarrier("
+                        + checkpointMetaData.getCheckpointId()
+                        + ")",
+                i < checkpointIDs.length);
 
-		final long expectedId = checkpointIDs[i++];
-		if (expectedId >= 0) {
-			assertEquals("wrong checkpoint id", expectedId, checkpointMetaData.getCheckpointId());
-			assertTrue(checkpointMetaData.getTimestamp() > 0);
-		} else {
-			fail(String.format(
-				"got 'triggerCheckpointOnBarrier(%d)' when expecting an 'abortCheckpointOnBarrier(%d)'",
-				checkpointMetaData.getCheckpointId(),
-				expectedId));
-		}
-	}
+        final long expectedId = checkpointIDs[i++];
+        if (expectedId >= 0) {
+            assertEquals("wrong checkpoint id", expectedId, checkpointMetaData.getCheckpointId());
+            assertTrue(checkpointMetaData.getTimestamp() > 0);
+        } else {
+            fail(
+                    String.format(
+                            "got 'triggerCheckpointOnBarrier(%d)' when expecting an 'abortCheckpointOnBarrier(%d)'",
+                            checkpointMetaData.getCheckpointId(), expectedId));
+        }
+    }
 
-	@Override
-	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
-		assertTrue("Unexpected abortCheckpointOnBarrier(" + checkpointId + ")", i < checkpointIDs.length);
+    @Override
+    public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
+        assertTrue(
+                "Unexpected abortCheckpointOnBarrier(" + checkpointId + ")",
+                i < checkpointIDs.length);
 
-		final long expectedId = checkpointIDs[i++];
-		if (expectedId < 0) {
-			assertEquals("wrong checkpoint id for checkpoint abort", -expectedId, checkpointId);
-		} else {
-			fail(String.format(
-				"got 'abortCheckpointOnBarrier(%d)' when expecting an 'triggerCheckpointOnBarrier(%d)'",
-				checkpointId,
-				expectedId));
-		}
-	}
+        final long expectedId = checkpointIDs[i++];
+        if (expectedId < 0) {
+            assertEquals("wrong checkpoint id for checkpoint abort", -expectedId, checkpointId);
+        } else {
+            fail(
+                    String.format(
+                            "got 'abortCheckpointOnBarrier(%d)' when expecting an 'triggerCheckpointOnBarrier(%d)'",
+                            checkpointId, expectedId));
+        }
+    }
 
-	@Override
-	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
-		throw new UnsupportedOperationException("should never be called");
-	}
+    @Override
+    public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
+        throw new UnsupportedOperationException("should never be called");
+    }
 }

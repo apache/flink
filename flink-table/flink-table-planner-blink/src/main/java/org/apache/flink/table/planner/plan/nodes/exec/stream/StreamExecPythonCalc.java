@@ -26,16 +26,14 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rex.RexProgram;
 
-/**
- * Stream {@link ExecNode} for Python ScalarFunctions.
- */
+/** Stream {@link ExecNode} for Python ScalarFunctions. */
 public class StreamExecPythonCalc extends CommonExecPythonCalc implements StreamExecNode<RowData> {
 
-	public StreamExecPythonCalc(
-		RexProgram calcProgram,
-		ExecEdge inputEdge,
-		LogicalType outputType,
-		String description) {
-		super(calcProgram, inputEdge, outputType, description);
-	}
+    public StreamExecPythonCalc(
+            RexProgram calcProgram,
+            ExecEdge inputEdge,
+            LogicalType outputType,
+            String description) {
+        super(calcProgram, inputEdge, outputType, description);
+    }
 }

@@ -28,34 +28,34 @@ import static org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Non-HA implementation for {@link ClientHighAvailabilityServices}. The address
- * to web monitor is pre-configured.
+ * Non-HA implementation for {@link ClientHighAvailabilityServices}. The address to web monitor is
+ * pre-configured.
  */
 public class StandaloneClientHAServices implements ClientHighAvailabilityServices {
 
-	private final Object lock = new Object();
-	private final String webMonitorAddress;
+    private final Object lock = new Object();
+    private final String webMonitorAddress;
 
-	@GuardedBy("lock")
-	private boolean running;
+    @GuardedBy("lock")
+    private boolean running;
 
-	public StandaloneClientHAServices(String webMonitorAddress) {
-		this.webMonitorAddress = webMonitorAddress;
-		this.running = true;
-	}
+    public StandaloneClientHAServices(String webMonitorAddress) {
+        this.webMonitorAddress = webMonitorAddress;
+        this.running = true;
+    }
 
-	@Override
-	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
-		synchronized (lock) {
-			checkState(running, "ClientHaService has already been closed.");
-			return new StandaloneLeaderRetrievalService(webMonitorAddress, DEFAULT_LEADER_ID);
-		}
-	}
+    @Override
+    public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+        synchronized (lock) {
+            checkState(running, "ClientHaService has already been closed.");
+            return new StandaloneLeaderRetrievalService(webMonitorAddress, DEFAULT_LEADER_ID);
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		synchronized (lock) {
-			running = false;
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        synchronized (lock) {
+            running = false;
+        }
+    }
 }

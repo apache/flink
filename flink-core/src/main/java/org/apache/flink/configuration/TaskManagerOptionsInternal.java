@@ -22,15 +22,14 @@ import org.apache.flink.annotation.Internal;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/**
- * TaskManager options that are not meant to be used by the user.
- */
+/** TaskManager options that are not meant to be used by the user. */
 @Internal
 public class TaskManagerOptionsInternal {
 
-	public static final ConfigOption<String> TASK_MANAGER_RESOURCE_ID_METADATA =
-		key("internal.taskmanager.resource-id.metadata")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("**DO NOT USE** The metadata of TaskManager's ResourceID to be used for logging.");
+    public static final ConfigOption<String> TASK_MANAGER_RESOURCE_ID_METADATA =
+            key("internal.taskmanager.resource-id.metadata")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "**DO NOT USE** The metadata of TaskManager's ResourceID to be used for logging.");
 }

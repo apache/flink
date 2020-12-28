@@ -23,18 +23,15 @@ import akka.actor.SupervisorStrategy;
 import akka.actor.SupervisorStrategyConfigurator;
 import akka.japi.pf.PFBuilder;
 
-/**
- * Escalating supervisor strategy.
- */
+/** Escalating supervisor strategy. */
 public class EscalatingSupervisorStrategy implements SupervisorStrategyConfigurator {
 
-	@Override
-	public SupervisorStrategy create() {
-		return new OneForOneStrategy(
-			false,
-			new PFBuilder<Throwable, SupervisorStrategy.Directive>()
-				.matchAny(
-					(ignored) -> SupervisorStrategy.escalate())
-				.build());
-	}
+    @Override
+    public SupervisorStrategy create() {
+        return new OneForOneStrategy(
+                false,
+                new PFBuilder<Throwable, SupervisorStrategy.Directive>()
+                        .matchAny((ignored) -> SupervisorStrategy.escalate())
+                        .build());
+    }
 }

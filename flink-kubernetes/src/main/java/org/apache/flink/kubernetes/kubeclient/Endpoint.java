@@ -20,26 +20,23 @@ package org.apache.flink.kubernetes.kubeclient;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Represent an endpoint.
- */
+/** Represent an endpoint. */
 public class Endpoint {
 
-	private final String address;
+    private final String address;
 
-	private final int port;
+    private final int port;
 
-	public Endpoint(String address, int port) {
-		this.address = checkNotNull(address, "Address should not be null.");
-		this.port = port;
-	}
+    public Endpoint(String address, int port) {
+        this.address = checkNotNull(address, "Address should not be null.");
+        this.port = port;
+    }
 
-	public String getAddress() {
-		return address;
-	}
+    public String getAddress() {
+        return address;
+    }
 
-	public int getPort() {
-		return port;
-	}
-
+    public int getPort() {
+        return port;
+    }
 }

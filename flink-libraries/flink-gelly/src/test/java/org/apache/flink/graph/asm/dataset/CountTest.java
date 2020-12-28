@@ -32,37 +32,35 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link Count}.
- */
+/** Tests for {@link Count}. */
 public class CountTest {
 
-	private ExecutionEnvironment env;
+    private ExecutionEnvironment env;
 
-	@Before
-	public void setup() throws Exception {
-		env = ExecutionEnvironment.createCollectionsEnvironment();
-		env.getConfig().enableObjectReuse();
-	}
+    @Before
+    public void setup() throws Exception {
+        env = ExecutionEnvironment.createCollectionsEnvironment();
+        env.getConfig().enableObjectReuse();
+    }
 
-	@Test
-	public void testList() throws Exception {
-		List<Long> list = Arrays.asList(ArrayUtils.toObject(
-			new long[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }));
+    @Test
+    public void testList() throws Exception {
+        List<Long> list =
+                Arrays.asList(ArrayUtils.toObject(new long[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));
 
-		DataSet<Long> dataset = env.fromCollection(list);
+        DataSet<Long> dataset = env.fromCollection(list);
 
-		long count = new Count<Long>().run(dataset).execute();
+        long count = new Count<Long>().run(dataset).execute();
 
-		assertEquals(list.size(), count);
-	}
+        assertEquals(list.size(), count);
+    }
 
-	@Test
-	public void testEmptyList() throws Exception {
-		DataSet<Long> dataset = env.fromCollection(Collections.emptyList(), Types.LONG);
+    @Test
+    public void testEmptyList() throws Exception {
+        DataSet<Long> dataset = env.fromCollection(Collections.emptyList(), Types.LONG);
 
-		long count = new Count<Long>().run(dataset).execute();
+        long count = new Count<Long>().run(dataset).execute();
 
-		assertEquals(0, count);
-	}
+        assertEquals(0, count);
+    }
 }

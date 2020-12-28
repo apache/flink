@@ -40,83 +40,105 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
-/**
- * The tests in this class simply invokes the JSON dump code for the optimized plan.
- */
+/** The tests in this class simply invokes the JSON dump code for the optimized plan. */
 public class DumpCompiledPlanTest extends CompilerTestBase {
 
-	@Test
-	public void dumpWordCount() throws Exception {
-		verifyOptimizedPlan(WordCount.class,
-			"--input", IN_FILE,
-			"--output", OUT_FILE);
-	}
+    @Test
+    public void dumpWordCount() throws Exception {
+        verifyOptimizedPlan(WordCount.class, "--input", IN_FILE, "--output", OUT_FILE);
+    }
 
-	@Test
-	public void dumpTPCH3() throws Exception {
-		verifyOptimizedPlan(TPCHQuery3.class,
-			"--lineitem", IN_FILE,
-			"--customer", IN_FILE,
-			"--orders", OUT_FILE,
-			"--output", "123");
-	}
+    @Test
+    public void dumpTPCH3() throws Exception {
+        verifyOptimizedPlan(
+                TPCHQuery3.class,
+                "--lineitem",
+                IN_FILE,
+                "--customer",
+                IN_FILE,
+                "--orders",
+                OUT_FILE,
+                "--output",
+                "123");
+    }
 
-	@Test
-	public void dumpIterativeKMeans() throws Exception {
-		verifyOptimizedPlan(KMeans.class,
-			"--points ", IN_FILE,
-			"--centroids ", IN_FILE,
-			"--output ", OUT_FILE,
-			"--iterations", "123");
-	}
+    @Test
+    public void dumpIterativeKMeans() throws Exception {
+        verifyOptimizedPlan(
+                KMeans.class,
+                "--points ",
+                IN_FILE,
+                "--centroids ",
+                IN_FILE,
+                "--output ",
+                OUT_FILE,
+                "--iterations",
+                "123");
+    }
 
-	@Test
-	public void dumpWebLogAnalysis() throws Exception {
-		verifyOptimizedPlan(WebLogAnalysis.class,
-			"--documents", IN_FILE,
-			"--ranks", IN_FILE,
-			"--visits", OUT_FILE,
-			"--output", "123");
-	}
+    @Test
+    public void dumpWebLogAnalysis() throws Exception {
+        verifyOptimizedPlan(
+                WebLogAnalysis.class,
+                "--documents",
+                IN_FILE,
+                "--ranks",
+                IN_FILE,
+                "--visits",
+                OUT_FILE,
+                "--output",
+                "123");
+    }
 
-	@Test
-	public void dumpBulkIterationKMeans() throws Exception {
-		verifyOptimizedPlan(ConnectedComponents.class,
-			"--vertices", IN_FILE,
-			"--edges", IN_FILE,
-			"--output", OUT_FILE,
-			"--iterations", "123");
-	}
+    @Test
+    public void dumpBulkIterationKMeans() throws Exception {
+        verifyOptimizedPlan(
+                ConnectedComponents.class,
+                "--vertices",
+                IN_FILE,
+                "--edges",
+                IN_FILE,
+                "--output",
+                OUT_FILE,
+                "--iterations",
+                "123");
+    }
 
-	@Test
-	public void dumpPageRank() throws Exception {
-		verifyOptimizedPlan(PageRank.class,
-			"--pages", IN_FILE,
-			"--links", IN_FILE,
-			"--output", OUT_FILE,
-			"--numPages", "10",
-			"--iterations", "123");
-	}
+    @Test
+    public void dumpPageRank() throws Exception {
+        verifyOptimizedPlan(
+                PageRank.class,
+                "--pages",
+                IN_FILE,
+                "--links",
+                IN_FILE,
+                "--output",
+                OUT_FILE,
+                "--numPages",
+                "10",
+                "--iterations",
+                "123");
+    }
 
-	private void verifyOptimizedPlan(Class<?> entrypoint, String... args) throws Exception {
-		final PackagedProgram program = PackagedProgram
-			.newBuilder()
-			.setEntryPointClassName(entrypoint.getName())
-			.setArguments(args)
-			.build();
+    private void verifyOptimizedPlan(Class<?> entrypoint, String... args) throws Exception {
+        final PackagedProgram program =
+                PackagedProgram.newBuilder()
+                        .setEntryPointClassName(entrypoint.getName())
+                        .setArguments(args)
+                        .build();
 
-		final Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, new Configuration(), 1, true);
+        final Pipeline pipeline =
+                PackagedProgramUtils.getPipelineFromProgram(program, new Configuration(), 1, true);
 
-		assertTrue(pipeline instanceof Plan);
+        assertTrue(pipeline instanceof Plan);
 
-		final Plan plan = (Plan) pipeline;
+        final Plan plan = (Plan) pipeline;
 
-		final OptimizedPlan op = compileNoStats(plan);
-		final PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-		final String json = dumper.getOptimizerPlanAsJSON(op);
-		try (JsonParser parser = new JsonFactory().createParser(json)) {
-			while (parser.nextToken() != null) {
-			}
-		}
-	}
+        final OptimizedPlan op = compileNoStats(plan);
+        final PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
+        final String json = dumper.getOptimizerPlanAsJSON(op);
+        try (JsonParser parser = new JsonFactory().createParser(json)) {
+            while (parser.nextToken() != null) {}
+        }
+    }
 }

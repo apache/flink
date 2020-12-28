@@ -31,58 +31,62 @@ import java.io.IOException;
  * @param <T> The type to be instantiated.
  */
 @Internal
-public abstract class GenericTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
+public abstract class GenericTypeSerializerConfigSnapshot<T>
+        extends TypeSerializerConfigSnapshot<T> {
 
-	private Class<T> typeClass;
+    private Class<T> typeClass;
 
-	/** This empty nullary constructor is required for deserializing the configuration. */
-	public GenericTypeSerializerConfigSnapshot() {}
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    public GenericTypeSerializerConfigSnapshot() {}
 
-	public GenericTypeSerializerConfigSnapshot(Class<T> typeClass) {
-		this.typeClass = Preconditions.checkNotNull(typeClass);
-	}
+    public GenericTypeSerializerConfigSnapshot(Class<T> typeClass) {
+        this.typeClass = Preconditions.checkNotNull(typeClass);
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		super.write(out);
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        super.write(out);
 
-		// write only the classname to avoid Java serialization
-		out.writeUTF(typeClass.getName());
-	}
+        // write only the classname to avoid Java serialization
+        out.writeUTF(typeClass.getName());
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void read(DataInputView in) throws IOException {
-		super.read(in);
+    @SuppressWarnings("unchecked")
+    @Override
+    public void read(DataInputView in) throws IOException {
+        super.read(in);
 
-		String genericTypeClassname = in.readUTF();
-		try {
-			typeClass = (Class<T>) Class.forName(genericTypeClassname, true, getUserCodeClassLoader());
-		} catch (ClassNotFoundException e) {
-			throw new IOException("Could not find the requested class " + genericTypeClassname + " in classpath.", e);
-		}
-	}
+        String genericTypeClassname = in.readUTF();
+        try {
+            typeClass =
+                    (Class<T>) Class.forName(genericTypeClassname, true, getUserCodeClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new IOException(
+                    "Could not find the requested class " + genericTypeClassname + " in classpath.",
+                    e);
+        }
+    }
 
-	public Class<T> getTypeClass() {
-		return typeClass;
-	}
+    public Class<T> getTypeClass() {
+        return typeClass;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
 
-		if (obj == null) {
-			return false;
-		}
+        if (obj == null) {
+            return false;
+        }
 
-		return (obj.getClass().equals(getClass()))
-				&& typeClass.equals(((GenericTypeSerializerConfigSnapshot) obj).getTypeClass());
-	}
+        return (obj.getClass().equals(getClass()))
+                && typeClass.equals(((GenericTypeSerializerConfigSnapshot) obj).getTypeClass());
+    }
 
-	@Override
-	public int hashCode() {
-		return typeClass.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return typeClass.hashCode();
+    }
 }

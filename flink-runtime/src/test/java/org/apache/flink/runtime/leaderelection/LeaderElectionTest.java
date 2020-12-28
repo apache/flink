@@ -42,205 +42,207 @@ import java.util.concurrent.ArrayBlockingQueue;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for leader election.
- */
+/** Tests for leader election. */
 @RunWith(Parameterized.class)
 public class LeaderElectionTest extends TestLogger {
 
-	enum LeaderElectionType {
-		ZooKeeper,
-		Embedded,
-		Standalone
-	}
+    enum LeaderElectionType {
+        ZooKeeper,
+        Embedded,
+        Standalone
+    }
 
-	@Parameterized.Parameters(name = "Leader election: {0}")
-	public static Collection<LeaderElectionType> parameters () {
-		return Arrays.asList(LeaderElectionType.values());
-	}
+    @Parameterized.Parameters(name = "Leader election: {0}")
+    public static Collection<LeaderElectionType> parameters() {
+        return Arrays.asList(LeaderElectionType.values());
+    }
 
-	private final ServiceClass serviceClass;
+    private final ServiceClass serviceClass;
 
-	public LeaderElectionTest(LeaderElectionType leaderElectionType) {
-		switch(leaderElectionType) {
-			case ZooKeeper:
-				serviceClass = new ZooKeeperServiceClass();
-				break;
-			case Embedded:
-				serviceClass = new EmbeddedServiceClass();
-				break;
-			case Standalone:
-				serviceClass = new StandaloneServiceClass();
-				break;
-			default:
-				throw new IllegalArgumentException(String.format("Unknown leader election type: %s.", leaderElectionType));
-		}
-	}
+    public LeaderElectionTest(LeaderElectionType leaderElectionType) {
+        switch (leaderElectionType) {
+            case ZooKeeper:
+                serviceClass = new ZooKeeperServiceClass();
+                break;
+            case Embedded:
+                serviceClass = new EmbeddedServiceClass();
+                break;
+            case Standalone:
+                serviceClass = new StandaloneServiceClass();
+                break;
+            default:
+                throw new IllegalArgumentException(
+                        String.format("Unknown leader election type: %s.", leaderElectionType));
+        }
+    }
 
-	@Before
-	public void setup() throws Exception {
-		serviceClass.setup();
-	}
+    @Before
+    public void setup() throws Exception {
+        serviceClass.setup();
+    }
 
-	@After
-	public void teardown() throws Exception {
-		serviceClass.teardown();
-	}
+    @After
+    public void teardown() throws Exception {
+        serviceClass.teardown();
+    }
 
-	@Test
-	public void testHasLeadership() throws Exception {
-		final LeaderElectionService leaderElectionService = serviceClass.createLeaderElectionService();
-		final ManualLeaderContender manualLeaderContender = new ManualLeaderContender();
+    @Test
+    public void testHasLeadership() throws Exception {
+        final LeaderElectionService leaderElectionService =
+                serviceClass.createLeaderElectionService();
+        final ManualLeaderContender manualLeaderContender = new ManualLeaderContender();
 
-		try {
-			assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
+        try {
+            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
 
-			leaderElectionService.start(manualLeaderContender);
+            leaderElectionService.start(manualLeaderContender);
 
-			final UUID leaderSessionId = manualLeaderContender.waitForLeaderSessionId();
+            final UUID leaderSessionId = manualLeaderContender.waitForLeaderSessionId();
 
-			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
-			assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
+            assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
+            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
 
-			leaderElectionService.confirmLeadership(leaderSessionId, "foobar");
+            leaderElectionService.confirmLeadership(leaderSessionId, "foobar");
 
-			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
+            assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
 
-			leaderElectionService.stop();
+            leaderElectionService.stop();
 
-			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(false));
-		} finally {
-			manualLeaderContender.rethrowError();
-		}
-	}
+            assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(false));
+        } finally {
+            manualLeaderContender.rethrowError();
+        }
+    }
 
-	private static final class ManualLeaderContender implements LeaderContender {
+    private static final class ManualLeaderContender implements LeaderContender {
 
-		private static final UUID NULL_LEADER_SESSION_ID = new UUID(0L, 0L);
+        private static final UUID NULL_LEADER_SESSION_ID = new UUID(0L, 0L);
 
-		private final ArrayBlockingQueue<UUID> leaderSessionIds = new ArrayBlockingQueue<>(10);
+        private final ArrayBlockingQueue<UUID> leaderSessionIds = new ArrayBlockingQueue<>(10);
 
-		private volatile Exception exception;
+        private volatile Exception exception;
 
-		@Override
-		public void grantLeadership(UUID leaderSessionID) {
-			leaderSessionIds.offer(leaderSessionID);
-		}
+        @Override
+        public void grantLeadership(UUID leaderSessionID) {
+            leaderSessionIds.offer(leaderSessionID);
+        }
 
-		@Override
-		public void revokeLeadership() {
-			leaderSessionIds.offer(NULL_LEADER_SESSION_ID);
-		}
+        @Override
+        public void revokeLeadership() {
+            leaderSessionIds.offer(NULL_LEADER_SESSION_ID);
+        }
 
-		@Override
-		public String getDescription() {
-			return "foobar";
-		}
+        @Override
+        public String getDescription() {
+            return "foobar";
+        }
 
-		@Override
-		public void handleError(Exception exception) {
-			this.exception = exception;
-		}
+        @Override
+        public void handleError(Exception exception) {
+            this.exception = exception;
+        }
 
-		void rethrowError() throws Exception {
-			if (exception != null) {
-				throw exception;
-			}
-		}
+        void rethrowError() throws Exception {
+            if (exception != null) {
+                throw exception;
+            }
+        }
 
-		UUID waitForLeaderSessionId() throws InterruptedException {
-			return leaderSessionIds.take();
-		}
-	}
+        UUID waitForLeaderSessionId() throws InterruptedException {
+            return leaderSessionIds.take();
+        }
+    }
 
-	private interface ServiceClass {
-		void setup() throws Exception;
+    private interface ServiceClass {
+        void setup() throws Exception;
 
-		void teardown() throws Exception;
+        void teardown() throws Exception;
 
-		LeaderElectionService createLeaderElectionService() throws Exception;
-	}
+        LeaderElectionService createLeaderElectionService() throws Exception;
+    }
 
-	private static final class ZooKeeperServiceClass implements ServiceClass {
+    private static final class ZooKeeperServiceClass implements ServiceClass {
 
-		private TestingServer testingServer;
+        private TestingServer testingServer;
 
-		private CuratorFramework client;
+        private CuratorFramework client;
 
-		private Configuration configuration;
+        private Configuration configuration;
 
-		@Override
-		public void setup() throws Exception {
-			try {
-				testingServer = new TestingServer();
-			} catch (Exception e) {
-				throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
-			}
+        @Override
+        public void setup() throws Exception {
+            try {
+                testingServer = new TestingServer();
+            } catch (Exception e) {
+                throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
+            }
 
-			configuration = new Configuration();
+            configuration = new Configuration();
 
-			configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
-			configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+            configuration.setString(
+                    HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
+            configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
-			client = ZooKeeperUtils.startCuratorFramework(configuration);
-		}
+            client = ZooKeeperUtils.startCuratorFramework(configuration);
+        }
 
-		@Override
-		public void teardown() throws Exception {
-			if (client != null) {
-				client.close();
-				client = null;
-			}
+        @Override
+        public void teardown() throws Exception {
+            if (client != null) {
+                client.close();
+                client = null;
+            }
 
-			if (testingServer != null) {
-				testingServer.stop();
-				testingServer = null;
-			}
-		}
+            if (testingServer != null) {
+                testingServer.stop();
+                testingServer = null;
+            }
+        }
 
-		@Override
-		public LeaderElectionService createLeaderElectionService() throws Exception {
-			return ZooKeeperUtils.createLeaderElectionService(client, configuration);
-		}
-	}
+        @Override
+        public LeaderElectionService createLeaderElectionService() throws Exception {
+            return ZooKeeperUtils.createLeaderElectionService(client, configuration);
+        }
+    }
 
-	private static final class EmbeddedServiceClass implements ServiceClass {
-		private EmbeddedLeaderService embeddedLeaderService;
+    private static final class EmbeddedServiceClass implements ServiceClass {
+        private EmbeddedLeaderService embeddedLeaderService;
 
-		@Override
-		public void setup() {
-			embeddedLeaderService = new EmbeddedLeaderService(TestingUtils.defaultExecutionContext());
-		}
+        @Override
+        public void setup() {
+            embeddedLeaderService =
+                    new EmbeddedLeaderService(TestingUtils.defaultExecutionContext());
+        }
 
-		@Override
-		public void teardown() {
-			if (embeddedLeaderService != null) {
-				embeddedLeaderService.shutdown();
-				embeddedLeaderService = null;
-			}
-		}
+        @Override
+        public void teardown() {
+            if (embeddedLeaderService != null) {
+                embeddedLeaderService.shutdown();
+                embeddedLeaderService = null;
+            }
+        }
 
-		@Override
-		public LeaderElectionService createLeaderElectionService() throws Exception {
-			return embeddedLeaderService.createLeaderElectionService();
-		}
-	}
+        @Override
+        public LeaderElectionService createLeaderElectionService() throws Exception {
+            return embeddedLeaderService.createLeaderElectionService();
+        }
+    }
 
-	private static final class StandaloneServiceClass implements ServiceClass {
+    private static final class StandaloneServiceClass implements ServiceClass {
 
-		@Override
-		public void setup() throws Exception {
-			// noop
-		}
+        @Override
+        public void setup() throws Exception {
+            // noop
+        }
 
-		@Override
-		public void teardown() throws Exception {
-			// noop
-		}
+        @Override
+        public void teardown() throws Exception {
+            // noop
+        }
 
-		@Override
-		public LeaderElectionService createLeaderElectionService() throws Exception {
-			return new StandaloneLeaderElectionService();
-		}
-	}
+        @Override
+        public LeaderElectionService createLeaderElectionService() throws Exception {
+            return new StandaloneLeaderElectionService();
+        }
+    }
 }

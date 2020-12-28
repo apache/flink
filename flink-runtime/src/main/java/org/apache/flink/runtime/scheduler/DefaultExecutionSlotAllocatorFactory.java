@@ -23,21 +23,19 @@ import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Factory for {@link DefaultExecutionSlotAllocator}.
- */
+/** Factory for {@link DefaultExecutionSlotAllocator}. */
 class DefaultExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
 
-	private final SlotProviderStrategy slotProvider;
+    private final SlotProviderStrategy slotProvider;
 
-	DefaultExecutionSlotAllocatorFactory(final SlotProviderStrategy slotProvider) {
-		this.slotProvider = checkNotNull(slotProvider);
-	}
+    DefaultExecutionSlotAllocatorFactory(final SlotProviderStrategy slotProvider) {
+        this.slotProvider = checkNotNull(slotProvider);
+    }
 
-	@Override
-	public ExecutionSlotAllocator createInstance(final ExecutionSlotAllocationContext context) {
-		PreferredLocationsRetriever preferredLocationsRetriever =
-			new DefaultPreferredLocationsRetriever(context, context);
-		return new DefaultExecutionSlotAllocator(slotProvider, preferredLocationsRetriever);
-	}
+    @Override
+    public ExecutionSlotAllocator createInstance(final ExecutionSlotAllocationContext context) {
+        PreferredLocationsRetriever preferredLocationsRetriever =
+                new DefaultPreferredLocationsRetriever(context, context);
+        return new DefaultExecutionSlotAllocator(slotProvider, preferredLocationsRetriever);
+    }
 }

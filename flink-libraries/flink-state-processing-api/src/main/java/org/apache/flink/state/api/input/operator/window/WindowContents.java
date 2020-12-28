@@ -36,18 +36,17 @@ import java.util.Collections;
 @FunctionalInterface
 public interface WindowContents<S extends State, IN> extends Serializable {
 
-	static <T> WindowContents<ReducingState<T>, T> reducingState() {
-		return (state) -> Collections.singletonList(state.get());
-	}
+    static <T> WindowContents<ReducingState<T>, T> reducingState() {
+        return (state) -> Collections.singletonList(state.get());
+    }
 
-	static <IN, OUT> WindowContents<AggregatingState<IN, OUT>, OUT> aggregatingState() {
-		return (state) -> Collections.singletonList(state.get());
-	}
+    static <IN, OUT> WindowContents<AggregatingState<IN, OUT>, OUT> aggregatingState() {
+        return (state) -> Collections.singletonList(state.get());
+    }
 
-	static <T> WindowContents<ListState<T>, T> listState() {
-		return AppendingState::get;
-	}
+    static <T> WindowContents<ListState<T>, T> listState() {
+        return AppendingState::get;
+    }
 
-	Iterable<IN> contents(S state) throws Exception;
+    Iterable<IN> contents(S state) throws Exception;
 }
-

@@ -22,19 +22,17 @@ import org.apache.flink.api.common.JobID;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Interface to grant and revoke leadership of HA components.
- */
+/** Interface to grant and revoke leadership of HA components. */
 public interface HaLeadershipControl {
-	CompletableFuture<Void> revokeDispatcherLeadership();
+    CompletableFuture<Void> revokeDispatcherLeadership();
 
-	CompletableFuture<Void> grantDispatcherLeadership();
+    CompletableFuture<Void> grantDispatcherLeadership();
 
-	CompletableFuture<Void> revokeJobMasterLeadership(JobID jobId);
+    CompletableFuture<Void> revokeJobMasterLeadership(JobID jobId);
 
-	CompletableFuture<Void> grantJobMasterLeadership(JobID jobId);
+    CompletableFuture<Void> grantJobMasterLeadership(JobID jobId);
 
-	CompletableFuture<Void> revokeResourceManagerLeadership();
+    CompletableFuture<Void> revokeResourceManagerLeadership();
 
-	CompletableFuture<Void> grantResourceManagerLeadership();
+    CompletableFuture<Void> grantResourceManagerLeadership();
 }

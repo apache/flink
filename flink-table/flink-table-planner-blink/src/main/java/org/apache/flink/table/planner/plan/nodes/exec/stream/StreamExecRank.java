@@ -52,167 +52,182 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.Collections;
 import java.util.stream.IntStream;
 
-/**
- * Stream {@link ExecNode} for Rank.
- */
+/** Stream {@link ExecNode} for Rank. */
 public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
 
-	// It is a experimental config, will may be removed later.
-	@Experimental
-	public static final ConfigOption<Long> TABLE_EXEC_TOPN_CACHE_SIZE =
-		ConfigOptions.key("table.exec.topn.cache-size")
-			.longType()
-			.defaultValue(10000L)
-			.withDescription("TopN operator has a cache which caches partial state contents to reduce" +
-				" state access. Cache size is the number of records in each TopN task.");
+    // It is a experimental config, will may be removed later.
+    @Experimental
+    public static final ConfigOption<Long> TABLE_EXEC_TOPN_CACHE_SIZE =
+            ConfigOptions.key("table.exec.topn.cache-size")
+                    .longType()
+                    .defaultValue(10000L)
+                    .withDescription(
+                            "TopN operator has a cache which caches partial state contents to reduce"
+                                    + " state access. Cache size is the number of records in each TopN task.");
 
-	private final RankType rankType;
-	private final int[] partitionFields;
-	private final int[] sortFields;
-	private final boolean[] sortDirections;
-	private final boolean[] nullsIsLast;
-	private final RankRange rankRange;
-	private final RankProcessStrategy rankStrategy;
-	private final boolean outputRankNumber;
-	private final boolean generateUpdateBefore;
+    private final RankType rankType;
+    private final int[] partitionFields;
+    private final int[] sortFields;
+    private final boolean[] sortDirections;
+    private final boolean[] nullsIsLast;
+    private final RankRange rankRange;
+    private final RankProcessStrategy rankStrategy;
+    private final boolean outputRankNumber;
+    private final boolean generateUpdateBefore;
 
-	public StreamExecRank(
-			RankType rankType,
-			int[] partitionFields,
-			int[] sortFields,
-			boolean[] sortDirections,
-			boolean[] nullsIsLast,
-			RankRange rankRange,
-			RankProcessStrategy rankStrategy,
-			boolean outputRankNumber,
-			boolean generateUpdateBefore,
-			ExecEdge inputEdge,
-			LogicalType outputType,
-			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-		this.rankType = rankType;
-		this.partitionFields = partitionFields;
-		this.sortFields = sortFields;
-		this.sortDirections = sortDirections;
-		this.nullsIsLast = nullsIsLast;
-		this.rankRange = rankRange;
-		this.rankStrategy = rankStrategy;
-		this.outputRankNumber = outputRankNumber;
-		this.generateUpdateBefore = generateUpdateBefore;
-	}
+    public StreamExecRank(
+            RankType rankType,
+            int[] partitionFields,
+            int[] sortFields,
+            boolean[] sortDirections,
+            boolean[] nullsIsLast,
+            RankRange rankRange,
+            RankProcessStrategy rankStrategy,
+            boolean outputRankNumber,
+            boolean generateUpdateBefore,
+            ExecEdge inputEdge,
+            LogicalType outputType,
+            String description) {
+        super(Collections.singletonList(inputEdge), outputType, description);
+        this.rankType = rankType;
+        this.partitionFields = partitionFields;
+        this.sortFields = sortFields;
+        this.sortDirections = sortDirections;
+        this.nullsIsLast = nullsIsLast;
+        this.rankRange = rankRange;
+        this.rankStrategy = rankStrategy;
+        this.outputRankNumber = outputRankNumber;
+        this.generateUpdateBefore = generateUpdateBefore;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-		switch (rankType) {
-			case ROW_NUMBER:
-				break;
-			case RANK:
-				throw new TableException("RANK() on streaming table is not supported currently");
-			case DENSE_RANK:
-				throw new TableException("DENSE_RANK() on streaming table is not supported currently");
-			default:
-				throw new TableException(String.format("Streaming tables do not support %s rank function.", rankType));
-		}
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        switch (rankType) {
+            case ROW_NUMBER:
+                break;
+            case RANK:
+                throw new TableException("RANK() on streaming table is not supported currently");
+            case DENSE_RANK:
+                throw new TableException(
+                        "DENSE_RANK() on streaming table is not supported currently");
+            default:
+                throw new TableException(
+                        String.format(
+                                "Streaming tables do not support %s rank function.", rankType));
+        }
 
-		ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
-		Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
+        Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
 
-		RowType inputType = (RowType) inputNode.getOutputType();
-		InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputType);
-		RowDataKeySelector sortKeySelector = KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo);
-		LogicalType[] sortKeyTypes = IntStream.of(sortFields).mapToObj(inputType::getTypeAt).toArray(LogicalType[]::new);
-		int[] sortKeyPositions = IntStream.range(0, sortFields.length).toArray();
-		TableConfig tableConfig = planner.getTableConfig();
-		GeneratedRecordComparator sortKeyComparator = ComparatorCodeGenerator.gen(
-				tableConfig,
-				"StreamExecSortComparator",
-				sortKeyPositions,
-				sortKeyTypes,
-				sortDirections,
-				nullsIsLast);
-		long cacheSize = tableConfig.getConfiguration().getLong(TABLE_EXEC_TOPN_CACHE_SIZE);
-		long minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime();
-		long maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime();
+        RowType inputType = (RowType) inputNode.getOutputType();
+        InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputType);
+        RowDataKeySelector sortKeySelector =
+                KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo);
+        LogicalType[] sortKeyTypes =
+                IntStream.of(sortFields).mapToObj(inputType::getTypeAt).toArray(LogicalType[]::new);
+        int[] sortKeyPositions = IntStream.range(0, sortFields.length).toArray();
+        TableConfig tableConfig = planner.getTableConfig();
+        GeneratedRecordComparator sortKeyComparator =
+                ComparatorCodeGenerator.gen(
+                        tableConfig,
+                        "StreamExecSortComparator",
+                        sortKeyPositions,
+                        sortKeyTypes,
+                        sortDirections,
+                        nullsIsLast);
+        long cacheSize = tableConfig.getConfiguration().getLong(TABLE_EXEC_TOPN_CACHE_SIZE);
+        long minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime();
+        long maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime();
 
-		AbstractTopNFunction processFunction;
-		if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
-			processFunction = new AppendOnlyTopNFunction(
-					minIdleStateRetentionTime,
-					maxIdleStateRetentionTime,
-					inputRowTypeInfo,
-					sortKeyComparator,
-					sortKeySelector,
-					rankType,
-					rankRange,
-					generateUpdateBefore,
-					outputRankNumber,
-					cacheSize);
-		} else if (rankStrategy instanceof RankProcessStrategy.UpdateFastStrategy) {
-			RankProcessStrategy.UpdateFastStrategy updateFastStrategy =
-					(RankProcessStrategy.UpdateFastStrategy) rankStrategy;
-			int[] primaryKeys = updateFastStrategy.getPrimaryKeys();
-			RowDataKeySelector rowKeySelector = KeySelectorUtil.getRowDataSelector(
-					primaryKeys,
-					inputRowTypeInfo);
-			processFunction = new UpdatableTopNFunction(
-					minIdleStateRetentionTime,
-					maxIdleStateRetentionTime,
-					inputRowTypeInfo,
-					rowKeySelector,
-					sortKeyComparator,
-					sortKeySelector,
-					rankType,
-					rankRange,
-					generateUpdateBefore,
-					outputRankNumber,
-					cacheSize);
-		// TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
-		} else if (rankStrategy instanceof RankProcessStrategy.RetractStrategy) {
-			EqualiserCodeGenerator equaliserCodeGen = new EqualiserCodeGenerator(
-					inputType.getFields().stream().map(RowType.RowField::getType).toArray(LogicalType[]::new));
-			GeneratedRecordEqualiser generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser");
-			ComparableRecordComparator comparator = new ComparableRecordComparator(
-					sortKeyComparator,
-					sortKeyPositions,
-					sortKeyTypes,
-					sortDirections,
-					nullsIsLast);
-			processFunction = new RetractableTopNFunction(
-					minIdleStateRetentionTime,
-					maxIdleStateRetentionTime,
-					inputRowTypeInfo,
-					comparator,
-					sortKeySelector,
-					rankType,
-					rankRange,
-					generatedEqualiser,
-					generateUpdateBefore,
-					outputRankNumber);
-		} else {
-			throw new TableException(String.format("rank strategy:%s is not supported.", rankStrategy));
-		}
+        AbstractTopNFunction processFunction;
+        if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
+            processFunction =
+                    new AppendOnlyTopNFunction(
+                            minIdleStateRetentionTime,
+                            maxIdleStateRetentionTime,
+                            inputRowTypeInfo,
+                            sortKeyComparator,
+                            sortKeySelector,
+                            rankType,
+                            rankRange,
+                            generateUpdateBefore,
+                            outputRankNumber,
+                            cacheSize);
+        } else if (rankStrategy instanceof RankProcessStrategy.UpdateFastStrategy) {
+            RankProcessStrategy.UpdateFastStrategy updateFastStrategy =
+                    (RankProcessStrategy.UpdateFastStrategy) rankStrategy;
+            int[] primaryKeys = updateFastStrategy.getPrimaryKeys();
+            RowDataKeySelector rowKeySelector =
+                    KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo);
+            processFunction =
+                    new UpdatableTopNFunction(
+                            minIdleStateRetentionTime,
+                            maxIdleStateRetentionTime,
+                            inputRowTypeInfo,
+                            rowKeySelector,
+                            sortKeyComparator,
+                            sortKeySelector,
+                            rankType,
+                            rankRange,
+                            generateUpdateBefore,
+                            outputRankNumber,
+                            cacheSize);
+            // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
+        } else if (rankStrategy instanceof RankProcessStrategy.RetractStrategy) {
+            EqualiserCodeGenerator equaliserCodeGen =
+                    new EqualiserCodeGenerator(
+                            inputType.getFields().stream()
+                                    .map(RowType.RowField::getType)
+                                    .toArray(LogicalType[]::new));
+            GeneratedRecordEqualiser generatedEqualiser =
+                    equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser");
+            ComparableRecordComparator comparator =
+                    new ComparableRecordComparator(
+                            sortKeyComparator,
+                            sortKeyPositions,
+                            sortKeyTypes,
+                            sortDirections,
+                            nullsIsLast);
+            processFunction =
+                    new RetractableTopNFunction(
+                            minIdleStateRetentionTime,
+                            maxIdleStateRetentionTime,
+                            inputRowTypeInfo,
+                            comparator,
+                            sortKeySelector,
+                            rankType,
+                            rankRange,
+                            generatedEqualiser,
+                            generateUpdateBefore,
+                            outputRankNumber);
+        } else {
+            throw new TableException(
+                    String.format("rank strategy:%s is not supported.", rankStrategy));
+        }
 
-		KeyedProcessOperator<RowData, RowData, RowData> operator =
-				new KeyedProcessOperator<>(processFunction);
-		processFunction.setKeyContext(operator);
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(processFunction);
+        processFunction.setKeyContext(operator);
 
-		OneInputTransformation<RowData, RowData> transform = new OneInputTransformation<>(
-				inputTransform,
-				getDesc(),
-				operator,
-				InternalTypeInfo.of((RowType) getOutputType()),
-				inputTransform.getParallelism());
+        OneInputTransformation<RowData, RowData> transform =
+                new OneInputTransformation<>(
+                        inputTransform,
+                        getDesc(),
+                        operator,
+                        InternalTypeInfo.of((RowType) getOutputType()),
+                        inputTransform.getParallelism());
 
-		// set KeyType and Selector for state
-		RowDataKeySelector selector = KeySelectorUtil.getRowDataSelector(partitionFields, inputRowTypeInfo);
-		transform.setStateKeySelector(selector);
-		transform.setStateKeyType(selector.getProducedType());
+        // set KeyType and Selector for state
+        RowDataKeySelector selector =
+                KeySelectorUtil.getRowDataSelector(partitionFields, inputRowTypeInfo);
+        transform.setStateKeySelector(selector);
+        transform.setStateKeyType(selector.getProducedType());
 
-		if (inputsContainSingleton()) {
-			transform.setParallelism(1);
-			transform.setMaxParallelism(1);
-		}
-		return transform;
-	}
+        if (inputsContainSingleton()) {
+            transform.setParallelism(1);
+            transform.setMaxParallelism(1);
+        }
+        return transform;
+    }
 }

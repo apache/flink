@@ -30,28 +30,34 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Interface for a Kinesis proxy using AWS SDK v2.x operating on multiple Kinesis streams within the same AWS service region.
+ * Interface for a Kinesis proxy using AWS SDK v2.x operating on multiple Kinesis streams within the
+ * same AWS service region.
  */
 @Internal
 public interface KinesisProxyV2Interface {
 
-	DescribeStreamSummaryResponse describeStreamSummary(String stream) throws InterruptedException, ExecutionException;
+    DescribeStreamSummaryResponse describeStreamSummary(String stream)
+            throws InterruptedException, ExecutionException;
 
-	DescribeStreamConsumerResponse describeStreamConsumer(final String streamConsumerArn) throws InterruptedException, ExecutionException;
+    DescribeStreamConsumerResponse describeStreamConsumer(final String streamConsumerArn)
+            throws InterruptedException, ExecutionException;
 
-	DescribeStreamConsumerResponse describeStreamConsumer(final String streamArn, final String consumerName) throws InterruptedException, ExecutionException;
+    DescribeStreamConsumerResponse describeStreamConsumer(
+            final String streamArn, final String consumerName)
+            throws InterruptedException, ExecutionException;
 
-	RegisterStreamConsumerResponse registerStreamConsumer(final String streamArn, final String consumerName) throws InterruptedException, ExecutionException;
+    RegisterStreamConsumerResponse registerStreamConsumer(
+            final String streamArn, final String consumerName)
+            throws InterruptedException, ExecutionException;
 
-	DeregisterStreamConsumerResponse deregisterStreamConsumer(final String consumerArn) throws InterruptedException, ExecutionException;
+    DeregisterStreamConsumerResponse deregisterStreamConsumer(final String consumerArn)
+            throws InterruptedException, ExecutionException;
 
-	CompletableFuture<Void> subscribeToShard(SubscribeToShardRequest request, SubscribeToShardResponseHandler responseHandler);
+    CompletableFuture<Void> subscribeToShard(
+            SubscribeToShardRequest request, SubscribeToShardResponseHandler responseHandler);
 
-	/**
-	 * Destroy any open resources used by the factory.
-	 */
-	default void close() {
-		// Do nothing by default
-	}
-
+    /** Destroy any open resources used by the factory. */
+    default void close() {
+        // Do nothing by default
+    }
 }

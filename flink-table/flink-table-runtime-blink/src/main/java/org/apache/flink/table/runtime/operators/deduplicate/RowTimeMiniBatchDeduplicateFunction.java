@@ -34,101 +34,98 @@ import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFu
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.isDuplicate;
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.updateDeduplicateResult;
 
-/**
- * This function is used to get the first or last row for every key partition in miniBatch mode.
- */
+/** This function is used to get the first or last row for every key partition in miniBatch mode. */
 public class RowTimeMiniBatchDeduplicateFunction
-		extends MiniBatchDeduplicateFunctionBase<RowData, RowData, List<RowData>, RowData, RowData> {
+        extends MiniBatchDeduplicateFunctionBase<
+                RowData, RowData, List<RowData>, RowData, RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final TypeSerializer<RowData> serializer;
-	private final boolean generateUpdateBefore;
-	private final boolean generateInsert;
-	private final int rowtimeIndex;
-	private final boolean keepLastRow;
+    private final TypeSerializer<RowData> serializer;
+    private final boolean generateUpdateBefore;
+    private final boolean generateInsert;
+    private final int rowtimeIndex;
+    private final boolean keepLastRow;
 
-	public RowTimeMiniBatchDeduplicateFunction(
-			InternalTypeInfo<RowData> typeInfo,
-			TypeSerializer<RowData> serializer,
-			long minRetentionTime,
-			int rowtimeIndex,
-			boolean generateUpdateBefore,
-			boolean generateInsert,
-			boolean keepLastRow) {
-		super(typeInfo, minRetentionTime);
-		this.serializer = serializer;
-		this.generateUpdateBefore = generateUpdateBefore;
-		this.generateInsert = generateInsert;
-		this.rowtimeIndex = rowtimeIndex;
-		this.keepLastRow = keepLastRow;
-	}
+    public RowTimeMiniBatchDeduplicateFunction(
+            InternalTypeInfo<RowData> typeInfo,
+            TypeSerializer<RowData> serializer,
+            long minRetentionTime,
+            int rowtimeIndex,
+            boolean generateUpdateBefore,
+            boolean generateInsert,
+            boolean keepLastRow) {
+        super(typeInfo, minRetentionTime);
+        this.serializer = serializer;
+        this.generateUpdateBefore = generateUpdateBefore;
+        this.generateInsert = generateInsert;
+        this.rowtimeIndex = rowtimeIndex;
+        this.keepLastRow = keepLastRow;
+    }
 
-	@Override
-	public List<RowData> addInput(@Nullable List<RowData> value, RowData input) throws Exception {
-		if (value == null) {
-			value = new ArrayList<>();
-		}
-		value.add(serializer.copy(input));
-		return value;
-	}
+    @Override
+    public List<RowData> addInput(@Nullable List<RowData> value, RowData input) throws Exception {
+        if (value == null) {
+            value = new ArrayList<>();
+        }
+        value.add(serializer.copy(input));
+        return value;
+    }
 
-	@Override
-	public void finishBundle(Map<RowData, List<RowData>> buffer, Collector<RowData> out) throws Exception {
-		for (Map.Entry<RowData, List<RowData>> entry : buffer.entrySet()) {
-			RowData currentKey = entry.getKey();
-			List<RowData> bufferedRows = entry.getValue();
-			ctx.setCurrentKey(currentKey);
-			miniBatchDeduplicateOnRowTime(
-					state,
-					bufferedRows,
-					out,
-					generateUpdateBefore,
-					generateInsert,
-					rowtimeIndex,
-					keepLastRow);
-		}
-	}
+    @Override
+    public void finishBundle(Map<RowData, List<RowData>> buffer, Collector<RowData> out)
+            throws Exception {
+        for (Map.Entry<RowData, List<RowData>> entry : buffer.entrySet()) {
+            RowData currentKey = entry.getKey();
+            List<RowData> bufferedRows = entry.getValue();
+            ctx.setCurrentKey(currentKey);
+            miniBatchDeduplicateOnRowTime(
+                    state,
+                    bufferedRows,
+                    out,
+                    generateUpdateBefore,
+                    generateInsert,
+                    rowtimeIndex,
+                    keepLastRow);
+        }
+    }
 
-	/**
-	 * Processes element to deduplicate on keys with row time semantic, sends current element if it is last
-	 * or first row, retracts previous element if needed.
-	 *
-	 * @param state                 state of function
-	 * @param bufferedRows          latest row received by deduplicate function
-	 * @param out                   underlying collector
-	 * @param generateUpdateBefore  flag to generate UPDATE_BEFORE message or not
-	 * @param generateInsert        flag to gennerate INSERT message or not
-	 * @param rowtimeIndex          the index of rowtime field
-	 * @param keepLastRow			flag to keep last row or keep first row
-	 */
-	private static void miniBatchDeduplicateOnRowTime(
-			ValueState<RowData> state,
-			List<RowData> bufferedRows,
-			Collector<RowData> out,
-			boolean generateUpdateBefore,
-			boolean generateInsert,
-			int rowtimeIndex,
-			boolean keepLastRow) throws Exception {
-		if (bufferedRows.isEmpty()) {
-			return;
-		}
-		RowData preRow = state.value();
-		//Note: we output all changelog here rather than comparing the first and the last
-		// record in buffer then output at most two changelog.
-		// The motivation is we need all changelog in versioned table of temporal join.
-		for (RowData currentRow : bufferedRows) {
-			checkInsertOnly(currentRow);
-			if (isDuplicate(preRow, currentRow, rowtimeIndex, keepLastRow)){
-				updateDeduplicateResult(
-						generateUpdateBefore,
-						generateInsert,
-						preRow,
-						currentRow,
-						out);
-				preRow = currentRow;
-			}
-		}
-		state.update(preRow);
-	}
+    /**
+     * Processes element to deduplicate on keys with row time semantic, sends current element if it
+     * is last or first row, retracts previous element if needed.
+     *
+     * @param state state of function
+     * @param bufferedRows latest row received by deduplicate function
+     * @param out underlying collector
+     * @param generateUpdateBefore flag to generate UPDATE_BEFORE message or not
+     * @param generateInsert flag to gennerate INSERT message or not
+     * @param rowtimeIndex the index of rowtime field
+     * @param keepLastRow flag to keep last row or keep first row
+     */
+    private static void miniBatchDeduplicateOnRowTime(
+            ValueState<RowData> state,
+            List<RowData> bufferedRows,
+            Collector<RowData> out,
+            boolean generateUpdateBefore,
+            boolean generateInsert,
+            int rowtimeIndex,
+            boolean keepLastRow)
+            throws Exception {
+        if (bufferedRows.isEmpty()) {
+            return;
+        }
+        RowData preRow = state.value();
+        // Note: we output all changelog here rather than comparing the first and the last
+        // record in buffer then output at most two changelog.
+        // The motivation is we need all changelog in versioned table of temporal join.
+        for (RowData currentRow : bufferedRows) {
+            checkInsertOnly(currentRow);
+            if (isDuplicate(preRow, currentRow, rowtimeIndex, keepLastRow)) {
+                updateDeduplicateResult(
+                        generateUpdateBefore, generateInsert, preRow, currentRow, out);
+                preRow = currentRow;
+            }
+        }
+        state.update(preRow);
+    }
 }

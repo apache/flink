@@ -44,126 +44,135 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special {@link StreamExecutionEnvironment} that will be used in cases where the CLI client or
- * testing utilities create a {@link StreamExecutionEnvironment} that should be used when
- * {@link StreamExecutionEnvironment#getExecutionEnvironment()} is called.
+ * testing utilities create a {@link StreamExecutionEnvironment} that should be used when {@link
+ * StreamExecutionEnvironment#getExecutionEnvironment()} is called.
  */
 @PublicEvolving
 public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	private final boolean suppressSysout;
+    private final boolean suppressSysout;
 
-	private final boolean enforceSingleJobExecution;
+    private final boolean enforceSingleJobExecution;
 
-	private int jobCounter;
+    private int jobCounter;
 
-	public StreamContextEnvironment(
-			final PipelineExecutorServiceLoader executorServiceLoader,
-			final Configuration configuration,
-			final ClassLoader userCodeClassLoader,
-			final boolean enforceSingleJobExecution,
-			final boolean suppressSysout) {
-		super(executorServiceLoader, configuration, userCodeClassLoader);
-		this.suppressSysout = suppressSysout;
-		this.enforceSingleJobExecution = enforceSingleJobExecution;
+    public StreamContextEnvironment(
+            final PipelineExecutorServiceLoader executorServiceLoader,
+            final Configuration configuration,
+            final ClassLoader userCodeClassLoader,
+            final boolean enforceSingleJobExecution,
+            final boolean suppressSysout) {
+        super(executorServiceLoader, configuration, userCodeClassLoader);
+        this.suppressSysout = suppressSysout;
+        this.enforceSingleJobExecution = enforceSingleJobExecution;
 
-		this.jobCounter = 0;
-	}
+        this.jobCounter = 0;
+    }
 
-	@Override
-	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		final JobClient jobClient = executeAsync(streamGraph);
-		final List<JobListener> jobListeners = getJobListeners();
+    @Override
+    public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+        final JobClient jobClient = executeAsync(streamGraph);
+        final List<JobListener> jobListeners = getJobListeners();
 
-		try {
-			final JobExecutionResult  jobExecutionResult = getJobExecutionResult(jobClient);
-			jobListeners.forEach(jobListener ->
-					jobListener.onJobExecuted(jobExecutionResult, null));
-			return jobExecutionResult;
-		} catch (Throwable t) {
-			jobListeners.forEach(jobListener ->
-					jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t)));
-			ExceptionUtils.rethrowException(t);
+        try {
+            final JobExecutionResult jobExecutionResult = getJobExecutionResult(jobClient);
+            jobListeners.forEach(
+                    jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
+            return jobExecutionResult;
+        } catch (Throwable t) {
+            jobListeners.forEach(
+                    jobListener ->
+                            jobListener.onJobExecuted(
+                                    null, ExceptionUtils.stripExecutionException(t)));
+            ExceptionUtils.rethrowException(t);
 
-			// never reached, only make javac happy
-			return null;
-		}
-	}
+            // never reached, only make javac happy
+            return null;
+        }
+    }
 
-	private JobExecutionResult getJobExecutionResult(final JobClient jobClient) throws Exception {
-		checkNotNull(jobClient);
+    private JobExecutionResult getJobExecutionResult(final JobClient jobClient) throws Exception {
+        checkNotNull(jobClient);
 
-		JobExecutionResult jobExecutionResult;
-		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
-			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
-					jobClient.getJobExecutionResult();
+        JobExecutionResult jobExecutionResult;
+        if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+            CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
+                    jobClient.getJobExecutionResult();
 
-			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
-				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
-						() -> {
-							// wait a smidgen to allow the async request to go through before
-							// the jvm exits
-							jobClient.cancel().get(1, TimeUnit.SECONDS);
-						},
-						StreamContextEnvironment.class.getSimpleName(),
-						LOG);
-				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
-						ShutdownHookUtil.removeShutdownHook(
-							shutdownHook, StreamContextEnvironment.class.getSimpleName(), LOG));
-			}
+            if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+                Thread shutdownHook =
+                        ShutdownHookUtil.addShutdownHook(
+                                () -> {
+                                    // wait a smidgen to allow the async request to go through
+                                    // before
+                                    // the jvm exits
+                                    jobClient.cancel().get(1, TimeUnit.SECONDS);
+                                },
+                                StreamContextEnvironment.class.getSimpleName(),
+                                LOG);
+                jobExecutionResultFuture.whenComplete(
+                        (ignored, throwable) ->
+                                ShutdownHookUtil.removeShutdownHook(
+                                        shutdownHook,
+                                        StreamContextEnvironment.class.getSimpleName(),
+                                        LOG));
+            }
 
-			jobExecutionResult = jobExecutionResultFuture.get();
-			System.out.println(jobExecutionResult);
-		} else {
-			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
-		}
+            jobExecutionResult = jobExecutionResultFuture.get();
+            System.out.println(jobExecutionResult);
+        } else {
+            jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+        }
 
-		return jobExecutionResult;
-	}
+        return jobExecutionResult;
+    }
 
-	@Override
-	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
-		validateAllowedExecution();
-		final JobClient jobClient = super.executeAsync(streamGraph);
+    @Override
+    public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+        validateAllowedExecution();
+        final JobClient jobClient = super.executeAsync(streamGraph);
 
-		if (!suppressSysout) {
-			System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
-		}
+        if (!suppressSysout) {
+            System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+        }
 
-		return jobClient;
-	}
+        return jobClient;
+    }
 
-	private void validateAllowedExecution() {
-		if (enforceSingleJobExecution && jobCounter > 0) {
-			throw new FlinkRuntimeException("Cannot have more than one execute() or executeAsync() call in a single environment.");
-		}
-		jobCounter++;
-	}
+    private void validateAllowedExecution() {
+        if (enforceSingleJobExecution && jobCounter > 0) {
+            throw new FlinkRuntimeException(
+                    "Cannot have more than one execute() or executeAsync() call in a single environment.");
+        }
+        jobCounter++;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	public static void setAsContext(
-			final PipelineExecutorServiceLoader executorServiceLoader,
-			final Configuration configuration,
-			final ClassLoader userCodeClassLoader,
-			final boolean enforceSingleJobExecution,
-			final boolean suppressSysout) {
-		StreamExecutionEnvironmentFactory factory = conf -> {
-			Configuration mergedConfiguration = new Configuration();
-			mergedConfiguration.addAll(configuration);
-			mergedConfiguration.addAll(conf);
-			return new StreamContextEnvironment(
-				executorServiceLoader,
-				mergedConfiguration,
-				userCodeClassLoader,
-				enforceSingleJobExecution,
-				suppressSysout);
-		};
-		initializeContextEnvironment(factory);
-	}
+    public static void setAsContext(
+            final PipelineExecutorServiceLoader executorServiceLoader,
+            final Configuration configuration,
+            final ClassLoader userCodeClassLoader,
+            final boolean enforceSingleJobExecution,
+            final boolean suppressSysout) {
+        StreamExecutionEnvironmentFactory factory =
+                conf -> {
+                    Configuration mergedConfiguration = new Configuration();
+                    mergedConfiguration.addAll(configuration);
+                    mergedConfiguration.addAll(conf);
+                    return new StreamContextEnvironment(
+                            executorServiceLoader,
+                            mergedConfiguration,
+                            userCodeClassLoader,
+                            enforceSingleJobExecution,
+                            suppressSysout);
+                };
+        initializeContextEnvironment(factory);
+    }
 
-	public static void unsetAsContext() {
-		resetContextEnvironment();
-	}
+    public static void unsetAsContext() {
+        resetContextEnvironment();
+    }
 }

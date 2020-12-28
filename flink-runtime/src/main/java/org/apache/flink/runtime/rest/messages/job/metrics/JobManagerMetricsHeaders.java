@@ -21,33 +21,32 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 /**
- * {@link MessageHeaders} for
- * {@link org.apache.flink.runtime.rest.handler.job.metrics.JobManagerMetricsHandler}.
+ * {@link MessageHeaders} for {@link
+ * org.apache.flink.runtime.rest.handler.job.metrics.JobManagerMetricsHandler}.
  */
-public final class JobManagerMetricsHeaders extends
-	AbstractMetricsHeaders<JobManagerMetricsMessageParameters> {
+public final class JobManagerMetricsHeaders
+        extends AbstractMetricsHeaders<JobManagerMetricsMessageParameters> {
 
-	private static final JobManagerMetricsHeaders INSTANCE = new JobManagerMetricsHeaders();
+    private static final JobManagerMetricsHeaders INSTANCE = new JobManagerMetricsHeaders();
 
-	private JobManagerMetricsHeaders() {
-	}
+    private JobManagerMetricsHeaders() {}
 
-	@Override
-	public JobManagerMetricsMessageParameters getUnresolvedMessageParameters() {
-		return new JobManagerMetricsMessageParameters();
-	}
+    @Override
+    public JobManagerMetricsMessageParameters getUnresolvedMessageParameters() {
+        return new JobManagerMetricsMessageParameters();
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/jobmanager/metrics";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/jobmanager/metrics";
+    }
 
-	public static JobManagerMetricsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobManagerMetricsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Provides access to job manager metrics.";
-	}
+    @Override
+    public String getDescription() {
+        return "Provides access to job manager metrics.";
+    }
 }

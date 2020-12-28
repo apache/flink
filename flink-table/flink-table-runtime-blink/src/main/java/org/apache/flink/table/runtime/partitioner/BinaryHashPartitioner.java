@@ -30,51 +30,49 @@ import org.apache.flink.util.MathUtils;
 
 import java.util.Arrays;
 
-/**
- * Hash partitioner for {@link BinaryRowData}.
- */
+/** Hash partitioner for {@link BinaryRowData}. */
 public class BinaryHashPartitioner extends StreamPartitioner<RowData> {
 
-	private GeneratedHashFunction genHashFunc;
+    private GeneratedHashFunction genHashFunc;
 
-	private transient HashFunction hashFunc;
-	private String[] hashFieldNames;
+    private transient HashFunction hashFunc;
+    private String[] hashFieldNames;
 
-	public BinaryHashPartitioner(GeneratedHashFunction genHashFunc, String[] hashFieldNames) {
-		this.genHashFunc = genHashFunc;
-		this.hashFieldNames = hashFieldNames;
-	}
+    public BinaryHashPartitioner(GeneratedHashFunction genHashFunc, String[] hashFieldNames) {
+        this.genHashFunc = genHashFunc;
+        this.hashFieldNames = hashFieldNames;
+    }
 
-	@Override
-	public StreamPartitioner<RowData> copy() {
-		return this;
-	}
+    @Override
+    public StreamPartitioner<RowData> copy() {
+        return this;
+    }
 
-	@Override
-	public int selectChannel(SerializationDelegate<StreamRecord<RowData>> record) {
-		return MathUtils.murmurHash(
-				getHashFunc().hashCode(record.getInstance().getValue())) % numberOfChannels;
-	}
+    @Override
+    public int selectChannel(SerializationDelegate<StreamRecord<RowData>> record) {
+        return MathUtils.murmurHash(getHashFunc().hashCode(record.getInstance().getValue()))
+                % numberOfChannels;
+    }
 
-	@Override
-	public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
-		return SubtaskStateMapper.FULL;
-	}
+    @Override
+    public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+        return SubtaskStateMapper.FULL;
+    }
 
-	private HashFunction getHashFunc() {
-		if (hashFunc == null) {
-			try {
-				hashFunc = genHashFunc.newInstance(Thread.currentThread().getContextClassLoader());
-				genHashFunc = null;
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
-		return hashFunc;
-	}
+    private HashFunction getHashFunc() {
+        if (hashFunc == null) {
+            try {
+                hashFunc = genHashFunc.newInstance(Thread.currentThread().getContextClassLoader());
+                genHashFunc = null;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return hashFunc;
+    }
 
-	@Override
-	public String toString() {
-		return "HASH" + Arrays.toString(hashFieldNames);
-	}
+    @Override
+    public String toString() {
+        return "HASH" + Arrays.toString(hashFieldNames);
+    }
 }

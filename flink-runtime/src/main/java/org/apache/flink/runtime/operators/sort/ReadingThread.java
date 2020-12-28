@@ -26,51 +26,50 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * The thread that consumes the input data and puts it into a buffer that will be sorted.
- */
+/** The thread that consumes the input data and puts it into a buffer that will be sorted. */
 final class ReadingThread<E> extends ThreadBase<E> {
 
-	/** The input channels to read from. */
-	private final MutableObjectIterator<E> reader;
+    /** The input channels to read from. */
+    private final MutableObjectIterator<E> reader;
 
-	/** The object into which the thread reads the data from the input. */
-	private final E readTarget;
+    /** The object into which the thread reads the data from the input. */
+    private final E readTarget;
 
-	private final SorterInputGateway<E> sorterGateway;
+    private final SorterInputGateway<E> sorterGateway;
 
-	/**
-	 * Creates a new reading thread.
-	 *
-	 * @param exceptionHandler The exception handler to call for all exceptions.
-	 * @param reader The reader to pull the data from.
-	 * @param dispatcher The queues used to pass buffers between the threads.
-	 */
-	ReadingThread(
-			@Nullable ExceptionHandler<IOException> exceptionHandler,
-			MutableObjectIterator<E> reader,
-			StageMessageDispatcher<E> dispatcher,
-			@Nullable LargeRecordHandler<E> largeRecordsHandler,
-			@Nullable E readTarget,
-			long startSpillingBytes) {
-		super(exceptionHandler, "SortMerger Reading Thread", dispatcher);
+    /**
+     * Creates a new reading thread.
+     *
+     * @param exceptionHandler The exception handler to call for all exceptions.
+     * @param reader The reader to pull the data from.
+     * @param dispatcher The queues used to pass buffers between the threads.
+     */
+    ReadingThread(
+            @Nullable ExceptionHandler<IOException> exceptionHandler,
+            MutableObjectIterator<E> reader,
+            StageMessageDispatcher<E> dispatcher,
+            @Nullable LargeRecordHandler<E> largeRecordsHandler,
+            @Nullable E readTarget,
+            long startSpillingBytes) {
+        super(exceptionHandler, "SortMerger Reading Thread", dispatcher);
 
-		// members
-		this.sorterGateway = new SorterInputGateway<>(dispatcher, largeRecordsHandler, startSpillingBytes);
-		this.reader = checkNotNull(reader);
-		this.readTarget = readTarget;
-	}
+        // members
+        this.sorterGateway =
+                new SorterInputGateway<>(dispatcher, largeRecordsHandler, startSpillingBytes);
+        this.reader = checkNotNull(reader);
+        this.readTarget = readTarget;
+    }
 
-	@Override
-	public void go() throws IOException, InterruptedException {
-		final MutableObjectIterator<E> reader = this.reader;
+    @Override
+    public void go() throws IOException, InterruptedException {
+        final MutableObjectIterator<E> reader = this.reader;
 
-		E current = reader.next(readTarget);
-		while (isRunning() && (current != null)) {
-			sorterGateway.writeRecord(current);
-			current = reader.next(current);
-		}
+        E current = reader.next(readTarget);
+        while (isRunning() && (current != null)) {
+            sorterGateway.writeRecord(current);
+            current = reader.next(current);
+        }
 
-		sorterGateway.finishReading();
-	}
+        sorterGateway.finishReading();
+    }
 }

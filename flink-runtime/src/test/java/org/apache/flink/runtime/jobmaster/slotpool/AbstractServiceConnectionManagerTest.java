@@ -26,47 +26,47 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link DefaultDeclareResourceRequirementServiceConnectionManager}.
- */
+/** Tests for the {@link DefaultDeclareResourceRequirementServiceConnectionManager}. */
 public class AbstractServiceConnectionManagerTest extends TestLogger {
 
-	@Test
-	public void testIsConnected() {
-		AbstractServiceConnectionManager<Object> connectionManager = new TestServiceConnectionManager();
+    @Test
+    public void testIsConnected() {
+        AbstractServiceConnectionManager<Object> connectionManager =
+                new TestServiceConnectionManager();
 
-		assertThat(connectionManager.isConnected(), is(false));
+        assertThat(connectionManager.isConnected(), is(false));
 
-		connectionManager.connect(new Object());
-		assertThat(connectionManager.isConnected(), is(true));
+        connectionManager.connect(new Object());
+        assertThat(connectionManager.isConnected(), is(true));
 
-		connectionManager.disconnect();
-		assertThat(connectionManager.isConnected(), is(false));
+        connectionManager.disconnect();
+        assertThat(connectionManager.isConnected(), is(false));
 
-		connectionManager.close();
-		assertThat(connectionManager.isConnected(), is(false));
-	}
+        connectionManager.close();
+        assertThat(connectionManager.isConnected(), is(false));
+    }
 
-	@Test
-	public void testCheckNotClosed() {
-		AbstractServiceConnectionManager<Object> connectionManager = new TestServiceConnectionManager();
+    @Test
+    public void testCheckNotClosed() {
+        AbstractServiceConnectionManager<Object> connectionManager =
+                new TestServiceConnectionManager();
 
-		connectionManager.checkNotClosed();
+        connectionManager.checkNotClosed();
 
-		connectionManager.connect(new Object());
-		connectionManager.checkNotClosed();
+        connectionManager.connect(new Object());
+        connectionManager.checkNotClosed();
 
-		connectionManager.disconnect();
-		connectionManager.checkNotClosed();
+        connectionManager.disconnect();
+        connectionManager.checkNotClosed();
 
-		connectionManager.close();
-		try {
-			connectionManager.checkNotClosed();
-			fail("checkNotClosed() did not fail for a closed connection manager");
-		} catch (IllegalStateException expected) {
-		}
-	}
+        connectionManager.close();
+        try {
+            connectionManager.checkNotClosed();
+            fail("checkNotClosed() did not fail for a closed connection manager");
+        } catch (IllegalStateException expected) {
+        }
+    }
 
-	private static class TestServiceConnectionManager extends AbstractServiceConnectionManager<Object> {
-	}
+    private static class TestServiceConnectionManager
+            extends AbstractServiceConnectionManager<Object> {}
 }
