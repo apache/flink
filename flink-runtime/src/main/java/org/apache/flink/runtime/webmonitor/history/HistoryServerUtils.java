@@ -34,7 +34,7 @@ import java.util.Optional;
 /**
  * Utility class for the HistoryServer.
  */
-public enum HistoryServerUtils {
+public class HistoryServerUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HistoryServerUtils.class);
 
