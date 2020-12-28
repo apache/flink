@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution.BROADCAST_DISTRIBUTED
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions.BATCH_PHYSICAL
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecNestedLoopJoin
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalNestedLoopJoin
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
@@ -52,7 +52,7 @@ trait BatchExecNestedLoopJoinRuleBase {
     val newRight = RelOptRule.convert(right, rightRequiredTrait)
     val providedTraitSet = join.getTraitSet.replace(BATCH_PHYSICAL)
 
-    new BatchExecNestedLoopJoin(
+    new BatchPhysicalNestedLoopJoin(
       join.getCluster,
       providedTraitSet,
       newLeft,
