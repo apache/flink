@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.concurrent.akka;
 
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledFutureTask;
 import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
@@ -27,9 +28,6 @@ import akka.actor.Cancellable;
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.Delayed;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.RunnableScheduledFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -49,11 +47,11 @@ public final class ActorSystemScheduledExecutorAdapter implements ScheduledExecu
 	@Override
 	@Nonnull
 	public ScheduledFuture<?> schedule(@Nonnull Runnable command, long delay, @Nonnull TimeUnit unit) {
-		ScheduledFutureTask<Void> scheduledFutureTask = new ScheduledFutureTask<>(command, unit.toNanos(delay), 0L);
+		ScheduledFutureTask<Void> scheduledFutureTask = new ScheduledFutureTask<>(command, delay, unit);
 
 		Cancellable cancellable = internalSchedule(scheduledFutureTask, delay, unit);
 
-		scheduledFutureTask.setCancellable(cancellable);
+		scheduledFutureTask.setCancellable(new CancellableAdapter(cancellable));
 
 		return scheduledFutureTask;
 	}
@@ -61,11 +59,11 @@ public final class ActorSystemScheduledExecutorAdapter implements ScheduledExecu
 	@Override
 	@Nonnull
 	public <V> ScheduledFuture<V> schedule(@Nonnull Callable<V> callable, long delay, @Nonnull TimeUnit unit) {
-		ScheduledFutureTask<V> scheduledFutureTask = new ScheduledFutureTask<>(callable, unit.toNanos(delay), 0L);
+		ScheduledFutureTask<V> scheduledFutureTask = new ScheduledFutureTask<>(callable, delay, unit);
 
 		Cancellable cancellable = internalSchedule(scheduledFutureTask, delay, unit);
 
-		scheduledFutureTask.setCancellable(cancellable);
+		scheduledFutureTask.setCancellable(new CancellableAdapter(cancellable));
 
 		return scheduledFutureTask;
 	}
@@ -75,8 +73,9 @@ public final class ActorSystemScheduledExecutorAdapter implements ScheduledExecu
 	public ScheduledFuture<?> scheduleAtFixedRate(@Nonnull Runnable command, long initialDelay, long period, @Nonnull TimeUnit unit) {
 		ScheduledFutureTask<Void> scheduledFutureTask = new ScheduledFutureTask<>(
 			command,
-			triggerTime(unit.toNanos(initialDelay)),
-			unit.toNanos(period));
+			initialDelay,
+			period,
+			unit);
 
 		Cancellable cancellable = actorSystem.scheduler().schedule(
 			new FiniteDuration(initialDelay, unit),
@@ -84,7 +83,7 @@ public final class ActorSystemScheduledExecutorAdapter implements ScheduledExecu
 			scheduledFutureTask,
 			actorSystem.dispatcher());
 
-		scheduledFutureTask.setCancellable(cancellable);
+		scheduledFutureTask.setCancellable(new CancellableAdapter(cancellable));
 
 		return scheduledFutureTask;
 	}
@@ -94,12 +93,15 @@ public final class ActorSystemScheduledExecutorAdapter implements ScheduledExecu
 	public ScheduledFuture<?> scheduleWithFixedDelay(@Nonnull Runnable command, long initialDelay, long delay, @Nonnull TimeUnit unit) {
 		ScheduledFutureTask<Void> scheduledFutureTask = new ScheduledFutureTask<>(
 			command,
-			triggerTime(unit.toNanos(initialDelay)),
-			unit.toNanos(-delay));
+			initialDelay,
+			delay,
+			unit,
+			(runnable, delayTime, timeUnit) ->
+				new CancellableAdapter(internalSchedule(runnable, delayTime, timeUnit)));
 
 		Cancellable cancellable = internalSchedule(scheduledFutureTask, initialDelay, unit);
 
-		scheduledFutureTask.setCancellable(cancellable);
+		scheduledFutureTask.setCancellable(new CancellableAdapter(cancellable));
 
 		return scheduledFutureTask;
 	}
@@ -116,83 +118,22 @@ public final class ActorSystemScheduledExecutorAdapter implements ScheduledExecu
 			actorSystem.dispatcher());
 	}
 
-	private long now() {
-		return System.nanoTime();
-	}
+	private static class CancellableAdapter implements ScheduledFutureTask.Cancellable {
 
-	private long triggerTime(long delay) {
-		return now() + delay;
-	}
+		private final Cancellable cancellable;
 
-	private final class ScheduledFutureTask<V> extends FutureTask<V> implements RunnableScheduledFuture<V> {
-
-		private long time;
-
-		private final long period;
-
-		private volatile Cancellable cancellable;
-
-		ScheduledFutureTask(Callable<V> callable, long time, long period) {
-			super(callable);
-			this.time = time;
-			this.period = period;
-		}
-
-		ScheduledFutureTask(Runnable runnable, long time, long period) {
-			super(runnable, null);
-			this.time = time;
-			this.period = period;
-		}
-
-		public void setCancellable(Cancellable newCancellable) {
-			this.cancellable = newCancellable;
-		}
-
-		@Override
-		public void run() {
-			if (!isPeriodic()) {
-				super.run();
-			} else if (runAndReset()){
-				if (period > 0L) {
-					time += period;
-				} else {
-					cancellable = internalSchedule(this, -period, TimeUnit.NANOSECONDS);
-
-					// check whether we have been cancelled concurrently
-					if (isCancelled()) {
-						cancellable.cancel();
-					} else {
-						time = triggerTime(-period);
-					}
-				}
-			}
+		private CancellableAdapter(Cancellable cancellable) {
+			this.cancellable = cancellable;
 		}
 
 		@Override
 		public boolean cancel(boolean mayInterruptIfRunning) {
-			boolean result = super.cancel(mayInterruptIfRunning);
-
-			return result && cancellable.cancel();
+			return cancellable.cancel();
 		}
 
 		@Override
-		public long getDelay(@Nonnull  TimeUnit unit) {
-			return unit.convert(time - now(), TimeUnit.NANOSECONDS);
-		}
-
-		@Override
-		public int compareTo(@Nonnull Delayed o) {
-			if (o == this) {
-				return 0;
-			}
-
-			long diff = getDelay(TimeUnit.NANOSECONDS) - o.getDelay(TimeUnit.NANOSECONDS);
-			return (diff < 0L) ? -1 : (diff > 0L) ? 1 : 0;
-		}
-
-		@Override
-		public boolean isPeriodic() {
-			return period != 0L;
+		public boolean isCancelled() {
+			return cancellable.isCancelled();
 		}
 	}
 }

@@ -176,19 +176,28 @@ public class RpcEndpointTest extends TestLogger {
 		terminationFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
+	/**
+	 * Base gateway for testing.
+	 */
 	public interface BaseGateway extends RpcGateway {
 		CompletableFuture<Integer> foobar();
 	}
 
+	/**
+	 * Extended gateway for testing.
+	 */
 	public interface ExtendedGateway extends BaseGateway {
 		CompletableFuture<Integer> barfoo();
 	}
 
+	/**
+	 * Different gateway for testing.
+	 */
 	public interface DifferentGateway extends RpcGateway {
 		CompletableFuture<String> foo();
 	}
 
-	public static class BaseEndpoint extends RpcEndpoint implements BaseGateway {
+	static class BaseEndpoint extends RpcEndpoint implements BaseGateway {
 
 		private final int foobarValue;
 
@@ -204,7 +213,7 @@ public class RpcEndpointTest extends TestLogger {
 		}
 	}
 
-	public static class ExtendedEndpoint extends BaseEndpoint implements ExtendedGateway, DifferentGateway {
+	private static class ExtendedEndpoint extends BaseEndpoint implements ExtendedGateway, DifferentGateway {
 
 		private final int barfooValue;
 
@@ -228,6 +237,9 @@ public class RpcEndpointTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * An endpoint gateway supports querying running state.
+	 */
 	public interface RunningStateTestingEndpointGateway extends RpcGateway {
 		CompletableFuture<Boolean> queryIsRunningFlag();
 	}
