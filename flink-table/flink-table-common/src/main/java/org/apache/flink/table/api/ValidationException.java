@@ -21,18 +21,64 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
-  * Exception for all errors occurring during validation phase.
-  *
-  * <p>This exception indicates that the user did something wrong.
-  */
+ * Exception for all errors occurring during validation phase.
+ *
+ * <p>This exception indicates that the user did something wrong.
+ *
+ * @see TableException
+ */
 @PublicEvolving
-public class ValidationException extends RuntimeException {
+public final class ValidationException extends RuntimeException {
 
+	/**
+	 * Unformatted exception with cause.
+	 *
+	 * @see ValidationException#ValidationException(Throwable, String, Object...)
+	 */
 	public ValidationException(String message, Throwable cause) {
 		super(message, cause);
 	}
 
+	/**
+	 * Unformatted exception.
+	 *
+	 * @see ValidationException#ValidationException(String, Object...)
+	 */
 	public ValidationException(String message) {
 		super(message);
+	}
+
+	/**
+	 * Creates a formatted exception for a unified exception experience.
+	 *
+	 * <p>Please use the following convention:
+	 *
+	 * <p><ul>
+	 * <li>Start with a capital letter.
+	 * <li>Surround strings with single quotes. Numbers must not be surrounded.
+	 * <li>End message sentences with a period.
+	 * </ul>
+	 *
+	 * <p>E.g.: {@code new ValidationException("Function class '%s' at position %d is invalid.", clazz.getName(), pos)}
+	 */
+	public ValidationException(String format, Object ... args) {
+		this(String.format(format, args));
+	}
+
+	/**
+	 * Creates a formatted exception with cause for a unified exception experience.
+	 *
+	 * <p>Please use the following convention:
+	 *
+	 * <p><ul>
+	 * <li>Start with a capital letter.
+	 * <li>Surround strings with single quotes. Numbers must not be surrounded.
+	 * <li>End message sentences with a period.
+	 * </ul>
+	 *
+	 * <p>E.g.: {@code new ValidationException(t, "Function class '%s' at position %d is invalid.", clazz.getName(), pos)}
+	 */
+	public ValidationException(Throwable cause, String format, Object... args) {
+		this(String.format(format, args), cause);
 	}
 }
