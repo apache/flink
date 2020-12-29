@@ -122,7 +122,7 @@ A [continuous query]({% link dev/table/streaming/dynamic_tables.md %}#continuous
 Aggregations on continuous streams need to store aggregated results continuously during the execution of the query. For example, suppose you need to count the number of employees for each department from an incoming data stream. The query needs to maintain the most up to date count for each department to output timely results as new rows are processed.
 
  {% highlight sql %}
- SELECT 
+SELECT 
 	dept_id,
 	COUNT(*) as emp_count 
 FROM employee_information 
@@ -136,7 +136,7 @@ Such queries are considered _stateful_. Flink's advanced fault-tolerance mechani
 When running this query, the SQL client provides output in real-time but in a read-only fashion. Storing results - to power a report or dashboard - requires writing out to another table. This can be achieved using an `INSERT INTO` statement. The table referenced in this clause is known as a sink table. An `INSERT INTO` statement will be submitted as a detached query to the Flink cluster. 
 
  {% highlight sql %}
- INSERT INTO department_counts
+INSERT INTO department_counts
  SELECT 
 	dept_id,
 	COUNT(*) as emp_count 

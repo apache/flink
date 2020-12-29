@@ -121,7 +121,7 @@ SELECT * from employee_information WHERE DeptId = 1;
 连续流上的聚合需要在查询执行期间不断地存储聚合的结果。例如，假设你需要从传入的数据流中计算每个部门的员工人数。查询需要维护每个部门最新的计算总数，以便在处理新行时及时输出结果。
 
  {% highlight sql %}
- SELECT 
+SELECT 
 	dept_id,
 	COUNT(*) as emp_count 
 FROM employee_information 
@@ -135,7 +135,7 @@ GROUP BY dep_id;
 当运行此查询时，SQL 客户端实时但是以只读方式提供输出。存储结果，作为报表或仪表板的数据来源，需要写到另一个表。这可以使用 `INSERT INTO` 语句来实现。本节中引用的表称为 sink 表。`INSERT INTO` 语句将作为一个独立查询被提交到 Flink 集群中。
 
  {% highlight sql %}
- INSERT INTO department_counts
+INSERT INTO department_counts
  SELECT 
 	dept_id,
 	COUNT(*) as emp_count 
