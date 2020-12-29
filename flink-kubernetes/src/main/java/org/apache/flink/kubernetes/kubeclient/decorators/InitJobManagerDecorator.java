@@ -20,7 +20,6 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesOwnerReference;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesToleration;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
@@ -64,9 +63,6 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
 			.editOrNewMetadata()
 				.withLabels(kubernetesJobManagerParameters.getLabels())
 				.withAnnotations(kubernetesJobManagerParameters.getAnnotations())
-				.withOwnerReferences(kubernetesJobManagerParameters.getOwnerReference().stream()
-					.map(e -> KubernetesOwnerReference.fromMap(e).getInternalResource())
-					.collect(Collectors.toList()))
 				.endMetadata()
 			.editOrNewSpec()
 				.withServiceAccountName(kubernetesJobManagerParameters.getServiceAccount())

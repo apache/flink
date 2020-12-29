@@ -31,6 +31,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KubernetesStepDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.MountSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesOwnerReference;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
@@ -45,6 +46,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Utility class for constructing all the Kubernetes components on the client-side. This can
@@ -96,7 +98,10 @@ public class KubernetesJobManagerFactory {
 			.editOrNewMetadata()
 				.withName(KubernetesUtils.getDeploymentName(kubernetesJobManagerParameters.getClusterId()))
 				.withLabels(kubernetesJobManagerParameters.getLabels())
-				.endMetadata()
+				.withOwnerReferences(kubernetesJobManagerParameters.getOwnerReference().stream()
+					.map(e -> KubernetesOwnerReference.fromMap(e).getInternalResource())
+					.collect(Collectors.toList()))
+			.endMetadata()
 			.editOrNewSpec()
 				.withReplicas(1)
 				.editOrNewTemplate()

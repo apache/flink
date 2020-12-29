@@ -29,7 +29,6 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
-import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
@@ -68,12 +67,6 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 		new Toleration("NoSchedule", "key1", "Equal", null, "value1"),
 		new Toleration("NoExecute", "key2", "Exists", 6000L, null));
 
-	private static final String OWNER_REFERENCE_STRING = "apiVersion:cloudflow.io/v1beta1,blockOwnerDeletion:true,"
-		+ "controller:true,kind:FlinkApplication,name:testapp,uid:e3c9aa3f-cc42-4178-814a-64aa15c82373";
-	private static final List<OwnerReference> OWNER_REFERENCES = Arrays.asList(
-		new OwnerReference("cloudflow.io/v1beta1", true, true, "FlinkApplication",
-			"testapp", "e3c9aa3f-cc42-4178-814a-64aa15c82373"));
-
 	private Pod resultPod;
 	private Container resultMainContainer;
 
@@ -85,7 +78,6 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS, IMAGE_PULL_SECRETS);
 		this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, ANNOTATIONS);
 		this.flinkConfig.setString(KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
-		this.flinkConfig.setString(KubernetesConfigOptions.JOB_MANAGER_OWNER_REFERENCE.key(), OWNER_REFERENCE_STRING);
 	}
 
 	@Override
@@ -199,10 +191,5 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 	@Test
 	public void testPodTolerations() {
 		assertThat(this.resultPod.getSpec().getTolerations(), Matchers.containsInAnyOrder(TOLERATION.toArray()));
-	}
-
-	@Test
-	public void testOwnerReference() {
-		assertThat(this.resultPod.getMetadata().getOwnerReferences(), Matchers.containsInAnyOrder(OWNER_REFERENCES.toArray()));
 	}
 }
