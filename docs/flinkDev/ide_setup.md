@@ -98,13 +98,14 @@ with [google-java-format](https://github.com/google/google-java-format) to
 format our Java code. You can configure your IDE to automatically apply
 formatting on saving with these steps:
 
-1. Install the [google-java-format
-   plugin](https://plugins.jetbrains.com/plugin/8527-google-java-format) and
-   enable it for the project
-2. In the plugin settings, change the code style to "AOSP" (4-space indents)
-3. Install the [Save Actions
+1. Download the [google-java-format
+   plugin v1.7.0.5](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/83169)
+2. Install the plugin from disk (Plugins -> little gear icon -> "Install plugin from disk" -> Navigate to downloaded zip file)
+3. In the plugin settings, enable the plugin and change the code style to "AOSP" (4-space indents)
+4. Remember to never update this plugin to a later version!
+5. Install the [Save Actions
    plugin](https://plugins.jetbrains.com/plugin/7642-save-actions)
-4. Enable the plugin, along with "Optimize imports" and "Reformat file"
+6. Enable the plugin, along with "Optimize imports" and "Reformat file"
 
 ### Checkstyle For Java
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
