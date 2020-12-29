@@ -1593,7 +1593,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         final FlinkException failureCause =
                 new FlinkException(
-                        "JobManager responsible for " + jobId + " lost the leadership.", cause);
+                        String.format("Disconnect from JobManager responsible for %s.", jobId),
+                        cause);
 
         while (tasks.hasNext()) {
             tasks.next().failExternally(failureCause);
