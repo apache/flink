@@ -138,7 +138,7 @@
             <td><h5>kubernetes.rest-service.exposed.type</h5></td>
             <td style="word-wrap: break-word;">LoadBalancer</td>
             <td><p>Enum</p>Possible values: [ClusterIP, NodePort, LoadBalancer]</td>
-            <td>The type of the rest service (ClusterIP or NodePort or LoadBalancer). When set to ClusterIP, the rest service will not be created.</td>
+            <td>The exposed type of the rest service (ClusterIP or NodePort or LoadBalancer). The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.secrets</h5></td>
