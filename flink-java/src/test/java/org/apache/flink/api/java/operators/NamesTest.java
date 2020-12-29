@@ -62,7 +62,7 @@ public class NamesTest implements Serializable {
                         })
                 .output(new DiscardingOutputFormat<String>());
         Plan plan = env.createProgramPlan();
-        testForName("Filter at testDefaultName(NamesTest.java:55)", plan);
+        testForName("Filter at testDefaultName(NamesTest.java:54)", plan);
     }
 
     @Test
@@ -117,7 +117,8 @@ public class NamesTest implements Serializable {
                     public boolean preVisit(Operator<?> visitable) {
                         if (visitable instanceof InnerJoinOperatorBase) {
                             Assert.assertEquals(
-                                    "Join at testJoinWith(NamesTest.java:93)", visitable.getName());
+                                    "Join at testJoinWith(NamesTest.java:101)",
+                                    visitable.getName());
                         }
                         return true;
                     }
