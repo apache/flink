@@ -62,6 +62,22 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     }
   }
 
+  mergeWithBackPressure(nodes: NodesItemCorrectInterface[]): Observable<NodesItemCorrectInterface[]> {
+      return forkJoin(
+        nodes.map(node => {
+          return this.metricService.getAggregatedMetrics(this.jobId, node.id, ["backPressuredTimeMsPerSecond", "busyTimeMsPerSecond"]).pipe(
+            map(result => {
+              return {
+                ...node,
+                backPressuredPercentage: Math.min(Math.round(result.backPressuredTimeMsPerSecond / 10), 100),
+                busyPercentage: Math.min(Math.round(result.busyTimeMsPerSecond / 10), 100),
+              };
+            })
+          );
+        })
+      ).pipe(catchError(() => of(nodes)));
+    }
+
   mergeWithWatermarks(nodes: NodesItemCorrectInterface[]): Observable<NodesItemCorrectInterface[]> {
     return forkJoin(
       nodes.map(node => {
@@ -74,10 +90,12 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     ).pipe(catchError(() => of(nodes)));
   }
 
-  refreshNodesWithWatermarks() {
-    this.mergeWithWatermarks(this.nodes).subscribe(nodes => {
-      nodes.forEach(node => {
-        this.dagreComponent.updateNode(node.id, node);
+  refreshNodesWithMetrics() {
+    this.mergeWithBackPressure(this.nodes).subscribe(nodes => {
+      this.mergeWithWatermarks(nodes).subscribe(nodes2 => {
+        nodes2.forEach(node => {
+          this.dagreComponent.updateNode(node.id, node);
+        });
       });
     });
   }
@@ -103,10 +121,10 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
           this.links = data.plan.links;
           this.jobId = data.plan.jid;
           this.dagreComponent.flush(this.nodes, this.links, true).then();
-          this.refreshNodesWithWatermarks();
+          this.refreshNodesWithMetrics();
         } else {
           this.nodes = data.plan.nodes;
-          this.refreshNodesWithWatermarks();
+          this.refreshNodesWithMetrics();
         }
         this.cdr.markForCheck();
       });

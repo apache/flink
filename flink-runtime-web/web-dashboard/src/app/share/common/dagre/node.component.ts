@@ -31,6 +31,8 @@ export class NodeComponent {
   operatorStrategy: string | null;
   parallelism: number | null;
   lowWatermark: number | null | undefined;
+  backPressuredPercentage: number | undefined = NaN;
+  busyPercentage: number | undefined = NaN;
   height = 0;
   id: string;
 
@@ -47,6 +49,13 @@ export class NodeComponent {
     this.operatorStrategy = this.decodeHTML(value.operator_strategy);
     this.parallelism = value.parallelism;
     this.lowWatermark = value.lowWatermark;
+    if (this.isValid(value.backPressuredPercentage)) {
+        console.log(value.backPressuredPercentage)
+        this.backPressuredPercentage = value.backPressuredPercentage
+    }
+    if (this.isValid(value.busyPercentage)) {
+        this.busyPercentage = value.busyPercentage;
+    }
     this.height = value.height || 0;
     this.id = value.id;
     if (description && description.length > 300) {
@@ -54,6 +63,10 @@ export class NodeComponent {
     } else {
       this.description = description;
     }
+  }
+
+  isValid = (value?: number) => {
+    return value || value === 0 || value === NaN;
   }
 
   constructor(protected cd: ChangeDetectorRef) {}
@@ -65,5 +78,14 @@ export class NodeComponent {
   update(node: NodesItemCorrectInterface): void {
     this.node = node;
     this.cd.markForCheck();
+  }
+
+  prettyPrint(value: number | undefined): string {
+    if (value === undefined || isNaN(value)) {
+      return "N/A"
+    }
+    else {
+      return value + "%";
+    }
   }
 }
