@@ -1844,10 +1844,6 @@ under the License.
 							</importOrder>
 
 							<removeUnusedImports />
-
-							<excludes>
-								<exclude>**/generated/*.java</exclude>
-							</excludes>
 						</java>
 					</configuration>
 					<executions>
