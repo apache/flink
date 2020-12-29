@@ -559,7 +559,10 @@ public class TaskManagerOptions {
 
     /**
      * Timeout in milliseconds after which a task cancellation times out and leads to a fatal
-     * TaskManager error. A value of <code>0</code> deactivates the watch dog.
+     * TaskManager error. A value of <code>0</code> deactivates the watch dog. Notice that a task
+     * cancellation is different from both a task failure and a clean shutdown. Task cancellation
+     * timeout only applies to task cancellation and does not apply to task closing/clean-up caused
+     * by a task failure or a clean shutdown.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT =
@@ -569,7 +572,10 @@ public class TaskManagerOptions {
                     .withDescription(
                             "Timeout in milliseconds after which a task cancellation times out and"
                                     + " leads to a fatal TaskManager error. A value of 0 deactivates"
-                                    + " the watch dog.");
+                                    + " the watch dog. Notice that a task cancellation is different from"
+                                    + " both a task failure and a clean shutdown. "
+                                    + " Task cancellation timeout only applies to task cancellation and does not apply to"
+                                    + " task closing/clean-up caused by a task failure or a clean shutdown.");
     /**
      * This configures how long we wait for the timers in milliseconds to finish all pending timer
      * threads when the stream task is cancelled.
