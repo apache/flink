@@ -70,7 +70,7 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 
 	private static final String OWNER_REFERENCE_STRING = "apiVersion:cloudflow.io/v1beta1,blockOwnerDeletion:true,"
 		+ "controller:true,kind:FlinkApplication,name:testapp,uid:e3c9aa3f-cc42-4178-814a-64aa15c82373";
-	private static final List<OwnerReference> OWNER_REFERENCES = Arrays.asList(
+	private static final List<OwnerReference> OWNER_REFERENCES = Collections.singletonList(
 		new OwnerReference("cloudflow.io/v1beta1", true, true, "FlinkApplication",
 			"testapp", "e3c9aa3f-cc42-4178-814a-64aa15c82373"));
 
