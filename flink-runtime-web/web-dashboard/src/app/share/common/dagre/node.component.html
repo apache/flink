@@ -19,7 +19,8 @@
 <svg:g class="node node-rect">
     <svg:foreignObject class="node-labels-container" [attr.y]="height ? -height / 2 : 0"
                        [attr.width]="205" [attr.height]="height">
-        <xhtml:div class="node-label-wrapper">
+        <xhtml:div class="node-label-wrapper" [style.border-color]="borderColor"
+                   [style.background-color]="backgroundColor">
             <h4 class="content-wrap">
                 <xhtml:div class="detail">{{operator}}</xhtml:div>
                 <xhtml:div class="detail description">{{description}}</xhtml:div>
