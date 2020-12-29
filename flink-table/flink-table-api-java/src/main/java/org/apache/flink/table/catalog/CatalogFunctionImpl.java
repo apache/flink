@@ -63,22 +63,22 @@ public class CatalogFunctionImpl implements CatalogFunction {
         return Optional.of("This is a user-defined function");
     }
 
-	@Override
-	public boolean isGeneric() {
-		if (functionLanguage == FunctionLanguage.PYTHON) {
-			return true;
-		}
-		try {
-			ClassLoader cl = Thread.currentThread().getContextClassLoader();
-			Class c = Class.forName(className, true, cl);
-			if (UserDefinedFunction.class.isAssignableFrom(c)) {
-				return true;
-			}
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException(String.format("Can't resolve udf class %s", className), e);
-		}
-		return false;
-	}
+    @Override
+    public boolean isGeneric() {
+        if (functionLanguage == FunctionLanguage.PYTHON) {
+            return true;
+        }
+        try {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            Class c = Class.forName(className, true, cl);
+            if (UserDefinedFunction.class.isAssignableFrom(c)) {
+                return true;
+            }
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(String.format("Can't resolve udf class %s", className), e);
+        }
+        return false;
+    }
 
     @Override
     public FunctionLanguage getFunctionLanguage() {

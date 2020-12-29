@@ -1596,7 +1596,6 @@ public class LocalExecutorITCase extends TestLogger {
         executor.closeSession(sessionId);
     }
 
-
     @Test
     public void testCreateFunctionWithHiveCatalog() throws Exception {
         final Map<String, String> replaceVars = new HashMap<>();
