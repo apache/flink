@@ -52,8 +52,8 @@ public class KubernetesConfigOptions {
                     .enumType(ServiceExposedType.class)
                     .defaultValue(ServiceExposedType.LoadBalancer)
                     .withDescription(
-                            "The type of the rest service (ClusterIP or NodePort or LoadBalancer). "
-                                    + "When set to ClusterIP, the rest service will not be created.");
+                            "The exposed type of the rest service (ClusterIP or NodePort or LoadBalancer). "
+                                    + "The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.");
 
     public static final ConfigOption<String> JOB_MANAGER_SERVICE_ACCOUNT =
             key("kubernetes.jobmanager.service-account")
