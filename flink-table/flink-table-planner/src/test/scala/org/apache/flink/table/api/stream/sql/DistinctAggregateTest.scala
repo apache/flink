@@ -20,7 +20,6 @@ package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.{Ignore, Test}
@@ -74,9 +73,9 @@ class DistinctAggregateTest extends TableTestBase {
   @Test
   def testDistinctAggregate(): Unit = {
     val sqlQuery = "SELECT " +
-      "  c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) " +
-      "FROM MyTable " +
-      "GROUP BY c "
+        "  c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) " +
+        "FROM MyTable " +
+        "GROUP BY c "
 
     val expected =
       unaryNode(
@@ -96,9 +95,9 @@ class DistinctAggregateTest extends TableTestBase {
   @Test
   def testDistinctAggregateOnTumbleWindow(): Unit = {
     val sqlQuery = "SELECT COUNT(DISTINCT a), " +
-      "  SUM(a) " +
-      "FROM MyTable " +
-      "GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE) "
+        "  SUM(a) " +
+        "FROM MyTable " +
+        "GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE) "
 
     val expected = unaryNode(
       "DataStreamGroupWindowAggregate",
@@ -117,10 +116,10 @@ class DistinctAggregateTest extends TableTestBase {
   @Test
   def testMultiDistinctAggregateSameFieldOnHopWindow(): Unit = {
     val sqlQuery = "SELECT COUNT(DISTINCT a), " +
-      "  SUM(DISTINCT a), " +
-      "  MAX(DISTINCT a) " +
-      "FROM MyTable " +
-      "GROUP BY HOP(rowtime, INTERVAL '15' MINUTE, INTERVAL '1' HOUR) "
+        "  SUM(DISTINCT a), " +
+        "  MAX(DISTINCT a) " +
+        "FROM MyTable " +
+        "GROUP BY HOP(rowtime, INTERVAL '15' MINUTE, INTERVAL '1' HOUR) "
 
     val expected = unaryNode(
       "DataStreamGroupWindowAggregate",
@@ -140,10 +139,10 @@ class DistinctAggregateTest extends TableTestBase {
   @Test
   def testDistinctAggregateWithGroupingOnSessionWindow(): Unit = {
     val sqlQuery = "SELECT a, " +
-      "  COUNT(a), " +
-      "  SUM(DISTINCT c) " +
-      "FROM MyTable " +
-      "GROUP BY a, SESSION(rowtime, INTERVAL '15' MINUTE) "
+        "  COUNT(a), " +
+        "  SUM(DISTINCT c) " +
+        "FROM MyTable " +
+        "GROUP BY a, SESSION(rowtime, INTERVAL '15' MINUTE) "
 
     val expected = unaryNode(
       "DataStreamGroupWindowAggregate",
