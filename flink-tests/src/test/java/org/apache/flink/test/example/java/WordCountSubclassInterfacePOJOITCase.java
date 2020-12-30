@@ -30,140 +30,132 @@ import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
-/**
- * WordCount with subclass and interface example.
- */
+/** WordCount with subclass and interface example. */
 @SuppressWarnings("serial")
-public class WordCountSubclassInterfacePOJOITCase extends JavaProgramTestBase implements Serializable {
-	private static final long serialVersionUID = 1L;
-	protected String textPath;
-	protected String resultPath;
+public class WordCountSubclassInterfacePOJOITCase extends JavaProgramTestBase
+        implements Serializable {
+    private static final long serialVersionUID = 1L;
+    protected String textPath;
+    protected String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT);
-		resultPath = getTempDirPath("result");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        textPath = createTempFile("text.txt", WordCountData.TEXT);
+        resultPath = getTempDirPath("result");
+    }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
-	}
+    @Override
+    protected void postSubmit() throws Exception {
+        compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<String> text = env.readTextFile(textPath);
+    @Override
+    protected void testProgram() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<String> text = env.readTextFile(textPath);
 
-		DataSet<WCBase> counts = text
-				.flatMap(new Tokenizer())
-				.groupBy("word")
-				.reduce(new ReduceFunction<WCBase>() {
-					private static final long serialVersionUID = 1L;
-					public WCBase reduce(WCBase value1, WCBase value2) {
-						WC wc1 = (WC) value1;
-						WC wc2 = (WC) value2;
-						int c = wc1.secretCount.getCount() + wc2.secretCount.getCount();
-						wc1.secretCount.setCount(c);
-						return wc1;
-					}
-				})
-				.map(new MapFunction<WCBase, WCBase>() {
-					@Override
-					public WCBase map(WCBase value) throws Exception {
-						WC wc = (WC) value;
-						wc.count = wc.secretCount.getCount();
-						return wc;
-					}
-				});
+        DataSet<WCBase> counts =
+                text.flatMap(new Tokenizer())
+                        .groupBy("word")
+                        .reduce(
+                                new ReduceFunction<WCBase>() {
+                                    private static final long serialVersionUID = 1L;
 
-		counts.writeAsText(resultPath);
+                                    public WCBase reduce(WCBase value1, WCBase value2) {
+                                        WC wc1 = (WC) value1;
+                                        WC wc2 = (WC) value2;
+                                        int c =
+                                                wc1.secretCount.getCount()
+                                                        + wc2.secretCount.getCount();
+                                        wc1.secretCount.setCount(c);
+                                        return wc1;
+                                    }
+                                })
+                        .map(
+                                new MapFunction<WCBase, WCBase>() {
+                                    @Override
+                                    public WCBase map(WCBase value) throws Exception {
+                                        WC wc = (WC) value;
+                                        wc.count = wc.secretCount.getCount();
+                                        return wc;
+                                    }
+                                });
 
-		env.execute("WordCount with custom data types example");
-	}
+        counts.writeAsText(resultPath);
 
-	private static final class Tokenizer implements FlatMapFunction<String, WCBase> {
+        env.execute("WordCount with custom data types example");
+    }
 
-		@Override
-		public void flatMap(String value, Collector<WCBase> out) {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new WC(token, 1));
-				}
-			}
-		}
-	}
+    private static final class Tokenizer implements FlatMapFunction<String, WCBase> {
 
-	/**
-	 * Abstract POJO.
-	 */
-	public abstract static class WCBase {
-		public String word;
-		public int count;
+        @Override
+        public void flatMap(String value, Collector<WCBase> out) {
+            // normalize and split the line
+            String[] tokens = value.toLowerCase().split("\\W+");
+            // emit the pairs
+            for (String token : tokens) {
+                if (token.length() > 0) {
+                    out.collect(new WC(token, 1));
+                }
+            }
+        }
+    }
 
-		public WCBase(String w, int c) {
-			this.word = w;
-			this.count = c;
-		}
+    /** Abstract POJO. */
+    public abstract static class WCBase {
+        public String word;
+        public int count;
 
-		@Override
-		public String toString() {
-			return word + " " + count;
-		}
-	}
+        public WCBase(String w, int c) {
+            this.word = w;
+            this.count = c;
+        }
 
-	/**
-	 * POJO interface.
-	 */
-	public interface CrazyCounter {
-		int getCount();
+        @Override
+        public String toString() {
+            return word + " " + count;
+        }
+    }
 
-		void setCount(int c);
-	}
+    /** POJO interface. */
+    public interface CrazyCounter {
+        int getCount();
 
-	/**
-	 * Implementation of POJO interface.
-	 */
-	public static class CrazyCounterImpl implements CrazyCounter {
-		public int countz;
+        void setCount(int c);
+    }
 
-		public CrazyCounterImpl() {
-		}
+    /** Implementation of POJO interface. */
+    public static class CrazyCounterImpl implements CrazyCounter {
+        public int countz;
 
-		public CrazyCounterImpl(int c) {
-			this.countz = c;
-		}
+        public CrazyCounterImpl() {}
 
-		@Override
-		public int getCount() {
-			return countz;
-		}
+        public CrazyCounterImpl(int c) {
+            this.countz = c;
+        }
 
-		@Override
-		public void setCount(int c) {
-			this.countz = c;
-		}
+        @Override
+        public int getCount() {
+            return countz;
+        }
 
-	}
+        @Override
+        public void setCount(int c) {
+            this.countz = c;
+        }
+    }
 
-	/**
-	 * Subclass of abstract POJO.
-	 */
-	public static class WC extends WCBase {
-		public CrazyCounter secretCount;
+    /** Subclass of abstract POJO. */
+    public static class WC extends WCBase {
+        public CrazyCounter secretCount;
 
-		public WC() {
-			super(null, 0);
-		}
+        public WC() {
+            super(null, 0);
+        }
 
-		public WC(String w, int c) {
-			super(w, 0);
-			this.secretCount = new CrazyCounterImpl(c);
-		}
-
-	}
-
+        public WC(String w, int c) {
+            super(w, 0);
+            this.secretCount = new CrazyCounterImpl(c);
+        }
+    }
 }

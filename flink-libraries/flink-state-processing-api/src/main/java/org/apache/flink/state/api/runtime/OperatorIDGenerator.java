@@ -26,24 +26,22 @@ import org.apache.flink.shaded.guava18.com.google.common.hash.Hashing;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-/**
- * Utility for generating Operator Id's from uid strings.
- */
+/** Utility for generating Operator Id's from uid strings. */
 @Internal
 public final class OperatorIDGenerator {
-	private OperatorIDGenerator() {}
+    private OperatorIDGenerator() {}
 
-	/**
-	 * Generate {@link OperatorID}'s from {@code uid}'s.
-	 *
-	 * <p>{@link
-	 * org.apache.flink.streaming.api.graph.StreamGraphHasherV2#traverseStreamGraphAndGenerateHashes(StreamGraph)})}
-	 *
-	 * @param uid {@code DataStream} operator uid.
-	 * @return corresponding {@link OperatorID}
-	 */
-	public static OperatorID fromUid(String uid) {
-		byte[] hash = Hashing.murmur3_128(0).newHasher().putString(uid, UTF_8).hash().asBytes();
-		return new OperatorID(hash);
-	}
+    /**
+     * Generate {@link OperatorID}'s from {@code uid}'s.
+     *
+     * <p>{@link
+     * org.apache.flink.streaming.api.graph.StreamGraphHasherV2#traverseStreamGraphAndGenerateHashes(StreamGraph)})}
+     *
+     * @param uid {@code DataStream} operator uid.
+     * @return corresponding {@link OperatorID}
+     */
+    public static OperatorID fromUid(String uid) {
+        byte[] hash = Hashing.murmur3_128(0).newHasher().putString(uid, UTF_8).hash().asBytes();
+        return new OperatorID(hash);
+    }
 }

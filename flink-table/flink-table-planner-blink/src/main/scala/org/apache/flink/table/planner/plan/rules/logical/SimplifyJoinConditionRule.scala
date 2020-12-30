@@ -61,7 +61,7 @@ class SimplifyJoinConditionRule
       join.isSemiJoinDone)
 
     call.transformTo(newJoin)
-    call.getPlanner.setImportance(join, 0.0)
+    call.getPlanner.prune(join)
   }
 }
 

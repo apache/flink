@@ -32,38 +32,40 @@ import java.util.Map;
  * @param <V> the value type of the map entries.
  */
 @Internal
-public class NullAwareMapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<Map<K, V>, NullAwareMapSerializer<K, V>> {
-	private static final int CURRENT_VERSION = 1;
+@Deprecated
+public class NullAwareMapSerializerSnapshot<K, V>
+        extends CompositeTypeSerializerSnapshot<Map<K, V>, NullAwareMapSerializer<K, V>> {
+    private static final int CURRENT_VERSION = 1;
 
-	/**
-	 * Constructor for read instantiation.
-	 */
-	public NullAwareMapSerializerSnapshot() {
-		super(NullAwareMapSerializer.class);
-	}
+    /** Constructor for read instantiation. */
+    public NullAwareMapSerializerSnapshot() {
+        super(NullAwareMapSerializer.class);
+    }
 
-	/**
-	 * Constructor to create the snapshot for writing.
-	 */
-	public NullAwareMapSerializerSnapshot(NullAwareMapSerializer<K, V> mapViewSerializer) {
-		super(mapViewSerializer);
-	}
+    /** Constructor to create the snapshot for writing. */
+    public NullAwareMapSerializerSnapshot(NullAwareMapSerializer<K, V> mapViewSerializer) {
+        super(mapViewSerializer);
+    }
 
-	@Override
-	public int getCurrentOuterSnapshotVersion() {
-		return CURRENT_VERSION;
-	}
+    @Override
+    public int getCurrentOuterSnapshotVersion() {
+        return CURRENT_VERSION;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	protected NullAwareMapSerializer<K, V> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		TypeSerializer<K> keySerializer = (TypeSerializer<K>) nestedSerializers[0];
-		TypeSerializer<V> valueSerializer = (TypeSerializer<V>) nestedSerializers[1];
-		return new NullAwareMapSerializer<>(keySerializer, valueSerializer);
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    protected NullAwareMapSerializer<K, V> createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+        TypeSerializer<K> keySerializer = (TypeSerializer<K>) nestedSerializers[0];
+        TypeSerializer<V> valueSerializer = (TypeSerializer<V>) nestedSerializers[1];
+        return new NullAwareMapSerializer<>(keySerializer, valueSerializer);
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(NullAwareMapSerializer<K, V> outerSerializer) {
-		return new TypeSerializer<?>[]{outerSerializer.getKeySerializer(), outerSerializer.getValueSerializer()};
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(
+            NullAwareMapSerializer<K, V> outerSerializer) {
+        return new TypeSerializer<?>[] {
+            outerSerializer.getKeySerializer(), outerSerializer.getValueSerializer()
+        };
+    }
 }

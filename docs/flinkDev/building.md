@@ -64,11 +64,11 @@ mvn clean install -DskipTests -Dfast
 
     If you want to build a PyFlink package that can be used for pip installation, you need to build the Flink project first, as described in [Build Flink](#build-flink).
 
-2. Python version(3.5, 3.6 or 3.7) is required
+2. Python version(3.5, 3.6, 3.7 or 3.8) is required
 
     ```shell
     $ python --version
-    # the version printed here must be 3.5, 3.6 or 3.7
+    # the version printed here must be 3.5, 3.6, 3.7 or 3.8
     ```
 
 3. Build PyFlink with Cython extension support (optional)
@@ -121,9 +121,6 @@ mvn clean install
 
 {% top %}
 
-## Hadoop Versions
-
-Please see the [Hadoop integration section]({{ site.baseurl }}/ops/deployment/hadoop.html) on how to handle Hadoop classes and versions.
 
 ## Scala Versions
 

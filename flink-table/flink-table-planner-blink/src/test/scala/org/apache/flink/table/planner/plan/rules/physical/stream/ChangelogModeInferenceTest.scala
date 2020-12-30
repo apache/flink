@@ -19,50 +19,96 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{ExplainDetail, _}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.{AggMode, LocalGlobalOff, LocalGlobalOn}
+import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
 
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
 
-import java.util
-
-import scala.collection.JavaConversions._
-
-@RunWith(classOf[Parameterized])
-class ChangelogModeInferenceTest(aggMode: AggMode) extends TableTestBase {
+/**
+ * Tests for [[FlinkChangelogModeInferenceProgram]].
+ */
+class ChangelogModeInferenceTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addTableSource[(String, Int)]("MyTable", 'word, 'number)
 
   @Before
   def before(): Unit = {
-    if (aggMode.isLocalAggEnabled) {
-      util.enableMiniBatch()
-      util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
-      util.tableEnv.getConfig.getConfiguration.setString(
-        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-        AggregatePhaseStrategy.TWO_PHASE.toString)
-    }
+    util.addTable(
+      """
+        |CREATE TABLE MyTable (
+        | word STRING,
+        | number INT
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
+
+    util.addTable(
+      """
+        |CREATE TABLE Orders (
+        | amount INT,
+        | currency STRING,
+        | rowtime TIMESTAMP(3),
+        | proctime AS PROCTIME(),
+        | WATERMARK FOR rowtime AS rowtime
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
+    util.addTable(
+      """
+        |CREATE TABLE ratesHistory (
+        | currency STRING,
+        | rate INT,
+        | rowtime TIMESTAMP(3),
+        | WATERMARK FOR rowtime AS rowtime
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false',
+        |  'changelog-mode' = 'I'
+        |)
+      """.stripMargin)
+    util.addTable(
+      " CREATE VIEW DeduplicatedView AS SELECT currency, rate, rowtime FROM " +
+        "  (SELECT *, " +
+        "          ROW_NUMBER() OVER (PARTITION BY currency ORDER BY rowtime DESC) AS rowNum " +
+        "   FROM ratesHistory" +
+        "  ) T " +
+        "  WHERE rowNum = 1")
+
+    util.addTable(
+      """
+        |CREATE TABLE ratesChangelogStream (
+        | currency STRING,
+        | rate INT,
+        | rowtime TIMESTAMP(3),
+        | WATERMARK FOR rowtime as rowtime,
+        | PRIMARY KEY(currency) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UA,UB,D'
+        |)
+      """.stripMargin)
   }
 
   @Test
   def testSelect(): Unit = {
-    util.verifyPlan("SELECT word, number FROM MyTable", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan("SELECT word, number FROM MyTable", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testOneLevelGroupBy(): Unit = {
     // one level unbounded groupBy
-    util.verifyPlan("SELECT COUNT(number) FROM MyTable GROUP BY word", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(
+      "SELECT COUNT(number) FROM MyTable GROUP BY word", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
-  def testTwoLevelGroupBy(): Unit = {
+  def testTwoLevelGroupByLocalGlobalOff(): Unit = {
     // two level unbounded groupBy
     val sql =
       """
@@ -70,12 +116,60 @@ class ChangelogModeInferenceTest(aggMode: AggMode) extends TableTestBase {
         |  SELECT word, COUNT(number) as cnt FROM MyTable GROUP BY word
         |) GROUP BY cnt
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testTwoLevelGroupByLocalGlobalOn(): Unit = {
+      util.enableMiniBatch()
+      util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+      util.tableEnv.getConfig.getConfiguration.setString(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+        AggregatePhaseStrategy.TWO_PHASE.toString)
+    // two level unbounded groupBy
+    val sql =
+      """
+        |SELECT cnt, COUNT(cnt) AS frequency FROM (
+        |  SELECT word, COUNT(number) as cnt FROM MyTable GROUP BY word
+        |) GROUP BY cnt
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testTemporalJoinWithDeduplicateView(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM Orders AS o
+        | JOIN DeduplicatedView FOR SYSTEM_TIME AS OF o.rowtime AS r
+        | ON o.currency = r.currency
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testTemporalJoinWithChangelog(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM Orders AS o
+        | JOIN ratesChangelogStream FOR SYSTEM_TIME AS OF o.rowtime AS r
+        | ON o.currency = r.currency
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testGroupByWithUnion(): Unit = {
-    util.addTableSource[(String, Long)]("MyTable2", 'word, 'cnt)
+    util.addTable(
+      """
+        |CREATE TABLE MyTable2 (
+        | word STRING,
+        | cnt INT
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
 
     val sql =
       """
@@ -85,17 +179,6 @@ class ChangelogModeInferenceTest(aggMode: AggMode) extends TableTestBase {
         |   SELECT word, cnt FROM MyTable2
         |) GROUP BY cnt
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
-  }
-
-}
-
-object ChangelogModeInferenceTest {
-
-  @Parameterized.Parameters(name = "LocalGlobal={0}")
-  def parameters(): util.Collection[Array[java.lang.Object]] = {
-    Seq[Array[AnyRef]](
-      Array(LocalGlobalOff),
-      Array(LocalGlobalOn))
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 }

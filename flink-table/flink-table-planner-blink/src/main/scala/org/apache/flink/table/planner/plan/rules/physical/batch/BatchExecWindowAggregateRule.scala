@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggre
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashWindowAggregate, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecSortWindowAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType}
 
@@ -48,7 +49,7 @@ import scala.collection.JavaConversions._
   * Rule to convert a [[FlinkLogicalWindowAggregate]] into a
   * {{{
   *   BatchExecHash(or Sort)WindowAggregate (global)
-  *   +- BatchExecExchange (hash by group keys if group keys is not empty, else singleton)
+  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
   *      +- BatchExecLocalHash(or Sort)WindowAggregate (local)
   *         +- input of window agg
   * }}}
@@ -56,7 +57,7 @@ import scala.collection.JavaConversions._
   * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
   * {{{
   *   BatchExecHash(or Sort)WindowAggregate
-  *   +- BatchExecExchange (hash by group keys if group keys is not empty, else singleton)
+  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
   *      +- input of window agg
   * }}}
   * when some aggregate functions are not mergeable
@@ -89,7 +90,7 @@ class BatchExecWindowAggregateRule
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
-    true
+    !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

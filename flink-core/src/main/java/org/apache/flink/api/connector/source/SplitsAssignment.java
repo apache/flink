@@ -20,6 +20,8 @@ package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,21 +33,25 @@ import java.util.Map;
  */
 @PublicEvolving
 public final class SplitsAssignment<SplitT extends SourceSplit> {
-	private final Map<Integer, List<SplitT>> assignment;
 
-	public SplitsAssignment(Map<Integer, List<SplitT>> assignment) {
-		this.assignment = assignment;
-	}
+    private final Map<Integer, List<SplitT>> assignment;
 
-	/**
-	 * @return A mapping from subtask ID to their split assignment.
-	 */
-	public Map<Integer, List<SplitT>> assignment() {
-		return assignment;
-	}
+    public SplitsAssignment(Map<Integer, List<SplitT>> assignment) {
+        this.assignment = assignment;
+    }
 
-	@Override
-	public String toString() {
-		return assignment.toString();
-	}
+    public SplitsAssignment(SplitT split, int subtask) {
+        this.assignment = new HashMap<>();
+        this.assignment.put(subtask, Collections.singletonList(split));
+    }
+
+    /** @return A mapping from subtask ID to their split assignment. */
+    public Map<Integer, List<SplitT>> assignment() {
+        return assignment;
+    }
+
+    @Override
+    public String toString() {
+        return assignment.toString();
+    }
 }

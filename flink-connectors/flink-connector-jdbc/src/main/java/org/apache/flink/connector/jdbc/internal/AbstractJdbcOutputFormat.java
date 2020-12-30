@@ -30,65 +30,43 @@ import org.slf4j.LoggerFactory;
 import java.io.Flushable;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.SQLException;
 
-/**
- * Base jdbc outputFormat.
- */
+/** Base jdbc outputFormat. */
 public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> implements Flushable {
 
-	private static final long serialVersionUID = 1L;
-	public static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
-	public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0L;
+    private static final long serialVersionUID = 1L;
+    public static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
+    public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractJdbcOutputFormat.class);
-	protected transient Connection connection;
-	protected final JdbcConnectionProvider connectionProvider;
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractJdbcOutputFormat.class);
+    protected final JdbcConnectionProvider connectionProvider;
 
-	public AbstractJdbcOutputFormat(JdbcConnectionProvider connectionProvider) {
-		this.connectionProvider = Preconditions.checkNotNull(connectionProvider);
-	}
+    public AbstractJdbcOutputFormat(JdbcConnectionProvider connectionProvider) {
+        this.connectionProvider = Preconditions.checkNotNull(connectionProvider);
+    }
 
-	@Override
-	public void configure(Configuration parameters) {
-	}
+    @Override
+    public void configure(Configuration parameters) {}
 
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-		try {
-			establishConnection();
-		} catch (Exception e) {
-			throw new IOException("unable to open JDBC writer", e);
-		}
-	}
+    @Override
+    public void open(int taskNumber, int numTasks) throws IOException {
+        try {
+            connectionProvider.getOrEstablishConnection();
+        } catch (Exception e) {
+            throw new IOException("unable to open JDBC writer", e);
+        }
+    }
 
-	protected void establishConnection() throws Exception {
-		connection = connectionProvider.getConnection();
-	}
+    @Override
+    public void close() {
+        connectionProvider.closeConnection();
+    }
 
-	@Override
-	public void close() {
-		closeDbConnection();
-	}
+    @Override
+    public void flush() throws IOException {}
 
-	private void closeDbConnection() {
-		if (connection != null) {
-			try {
-				connection.close();
-			} catch (SQLException se) {
-				LOG.warn("JDBC connection could not be closed: " + se.getMessage());
-			} finally {
-				connection = null;
-			}
-		}
-	}
-
-	@Override
-	public void flush() throws IOException {
-	}
-
-	@VisibleForTesting
-	public Connection getConnection() {
-		return connection;
-	}
+    @VisibleForTesting
+    public Connection getConnection() {
+        return connectionProvider.getConnection();
+    }
 }

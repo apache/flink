@@ -33,22 +33,23 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  */
 public class SqlAlterHiveViewProperties extends SqlAlterViewProperties {
 
-	public SqlAlterHiveViewProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
-		super(pos, tableName, propertyList);
-		HiveDDLUtils.unescapeProperties(propertyList);
-	}
+    public SqlAlterHiveViewProperties(
+            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
+        super(pos, tableName, propertyList);
+        HiveDDLUtils.unescapeProperties(propertyList);
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER VIEW");
-		viewIdentifier.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET TBLPROPERTIES");
-		SqlWriter.Frame withFrame = writer.startList("(", ")");
-		for (SqlNode property : getPropertyList()) {
-			printIndent(writer);
-			property.unparse(writer, leftPrec, rightPrec);
-		}
-		writer.newlineAndIndent();
-		writer.endList(withFrame);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("ALTER VIEW");
+        viewIdentifier.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("SET TBLPROPERTIES");
+        SqlWriter.Frame withFrame = writer.startList("(", ")");
+        for (SqlNode property : getPropertyList()) {
+            printIndent(writer);
+            property.unparse(writer, leftPrec, rightPrec);
+        }
+        writer.newlineAndIndent();
+        writer.endList(withFrame);
+    }
 }

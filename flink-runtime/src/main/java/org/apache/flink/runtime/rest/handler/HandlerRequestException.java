@@ -20,22 +20,20 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.util.FlinkException;
 
-/**
- * Base class for all {@link HandlerRequest} related exceptions.
- */
+/** Base class for all {@link HandlerRequest} related exceptions. */
 public class HandlerRequestException extends FlinkException {
 
-	private static final long serialVersionUID = 7310878739304006028L;
+    private static final long serialVersionUID = 7310878739304006028L;
 
-	public HandlerRequestException(String message) {
-		super(message);
-	}
+    public HandlerRequestException(String message) {
+        super(message);
+    }
 
-	public HandlerRequestException(Throwable cause) {
-		super(cause);
-	}
+    public HandlerRequestException(Throwable cause) {
+        super(cause);
+    }
 
-	public HandlerRequestException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public HandlerRequestException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

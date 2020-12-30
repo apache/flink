@@ -33,69 +33,69 @@ import org.junit.Test;
 /** Test for {@link JobManagerWatermarkTracker}. */
 public class JobManagerWatermarkTrackerTest {
 
-	private static MiniCluster flink;
+    private static MiniCluster flink;
 
-	@BeforeClass
-	public static void setUp() throws Exception {
-		final Configuration config = new Configuration();
-		config.setInteger(RestOptions.PORT, 0);
+    @BeforeClass
+    public static void setUp() throws Exception {
+        final Configuration config = new Configuration();
+        config.setInteger(RestOptions.PORT, 0);
 
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(1)
-			.build();
+        final MiniClusterConfiguration miniClusterConfiguration =
+                new MiniClusterConfiguration.Builder()
+                        .setConfiguration(config)
+                        .setNumTaskManagers(1)
+                        .setNumSlotsPerTaskManager(1)
+                        .build();
 
-		flink = new MiniCluster(miniClusterConfiguration);
+        flink = new MiniCluster(miniClusterConfiguration);
 
-		flink.start();
-	}
+        flink.start();
+    }
 
-	@AfterClass
-	public static void tearDown() throws Exception {
-		if (flink != null) {
-			flink.close();
-		}
-	}
+    @AfterClass
+    public static void tearDown() throws Exception {
+        if (flink != null) {
+            flink.close();
+        }
+    }
 
-	@Test
-	public void testUpateWatermark() throws Exception {
-		final Configuration clientConfiguration = new Configuration();
-		clientConfiguration.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 0);
+    @Test
+    public void testUpateWatermark() throws Exception {
+        final Configuration clientConfiguration = new Configuration();
+        clientConfiguration.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 0);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-			flink.getRestAddress().get().getHost(),
-			flink.getRestAddress().get().getPort(),
-			clientConfiguration);
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createRemoteEnvironment(
+                        flink.getRestAddress().get().getHost(),
+                        flink.getRestAddress().get().getPort(),
+                        clientConfiguration);
 
-		env.addSource(new TestSourceFunction(new JobManagerWatermarkTracker("fakeId")))
-			.addSink(new SinkFunction<Integer>() {});
-		env.execute();
-	}
+        env.addSource(new TestSourceFunction(new JobManagerWatermarkTracker("fakeId")))
+                .addSink(new SinkFunction<Integer>() {});
+        env.execute();
+    }
 
-	private static class TestSourceFunction extends RichSourceFunction<Integer> {
+    private static class TestSourceFunction extends RichSourceFunction<Integer> {
 
-		private final JobManagerWatermarkTracker tracker;
+        private final JobManagerWatermarkTracker tracker;
 
-		public TestSourceFunction(JobManagerWatermarkTracker tracker) {
-			this.tracker = tracker;
-		}
+        public TestSourceFunction(JobManagerWatermarkTracker tracker) {
+            this.tracker = tracker;
+        }
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			tracker.open(getRuntimeContext());
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            tracker.open(getRuntimeContext());
+        }
 
-		@Override
-		public void run(SourceContext<Integer> ctx) {
-			Assert.assertEquals(998, tracker.updateWatermark(998));
-			Assert.assertEquals(999, tracker.updateWatermark(999));
-		}
+        @Override
+        public void run(SourceContext<Integer> ctx) {
+            Assert.assertEquals(998, tracker.updateWatermark(998));
+            Assert.assertEquals(999, tracker.updateWatermark(999));
+        }
 
-		@Override
-		public void cancel() {
-		}
-	}
-
+        @Override
+        public void cancel() {}
+    }
 }

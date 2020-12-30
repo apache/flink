@@ -31,18 +31,19 @@ import org.apache.flink.table.factories.{FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.planner.JMap
-import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, SqlExprToRexConverter, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalLegacySink, LogicalSink}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecGraphGenerator, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
-import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateSchemaAndApplyImplicitCast, validateTableSink}
-import org.apache.flink.table.planner.sinks.{DataStreamTableSink, SelectTableSinkBase, SelectTableSinkSchemaConverter}
+import org.apache.flink.table.planner.sinks.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
+import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateTableSink}
+import org.apache.flink.table.planner.sinks.{DataStreamTableSink, DynamicSinkUtils, SelectTableSinkBase, SelectTableSinkSchemaConverter}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
@@ -190,7 +191,7 @@ abstract class PlannerBase(
         val input = getRelBuilder.queryOperation(s.getChild).build()
         val sinkSchema = s.getSink.getTableSchema
         // validate query schema and sink schema, and apply cast if possible
-        val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, getTypeFactory)
+        val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, null, getTypeFactory)
         LogicalLegacySink.create(
           query,
           s.getSink,
@@ -203,7 +204,7 @@ abstract class PlannerBase(
         val sinkSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
           SelectTableSinkSchemaConverter.changeDefaultConversionClass(s.getChild.getTableSchema))
         // validate query schema and sink schema, and apply cast if possible
-        val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, getTypeFactory)
+        val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, null, getTypeFactory)
         val sink = createSelectTableSink(sinkSchema)
         s.setSelectResultProvider(sink.getSelectResultProvider)
         LogicalLegacySink.create(
@@ -228,8 +229,8 @@ abstract class PlannerBase(
             val query = validateSchemaAndApplyImplicitCast(
               input,
               TableSchemaUtils.getPhysicalSchema(table.getSchema),
-              getTypeFactory,
-              Some(catalogSink.getTableIdentifier.asSummaryString()))
+              catalogSink.getTableIdentifier,
+              getTypeFactory)
             LogicalLegacySink.create(
               query,
               sink,
@@ -238,20 +239,7 @@ abstract class PlannerBase(
               catalogSink.getStaticPartitions.toMap)
 
           case (table, sink: DynamicTableSink) =>
-            // validate TableSink
-            validateTableSink(catalogSink, identifier, sink, table.getPartitionKeys)
-            // validate query schema and sink schema, and apply cast if possible
-            val query = validateSchemaAndApplyImplicitCast(
-              input,
-              TableSchemaUtils.getPhysicalSchema(table.getSchema),
-              getTypeFactory,
-              Some(catalogSink.getTableIdentifier.asSummaryString()))
-            LogicalSink.create(
-              query,
-              identifier,
-              table,
-              sink,
-              catalogSink.getStaticPartitions.toMap)
+            DynamicSinkUtils.toRel(getRelBuilder, input, catalogSink, sink, table)
         } match {
           case Some(sinkRel) => sinkRel
           case None =>
@@ -272,7 +260,11 @@ abstract class PlannerBase(
           inputLogicalType,
           withChangeFlag)
         // validate query schema and sink schema, and apply cast if possible
-        val query = validateSchemaAndApplyImplicitCast(input, sinkPhysicalSchema, getTypeFactory)
+        val query = validateSchemaAndApplyImplicitCast(
+          input,
+          sinkPhysicalSchema,
+          null,
+          getTypeFactory)
         val tableSink = new DataStreamTableSink(
           FlinkTypeFactory.toTableSchema(query.getRowType),
           typeInfo,
@@ -308,7 +300,13 @@ abstract class PlannerBase(
     */
   @VisibleForTesting
   private[flink] def translateToExecNodePlan(
-      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_, _]] = {
+      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_]] = {
+    val nonPhysicalRel = optimizedRelNodes.filterNot(_.isInstanceOf[FlinkPhysicalRel])
+    if (nonPhysicalRel.nonEmpty) {
+      throw new TableException("The expected optimized plan is FlinkPhysicalRel plan, " +
+        s"actual plan is ${nonPhysicalRel.head.getClass.getSimpleName} plan.")
+    }
+
     require(optimizedRelNodes.forall(_.isInstanceOf[FlinkPhysicalRel]))
     // Rewrite same rel object to different rel objects
     // in order to get the correct dag (dag reuse is based on object not digest)
@@ -317,7 +315,8 @@ abstract class PlannerBase(
     // reuse subplan
     val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
     // convert FlinkPhysicalRel DAG to ExecNode DAG
-    reusedPlan.map(_.asInstanceOf[ExecNode[_, _]])
+    val generator = new ExecGraphGenerator()
+    generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
   }
 
   /**
@@ -326,7 +325,7 @@ abstract class PlannerBase(
     * @param execNodes The node DAG to translate.
     * @return The [[Transformation]] DAG that corresponds to the node DAG.
     */
-  protected def translateToPlan(execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]]
+  protected def translateToPlan(execNodes: util.List[ExecNode[_]]): util.List[Transformation[_]]
 
   /**
    * Creates a [[SelectTableSinkBase]] for a select query.
@@ -340,7 +339,8 @@ abstract class PlannerBase(
       objectIdentifier: ObjectIdentifier,
       dynamicOptions: JMap[String, String])
     : Option[(CatalogTable, Any)] = {
-    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+    val lookupResult = JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+    lookupResult
       .map(_.getTable) match {
       case Some(table: ConnectorCatalogTable[_, _]) =>
         JavaScalaConversionUtil.toScala(table.getTableSink) match {
@@ -355,13 +355,15 @@ abstract class PlannerBase(
         } else {
           table
         }
-        if (isLegacyConnectorOptions(objectIdentifier, table)) {
+        val isTemporary = lookupResult.get.isTemporary
+        if (isLegacyConnectorOptions(objectIdentifier, table, isTemporary)) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
             catalog.orElse(null),
             objectIdentifier,
             tableToFind,
             getTableConfig.getConfiguration,
-            isStreamingMode)
+            isStreamingMode,
+            isTemporary)
           Option(table, tableSink)
         } else {
           val tableSink = FactoryUtil.createTableSink(
@@ -369,7 +371,8 @@ abstract class PlannerBase(
             objectIdentifier,
             tableToFind,
             getTableConfig.getConfiguration,
-            Thread.currentThread().getContextClassLoader)
+            Thread.currentThread().getContextClassLoader,
+            isTemporary)
           Option(table, tableSink)
         }
 
@@ -382,7 +385,8 @@ abstract class PlannerBase(
    */
   private def isLegacyConnectorOptions(
       objectIdentifier: ObjectIdentifier,
-      catalogTable: CatalogTable) = {
+      catalogTable: CatalogTable,
+      isTemporary: Boolean) = {
     // normalize option keys
     val properties = new DescriptorProperties(true)
     properties.putProperties(catalogTable.getOptions)
@@ -398,7 +402,8 @@ abstract class PlannerBase(
           objectIdentifier,
           catalogTable,
           getTableConfig.getConfiguration,
-          isStreamingMode)
+          isStreamingMode,
+          isTemporary)
         // success, then we will use the legacy factories
         true
       } catch {

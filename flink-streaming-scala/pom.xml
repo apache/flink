@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -262,6 +262,27 @@ under the License.
 							<exclude>org.apache.flink.streaming.api.scala.DataStream#iterate\$default\$3()</exclude>
 							<exclude>org.apache.flink.streaming.api.scala.DataStream#assignTimestamps(org.apache.flink.streaming.api.functions.TimestampExtractor)</exclude>
 							<exclude>org.apache.flink.streaming.api.scala.ConnectedStreams#keyBy(scala.Function1,scala.Function1,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+
+							<!-- DataStream#fold was removed in 1.12 -->
+							<exlcude>org.apache.flink.streaming.api.scala.AllWindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.AllWindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exlcude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#apply(java.lang.Object,scala.Function2,scala.Function3,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,scala.Function2,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.AllWindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,scala.Function2,scala.Function3,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.KeyedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.KeyedStream#fold(java.lang.Object,scala.Function2,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.WindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#apply(java.lang.Object,scala.Function2,scala.Function4,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,scala.Function2,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.WindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,scala.Function2,scala.Function4,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+
+							<!-- DataStream#split was removed in 1.12 -->
+							<exclude>org.apache.flink.streaming.api.scala.DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.DataStream#split(scala.Function1)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.SplitStream</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

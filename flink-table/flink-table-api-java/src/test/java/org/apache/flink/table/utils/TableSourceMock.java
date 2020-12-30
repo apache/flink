@@ -23,27 +23,25 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
-/**
- * Mocking {@link TableSource} for tests.
- */
+/** Mocking {@link TableSource} for tests. */
 public class TableSourceMock implements TableSource<Row> {
 
-	private final DataType producedDataType;
+    private final DataType producedDataType;
 
-	private final TableSchema tableSchema;
+    private final TableSchema tableSchema;
 
-	public TableSourceMock(TableSchema tableSchema) {
-		this.tableSchema = TableSchemaUtils.checkNoGeneratedColumns(tableSchema);
-		this.producedDataType = tableSchema.toRowDataType();
-	}
+    public TableSourceMock(TableSchema tableSchema) {
+        this.tableSchema = TableSchemaUtils.checkOnlyPhysicalColumns(tableSchema);
+        this.producedDataType = tableSchema.toRowDataType();
+    }
 
-	@Override
-	public DataType getProducedDataType() {
-		return producedDataType;
-	}
+    @Override
+    public DataType getProducedDataType() {
+        return producedDataType;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 }

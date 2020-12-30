@@ -17,13 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules.SortProjectTransposeRule
-import org.apache.calcite.tools.RuleSets
 import org.apache.flink.table.api.SqlParserException
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalSort}
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase}
+
+import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.rel.rules.CoreRules
+import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
 /**
@@ -42,7 +43,7 @@ class PushLimitIntoLegacyTableSourceScanRuleTest extends TableTestBase {
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(RuleSets.ofList(PushLimitIntoLegacyTableSourceScanRule.INSTANCE,
-          SortProjectTransposeRule.INSTANCE,
+          CoreRules.SORT_PROJECT_TRANSPOSE,
           // converts calcite rel(RelNode) to flink rel(FlinkRelNode)
           FlinkLogicalSort.BATCH_CONVERTER,
           FlinkLogicalLegacyTableSourceScan.CONVERTER))
@@ -65,52 +66,52 @@ class PushLimitIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
   @Test(expected = classOf[SqlParserException])
   def testLimitWithNegativeOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET -1")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET -1")
   }
 
   @Test(expected = classOf[SqlParserException])
   def testNegativeLimitWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable LIMIT -1")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT -1")
   }
 
   @Test(expected = classOf[SqlParserException])
   def testMysqlLimit(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable LIMIT 1, 10")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 1, 10")
   }
 
   @Test
   def testCanPushdownLimitWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable LIMIT 5")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 5")
   }
 
   @Test
   def testCanPushdownLimitWithOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1")
   }
 
   @Test
   def testCanPushdownFetchWithOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY")
   }
 
   @Test
   def testCanPushdownFetchWithoutOffset(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY")
   }
 
   @Test
   def testCannotPushDownWithoutLimit(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable OFFSET 10")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable OFFSET 10")
   }
 
   @Test
   def testCannotPushDownWithoutFetch(): Unit = {
-    util.verifyPlan("SELECT a, c FROM LimitTable OFFSET 10 ROWS")
+    util.verifyRelPlan("SELECT a, c FROM LimitTable OFFSET 10 ROWS")
   }
 
   @Test
   def testCannotPushDownWithOrderBy(): Unit = {
     val sqlQuery = "SELECT a, c FROM LimitTable ORDER BY c LIMIT 10"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

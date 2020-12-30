@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -137,7 +136,6 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     env.setParallelism(1)
 
@@ -290,7 +288,6 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
@@ -354,7 +351,6 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       Right(19000L))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)

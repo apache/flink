@@ -75,15 +75,11 @@ class CatalogTestBase(PyFlinkTestCase):
 
     @staticmethod
     def create_db():
-        gateway = get_gateway()
-        j_database = gateway.jvm.CatalogDatabaseImpl({"k1": "v1"}, CatalogTestBase.test_comment)
-        return CatalogDatabase(j_database)
+        return CatalogDatabase.create_instance({"k1": "v1"}, CatalogTestBase.test_comment)
 
     @staticmethod
     def create_another_db():
-        gateway = get_gateway()
-        j_database = gateway.jvm.CatalogDatabaseImpl({"k2": "v2"}, "this is another database.")
-        return CatalogDatabase(j_database)
+        return CatalogDatabase.create_instance({"k2": "v2"}, "this is another database.")
 
     @staticmethod
     def create_table_schema():
@@ -109,125 +105,95 @@ class CatalogTestBase(PyFlinkTestCase):
 
     @staticmethod
     def create_table():
-        gateway = get_gateway()
-        table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.CatalogTableImpl(
-            table_schema._j_table_schema, CatalogTestBase.get_batch_table_properties(),
-            CatalogTestBase.test_comment)
-        return CatalogBaseTable(j_table)
+        return CatalogBaseTable.create_table(
+            schema=CatalogTestBase.create_table_schema(),
+            properties=CatalogTestBase.get_batch_table_properties(),
+            comment=CatalogTestBase.test_comment)
 
     @staticmethod
     def create_another_table():
-        gateway = get_gateway()
-        table_schema = CatalogTestBase.create_another_table_schema()
-        j_table = gateway.jvm.CatalogTableImpl(
-            table_schema._j_table_schema, CatalogTestBase.get_batch_table_properties(),
-            CatalogTestBase.test_comment)
-        return CatalogBaseTable(j_table)
+        return CatalogBaseTable.create_table(
+            schema=CatalogTestBase.create_another_table_schema(),
+            properties=CatalogTestBase.get_batch_table_properties(),
+            comment=CatalogTestBase.test_comment)
 
     @staticmethod
     def create_stream_table():
-        gateway = get_gateway()
-        table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.CatalogTableImpl(
-            table_schema._j_table_schema, CatalogTestBase.get_streaming_table_properties(),
-            CatalogTestBase.test_comment)
-        return CatalogBaseTable(j_table)
+        return CatalogBaseTable.create_table(
+            schema=CatalogTestBase.create_table_schema(),
+            properties=CatalogTestBase.get_streaming_table_properties(),
+            comment=CatalogTestBase.test_comment)
 
     @staticmethod
     def create_partitioned_table():
-        gateway = get_gateway()
-        table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.CatalogTableImpl(
-            table_schema._j_table_schema, CatalogTestBase.create_partition_keys(),
-            CatalogTestBase.get_batch_table_properties(), CatalogTestBase.test_comment)
-        return CatalogBaseTable(j_table)
+        return CatalogBaseTable.create_table(
+            schema=CatalogTestBase.create_table_schema(),
+            partition_keys=CatalogTestBase.create_partition_keys(),
+            properties=CatalogTestBase.get_batch_table_properties(),
+            comment=CatalogTestBase.test_comment)
 
     @staticmethod
     def create_another_partitioned_table():
-        gateway = get_gateway()
-        table_schema = CatalogTestBase.create_another_table_schema()
-        j_table = gateway.jvm.CatalogTableImpl(
-            table_schema._j_table_schema, CatalogTestBase.create_partition_keys(),
-            CatalogTestBase.get_batch_table_properties(), CatalogTestBase.test_comment)
-        return CatalogBaseTable(j_table)
+        return CatalogBaseTable.create_table(
+            schema=CatalogTestBase.create_another_table_schema(),
+            partition_keys=CatalogTestBase.create_partition_keys(),
+            properties=CatalogTestBase.get_batch_table_properties(),
+            comment=CatalogTestBase.test_comment)
 
     @staticmethod
     def create_view():
-        gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_view = gateway.jvm.CatalogViewImpl(
+        return CatalogBaseTable.create_view(
             "select * from t1",
             "select * from test-catalog.db1.t1",
-            table_schema._j_table_schema,
+            table_schema,
             {},
             "This is a view")
-        return CatalogBaseTable(j_view)
 
     @staticmethod
     def create_another_view():
-        gateway = get_gateway()
         table_schema = CatalogTestBase.create_another_table_schema()
-        j_view = gateway.jvm.CatalogViewImpl(
+        return CatalogBaseTable.create_view(
             "select * from t2",
             "select * from test-catalog.db2.t2",
-            table_schema._j_table_schema,
+            table_schema,
             {},
             "This is another view")
-        return CatalogBaseTable(j_view)
 
     @staticmethod
     def create_function():
-        gateway = get_gateway()
-        j_function = gateway.jvm.CatalogFunctionImpl(
-            "org.apache.flink.table.functions.python.PythonScalarFunction")
-        return CatalogFunction(j_function)
+        return CatalogFunction.create_instance(
+            "org.apache.flink.table.functions.python.PythonScalarFunction", "Java")
 
     @staticmethod
     def create_another_function():
-        gateway = get_gateway()
-        j_function = gateway.jvm.CatalogFunctionImpl(
-            "org.apache.flink.table.functions.ScalarFunction")
-        return CatalogFunction(j_function)
+        return CatalogFunction.create_instance(
+            "org.apache.flink.table.functions.ScalarFunction", "Java")
 
     @staticmethod
     def create_partition_spec():
-        gateway = get_gateway()
-        j_partition_spec = gateway.jvm.CatalogPartitionSpec(
-            {"third": "2000", "second": "bob"})
-        return CatalogPartitionSpec(j_partition_spec)
+        return CatalogPartitionSpec({"third": "2000", "second": "bob"})
 
     @staticmethod
     def create_another_partition_spec():
-        gateway = get_gateway()
-        j_partition_spec = gateway.jvm.CatalogPartitionSpec(
-            {"third": "2010", "second": "bob"})
-        return CatalogPartitionSpec(j_partition_spec)
+        return CatalogPartitionSpec({"third": "2010", "second": "bob"})
 
     @staticmethod
     def create_partition():
-        gateway = get_gateway()
-        j_partition = gateway.jvm.CatalogPartitionImpl(
+        return CatalogPartition.create_instance(
             CatalogTestBase.get_batch_table_properties(), "catalog partition tests")
-        return CatalogPartition(j_partition)
 
     @staticmethod
     def create_partition_spec_subset():
-        gateway = get_gateway()
-        j_partition_spec = gateway.jvm.CatalogPartitionSpec({"second": "bob"})
-        return CatalogPartitionSpec(j_partition_spec)
+        return CatalogPartitionSpec({"second": "bob"})
 
     @staticmethod
     def create_another_partition_spec_subset():
-        gateway = get_gateway()
-        j_partition_spec = gateway.jvm.CatalogPartitionSpec({"third": "2000"})
-        return CatalogPartitionSpec(j_partition_spec)
+        return CatalogPartitionSpec({"third": "2000"})
 
     @staticmethod
     def create_invalid_partition_spec_subset():
-        gateway = get_gateway()
-        j_partition_spec = gateway.jvm.CatalogPartitionSpec({"third": "2010"})
-        return CatalogPartitionSpec(j_partition_spec)
+        return CatalogPartitionSpec({"third": "2010"})
 
     def test_create_db(self):
         self.assertFalse(self.catalog.database_exists(self.db1))
@@ -810,10 +776,8 @@ class CatalogTestBase(PyFlinkTestCase):
         self.check_catalog_partition_equals(self.create_partition(), cp)
         self.assertIsNone(cp.get_properties().get("k"))
 
-        gateway = get_gateway()
-        j_partition = gateway.jvm.CatalogPartitionImpl(
+        another = CatalogPartition.create_instance(
             {"is_streaming": "false", "k": "v"}, "catalog partition")
-        another = CatalogPartition(j_partition)
         self.catalog.alter_partition(self.path1, self.create_partition_spec(), another, False)
 
         cp = self.catalog.get_partition(self.path1, self.create_partition_spec())

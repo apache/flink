@@ -19,14 +19,13 @@
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.utils._
-import org.apache.flink.types.Row
+import org.apache.flink.util.FileUtils
 
 import org.junit.{Before, Test}
-
-import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
 class TableSourceITCase extends BatchTestBase {
 
@@ -64,6 +63,26 @@ class TableSourceITCase extends BatchTestBase {
          |  'bounded' = 'true'
          |)
          |""".stripMargin)
+    val nestedTableDataId = TestValuesTableFactory.registerData(TestData.deepNestedRow)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE NestedTable (
+         |  id BIGINT,
+         |  deepNested ROW<
+         |     nested1 ROW<name STRING, `value.` INT>,
+         |     `nested2.` ROW<num INT, flag BOOLEAN>
+         |   >,
+         |   nested ROW<name STRING, `value` INT>,
+         |   name STRING,
+         |   lower_name AS LOWER(name)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'nested-projection-supported' = 'true',
+         |  'data-id' = '$nestedTableDataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    )
   }
 
   @Test
@@ -87,64 +106,19 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testNestedProject(): Unit = {
-    val data = Seq(
-      Row.of(new JLong(1),
-        Row.of(
-          Row.of("Sarah", new JInt(100)),
-          Row.of(new JInt(1000), new JBool(true))
-        ),
-        Row.of("Peter", new JInt(10000)),
-        "Mary"),
-      Row.of(new JLong(2),
-        Row.of(
-          Row.of("Rob", new JInt(200)),
-          Row.of(new JInt(2000), new JBool(false))
-        ),
-        Row.of("Lucy", new JInt(20000)),
-        "Bob"),
-      Row.of(new JLong(3),
-        Row.of(
-          Row.of("Mike", new JInt(300)),
-          Row.of(new JInt(3000), new JBool(true))
-        ),
-        Row.of("Betty", new JInt(30000)),
-        "Liz"))
-
-    val dataId = TestValuesTableFactory.registerData(data)
-
-    // TODO: [FLINK-17428] support nested project for TestValuesTableSource
-    val ddl =
-      s"""
-         |CREATE TABLE T (
-         |  id BIGINT,
-         |  deepNested ROW<
-         |     nested1 ROW<name STRING, `value` INT>,
-         |     nested2 ROW<num INT, flag BOOLEAN>
-         |   >,
-         |   nested ROW<name STRING, `value` INT>,
-         |   name STRING,
-         |   lower_name AS LOWER(name)
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId',
-         |  'bounded' = 'true'
-         |)
-         |""".stripMargin
-    tEnv.executeSql(ddl)
-
     checkResult(
       """
         |SELECT id,
         |    deepNested.nested1.name AS nestedName,
         |    nested.`value` AS nestedValue,
-        |    deepNested.nested2.flag AS nestedFlag,
-        |    deepNested.nested2.num AS nestedNum,
+        |    deepNested.`nested2.`.flag AS nestedFlag,
+        |    deepNested.`nested2.`.num + deepNested.nested1.`value.` AS nestedNum,
         |    lower_name
-        |FROM T
+        |FROM NestedTable
       """.stripMargin,
-      Seq(row(1, "Sarah", 10000, true, 1000, "mary"),
-        row(2, "Rob", 20000, false, 2000, "bob"),
-        row(3, "Mike", 30000, true, 3000, "liz")
+      Seq(row(1, "Sarah", 10000, true, 1100, "mary"),
+        row(2, "Rob", 20000, false, 2200, "bob"),
+        row(3, "Mike", 30000, true, 3300, "liz")
       )
     )
   }
@@ -191,6 +165,33 @@ class TableSourceITCase extends BatchTestBase {
 
     checkResult(
       "SELECT a, c FROM MyInputFormatTable",
+      Seq(
+        row(1, "Hi"),
+        row(2, "Hello"),
+        row(3, "Hello world"))
+    )
+  }
+
+  @Test
+  def testDataStreamSource(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(TestData.smallData3)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MyDataStreamTable (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true',
+         |  'runtime-source' = 'DataStream'
+         |)
+         |""".stripMargin
+    )
+
+    checkResult(
+      "SELECT a, c FROM MyDataStreamTable",
       Seq(
         row(1, "Hi"),
         row(2, "Hello"),
@@ -252,6 +253,32 @@ class TableSourceITCase extends BatchTestBase {
           null, null, null, null, null, null, null, null, null, null, null, null, null,
           null, null, null, null)
       )
+    )
+  }
+
+  @Test
+  def testSourceProvider(): Unit = {
+    val file = TEMPORARY_FOLDER.newFile()
+    file.delete()
+    file.createNewFile()
+    FileUtils.writeFileUtf8(file, "1\n5\n6")
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MyFileSourceTable (
+         |  `a` STRING
+         |) WITH (
+         |  'connector' = 'filesource',
+         |  'path' = '${file.toURI}'
+         |)
+         |""".stripMargin
+    )
+
+    checkResult(
+      "SELECT a FROM MyFileSourceTable",
+      Seq(
+        row("1"),
+        row("5"),
+        row("6"))
     )
   }
 }

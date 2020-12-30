@@ -47,227 +47,231 @@ import java.util.Objects;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * {@link TableSource} for JDBC.
- */
-public class JdbcTableSource implements
-		StreamTableSource<Row>,
-		ProjectableTableSource<Row>,
-		LookupableTableSource<Row> {
+/** {@link TableSource} for JDBC. */
+public class JdbcTableSource
+        implements StreamTableSource<Row>, ProjectableTableSource<Row>, LookupableTableSource<Row> {
 
-	private final JdbcOptions options;
-	private final JdbcReadOptions readOptions;
-	private final JdbcLookupOptions lookupOptions;
-	private final TableSchema schema;
+    private final JdbcOptions options;
+    private final JdbcReadOptions readOptions;
+    private final JdbcLookupOptions lookupOptions;
+    private final TableSchema schema;
 
-	// index of fields selected, null means that all fields are selected
-	private final int[] selectFields;
-	private final DataType producedDataType;
+    // index of fields selected, null means that all fields are selected
+    private final int[] selectFields;
+    private final DataType producedDataType;
 
-	private JdbcTableSource(
-		JdbcOptions options, JdbcReadOptions readOptions, JdbcLookupOptions lookupOptions, TableSchema schema) {
-		this(options, readOptions, lookupOptions, schema, null);
-	}
+    private JdbcTableSource(
+            JdbcOptions options,
+            JdbcReadOptions readOptions,
+            JdbcLookupOptions lookupOptions,
+            TableSchema schema) {
+        this(options, readOptions, lookupOptions, schema, null);
+    }
 
-	private JdbcTableSource(
-		JdbcOptions options, JdbcReadOptions readOptions, JdbcLookupOptions lookupOptions,
-		TableSchema schema, int[] selectFields) {
-		this.options = options;
-		this.readOptions = readOptions;
-		this.lookupOptions = lookupOptions;
-		this.schema = schema;
+    private JdbcTableSource(
+            JdbcOptions options,
+            JdbcReadOptions readOptions,
+            JdbcLookupOptions lookupOptions,
+            TableSchema schema,
+            int[] selectFields) {
+        this.options = options;
+        this.readOptions = readOptions;
+        this.lookupOptions = lookupOptions;
+        this.schema = schema;
 
-		this.selectFields = selectFields;
+        this.selectFields = selectFields;
 
-		final DataType[] schemaDataTypes = schema.getFieldDataTypes();
-		final String[] schemaFieldNames = schema.getFieldNames();
-		if (selectFields != null) {
-			DataType[] dataTypes = new DataType[selectFields.length];
-			String[] fieldNames = new String[selectFields.length];
-			for (int i = 0; i < selectFields.length; i++) {
-				dataTypes[i] = schemaDataTypes[selectFields[i]];
-				fieldNames[i] = schemaFieldNames[selectFields[i]];
-			}
-			this.producedDataType =
-					TableSchema.builder().fields(fieldNames, dataTypes).build().toRowDataType();
-		} else {
-			this.producedDataType = schema.toRowDataType();
-		}
-	}
+        final DataType[] schemaDataTypes = schema.getFieldDataTypes();
+        final String[] schemaFieldNames = schema.getFieldNames();
+        if (selectFields != null) {
+            DataType[] dataTypes = new DataType[selectFields.length];
+            String[] fieldNames = new String[selectFields.length];
+            for (int i = 0; i < selectFields.length; i++) {
+                dataTypes[i] = schemaDataTypes[selectFields[i]];
+                fieldNames[i] = schemaFieldNames[selectFields[i]];
+            }
+            this.producedDataType =
+                    TableSchema.builder().fields(fieldNames, dataTypes).build().toRowDataType();
+        } else {
+            this.producedDataType = schema.toRowDataType();
+        }
+    }
 
-	@Override
-	public boolean isBounded() {
-		return true;
-	}
+    @Override
+    public boolean isBounded() {
+        return true;
+    }
 
-	@Override
-	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		return execEnv
-				.createInput(
-						getInputFormat(),
-						(RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType))
-				.name(explainSource());
-	}
+    @Override
+    public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
+        return execEnv.createInput(
+                        getInputFormat(), (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType))
+                .name(explainSource());
+    }
 
-	@Override
-	public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
-		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
-		return JdbcLookupFunction.builder()
-				.setOptions(options)
-				.setLookupOptions(lookupOptions)
-				.setFieldTypes(rowTypeInfo.getFieldTypes())
-				.setFieldNames(rowTypeInfo.getFieldNames())
-				.setKeyNames(lookupKeys)
-				.build();
-	}
+    @Override
+    public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
+        final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
+        return JdbcLookupFunction.builder()
+                .setOptions(options)
+                .setLookupOptions(lookupOptions)
+                .setFieldTypes(rowTypeInfo.getFieldTypes())
+                .setFieldNames(rowTypeInfo.getFieldNames())
+                .setKeyNames(lookupKeys)
+                .build();
+    }
 
-	@Override
-	public DataType getProducedDataType() {
-		return producedDataType;
-	}
+    @Override
+    public DataType getProducedDataType() {
+        return producedDataType;
+    }
 
-	@Override
-	public TableSource<Row> projectFields(int[] fields) {
-		return new JdbcTableSource(options, readOptions, lookupOptions, schema, fields);
-	}
+    @Override
+    public TableSource<Row> projectFields(int[] fields) {
+        return new JdbcTableSource(options, readOptions, lookupOptions, schema, fields);
+    }
 
-	@Override
-	public AsyncTableFunction<Row> getAsyncLookupFunction(String[] lookupKeys) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public AsyncTableFunction<Row> getAsyncLookupFunction(String[] lookupKeys) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean isAsyncEnabled() {
-		return false;
-	}
+    @Override
+    public boolean isAsyncEnabled() {
+        return false;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return schema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return schema;
+    }
 
-	@Override
-	public String explainSource() {
-		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
-		return TableConnectorUtils.generateRuntimeName(getClass(), rowTypeInfo.getFieldNames());
-	}
+    @Override
+    public String explainSource() {
+        final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
+        return TableConnectorUtils.generateRuntimeName(getClass(), rowTypeInfo.getFieldNames());
+    }
 
-	public static Builder builder() {
-		return new Builder();
-	}
+    public static Builder builder() {
+        return new Builder();
+    }
 
-	private JdbcInputFormat getInputFormat() {
-		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
-		JdbcInputFormat.JdbcInputFormatBuilder builder = JdbcInputFormat.buildJdbcInputFormat()
-				.setDrivername(options.getDriverName())
-				.setDBUrl(options.getDbURL())
-				.setRowTypeInfo(new RowTypeInfo(rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames()));
-		options.getUsername().ifPresent(builder::setUsername);
-		options.getPassword().ifPresent(builder::setPassword);
+    private JdbcInputFormat getInputFormat() {
+        final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
+        JdbcInputFormat.JdbcInputFormatBuilder builder =
+                JdbcInputFormat.buildJdbcInputFormat()
+                        .setDrivername(options.getDriverName())
+                        .setDBUrl(options.getDbURL())
+                        .setRowTypeInfo(
+                                new RowTypeInfo(
+                                        rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames()));
+        options.getUsername().ifPresent(builder::setUsername);
+        options.getPassword().ifPresent(builder::setPassword);
 
-		if (readOptions.getFetchSize() != 0) {
-			builder.setFetchSize(readOptions.getFetchSize());
-		}
+        if (readOptions.getFetchSize() != 0) {
+            builder.setFetchSize(readOptions.getFetchSize());
+        }
 
-		final JdbcDialect dialect = options.getDialect();
-		String query = getBaseQueryStatement(rowTypeInfo);
-		if (readOptions.getPartitionColumnName().isPresent()) {
-			long lowerBound = readOptions.getPartitionLowerBound().get();
-			long upperBound = readOptions.getPartitionUpperBound().get();
-			int numPartitions = readOptions.getNumPartitions().get();
-			builder.setParametersProvider(
-				new JdbcNumericBetweenParametersProvider(lowerBound, upperBound).ofBatchNum(numPartitions));
-			query += " WHERE " +
-				dialect.quoteIdentifier(readOptions.getPartitionColumnName().get()) +
-				" BETWEEN ? AND ?";
-		}
-		builder.setQuery(query);
+        final JdbcDialect dialect = options.getDialect();
+        String query = getBaseQueryStatement(rowTypeInfo);
+        if (readOptions.getPartitionColumnName().isPresent()) {
+            long lowerBound = readOptions.getPartitionLowerBound().get();
+            long upperBound = readOptions.getPartitionUpperBound().get();
+            int numPartitions = readOptions.getNumPartitions().get();
+            builder.setParametersProvider(
+                    new JdbcNumericBetweenParametersProvider(lowerBound, upperBound)
+                            .ofBatchNum(numPartitions));
+            query +=
+                    " WHERE "
+                            + dialect.quoteIdentifier(readOptions.getPartitionColumnName().get())
+                            + " BETWEEN ? AND ?";
+        }
+        builder.setQuery(query);
 
-		return builder.finish();
-	}
+        return builder.finish();
+    }
 
-	private String getBaseQueryStatement(RowTypeInfo rowTypeInfo) {
-		return readOptions.getQuery().orElseGet(() ->
-			FieldNamedPreparedStatementImpl.parseNamedStatement(
-				options.getDialect().getSelectFromStatement(options.getTableName(), rowTypeInfo.getFieldNames(), new String[0]),
-				new HashMap<>()
-			)
-		);
-	}
+    private String getBaseQueryStatement(RowTypeInfo rowTypeInfo) {
+        return readOptions
+                .getQuery()
+                .orElseGet(
+                        () ->
+                                FieldNamedPreparedStatementImpl.parseNamedStatement(
+                                        options.getDialect()
+                                                .getSelectFromStatement(
+                                                        options.getTableName(),
+                                                        rowTypeInfo.getFieldNames(),
+                                                        new String[0]),
+                                        new HashMap<>()));
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (o instanceof JdbcTableSource) {
-			JdbcTableSource source = (JdbcTableSource) o;
-			return Objects.equals(options, source.options) &&
-				Objects.equals(readOptions, source.readOptions) &&
-				Objects.equals(lookupOptions, source.lookupOptions) &&
-				Objects.equals(schema, source.schema) &&
-				Arrays.equals(selectFields, source.selectFields);
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof JdbcTableSource) {
+            JdbcTableSource source = (JdbcTableSource) o;
+            return Objects.equals(options, source.options)
+                    && Objects.equals(readOptions, source.readOptions)
+                    && Objects.equals(lookupOptions, source.lookupOptions)
+                    && Objects.equals(schema, source.schema)
+                    && Arrays.equals(selectFields, source.selectFields);
+        } else {
+            return false;
+        }
+    }
 
-	/**
-	 * Builder for a {@link JdbcTableSource}.
-	 */
-	public static class Builder {
+    /** Builder for a {@link JdbcTableSource}. */
+    public static class Builder {
 
-		private JdbcOptions options;
-		private JdbcReadOptions readOptions;
-		private JdbcLookupOptions lookupOptions;
-		protected TableSchema schema;
+        private JdbcOptions options;
+        private JdbcReadOptions readOptions;
+        private JdbcLookupOptions lookupOptions;
+        protected TableSchema schema;
 
-		/**
-		 * required, jdbc options.
-		 */
-		public Builder setOptions(JdbcOptions options) {
-			this.options = options;
-			return this;
-		}
+        /** required, jdbc options. */
+        public Builder setOptions(JdbcOptions options) {
+            this.options = options;
+            return this;
+        }
 
-		/**
-		 * optional, scan related options.
-		 * {@link JdbcReadOptions} will be only used for {@link StreamTableSource}.
-		 */
-		public Builder setReadOptions(JdbcReadOptions readOptions) {
-			this.readOptions = readOptions;
-			return this;
-		}
+        /**
+         * optional, scan related options. {@link JdbcReadOptions} will be only used for {@link
+         * StreamTableSource}.
+         */
+        public Builder setReadOptions(JdbcReadOptions readOptions) {
+            this.readOptions = readOptions;
+            return this;
+        }
 
-		/**
-		 * optional, lookup related options.
-		 * {@link JdbcLookupOptions} only be used for {@link LookupableTableSource}.
-		 */
-		public Builder setLookupOptions(JdbcLookupOptions lookupOptions) {
-			this.lookupOptions = lookupOptions;
-			return this;
-		}
+        /**
+         * optional, lookup related options. {@link JdbcLookupOptions} only be used for {@link
+         * LookupableTableSource}.
+         */
+        public Builder setLookupOptions(JdbcLookupOptions lookupOptions) {
+            this.lookupOptions = lookupOptions;
+            return this;
+        }
 
-		/**
-		 * required, table schema of this table source.
-		 */
-		public Builder setSchema(TableSchema schema) {
-			this.schema = JdbcTypeUtil.normalizeTableSchema(schema);
-			return this;
-		}
+        /** required, table schema of this table source. */
+        public Builder setSchema(TableSchema schema) {
+            this.schema = JdbcTypeUtil.normalizeTableSchema(schema);
+            return this;
+        }
 
-		/**
-		 * Finalizes the configuration and checks validity.
-		 *
-		 * @return Configured JdbcTableSource
-		 */
-		public JdbcTableSource build() {
-			checkNotNull(options, "No options supplied.");
-			checkNotNull(schema, "No schema supplied.");
-			if (readOptions == null) {
-				readOptions = JdbcReadOptions.builder().build();
-			}
-			if (lookupOptions == null) {
-				lookupOptions = JdbcLookupOptions.builder().build();
-			}
-			return new JdbcTableSource(options, readOptions, lookupOptions, schema);
-		}
-	}
+        /**
+         * Finalizes the configuration and checks validity.
+         *
+         * @return Configured JdbcTableSource
+         */
+        public JdbcTableSource build() {
+            checkNotNull(options, "No options supplied.");
+            checkNotNull(schema, "No schema supplied.");
+            if (readOptions == null) {
+                readOptions = JdbcReadOptions.builder().build();
+            }
+            if (lookupOptions == null) {
+                lookupOptions = JdbcLookupOptions.builder().build();
+            }
+            return new JdbcTableSource(options, readOptions, lookupOptions, schema);
+        }
+    }
 }

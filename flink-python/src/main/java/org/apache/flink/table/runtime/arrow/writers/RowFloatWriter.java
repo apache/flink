@@ -23,22 +23,20 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.Float4Vector;
 
-/**
- * {@link ArrowFieldWriter} for Float.
- */
+/** {@link ArrowFieldWriter} for Float. */
 @Internal
 public final class RowFloatWriter extends ArrowFieldWriter<Row> {
 
-	public RowFloatWriter(Float4Vector floatVector) {
-		super(floatVector);
-	}
+    public RowFloatWriter(Float4Vector floatVector) {
+        super(floatVector);
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((Float4Vector) getValueVector()).setNull(getCount());
-		} else {
-			((Float4Vector) getValueVector()).setSafe(getCount(), (float) value.getField(ordinal));
-		}
-	}
+    @Override
+    public void doWrite(Row value, int ordinal) {
+        if (value.getField(ordinal) == null) {
+            ((Float4Vector) getValueVector()).setNull(getCount());
+        } else {
+            ((Float4Vector) getValueVector()).setSafe(getCount(), (float) value.getField(ordinal));
+        }
+    }
 }

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -96,12 +96,24 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.protobuf</groupId>
+					<artifactId>protobuf-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-mapreduce-client-core</artifactId>
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.protobuf</groupId>
+					<artifactId>protobuf-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- For now, fastutil is provided already by flink-runtime -->
@@ -127,6 +139,19 @@ under the License.
 				<exclusion>
 					<groupId>it.unimi.dsi</groupId>
 					<artifactId>fastutil</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.parquet</groupId>
+			<artifactId>parquet-protobuf</artifactId>
+			<version>${flink.format.parquet.version}</version>
+			<optional>true</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-client</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -169,9 +194,25 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>
+		<extensions>
+			<extension>
+				<groupId>kr.motd.maven</groupId>
+				<artifactId>os-maven-plugin</artifactId>
+				<version>1.5.0.Final</version>
+			</extension>
+		</extensions>
+
 		<plugins>
 			<!-- Generate Test class from avro schema -->
 			<plugin>
@@ -187,6 +228,55 @@ under the License.
 						<configuration>
 							<testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
 							<testOutputDirectory>${project.basedir}/src/test/java/</testOutputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Geneate Test class from protobuf schema -->
+			<plugin>
+				<groupId>org.xolstice.maven.plugins</groupId>
+				<artifactId>protobuf-maven-plugin</artifactId>
+				<version>0.5.1</version>
+				<extensions>true</extensions>
+				<configuration>
+					<!-- Currently Flink azure test pipeline would first pre-compile and then upload the compiled
+					 directory, then it download the directory and run the corresponding tests. However, the protoc
+					 executable under the target directory would lost the execution permission bit after downloading.
+					 To solve this issue we would skip generating the target files if they already exist after
+					 downloading. Meanwhile, since the time might be not consistent between the pre-compile and
+					 the actual execution, we need to adjust the timestamp manually, see unpack_build_artifact.sh-->
+					<checkStaleness>true</checkStaleness>
+					<protoTestSourceRoot>${project.basedir}/src/test/resources/protobuf</protoTestSourceRoot>
+					<!-- Generates classes into a separate directory since the generator always removes existing files. -->
+					<outputDirectory>${project.build.directory}/generated-test-sources/protobuf/java</outputDirectory>
+					<protocArtifact>com.google.protobuf:protoc:3.5.1:exe:${os.detected.classifier}</protocArtifact>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>test-compile</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Adding protobuf generated classes to test build path -->
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>add-test-source</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-test-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>${project.build.directory}/generated-test-sources/protobuf/java</source>
+							</sources>
 						</configuration>
 					</execution>
 				</executions>

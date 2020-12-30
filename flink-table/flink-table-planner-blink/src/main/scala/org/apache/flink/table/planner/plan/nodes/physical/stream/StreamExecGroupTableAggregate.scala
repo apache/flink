@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.operators.aggregate.GroupTableAggFunction
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -34,34 +33,29 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.RelNode
 
 import java.util
 
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for unbounded group table aggregate.
+  * Stream physical RelNode for unbounded java/scala group table aggregate.
   */
 class StreamExecGroupTableAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall])
-  extends SingleRel(cluster, traitSet, inputRel)
-    with StreamPhysicalRel
-    with StreamExecNode[RowData] {
-
-  val aggInfoList: AggregateInfoList = AggregateUtil.deriveAggregateInfoList(
-    this,
-    aggCalls,
-    grouping)
-
-  override def requireWatermark: Boolean = false
-
-  override def deriveRowType(): RelDataType = outputRowType
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall])
+  extends StreamExecGroupTableAggregateBase(
+    cluster,
+    traitSet,
+    inputRel,
+    outputRowType,
+    grouping,
+    aggCalls) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamExecGroupTableAggregate(
@@ -71,30 +65,6 @@ class StreamExecGroupTableAggregate(
       outputRowType,
       grouping,
       aggCalls)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val inputRowType = getInput.getRowType
-    super.explainTerms(pw)
-      .itemIf("groupBy",
-        RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
-      .item("select", RelExplainUtil.streamGroupAggregationToString(
-        inputRowType,
-        getRowType,
-        aggInfoList,
-        grouping))
-  }
-
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
@@ -138,12 +108,11 @@ class StreamExecGroupTableAggregate(
     val inputCountIndex = aggInfoList.getIndexOfCountStar
 
     val aggFunction = new GroupTableAggFunction(
-      tableConfig.getMinIdleStateRetentionTime,
-      tableConfig.getMaxIdleStateRetentionTime,
       aggsHandler,
       accTypes,
       inputCountIndex,
-      generateUpdateBefore)
+      generateUpdateBefore,
+      tableConfig.getIdleStateRetention.toMillis)
     val operator = new KeyedProcessOperator[RowData, RowData, RowData](aggFunction)
 
     val selector = KeySelectorUtil.getRowDataSelector(

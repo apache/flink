@@ -36,7 +36,7 @@ To use this connector, add the following dependency to your project:
 {% endhighlight %}
 
 Note that the streaming connectors are currently not part of the binary distribution.
-See linking with them for cluster execution [here]({{site.baseurl}}/dev/project-configuration.html).
+See linking with them for cluster execution [here]({% link dev/project-configuration.md %}).
 
 #### Authentication
 In order to connect to the Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.

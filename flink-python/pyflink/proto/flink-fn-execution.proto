@@ -25,14 +25,106 @@ package org.apache.flink.fn_execution.v1;
 option java_package = "org.apache.flink.fnexecution.v1";
 option java_outer_classname = "FlinkFnApi";
 
+message Input {
+  oneof input {
+    UserDefinedFunction udf = 1;
+    int32 inputOffset = 2;
+    bytes inputConstant = 3;
+  }
+}
+
 // User-defined function definition. It supports chaining functions, that's, the execution
 // result of one user-defined function as the input of another user-defined function.
 message UserDefinedFunction {
-  message Input {
-    oneof input {
-      UserDefinedFunction udf = 1;
-      int32 inputOffset = 2;
-      bytes inputConstant = 3;
+  // The serialized representation of the user-defined function
+  bytes payload = 1;
+
+  // The input arguments of the user-defined function, it could be one of the following:
+  // 1. A column from the input row
+  // 2. The result of another user-defined function
+  // 3. The constant value of the column
+  repeated Input inputs = 2;
+
+  // The index of the over window used in pandas batch over window aggregation
+  int32 window_index = 3;
+
+  // Whether the UDF takes row as input instead of each columns of a row
+  bool takes_row_as_input = 4;
+}
+
+// A list of user-defined functions to be executed in a batch.
+message UserDefinedFunctions {
+  repeated UserDefinedFunction udfs = 1;
+  bool metric_enabled = 2;
+  repeated OverWindow windows = 3;
+}
+
+// Used to describe the info of over window in pandas batch over window aggregation
+message OverWindow {
+  enum WindowType {
+    RANGE_UNBOUNDED = 0;
+    RANGE_UNBOUNDED_PRECEDING = 1;
+    RANGE_UNBOUNDED_FOLLOWING = 2;
+    RANGE_SLIDING = 3;
+    ROW_UNBOUNDED = 4;
+    ROW_UNBOUNDED_PRECEDING = 5;
+    ROW_UNBOUNDED_FOLLOWING = 6;
+    ROW_SLIDING = 7;
+  }
+  WindowType window_type = 1;
+  int64 lower_boundary = 2;
+  int64 upper_boundary = 3;
+}
+
+// User defined DataStream function definition.
+message UserDefinedDataStreamFunction {
+  enum FunctionType {
+    MAP = 0;
+    FLAT_MAP = 1;
+    REDUCE = 2;
+    CO_MAP = 3;
+    CO_FLAT_MAP = 4;
+    PROCESS = 5;
+    KEYED_PROCESS = 6;
+    TIMESTAMP_ASSIGNER = 7;
+  }
+
+  message JobParameter {
+    string key = 1;
+    string value = 2;
+  }
+
+  message RuntimeContext {
+    string task_name = 1;
+    string task_name_with_subtasks = 2;
+    int32 number_of_parallel_subtasks = 3;
+    int32 max_number_of_parallel_subtasks = 4;
+    int32 index_of_this_subtask = 5;
+    int32 attempt_number = 6;
+    repeated JobParameter job_parameters = 7;
+  }
+
+  FunctionType function_type = 1;
+  RuntimeContext runtime_context = 2;
+  bytes payload = 3;
+  bool metric_enabled = 4;
+  TypeInfo key_type_info = 5;
+}
+
+message UserDefinedAggregateFunction {
+  message DataViewSpec {
+    message ListView {
+      Schema.FieldType element_type = 1;
+    }
+    message MapView {
+      Schema.FieldType key_type = 1;
+      Schema.FieldType value_type = 2;
+    }
+    string name = 1;
+    int32 field_index = 2;
+    oneof data_view {
+      ListView list_view = 3;
+      MapView map_view = 4;
     }
   }
 
@@ -44,12 +136,39 @@ message UserDefinedFunction {
   // 2. The result of another user-defined function
   // 3. The constant value of the column
   repeated Input inputs = 2;
+
+  repeated DataViewSpec specs = 3;
+
+  int32 filter_arg = 4;
+
+  bool distinct = 5;
+
+  // Whether the UDF takes row as input instead of each columns of a row
+  bool takes_row_as_input = 6;
 }
 
-// A list of user-defined functions to be executed in a batch.
-message UserDefinedFunctions {
-  repeated UserDefinedFunction udfs = 1;
+// A list of the user-defined aggregate functions to be executed in a group aggregate operation.
+message UserDefinedAggregateFunctions {
+  repeated UserDefinedAggregateFunction udfs = 1;
   bool metric_enabled = 2;
+  // The array of the key indexes.
+  repeated int32 grouping = 3;
+  // Generate retract messages if true.
+  bool generate_update_before = 4;
+  // The schema of the grouping keys.
+  Schema.FieldType key_type = 5;
+  // The index of a count aggregate used to calculate the number of accumulated rows.
+  int32 index_of_count_star = 6;
+  // Cleanup the expired state if true.
+  bool state_cleaning_enabled = 7;
+  // The state cache size.
+  int32 state_cache_size = 8;
+  // The map state read cache size.
+  int32 map_state_read_cache_size = 9;
+  // The map_state_write_cache_size.
+  int32 map_state_write_cache_size = 10;
+  // True if the count(*) agg is inserted by the planner.
+  bool count_star_inserted = 11;
 }
 
 // A representation of the data schema.
@@ -71,7 +190,7 @@ message Schema {
     VARBINARY = 13;
     CHAR = 14;
     VARCHAR = 15;
-    ARRAY = 16;
+    BASIC_ARRAY = 16;
     MAP = 17;
     MULTISET = 18;
     LOCAL_ZONED_TIMESTAMP = 19;
@@ -146,4 +265,56 @@ message Schema {
   }
 
   repeated Field fields = 1;
+}
+
+// A representation of the data type information in DataStream.
+message TypeInfo {
+  enum TypeName {
+    ROW = 0;
+    STRING = 1;
+    BYTE = 2;
+    BOOLEAN = 3;
+    SHORT = 4;
+    INT = 5;
+    LONG = 6;
+    FLOAT = 7;
+    DOUBLE = 8;
+    CHAR = 9;
+    BIG_INT = 10;
+    BIG_DEC = 11;
+    SQL_DATE = 12;
+    SQL_TIME = 13;
+    SQL_TIMESTAMP = 14;
+    BASIC_ARRAY = 15;
+    PRIMITIVE_ARRAY = 16;
+    TUPLE = 17;
+    LIST = 18;
+    MAP = 19;
+    PICKLED_BYTES = 20;
+  }
+
+  message MapTypeInfo {
+    TypeInfo key_type = 1;
+    TypeInfo value_type = 2;
+  }
+
+  message RowTypeInfo {
+    message Field {
+      string field_name = 1;
+      TypeInfo field_type = 2;
+    }
+    repeated Field fields = 1;
+  }
+
+  message TupleTypeInfo {
+    repeated TypeInfo field_types = 1;
+  }
+
+  TypeName type_name = 1;
+  oneof type_info {
+    TypeInfo collection_element_type = 2;
+    RowTypeInfo row_type_info = 3;
+    TupleTypeInfo tuple_type_info = 4;
+    MapTypeInfo map_type_info = 5;
+  }
 }

@@ -53,21 +53,21 @@ class RewriteMinusAllRuleTest extends TableTestBase {
 
   @Test
   def testExceptAll(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2")
+    util.verifyRelPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2")
   }
 
   @Test
   def testExceptAllWithFilter(): Unit = {
-    util.verifyPlan("SELECT c FROM (SELECT * FROM T1 EXCEPT ALL (SELECT * FROM T2)) WHERE b < 2")
+    util.verifyRelPlan("SELECT c FROM (SELECT * FROM T1 EXCEPT ALL (SELECT * FROM T2)) WHERE b < 2")
   }
 
   @Test
   def testExceptAllLeftIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 WHERE 1=0 EXCEPT ALL SELECT f FROM T2")
+    util.verifyRelPlan("SELECT c FROM T1 WHERE 1=0 EXCEPT ALL SELECT f FROM T2")
   }
 
   @Test
   def testExceptAllRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2 WHERE 1=0")
+    util.verifyRelPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2 WHERE 1=0")
   }
 }

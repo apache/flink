@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -39,17 +39,6 @@ under the License.
 	<properties>
 		<elasticsearch.version>5.3.3</elasticsearch.version>
 	</properties>
-
-	<dependencyManagement>
-		<dependencies>
-			<!-- Bump version to 1.25 to make it work with Jackson dependencies (2.10.1) -->
-			<dependency>
-				<groupId>org.yaml</groupId>
-				<artifactId>snakeyaml</artifactId>
-				<version>1.25</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<dependencies>
 

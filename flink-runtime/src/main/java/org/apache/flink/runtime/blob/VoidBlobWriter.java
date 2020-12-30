@@ -25,31 +25,30 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * BlobWriter which does not support writing BLOBs to a store. This class is
- * mainly used for testing purposes where we don't want to store data in the
- * BLOB store.
+ * BlobWriter which does not support writing BLOBs to a store. This class is mainly used for testing
+ * purposes where we don't want to store data in the BLOB store.
  */
 @VisibleForTesting
 public class VoidBlobWriter implements BlobWriter {
 
-	private static final VoidBlobWriter INSTANCE = new VoidBlobWriter();
+    private static final VoidBlobWriter INSTANCE = new VoidBlobWriter();
 
-	@Override
-	public PermanentBlobKey putPermanent(JobID jobId, byte[] value) throws IOException {
-		throw new IOException("The VoidBlobWriter cannot write data to the BLOB store.");
-	}
+    @Override
+    public PermanentBlobKey putPermanent(JobID jobId, byte[] value) throws IOException {
+        throw new IOException("The VoidBlobWriter cannot write data to the BLOB store.");
+    }
 
-	@Override
-	public PermanentBlobKey putPermanent(JobID jobId, InputStream inputStream) throws IOException {
-		throw new IOException("The VoidBlobWriter cannot write data to the BLOB store.");
-	}
+    @Override
+    public PermanentBlobKey putPermanent(JobID jobId, InputStream inputStream) throws IOException {
+        throw new IOException("The VoidBlobWriter cannot write data to the BLOB store.");
+    }
 
-	@Override
-	public int getMinOffloadingSize() {
-		return Integer.MAX_VALUE;
-	}
+    @Override
+    public int getMinOffloadingSize() {
+        return Integer.MAX_VALUE;
+    }
 
-	public static VoidBlobWriter getInstance() {
-		return INSTANCE;
-	}
+    public static VoidBlobWriter getInstance() {
+        return INSTANCE;
+    }
 }

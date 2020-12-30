@@ -25,6 +25,8 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Wei
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.utils.TableTestBase
 
+import java.time.Duration
+
 import org.junit.Test
 
 class WindowAggregateTest extends TableTestBase {
@@ -49,7 +51,7 @@ class WindowAggregateTest extends TableTestBase {
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
         "GROUP BY TUMBLE(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -57,7 +59,7 @@ class WindowAggregateTest extends TableTestBase {
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
         "GROUP BY HOP(proctime, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -65,20 +67,20 @@ class WindowAggregateTest extends TableTestBase {
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
         "GROUP BY SESSION(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
   def testVariableWindowSize(): Unit = {
     val sql = "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, c * INTERVAL '1' MINUTE)"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
   def testWindowUdAggInvalidArgs(): Unit = {
     val sqlQuery = "SELECT SUM(a) AS sumA, weightedAvg(a, b) AS wAvg FROM MyTable " +
       "GROUP BY TUMBLE(proctime(), INTERVAL '2' HOUR, TIME '10:00:00')"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[AssertionError])
@@ -92,7 +94,7 @@ class WindowAggregateTest extends TableTestBase {
       |FROM MyTable
       |    GROUP BY rollup(TUMBLE(rowtime, INTERVAL '15' MINUTE), b)
     """.stripMargin
-    util.verifyPlanNotExpected(sql, "TUMBLE(rowtime")
+    util.verifyRelPlanNotExpected(sql, "TUMBLE(rowtime")
   }
 
   @Test
@@ -105,7 +107,7 @@ class WindowAggregateTest extends TableTestBase {
     val sqlQuery =
       "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '1' MONTH)"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -118,14 +120,14 @@ class WindowAggregateTest extends TableTestBase {
     val sqlQuery =
       "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '2-10' YEAR TO MONTH)"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testIntervalDay(): Unit = {
     val sqlQuery =
       "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '35' DAY)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -139,7 +141,7 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -153,13 +155,13 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY 'a', TUMBLE(rowtime, INTERVAL '15' MINUTE)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testTumblingWindowWithProctime(): Unit = {
     val sql = "select sum(a), max(b) from MyTable1 group by TUMBLE(c, INTERVAL '1' SECOND)"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -182,7 +184,7 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |GROUP BY HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -207,7 +209,7 @@ class WindowAggregateTest extends TableTestBase {
         | GROUP BY HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY)) t2 ON t1.he1 = t2.he2
         |WHERE t1.s1 IS NOT NULL
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -221,7 +223,7 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY HOP(proctime, INTERVAL '15' MINUTE, INTERVAL '1' HOUR)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -232,7 +234,7 @@ class WindowAggregateTest extends TableTestBase {
          |from MyTable1
          |group by HOP(c, INTERVAL '1' SECOND, INTERVAL '1' MINUTE)
          |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -246,7 +248,7 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY SESSION(proctime, INTERVAL '15' MINUTE)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -257,7 +259,7 @@ class WindowAggregateTest extends TableTestBase {
          |from MyTable1
          |group by SESSION(c, INTERVAL '1' MINUTE)
          |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -269,7 +271,7 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -289,7 +291,7 @@ class WindowAggregateTest extends TableTestBase {
         |)
         |GROUP BY TUMBLE(zzzzz, INTERVAL '0.004' SECOND)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -304,7 +306,7 @@ class WindowAggregateTest extends TableTestBase {
         |     ) AS t1
         | GROUP BY b, ping_start
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -318,7 +320,7 @@ class WindowAggregateTest extends TableTestBase {
         |         GROUP BY a, b, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)) AS t1
         |GROUP BY b
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -332,7 +334,7 @@ class WindowAggregateTest extends TableTestBase {
         |         GROUP BY a, b, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)) AS t1
         |GROUP BY b, d, ping_start
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -346,7 +348,7 @@ class WindowAggregateTest extends TableTestBase {
         |         GROUP BY a, b, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)) AS t1
         |GROUP BY b, d
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -363,7 +365,7 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -377,7 +379,7 @@ class WindowAggregateTest extends TableTestBase {
         |     HAVING SUM(a) > 0 AND
         |         QUARTER(HOP_START(rowtime, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE)) = 1
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -399,7 +401,7 @@ class WindowAggregateTest extends TableTestBase {
         |GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -426,13 +428,13 @@ class WindowAggregateTest extends TableTestBase {
       |(SELECT * FROM window_2h)
       |""".stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testWindowAggregateWithLateFire(): Unit = {
     util.conf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    util.conf.getConfiguration.setString(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, "5s")
+    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
     util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     val sql =
       """
@@ -440,7 +442,7 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
         |""".stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -452,6 +454,6 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
         |""".stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 }

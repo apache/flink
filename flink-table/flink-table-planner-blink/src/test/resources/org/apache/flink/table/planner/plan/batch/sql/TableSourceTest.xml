@@ -27,16 +27,38 @@ SELECT id,
 FROM NestedTable
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
 +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedValue, deepNested.nested2.flag AS nestedFlag, deepNested.nested2.num AS nestedNum])
-+- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested, nested]]], fields=[id, deepNested, nested])
+Calc(select=[id, deepNested_nested1_name AS nestedName, nested_value AS nestedValue, deepNested_nested2_flag AS nestedFlag, deepNested_nested2_num AS nestedNum])
++- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value]]], fields=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestProjectWithMetadata">
+    <Resource name="sql">
+      <![CDATA[
+SELECT id,
+       deepNested.nested1 AS nested1,
+       deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
+FROM T
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, deepNested_nested1 AS nested1, ((deepNested_nested1.value + deepNested_nested2_num) + metadata_1) AS results])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested_nested1, deepNested_nested2_num, metadata_1]]], fields=[id, deepNested_nested1, deepNested_nested2_num, metadata_1])
 ]]>
     </Resource>
   </TestCase>
@@ -44,13 +66,13 @@ Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedVa
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM ProjectableTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
 ]]>
@@ -60,18 +82,18 @@ TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, pro
     <Resource name="sql">
       <![CDATA[SELECT COUNT(1) FROM ProjectableTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-+- LogicalProject($f0=[1])
++- LogicalProject($f0=[0])
    +- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0])
+   +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
       +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[]]], fields=[])
 ]]>
     </Resource>

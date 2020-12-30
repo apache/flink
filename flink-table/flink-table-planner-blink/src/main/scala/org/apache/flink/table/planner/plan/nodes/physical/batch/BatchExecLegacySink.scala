@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
@@ -27,7 +26,9 @@ import org.apache.flink.table.planner.codegen.SinkCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
@@ -53,8 +54,8 @@ class BatchExecLegacySink[T](
     sink: TableSink[T],
     sinkName: String)
   extends LegacySink(cluster, traitSet, inputRel, sink, sinkName)
-          with BatchPhysicalRel
-          with BatchExecNode[Any] {
+  with BatchPhysicalRel
+  with LegacyBatchExecNode[Any] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLegacySink(cluster, traitSet, inputs.get(0), sink, sinkName)
@@ -62,22 +63,12 @@ class BatchExecLegacySink[T](
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  /**
-    * For sink operator, the records will not pass through it, so it's DamBehavior is FULL_DAM.
-    *
-    * @return Returns [[DamBehavior]] of Sink.
-    */
-  override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
-
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
+  // the input records will not trigger any output of a sink because it has no output,
+  // so it's dam behavior is BLOCKING
+  override def getInputEdges: util.List[ExecEdge] = List(
+    ExecEdge.builder()
+      .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+      .build())
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[Any] = {
@@ -126,9 +117,9 @@ class BatchExecLegacySink[T](
     validateType(resultDataType)
     val inputNode = getInputNodes.get(0)
     inputNode match {
-      // Sink's input must be BatchExecNode[RowData] now.
-      case node: BatchExecNode[RowData] =>
-        val plan = node.translateToPlan(planner).asInstanceOf[Transformation[T]]
+      // Sink's input must be LegacyBatchExecNode[RowData] or BatchExecNode[RowData] now.
+      case _: LegacyBatchExecNode[RowData] | _: BatchExecNode[RowData] =>
+        val plan = inputNode.translateToPlan(planner).asInstanceOf[Transformation[T]]
         if (CodeGenUtils.isInternalClass(resultDataType)) {
           plan
         } else {
@@ -140,12 +131,13 @@ class BatchExecLegacySink[T](
             withChangeFlag,
             "SinkConversion"
           )
-          ExecNode.createOneInputTransformation(
+          ExecNodeUtil.createOneInputTransformation(
             plan,
             s"SinkConversionTo${resultDataType.getConversionClass.getSimpleName}",
             converterOperator,
             outputTypeInfo,
-            plan.getParallelism)
+            plan.getParallelism,
+            0)
         }
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +

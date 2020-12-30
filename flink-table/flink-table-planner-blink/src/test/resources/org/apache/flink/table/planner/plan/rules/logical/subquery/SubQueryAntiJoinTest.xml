@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r)  AND b NOT IN (SELECT i FROM t WHERE l.c = t.k AND i > 10)  AND EXISTS (SELECT COUNT(l) FROM t2 where n like 'Test' GROUP BY l) AND NOT EXISTS (SELECT * FROM r WHERE l.b <> r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
@@ -42,26 +42,26 @@ LogicalFilter(condition=[<>($cor0.b, $1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[<>($1, $3)], joinType=[anti])
-   :- LogicalJoin(condition=[$3], joinType=[semi])
-   :  :- LogicalJoin(condition=[AND(OR(=($1, $3), IS NULL($1), IS NULL($3)), =($2, $4))], joinType=[anti])
+   :- LogicalJoin(condition=[AND(OR(IS NULL($1), IS NULL($3), =($1, $3)), =($2, $4))], joinType=[anti])
+   :  :- LogicalJoin(condition=[$3], joinType=[semi])
    :  :  :- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
    :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    :  :  :  +- LogicalProject(d=[$0])
    :  :  :     +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
-   :  :  +- LogicalProject(i=[$0], k=[$2])
-   :  :     +- LogicalFilter(condition=[>($0, 10)])
-   :  :        +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
-   :  +- LogicalProject($f0=[IS NOT NULL($0)])
-   :     +- LogicalAggregate(group=[{}], m=[MIN($0)])
-   :        +- LogicalProject(i=[true])
-   :           +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($0)])
-   :              +- LogicalProject(l=[$0])
-   :                 +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'Test')])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(l, m, n)]]])
+   :  :  +- LogicalProject($f0=[IS NOT NULL($0)])
+   :  :     +- LogicalAggregate(group=[{}], m=[MIN($0)])
+   :  :        +- LogicalProject(i=[true])
+   :  :           +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($0)])
+   :  :              +- LogicalProject(l=[$0])
+   :  :                 +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'Test')])
+   :  :                    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(l, m, n)]]])
+   :  +- LogicalProject(i=[$0], k=[$2])
+   :     +- LogicalFilter(condition=[>($0, 10)])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
    +- LogicalProject(e=[$1])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
@@ -72,7 +72,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
@@ -87,7 +87,7 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
       +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalFilter(condition=[AND(=($0, $3), >=(CAST($2):BIGINT, 1))])
@@ -109,7 +109,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND (c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
@@ -124,7 +124,7 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
       +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalFilter(condition=[AND(=($0, $3), >=(CAST($2):BIGINT, 1))])
@@ -146,7 +146,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r) AND NOT EXISTS (SELECT * FROM t WHERE l.a = t.i AND t.j < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
@@ -158,7 +158,7 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[anti])
@@ -178,7 +178,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a <> r.d) AND NOT EXISTS (SELECT * FROM t WHERE j < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
@@ -191,7 +191,7 @@ LogicalFilter(condition=[<($1, 100)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[anti])
@@ -212,7 +212,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE NOT EXISTS (SELECT * FROM t) AND l.a = r.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -224,7 +224,7 @@ LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[anti])
@@ -243,7 +243,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE NOT EXISTS (SELECT * FROM t WHERE r.d = t.i))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -256,7 +256,7 @@ LogicalFilter(condition=[=($cor0.d, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[anti])
@@ -276,7 +276,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x, y WHERE x.a = y.c AND NOT EXISTS (SELECT * FROM z z1 WHERE z1.e > 50) AND b >= 1 AND NOT EXISTS (SELECT * FROM z z2 WHERE z2.f < 100)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
 +- LogicalFilter(condition=[AND(=($0, $2), NOT(EXISTS({
@@ -291,7 +291,7 @@ LogicalFilter(condition=[<($1, 100)])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
 +- LogicalFilter(condition=[AND(=($0, $2), >=($1, 1))])
@@ -317,7 +317,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -329,7 +329,7 @@ LogicalFilter(condition=[=($cor1.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[anti])
@@ -346,7 +346,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y WHERE a = c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -356,7 +356,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[anti])
@@ -371,7 +371,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y WHERE a = c) AND x.a > 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
@@ -381,7 +381,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[>($0, 2)])
@@ -397,7 +397,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE NOT EXISTS (SELECT 1, c + d, c + 2, d FROM y WHERE a = c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -407,7 +407,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[anti])
@@ -422,7 +422,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y WHERE x.a = c and x.b > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -432,7 +432,7 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.b, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalJoin(condition=[AND(=($0, $2), >($1, 10))], joinType=[anti])
@@ -447,7 +447,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT x1.a FROM x x1, y WHERE x1.b = y.d AND x1.a < 10 AND y.c < 15  AND NOT EXISTS (SELECT * FROM x x2 WHERE x1.b = x2.b)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[AND(=($1, $3), <($0, 10), <($2, 15), NOT(EXISTS({
@@ -459,7 +459,7 @@ LogicalFilter(condition=[=($cor0.b, $1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[AND(=($1, $3), <($0, 10), <($2, 15))])
@@ -477,7 +477,7 @@ LogicalProject(a=[$0])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y WHERE x.a < y.c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -487,7 +487,7 @@ LogicalFilter(condition=[<($cor0.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalJoin(condition=[<($0, $2)], joinType=[anti])
@@ -502,7 +502,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (NOT EXISTS (SELECT d FROM y WHERE y.d = x.b)) IS TRUE]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[IS TRUE(NOT(EXISTS({
@@ -512,7 +512,7 @@ LogicalFilter(condition=[=($1, $cor0.b)])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalJoin(condition=[=($2, $1)], joinType=[anti])
@@ -527,7 +527,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT a FROM x WHERE NOT EXISTS (SELECT x.a IS NULL FROM y WHERE y.d = x.b)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -537,7 +537,7 @@ LogicalFilter(condition=[=($1, $cor0.b)])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalJoin(condition=[=($2, $1)], joinType=[anti])
@@ -552,7 +552,7 @@ LogicalProject(a=[$0])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (NOT EXISTS (SELECT d FROM y WHERE y.d = x.b)) = true]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[=(NOT(EXISTS({
@@ -562,7 +562,7 @@ LogicalFilter(condition=[=($1, $cor0.b)])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalJoin(condition=[=($2, $1)], joinType=[anti])
@@ -577,7 +577,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -588,7 +588,7 @@ LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[anti])
@@ -606,7 +606,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -615,7 +615,7 @@ LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalJoin(condition=[$2], joinType=[anti])
@@ -631,7 +631,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE NOT EXISTS (SELECT * FROM y where c > 0) AND a < 100]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
@@ -641,7 +641,7 @@ LogicalFilter(condition=[>($0, 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[<($0, 100)])
@@ -659,7 +659,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE NOT (NOT (NOT EXISTS (SELECT * FROM y))) AND x.b = 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[AND(NOT(NOT(NOT(EXISTS({
@@ -668,7 +668,7 @@ LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[=($1, 10)])
@@ -685,7 +685,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (NOT EXISTS (SELECT d FROM y)) IS TRUE]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[IS TRUE(NOT(EXISTS({
@@ -694,7 +694,7 @@ LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalJoin(condition=[$2], joinType=[anti])
@@ -710,7 +710,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT a FROM x WHERE NOT EXISTS (SELECT x.b IS NULL FROM y)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -719,7 +719,7 @@ LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalJoin(condition=[$2], joinType=[anti])
@@ -735,7 +735,7 @@ LogicalProject(a=[$0])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (NOT EXISTS (SELECT d FROM r)) = true]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[=(NOT(EXISTS({
@@ -744,7 +744,7 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[$3], joinType=[anti])
@@ -760,7 +760,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a = r.d) AND a NOT IN (SELECT i FROM t WHERE l.b = t.j)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
@@ -774,10 +774,10 @@ LogicalProject(i=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), =($1, $4))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($3), =($0, $3)), =($1, $4))], joinType=[anti])
    :- LogicalJoin(condition=[=($0, $3)], joinType=[anti])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    :  +- LogicalProject(d=[$0])
@@ -793,7 +793,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b NOT IN (SELECT j FROM t)  AND NOT EXISTS (SELECT * FROM r WHERE l.a = r.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(IN($1, {
@@ -806,11 +806,11 @@ LogicalFilter(condition=[=($cor0.a, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[anti])
-   :- LogicalJoin(condition=[OR(=($1, $3), IS NULL($1), IS NULL($3))], joinType=[anti])
+   :- LogicalJoin(condition=[OR(IS NULL($1), IS NULL($3), =($1, $3))], joinType=[anti])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    :  +- LogicalProject(j=[$1])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
@@ -824,7 +824,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE c NOT IN (SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($2, {
@@ -837,10 +837,10 @@ LogicalProject(f1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(OR(=($2, $3), IS NULL($2), IS NULL($3)), =($0, $4))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($2), IS NULL($3), =($2, $3)), =($0, $4))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(f1=[$3], d=[$0])
       +- LogicalFilter(condition=[true])
@@ -854,7 +854,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a NOT IN (SELECT c FROM y where x.b = y.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -865,10 +865,10 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[AND(OR(=($0, $2), IS NULL($0), IS NULL($2)), =($1, $3))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($2), =($0, $2)), =($1, $3))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c=[$0], d=[$1])
       +- LogicalFilter(condition=[true])
@@ -880,7 +880,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE b > 1 AND a NOT IN (SELECT c FROM y WHERE x.b = y.d AND y.c > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[AND(>($1, 1), NOT(IN($0, {
@@ -891,11 +891,11 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[>($1, 1)])
-   +- LogicalJoin(condition=[AND(OR(=($0, $2), IS NULL($0), IS NULL($2)), =($1, $3))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($2), =($0, $2)), =($1, $3))], joinType=[anti])
       :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
       +- LogicalProject(c=[$0], d=[$1])
          +- LogicalFilter(condition=[>($0, 10)])
@@ -907,7 +907,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE b > 1 AND a + 1 NOT IN (SELECT c FROM y WHERE x.b = y.d AND y.c > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[AND(>($1, 1), NOT(IN(+($0, 1), {
@@ -918,12 +918,12 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalFilter(condition=[>($1, 1)])
-      +- LogicalJoin(condition=[AND(OR(=($2, $3), IS NULL($2), IS NULL($3)), =($1, $4))], joinType=[anti])
+      +- LogicalJoin(condition=[AND(OR(IS NULL($2), IS NULL($3), =($2, $3)), =($1, $4))], joinType=[anti])
          :- LogicalProject(a=[$0], b=[$1], $f2=[+($0, 1)])
          :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
          +- LogicalProject(c=[$0], d=[$1])
@@ -936,7 +936,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a NOT IN (SELECT c1 FROM (SELECT d * 2 as d1, c + 1 as c1 FROM y) y1 WHERE x.b = y1.d1 AND d1 > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -948,10 +948,10 @@ LogicalProject(c1=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[AND(OR(=($0, $2), IS NULL($0), IS NULL($2)), =($1, $3))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($2), =($0, $2)), =($1, $3))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c1=[$1], d1=[$0])
       +- LogicalFilter(condition=[>($0, 10)])
@@ -964,7 +964,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a NOT IN (SELECT c FROM y WHERE x.b > y.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -975,10 +975,10 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[AND(OR(=($0, $2), IS NULL($0), IS NULL($2)), >($1, $3))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($2), =($0, $2)), >($1, $3))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c=[$0], d=[$1])
       +- LogicalFilter(condition=[true])
@@ -990,7 +990,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a NOT IN (SELECT c FROM y WHERE x.b > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -1001,10 +1001,10 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[AND(OR(=($0, $2), IS NULL($0), IS NULL($2)), >($1, 10))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($2), =($0, $2)), >($1, 10))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c=[$0])
       +- LogicalFilter(condition=[true])
@@ -1016,7 +1016,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (CASE WHEN a > 10 THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r WHERE l.a = r.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CASE(>($0, 10), 1, 2), {
@@ -1027,11 +1027,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($3, $4), IS NULL($4)), =($0, $4))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($4), =($3, $4)), =($0, $4))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(>($0, 10), 1, 2)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(d=[$0])
@@ -1044,7 +1044,7 @@ LogicalProject(b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (CASE WHEN a IN (SELECT 1 FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CASE(IN($0, {
@@ -1058,11 +1058,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($3, $4), IS NULL($4)), =($2, $5))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($4), =($3, $4)), =($2, $5))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(AND(<>($3, 0), IS NOT NULL($6), IS NOT NULL($0)), 1, 2)])
       :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :     :- LogicalJoin(condition=[true], joinType=[inner])
@@ -1083,7 +1083,7 @@ LogicalProject(b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
@@ -1097,11 +1097,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($3, $4), IS NULL($4)), =($2, $5))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($4), =($3, $4)), =($2, $5))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(OR(=($3, 0), AND(IS NULL($6), >=($4, $3), IS NOT NULL($0))), 1, 2)])
       :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :     :- LogicalJoin(condition=[true], joinType=[inner])
@@ -1122,7 +1122,7 @@ LogicalProject(b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
@@ -1139,11 +1139,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($3, $4), IS NULL($4)), =($2, $5))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($4), =($3, $4)), =($2, $5))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(OR(=($3, 0), AND(IS NULL($6), >=($4, $3), IS NOT NULL($0))), 1, OR(=($7, 0), AND(IS NULL($10), >=($8, $7), IS NOT NULL($0))), 2, 3)])
       :  +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
       :     :- LogicalJoin(condition=[true], joinType=[inner])
@@ -1172,7 +1172,7 @@ LogicalProject(b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (b, (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END)) NOT IN (SELECT e, d FROM r WHERE l.c = r.f)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN($1, CASE(NOT(IN($0, {
@@ -1189,11 +1189,11 @@ LogicalProject(e=[$1], d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($1, $4), IS NULL($1), IS NULL($4)), OR(=($3, $5), IS NULL($5)), =($2, $6))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($1), IS NULL($4), =($1, $4)), OR(IS NULL($5), =($3, $5)), =($2, $6))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(OR(=($3, 0), AND(IS NULL($6), >=($4, $3), IS NOT NULL($0))), 1, OR(=($7, 0), AND(IS NULL($10), >=($8, $7), IS NOT NULL($0))), 2, 3)])
       :  +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
       :     :- LogicalJoin(condition=[true], joinType=[inner])
@@ -1222,7 +1222,7 @@ LogicalProject(b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT CAST(e AS INTEGER) FROM r where CAST(l.b AS INTEGER) = CAST(r.d AS INTEGER))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -1233,11 +1233,11 @@ LogicalProject(EXPR$0=[CAST($1):INTEGER])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($0, $4), IS NULL($0), IS NULL($4)), =($3, $5))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($4), =($0, $4)), =($3, $5))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], b0=[CAST($1):INTEGER])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(EXPR$0=[CAST($1):INTEGER], d=[$0])
@@ -1250,7 +1250,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT a + 10, c FROM l WHERE a + 10 NOT IN (SELECT d + 1 FROM r WHERE l.b + 1 = r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 +- LogicalFilter(condition=[NOT(IN(+($0, 10), {
@@ -1261,12 +1261,12 @@ LogicalProject(EXPR$0=[+($0, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$3])
-      +- LogicalJoin(condition=[AND(OR(=($3, $5), IS NULL($3), IS NULL($5)), =($4, $6))], joinType=[anti])
+      +- LogicalJoin(condition=[AND(OR(IS NULL($3), IS NULL($5), =($3, $5)), =($4, $6))], joinType=[anti])
          :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$3], $f4=[+($1, 1)])
          :  +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 10)])
          :     +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
@@ -1280,7 +1280,7 @@ LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE c NOT IN (SELECT TRIM(f) FROM r where l.a = r.d + 1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($2, {
@@ -1291,10 +1291,10 @@ LogicalProject(EXPR$0=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(OR(=($2, $3), IS NULL($2), IS NULL($3)), =($0, $5))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($2), IS NULL($3), =($2, $3)), =($0, $5))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(EXPR$0=[$0], d=[$1], $f2=[+($1, 1)])
       +- LogicalProject(EXPR$0=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)], d=[$0])
@@ -1307,7 +1307,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b > 10 AND (c like 'abc' AND a NOT IN (SELECT d FROM r where l.b = r.e))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, _UTF-16LE'abc'), NOT(IN($0, {
@@ -1318,11 +1318,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, _UTF-16LE'abc'))])
-   +- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), =($1, $4))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($3), =($0, $3)), =($1, $4))], joinType=[anti])
       :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(d=[$0], e=[$1])
          +- LogicalFilter(condition=[true])
@@ -1334,7 +1334,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b NOT IN (SELECT e * 5 FROM (SELECT SUM(e) AS e FROM r WHERE l.a = r.d) r1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($1, {
@@ -1347,10 +1347,10 @@ LogicalProject(EXPR$0=[*($0, 5)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(OR(=($1, $3), IS NULL($1), IS NULL($3)), =($0, $4))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($1), IS NULL($3), =($1, $3)), =($0, $4))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(EXPR$0=[*($1, 5)], d=[$0])
       +- LogicalAggregate(group=[{0}], e=[SUM($1)])
@@ -1364,7 +1364,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a, c) NOT IN (SELECT d, f FROM r WHERE l.b = r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, $2, {
@@ -1375,10 +1375,10 @@ LogicalProject(d=[$0], f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), OR(=($2, $4), IS NULL($2), IS NULL($4)), =($1, $5))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($3), =($0, $3)), OR(IS NULL($2), IS NULL($4), =($2, $4)), =($1, $5))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(d=[$0], f=[$2], e=[$1])
       +- LogicalFilter(condition=[true])
@@ -1390,7 +1390,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a, SUBSTRING(c, 1, 5)) NOT IN (SELECT d, TRIM(f) FROM r WHERE l.b = r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, SUBSTRING($2, 1, 5), {
@@ -1401,11 +1401,11 @@ LogicalProject(d=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($0, $4), IS NULL($0), IS NULL($4)), OR(=($3, $5), IS NULL($3), IS NULL($5)), =($1, $6))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($4), =($0, $4)), OR(IS NULL($3), IS NULL($5), =($3, $5)), =($1, $6))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[SUBSTRING($2, 1, 5)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(d=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)], e=[$1])
@@ -1418,7 +1418,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a + 10, SUBSTRING(c, 1, 5)) NOT IN (SELECT d + 100, TRIM(f) FROM r WHERE l.b = r.e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN(+($0, 10), SUBSTRING($2, 1, 5), {
@@ -1429,11 +1429,11 @@ LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($3, $5), IS NULL($3), IS NULL($5)), OR(=($4, $6), IS NULL($4), IS NULL($6)), =($1, $7))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($3), IS NULL($5), =($3, $5)), OR(IS NULL($4), IS NULL($6), =($4, $6)), =($1, $7))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 10)], $f4=[SUBSTRING($2, 1, 5)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)], e=[$1])
@@ -1446,7 +1446,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT a FROM x WHERE a NOT IN (SELECT c FROM y WHERE x.b = y.d) AND b NOT IN (SELECT f FROM z)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[AND(NOT(IN($0, {
@@ -1460,11 +1460,11 @@ LogicalProject(f=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0])
-+- LogicalJoin(condition=[OR(=($1, $2), IS NULL($1), IS NULL($2))], joinType=[anti])
-   :- LogicalJoin(condition=[AND(OR(=($0, $2), IS NULL($0), IS NULL($2)), =($1, $3))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($1), IS NULL($2), =($1, $2))], joinType=[anti])
+   :- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($2), =($0, $2)), =($1, $3))], joinType=[anti])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    :  +- LogicalProject(c=[$0], d=[$1])
    :     +- LogicalFilter(condition=[true])
@@ -1478,7 +1478,7 @@ LogicalProject(a=[$0])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a NOT IN (SELECT c FROM y) AND b NOT IN (SELECT e FROM z WHERE z.f = x.b)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[AND(NOT(IN($0, {
@@ -1492,11 +1492,11 @@ LogicalProject(e=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[AND(OR(=($1, $2), IS NULL($1), IS NULL($2)), =($3, $1))], joinType=[anti])
-   :- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($1), IS NULL($2), =($1, $2)), =($3, $1))], joinType=[anti])
+   :- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    :  +- LogicalProject(c=[$0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])
@@ -1510,7 +1510,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a NOT IN (SELECT c FROM y WHERE d NOT IN (SELECT f FROM z) AND x.b = y.d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -1524,13 +1524,13 @@ LogicalProject(f=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[AND(OR(=($0, $2), IS NULL($0), IS NULL($2)), =($1, $3))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($2), =($0, $2)), =($1, $3))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c=[$0], d=[$1])
-      +- LogicalJoin(condition=[OR(=($1, $2), IS NULL($1), IS NULL($2))], joinType=[anti])
+      +- LogicalJoin(condition=[OR(IS NULL($1), IS NULL($2), =($1, $2))], joinType=[anti])
          :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])
          +- LogicalProject(f=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(e, f)]]])
@@ -1541,7 +1541,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a NOT IN (SELECT c FROM y WHERE d NOT IN (SELECT f FROM z WHERE z.e = y.c))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -1556,13 +1556,13 @@ LogicalProject(f=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c=[$0])
-      +- LogicalJoin(condition=[AND(OR(=($1, $2), IS NULL($1), IS NULL($2)), =($3, $0))], joinType=[anti])
+      +- LogicalJoin(condition=[AND(OR(IS NULL($1), IS NULL($2), =($1, $2)), =($3, $0))], joinType=[anti])
          :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])
          +- LogicalProject(f=[$1], e=[$0])
             +- LogicalFilter(condition=[true])
@@ -1574,7 +1574,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE c NOT IN (SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($2, {
@@ -1586,10 +1586,10 @@ LogicalProject(f1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[OR(=($2, $3), IS NULL($2), IS NULL($3))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($2), IS NULL($3), =($2, $3))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(f1=[$3])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
@@ -1602,7 +1602,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a NOT IN (SELECT c FROM y)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -1612,10 +1612,10 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])
@@ -1626,7 +1626,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a NOT IN (SELECT c FROM y WHERE d < 100) AND b > 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[AND(NOT(IN($0, {
@@ -1637,11 +1637,11 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[>($1, 10)])
-   +- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
+   +- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
       :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
       +- LogicalProject(c=[$0])
          +- LogicalFilter(condition=[<($1, 100)])
@@ -1653,7 +1653,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a + 1 NOT IN (SELECT c FROM y)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN(+($0, 1), {
@@ -1663,11 +1663,11 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalJoin(condition=[OR(=($2, $3), IS NULL($2), IS NULL($3))], joinType=[anti])
+   +- LogicalJoin(condition=[OR(IS NULL($2), IS NULL($3), =($2, $3))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], $f2=[+($0, 1)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
       +- LogicalProject(c=[$0])
@@ -1679,7 +1679,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a * b NOT IN (SELECT d FROM y)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN(*($0, $1), {
@@ -1689,11 +1689,11 @@ LogicalProject(d=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalJoin(condition=[OR(=($2, $3), IS NULL($2), IS NULL($3))], joinType=[anti])
+   +- LogicalJoin(condition=[OR(IS NULL($2), IS NULL($3), =($2, $3))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], $f2=[*($0, $1)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
       +- LogicalProject(d=[$1])
@@ -1705,7 +1705,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE CAST(a AS BIGINT) NOT IN (SELECT d FROM y)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CAST($0):BIGINT, {
@@ -1715,11 +1715,11 @@ LogicalProject(d=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalJoin(condition=[OR(=($2, $3), IS NULL($2), IS NULL($3))], joinType=[anti])
+   +- LogicalJoin(condition=[OR(IS NULL($2), IS NULL($3), =($2, $3))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], a0=[CAST($0):BIGINT])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
       +- LogicalProject(d=[$1])
@@ -1731,7 +1731,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE a NOT IN (SELECT c FROM y WHERE c IS NOT NULL)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -1742,10 +1742,10 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c=[$0])
       +- LogicalFilter(condition=[IS NOT NULL($0)])
@@ -1757,7 +1757,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT a FROM x x1 WHERE a NOT IN (SELECT a FROM x WHERE a < 3 GROUP BY a)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -1769,10 +1769,10 @@ LogicalAggregate(group=[{0}])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0])
-+- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalAggregate(group=[{0}])
       +- LogicalProject(a=[$0])
@@ -1785,7 +1785,7 @@ LogicalProject(a=[$0])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (CASE WHEN a > 10 THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CASE(>($0, 10), 1, 2), {
@@ -1795,11 +1795,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[OR(=($3, $4), IS NULL($4))], joinType=[anti])
+   +- LogicalJoin(condition=[OR(IS NULL($4), =($3, $4))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(>($0, 10), 1, 2)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(d=[$0])
@@ -1811,7 +1811,7 @@ LogicalProject(b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT 1 FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
@@ -1824,11 +1824,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[OR(=($3, $4), IS NULL($4))], joinType=[anti])
+   +- LogicalJoin(condition=[OR(IS NULL($4), =($3, $4))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(OR(=($3, 0), AND(IS NULL($6), >=($4, $3), IS NOT NULL($0))), 1, 2)])
       :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :     :- LogicalJoin(condition=[true], joinType=[inner])
@@ -1848,7 +1848,7 @@ LogicalProject(b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
@@ -1861,11 +1861,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[OR(=($3, $4), IS NULL($4))], joinType=[anti])
+   +- LogicalJoin(condition=[OR(IS NULL($4), =($3, $4))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(OR(=($3, 0), AND(IS NULL($6), >=($4, $3), IS NOT NULL($0))), 1, 2)])
       :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :     :- LogicalJoin(condition=[true], joinType=[inner])
@@ -1885,7 +1885,7 @@ LogicalProject(b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END) NOT IN (SELECT d FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
@@ -1901,11 +1901,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[OR(=($3, $4), IS NULL($4))], joinType=[anti])
+   +- LogicalJoin(condition=[OR(IS NULL($4), =($3, $4))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(OR(=($3, 0), AND(IS NULL($6), >=($4, $3), IS NOT NULL($0))), 1, OR(=($7, 0), AND(IS NULL($10), >=($8, $7), IS NOT NULL($0))), 2, 3)])
       :  +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
       :     :- LogicalJoin(condition=[true], joinType=[inner])
@@ -1933,7 +1933,7 @@ LogicalProject(b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT b FROM l WHERE (b, (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END)) NOT IN (SELECT e, d FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN($1, CASE(NOT(IN($0, {
@@ -1949,11 +1949,11 @@ LogicalProject(e=[$1], d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(b=[$1])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($1, $4), IS NULL($1), IS NULL($4)), OR(=($3, $5), IS NULL($5)))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($1), IS NULL($4), =($1, $4)), OR(IS NULL($5), =($3, $5)))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(OR(=($3, 0), AND(IS NULL($6), >=($4, $3), IS NOT NULL($0))), 1, OR(=($7, 0), AND(IS NULL($10), >=($8, $7), IS NOT NULL($0))), 2, 3)])
       :  +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
       :     :- LogicalJoin(condition=[true], joinType=[inner])
@@ -1981,7 +1981,7 @@ LogicalProject(b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT c FROM l WHERE ( (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 ELSE 2 END),  (CASE WHEN b NOT IN (SELECT j FROM t2) THEN 3 ELSE 4 END))  NOT IN (SELECT d, e FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
@@ -1997,11 +1997,11 @@ LogicalProject(d=[$0], e=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($3, $5), IS NULL($5)), OR(=($4, $6), IS NULL($6)))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($5), =($3, $5)), OR(IS NULL($6), =($4, $6)))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(OR(=($3, 0), AND(IS NULL($6), >=($4, $3), IS NOT NULL($0))), 1, 2)], $f4=[CASE(OR(=($7, 0), AND(IS NULL($10), >=($8, $7), IS NOT NULL($1))), 3, 4)])
       :  +- LogicalJoin(condition=[=($1, $9)], joinType=[left])
       :     :- LogicalJoin(condition=[true], joinType=[inner])
@@ -2029,7 +2029,7 @@ LogicalProject(c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT (a IN (SELECT d FROM r))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -2039,10 +2039,10 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[OR(=($0, $3), IS NULL($0), IS NULL($3))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($3), =($0, $3))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(d=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
@@ -2053,7 +2053,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT ( NOT ( a NOT IN (SELECT d FROM r)))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -2063,10 +2063,10 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[OR(=($0, $3), IS NULL($0), IS NULL($3))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($3), =($0, $3))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(d=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
@@ -2077,7 +2077,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT (a IN (SELECT d FROM r) OR b > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(IN($0, {
@@ -2087,11 +2087,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=($1, 10)])
-   +- LogicalJoin(condition=[OR(=($0, $3), IS NULL($0), IS NULL($3))], joinType=[anti])
+   +- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($3), =($0, $3))], joinType=[anti])
       :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(d=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
@@ -2102,7 +2102,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE b > 10 AND (c like 'abc' AND a NOT IN (SELECT d FROM r))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, _UTF-16LE'abc'), NOT(IN($0, {
@@ -2112,11 +2112,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, _UTF-16LE'abc'))])
-   +- LogicalJoin(condition=[OR(=($0, $3), IS NULL($0), IS NULL($3))], joinType=[anti])
+   +- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($3), =($0, $3))], joinType=[anti])
       :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(d=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
@@ -2127,7 +2127,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (a NOT IN (SELECT c FROM y)) IS TRUE]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[IS TRUE(NOT(IN($0, {
@@ -2137,10 +2137,10 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])
@@ -2151,7 +2151,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (a NOT IN (SELECT c FROM y) = TRUE)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[=(NOT(IN($0, {
@@ -2161,10 +2161,10 @@ LogicalProject(c=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b)]]])
    +- LogicalProject(c=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(c, d)]]])
@@ -2175,7 +2175,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a, c) NOT IN (SELECT d, f FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, $2, {
@@ -2185,10 +2185,10 @@ LogicalProject(d=[$0], f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), OR(=($2, $4), IS NULL($2), IS NULL($4)))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($3), =($0, $3)), OR(IS NULL($2), IS NULL($4), =($2, $4)))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(d=[$0], f=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
@@ -2199,7 +2199,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a + 1, c) NOT IN (SELECT d, f FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN(+($0, 1), $2, {
@@ -2209,11 +2209,11 @@ LogicalProject(d=[$0], f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($3, $4), IS NULL($3), IS NULL($4)), OR(=($2, $5), IS NULL($2), IS NULL($5)))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($3), IS NULL($4), =($3, $4)), OR(IS NULL($2), IS NULL($5), =($2, $5)))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 1)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(d=[$0], f=[$2])
@@ -2225,7 +2225,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE (a + 10, TRIM(c)) NOT IN (SELECT d + 100, SUBSTRING(f, 1, 5) FROM r)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN(+($0, 10), TRIM(FLAG(BOTH), _UTF-16LE' ', $2), {
@@ -2235,11 +2235,11 @@ LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($3, $5), IS NULL($3), IS NULL($5)), OR(=($4, $6), IS NULL($4), IS NULL($6)))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($3), IS NULL($5), =($3, $5)), OR(IS NULL($4), IS NULL($6), =($4, $6)))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 10)], $f4=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])

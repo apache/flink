@@ -21,45 +21,45 @@ package org.apache.flink.orc.nohive.vector;
 import org.apache.orc.storage.ql.exec.vector.LongColumnVector;
 
 /**
- * This column vector is used to adapt hive's LongColumnVector to
- * Flink's boolean, byte, short, int and long ColumnVector.
+ * This column vector is used to adapt hive's LongColumnVector to Flink's boolean, byte, short, int
+ * and long ColumnVector.
  */
-public class OrcNoHiveLongVector extends AbstractOrcNoHiveVector implements
-		org.apache.flink.table.data.vector.LongColumnVector,
-		org.apache.flink.table.data.vector.BooleanColumnVector,
-		org.apache.flink.table.data.vector.ByteColumnVector,
-		org.apache.flink.table.data.vector.ShortColumnVector,
-		org.apache.flink.table.data.vector.IntColumnVector {
+public class OrcNoHiveLongVector extends AbstractOrcNoHiveVector
+        implements org.apache.flink.table.data.vector.LongColumnVector,
+                org.apache.flink.table.data.vector.BooleanColumnVector,
+                org.apache.flink.table.data.vector.ByteColumnVector,
+                org.apache.flink.table.data.vector.ShortColumnVector,
+                org.apache.flink.table.data.vector.IntColumnVector {
 
-	private LongColumnVector vector;
+    private LongColumnVector vector;
 
-	public OrcNoHiveLongVector(LongColumnVector vector) {
-		super(vector);
-		this.vector = vector;
-	}
+    public OrcNoHiveLongVector(LongColumnVector vector) {
+        super(vector);
+        this.vector = vector;
+    }
 
-	@Override
-	public long getLong(int i) {
-		return vector.vector[vector.isRepeating ? 0 : i];
-	}
+    @Override
+    public long getLong(int i) {
+        return vector.vector[vector.isRepeating ? 0 : i];
+    }
 
-	@Override
-	public boolean getBoolean(int i) {
-		return vector.vector[vector.isRepeating ? 0 : i] == 1;
-	}
+    @Override
+    public boolean getBoolean(int i) {
+        return vector.vector[vector.isRepeating ? 0 : i] == 1;
+    }
 
-	@Override
-	public byte getByte(int i) {
-		return (byte) vector.vector[vector.isRepeating ? 0 : i];
-	}
+    @Override
+    public byte getByte(int i) {
+        return (byte) vector.vector[vector.isRepeating ? 0 : i];
+    }
 
-	@Override
-	public int getInt(int i) {
-		return (int) vector.vector[vector.isRepeating ? 0 : i];
-	}
+    @Override
+    public int getInt(int i) {
+        return (int) vector.vector[vector.isRepeating ? 0 : i];
+    }
 
-	@Override
-	public short getShort(int i) {
-		return (short) vector.vector[vector.isRepeating ? 0 : i];
-	}
+    @Override
+    public short getShort(int i) {
+        return (short) vector.vector[vector.isRepeating ? 0 : i];
+    }
 }

@@ -105,11 +105,8 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 // enable externalized checkpoints which are retained after job cancellation
 env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-// allow job recovery fallback to checkpoint when there is a more recent savepoint
-env.getCheckpointConfig().setPreferCheckpointForRecovery(true);
-
 // enables the experimental unaligned checkpoints
-env.getCheckpointConfig.enableUnalignedCheckpoints();
+env.getCheckpointConfig().enableUnalignedCheckpoints();
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -175,7 +172,7 @@ env.get_checkpoint_config().enable_unaligned_checkpoints()
 
 ### Related Config Options
 
-Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see [configuration]({% link ops/config.md %}) for a full guide):
+Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see [configuration]({% link deployment/config.md %}) for a full guide):
 
 {% include generated/checkpointing_configuration.html %}
 

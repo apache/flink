@@ -23,25 +23,22 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList
-import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, OverAggregateUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, OverAggregateUtil}
 import org.apache.flink.table.runtime.operators.over._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
-import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
 
@@ -59,21 +56,13 @@ class StreamExecOverAggregate(
     outputRowType: RelDataType,
     inputRowType: RelDataType,
     logicWindow: Window)
-  extends SingleRel(cluster, traitSet, inputRel)
-  with StreamPhysicalRel
-  with StreamExecNode[RowData] {
-
-  override def requireWatermark: Boolean = {
-    if (logicWindow.groups.size() != 1
-      || logicWindow.groups.get(0).orderKeys.getFieldCollations.size() != 1) {
-      return false
-    }
-    val orderKey = logicWindow.groups.get(0).orderKeys.getFieldCollations.get(0)
-    val timeType = outputRowType.getFieldList.get(orderKey.getFieldIndex).getType
-    FlinkTypeFactory.isRowtimeIndicatorType(timeType)
-  }
-
-  override def deriveRowType(): RelDataType = outputRowType
+  extends StreamExecOverAggregateBase(
+    cluster,
+    traitSet,
+    inputRel,
+    outputRowType,
+    inputRowType,
+    logicWindow) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamExecOverAggregate(
@@ -84,56 +73,6 @@ class StreamExecOverAggregate(
       inputRowType,
       logicWindow
     )
-  }
-
-  override def estimateRowCount(mq: RelMetadataQuery): Double = {
-    // over window: one input at least one output (do not introduce retract amplification)
-    mq.getRowCount(getInput)
-  }
-
-  override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
-    // by default, assume cost is proportional to number of rows
-    val rowCnt: Double = mq.getRowCount(this)
-    val count = (getRowType.getFieldCount - 1) * 1.0 / inputRel.getRowType.getFieldCount
-    planner.getCostFactory.makeCost(rowCnt, rowCnt * count, 0)
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val overWindow: Group = logicWindow.groups.get(0)
-    val constants: Seq[RexLiteral] = logicWindow.constants.asScala
-    val partitionKeys: Array[Int] = overWindow.keys.toArray
-    val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
-
-    super.explainTerms(pw)
-      .itemIf("partitionBy", RelExplainUtil.fieldToString(partitionKeys, inputRowType),
-        partitionKeys.nonEmpty)
-      .item("orderBy", RelExplainUtil.collationToString(overWindow.orderKeys, inputRowType))
-      .item("window", RelExplainUtil.windowRangeToString(logicWindow, overWindow))
-      .item("select", RelExplainUtil.overAggregationToString(
-        inputRowType,
-        outputRowType,
-        constants,
-        namedAggregates))
-  }
-
-  private def generateNamedAggregates: Seq[CalcitePair[AggregateCall, String]] = {
-    val overWindow: Group = logicWindow.groups.get(0)
-
-    val aggregateCalls = overWindow.getAggregateCalls(logicWindow)
-    for (i <- 0 until aggregateCalls.size())
-      yield new CalcitePair[AggregateCall, String](aggregateCalls.get(i), "w0$o" + i)
-  }
-
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.asScala.map(_.asInstanceOf[ExecNode[StreamPlanner, _]]).asJava
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(

@@ -28,32 +28,31 @@ import org.apache.flink.table.types.DataType;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.validateInputDataType;
 
-/**
- * Implementation of {@link LookupTableSource.Context}.
- */
+/** Implementation of {@link LookupTableSource.Context}. */
 @Internal
 public final class LookupRuntimeProviderContext implements LookupTableSource.LookupContext {
 
-	private final int[][] lookupKeys;
+    private final int[][] lookupKeys;
 
-	public LookupRuntimeProviderContext(int[][] lookupKeys) {
-		this.lookupKeys = lookupKeys;
-	}
+    public LookupRuntimeProviderContext(int[][] lookupKeys) {
+        this.lookupKeys = lookupKeys;
+    }
 
-	@Override
-	public int[][] getKeys() {
-		return lookupKeys;
-	}
+    @Override
+    public int[][] getKeys() {
+        return lookupKeys;
+    }
 
-	@Override
-	public TypeInformation<?> createTypeInformation(DataType producedDataType) {
-		validateInputDataType(producedDataType);
-		return InternalTypeInfo.of(producedDataType.getLogicalType());
-	}
+    @Override
+    public TypeInformation<?> createTypeInformation(DataType producedDataType) {
+        validateInputDataType(producedDataType);
+        return InternalTypeInfo.of(producedDataType.getLogicalType());
+    }
 
-	@Override
-	public DataStructureConverter createDataStructureConverter(DataType producedDataType) {
-		validateInputDataType(producedDataType);
-		return new DataStructureConverterWrapper(DataStructureConverters.getConverter(producedDataType));
-	}
+    @Override
+    public DataStructureConverter createDataStructureConverter(DataType producedDataType) {
+        validateInputDataType(producedDataType);
+        return new DataStructureConverterWrapper(
+                DataStructureConverters.getConverter(producedDataType));
+    }
 }

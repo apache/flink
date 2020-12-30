@@ -26,37 +26,38 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import java.util.Map;
 
 /**
- * Base class which imitates the reporting of the existing {@link JobManagerMetricGroup} in order
- * to guarantee backwards compatibility of metrics which are factored out of the {@link JobManagerMetricGroup}.
+ * Base class which imitates the reporting of the existing {@link JobManagerMetricGroup} in order to
+ * guarantee backwards compatibility of metrics which are factored out of the {@link
+ * JobManagerMetricGroup}.
  */
 class AbstractImitatingJobManagerMetricGroup extends AbstractMetricGroup<AbstractMetricGroup<?>> {
-	protected final String hostname;
+    protected final String hostname;
 
-	AbstractImitatingJobManagerMetricGroup(MetricRegistry registry, String hostname) {
-		super(registry, getScope(registry, hostname), null);
-		this.hostname = hostname;
-	}
+    AbstractImitatingJobManagerMetricGroup(MetricRegistry registry, String hostname) {
+        super(registry, getScope(registry, hostname), null);
+        this.hostname = hostname;
+    }
 
-	private static String[] getScope(MetricRegistry registry, String hostname) {
-		// returning jobmanager scope in order to guarantee backwards compatibility
-		// this can be changed once we introduce a proper scope for the process metric group
-		return registry.getScopeFormats().getJobManagerFormat().formatScope(hostname);
-	}
+    private static String[] getScope(MetricRegistry registry, String hostname) {
+        // returning jobmanager scope in order to guarantee backwards compatibility
+        // this can be changed once we introduce a proper scope for the process metric group
+        return registry.getScopeFormats().getJobManagerFormat().formatScope(hostname);
+    }
 
-	@Override
-	protected final String getGroupName(CharacterFilter filter) {
-		// returning jobmanager in order to guarantee backwards compatibility
-		// this can be changed once we introduce a proper group name for the process metric group
-		return "jobmanager";
-	}
+    @Override
+    protected final String getGroupName(CharacterFilter filter) {
+        // returning jobmanager in order to guarantee backwards compatibility
+        // this can be changed once we introduce a proper group name for the process metric group
+        return "jobmanager";
+    }
 
-	@Override
-	protected final void putVariables(Map<String, String> variables) {
-		variables.put(ScopeFormat.SCOPE_HOST, hostname);
-	}
+    @Override
+    protected final void putVariables(Map<String, String> variables) {
+        variables.put(ScopeFormat.SCOPE_HOST, hostname);
+    }
 
-	@Override
-	protected final QueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
-		return new QueryScopeInfo.JobManagerQueryScopeInfo();
-	}
+    @Override
+    protected final QueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
+        return new QueryScopeInfo.JobManagerQueryScopeInfo();
+    }
 }

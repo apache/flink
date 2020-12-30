@@ -20,16 +20,16 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM src WHERE a > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(ts=[$0], a=[$1], b=[$2])
 +- LogicalFilter(condition=[>($1, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[ts, a, b], where=[>(a, 1)])
+Calc(select=[ts, a, b], where=[(a > 1)])
 +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[ts, a, b])
 ]]>
     </Resource>
@@ -38,15 +38,15 @@ Calc(select=[ts, a, b], where=[>(a, 1)])
     <Resource name="sql">
       <![CDATA[SELECT * FROM computed_column_t]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
 +- LogicalTableScan(table=[[default_catalog, default_database, computed_column_t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
+Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
 +- TableSourceScan(table=[[default_catalog, default_database, computed_column_t]], fields=[a, b])
 ]]>
     </Resource>
@@ -55,15 +55,15 @@ Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
     <Resource name="sql">
       <![CDATA[SELECT * FROM c_watermark_t]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
 +- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
+Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
 +- TableSourceScan(table=[[default_catalog, default_database, c_watermark_t]], fields=[a, b])
 ]]>
     </Resource>
@@ -72,65 +72,65 @@ Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableApiScanWithComputedColumn">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
 +- LogicalTableScan(table=[[default_catalog, default_database, computed_column_t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
+Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
 +- TableSourceScan(table=[[default_catalog, default_database, computed_column_t]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableApiScanWithDDL">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableApiScanWithWatermark">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
 +- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
+Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
 +- TableSourceScan(table=[[default_catalog, default_database, c_watermark_t]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableApiScanWithTemporaryTable">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CsvTableSource(read fields: word)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [CsvTableSource(read fields: word)]]], fields=[word])
 ]]>

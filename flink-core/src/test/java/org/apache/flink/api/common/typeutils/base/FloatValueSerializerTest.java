@@ -18,41 +18,46 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.FloatValue;
 
-/**
- * A test for the {@link FloatValueSerializer}.
- */
+import java.util.Random;
+
+/** A test for the {@link FloatValueSerializer}. */
 public class FloatValueSerializerTest extends SerializerTestBase<FloatValue> {
-	
-	@Override
-	protected TypeSerializer<FloatValue> createSerializer() {
-		return new FloatValueSerializer();
-	}
-	
-	@Override
-	protected int getLength() {
-		return 4;
-	}
-	
-	@Override
-	protected Class<FloatValue> getTypeClass() {
-		return FloatValue.class;
-	}
-	
-	@Override
-	protected FloatValue[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
-		float rndFloat = rnd.nextFloat() * Float.MAX_VALUE;
-		
-		return new FloatValue[] {new FloatValue(0), new FloatValue(1), new FloatValue(-1),
-							new FloatValue(Float.MAX_VALUE), new FloatValue(Float.MIN_VALUE),
-							new FloatValue(rndFloat), new FloatValue(-rndFloat),
-							new FloatValue(Float.NaN),
-							new FloatValue(Float.NEGATIVE_INFINITY), new FloatValue(Float.POSITIVE_INFINITY)};
-	}
-}	
+
+    @Override
+    protected TypeSerializer<FloatValue> createSerializer() {
+        return new FloatValueSerializer();
+    }
+
+    @Override
+    protected int getLength() {
+        return 4;
+    }
+
+    @Override
+    protected Class<FloatValue> getTypeClass() {
+        return FloatValue.class;
+    }
+
+    @Override
+    protected FloatValue[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
+        float rndFloat = rnd.nextFloat() * Float.MAX_VALUE;
+
+        return new FloatValue[] {
+            new FloatValue(0),
+            new FloatValue(1),
+            new FloatValue(-1),
+            new FloatValue(Float.MAX_VALUE),
+            new FloatValue(Float.MIN_VALUE),
+            new FloatValue(rndFloat),
+            new FloatValue(-rndFloat),
+            new FloatValue(Float.NaN),
+            new FloatValue(Float.NEGATIVE_INFINITY),
+            new FloatValue(Float.POSITIVE_INFINITY)
+        };
+    }
+}

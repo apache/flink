@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A FULL JOIN B ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[full])
@@ -28,7 +28,7 @@ LogicalProject(a1=[$0], b1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I])
@@ -44,7 +44,7 @@ Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A FULL JOIN B ON a1 = b1 AND a2 > b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[AND(=($0, $3), >($1, $4))], joinType=[full])
@@ -52,7 +52,7 @@ LogicalProject(a1=[$0], b1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
@@ -69,7 +69,7 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) FULL JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$3])
 +- LogicalJoin(condition=[=($1, $3)], joinType=[full])
@@ -83,7 +83,7 @@ LogicalProject(a1=[$1], b1=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA])
@@ -103,7 +103,7 @@ Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) FULL JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a1 = b1 AND a2 > b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$3])
 +- LogicalJoin(condition=[AND(=($1, $3), >($0, $2))], joinType=[full])
@@ -117,7 +117,7 @@ LogicalProject(a1=[$1], b1=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b2, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
@@ -140,7 +140,7 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) FULL JOIN B ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$2])
 +- LogicalJoin(condition=[=($1, $2)], joinType=[full])
@@ -151,7 +151,7 @@ LogicalProject(a1=[$1], b1=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA])
@@ -169,7 +169,7 @@ Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) FULL JOIN B ON a1 = b1 AND a2 > b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$2])
 +- LogicalJoin(condition=[AND(=($1, $2), >($0, $3))], joinType=[full])
@@ -180,7 +180,7 @@ LogicalProject(a1=[$1], b1=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
@@ -199,7 +199,7 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, a2, b1, b2 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) FULL JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a2 = b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[full])
@@ -213,10 +213,10 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[FullOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[FullOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -236,7 +236,7 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, a2, b1, b2 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) FULL JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a2 = b2 AND a1 > b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
 +- LogicalJoin(condition=[AND(=($0, $2), >($1, $3))], joinType=[full])
@@ -250,10 +250,10 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[FullOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[FullOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -273,7 +273,7 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A JOIN B ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -281,9 +281,9 @@ LogicalProject(a1=[$0], b1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(a1 = b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a1]])
 :  +- Calc(select=[a1])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
@@ -297,7 +297,7 @@ Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[No
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$3])
 +- LogicalJoin(condition=[=($1, $3)], joinType=[inner])
@@ -311,7 +311,7 @@ LogicalProject(a1=[$1], b1=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA])
@@ -331,7 +331,7 @@ Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[Jo
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) LEFT JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$3])
 +- LogicalJoin(condition=[=($1, $3)], joinType=[left])
@@ -345,7 +345,7 @@ LogicalProject(a1=[$1], b1=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA])
@@ -365,7 +365,7 @@ Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
     <Resource name="sql">
       <![CDATA[SELECT a1, a2, b1, b2 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a2 = b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
@@ -379,10 +379,10 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA])
-+- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA])
++- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -407,7 +407,7 @@ SELECT * FROM
   ON MyTable3.i = MyTable4.i and MyTable3.i = MyTable4.k
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(i=[$0], j=[$1], t=[$2], i0=[$3], k=[$4])
 +- LogicalJoin(condition=[AND(=($0, $3), =($0, $4))], joinType=[full])
@@ -416,9 +416,9 @@ LogicalProject(i=[$0], j=[$1], t=[$2], i0=[$3], k=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable4, source: [TestTableSource(i, k)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[FullOuterJoin], where=[AND(=(i, i0), =(i, k))], select=[i, j, t, i0, k], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[FullOuterJoin], where=[((i = i0) AND (i = k))], select=[i, j, t, i0, k], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[i, i]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(i, j, t)]]], fields=[i, j, t])
 +- Exchange(distribution=[hash[i, k]])
@@ -430,7 +430,7 @@ Join(joinType=[FullOuterJoin], where=[AND(=(i, i0), =(i, k))], select=[i, j, t, 
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A LEFT JOIN B ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
@@ -438,7 +438,7 @@ LogicalProject(a1=[$0], b1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I])
@@ -454,7 +454,7 @@ Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A LEFT JOIN B ON a1 = b1 AND a2 > b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[AND(=($0, $3), >($1, $4))], joinType=[left])
@@ -462,7 +462,7 @@ LogicalProject(a1=[$0], b1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
@@ -479,7 +479,7 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) LEFT JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a1 = b1 AND a2 > b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$3])
 +- LogicalJoin(condition=[AND(=($1, $3), >($0, $2))], joinType=[left])
@@ -493,7 +493,7 @@ LogicalProject(a1=[$1], b1=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b2, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
@@ -516,7 +516,7 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, a2, b1, b2 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) LEFT JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a2 = b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
@@ -530,10 +530,10 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[LeftOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[LeftOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -553,7 +553,7 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, a2, b1, b2 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) LEFT JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a2 = b2 AND a1 > b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
 +- LogicalJoin(condition=[AND(=($0, $2), >($1, $3))], joinType=[left])
@@ -567,10 +567,10 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -590,7 +590,7 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) LEFT JOIN B ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$2])
 +- LogicalJoin(condition=[=($1, $2)], joinType=[left])
@@ -601,7 +601,7 @@ LogicalProject(a1=[$1], b1=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA])
@@ -619,7 +619,7 @@ Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) LEFT JOIN B ON a1 = b1 AND a2 > b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$2])
 +- LogicalJoin(condition=[AND(=($1, $2), >($0, $3))], joinType=[left])
@@ -630,7 +630,7 @@ LogicalProject(a1=[$1], b1=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
@@ -649,7 +649,7 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT b, y FROM t LEFT OUTER JOIN s ON a = z AND b < 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, 2))], joinType=[left])
@@ -657,10 +657,10 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[((a = z) AND (b < 2))], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -674,7 +674,7 @@ Calc(select=[b, y])
     <Resource name="sql">
       <![CDATA[SELECT b, y FROM t LEFT OUTER JOIN s ON a = z AND b < x]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[left])
@@ -682,10 +682,10 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[((a = z) AND (b < x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -698,7 +698,7 @@ Calc(select=[b, y])
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A RIGHT JOIN B ON a1 = b1 AND a2 > b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[AND(=($0, $3), >($1, $4))], joinType=[right])
@@ -706,7 +706,7 @@ LogicalProject(a1=[$0], b1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
@@ -723,7 +723,7 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT b, y FROM t LEFT OUTER JOIN s ON a = z]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
@@ -731,10 +731,10 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[=(a, z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[(a = z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -748,7 +748,7 @@ Calc(select=[b, y])
     <Resource name="sql">
       <![CDATA[SELECT b, y FROM t RIGHT OUTER JOIN s ON a = z]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
@@ -756,10 +756,10 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[RightOuterJoin], where=[=(a, z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[RightOuterJoin], where=[(a = z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -773,7 +773,7 @@ Calc(select=[b, y])
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A RIGHT JOIN B ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[right])
@@ -781,7 +781,7 @@ LogicalProject(a1=[$0], b1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I])
@@ -797,7 +797,7 @@ Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpe
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) RIGHT JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$3])
 +- LogicalJoin(condition=[=($1, $3)], joinType=[right])
@@ -811,7 +811,7 @@ LogicalProject(a1=[$1], b1=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA])
@@ -831,7 +831,7 @@ Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpe
     <Resource name="sql">
       <![CDATA[SELECT a1, a2, b1, b2 FROM (SELECT SUM(a2) AS a2, a1 FROM A group by a1) RIGHT JOIN (SELECT SUM(b2) AS b2, b1 FROM B group by b1) ON a2 = b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right])
@@ -845,10 +845,10 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[RightOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[RightOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -868,7 +868,7 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, a2, b1, b2 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) RIGHT JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a2 = b2 AND a1 > b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
 +- LogicalJoin(condition=[AND(=($0, $2), >($1, $3))], joinType=[right])
@@ -882,10 +882,10 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -905,7 +905,7 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A group by a1) RIGHT JOIN B ON a1 = b1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$2])
 +- LogicalJoin(condition=[=($1, $2)], joinType=[right])
@@ -916,7 +916,7 @@ LogicalProject(a1=[$1], b1=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA])
@@ -934,7 +934,7 @@ Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpe
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) RIGHT JOIN B ON a1 = b1 AND a2 > b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$2])
 +- LogicalJoin(condition=[AND(=($1, $2), >($0, $3))], joinType=[right])
@@ -945,7 +945,7 @@ LogicalProject(a1=[$1], b1=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
@@ -964,7 +964,7 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) RIGHT JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a1 = b1 AND a2 > b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$1], b1=[$3])
 +- LogicalJoin(condition=[AND(=($1, $3), >($0, $2))], joinType=[right])
@@ -978,7 +978,7 @@ LogicalProject(a1=[$1], b1=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b2, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
@@ -1001,7 +1001,7 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
     <Resource name="sql">
       <![CDATA[SELECT b, x FROM t RIGHT OUTER JOIN s ON a = z AND x < 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], x=[$3])
 +- LogicalJoin(condition=[AND(=($0, $5), <($3, 2))], joinType=[right])
@@ -1009,10 +1009,10 @@ LogicalProject(b=[$1], x=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, x])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), <(x, 2))], select=[a, b, x, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[RightOuterJoin], where=[((a = z) AND (x < 2))], select=[a, b, x, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -1026,7 +1026,7 @@ Calc(select=[b, x])
     <Resource name="sql">
       <![CDATA[SELECT b, y FROM t RIGHT OUTER JOIN s ON a = z AND b < x]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[right])
@@ -1034,10 +1034,10 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[RightOuterJoin], where=[((a = z) AND (b < x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -1056,7 +1056,7 @@ LEFT OUTER JOIN (
 ON (src1.key = src2.key AND src2.key > 10)
        ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(key=[$0], v=[$1], key0=[$2], v0=[$3])
 +- LogicalJoin(condition=[AND(=($0, $2), >($2, 10))], joinType=[left])
@@ -1068,7 +1068,7 @@ LogicalProject(key=[$0], v=[$1], key0=[$2], v0=[$3])
          +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [TestTableSource(key, v)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Join(joinType=[LeftOuterJoin], where=[=(key, key0)], select=[key, v, key0, v0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[key]], changelogMode=[I])

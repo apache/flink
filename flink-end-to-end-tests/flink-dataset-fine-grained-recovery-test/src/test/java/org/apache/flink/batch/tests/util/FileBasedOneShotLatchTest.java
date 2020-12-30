@@ -29,64 +29,63 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link FileBasedOneShotLatch}.
- */
+/** Tests for {@link FileBasedOneShotLatch}. */
 public class FileBasedOneShotLatchTest {
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private FileBasedOneShotLatch latch;
+    private FileBasedOneShotLatch latch;
 
-	private File latchFile;
+    private File latchFile;
 
-	@Before
-	public void setUp() {
-		latchFile = new File(temporaryFolder.getRoot(), "latchFile");
-		latch = new FileBasedOneShotLatch(latchFile.toPath());
-	}
+    @Before
+    public void setUp() {
+        latchFile = new File(temporaryFolder.getRoot(), "latchFile");
+        latch = new FileBasedOneShotLatch(latchFile.toPath());
+    }
 
-	@Test
-	public void awaitReturnsWhenFileIsCreated() throws Exception {
-		final AtomicBoolean awaitCompleted = new AtomicBoolean();
-		final Thread thread = new Thread(() -> {
-			try {
-				latch.await();
-				awaitCompleted.set(true);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		});
-		thread.start();
+    @Test
+    public void awaitReturnsWhenFileIsCreated() throws Exception {
+        final AtomicBoolean awaitCompleted = new AtomicBoolean();
+        final Thread thread =
+                new Thread(
+                        () -> {
+                            try {
+                                latch.await();
+                                awaitCompleted.set(true);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        });
+        thread.start();
 
-		latchFile.createNewFile();
-		thread.join();
+        latchFile.createNewFile();
+        thread.join();
 
-		assertTrue(awaitCompleted.get());
-	}
+        assertTrue(awaitCompleted.get());
+    }
 
-	@Test
-	public void subsequentAwaitDoesNotBlock() throws Exception {
-		latchFile.createNewFile();
-		latch.await();
-		latch.await();
-	}
+    @Test
+    public void subsequentAwaitDoesNotBlock() throws Exception {
+        latchFile.createNewFile();
+        latch.await();
+        latch.await();
+    }
 
-	@Test
-	public void subsequentAwaitDoesNotBlockEvenIfLatchFileIsDeleted() throws Exception {
-		latchFile.createNewFile();
-		latch.await();
+    @Test
+    public void subsequentAwaitDoesNotBlockEvenIfLatchFileIsDeleted() throws Exception {
+        latchFile.createNewFile();
+        latch.await();
 
-		latchFile.delete();
-		latch.await();
-	}
+        latchFile.delete();
+        latch.await();
+    }
 
-	@Test
-	public void doesNotBlockIfFileExistsPriorToCreatingLatch() throws Exception {
-		latchFile.createNewFile();
+    @Test
+    public void doesNotBlockIfFileExistsPriorToCreatingLatch() throws Exception {
+        latchFile.createNewFile();
 
-		final FileBasedOneShotLatch latch = new FileBasedOneShotLatch(latchFile.toPath());
-		latch.await();
-	}
+        final FileBasedOneShotLatch latch = new FileBasedOneShotLatch(latchFile.toPath());
+        latch.await();
+    }
 }

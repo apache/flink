@@ -44,238 +44,249 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * An implementation of {@link BoundedData} simply through ByteBuffers backed by memory, typically
  * from a memory mapped file, so the data gets automatically evicted from memory if it grows large.
  *
- * <p>Most of the code in this class is a workaround for the fact that a memory mapped region in Java cannot
- * be larger than 2GB (== signed 32 bit int max value). The class takes {@link Buffer Buffers} and
- * writes them to several memory mapped region, using the {@link BufferReaderWriterUtil}
- * class.
+ * <p>Most of the code in this class is a workaround for the fact that a memory mapped region in
+ * Java cannot be larger than 2GB (== signed 32 bit int max value). The class takes {@link Buffer
+ * Buffers} and writes them to several memory mapped region, using the {@link
+ * BufferReaderWriterUtil} class.
  *
  * <h2>Important!</h2>
  *
- * <p>This class performs absolutely no synchronization and relies on single threaded access
- * or externally synchronized access. Concurrent access around disposal may cause
- * segmentation faults!
+ * <p>This class performs absolutely no synchronization and relies on single threaded access or
+ * externally synchronized access. Concurrent access around disposal may cause segmentation faults!
  *
- * <p>This class does limited sanity checks and assumes correct use from {@link BoundedBlockingSubpartition}
- * and {@link BoundedBlockingSubpartitionReader}, such as writing first and reading after.
- * Not obeying these contracts throws NullPointerExceptions.
+ * <p>This class does limited sanity checks and assumes correct use from {@link
+ * BoundedBlockingSubpartition} and {@link BoundedBlockingSubpartitionReader}, such as writing first
+ * and reading after. Not obeying these contracts throws NullPointerExceptions.
  */
 final class MemoryMappedBoundedData implements BoundedData {
 
-	/** Memory mappings should be at the granularity of page sizes, for efficiency. */
-	private static final int PAGE_SIZE = PageSizeUtil.getSystemPageSizeOrConservativeMultiple();
+    /** Memory mappings should be at the granularity of page sizes, for efficiency. */
+    private static final int PAGE_SIZE = PageSizeUtil.getSystemPageSizeOrConservativeMultiple();
 
-	/** The the current memory mapped region we are writing to.
-	 * This value is null once writing has finished or the buffers are disposed. */
-	@Nullable
-	private ByteBuffer currentBuffer;
+    /**
+     * The the current memory mapped region we are writing to. This value is null once writing has
+     * finished or the buffers are disposed.
+     */
+    @Nullable private ByteBuffer currentBuffer;
 
-	/** All memory mapped regions that are already full (completed). */
-	private final ArrayList<ByteBuffer> fullBuffers;
+    /** All memory mapped regions that are already full (completed). */
+    private final ArrayList<ByteBuffer> fullBuffers;
 
-	/** The file channel backing the memory mapped file. */
-	private final FileChannel file;
+    /** The file channel backing the memory mapped file. */
+    private final FileChannel file;
 
-	/** The path of the memory mapped file. */
-	private final Path filePath;
+    /** The path of the memory mapped file. */
+    private final Path filePath;
 
-	/** The offset where the next mapped region should start. */
-	private long nextMappingOffset;
+    /** The offset where the next mapped region should start. */
+    private long nextMappingOffset;
 
-	/** The size of each mapped region. */
-	private final long mappingSize;
+    /** The size of each mapped region. */
+    private final long mappingSize;
 
-	MemoryMappedBoundedData(
-			Path filePath,
-			FileChannel fileChannel,
-			int maxSizePerByteBuffer) throws IOException {
+    MemoryMappedBoundedData(Path filePath, FileChannel fileChannel, int maxSizePerByteBuffer)
+            throws IOException {
 
-		this.filePath = filePath;
-		this.file = fileChannel;
-		this.mappingSize = alignSize(maxSizePerByteBuffer);
-		this.fullBuffers = new ArrayList<>(4);
+        this.filePath = filePath;
+        this.file = fileChannel;
+        this.mappingSize = alignSize(maxSizePerByteBuffer);
+        this.fullBuffers = new ArrayList<>(4);
 
-		rollOverToNextBuffer();
-	}
+        rollOverToNextBuffer();
+    }
 
-	@Override
-	public void writeBuffer(Buffer buffer) throws IOException {
-		assert currentBuffer != null;
+    @Override
+    public void writeBuffer(Buffer buffer) throws IOException {
+        assert currentBuffer != null;
 
-		if (BufferReaderWriterUtil.writeBuffer(buffer, currentBuffer)) {
-			return;
-		}
+        if (BufferReaderWriterUtil.writeBuffer(buffer, currentBuffer)) {
+            return;
+        }
 
-		rollOverToNextBuffer();
+        rollOverToNextBuffer();
 
-		if (!BufferReaderWriterUtil.writeBuffer(buffer, currentBuffer)) {
-			throwTooLargeBuffer(buffer);
-		}
-	}
+        if (!BufferReaderWriterUtil.writeBuffer(buffer, currentBuffer)) {
+            throwTooLargeBuffer(buffer);
+        }
+    }
 
-	@Override
-	public BufferSlicer createReader(ResultSubpartitionView ignored) {
-		assert currentBuffer == null;
+    @Override
+    public BufferSlicer createReader(ResultSubpartitionView ignored) {
+        assert currentBuffer == null;
 
-		final List<ByteBuffer> buffers = fullBuffers.stream()
-				.map((bb) -> bb.slice().order(ByteOrder.nativeOrder()))
-				.collect(Collectors.toList());
+        final List<ByteBuffer> buffers =
+                fullBuffers.stream()
+                        .map((bb) -> bb.slice().order(ByteOrder.nativeOrder()))
+                        .collect(Collectors.toList());
 
-		return new BufferSlicer(buffers);
-	}
+        return new BufferSlicer(buffers);
+    }
 
-	/**
-	 * Finishes the current region and prevents further writes.
-	 * After calling this method, further calls to {@link #writeBuffer(Buffer)} will fail.
-	 */
-	@Override
-	public void finishWrite() throws IOException {
-		assert currentBuffer != null;
+    /**
+     * Finishes the current region and prevents further writes. After calling this method, further
+     * calls to {@link #writeBuffer(Buffer)} will fail.
+     */
+    @Override
+    public void finishWrite() throws IOException {
+        assert currentBuffer != null;
 
-		currentBuffer.flip();
-		fullBuffers.add(currentBuffer);
-		currentBuffer = null; // fail further writes fast
-		file.close(); // won't map further regions from now on
-	}
+        currentBuffer.flip();
+        fullBuffers.add(currentBuffer);
+        currentBuffer = null; // fail further writes fast
+        file.close(); // won't map further regions from now on
+    }
 
-	/**
-	 * Unmaps the file from memory and deletes the file.
-	 * After calling this method, access to any ByteBuffer obtained from this instance
-	 * will cause a segmentation fault.
-	 */
-	public void close() throws IOException {
-		IOUtils.closeQuietly(file); // in case we dispose before finishing writes
+    /**
+     * Unmaps the file from memory and deletes the file. After calling this method, access to any
+     * ByteBuffer obtained from this instance will cause a segmentation fault.
+     */
+    public void close() throws IOException {
+        IOUtils.closeQuietly(file); // in case we dispose before finishing writes
 
-		for (ByteBuffer bb : fullBuffers) {
-			PlatformDependent.freeDirectBuffer(bb);
-		}
-		fullBuffers.clear();
+        for (ByteBuffer bb : fullBuffers) {
+            PlatformDependent.freeDirectBuffer(bb);
+        }
+        fullBuffers.clear();
 
-		if (currentBuffer != null) {
-			PlatformDependent.freeDirectBuffer(currentBuffer);
-			currentBuffer = null;
-		}
+        if (currentBuffer != null) {
+            PlatformDependent.freeDirectBuffer(currentBuffer);
+            currentBuffer = null;
+        }
 
-		// To make this compatible with all versions of Windows, we must wait with
-		// deleting the file until it is unmapped.
-		// See also https://stackoverflow.com/questions/11099295/file-flag-delete-on-close-and-memory-mapped-files/51649618#51649618
+        // To make this compatible with all versions of Windows, we must wait with
+        // deleting the file until it is unmapped.
+        // See also
+        // https://stackoverflow.com/questions/11099295/file-flag-delete-on-close-and-memory-mapped-files/51649618#51649618
 
-		Files.delete(filePath);
-	}
+        Files.delete(filePath);
+    }
 
-	/**
-	 * Gets the number of bytes of all written data (including the metadata in the buffer headers).
-	 */
-	@Override
-	public long getSize() {
-		long size = 0L;
-		for (ByteBuffer bb : fullBuffers) {
-			size += bb.remaining();
-		}
-		if (currentBuffer != null) {
-			size += currentBuffer.position();
-		}
-		return size;
-	}
+    /**
+     * Gets the number of bytes of all written data (including the metadata in the buffer headers).
+     */
+    @Override
+    public long getSize() {
+        long size = 0L;
+        for (ByteBuffer bb : fullBuffers) {
+            size += bb.remaining();
+        }
+        if (currentBuffer != null) {
+            size += currentBuffer.position();
+        }
+        return size;
+    }
 
-	private void rollOverToNextBuffer() throws IOException {
-		if (currentBuffer != null) {
-			// we need to remember the original buffers, not any slices.
-			// slices have no cleaner, which we need to trigger explicit unmapping
-			currentBuffer.flip();
-			fullBuffers.add(currentBuffer);
-		}
+    @Override
+    public Path getFilePath() {
+        return filePath;
+    }
 
-		currentBuffer = file.map(MapMode.READ_WRITE, nextMappingOffset, mappingSize);
-		currentBuffer.order(ByteOrder.nativeOrder());
-		nextMappingOffset += mappingSize;
-	}
+    private void rollOverToNextBuffer() throws IOException {
+        if (currentBuffer != null) {
+            // we need to remember the original buffers, not any slices.
+            // slices have no cleaner, which we need to trigger explicit unmapping
+            currentBuffer.flip();
+            fullBuffers.add(currentBuffer);
+        }
 
-	private void throwTooLargeBuffer(Buffer buffer) throws IOException {
-		throw new IOException(String.format(
-				"The buffer (%d bytes) is larger than the maximum size of a memory buffer (%d bytes)",
-				buffer.getSize(), mappingSize));
-	}
+        currentBuffer = file.map(MapMode.READ_WRITE, nextMappingOffset, mappingSize);
+        currentBuffer.order(ByteOrder.nativeOrder());
+        nextMappingOffset += mappingSize;
+    }
 
-	/**
-	 * Rounds the size down to the next multiple of the {@link #PAGE_SIZE}.
-	 * We need to round down here to not exceed the original maximum size value.
-	 * Otherwise, values like INT_MAX would round up to overflow the valid maximum
-	 * size of a memory mapping region in Java.
-	 */
-	private static int alignSize(int maxRegionSize) {
-		checkArgument(maxRegionSize >= PAGE_SIZE);
-		return maxRegionSize - (maxRegionSize % PAGE_SIZE);
-	}
+    private void throwTooLargeBuffer(Buffer buffer) throws IOException {
+        throw new IOException(
+                String.format(
+                        "The buffer (%d bytes) is larger than the maximum size of a memory buffer (%d bytes)",
+                        buffer.getSize(), mappingSize));
+    }
 
-	// ------------------------------------------------------------------------
-	//  Reader
-	// ------------------------------------------------------------------------
+    /**
+     * Rounds the size down to the next multiple of the {@link #PAGE_SIZE}. We need to round down
+     * here to not exceed the original maximum size value. Otherwise, values like INT_MAX would
+     * round up to overflow the valid maximum size of a memory mapping region in Java.
+     */
+    private static int alignSize(int maxRegionSize) {
+        checkArgument(maxRegionSize >= PAGE_SIZE);
+        return maxRegionSize - (maxRegionSize % PAGE_SIZE);
+    }
 
-	/**
-	 * The "reader" for the memory region. It slices a sequence of buffers from the
-	 * sequence of mapped ByteBuffers.
-	 */
-	static final class BufferSlicer implements BoundedData.Reader {
+    // ------------------------------------------------------------------------
+    //  Reader
+    // ------------------------------------------------------------------------
 
-		/** The memory mapped region we currently read from.
-		 * Max 2GB large. Further regions may be in the {@link #furtherData} field. */
-		private ByteBuffer currentData;
+    /**
+     * The "reader" for the memory region. It slices a sequence of buffers from the sequence of
+     * mapped ByteBuffers.
+     */
+    static final class BufferSlicer implements BoundedData.Reader {
 
-		/** Further byte buffers, to handle cases where there is more data than fits into
-		 * one mapped byte buffer (2GB = Integer.MAX_VALUE). */
-		private final Iterator<ByteBuffer> furtherData;
+        /**
+         * The memory mapped region we currently read from. Max 2GB large. Further regions may be in
+         * the {@link #furtherData} field.
+         */
+        private ByteBuffer currentData;
 
-		BufferSlicer(Iterable<ByteBuffer> data) {
-			this.furtherData = data.iterator();
-			this.currentData = furtherData.next();
-		}
+        /**
+         * Further byte buffers, to handle cases where there is more data than fits into one mapped
+         * byte buffer (2GB = Integer.MAX_VALUE).
+         */
+        private final Iterator<ByteBuffer> furtherData;
 
-		@Override
-		@Nullable
-		public Buffer nextBuffer() {
-			// should only be null once empty or disposed, in which case this method
-			// should not be called any more
-			assert currentData != null;
+        BufferSlicer(Iterable<ByteBuffer> data) {
+            this.furtherData = data.iterator();
+            this.currentData = furtherData.next();
+        }
 
-			final Buffer next = BufferReaderWriterUtil.sliceNextBuffer(currentData);
-			if (next != null) {
-				return next;
-			}
+        @Override
+        @Nullable
+        public Buffer nextBuffer() {
+            // should only be null once empty or disposed, in which case this method
+            // should not be called any more
+            assert currentData != null;
 
-			if (!furtherData.hasNext()) {
-				return null;
-			}
+            final Buffer next = BufferReaderWriterUtil.sliceNextBuffer(currentData);
+            if (next != null) {
+                return next;
+            }
 
-			currentData = furtherData.next();
-			return nextBuffer();
-		}
+            if (!furtherData.hasNext()) {
+                return null;
+            }
 
-		@Override
-		public void close() throws IOException {
-			// nothing to do, this class holds no actual resources of its own,
-			// only references to the mapped byte buffers
-		}
-	}
+            currentData = furtherData.next();
+            return nextBuffer();
+        }
 
-	// ------------------------------------------------------------------------
-	//  Factories
-	// ------------------------------------------------------------------------
+        @Override
+        public void close() throws IOException {
+            // nothing to do, this class holds no actual resources of its own,
+            // only references to the mapped byte buffers
+        }
+    }
 
-	/**
-	 * Creates new MemoryMappedBoundedData, creating a memory mapped file at the given path.
-	 */
-	public static MemoryMappedBoundedData create(Path memMappedFilePath) throws IOException {
-		return createWithRegionSize(memMappedFilePath, Integer.MAX_VALUE);
-	}
+    // ------------------------------------------------------------------------
+    //  Factories
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Creates new MemoryMappedBoundedData, creating a memory mapped file at the given path.
-	 * Each mapped region (= ByteBuffer) will be of the given size.
-	 */
-	public static MemoryMappedBoundedData createWithRegionSize(Path memMappedFilePath, int regionSize) throws IOException {
-		final FileChannel fileChannel = FileChannel.open(memMappedFilePath,
-				StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
+    /** Creates new MemoryMappedBoundedData, creating a memory mapped file at the given path. */
+    public static MemoryMappedBoundedData create(Path memMappedFilePath) throws IOException {
+        return createWithRegionSize(memMappedFilePath, Integer.MAX_VALUE);
+    }
 
-		return new MemoryMappedBoundedData(memMappedFilePath, fileChannel, regionSize);
-	}
+    /**
+     * Creates new MemoryMappedBoundedData, creating a memory mapped file at the given path. Each
+     * mapped region (= ByteBuffer) will be of the given size.
+     */
+    public static MemoryMappedBoundedData createWithRegionSize(
+            Path memMappedFilePath, int regionSize) throws IOException {
+        final FileChannel fileChannel =
+                FileChannel.open(
+                        memMappedFilePath,
+                        StandardOpenOption.READ,
+                        StandardOpenOption.WRITE,
+                        StandardOpenOption.CREATE_NEW);
+
+        return new MemoryMappedBoundedData(memMappedFilePath, fileChannel, regionSize);
+    }
 }

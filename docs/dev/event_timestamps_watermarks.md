@@ -25,7 +25,7 @@ under the License.
 In this section you will learn about the APIs that Flink provides for working
 with **event time** timestamps and watermarks.  For an introduction to *event
 time*, *processing time*, and *ingestion time*, please refer to the
-[introduction to event time]({{ site.baseurl }}/dev/event_time.html).
+[introduction to event time]({% link dev/event_time.md %}).
 
 * toc
 {:toc}
@@ -127,7 +127,6 @@ should only be used if you cannot set a strategy directly on the source:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 DataStream<MyEvent> stream = env.readFile(
         myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
@@ -139,7 +138,7 @@ DataStream<MyEvent> withTimestampsAndWatermarks = stream
 
 withTimestampsAndWatermarks
         .keyBy( (event) -> event.getGroup() )
-        .timeWindow(Time.seconds(10))
+        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
         .reduce( (a, b) -> a.add(b) )
         .addSink(...);
 {% endhighlight %}
@@ -147,7 +146,6 @@ withTimestampsAndWatermarks
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 val stream: DataStream[MyEvent] = env.readFile(
          myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
@@ -159,7 +157,7 @@ val withTimestampsAndWatermarks: DataStream[MyEvent] = stream
 
 withTimestampsAndWatermarks
         .keyBy( _.getGroup )
-        .timeWindow(Time.seconds(10))
+        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
         .reduce( (a, b) => a.add(b) )
         .addSink(...)
 {% endhighlight %}
@@ -235,7 +233,7 @@ public interface WatermarkGenerator<T> {
 There are two different styles of watermark generation: *periodic* and
 *punctuated*.
 
-A periodic generator usually observes to the incoming events via `onEvent()`
+A periodic generator usually observes the incoming events via `onEvent()`
 and then emits a watermark when the framework calls `onPeriodicEmit()`.
 
 A puncutated generator will look at events in `onEvent()` and wait for special
@@ -261,8 +259,7 @@ Here we show two simple examples of watermark generators that use periodic
 watermark generation. Note that Flink ships with
 `BoundedOutOfOrdernessWatermarks`, which is a `WatermarkGenerator` that works
 similarly to the `BoundedOutOfOrdernessGenerator` shown below. You can read
-about using that [here]({{ site.baseurl
-}}/dev/event_timestamp_extractors.html#assigners-allowing-a-fixed-amount-of-lateness).
+about using that [here]({% link dev/event_timestamp_extractors.md %}#assigners-allowing-a-fixed-amount-of-lateness).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -455,7 +452,7 @@ val stream: DataStream[MyType] = env.addSource(kafkaSource)
 </div>
 </div>
 
-<img src="{{ site.baseurl }}/fig/parallel_kafka_watermarks.svg" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" />
+<img src="{% link /fig/parallel_kafka_watermarks.svg %}" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" />
 
 ## How Operators Process Watermarks
 
@@ -479,7 +476,7 @@ The details of this behavior are defined by the implementations of the
 
 Prior to introducing the current abstraction of `WatermarkStrategy`,
 `TimestampAssigner`, and `WatermarkGenerator`, Flink used
-`AssignerWithPeriodicWatermarks` and `AssignerWithPeriodicWatermarks`. You will
+`AssignerWithPeriodicWatermarks` and `AssignerWithPunctuatedWatermarks`. You will
 still see them in the API but it is recommended to use the new interfaces
 because they offer a clearer separation of concerns and also unify periodic and
 punctuated styles of watermark generation.

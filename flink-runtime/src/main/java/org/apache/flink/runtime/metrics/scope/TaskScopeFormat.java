@@ -18,45 +18,50 @@
 
 package org.apache.flink.runtime.metrics.scope;
 
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.util.AbstractID;
 
-/**
- * The scope format for the {@link org.apache.flink.runtime.metrics.groups.TaskMetricGroup}.
- */
+/** The scope format for the {@link org.apache.flink.runtime.metrics.groups.TaskMetricGroup}. */
 public class TaskScopeFormat extends ScopeFormat {
 
-	public TaskScopeFormat(String format, TaskManagerJobScopeFormat parentFormat) {
-		super(format, parentFormat, new String[] {
-				SCOPE_HOST,
-				SCOPE_TASKMANAGER_ID,
-				SCOPE_JOB_ID,
-				SCOPE_JOB_NAME,
-				SCOPE_TASK_VERTEX_ID,
-				SCOPE_TASK_ATTEMPT_ID,
-				SCOPE_TASK_NAME,
-				SCOPE_TASK_SUBTASK_INDEX,
-				SCOPE_TASK_ATTEMPT_NUM
-		});
-	}
+    public TaskScopeFormat(String format, TaskManagerJobScopeFormat parentFormat) {
+        super(
+                format,
+                parentFormat,
+                new String[] {
+                    SCOPE_HOST,
+                    SCOPE_TASKMANAGER_ID,
+                    SCOPE_JOB_ID,
+                    SCOPE_JOB_NAME,
+                    SCOPE_TASK_VERTEX_ID,
+                    SCOPE_TASK_ATTEMPT_ID,
+                    SCOPE_TASK_NAME,
+                    SCOPE_TASK_SUBTASK_INDEX,
+                    SCOPE_TASK_ATTEMPT_NUM
+                });
+    }
 
-	public String[] formatScope(
-			TaskManagerJobMetricGroup parent,
-			AbstractID vertexId, AbstractID attemptId,
-			String taskName, int subtask, int attemptNumber) {
+    public String[] formatScope(
+            TaskManagerJobMetricGroup parent,
+            AbstractID vertexId,
+            ExecutionAttemptID attemptId,
+            String taskName,
+            int subtask,
+            int attemptNumber) {
 
-		final String[] template = copyTemplate();
-		final String[] values = {
-				parent.parent().hostname(),
-				parent.parent().taskManagerId(),
-				valueOrNull(parent.jobId()),
-				valueOrNull(parent.jobName()),
-				valueOrNull(vertexId),
-				valueOrNull(attemptId),
-				valueOrNull(taskName),
-				String.valueOf(subtask),
-				String.valueOf(attemptNumber)
-		};
-		return bindVariables(template, values);
-	}
+        final String[] template = copyTemplate();
+        final String[] values = {
+            parent.parent().hostname(),
+            parent.parent().taskManagerId(),
+            valueOrNull(parent.jobId()),
+            valueOrNull(parent.jobName()),
+            valueOrNull(vertexId),
+            valueOrNull(attemptId),
+            valueOrNull(taskName),
+            String.valueOf(subtask),
+            String.valueOf(attemptNumber)
+        };
+        return bindVariables(template, values);
+    }
 }

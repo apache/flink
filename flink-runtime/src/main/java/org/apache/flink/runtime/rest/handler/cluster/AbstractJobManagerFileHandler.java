@@ -42,42 +42,43 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-/**
- * Base class for serving files from the JobManager.
- */
-public abstract class AbstractJobManagerFileHandler<M extends MessageParameters> extends AbstractHandler<RestfulGateway, EmptyRequestBody, M> {
+/** Base class for serving files from the JobManager. */
+public abstract class AbstractJobManagerFileHandler<M extends MessageParameters>
+        extends AbstractHandler<RestfulGateway, EmptyRequestBody, M> {
 
-	protected AbstractJobManagerFileHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			UntypedResponseMessageHeaders<EmptyRequestBody, M> messageHeaders) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
-	}
+    protected AbstractJobManagerFileHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            UntypedResponseMessageHeaders<EmptyRequestBody, M> messageHeaders) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    }
 
-	@Override
-	protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, M> handlerRequest, RestfulGateway gateway) {
-		File file = getFile(handlerRequest);
-		if (file != null && file.exists()) {
-			try {
-				HandlerUtils.transferFile(
-					ctx,
-					file,
-					httpRequest);
-			} catch (FlinkException e) {
-				throw new CompletionException(new FlinkException("Could not transfer file to client.", e));
-			}
-			return CompletableFuture.completedFuture(null);
-		} else {
-			return HandlerUtils.sendErrorResponse(
-				ctx,
-				httpRequest,
-				new ErrorResponseBody("This file does not exist in JobManager log dir."),
-				HttpResponseStatus.NOT_FOUND,
-				Collections.emptyMap());
-		}
-	}
+    @Override
+    protected CompletableFuture<Void> respondToRequest(
+            ChannelHandlerContext ctx,
+            HttpRequest httpRequest,
+            HandlerRequest<EmptyRequestBody, M> handlerRequest,
+            RestfulGateway gateway) {
+        File file = getFile(handlerRequest);
+        if (file != null && file.exists()) {
+            try {
+                HandlerUtils.transferFile(ctx, file, httpRequest);
+            } catch (FlinkException e) {
+                throw new CompletionException(
+                        new FlinkException("Could not transfer file to client.", e));
+            }
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return HandlerUtils.sendErrorResponse(
+                    ctx,
+                    httpRequest,
+                    new ErrorResponseBody("This file does not exist in JobManager log dir."),
+                    HttpResponseStatus.NOT_FOUND,
+                    Collections.emptyMap());
+        }
+    }
 
-	@Nullable
-	protected abstract File getFile(HandlerRequest<EmptyRequestBody, M> handlerRequest);
+    @Nullable
+    protected abstract File getFile(HandlerRequest<EmptyRequestBody, M> handlerRequest);
 }

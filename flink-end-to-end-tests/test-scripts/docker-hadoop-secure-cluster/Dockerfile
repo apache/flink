@@ -36,7 +36,7 @@ RUN set -x \
 # install dev tools
 RUN set -x \
     && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    curl tar sudo openssh-server openssh-client rsync unzip krb5-user
+    curl tar sudo openssh-server openssh-client rsync unzip krb5-user net-tools
 
 # Kerberos client
 RUN set -x \
@@ -128,7 +128,7 @@ RUN set -x \
     && echo "Port 2122" >> /etc/ssh/sshd_config
 
 # Hdfs ports
-EXPOSE 50470 9000 50010 50020 50070 50075 50090 50475 50091 8020
+EXPOSE 9000 50010 50020 50075 50090 50475 50091 8020
 # Mapred ports
 EXPOSE 19888
 # Yarn ports

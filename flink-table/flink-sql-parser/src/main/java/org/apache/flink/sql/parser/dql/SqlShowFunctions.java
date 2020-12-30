@@ -30,42 +30,38 @@ import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
 
-/**
- * SHOW FUNCTION Sql Call.
- */
+/** SHOW FUNCTION Sql Call. */
 public class SqlShowFunctions extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SHOW FUNCTIONS", SqlKind.OTHER);
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("SHOW FUNCTIONS", SqlKind.OTHER);
 
-	private final SqlIdentifier databaseName;
+    private final SqlIdentifier databaseName;
 
-	public SqlShowFunctions(SqlParserPos pos, SqlIdentifier database) {
-		super(pos);
-		this.databaseName = database;
-	}
+    public SqlShowFunctions(SqlParserPos pos, SqlIdentifier database) {
+        super(pos);
+        this.databaseName = database;
+    }
 
-	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
-	}
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(databaseName);
-	}
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(databaseName);
+    }
 
-	@Override
-	public void unparse(
-			SqlWriter writer,
-			int leftPrec,
-			int rightPrec) {
-		writer.keyword("SHOW FUNCTIONS");
-		if (databaseName != null) {
-			databaseName.unparse(writer, leftPrec, rightPrec);
-		}
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("SHOW FUNCTIONS");
+        if (databaseName != null) {
+            databaseName.unparse(writer, leftPrec, rightPrec);
+        }
+    }
 
-	public String[] getDatabasePath() {
-		return databaseName.names.toArray(new String[0]);
-	}
+    public String[] getDatabasePath() {
+        return databaseName.names.toArray(new String[0]);
+    }
 }

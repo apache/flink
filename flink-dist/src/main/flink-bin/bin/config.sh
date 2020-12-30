@@ -105,7 +105,7 @@ readFromConfig() {
 # conf/flink-conf.yaml
 
 DEFAULT_ENV_PID_DIR="/tmp"                          # Directory to store *.pid files to
-DEFAULT_ENV_LOG_MAX=5                               # Maximum number of old log files to keep
+DEFAULT_ENV_LOG_MAX=10                              # Maximum number of old log files to keep
 DEFAULT_ENV_JAVA_OPTS=""                            # Optional JVM args
 DEFAULT_ENV_JAVA_OPTS_JM=""                         # Optional JVM args (JobManager)
 DEFAULT_ENV_JAVA_OPTS_TM=""                         # Optional JVM args (TaskManager)
@@ -241,6 +241,7 @@ fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
     MAX_LOG_FILE_NUMBER=$(readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX} "${YAML_CONF}")
+    export MAX_LOG_FILE_NUMBER
 fi
 
 if [ -z "${FLINK_LOG_DIR}" ]; then
@@ -388,29 +389,6 @@ extractHostName() {
     echo $WORKER
 }
 
-# Auxilliary functions for log file rotation
-rotateLogFilesWithPrefix() {
-    dir=$1
-    prefix=$2
-    while read -r log ; do
-        rotateLogFile "$log"
-    # find distinct set of log file names, ignoring the rotation number (trailing dot and digit)
-    done < <(find "$dir" ! -type d -path "${prefix}*" | sed s/\.[0-9][0-9]*$// | sort | uniq)
-}
-
-rotateLogFile() {
-    log=$1;
-    num=$MAX_LOG_FILE_NUMBER
-    if [ -f "$log" -a "$num" -gt 0 ]; then
-        while [ $num -gt 1 ]; do
-            prev=`expr $num - 1`
-            [ -f "$log.$prev" ] && mv "$log.$prev" "$log.$num"
-            num=$prev
-        done
-        mv "$log" "$log.$num";
-    fi
-}
-
 readMasters() {
     MASTERS_FILE="${FLINK_CONF_DIR}/masters"
 
@@ -546,10 +524,10 @@ extractLoggingOutputs() {
     echo "${output}" | grep -v ${EXECUTION_PREFIX}
 }
 
-parseJmJvmArgsAndExportLogs() {
+parseJmArgsAndExportLogs() {
   java_utils_output=$(runBashJavaUtilsCmd GET_JM_RESOURCE_PARAMS "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
   logging_output=$(extractLoggingOutputs "${java_utils_output}")
-  jvm_params=$(extractExecutionResults "${java_utils_output}" 1)
+  params_output=$(extractExecutionResults "${java_utils_output}" 2)
 
   if [[ $? -ne 0 ]]; then
     echo "[ERROR] Could not get JVM parameters and dynamic configurations properly."
@@ -558,7 +536,9 @@ parseJmJvmArgsAndExportLogs() {
     exit 1
   fi
 
+  jvm_params=$(echo "${params_output}" | head -n1)
   export JVM_ARGS="${JVM_ARGS} ${jvm_params}"
+  export DYNAMIC_PARAMETERS=$(IFS=" " echo "${params_output}" | tail -n1)
 
   export FLINK_INHERITED_LOGS="
 $FLINK_INHERITED_LOGS

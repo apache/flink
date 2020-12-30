@@ -26,19 +26,18 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecRank
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector
 import org.apache.flink.table.runtime.operators.rank._
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
-
-import java.util
+import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 
 import scala.collection.JavaConversions._
 
@@ -57,7 +56,7 @@ class StreamExecSortLimit(
     rankStrategy: RankProcessStrategy)
   extends Sort(cluster, traitSet, inputRel, sortCollation, offset, fetch)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   private val limitStart: Long = SortUtil.getLimitStart(offset)
   private val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
@@ -101,16 +100,6 @@ class StreamExecSortLimit(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {
     if (fetch == null) {
@@ -145,7 +134,7 @@ class StreamExecSortLimit(
 
     // Use RankFunction underlying StreamExecSortLimit
     val processFunction = rankStrategy match {
-      case AppendFastStrategy =>
+      case _: AppendFastStrategy =>
         new AppendOnlyTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
@@ -158,8 +147,9 @@ class StreamExecSortLimit(
           outputRankNumber,
           cacheSize)
 
-      case UpdateFastStrategy(primaryKeys) =>
-        val rowKeySelector = KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo)
+      case updateFastStrategy: UpdateFastStrategy =>
+        val rowKeySelector = KeySelectorUtil.getRowDataSelector(
+          updateFastStrategy.getPrimaryKeys, inputRowTypeInfo)
         new UpdatableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
@@ -174,14 +164,20 @@ class StreamExecSortLimit(
           cacheSize)
 
       // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
-      case RetractStrategy =>
+      case _: RetractStrategy =>
         val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.toRowFieldTypes)
         val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
+        val comparator = new ComparableRecordComparator(
+          sortKeyComparator,
+          sortFields.indices.toArray,
+          sortKeyType.toRowFieldTypes,
+          sortDirections,
+          nullsIsLast)
         new RetractableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
-          sortKeyComparator,
+          comparator,
           sortKeySelector,
           rankType,
           rankRange,

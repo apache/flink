@@ -43,8 +43,6 @@ The following tables list all available connectors and formats. Their mutual com
 | Filesystem        |                     | Built-in                     | Built-in               |
 | Elasticsearch     | 6                   | `flink-connector-elasticsearch6` | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Elasticsearch     | 7                   | `flink-connector-elasticsearch7` | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch7{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| Apache Kafka      | 0.11                | `flink-connector-kafka-0.11` | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11+ (`universal`) | `flink-connector-kafka`      | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache HBase      | 1.4.3               | `flink-connector-hbase`      | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | JDBC              |                     | `flink-connector-jdbc`       | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc{{site.scala_version_suffix}}/{{site.version}}/flink-connector-jdbc{{site.scala_version_suffix}}-{{site.version}}.jar) |
@@ -80,7 +78,7 @@ This allows not only for better unification of APIs and SQL Client but also for 
 
 Every declaration is similar to a SQL `CREATE TABLE` statement. One can define the name of the table, the schema of the table, a connector, and a data format upfront for connecting to an external system.
 
-The **connector** describes the external system that stores the data of a table. Storage systems such as [Apacha Kafka](http://kafka.apache.org/) or a regular file system can be declared here. The connector might already provide a fixed format.
+The **connector** describes the external system that stores the data of a table. Storage systems such as [Apache Kafka](http://kafka.apache.org/) or a regular file system can be declared here. The connector might already provide a fixed format.
 
 Some systems support different **data formats**. For example, a table that is stored in Kafka or in files can encode its rows with CSV, JSON, or Avro. A database connector might need the table schema here. Whether or not a storage system requires the definition of a format, is documented for every [connector](connect.html#table-connectors). Different systems also require different [types of formats](connect.html#table-formats) (e.g., column-oriented formats vs. row-oriented formats). The documentation states which format types and connectors are compatible.
 
@@ -743,7 +741,7 @@ format:                               # required: file system connector requires
 
 The file system connector itself is included in Flink and does not require an additional dependency. A corresponding format needs to be specified for reading and writing rows from and to a file system.
 
-<span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/internals/filesystems.html).
+<span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({% link internals/filesystems.md %}).
 
 <span class="label label-danger">Attention</span> File system sources and sinks for streaming are only experimental. In the future, we will support actual streaming use cases, i.e., directory monitoring and bucket output.
 
@@ -886,11 +884,11 @@ connector:
 </div>
 </div>
 
-**Specify the start reading position:** By default, the Kafka source will start reading data from the committed group offsets in Zookeeper or Kafka brokers. You can specify other start positions, which correspond to the configurations in section [Kafka Consumers Start Position Configuration]({{ site.baseurl }}/dev/connectors/kafka.html#kafka-consumers-start-position-configuration).
+**Specify the start reading position:** By default, the Kafka source will start reading data from the committed group offsets in Zookeeper or Kafka brokers. You can specify other start positions, which correspond to the configurations in section [Kafka Consumers Start Position Configuration]({% link dev/connectors/kafka.md %}#kafka-consumers-start-position-configuration).
 
 **Flink-Kafka Sink Partitioning:** By default, a Kafka sink writes to at most as many partitions as its own parallelism (each parallel instance of the sink writes to exactly one partition). In order to distribute the writes to more partitions or control the routing of rows into partitions, a custom sink partitioner can be provided. The round-robin partitioner is useful to avoid an unbalanced partitioning. However, it will cause a lot of network connections between all the Flink instances and all the Kafka brokers.
 
-**Consistency guarantees:** By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({{ site.baseurl }}/dev/stream/state/checkpointing.html#enabling-and-configuring-checkpointing).
+**Consistency guarantees:** By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.md %}#enabling-and-configuring-checkpointing).
 
 **Kafka 0.10+ Timestamps:** Since Kafka 0.10, Kafka messages have a timestamp as metadata that specifies when the record was written into the Kafka topic. These timestamps can be used for a [rowtime attribute](connect.html#defining-the-schema) by selecting `timestamps: from-source` in YAML and `timestampsFromSource()` in Java/Scala respectively.
 
@@ -1114,7 +1112,7 @@ connector:
 </div>
 </div>
 
-**Bulk flushing:** For more information about characteristics of the optional flushing parameters see the [corresponding low-level documentation]({{ site.baseurl }}/dev/connectors/elasticsearch.html).
+**Bulk flushing:** For more information about characteristics of the optional flushing parameters see the [corresponding low-level documentation]({% link dev/connectors/elasticsearch.md %}).
 
 **Disabling flushing on checkpoint:** When disabled, a sink will not wait for all pending action requests to be acknowledged by Elasticsearch on checkpoints. Thus, a sink does NOT provide any strong guarantees for at-least-once delivery of action requests.
 
@@ -1204,7 +1202,7 @@ CREATE TABLE MyUserTable (
     .version('1.4.3')                      # required: currently only support '1.4.3'
     .table_name('hbase_table_name')        # required: HBase table name
     .zookeeper_quorum('localhost:2181')    # required: HBase Zookeeper quorum configuration
-    .zookeeper_node_parent('/test')        # optional: the root dir in Zookeeper for Hbae cluster.
+    .zookeeper_node_parent('/test')        # optional: the root dir in Zookeeper for Hbase cluster.
                                            # The default value is '/hbase'
     .write_buffer_flush_max_size('10mb')   # optional: writing option, determines how many size in memory of buffered
                                            # rows to insert per round trip. This can help performance on writing to JDBC
@@ -1277,7 +1275,7 @@ To use JDBC connector, need to choose an actual driver to use. Here are drivers 
 
 **Catalog**
 
-JDBC Connector can be used together with [`JdbcCatalog`]({{ site.baseurl }}/dev/table/catalogs.html#jdbccatalog) to greatly simplify development effort and improve user experience.
+JDBC Connector can be used together with [`JdbcCatalog`]({% link dev/table/catalogs.md %}#jdbccatalog) to greatly simplify development effort and improve user experience.
 
 <br/>
 
@@ -1302,6 +1300,9 @@ CREATE TABLE MyUserTable (
   -- optional: jdbc user name and password
   'connector.username' = 'name',
   'connector.password' = 'password',
+  
+  -- optional: jdbc connection max-retry-timeout
+  'connector.connection.max-retry-timeout' = '60s',
   
   -- **followings are scan options, optional, used when reading from a table**
 
@@ -1417,7 +1418,7 @@ connector:
 <span class="label label-primary">Source: Batch</span>
 <span class="label label-primary">Sink: Batch</span>
 
-Please refer to [Hive integration]({{ site.baseurl }}/dev/table/hive/).
+Please refer to [Hive integration]({% link dev/table/connectors/hive/index.md %}).
 
 {% top %}
 
@@ -2124,7 +2125,7 @@ table_env.register_table_sink(
 )
 
 table = ...
-table.insert_into("csvOutputTable")
+table.execute_insert("csvOutputTable").wait()
 {% endhighlight %}
 </div>
 </div>

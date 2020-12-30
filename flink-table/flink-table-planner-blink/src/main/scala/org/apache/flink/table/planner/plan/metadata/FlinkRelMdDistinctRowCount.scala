@@ -98,7 +98,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
     val selectivity = RelMdUtil.guessSelectivity(predicate)
     val rowCount = mq.getRowCount(rel)
     val nRows = rowCount / 2
-    RelMdUtil.numDistinctVals(nRows, nRows * selectivity)
+    FlinkRelMdUtil.numDistinctVals(nRows, nRows * selectivity)
   }
 
   def getDistinctRowCount(
@@ -191,7 +191,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       distinctRowCount *= subRowCount
     }
     val rowCount = mq.getRowCount(rel)
-    RelMdUtil.numDistinctVals(distinctRowCount, rowCount)
+    FlinkRelMdUtil.numDistinctVals(distinctRowCount, rowCount)
   }
 
   def getDistinctRowCount(

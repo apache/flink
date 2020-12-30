@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -116,6 +116,9 @@ under the License.
 									<include>org.apache.flink:flink-table-planner-blink_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-table-runtime-blink_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-cep_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-connector-files</include>
+									<include>org.apache.flink:flink-connector-base</include>
+									<include>org.apache.flink:flink-file-sink-common</include>
 								</includes>
 							</artifactSet>
 							<relocations>

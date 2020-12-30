@@ -29,35 +29,26 @@ import java.io.IOException;
  */
 public abstract class AbstractChannelWriterOutputView extends AbstractPagedOutputView {
 
-	public AbstractChannelWriterOutputView(int segmentSize, int headerLength) {
-		super(segmentSize, headerLength);
-	}
+    public AbstractChannelWriterOutputView(int segmentSize, int headerLength) {
+        super(segmentSize, headerLength);
+    }
 
-	/**
-	 * Get the underlying channel.
-	 */
-	public abstract FileIOChannel getChannel();
+    /** Get the underlying channel. */
+    public abstract FileIOChannel getChannel();
 
-	/**
-	 * Closes this OutputView, closing the underlying writer
-	 *
-	 * @return the number of bytes in last memory segment.
-	 */
-	public abstract int close() throws IOException;
+    /**
+     * Closes this OutputView, closing the underlying writer
+     *
+     * @return the number of bytes in last memory segment.
+     */
+    public abstract int close() throws IOException;
 
-	/**
-	 * Gets the number of blocks used by this view.
-	 */
-	public abstract int getBlockCount();
+    /** Gets the number of blocks used by this view. */
+    public abstract int getBlockCount();
 
-	/**
-	 * Get output bytes.
-	 */
-	public abstract long getNumBytes() throws IOException;
+    /** Get output bytes. */
+    public abstract long getNumBytes() throws IOException;
 
-	/**
-	 * Get output compressed bytes, return num bytes if there is no compression.
-	 */
-	public abstract long getNumCompressedBytes() throws IOException;
-
+    /** Get output compressed bytes, return num bytes if there is no compression. */
+    public abstract long getNumCompressedBytes() throws IOException;
 }

@@ -28,9 +28,9 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
 
-import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.metrics.DistributionData;
+import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -54,165 +54,146 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for {@link FlinkMetricContainer}.
- */
+/** Tests for {@link FlinkMetricContainer}. */
 public class FlinkMetricContainerTest {
 
-	@Mock
-	private RuntimeContext runtimeContext;
-	@Mock
-	private MetricGroup metricGroup;
+    @Mock private RuntimeContext runtimeContext;
+    @Mock private MetricGroup metricGroup;
 
-	private FlinkMetricContainer container;
+    private FlinkMetricContainer container;
 
-	private static final String GAUGE_URN =
-		BeamUrns.getUrn(MetricsApi.MonitoringInfoTypeUrns.Enum.LATEST_INT64_TYPE);
+    private static final List<String> DEFAULT_SCOPE_COMPONENTS =
+            Arrays.asList("key", "value", "MetricGroupType.key", "MetricGroupType.value");
 
-	private static final List<String> DEFAULT_SCOPE_COMPONENTS = Arrays.asList(
-		"key",
-		"value",
-		"MetricGroupType.key",
-		"MetricGroupType.value");
+    private static final String DEFAULT_NAMESPACE =
+            "[\"key\", \"value\", \"MetricGroupType.key\", \"MetricGroupType.value\"]";
 
-	private static final String DEFAULT_NAMESPACE =
-		"[\"key\", \"value\", \"MetricGroupType.key\", \"MetricGroupType.value\"]";
+    @Before
+    public void beforeTest() {
+        MockitoAnnotations.initMocks(this);
+        when(runtimeContext.getMetricGroup()).thenReturn(metricGroup);
+        when(metricGroup.addGroup(any(), any())).thenReturn(metricGroup);
+        when(metricGroup.addGroup(any())).thenReturn(metricGroup);
+        container = new FlinkMetricContainer(runtimeContext.getMetricGroup());
+    }
 
-	@Before
-	public void beforeTest() {
-		MockitoAnnotations.initMocks(this);
-		when(runtimeContext.getMetricGroup()).thenReturn(metricGroup);
-		when(metricGroup.addGroup(any(), any())).thenReturn(metricGroup);
-		when(metricGroup.addGroup(any())).thenReturn(metricGroup);
-		container = new FlinkMetricContainer(runtimeContext.getMetricGroup());
-	}
+    @Test
+    public void testGetNameSpaceArray() {
+        String json = "[\"key\", \"value\", \"MetricGroupType.key\", \"MetricGroupType.value\"]";
+        MetricKey key = MetricKey.create("step", MetricName.named(json, "name"));
+        assertThat(FlinkMetricContainer.getNameSpaceArray(key), is(DEFAULT_SCOPE_COMPONENTS));
+    }
 
-	@Test
-	public void testGetNameSpaceArray() {
-		String json = "[\"key\", \"value\", \"MetricGroupType.key\", \"MetricGroupType.value\"]";
-		MetricKey key = MetricKey.create("step", MetricName.named(json, "name"));
-		assertThat(FlinkMetricContainer.getNameSpaceArray(key), is(DEFAULT_SCOPE_COMPONENTS));
-	}
+    @Test
+    public void testGetFlinkMetricIdentifierString() {
+        MetricKey key = MetricKey.create("step", MetricName.named(DEFAULT_NAMESPACE, "name"));
+        assertThat(FlinkMetricContainer.getFlinkMetricIdentifierString(key), is("key.value.name"));
+    }
 
-	@Test
-	public void testGetFlinkMetricIdentifierString() {
-		MetricKey key = MetricKey.create("step", MetricName.named(DEFAULT_NAMESPACE, "name"));
-		assertThat(FlinkMetricContainer.getFlinkMetricIdentifierString(key), is("key.value.name"));
-	}
+    @Test
+    public void testRegisterMetricGroup() {
+        MetricKey key = MetricKey.create("step", MetricName.named(DEFAULT_NAMESPACE, "name"));
 
-	@Test
-	public void testRegisterMetricGroup() {
-		MetricKey key = MetricKey.create("step", MetricName.named(DEFAULT_NAMESPACE, "name"));
+        MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
+        GenericMetricGroup root =
+                new GenericMetricGroup(
+                        registry, new MetricGroupTest.DummyAbstractMetricGroup(registry), "root");
+        MetricGroup metricGroup = FlinkMetricContainer.registerMetricGroup(key, root);
 
-		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
-		GenericMetricGroup root = new GenericMetricGroup(
-			registry,
-			new MetricGroupTest.DummyAbstractMetricGroup(registry),
-			"root");
-		MetricGroup metricGroup = FlinkMetricContainer.registerMetricGroup(key, root);
+        assertThat(
+                metricGroup.getScopeComponents(),
+                is(Arrays.asList("root", "key", "value").toArray()));
+    }
 
-		assertThat(metricGroup.getScopeComponents(), is(Arrays.asList("root", "key", "value").toArray()));
-	}
+    @Test
+    public void testCounterMonitoringInfoUpdate() {
+        SimpleCounter userCounter = new SimpleCounter();
+        when(metricGroup.counter("myCounter")).thenReturn(userCounter);
 
-	@Test
-	public void testCounterMonitoringInfoUpdate() {
-		SimpleCounter userCounter = new SimpleCounter();
-		when(metricGroup.counter("myCounter")).thenReturn(userCounter);
+        MonitoringInfo userMonitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                        .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+                        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
+                        .setLabel(MonitoringInfoConstants.Labels.NAME, "myCounter")
+                        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
+                        .setInt64SumValue(111)
+                        .build();
 
-		MonitoringInfo userMonitoringInfo =
-			new SimpleMonitoringInfoBuilder()
-				.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
-				.setLabel(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
-				.setLabel(MonitoringInfoConstants.Labels.NAME, "myCounter")
-				.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
-				.setInt64Value(111)
-				.build();
+        assertThat(userCounter.getCount(), is(0L));
+        container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
+        assertThat(userCounter.getCount(), is(111L));
+    }
 
-		assertThat(userCounter.getCount(), is(0L));
-		container.updateMetrics(
-			"step", ImmutableList.of(userMonitoringInfo));
-		assertThat(userCounter.getCount(), is(111L));
-	}
+    @Test
+    public void testMeterMonitoringInfoUpdate() {
+        MeterView userMeter = new MeterView(new SimpleCounter());
+        when(metricGroup.meter(eq("myMeter"), any(Meter.class))).thenReturn(userMeter);
+        String namespace =
+                "[\"key\", \"value\", \"MetricGroupType.key\", \"MetricGroupType.value\", \"60\"]";
 
-	@Test
-	public void testMeterMonitoringInfoUpdate() {
-		MeterView userMeter = new MeterView(new SimpleCounter());
-		when(metricGroup.meter(eq("myMeter"), any(Meter.class))).thenReturn(userMeter);
-		String namespace = "[\"key\", \"value\", \"MetricGroupType.key\", \"MetricGroupType.value\", \"60\"]";
+        MonitoringInfo userMonitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                        .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+                        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, namespace)
+                        .setLabel(MonitoringInfoConstants.Labels.NAME, "myMeter")
+                        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
+                        .setInt64SumValue(111)
+                        .build();
+        assertThat(userMeter.getCount(), is(0L));
+        assertThat(userMeter.getRate(), is(0.0));
+        container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
+        userMeter.update();
+        assertThat(userMeter.getCount(), is(111L));
+        assertThat(userMeter.getRate(), is(1.85)); // 111 div 60 = 1.85
+    }
 
-		MonitoringInfo userMonitoringInfo =
-			new SimpleMonitoringInfoBuilder()
-				.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
-				.setLabel(MonitoringInfoConstants.Labels.NAMESPACE, namespace)
-				.setLabel(MonitoringInfoConstants.Labels.NAME, "myMeter")
-				.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
-				.setInt64Value(111)
-				.build();
-		assertThat(userMeter.getCount(), is(0L));
-		assertThat(userMeter.getRate(), is(0.0));
-		container.updateMetrics(
-			"step", ImmutableList.of(userMonitoringInfo));
-		userMeter.update();
-		assertThat(userMeter.getCount(), is(111L));
-		assertThat(userMeter.getRate(), is(1.85)); // 111 div 60 = 1.85
-	}
+    @Test
+    public void testGaugeMonitoringInfoUpdate() {
+        MonitoringInfo userMonitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                        .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+                        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
+                        .setLabel(MonitoringInfoConstants.Labels.NAME, "myGauge")
+                        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
+                        .setInt64LatestValue(GaugeData.create(111L))
+                        .build();
 
-	@Test
-	public void testGaugeMonitoringInfoUpdate() {
-		MonitoringInfo userMonitoringInfo = MonitoringInfo.newBuilder()
-			.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
-			.putLabels(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
-			.putLabels(MonitoringInfoConstants.Labels.NAME, "myGauge")
-			.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
-			.setMetric(MetricsApi.Metric
-				.newBuilder()
-				.setCounterData(
-					MetricsApi.CounterData.newBuilder()
-						.setInt64Value(111L)))
-			.setType(GAUGE_URN)
-			.build();
+        container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
+        verify(metricGroup)
+                .gauge(
+                        eq("myGauge"),
+                        argThat(
+                                (ArgumentMatcher<FlinkMetricContainer.FlinkGauge>)
+                                        argument -> {
+                                            Long actual = argument.getValue();
+                                            return actual.equals(111L);
+                                        }));
+    }
 
-		container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
-		verify(metricGroup)
-			.gauge(
-				eq("myGauge"),
-				argThat(
-					(ArgumentMatcher<FlinkMetricContainer.FlinkGauge>) argument -> {
-						Long actual = argument.getValue();
-						return actual.equals(111L);
-					}));
-	}
+    @Test
+    public void testDistributionMonitoringInfoUpdate() {
+        MonitoringInfo userMonitoringInfo =
+                new SimpleMonitoringInfoBuilder()
+                        .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
+                        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
+                        .setLabel(MonitoringInfoConstants.Labels.NAME, "myDistribution")
+                        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
+                        .setInt64DistributionValue(DistributionData.create(30, 10, 1, 5))
+                        .build();
 
-	@Test
-	public void testDistributionMonitoringInfoUpdate() {
-		MonitoringInfo userMonitoringInfo = MonitoringInfo.newBuilder()
-			.setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
-			.putLabels(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
-			.putLabels(MonitoringInfoConstants.Labels.NAME, "myDistribution")
-			.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
-			.setMetric(
-				MetricsApi.Metric.newBuilder()
-					.setDistributionData(
-						MetricsApi.DistributionData.newBuilder()
-							.setIntDistributionData(
-								MetricsApi.IntDistributionData.newBuilder()
-									.setSum(30)
-									.setCount(10)
-									.setMin(1)
-									.setMax(5))))
-			.build();
-
-		container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
-		// The one Flink distribution that gets created is a FlinkDistributionGauge; here we verify
-		// its initial (and in this test, final) value
-		verify(metricGroup)
-			.gauge(
-				eq("myDistribution"),
-				argThat(
-					(ArgumentMatcher<FlinkMetricContainer.FlinkDistributionGauge>) argument -> {
-						DistributionResult actual = argument.getValue();
-						DistributionResult expected = DistributionResult.create(30, 10, 1, 5);
-						return actual.equals(expected);
-					}));
-	}
+        container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
+        // The one Flink distribution that gets created is a FlinkDistributionGauge; here we verify
+        // its initial (and in this test, final) value
+        verify(metricGroup)
+                .gauge(
+                        eq("myDistribution"),
+                        argThat(
+                                (ArgumentMatcher<FlinkMetricContainer.FlinkDistributionGauge>)
+                                        argument -> {
+                                            DistributionResult actual = argument.getValue();
+                                            DistributionResult expected =
+                                                    DistributionResult.create(30, 10, 1, 5);
+                                            return actual.equals(expected);
+                                        }));
+    }
 }

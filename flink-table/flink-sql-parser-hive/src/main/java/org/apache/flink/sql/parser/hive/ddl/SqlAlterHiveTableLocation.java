@@ -26,31 +26,34 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_LOCATION;
 
-/**
- * ALTER TABLE DDL to change a Hive table/partition's location.
- */
+/** ALTER TABLE DDL to change a Hive table/partition's location. */
 public class SqlAlterHiveTableLocation extends SqlAlterHiveTable {
 
-	private final SqlCharStringLiteral location;
+    private final SqlCharStringLiteral location;
 
-	public SqlAlterHiveTableLocation(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partitionSpec,
-			SqlCharStringLiteral location) {
-		super(CHANGE_LOCATION, pos, tableName, partitionSpec, createPropList(location));
-		this.location = location;
-	}
+    public SqlAlterHiveTableLocation(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList partitionSpec,
+            SqlCharStringLiteral location) {
+        super(CHANGE_LOCATION, pos, tableName, partitionSpec, createPropList(location));
+        this.location = location;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET LOCATION");
-		location.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("SET LOCATION");
+        location.unparse(writer, leftPrec, rightPrec);
+    }
 
-	private static SqlNodeList createPropList(SqlCharStringLiteral location) {
-		SqlNodeList res = new SqlNodeList(location.getParserPosition());
-		res.add(HiveDDLUtils.toTableOption(
-				SqlCreateHiveTable.TABLE_LOCATION_URI,
-				location, location.getParserPosition()));
-		return res;
-	}
+    private static SqlNodeList createPropList(SqlCharStringLiteral location) {
+        SqlNodeList res = new SqlNodeList(location.getParserPosition());
+        res.add(
+                HiveDDLUtils.toTableOption(
+                        SqlCreateHiveTable.TABLE_LOCATION_URI,
+                        location,
+                        location.getParserPosition()));
+        return res;
+    }
 }

@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.MemorySize
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
@@ -30,7 +30,8 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -183,20 +184,14 @@ class BatchExecSortMergeJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  /**
-    * Now must be full dam without two input operator chain.
-    * TODO two input operator chain will return different value.
-    */
-  override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
-
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
+  // this method must be in sync with the behavior of SortMergeJoinOperator.
+  override def getInputEdges: util.List[ExecEdge] = List(
+    ExecEdge.builder()
+      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+      .build(),
+    ExecEdge.builder()
+      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+      .build())
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -255,7 +250,7 @@ class BatchExecSortMergeJoin(
       newSortGen(leftAllKey.indices.toArray, keyType).generateRecordComparator("KeyComparator"),
       filterNulls)
 
-    ExecNode.createTwoInputTransformation(
+    ExecNodeUtil.createTwoInputTransformation(
       leftInput,
       rightInput,
       getRelDetailedDescription,

@@ -37,164 +37,167 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing keyed
- * {@link KeyedCoProcessFunction KeyedCoProcessFunction}.
+ * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing keyed {@link
+ * KeyedCoProcessFunction KeyedCoProcessFunction}.
  */
 @Internal
 public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
-		extends AbstractUdfStreamOperator<OUT, KeyedCoProcessFunction<K, IN1, IN2, OUT>>
-		implements TwoInputStreamOperator<IN1, IN2, OUT>, Triggerable<K, VoidNamespace> {
+        extends AbstractUdfStreamOperator<OUT, KeyedCoProcessFunction<K, IN1, IN2, OUT>>
+        implements TwoInputStreamOperator<IN1, IN2, OUT>, Triggerable<K, VoidNamespace> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient TimestampedCollector<OUT> collector;
+    private transient TimestampedCollector<OUT> collector;
 
-	private transient ContextImpl<K, IN1, IN2, OUT> context;
+    private transient ContextImpl<K, IN1, IN2, OUT> context;
 
-	private transient OnTimerContextImpl<K, IN1, IN2, OUT> onTimerContext;
+    private transient OnTimerContextImpl<K, IN1, IN2, OUT> onTimerContext;
 
-	public KeyedCoProcessOperator(KeyedCoProcessFunction<K, IN1, IN2, OUT> keyedCoProcessFunction) {
-		super(keyedCoProcessFunction);
-	}
+    public KeyedCoProcessOperator(KeyedCoProcessFunction<K, IN1, IN2, OUT> keyedCoProcessFunction) {
+        super(keyedCoProcessFunction);
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		collector = new TimestampedCollector<>(output);
+    @Override
+    public void open() throws Exception {
+        super.open();
+        collector = new TimestampedCollector<>(output);
 
-		InternalTimerService<VoidNamespace> internalTimerService =
-				getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
+        InternalTimerService<VoidNamespace> internalTimerService =
+                getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
 
-		TimerService timerService = new SimpleTimerService(internalTimerService);
+        TimerService timerService = new SimpleTimerService(internalTimerService);
 
-		context = new ContextImpl<>(userFunction, timerService);
-		onTimerContext = new OnTimerContextImpl<>(userFunction, timerService);
-	}
+        context = new ContextImpl<>(userFunction, timerService);
+        onTimerContext = new OnTimerContextImpl<>(userFunction, timerService);
+    }
 
-	@Override
-	public void processElement1(StreamRecord<IN1> element) throws Exception {
-		collector.setTimestamp(element);
-		context.element = element;
-		userFunction.processElement1(element.getValue(), context, collector);
-		context.element = null;
-	}
+    @Override
+    public void processElement1(StreamRecord<IN1> element) throws Exception {
+        collector.setTimestamp(element);
+        context.element = element;
+        userFunction.processElement1(element.getValue(), context, collector);
+        context.element = null;
+    }
 
-	@Override
-	public void processElement2(StreamRecord<IN2> element) throws Exception {
-		collector.setTimestamp(element);
-		context.element = element;
-		userFunction.processElement2(element.getValue(), context, collector);
-		context.element = null;
-	}
+    @Override
+    public void processElement2(StreamRecord<IN2> element) throws Exception {
+        collector.setTimestamp(element);
+        context.element = element;
+        userFunction.processElement2(element.getValue(), context, collector);
+        context.element = null;
+    }
 
-	@Override
-	public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
-		collector.setAbsoluteTimestamp(timer.getTimestamp());
-		onTimerContext.timeDomain = TimeDomain.EVENT_TIME;
-		onTimerContext.timer = timer;
-		userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
-		onTimerContext.timeDomain = null;
-		onTimerContext.timer = null;
-	}
+    @Override
+    public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
+        collector.setAbsoluteTimestamp(timer.getTimestamp());
+        onTimerContext.timeDomain = TimeDomain.EVENT_TIME;
+        onTimerContext.timer = timer;
+        userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
+        onTimerContext.timeDomain = null;
+        onTimerContext.timer = null;
+    }
 
-	@Override
-	public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
-		collector.eraseTimestamp();
-		onTimerContext.timeDomain = TimeDomain.PROCESSING_TIME;
-		onTimerContext.timer = timer;
-		userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
-		onTimerContext.timeDomain = null;
-		onTimerContext.timer = null;
-	}
+    @Override
+    public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
+        collector.eraseTimestamp();
+        onTimerContext.timeDomain = TimeDomain.PROCESSING_TIME;
+        onTimerContext.timer = timer;
+        userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
+        onTimerContext.timeDomain = null;
+        onTimerContext.timer = null;
+    }
 
-	protected TimestampedCollector<OUT> getCollector() {
-		return collector;
-	}
+    protected TimestampedCollector<OUT> getCollector() {
+        return collector;
+    }
 
-	private class ContextImpl<K, IN1, IN2, OUT> extends KeyedCoProcessFunction<K, IN1, IN2, OUT>.Context {
+    private class ContextImpl<K, IN1, IN2, OUT>
+            extends KeyedCoProcessFunction<K, IN1, IN2, OUT>.Context {
 
-		private final TimerService timerService;
+        private final TimerService timerService;
 
-		private StreamRecord<?> element;
+        private StreamRecord<?> element;
 
-		ContextImpl(KeyedCoProcessFunction<K, IN1, IN2, OUT> function, TimerService timerService) {
-			function.super();
-			this.timerService = checkNotNull(timerService);
-		}
+        ContextImpl(KeyedCoProcessFunction<K, IN1, IN2, OUT> function, TimerService timerService) {
+            function.super();
+            this.timerService = checkNotNull(timerService);
+        }
 
-		@Override
-		public Long timestamp() {
-			checkState(element != null);
+        @Override
+        public Long timestamp() {
+            checkState(element != null);
 
-			if (element.hasTimestamp()) {
-				return element.getTimestamp();
-			} else {
-				return null;
-			}
-		}
+            if (element.hasTimestamp()) {
+                return element.getTimestamp();
+            } else {
+                return null;
+            }
+        }
 
-		@Override
-		public TimerService timerService() {
-			return timerService;
-		}
+        @Override
+        public TimerService timerService() {
+            return timerService;
+        }
 
-		@Override
-		public <X> void output(OutputTag<X> outputTag, X value) {
-			if (outputTag == null) {
-				throw new IllegalArgumentException("OutputTag must not be null.");
-			}
+        @Override
+        public <X> void output(OutputTag<X> outputTag, X value) {
+            if (outputTag == null) {
+                throw new IllegalArgumentException("OutputTag must not be null.");
+            }
 
-			output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
-		}
+            output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
+        }
 
-		@Override
-		public K getCurrentKey() {
-			return (K) KeyedCoProcessOperator.this.getCurrentKey();
-		}
-	}
+        @Override
+        public K getCurrentKey() {
+            return (K) KeyedCoProcessOperator.this.getCurrentKey();
+        }
+    }
 
-	private class OnTimerContextImpl<K, IN1, IN2, OUT> extends KeyedCoProcessFunction<K, IN1, IN2, OUT>.OnTimerContext {
+    private class OnTimerContextImpl<K, IN1, IN2, OUT>
+            extends KeyedCoProcessFunction<K, IN1, IN2, OUT>.OnTimerContext {
 
-		private final TimerService timerService;
+        private final TimerService timerService;
 
-		private TimeDomain timeDomain;
+        private TimeDomain timeDomain;
 
-		private InternalTimer<K, VoidNamespace> timer;
+        private InternalTimer<K, VoidNamespace> timer;
 
-		OnTimerContextImpl(KeyedCoProcessFunction<K, IN1, IN2, OUT> function, TimerService timerService) {
-			function.super();
-			this.timerService = checkNotNull(timerService);
-		}
+        OnTimerContextImpl(
+                KeyedCoProcessFunction<K, IN1, IN2, OUT> function, TimerService timerService) {
+            function.super();
+            this.timerService = checkNotNull(timerService);
+        }
 
-		@Override
-		public Long timestamp() {
-			checkState(timer != null);
-			return timer.getTimestamp();
-		}
+        @Override
+        public Long timestamp() {
+            checkState(timer != null);
+            return timer.getTimestamp();
+        }
 
-		@Override
-		public TimerService timerService() {
-			return timerService;
-		}
+        @Override
+        public TimerService timerService() {
+            return timerService;
+        }
 
-		@Override
-		public <X> void output(OutputTag<X> outputTag, X value) {
-			if (outputTag == null) {
-				throw new IllegalArgumentException("OutputTag must not be null.");
-			}
+        @Override
+        public <X> void output(OutputTag<X> outputTag, X value) {
+            if (outputTag == null) {
+                throw new IllegalArgumentException("OutputTag must not be null.");
+            }
 
-			output.collect(outputTag, new StreamRecord<>(value, timer.getTimestamp()));
-		}
+            output.collect(outputTag, new StreamRecord<>(value, timer.getTimestamp()));
+        }
 
-		@Override
-		public TimeDomain timeDomain() {
-			checkState(timeDomain != null);
-			return timeDomain;
-		}
+        @Override
+        public TimeDomain timeDomain() {
+            checkState(timeDomain != null);
+            return timeDomain;
+        }
 
-		@Override
-		public K getCurrentKey() {
-			return timer.getKey();
-		}
-	}
+        @Override
+        public K getCurrentKey() {
+            return timer.getKey();
+        }
+    }
 }

@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.MemorySize
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
@@ -30,10 +30,11 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.operators.join.{HashJoinOperator, HashJoinType}
-import org.apache.flink.table.runtime.typeutils.{InternalTypeInfo, BinaryRowDataSerializer}
+import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer, InternalTypeInfo}
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan._
@@ -173,17 +174,33 @@ class BatchExecHashJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = {
-    if (hashJoinType.buildLeftSemiOrAnti()) DamBehavior.FULL_DAM else DamBehavior.MATERIALIZING
-  }
+  override def getInputEdges: util.List[ExecEdge] = {
+    val (buildRequiredShuffle, probeRequiredShuffle) = if (isBroadcast) {
+      (ExecEdge.RequiredShuffle.broadcast(), ExecEdge.RequiredShuffle.any())
+    } else {
+      (ExecEdge.RequiredShuffle.hash(buildKeys), ExecEdge.RequiredShuffle.hash(probeKeys))
+    }
+    val probeDamBehavior = if (hashJoinType.buildLeftSemiOrAnti()) {
+      ExecEdge.DamBehavior.END_INPUT
+    } else {
+      ExecEdge.DamBehavior.PIPELINED
+    }
+    val buildEdge = ExecEdge.builder()
+      .requiredShuffle(buildRequiredShuffle)
+      .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+      .priority(0)
+      .build()
+    val probeEdge = ExecEdge.builder()
+      .requiredShuffle(probeRequiredShuffle)
+      .damBehavior(probeDamBehavior)
+      .priority(1)
+      .build()
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+    if (leftIsBuild) {
+      List(buildEdge, probeEdge)
+    } else {
+      List(probeEdge, buildEdge)
+    }
   }
 
   override protected def translateToPlanInternal(
@@ -254,7 +271,7 @@ class BatchExecHashJoin(
 
     val managedMemory = MemorySize.parse(config.getConfiguration.getString(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY)).getBytes
-    ExecNode.createTwoInputTransformation(
+    ExecNodeUtil.createTwoInputTransformation(
       build,
       probe,
       getRelDetailedDescription,

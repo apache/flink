@@ -33,39 +33,37 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Factory to construct a {@link StreamPlanner}.
- */
+/** Factory to construct a {@link StreamPlanner}. */
 @Internal
 public final class StreamPlannerFactory implements PlannerFactory {
 
-	@Override
-	public Planner create(
-		Map<String, String> properties,
-		Executor executor,
-		TableConfig tableConfig,
-		FunctionCatalog functionCatalog,
-		CatalogManager catalogManager) {
-		return new StreamPlanner(executor, tableConfig, functionCatalog, catalogManager);
-	}
+    @Override
+    public Planner create(
+            Map<String, String> properties,
+            Executor executor,
+            TableConfig tableConfig,
+            FunctionCatalog functionCatalog,
+            CatalogManager catalogManager) {
+        return new StreamPlanner(executor, tableConfig, functionCatalog, catalogManager);
+    }
 
-	@Override
-	public Map<String, String> optionalContext() {
-		Map<String, String> map = new HashMap<>();
-		map.put(EnvironmentSettings.CLASS_NAME, this.getClass().getCanonicalName());
-		return map;
-	}
+    @Override
+    public Map<String, String> optionalContext() {
+        Map<String, String> map = new HashMap<>();
+        map.put(EnvironmentSettings.CLASS_NAME, this.getClass().getCanonicalName());
+        return map;
+    }
 
-	@Override
-	public Map<String, String> requiredContext() {
-		DescriptorProperties properties = new DescriptorProperties();
+    @Override
+    public Map<String, String> requiredContext() {
+        DescriptorProperties properties = new DescriptorProperties();
 
-		properties.putBoolean(EnvironmentSettings.STREAMING_MODE, true);
-		return properties.asMap();
-	}
+        properties.putBoolean(EnvironmentSettings.STREAMING_MODE, true);
+        return properties.asMap();
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		return Collections.singletonList(EnvironmentSettings.CLASS_NAME);
-	}
+    @Override
+    public List<String> supportedProperties() {
+        return Collections.singletonList(EnvironmentSettings.CLASS_NAME);
+    }
 }

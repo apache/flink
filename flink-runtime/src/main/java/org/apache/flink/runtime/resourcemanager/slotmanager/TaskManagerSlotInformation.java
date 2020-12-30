@@ -21,29 +21,31 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 
-/**
- * Basic information about a {@link TaskManagerSlot}.
- */
+/** Basic information about a {@link TaskManagerSlot}. */
 public interface TaskManagerSlotInformation {
 
-	SlotID getSlotId();
+    SlotID getSlotId();
 
-	InstanceID getInstanceId();
+    InstanceID getInstanceId();
 
-	/**
-	 * Returns true if the required {@link ResourceProfile} can be fulfilled
-	 * by this slot.
-	 *
-	 * @param required resources
-	 * @return true if the this slot can fulfill the resource requirements
-	 */
-	boolean isMatchingRequirement(ResourceProfile required);
+    TaskExecutorConnection getTaskManagerConnection();
 
-	/**
-	 * Get resource profile of this slot.
-	 *
-	 * @return resource profile of this slot
-	 */
-	ResourceProfile getResourceProfile();
+    /**
+     * Returns true if the required {@link ResourceProfile} can be fulfilled by this slot.
+     *
+     * @param required resources
+     * @return true if the this slot can fulfill the resource requirements
+     */
+    default boolean isMatchingRequirement(ResourceProfile required) {
+        return getResourceProfile().isMatching(required);
+    }
+
+    /**
+     * Get resource profile of this slot.
+     *
+     * @return resource profile of this slot
+     */
+    ResourceProfile getResourceProfile();
 }

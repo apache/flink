@@ -27,46 +27,40 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * Overlays the user library into a container.
- * The following directory and files in the directory are copied to the container if it exists:
- *  - {@link ConfigConstants#DEFAULT_FLINK_USR_LIB_DIR}/
+ * Overlays the user library into a container. The following directory and files in the directory
+ * are copied to the container if it exists: - {@link ConfigConstants#DEFAULT_FLINK_USR_LIB_DIR}/
  */
 public class UserLibOverlay extends AbstractContainerOverlay {
 
-	@Nullable
-	private final File usrLibDirectory;
+    @Nullable private final File usrLibDirectory;
 
-	private UserLibOverlay(@Nullable File usrLibDirectory) {
-		this.usrLibDirectory = usrLibDirectory;
-	}
+    private UserLibOverlay(@Nullable File usrLibDirectory) {
+        this.usrLibDirectory = usrLibDirectory;
+    }
 
-	@Override
-	public void configure(ContainerSpecification container) throws IOException {
-		if (usrLibDirectory != null) {
-			addPathRecursively(usrLibDirectory, FlinkDistributionOverlay.TARGET_ROOT, container);
-		}
-	}
+    @Override
+    public void configure(ContainerSpecification container) throws IOException {
+        if (usrLibDirectory != null) {
+            addPathRecursively(usrLibDirectory, FlinkDistributionOverlay.TARGET_ROOT, container);
+        }
+    }
 
-	public static UserLibOverlay.Builder newBuilder() {
-		return new UserLibOverlay.Builder();
-	}
+    public static UserLibOverlay.Builder newBuilder() {
+        return new UserLibOverlay.Builder();
+    }
 
-	/**
-	 * A builder for the {@link UserLibOverlay}.
-	 */
-	public static class Builder {
+    /** A builder for the {@link UserLibOverlay}. */
+    public static class Builder {
 
-		@Nullable
-		private File usrLibDirectory;
+        @Nullable private File usrLibDirectory;
 
-		public UserLibOverlay.Builder setUsrLibDirectory(@Nullable File usrLibDirectory) {
-			this.usrLibDirectory = usrLibDirectory;
-			return this;
-		}
+        public UserLibOverlay.Builder setUsrLibDirectory(@Nullable File usrLibDirectory) {
+            this.usrLibDirectory = usrLibDirectory;
+            return this;
+        }
 
-		public UserLibOverlay build() {
-			return new UserLibOverlay(usrLibDirectory);
-		}
-
-	}
+        public UserLibOverlay build() {
+            return new UserLibOverlay(usrLibDirectory);
+        }
+    }
 }

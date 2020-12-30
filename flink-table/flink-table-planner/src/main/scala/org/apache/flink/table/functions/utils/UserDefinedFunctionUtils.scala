@@ -32,7 +32,7 @@ import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.table.typeutils.FieldInfoUtils
 
 import com.google.common.primitives.Primitives
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator}
@@ -313,14 +313,14 @@ object UserDefinedFunctionUtils {
     * Creates a [[SqlOperandTypeChecker]] for SQL validation of
     * eval functions (scalar and table functions).
     */
-  def createEvalOperandTypeChecker(
+  def createEvalOperandMetadata(
       name: String,
       function: UserDefinedFunction)
-    : SqlOperandTypeChecker = {
+    : SqlOperandMetadata = {
 
     val methods = checkAndExtractMethods(function, "eval")
 
-    new SqlOperandTypeChecker {
+    new SqlOperandMetadata {
       override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
         s"$opName[${signaturesToString(function, "eval")}]"
       }
@@ -372,6 +372,13 @@ object UserDefinedFunctionUtils {
 
       override def getConsistency: Consistency = Consistency.NONE
 
+      override def paramTypes(typeFactory: RelDataTypeFactory): util.List[RelDataType] =
+        throw new UnsupportedOperationException("SqlOperandMetadata.paramTypes " +
+            "should never be invoked")
+
+      override def paramNames(): util.List[String] =
+        throw new UnsupportedOperationException("SqlOperandMetadata.paramNames " +
+            "should never be invoked")
     }
   }
 

@@ -38,42 +38,42 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests for the {@link WebMonitorEndpoint}.
- */
+/** Tests for the {@link WebMonitorEndpoint}. */
 public class WebMonitorEndpointTest extends TestLogger {
 
-	@Test
-	public void cleansUpExpiredExecutionGraphs() throws Exception {
-		final Configuration configuration = new Configuration();
-		configuration.setString(RestOptions.ADDRESS, "localhost");
-		configuration.setLong(WebOptions.REFRESH_INTERVAL, 5L);
-		final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-		final long timeout = 10000L;
+    @Test
+    public void cleansUpExpiredExecutionGraphs() throws Exception {
+        final Configuration configuration = new Configuration();
+        configuration.setString(RestOptions.ADDRESS, "localhost");
+        configuration.setLong(WebOptions.REFRESH_INTERVAL, 5L);
+        final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+        final long timeout = 10000L;
 
-		final OneShotLatch cleanupLatch = new OneShotLatch();
-		final TestingExecutionGraphCache executionGraphCache = TestingExecutionGraphCache.newBuilder()
-			.setCleanupRunnable(cleanupLatch::trigger)
-			.build();
-		try (final WebMonitorEndpoint<RestfulGateway> webMonitorEndpoint = new WebMonitorEndpoint<>(
-			RestServerEndpointConfiguration.fromConfiguration(configuration),
-			CompletableFuture::new,
-			configuration,
-			RestHandlerConfiguration.fromConfiguration(configuration),
-			CompletableFuture::new,
-			NoOpTransientBlobService.INSTANCE,
-			executor,
-			VoidMetricFetcher.INSTANCE,
-			new TestingLeaderElectionService(),
-			executionGraphCache,
-			new TestingFatalErrorHandler())) {
+        final OneShotLatch cleanupLatch = new OneShotLatch();
+        final TestingExecutionGraphCache executionGraphCache =
+                TestingExecutionGraphCache.newBuilder()
+                        .setCleanupRunnable(cleanupLatch::trigger)
+                        .build();
+        try (final WebMonitorEndpoint<RestfulGateway> webMonitorEndpoint =
+                new WebMonitorEndpoint<>(
+                        RestServerEndpointConfiguration.fromConfiguration(configuration),
+                        CompletableFuture::new,
+                        configuration,
+                        RestHandlerConfiguration.fromConfiguration(configuration),
+                        CompletableFuture::new,
+                        NoOpTransientBlobService.INSTANCE,
+                        executor,
+                        VoidMetricFetcher.INSTANCE,
+                        new TestingLeaderElectionService(),
+                        executionGraphCache,
+                        new TestingFatalErrorHandler())) {
 
-			webMonitorEndpoint.start();
+            webMonitorEndpoint.start();
 
-			// check that the cleanup will be triggered
-			cleanupLatch.await(timeout, TimeUnit.MILLISECONDS);
-		} finally {
-			ExecutorUtils.gracefulShutdown(timeout, TimeUnit.MILLISECONDS, executor);
-		}
-	}
+            // check that the cleanup will be triggered
+            cleanupLatch.await(timeout, TimeUnit.MILLISECONDS);
+        } finally {
+            ExecutorUtils.gracefulShutdown(timeout, TimeUnit.MILLISECONDS, executor);
+        }
+    }
 }

@@ -34,90 +34,86 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link BackPressureSampleService}.
- */
+/** Tests for {@link BackPressureSampleService}. */
 public class BackPressureSampleServiceTest extends TestLogger {
 
-	private static ScheduledExecutorService scheduledExecutorService;
+    private static ScheduledExecutorService scheduledExecutorService;
 
-	private static BackPressureSampleService backPressureSampleService;
+    private static BackPressureSampleService backPressureSampleService;
 
-	@BeforeClass
-	public static void setUp() throws Exception {
-		scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-		final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(scheduledExecutorService);
+    @BeforeClass
+    public static void setUp() throws Exception {
+        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        final ScheduledExecutor scheduledExecutor =
+                new ScheduledExecutorServiceAdapter(scheduledExecutorService);
 
-		backPressureSampleService = new BackPressureSampleService(10, Time.milliseconds(10), scheduledExecutor);
-	}
+        backPressureSampleService =
+                new BackPressureSampleService(10, Time.milliseconds(10), scheduledExecutor);
+    }
 
-	@AfterClass
-	public static void tearDown() throws Exception {
-		if (scheduledExecutorService != null) {
-			scheduledExecutorService.shutdown();
-		}
-	}
+    @AfterClass
+    public static void tearDown() throws Exception {
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
+        }
+    }
 
-	@Test(timeout = 10000L)
-	public void testSampleTaskBackPressure() throws Exception {
-		final double backPressureRatio = backPressureSampleService.
-			sampleTaskBackPressure(new TestTask()).get();
+    @Test(timeout = 10000L)
+    public void testSampleTaskBackPressure() throws Exception {
+        final double backPressureRatio =
+                backPressureSampleService.sampleTaskBackPressure(new TestTask()).get();
 
-		assertEquals(0.5, backPressureRatio, 0.0);
-	}
+        assertEquals(0.5, backPressureRatio, 0.0);
+    }
 
-	@Test(timeout = 10000L)
-	public void testTaskStopsWithPartialSampling() throws Exception {
-		final double backPressureRatio = backPressureSampleService.
-			sampleTaskBackPressure(new NotRunningAfterFirstSamplingTask()).get();
+    @Test(timeout = 10000L)
+    public void testTaskStopsWithPartialSampling() throws Exception {
+        final double backPressureRatio =
+                backPressureSampleService
+                        .sampleTaskBackPressure(new NotRunningAfterFirstSamplingTask())
+                        .get();
 
-		assertEquals(1.0, backPressureRatio, 0.0);
-	}
+        assertEquals(1.0, backPressureRatio, 0.0);
+    }
 
-	@Test(expected = IllegalStateException.class)
-	public void testShouldThrowExceptionIfTaskIsNotRunningBeforeSampling() {
-		backPressureSampleService.sampleTaskBackPressure(new NeverRunningTask());
+    @Test(expected = IllegalStateException.class)
+    public void testShouldThrowExceptionIfTaskIsNotRunningBeforeSampling() {
+        backPressureSampleService.sampleTaskBackPressure(new NeverRunningTask());
 
-		fail("Exception expected.");
-	}
+        fail("Exception expected.");
+    }
 
-	/**
-	 * Task that is always running.
-	 */
-	private static class TestTask implements BackPressureSampleableTask {
+    /** Task that is always running. */
+    private static class TestTask implements BackPressureSampleableTask {
 
-		protected volatile long counter = 0;
+        protected volatile long counter = 0;
 
-		@Override
-		public boolean isRunning() {
-			return true;
-		}
+        @Override
+        public boolean isRunning() {
+            return true;
+        }
 
-		@Override
-		public boolean isBackPressured() {
-			return counter++ % 2 == 0;
-		}
-	}
+        @Override
+        public boolean isBackPressured() {
+            return counter++ % 2 == 0;
+        }
+    }
 
-	/**
-	 * Task that stops running after sampled for the first time.
-	 */
-	private static class NotRunningAfterFirstSamplingTask extends TestTask {
+    /** Task that stops running after sampled for the first time. */
+    private static class NotRunningAfterFirstSamplingTask extends TestTask {
 
-		@Override
-		public boolean isRunning() {
-			return counter == 0;
-		}
-	}
+        @Override
+        public boolean isRunning() {
+            return counter == 0;
+        }
+    }
 
-	/**
-	 * Task that never runs.
-	 */
-	private static class NeverRunningTask extends TestTask {
+    /** Task that never runs. */
+    private static class NeverRunningTask extends TestTask {
 
-		@Override
-		public boolean isRunning() {
-			return false;
-		}
-	}
+        @Override
+        public boolean isRunning() {
+            return false;
+        }
+    }
 }

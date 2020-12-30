@@ -19,58 +19,82 @@
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.function.BiFunctionWithException;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
 
-/**
- * Testing implementation of {@link LibraryCacheManager.ClassLoaderLease}.
- */
+/** Testing implementation of {@link LibraryCacheManager.ClassLoaderLease}. */
 public class TestingClassLoaderLease implements LibraryCacheManager.ClassLoaderLease {
 
-	private final BiFunctionWithException<Collection<PermanentBlobKey>, Collection<URL>, ClassLoader, IOException> getOrResolveClassLoaderFunction;
+    private final BiFunctionWithException<
+                    Collection<PermanentBlobKey>, Collection<URL>, UserCodeClassLoader, IOException>
+            getOrResolveClassLoaderFunction;
 
-	private final Runnable closeRunnable;
+    private final Runnable closeRunnable;
 
-	public TestingClassLoaderLease(BiFunctionWithException<Collection<PermanentBlobKey>, Collection<URL>, ClassLoader, IOException> getOrResolveClassLoaderFunction, Runnable closeRunnable) {
-		this.getOrResolveClassLoaderFunction = getOrResolveClassLoaderFunction;
-		this.closeRunnable = closeRunnable;
-	}
+    public TestingClassLoaderLease(
+            BiFunctionWithException<
+                            Collection<PermanentBlobKey>,
+                            Collection<URL>,
+                            UserCodeClassLoader,
+                            IOException>
+                    getOrResolveClassLoaderFunction,
+            Runnable closeRunnable) {
+        this.getOrResolveClassLoaderFunction = getOrResolveClassLoaderFunction;
+        this.closeRunnable = closeRunnable;
+    }
 
-	@Override
-	public ClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException {
-		return getOrResolveClassLoaderFunction.apply(requiredJarFiles, requiredClasspaths);
-	}
+    @Override
+    public UserCodeClassLoader getOrResolveClassLoader(
+            Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
+            throws IOException {
+        return getOrResolveClassLoaderFunction.apply(requiredJarFiles, requiredClasspaths);
+    }
 
-	@Override
-	public void release() {
-		closeRunnable.run();
-	}
+    @Override
+    public void release() {
+        closeRunnable.run();
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	public static final class Builder {
-		private BiFunctionWithException<Collection<PermanentBlobKey>, Collection<URL>, ClassLoader, IOException> getOrResolveClassLoaderFunction = (ignoredA, ignoredB) -> Builder.class.getClassLoader();
-		private Runnable closeRunnable = () -> {};
+    public static final class Builder {
+        private final TestingUserCodeClassLoader userCodeClassLoader =
+                TestingUserCodeClassLoader.newBuilder().build();
+        private BiFunctionWithException<
+                        Collection<PermanentBlobKey>,
+                        Collection<URL>,
+                        UserCodeClassLoader,
+                        IOException>
+                getOrResolveClassLoaderFunction = (ignoredA, ignoredB) -> userCodeClassLoader;
+        private Runnable closeRunnable = () -> {};
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder setGetOrResolveClassLoaderFunction(BiFunctionWithException<Collection<PermanentBlobKey>, Collection<URL>, ClassLoader, IOException> getOrResolveClassLoaderFunction) {
-			this.getOrResolveClassLoaderFunction = getOrResolveClassLoaderFunction;
-			return this;
-		}
+        public Builder setGetOrResolveClassLoaderFunction(
+                BiFunctionWithException<
+                                Collection<PermanentBlobKey>,
+                                Collection<URL>,
+                                UserCodeClassLoader,
+                                IOException>
+                        getOrResolveClassLoaderFunction) {
+            this.getOrResolveClassLoaderFunction = getOrResolveClassLoaderFunction;
+            return this;
+        }
 
-		public Builder setCloseRunnable(Runnable closeRunnable) {
-			this.closeRunnable = closeRunnable;
-			return this;
-		}
+        public Builder setCloseRunnable(Runnable closeRunnable) {
+            this.closeRunnable = closeRunnable;
+            return this;
+        }
 
-		public TestingClassLoaderLease build() {
-			return new TestingClassLoaderLease(getOrResolveClassLoaderFunction, closeRunnable);
-		}
-	}
+        public TestingClassLoaderLease build() {
+            return new TestingClassLoaderLease(getOrResolveClassLoaderFunction, closeRunnable);
+        }
+    }
 }

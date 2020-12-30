@@ -29,10 +29,34 @@ INSERT 语句用来向表中添加行。
 
 ## 执行 INSERT 语句
 
-单条 INSERT 语句，可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 INSERT 语句。`executeSql()` 方法执行 INSERT 语句时会立即提交一个 Flink 作业，并且返回一个 TableResult 对象，通过该对象可以获取 JobClient 方便的操作提交的作业。
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+
+<div data-lang="java/scala" markdown="1">
+
+单条 INSERT 语句，可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行。`executeSql()` 方法执行 INSERT 语句时会立即提交一个 Flink 作业，并且返回一个 TableResult 对象，通过该对象可以获取 JobClient 方便的操作提交的作业。
 多条 INSERT 语句，使用 `TableEnvironment` 中的 `createStatementSet` 创建一个 `StatementSet` 对象，然后使用 `StatementSet` 中的 `addInsertSql()` 方法添加多条 INSERT 语句，最后通过 `StatementSet` 中的 `execute()` 方法来执行。
 
-以下的例子展示了如何在 `TableEnvironment` 和  SQL CLI 中执行一条 INSERT 语句，或者通过 `StatementSet` 执行多条 INSERT 语句。
+以下的例子展示了如何在 `TableEnvironment` 中执行一条 INSERT 语句，或者通过 `StatementSet` 执行多条 INSERT 语句。
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+单条 INSERT 语句，可以使用 `TableEnvironment` 中的 `execute_sql()` 方法执行。`execute_sql()` 方法执行 INSERT 语句时会立即提交一个 Flink 作业，并且返回一个 TableResult 对象，通过该对象可以获取 JobClient 方便的操作提交的作业。
+多条 INSERT 语句，使用 `TableEnvironment` 中的 `create_statement_set` 创建一个 `StatementSet` 对象，然后使用 `StatementSet` 中的 `add_insert_sql()` 方法添加多条 INSERT 语句，最后通过 `StatementSet` 中的 `execute()` 方法来执行。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一条 INSERT 语句，或者通过 `StatementSet` 执行多条 INSERT 语句。
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+可以在 [SQL CLI]({% link dev/table/sqlClient.zh.md %}) 中执行 INSERT 语句
+
+以下的例子展示了如何在 SQL CLI 中执行一条 INSERT 语句。
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

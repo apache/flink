@@ -547,6 +547,55 @@ class AggregateITCase(
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
+
+  @Test
+  def testListAggWithRetraction(): Unit = {
+    env.setParallelism(1) // we have to use parallelism=1 to make sure the result is deterministic
+    val dataWithNull = List(
+      ("1", "a"),
+      ("1", "b"),
+      ("1", null),
+      ("1", "a"))
+
+    val t: DataStream[(String, String)] = failingDataSource(dataWithNull)
+    val streamTable = t.toTable(tEnv, 'x, 'y)
+    tEnv.registerTable("T", streamTable)
+
+    tEnv.executeSql(
+      """
+        |CREATE VIEW view1 AS
+        |SELECT
+        |    x,
+        |    y,
+        |    CAST(COUNT(1) AS VARCHAR) AS ct
+        |FROM T
+        |GROUP BY
+        |    x, y
+        |""".stripMargin)
+
+    // | x | concat_ws  |
+    // |---|------------|
+    // | 1 | a=2        |
+    // | 1 | b=1        |
+    // | 1 | 1          |
+    val sqlQuery =
+      s"""
+         |select
+         |     x,
+         |     '[' || LISTAGG(CONCAT_WS('=', y, ct), ';') || ']' AS list1,
+         |     '[' || LISTAGG(CONCAT_WS('=', y, ct)) || ']' AS list2
+         |FROM view1
+         |GROUP BY x
+       """.stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,[b=1;1;a=2],[b=1,1,a=2]")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
   @Test
   def testListAggWithNullData(): Unit = {
     val dataWithNull = List(
@@ -1008,13 +1057,13 @@ class AggregateITCase(
     val view1 = tEnv.sqlQuery(sql)
     tEnv.registerTable("v1", view1)
 
-    val toCompositeObj = ToCompositeObj
-    tEnv.registerFunction("toCompObj", toCompositeObj)
+    tEnv.createTemporarySystemFunction("toCompObj", ToCompositeObj)
+    tEnv.createTemporarySystemFunction("anyToString", AnyToStringFunction)
 
     val sql1 =
       s"""
          |SELECT
-         |  a, b, COLLECT(toCompObj(t.sid, 'a', 100, t.point)) as info
+         |  a, b, anyToString(COLLECT(toCompObj(t.sid, 'a', 100, t.point)))
          |from (
          | select
          |  a, b, uuid() as u, V.sid, V.point
@@ -1040,8 +1089,12 @@ class AggregateITCase(
   /** Test LISTAGG **/
   @Test
   def testListAgg(): Unit = {
-    tEnv.registerFunction("listagg_retract", new ListAggWithRetractAggFunction)
-    tEnv.registerFunction("listagg_ws_retract", new ListAggWsWithRetractAggFunction)
+    tEnv.createTemporarySystemFunction(
+      "listagg_retract",
+      classOf[ListAggWithRetractAggFunction])
+    tEnv.createTemporarySystemFunction(
+      "listagg_ws_retract",
+      classOf[ListAggWsWithRetractAggFunction])
     val sqlQuery =
       s"""
          |SELECT
@@ -1243,13 +1296,13 @@ class AggregateITCase(
       Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", tableSink)
 
-    execInsertSqlAndWaitResult(
+    tEnv.executeSql(
       """
         |insert into testSink
         |select c, max(b) from
         | (select b, c, true as f from MyTable) t
         |group by c, f
-      """.stripMargin)
+      """.stripMargin).await()
 
     val expected = List("A,1", "B,2", "C,3")
     assertEquals(expected.sorted, tableSink.getUpsertResults.sorted)

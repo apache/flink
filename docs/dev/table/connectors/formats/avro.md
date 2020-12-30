@@ -34,23 +34,10 @@ The [Apache Avro](https://avro.apache.org/) format allows to read and write Avro
 Dependencies
 ------------
 
-In order to setup the Avro format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-<div class="codetabs" markdown="1">
-<div data-lang="SQL Client JAR" markdown="1">
-You can download flink-avro from [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar),
-and requires additional [Hadoop dependency]({% link ops/deployment/hadoop.md %}) for cluster execution.
-</div>
-<div data-lang="Maven dependency" markdown="1">
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-avro</artifactId>
-  <version>{{ site.version }}</version>
-</dependency>
-{% endhighlight %}
-</div>
-</div>
+{% assign connector = site.data.sql-connectors['avro'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 How to create a table with Avro format
 ----------------

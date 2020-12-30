@@ -30,9 +30,32 @@ USE statements are used to set the current database or catalog.
 
 ## Run a USE statement
 
-USE statements can be executed with the `executeSql()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `executeSql()` method returns 'OK' for a successful USE operation, otherwise will throw an exception.
+<div class="codetabs" data-hide-tabs="1" markdown="1">
 
-The following examples show how to run a USE statement in `TableEnvironment` and in SQL CLI.
+<div data-lang="java/scala" markdown="1">
+
+USE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns 'OK' for a successful USE operation, otherwise will throw an exception.
+
+The following examples show how to run a USE statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+USE statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns 'OK' for a successful USE operation, otherwise will throw an exception.
+
+The following examples show how to run a USE statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+USE statements can be executed in [SQL CLI]({% link dev/table/sqlClient.md %}).
+
+The following examples show how to run a USE statement in SQL CLI.
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

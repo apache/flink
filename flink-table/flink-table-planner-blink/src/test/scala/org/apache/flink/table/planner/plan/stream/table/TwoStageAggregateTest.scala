@@ -24,6 +24,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
 
+import java.time.Duration
+
 import org.junit.{Before, Test}
 
 class TwoStageAggregateTest extends TableTestBase {
@@ -35,7 +37,7 @@ class TwoStageAggregateTest extends TableTestBase {
     util.tableEnv.getConfig
       .setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     util.tableEnv.getConfig.getConfiguration
-      .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     util.tableEnv.getConfig.getConfiguration
         .setBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration
@@ -52,7 +54,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .groupBy('b)
       .select('a.count)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -63,7 +65,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .groupBy('four, 'a)
       .select('four, 'b.sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -74,7 +76,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .groupBy('b, 'four)
       .select('four, 'a.sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -85,7 +87,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .groupBy('d)
       .select('c.min, 'a.avg)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -96,7 +98,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .select('b, 'a.sum)
       .where('b === 2)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -106,6 +108,6 @@ class TwoStageAggregateTest extends TableTestBase {
       .groupBy('b)
       .select('b, 'a.cast(DataTypes.DOUBLE()).avg)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 }

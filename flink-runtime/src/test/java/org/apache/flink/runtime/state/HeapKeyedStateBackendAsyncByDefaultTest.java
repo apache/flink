@@ -35,56 +35,57 @@ import org.junit.rules.TemporaryFolder;
 
 import java.util.Collections;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * This tests that all heap-based state backends use asynchronous snapshots by default.
- */
+/** This tests that all heap-based state backends use asynchronous snapshots by default. */
 public class HeapKeyedStateBackendAsyncByDefaultTest {
 
-	@Rule
-	public final TemporaryFolder tmpFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
-	@Test
-	public void testConfigOptionDefaultsToAsync() {
-		assertTrue(CheckpointingOptions.ASYNC_SNAPSHOTS.defaultValue());
-	}
+    @Test
+    public void testConfigOptionDefaultsToAsync() {
+        assertTrue(CheckpointingOptions.ASYNC_SNAPSHOTS.defaultValue());
+    }
 
-	@Test
-	public void testFsStateBackendDefaultsToAsync() throws Exception {
-		FsStateBackend backend = new FsStateBackend(tmpFolder.newFolder().toURI());
-		assertTrue(backend.isUsingAsynchronousSnapshots());
+    @Test
+    public void testFsStateBackendDefaultsToAsync() throws Exception {
+        FsStateBackend backend = new FsStateBackend(tmpFolder.newFolder().toURI());
+        assertTrue(backend.isUsingAsynchronousSnapshots());
 
-		validateSupportForAsyncSnapshots(backend);
-	}
+        validateSupportForAsyncSnapshots(backend);
+    }
 
-	@Test
-	public void testMemoryStateBackendDefaultsToAsync() throws Exception {
-		MemoryStateBackend backend = new MemoryStateBackend();
-		assertTrue(backend.isUsingAsynchronousSnapshots());
+    @Test
+    public void testMemoryStateBackendDefaultsToAsync() throws Exception {
+        MemoryStateBackend backend = new MemoryStateBackend();
+        assertTrue(backend.isUsingAsynchronousSnapshots());
 
-		validateSupportForAsyncSnapshots(backend);
-	}
+        validateSupportForAsyncSnapshots(backend);
+    }
 
-	private void validateSupportForAsyncSnapshots(StateBackend backend) throws Exception {
+    private void validateSupportForAsyncSnapshots(StateBackend backend) throws Exception {
 
-		AbstractKeyedStateBackend<Integer> keyedStateBackend = backend.createKeyedStateBackend(
-			new DummyEnvironment("Test", 1, 0),
-			new JobID(),
-			"testOperator",
-			IntSerializer.INSTANCE,
-			1,
-			new KeyGroupRange(0, 0),
-			null,
-			TtlTimeProvider.DEFAULT,
-			new UnregisteredMetricsGroup(),
-			Collections.emptyList(),
-			new CloseableRegistry()
-		);
+        CheckpointableKeyedStateBackend<Integer> keyedStateBackend =
+                backend.createKeyedStateBackend(
+                        new DummyEnvironment("Test", 1, 0),
+                        new JobID(),
+                        "testOperator",
+                        IntSerializer.INSTANCE,
+                        1,
+                        new KeyGroupRange(0, 0),
+                        null,
+                        TtlTimeProvider.DEFAULT,
+                        new UnregisteredMetricsGroup(),
+                        Collections.emptyList(),
+                        new CloseableRegistry());
 
-		assertTrue(keyedStateBackend.supportsAsynchronousSnapshots());
+        assertThat(keyedStateBackend, instanceOf(AbstractKeyedStateBackend.class));
+        assertTrue(
+                ((AbstractKeyedStateBackend<?>) keyedStateBackend).supportsAsynchronousSnapshots());
 
-		IOUtils.closeQuietly(keyedStateBackend);
-		keyedStateBackend.dispose();
-	}
+        IOUtils.closeQuietly(keyedStateBackend);
+        keyedStateBackend.dispose();
+    }
 }

@@ -17,27 +17,31 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.FlatMapFunction
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.async.AsyncFunction
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.data.util.DataFormatConverters
-import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter
-import org.apache.flink.table.data.{GenericRowData, JoinedRowData, RowData}
-import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
+import org.apache.flink.table.api.{TableConfig, ValidationException}
+import org.apache.flink.table.catalog.DataTypeFactory
+import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
+import org.apache.flink.table.data.utils.JoinedRowData
+import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
+import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
+import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.verifyFunctionAwareImplementation
+import org.apache.flink.table.planner.functions.inference.LookupCallContext
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.{TableFunctionCollector, TableFunctionResultFuture}
 import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
-import org.apache.flink.table.runtime.operators.join.lookup.DelegatingResultFuture
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.extraction.ExtractionUtils.extractSimpleGeneric
+import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies, TypeTransformations}
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
-import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.utils.DataTypeUtils.transform
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
@@ -45,69 +49,52 @@ import org.apache.calcite.rex.{RexNode, RexProgram}
 
 import java.util
 
+import scala.collection.JavaConverters._
+
 object LookupJoinCodeGenerator {
 
-  val ARRAY_LIST = className[util.ArrayList[_]]
+  private val ARRAY_LIST = className[util.ArrayList[_]]
 
   /**
     * Generates a lookup function ([[TableFunction]])
     */
-  def generateLookupFunction(
+  def generateSyncLookupFunction(
       config: TableConfig,
-      typeFactory: FlinkTypeFactory,
+      dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
+      tableSourceType: LogicalType,
       returnType: LogicalType,
-      tableReturnTypeInfo: TypeInformation[_],
-      lookupKeyInOrder: Array[Int],
-      // index field position -> lookup key
-      allLookupFields: Map[Int, LookupKey],
-      lookupFunction: TableFunction[_],
-      enableObjectReuse: Boolean)
+      lookupKeys: Map[Int, LookupKey],
+      lookupKeyOrder: Array[Int],
+      syncLookupFunction: TableFunction[_],
+      functionName: String,
+      fieldCopy: Boolean)
     : GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
 
-    val ctx = CodeGeneratorContext(config)
-    val (prepareCode, parameters, nullInParameters) = prepareParameters(
-      ctx,
-      typeFactory,
-      inputType,
-      lookupKeyInOrder,
-      allLookupFields,
-      tableReturnTypeInfo.isInstanceOf[RowTypeInfo],
-      enableObjectReuse)
-
-    val lookupFunctionTerm = ctx.addReusableFunction(lookupFunction)
-    val setCollectorCode = tableReturnTypeInfo match {
-      case rt: RowTypeInfo =>
-        val converterCollector = new RowToRowDataCollector(rt)
-        val term = ctx.addReusableObject(converterCollector, "collector")
-        s"""
-           |$term.setCollector($DEFAULT_COLLECTOR_TERM);
-           |$lookupFunctionTerm.setCollector($term);
-         """.stripMargin
-      case _ =>
-        s"$lookupFunctionTerm.setCollector($DEFAULT_COLLECTOR_TERM);"
+    val bodyCode: GeneratedExpression => String = call => {
+      val resultCollectorTerm = call.resultTerm
+      s"""
+         |$resultCollectorTerm.setCollector($DEFAULT_COLLECTOR_TERM);
+         |${call.code}
+         |""".stripMargin
     }
 
-    // TODO: filter all records when there is any nulls on the join key, because
-    //  "IS NOT DISTINCT FROM" is not supported yet.
-    val body =
-      s"""
-         |$prepareCode
-         |$setCollectorCode
-         |if ($nullInParameters) {
-         |  return;
-         |} else {
-         |  $lookupFunctionTerm.eval($parameters);
-         | }
-      """.stripMargin
-
-    FunctionCodeGenerator.generateFunction(
-      ctx,
-      "LookupFunction",
+    val (function, _) = generateLookupFunction(
       classOf[FlatMapFunction[RowData, RowData]],
-      body,
+      config,
+      dataTypeFactory,
+      inputType,
+      tableSourceType,
       returnType,
-      inputType)
+      lookupKeys,
+      lookupKeyOrder,
+      classOf[TableFunction[_]],
+      syncLookupFunction,
+      functionName,
+      fieldCopy,
+      bodyCode)
+
+    function
   }
 
   /**
@@ -115,106 +102,183 @@ object LookupJoinCodeGenerator {
     */
   def generateAsyncLookupFunction(
       config: TableConfig,
-      typeFactory: FlinkTypeFactory,
+      dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
+      tableSourceType: LogicalType,
       returnType: LogicalType,
-      tableReturnTypeInfo: TypeInformation[_],
-      lookupKeyInOrder: Array[Int],
-      allLookupFields: Map[Int, LookupKey],
-      asyncLookupFunction: AsyncTableFunction[_])
-    : GeneratedFunction[AsyncFunction[RowData, AnyRef]] = {
+      lookupKeys: Map[Int, LookupKey],
+      lookupKeyOrder: Array[Int],
+      asyncLookupFunction: AsyncTableFunction[_],
+      functionName: String)
+    : (GeneratedFunction[AsyncFunction[RowData, AnyRef]], DataType) = {
+
+    generateLookupFunction(
+      classOf[AsyncFunction[RowData, AnyRef]],
+      config,
+      dataTypeFactory,
+      inputType,
+      tableSourceType,
+      returnType,
+      lookupKeys,
+      lookupKeyOrder,
+      classOf[AsyncTableFunction[_]],
+      asyncLookupFunction,
+      functionName,
+      fieldCopy = true, // always copy input field because of async buffer
+      _.code)
+  }
+
+   private def generateLookupFunction[F <: Function](
+      generatedClass: Class[F],
+      config: TableConfig,
+      dataTypeFactory: DataTypeFactory,
+      inputType: LogicalType,
+      tableSourceType: LogicalType,
+      returnType: LogicalType,
+      lookupKeys: Map[Int, LookupKey],
+      lookupKeyOrder: Array[Int],
+      lookupFunctionBase: Class[_],
+      lookupFunction: UserDefinedFunction,
+      functionName: String,
+      fieldCopy: Boolean,
+      bodyCode: GeneratedExpression => String)
+    : (GeneratedFunction[F], DataType) = {
+
+    val callContext = new LookupCallContext(
+      dataTypeFactory,
+      lookupFunction,
+      inputType,
+      lookupKeys
+          .map { case (k, v) =>
+            (Int.box(k), v)
+          }
+          .asJava,
+      lookupKeyOrder,
+      tableSourceType)
+
+    val inference = createLookupTypeInference(
+      dataTypeFactory,
+      callContext,
+      lookupFunctionBase,
+      lookupFunction,
+      functionName)
 
     val ctx = CodeGeneratorContext(config)
-    val (prepareCode, parameters, nullInParameters) = prepareParameters(
+    val operands = prepareOperands(
       ctx,
-      typeFactory,
       inputType,
-      lookupKeyInOrder,
-      allLookupFields,
-      tableReturnTypeInfo.isInstanceOf[RowTypeInfo],
-      fieldCopy = true) // always copy input field because of async buffer
+      lookupKeys,
+      lookupKeyOrder,
+      fieldCopy)
+    val callWithDataType = BridgingFunctionGenUtil.generateFunctionAwareCallWithDataType(
+      ctx,
+      operands,
+      tableSourceType,
+      inference,
+      callContext,
+      lookupFunction,
+      functionName,
+      // TODO: filter all records when there is any nulls on the join key, because
+      //  "IS NOT DISTINCT FROM" is not supported yet.
+      skipIfArgsNull = true)
 
-    val lookupFunctionTerm = ctx.addReusableFunction(asyncLookupFunction)
-    val DELEGATE = className[DelegatingResultFuture[_]]
-
-    // TODO: filter all records when there is any nulls on the join key, because
-    //  "IS NOT DISTINCT FROM" is not supported yet.
-    val body =
-      s"""
-         |$prepareCode
-         |if ($nullInParameters) {
-         |  $DEFAULT_COLLECTOR_TERM.complete(java.util.Collections.emptyList());
-         |  return;
-         |} else {
-         |  $DELEGATE delegates = new $DELEGATE($DEFAULT_COLLECTOR_TERM);
-         |  $lookupFunctionTerm.eval(delegates.getCompletableFuture(), $parameters);
-         |}
-      """.stripMargin
-
-    FunctionCodeGenerator.generateFunction(
+    val function = FunctionCodeGenerator.generateFunction(
       ctx,
       "LookupFunction",
-      classOf[AsyncFunction[RowData, AnyRef]],
-      body,
+      generatedClass,
+      bodyCode(callWithDataType._1),
       returnType,
       inputType)
+
+     (function, callWithDataType._2)
+  }
+
+  private def prepareOperands(
+      ctx: CodeGeneratorContext,
+      inputType: LogicalType,
+      lookupKeys: Map[Int, LookupKey],
+      lookupKeyOrder: Array[Int],
+      fieldCopy: Boolean)
+    : Seq[GeneratedExpression] = {
+
+    lookupKeyOrder
+        .map(lookupKeys.get)
+        .map {
+          case Some(constantKey: ConstantLookupKey) =>
+            generateLiteral(
+              ctx,
+              constantKey.sourceType,
+              constantKey.literal.getValue3)
+          case Some(fieldKey: FieldRefLookupKey) =>
+            generateInputAccess(
+              ctx,
+              inputType,
+              DEFAULT_INPUT1_TERM,
+              fieldKey.index,
+              nullableInput = false,
+              fieldCopy)
+          case _ =>
+            throw new CodeGenException("Invalid lookup key.")
+        }
   }
 
   /**
-    * Prepares parameters and returns (code, parameters)
-    */
-  private def prepareParameters(
-      ctx: CodeGeneratorContext,
-      typeFactory: FlinkTypeFactory,
-      inputType: LogicalType,
-      lookupKeyInOrder: Array[Int],
-      allLookupFields: Map[Int, LookupKey],
-      isExternalArgs: Boolean,
-      fieldCopy: Boolean): (String, String, String) = {
+   * The [[LogicalType]] for inputs and output are known in a [[LookupTableSource]]. Thus, the
+   * function's type inference is actually only necessary for enriching the conversion class.
+   *
+   * For [[ScanTableSource]], we always assume internal data structures. For [[LookupTableSource]],
+   * we try regular inference and fallback to internal/default external data structures.
+   */
+  private def createLookupTypeInference(
+      dataTypeFactory: DataTypeFactory,
+      callContext: LookupCallContext,
+      baseClass: Class[_],
+      udf: UserDefinedFunction,
+      functionName: String)
+    : TypeInference = {
 
-    val inputFieldExprs = for (i <- lookupKeyInOrder) yield {
-      allLookupFields.get(i) match {
-        case Some(ConstantLookupKey(dataType, literal)) =>
-          generateLiteral(ctx, dataType, literal.getValue3)
-        case Some(FieldRefLookupKey(index)) =>
-          generateInputAccess(
-            ctx,
-            inputType,
-            DEFAULT_INPUT1_TERM,
-            index,
-            nullableInput = false,
-            fieldCopy)
-        case None =>
-          throw new CodeGenException("This should never happen!")
+    try {
+      // user provided type inference has precedence
+      // this ensures that all functions work in the same way
+      udf.getTypeInference(dataTypeFactory)
+    } catch { case e: Exception =>
+      // for convenience, we assume internal or default external data structures
+      // of expected logical types
+      val defaultArgDataTypes = callContext.getArgumentDataTypes.asScala
+      val defaultOutputDataType = callContext.getOutputDataType.get()
+
+      val outputClass = toScala(extractSimpleGeneric(baseClass, udf.getClass, 0))
+      val (argDataTypes, outputDataType) = outputClass match {
+        case Some(c) if c == classOf[Row] =>
+          (defaultArgDataTypes, defaultOutputDataType)
+        case Some(c) if c == classOf[RowData] =>
+          val internalArgDataTypes = defaultArgDataTypes
+              .map(dt => transform(dt, TypeTransformations.TO_INTERNAL_CLASS))
+          val internalOutputDataType = transform(
+            defaultOutputDataType,
+            TypeTransformations.TO_INTERNAL_CLASS)
+          (internalArgDataTypes, internalOutputDataType)
+        case _ =>
+          throw new ValidationException(
+            s"Could not determine a type inference for lookup function '$functionName'. " +
+                s"Lookup functions support regular type inference. However, for convenience, the " +
+                s"output class can simply be a ${classOf[Row].getSimpleName} or " +
+                s"${classOf[RowData].getSimpleName} class in which case the input and output " +
+                s"types are derived from the table's schema with default conversion.", e)
       }
+
+      verifyFunctionAwareImplementation(
+        argDataTypes,
+        outputDataType,
+        udf,
+        functionName)
+
+      TypeInference
+          .newBuilder()
+          .typedArguments(argDataTypes.asJava)
+          .outputTypeStrategy(TypeStrategies.explicit(outputDataType))
+          .build()
     }
-    val codeAndArg = inputFieldExprs
-      .map { e =>
-        val dataType = fromLogicalTypeToDataType(e.resultType)
-        val bType = if (isExternalArgs) {
-          typeTerm(dataType.getConversionClass)
-        } else {
-          boxedTypeTermForType(e.resultType)
-        }
-        val assign = if (isExternalArgs) {
-          CodeGenUtils.genToExternalConverter(ctx, dataType, e.resultTerm)
-        } else {
-          e.resultTerm
-        }
-        val newTerm = newName("arg")
-        val code =
-          s"""
-             |$bType $newTerm = null;
-             |if (!${e.nullTerm}) {
-             |  $newTerm = $assign;
-             |}
-             """.stripMargin
-        (code, newTerm, e.nullTerm)
-      }
-    (
-      codeAndArg.map(_._1).mkString("\n"),
-      codeAndArg.map(_._2).mkString(", "),
-      codeAndArg.map(_._3).mkString("|| "))
   }
 
   /**
@@ -225,24 +289,25 @@ object LookupJoinCodeGenerator {
     */
   def generateCollector(
       ctx: CodeGeneratorContext,
-      inputType: RowType,
-      udtfTypeInfo: RowType,
-      resultType: RowType,
+      inputRowType: RowType,
+      rightRowType: RowType,
+      resultRowType: RowType,
       condition: Option[RexNode],
       pojoFieldMapping: Option[Array[Int]],
-      retainHeader: Boolean = true): GeneratedCollector[TableFunctionCollector[RowData]] = {
+      retainHeader: Boolean = true)
+    : GeneratedCollector[TableFunctionCollector[RowData]] = {
 
     val inputTerm = DEFAULT_INPUT1_TERM
-    val udtfInputTerm = DEFAULT_INPUT2_TERM
+    val rightInputTerm = DEFAULT_INPUT2_TERM
 
     val exprGenerator = new ExprCodeGenerator(ctx, nullableInput = false)
-      .bindInput(udtfTypeInfo, inputTerm = udtfInputTerm, inputFieldMapping = pojoFieldMapping)
+      .bindInput(rightRowType, inputTerm = rightInputTerm, inputFieldMapping = pojoFieldMapping)
 
-    val udtfResultExpr = exprGenerator.generateConverterResultExpression(
-      udtfTypeInfo, classOf[GenericRowData])
+    val rightResultExpr = exprGenerator.generateConverterResultExpression(
+      rightRowType, classOf[GenericRowData])
 
     val joinedRowTerm = CodeGenUtils.newName("joinedRow")
-    ctx.addReusableOutputRecord(resultType, classOf[JoinedRowData], joinedRowTerm)
+    ctx.addReusableOutputRecord(resultRowType, classOf[JoinedRowData], joinedRowTerm)
 
     val header = if (retainHeader) {
       s"$joinedRowTerm.setRowKind($inputTerm.getRowKind());"
@@ -252,8 +317,8 @@ object LookupJoinCodeGenerator {
 
     val body =
       s"""
-         |${udtfResultExpr.code}
-         |$joinedRowTerm.replace($inputTerm, ${udtfResultExpr.resultTerm});
+         |${rightResultExpr.code}
+         |$joinedRowTerm.replace($inputTerm, ${rightResultExpr.resultTerm});
          |$header
          |outputResult($joinedRowTerm);
       """.stripMargin
@@ -263,8 +328,8 @@ object LookupJoinCodeGenerator {
     } else {
 
       val filterGenerator = new ExprCodeGenerator(ctx, nullableInput = false)
-        .bindInput(inputType, inputTerm)
-        .bindSecondInput(udtfTypeInfo, udtfInputTerm, pojoFieldMapping)
+        .bindInput(inputRowType, inputTerm)
+        .bindSecondInput(rightRowType, rightInputTerm, pojoFieldMapping)
       val filterCondition = filterGenerator.generateExpression(condition.get)
 
       s"""
@@ -279,10 +344,10 @@ object LookupJoinCodeGenerator {
       ctx,
       "JoinTableFuncCollector",
       collectorCode,
-      inputType,
-      udtfTypeInfo,
+      inputRowType,
+      rightRowType,
       inputTerm = inputTerm,
-      collectedTerm = udtfInputTerm)
+      collectedTerm = rightInputTerm)
   }
 
   /**
@@ -451,23 +516,5 @@ object LookupJoinCodeGenerator {
       program,
       condition,
       config)
-  }
-
-
-  // ----------------------------------------------------------------------------------------
-  //                                Utility Classes
-  // ----------------------------------------------------------------------------------------
-
-  class RowToRowDataCollector(rowTypeInfo: RowTypeInfo)
-    extends TableFunctionCollector[Row] with Serializable {
-
-    private val converter = DataFormatConverters.getConverterForDataType(
-      TypeConversions.fromLegacyInfoToDataType(rowTypeInfo))
-        .asInstanceOf[DataFormatConverter[RowData, Row]]
-
-    override def collect(record: Row): Unit = {
-      val result = converter.toInternal(record)
-      outputResult(result)
-    }
   }
 }

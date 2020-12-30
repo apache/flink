@@ -38,6 +38,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateFunction;
@@ -49,6 +50,7 @@ import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.util.IOUtils;
 
 import org.rocksdb.RocksDBException;
@@ -57,142 +59,176 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 
-/**
- * Utils to create keyed state backend for state micro benchmark.
- */
+/** Utils to create keyed state backend for state micro benchmark. */
 public class StateBackendBenchmarkUtils {
-	private static final String rootDirName = "benchmark";
-	private static final String recoveryDirName = "localRecovery";
-	private static final String dbDirName = "dbPath";
-	private static File rootDir;
+    private static final String rootDirName = "benchmark";
+    private static final String recoveryDirName = "localRecovery";
+    private static final String dbDirName = "dbPath";
+    private static File rootDir;
 
-	public static KeyedStateBackend<Long> createKeyedStateBackend(StateBackendType backendType) throws IOException {
-		switch (backendType) {
-			case HEAP:
-				rootDir = prepareDirectory(rootDirName, null);
-				return createHeapKeyedStateBackend(rootDir);
-			case ROCKSDB:
-				rootDir = prepareDirectory(rootDirName, null);
-				return createRocksDBKeyedStateBackend(rootDir);
-			default:
-				throw new IllegalArgumentException("Unknown backend type: " + backendType);
-		}
-	}
+    public static KeyedStateBackend<Long> createKeyedStateBackend(StateBackendType backendType)
+            throws IOException {
+        switch (backendType) {
+            case HEAP:
+                rootDir = prepareDirectory(rootDirName, null);
+                return createHeapKeyedStateBackend(rootDir);
+            case ROCKSDB:
+                rootDir = prepareDirectory(rootDirName, null);
+                return createRocksDBKeyedStateBackend(rootDir);
+            case BATCH_EXECUTION:
+                return createBatchExecutionStateBackend();
+            default:
+                throw new IllegalArgumentException("Unknown backend type: " + backendType);
+        }
+    }
 
-	private static RocksDBKeyedStateBackend<Long> createRocksDBKeyedStateBackend(File rootDir) throws IOException {
-		File recoveryBaseDir = prepareDirectory(recoveryDirName, rootDir);
-		File dbPathFile = prepareDirectory(dbDirName, rootDir);
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
-		RocksDBKeyedStateBackendBuilder<Long> builder = new RocksDBKeyedStateBackendBuilder<>(
-			"Test",
-			Thread.currentThread().getContextClassLoader(),
-			dbPathFile,
-			resourceContainer,
-			stateName -> resourceContainer.getColumnOptions(),
-			null,
-			LongSerializer.INSTANCE,
-			2,
-			new KeyGroupRange(0, 1),
-			executionConfig,
-			new LocalRecoveryConfig(false, new LocalRecoveryDirectoryProviderImpl(recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
-			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
-			TtlTimeProvider.DEFAULT,
-			new UnregisteredMetricsGroup(),
-			Collections.emptyList(),
-			AbstractStateBackend.getCompressionDecorator(executionConfig),
-			new CloseableRegistry());
-		try {
-			return builder.build();
-		} catch (Exception e) {
-			IOUtils.closeQuietly(resourceContainer);
-			throw e;
-		}
-	}
+    private static CheckpointableKeyedStateBackend<Long> createBatchExecutionStateBackend() {
+        return new BatchExecutionStateBackend()
+                .createKeyedStateBackend(
+                        null,
+                        new JobID(),
+                        "Test",
+                        new LongSerializer(),
+                        2,
+                        new KeyGroupRange(0, 1),
+                        null,
+                        TtlTimeProvider.DEFAULT,
+                        new UnregisteredMetricsGroup(),
+                        Collections.emptyList(),
+                        null);
+    }
 
-	private static HeapKeyedStateBackend<Long> createHeapKeyedStateBackend(File rootDir) throws IOException {
-		File recoveryBaseDir = prepareDirectory(recoveryDirName, rootDir);
-		KeyGroupRange keyGroupRange = new KeyGroupRange(0, 1);
-		int numberOfKeyGroups = keyGroupRange.getNumberOfKeyGroups();
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		HeapPriorityQueueSetFactory priorityQueueSetFactory =
-			new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
-		HeapKeyedStateBackendBuilder<Long> backendBuilder = new HeapKeyedStateBackendBuilder<>(
-			null,
-			new LongSerializer(),
-			Thread.currentThread().getContextClassLoader(),
-			numberOfKeyGroups,
-			keyGroupRange,
-			executionConfig,
-			TtlTimeProvider.DEFAULT,
-			Collections.emptyList(),
-			AbstractStateBackend.getCompressionDecorator(executionConfig),
-			new LocalRecoveryConfig(false, new LocalRecoveryDirectoryProviderImpl(recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
-			priorityQueueSetFactory,
-			false,
-			new CloseableRegistry()
-		);
-		return backendBuilder.build();
-	}
+    private static RocksDBKeyedStateBackend<Long> createRocksDBKeyedStateBackend(File rootDir)
+            throws IOException {
+        File recoveryBaseDir = prepareDirectory(recoveryDirName, rootDir);
+        File dbPathFile = prepareDirectory(dbDirName, rootDir);
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
+        RocksDBKeyedStateBackendBuilder<Long> builder =
+                new RocksDBKeyedStateBackendBuilder<>(
+                        "Test",
+                        Thread.currentThread().getContextClassLoader(),
+                        dbPathFile,
+                        resourceContainer,
+                        stateName -> resourceContainer.getColumnOptions(),
+                        null,
+                        LongSerializer.INSTANCE,
+                        2,
+                        new KeyGroupRange(0, 1),
+                        executionConfig,
+                        new LocalRecoveryConfig(
+                                false,
+                                new LocalRecoveryDirectoryProviderImpl(
+                                        recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
+                        RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+                        TtlTimeProvider.DEFAULT,
+                        new UnregisteredMetricsGroup(),
+                        Collections.emptyList(),
+                        AbstractStateBackend.getCompressionDecorator(executionConfig),
+                        new CloseableRegistry());
+        try {
+            return builder.build();
+        } catch (Exception e) {
+            IOUtils.closeQuietly(resourceContainer);
+            throw e;
+        }
+    }
 
-	private static File prepareDirectory(String prefix, File parentDir) throws IOException {
-		File target = File.createTempFile(prefix, "", parentDir);
-		if (target.exists() && !target.delete()) {
-			throw new IOException("Target dir {" + target.getAbsolutePath() + "} exists but failed to clean it up");
-		} else if (!target.mkdirs()) {
-			throw new IOException("Failed to create target directory: " + target.getAbsolutePath());
-		}
-		return target;
-	}
+    private static HeapKeyedStateBackend<Long> createHeapKeyedStateBackend(File rootDir)
+            throws IOException {
+        File recoveryBaseDir = prepareDirectory(recoveryDirName, rootDir);
+        KeyGroupRange keyGroupRange = new KeyGroupRange(0, 1);
+        int numberOfKeyGroups = keyGroupRange.getNumberOfKeyGroups();
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        HeapPriorityQueueSetFactory priorityQueueSetFactory =
+                new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
+        HeapKeyedStateBackendBuilder<Long> backendBuilder =
+                new HeapKeyedStateBackendBuilder<>(
+                        null,
+                        new LongSerializer(),
+                        Thread.currentThread().getContextClassLoader(),
+                        numberOfKeyGroups,
+                        keyGroupRange,
+                        executionConfig,
+                        TtlTimeProvider.DEFAULT,
+                        Collections.emptyList(),
+                        AbstractStateBackend.getCompressionDecorator(executionConfig),
+                        new LocalRecoveryConfig(
+                                false,
+                                new LocalRecoveryDirectoryProviderImpl(
+                                        recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
+                        priorityQueueSetFactory,
+                        false,
+                        new CloseableRegistry());
+        return backendBuilder.build();
+    }
 
-	public static <T> ValueState<T> getValueState(KeyedStateBackend<T> backend, ValueStateDescriptor<T> stateDescriptor)
-		throws Exception {
+    private static File prepareDirectory(String prefix, File parentDir) throws IOException {
+        File target = File.createTempFile(prefix, "", parentDir);
+        if (target.exists() && !target.delete()) {
+            throw new IOException(
+                    "Target dir {"
+                            + target.getAbsolutePath()
+                            + "} exists but failed to clean it up");
+        } else if (!target.mkdirs()) {
+            throw new IOException("Failed to create target directory: " + target.getAbsolutePath());
+        }
+        return target;
+    }
 
-		return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
-	}
+    public static <T> ValueState<T> getValueState(
+            KeyedStateBackend<T> backend, ValueStateDescriptor<T> stateDescriptor)
+            throws Exception {
 
-	public static <T> ListState<T> getListState(KeyedStateBackend<T> backend, ListStateDescriptor<T> stateDescriptor)
-		throws Exception {
+        return backend.getPartitionedState(
+                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+    }
 
-		return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
-	}
+    public static <T> ListState<T> getListState(
+            KeyedStateBackend<T> backend, ListStateDescriptor<T> stateDescriptor) throws Exception {
 
-	public static <K, V> MapState<K, V> getMapState(
-		KeyedStateBackend<K> backend,
-		MapStateDescriptor<K, V> stateDescriptor) throws Exception {
+        return backend.getPartitionedState(
+                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+    }
 
-		return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
-	}
+    public static <K, V> MapState<K, V> getMapState(
+            KeyedStateBackend<K> backend, MapStateDescriptor<K, V> stateDescriptor)
+            throws Exception {
 
-	public static <K, S extends State, T> void applyToAllKeys(
-		KeyedStateBackend<K> backend,
-		final StateDescriptor<S, T> stateDescriptor,
-		final KeyedStateFunction<K, S> function) throws Exception {
-		backend.applyToAllKeys(
-			VoidNamespace.INSTANCE,
-			VoidNamespaceSerializer.INSTANCE,
-			stateDescriptor,
-			function);
-	}
+        return backend.getPartitionedState(
+                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+    }
 
-	public static <K, S extends State, T> void compactState(
-		RocksDBKeyedStateBackend<K> backend,
-		StateDescriptor<S, T> stateDescriptor) throws RocksDBException {
-		backend.compactState(stateDescriptor);
-	}
+    public static <K, S extends State, T> void applyToAllKeys(
+            KeyedStateBackend<K> backend,
+            final StateDescriptor<S, T> stateDescriptor,
+            final KeyedStateFunction<K, S> function)
+            throws Exception {
+        backend.applyToAllKeys(
+                VoidNamespace.INSTANCE,
+                VoidNamespaceSerializer.INSTANCE,
+                stateDescriptor,
+                function);
+    }
 
-	public static void cleanUp(KeyedStateBackend<?> backend) throws IOException {
-		backend.dispose();
-		if (rootDir != null) {
-			Path path = Path.fromLocalFile(rootDir);
-			path.getFileSystem().delete(path, true);
-		}
-	}
+    public static <K, S extends State, T> void compactState(
+            RocksDBKeyedStateBackend<K> backend, StateDescriptor<S, T> stateDescriptor)
+            throws RocksDBException {
+        backend.compactState(stateDescriptor);
+    }
 
-	/**
-	 * Enum of backend type.
-	 */
-	public enum StateBackendType {
-		HEAP, ROCKSDB
-	}
+    public static void cleanUp(KeyedStateBackend<?> backend) throws IOException {
+        backend.dispose();
+        if (rootDir != null) {
+            Path path = Path.fromLocalFile(rootDir);
+            path.getFileSystem().delete(path, true);
+        }
+    }
+
+    /** Enum of backend type. */
+    public enum StateBackendType {
+        HEAP,
+        ROCKSDB,
+        BATCH_EXECUTION
+    }
 }

@@ -26,64 +26,69 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.function.Supplier;
 
-/**
- * Utilities for factories.
- */
+/** Utilities for factories. */
 public enum FactoryUtils {
-	;
+    ;
 
-	private static final Logger LOG = LoggerFactory.getLogger(FactoryUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FactoryUtils.class);
 
-	/**
-	 * Loads all factories for the given class using the {@link ServiceLoader} and attempts to create an instance.
-	 *
-	 * @param factoryInterface factory interface
-	 * @param factoryInvoker factory invoker
-	 * @param defaultProvider default factory provider
-	 * @param <R> resource type
-	 * @param <F> factory type
-	 * @throws RuntimeException if no or multiple resources could be instantiated
-	 * @return created instance
-	 */
-	public static <R, F> R loadAndInvokeFactory(final Class<F> factoryInterface, final FactoryInvoker<F, R> factoryInvoker, final Supplier<F> defaultProvider) {
-		final ServiceLoader<F> factories = ServiceLoader.load(factoryInterface);
+    /**
+     * Loads all factories for the given class using the {@link ServiceLoader} and attempts to
+     * create an instance.
+     *
+     * @param factoryInterface factory interface
+     * @param factoryInvoker factory invoker
+     * @param defaultProvider default factory provider
+     * @param <R> resource type
+     * @param <F> factory type
+     * @throws RuntimeException if no or multiple resources could be instantiated
+     * @return created instance
+     */
+    public static <R, F> R loadAndInvokeFactory(
+            final Class<F> factoryInterface,
+            final FactoryInvoker<F, R> factoryInvoker,
+            final Supplier<F> defaultProvider) {
+        final ServiceLoader<F> factories = ServiceLoader.load(factoryInterface);
 
-		final List<R> instantiatedResources = new ArrayList<>();
-		final List<Exception> errorsDuringInitialization = new ArrayList<>();
-		for (F factory : factories) {
-			try {
-				R resource = factoryInvoker.invoke(factory);
-				instantiatedResources.add(resource);
-				LOG.info("Instantiated {}.", resource.getClass().getSimpleName());
-			} catch (Exception e) {
-				LOG.debug("Factory {} could not instantiate instance.", factory.getClass().getSimpleName(), e);
-				errorsDuringInitialization.add(e);
-			}
-		}
+        final List<R> instantiatedResources = new ArrayList<>();
+        final List<Exception> errorsDuringInitialization = new ArrayList<>();
+        for (F factory : factories) {
+            try {
+                R resource = factoryInvoker.invoke(factory);
+                instantiatedResources.add(resource);
+                LOG.info("Instantiated {}.", resource.getClass().getSimpleName());
+            } catch (Exception e) {
+                LOG.debug(
+                        "Factory {} could not instantiate instance.",
+                        factory.getClass().getSimpleName(),
+                        e);
+                errorsDuringInitialization.add(e);
+            }
+        }
 
-		if (instantiatedResources.size() == 1) {
-			return instantiatedResources.get(0);
-		}
+        if (instantiatedResources.size() == 1) {
+            return instantiatedResources.get(0);
+        }
 
-		if (instantiatedResources.isEmpty()) {
-			try {
-				return factoryInvoker.invoke(defaultProvider.get());
-			} catch (Exception e) {
-				final RuntimeException exception = new RuntimeException("Could not instantiate any instance.");
-				final RuntimeException defaultException = new RuntimeException("Could not instantiate default instance.", e);
-				exception.addSuppressed(defaultException);
-				errorsDuringInitialization.forEach(exception::addSuppressed);
-				throw exception;
-			}
-		}
+        if (instantiatedResources.isEmpty()) {
+            try {
+                return factoryInvoker.invoke(defaultProvider.get());
+            } catch (Exception e) {
+                final RuntimeException exception =
+                        new RuntimeException("Could not instantiate any instance.");
+                final RuntimeException defaultException =
+                        new RuntimeException("Could not instantiate default instance.", e);
+                exception.addSuppressed(defaultException);
+                errorsDuringInitialization.forEach(exception::addSuppressed);
+                throw exception;
+            }
+        }
 
-		throw new RuntimeException("Multiple instances were created: " + instantiatedResources);
-	}
+        throw new RuntimeException("Multiple instances were created: " + instantiatedResources);
+    }
 
-	/**
-	 * Interface for invoking the factory.
-	 */
-	public interface FactoryInvoker<F, R> {
-		R invoke(F factory) throws Exception;
-	}
+    /** Interface for invoking the factory. */
+    public interface FactoryInvoker<F, R> {
+        R invoke(F factory) throws Exception;
+    }
 }

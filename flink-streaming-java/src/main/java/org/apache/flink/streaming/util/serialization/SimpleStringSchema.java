@@ -31,22 +31,22 @@ import java.nio.charset.Charset;
 @PublicEvolving
 @Deprecated
 @SuppressWarnings("deprecation")
-public class SimpleStringSchema
-		extends org.apache.flink.api.common.serialization.SimpleStringSchema
-		implements SerializationSchema<String>, DeserializationSchema<String> {
+public class SimpleStringSchema extends org.apache.flink.api.common.serialization.SimpleStringSchema
+        implements SerializationSchema<String>, DeserializationSchema<String> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SimpleStringSchema() {
-		super();
-	}
+    public SimpleStringSchema() {
+        super();
+    }
 
-	/**
-	 * Creates a new SimpleStringSchema that uses the given charset to convert between strings and bytes.
-	 *
-	 * @param charset The charset to use to convert between strings and bytes.
-	 */
-	public SimpleStringSchema(Charset charset) {
-		super(charset);
-	}
+    /**
+     * Creates a new SimpleStringSchema that uses the given charset to convert between strings and
+     * bytes.
+     *
+     * @param charset The charset to use to convert between strings and bytes.
+     */
+    public SimpleStringSchema(Charset charset) {
+        super(charset);
+    }
 }

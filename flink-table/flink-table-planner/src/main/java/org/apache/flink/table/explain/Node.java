@@ -20,146 +20,144 @@ package org.apache.flink.table.explain;
 
 import java.util.List;
 
-/**
- * Field hierarchy of an execution plan.
- */
+/** Field hierarchy of an execution plan. */
 public class Node {
-	private int id;
-	private String type;
-	private String pact;
-	private String contents;
-	private int parallelism;
-	private String driverStrategy;
-	private List<Predecessors> predecessors;
-	private List<GlobalProperties> globalProperties;
-	private List<LocalProperty> localProperties;
-	private List<Estimates> estimates;
-	private List<Costs> costs;
-	private List<CompilerHints> compilerHints;
+    private int id;
+    private String type;
+    private String pact;
+    private String contents;
+    private int parallelism;
+    private String driverStrategy;
+    private List<Predecessors> predecessors;
+    private List<GlobalProperties> globalProperties;
+    private List<LocalProperty> localProperties;
+    private List<Estimates> estimates;
+    private List<Costs> costs;
+    private List<CompilerHints> compilerHints;
 
-	public int getId() {
-		return id;
-	}
+    public int getId() {
+        return id;
+    }
 
-	public String getType() {
-		return type;
-	}
+    public String getType() {
+        return type;
+    }
 
-	public String getPact() {
-		return pact;
-	}
+    public String getPact() {
+        return pact;
+    }
 
-	public String getContents() {
-		return contents;
-	}
+    public String getContents() {
+        return contents;
+    }
 
-	public int getParallelism() {
-		return parallelism;
-	}
+    public int getParallelism() {
+        return parallelism;
+    }
 
-	public String getDriverStrategy() {
-		return driverStrategy;
-	}
+    public String getDriverStrategy() {
+        return driverStrategy;
+    }
 
-	public List<Predecessors> getPredecessors() {
-		return predecessors;
-	}
+    public List<Predecessors> getPredecessors() {
+        return predecessors;
+    }
 
-	public List<GlobalProperties> getGlobalProperties() {
-		return globalProperties;
-	}
+    public List<GlobalProperties> getGlobalProperties() {
+        return globalProperties;
+    }
 
-	public List<LocalProperty> getLocalProperties() {
-		return localProperties;
-	}
+    public List<LocalProperty> getLocalProperties() {
+        return localProperties;
+    }
 
-	public List<Estimates> getEstimates() {
-		return estimates;
-	}
+    public List<Estimates> getEstimates() {
+        return estimates;
+    }
 
-	public List<Costs> getCosts() {
-		return costs;
-	}
+    public List<Costs> getCosts() {
+        return costs;
+    }
 
-	public List<CompilerHints> getCompilerHints() {
-		return compilerHints;
-	}
+    public List<CompilerHints> getCompilerHints() {
+        return compilerHints;
+    }
 }
 
 class Predecessors {
-	private String shipStrategy;
-	private String exchangeMode;
+    private String shipStrategy;
+    private String exchangeMode;
 
-	public String getShipStrategy() {
-		return shipStrategy;
-	}
+    public String getShipStrategy() {
+        return shipStrategy;
+    }
 
-	public String getExchangeMode() {
-		return exchangeMode;
-	}
+    public String getExchangeMode() {
+        return exchangeMode;
+    }
 }
 
 class GlobalProperties {
-	private String name;
-	private String value;
+    private String name;
+    private String value;
 
-	public String getValue() {
-		return value;
-	}
+    public String getValue() {
+        return value;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 }
 
 class LocalProperty {
-	private String name;
-	private String value;
+    private String name;
+    private String value;
 
-	public String getValue() {
-		return value;
-	}
+    public String getValue() {
+        return value;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 }
 
 class Estimates {
-	private String name;
-	private String value;
+    private String name;
+    private String value;
 
-	public String getValue() {
-		return value;
-	}
+    public String getValue() {
+        return value;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 }
 
 class Costs {
-	private String name;
-	private String value;
+    private String name;
+    private String value;
 
-	public String getValue() {
-		return value;
-	}
+    public String getValue() {
+        return value;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 }
 
 class CompilerHints {
-	private String name;
-	private String value;
+    private String name;
+    private String value;
 
-	public String getValue() {
-		return value;
-	}
+    public String getValue() {
+        return value;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 }

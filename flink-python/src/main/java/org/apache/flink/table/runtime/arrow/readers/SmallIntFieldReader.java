@@ -22,18 +22,16 @@ import org.apache.flink.annotation.Internal;
 
 import org.apache.arrow.vector.SmallIntVector;
 
-/**
- * {@link ArrowFieldReader} for SmallInt.
- */
+/** {@link ArrowFieldReader} for SmallInt. */
 @Internal
 public final class SmallIntFieldReader extends ArrowFieldReader<Short> {
 
-	public SmallIntFieldReader(SmallIntVector smallIntVector) {
-		super(smallIntVector);
-	}
+    public SmallIntFieldReader(SmallIntVector smallIntVector) {
+        super(smallIntVector);
+    }
 
-	@Override
-	public Short read(int index) {
-		return ((SmallIntVector) getValueVector()).getObject(index);
-	}
+    @Override
+    public Short read(int index) {
+        return ((SmallIntVector) getValueVector()).getObject(index);
+    }
 }

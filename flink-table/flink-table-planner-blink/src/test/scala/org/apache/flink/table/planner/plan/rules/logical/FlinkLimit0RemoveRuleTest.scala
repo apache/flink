@@ -54,46 +54,46 @@ class FlinkLimit0RemoveRuleTest extends TableTestBase {
 
   @Test
   def testSimpleLimitZero(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable LIMIT 0")
+    util.verifyRelPlan("SELECT * FROM MyTable LIMIT 0")
   }
 
   @Test
   def testLimitZeroWithOrderBy(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable ORDER BY a LIMIT 0")
+    util.verifyRelPlan("SELECT * FROM MyTable ORDER BY a LIMIT 0")
   }
 
   @Test
   def testLimitZeroWithOffset(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable ORDER BY a LIMIT 0 OFFSET 10")
+    util.verifyRelPlan("SELECT * FROM MyTable ORDER BY a LIMIT 0 OFFSET 10")
   }
 
   @Test
   def testLimitZeroWithSelect(): Unit = {
-    util.verifyPlan("SELECT * FROM (SELECT a FROM MyTable LIMIT 0)")
+    util.verifyRelPlan("SELECT * FROM (SELECT a FROM MyTable LIMIT 0)")
   }
 
   @Test
   def testLimitZeroWithIn(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a IN (SELECT a FROM MyTable LIMIT 0)")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a IN (SELECT a FROM MyTable LIMIT 0)")
   }
 
   @Test
   def testLimitZeroWithNotIn(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a NOT IN (SELECT a FROM MyTable LIMIT 0)")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a NOT IN (SELECT a FROM MyTable LIMIT 0)")
   }
 
   @Test
   def testLimitZeroWithExists(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE EXISTS (SELECT a FROM MyTable LIMIT 0)")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE EXISTS (SELECT a FROM MyTable LIMIT 0)")
   }
 
   @Test
   def testLimitZeroWithNotExists(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE NOT EXISTS (SELECT a FROM MyTable LIMIT 0)")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE NOT EXISTS (SELECT a FROM MyTable LIMIT 0)")
   }
 
   @Test
   def testLimitZeroWithJoin(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable INNER JOIN (SELECT * FROM MyTable Limit 0) ON TRUE")
+    util.verifyRelPlan("SELECT * FROM MyTable INNER JOIN (SELECT * FROM MyTable Limit 0) ON TRUE")
   }
 }

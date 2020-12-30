@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-parser</artifactId>
@@ -56,10 +56,10 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.22.0:
+				"mvn dependency:tree" as of Calcite 1.26.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.22.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.16.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.26.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.17.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
 
 				Dependencies that are not needed for how we use Calcite right now.
@@ -152,6 +152,10 @@ under the License.
 					<groupId>commons-codec</groupId>
 					<artifactId>commons-codec</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.google.uzaygezen</groupId>
+					<artifactId>uzaygezen-core</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 		<dependency>
@@ -174,6 +178,10 @@ under the License.
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
 					<artifactId>jackson-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.uzaygezen</groupId>
+					<artifactId>uzaygezen-core</artifactId>
 				</exclusion>
 			</exclusions>
 			<scope>test</scope>

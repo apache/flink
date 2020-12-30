@@ -15,8 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
 
 from py4j.compat import long
+from typing import Tuple
 
 from pyflink.common.configuration import Configuration
 from pyflink.java_gateway import get_gateway
@@ -50,7 +52,7 @@ class TableConfig(object):
         else:
             self._j_table_config = j_table_config
 
-    def get_local_timezone(self):
+    def get_local_timezone(self) -> str:
         """
         Returns the local timezone id for timestamp with local time zone, either an abbreviation
         such as "PST", a full name such as "America/Los_Angeles", or a custom timezone_id such
@@ -58,7 +60,7 @@ class TableConfig(object):
         """
         return self._j_table_config.getLocalTimeZone().getId()
 
-    def set_local_timezone(self, timezone_id):
+    def set_local_timezone(self, timezone_id: str):
         """
         Sets the local timezone id for timestamp with local time zone.
 
@@ -72,13 +74,13 @@ class TableConfig(object):
         else:
             raise Exception("TableConfig.timezone should be a string!")
 
-    def get_null_check(self):
+    def get_null_check(self) -> bool:
         """
         A boolean value, "True" enables NULL check and "False" disables NULL check.
         """
         return self._j_table_config.getNullCheck()
 
-    def set_null_check(self, null_check):
+    def set_null_check(self, null_check: bool):
         """
         Sets the NULL check. If enabled, all fields need to be checked for NULL first.
         """
@@ -87,7 +89,7 @@ class TableConfig(object):
         else:
             raise Exception("TableConfig.null_check should be a bool value!")
 
-    def get_max_generated_code_length(self):
+    def get_max_generated_code_length(self) -> int:
         """
         The current threshold where generated code will be split into sub-function calls. Java has
         a maximum method length of 64 KB. This setting allows for finer granularity if necessary.
@@ -95,7 +97,7 @@ class TableConfig(object):
         """
         return self._j_table_config.getMaxGeneratedCodeLength()
 
-    def set_max_generated_code_length(self, max_generated_code_length):
+    def set_max_generated_code_length(self, max_generated_code_length: int):
         """
         Returns the current threshold where generated code will be split into sub-function calls.
         Java has a maximum method length of 64 KB. This setting allows for finer granularity if
@@ -106,7 +108,9 @@ class TableConfig(object):
         else:
             raise Exception("TableConfig.max_generated_code_length should be a int value!")
 
-    def set_idle_state_retention_time(self, min_time, max_time):
+    def set_idle_state_retention_time(self,
+                                      min_time: datetime.timedelta,
+                                      max_time: datetime.timedelta):
         """
         Specifies a minimum and a maximum time interval for how long idle state, i.e., state which
         was not updated, will be retained.
@@ -132,38 +136,93 @@ class TableConfig(object):
             larger differences of minTime and maxTime. The difference between minTime and maxTime
             must be at least 5 minutes.
 
+            Method set_idle_state_retention_time is deprecated now. The suggested way to set idle
+            state retention time is :func:`~pyflink.table.TableConfig.set_idle_state_retention`
+            Currently, setting max_time will not work and the max_time is directly derived from the
+            min_time as 1.5 x min_time.
+
         :param min_time: The minimum time interval for which idle state is retained. Set to
                          0 (zero) to never clean-up the state.
-        :type min_time: datetime.timedelta
         :param max_time: The maximum time interval for which idle state is retained. Must be at
                          least 5 minutes greater than minTime. Set to
                          0 (zero) to never clean-up the state.
-        :type max_time: datetime.timedelta
         """
         j_time_class = get_gateway().jvm.org.apache.flink.api.common.time.Time
         j_min_time = j_time_class.milliseconds(long(round(min_time.total_seconds() * 1000)))
         j_max_time = j_time_class.milliseconds(long(round(max_time.total_seconds() * 1000)))
         self._j_table_config.setIdleStateRetentionTime(j_min_time, j_max_time)
 
-    def get_min_idle_state_retention_time(self):
+    def set_idle_state_retention(self, duration: datetime.timedelta):
+        """
+        Specifies a retention time interval for how long idle state, i.e., state which
+        was not updated, will be retained.
+
+        State will never be cleared until it was idle for less than the duration and will never
+        be kept if it was idle for more than the 1.5 x duration.
+
+        When new data arrives for previously cleaned-up state, the new data will be handled as if it
+        was the first data. This can result in previous results being overwritten.
+
+        Set to 0 (zero) to never clean-up the state.
+
+        Example:
+        ::
+
+            >>> table_config = TableConfig() \\
+            ...     .set_idle_state_retention(datetime.timedelta(days=1))
+
+        .. note::
+
+            Cleaning up state requires additional bookkeeping which becomes less expensive for
+            larger differences of minTime and maxTime. The difference between minTime and maxTime
+            must be at least 5 minutes.
+
+        :param duration: The retention time interval for which idle state is retained. Set to
+                         0 (zero) to never clean-up the state.
+        """
+        j_duration_class = get_gateway().jvm.java.time.Duration
+        j_duration = j_duration_class.ofMillis(long(round(duration.total_seconds() * 1000)))
+        self._j_table_config.setIdleStateRetention(j_duration)
+
+    def get_min_idle_state_retention_time(self) -> int:
         """
         State might be cleared and removed if it was not updated for the defined period of time.
 
+        .. note::
+
+            Currently the concept of min/max idle state retention has been deprecated and only
+            idle state retention time is supported. The min idle state retention is regarded as
+            idle state retention and the max idle state retention is derived from idle state
+            retention as 1.5 x idle state retention.
+
         :return: The minimum time until state which was not updated will be retained.
-        :rtype: int
         """
         return self._j_table_config.getMinIdleStateRetentionTime()
 
-    def get_max_idle_state_retention_time(self):
+    def get_max_idle_state_retention_time(self) -> int:
         """
         State will be cleared and removed if it was not updated for the defined period of time.
 
+        .. note::
+
+            Currently the concept of min/max idle state retention has been deprecated and only
+            idle state retention time is supported. The min idle state retention is regarded as
+            idle state retention and the max idle state retention is derived from idle state
+            retention as 1.5 x idle state retention.
+
         :return: The maximum time until state which was not updated will be retained.
-        :rtype: int
         """
         return self._j_table_config.getMaxIdleStateRetentionTime()
 
-    def set_decimal_context(self, precision, rounding_mode):
+    def get_idle_state_retention(self) -> datetime.timedelta:
+        """
+
+        :return: The duration until state which was not updated will be retained.
+        """
+        return datetime.timedelta(
+            milliseconds=self._j_table_config.getIdleStateRetention().toMillis())
+
+    def set_decimal_context(self, precision: int, rounding_mode: str):
         """
         Sets the default context for decimal division calculation.
         (precision=34, rounding_mode=HALF_EVEN) by default.
@@ -205,9 +264,7 @@ class TableConfig(object):
         +-------+----+------+---------+-------+---------+-----------+-----------+-------------+
 
         :param precision: The precision of the decimal context.
-        :type precision: int
         :param rounding_mode: The rounding mode of the decimal context.
-        :type rounding_mode: str
         """
         if rounding_mode not in (
                 "UP",
@@ -224,7 +281,7 @@ class TableConfig(object):
         j_math_context = gateway.jvm.java.math.MathContext(precision, j_rounding_mode)
         self._j_table_config.setDecimalContext(j_math_context)
 
-    def get_decimal_context(self):
+    def get_decimal_context(self) -> Tuple[int, str]:
         """
         Returns current context for decimal division calculation,
         (precision=34, rounding_mode=HALF_EVEN) by default.
@@ -232,50 +289,45 @@ class TableConfig(object):
         .. seealso:: :func:`set_decimal_context`
 
         :return: the current context for decimal division calculation.
-        :rtype: (int, str)
         """
         j_math_context = self._j_table_config.getDecimalContext()
         precision = j_math_context.getPrecision()
         rounding_mode = j_math_context.getRoundingMode().name()
         return precision, rounding_mode
 
-    def get_configuration(self):
+    def get_configuration(self) -> Configuration:
         """
         Gives direct access to the underlying key-value map for advanced configuration.
 
         :return: Entire key-value configuration.
-        :rtype: Configuration
         """
         return Configuration(j_configuration=self._j_table_config.getConfiguration())
 
-    def add_configuration(self, configuration):
+    def add_configuration(self, configuration: Configuration):
         """
         Adds the given key-value configuration to the underlying configuration. It overwrites
         existing keys.
 
         :param configuration: Key-value configuration to be added.
-        :type configuration: Configuration
         """
         self._j_table_config.addConfiguration(configuration._j_configuration)
 
-    def get_sql_dialect(self):
+    def get_sql_dialect(self) -> SqlDialect:
         """
         Returns the current SQL dialect.
 
-        :rtype: SqlDialect
         """
         return SqlDialect._from_j_sql_dialect(self._j_table_config.getSqlDialect())
 
-    def set_sql_dialect(self, sql_dialect):
+    def set_sql_dialect(self, sql_dialect: SqlDialect):
         """
         Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default.
 
         :param sql_dialect: The given SQL dialect.
-        :type sql_dialect: SqlDialect
         """
         self._j_table_config.setSqlDialect(SqlDialect._to_j_sql_dialect(sql_dialect))
 
-    def set_python_executable(self, python_exec):
+    def set_python_executable(self, python_exec: str):
         """
         Sets the path of the python interpreter which is used to execute the python udf workers.
 
@@ -304,24 +356,22 @@ class TableConfig(object):
 
         .. note::
 
-            The python udf worker depends on Apache Beam (version == 2.19.0).
+            The python udf worker depends on Apache Beam (version == 2.23.0).
             Please ensure that the specified environment meets the above requirements.
 
         :param python_exec: The path of python interpreter.
-        :type python_exec: str
 
         .. versionadded:: 1.10.0
         """
         jvm = get_gateway().jvm
         self.get_configuration().set_string(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), python_exec)
 
-    def get_python_executable(self):
+    def get_python_executable(self) -> str:
         """
         Gets the path of the python interpreter which is used to execute the python udf workers.
         If no path is specified before, it will return a None value.
 
         :return: The path of the python interpreter which is used to execute the python udf workers.
-        :rtype: str
 
         .. versionadded:: 1.10.0
         """
@@ -329,9 +379,8 @@ class TableConfig(object):
         return self.get_configuration().get_string(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), None)
 
     @staticmethod
-    def get_default():
+    def get_default() -> 'TableConfig':
         """
         :return: A TableConfig object with default settings.
-        :rtype: TableConfig
         """
         return TableConfig(get_gateway().jvm.TableConfig.getDefault())

@@ -38,59 +38,59 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 
 /**
- * Table source factory for testing. It creates a dummy {@link TableSource}
- * that returns an empty {@link TableSchema}.
+ * Table source factory for testing. It creates a dummy {@link TableSource} that returns an empty
+ * {@link TableSchema}.
  */
 public class TestExternalTableSourceFactory implements TableSourceFactory<Row> {
 
-	static final String TEST_EXTERNAL_CONNECTOR_TYPE = "test-external-connector";
+    static final String TEST_EXTERNAL_CONNECTOR_TYPE = "test-external-connector";
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> properties = new HashMap<>();
-		properties.put(CONNECTOR_TYPE, TEST_EXTERNAL_CONNECTOR_TYPE);
-		return properties;
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> properties = new HashMap<>();
+        properties.put(CONNECTOR_TYPE, TEST_EXTERNAL_CONNECTOR_TYPE);
+        return properties;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<String> supportedProperties() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public TableSource<Row> createTableSource(Map<String, String> properties) {
-		return new TestExternalTableSource();
-	}
+    @Override
+    public TableSource<Row> createTableSource(Map<String, String> properties) {
+        return new TestExternalTableSource();
+    }
 
-	/**
-	 * Dummy table source for tests.
-	 */
-	public static class TestExternalTableSource implements StreamTableSource<Row>, BatchTableSource<Row> {
-		private final TableSchema tableSchema = new TableSchema(new String[0], new TypeInformation[0]);
+    /** Dummy table source for tests. */
+    public static class TestExternalTableSource
+            implements StreamTableSource<Row>, BatchTableSource<Row> {
+        private final TableSchema tableSchema =
+                new TableSchema(new String[0], new TypeInformation[0]);
 
-		@Override
-		public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
-			return null;
-		}
+        @Override
+        public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
+            return null;
+        }
 
-		@Override
-		public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-			return null;
-		}
+        @Override
+        public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
+            return null;
+        }
 
-		@Override
-		public TypeInformation<Row> getReturnType() {
-			return tableSchema.toRowType();
-		}
+        @Override
+        public TypeInformation<Row> getReturnType() {
+            return tableSchema.toRowType();
+        }
 
-		@Override
-		public TableSchema getTableSchema() {
-			return tableSchema;
-		}
+        @Override
+        public TableSchema getTableSchema() {
+            return tableSchema;
+        }
 
-		@Override
-		public String explainSource() {
-			return "()";
-		}
-	}
+        @Override
+        public String explainSource() {
+            return "()";
+        }
+    }
 }

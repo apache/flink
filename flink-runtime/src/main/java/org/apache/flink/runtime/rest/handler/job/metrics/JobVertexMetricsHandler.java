@@ -39,28 +39,33 @@ import java.util.Map;
  *
  * @see MetricStore#getTaskMetricStore(String, String)
  * @deprecated This class is subsumed by {@link SubtaskMetricsHandler} and is only kept for
- * backwards-compatibility.
+ *     backwards-compatibility.
  */
-public class JobVertexMetricsHandler extends AbstractMetricsHandler<JobVertexMetricsMessageParameters> {
+public class JobVertexMetricsHandler
+        extends AbstractMetricsHandler<JobVertexMetricsMessageParameters> {
 
-	public JobVertexMetricsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> headers,
-			MetricFetcher metricFetcher) {
+    public JobVertexMetricsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> headers,
+            MetricFetcher metricFetcher) {
 
-		super(leaderRetriever, timeout, headers, JobVertexMetricsHeaders.getInstance(), metricFetcher);
-	}
+        super(
+                leaderRetriever,
+                timeout,
+                headers,
+                JobVertexMetricsHeaders.getInstance(),
+                metricFetcher);
+    }
 
-	@Override
-	protected MetricStore.ComponentMetricStore getComponentMetricStore(
-			HandlerRequest<EmptyRequestBody, JobVertexMetricsMessageParameters> request,
-			MetricStore metricStore) {
+    @Override
+    protected MetricStore.ComponentMetricStore getComponentMetricStore(
+            HandlerRequest<EmptyRequestBody, JobVertexMetricsMessageParameters> request,
+            MetricStore metricStore) {
 
-		final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-		final JobVertexID vertexId = request.getPathParameter(JobVertexIdPathParameter.class);
+        final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
+        final JobVertexID vertexId = request.getPathParameter(JobVertexIdPathParameter.class);
 
-		return metricStore.getTaskMetricStore(jobId.toString(), vertexId.toString());
-	}
-
+        return metricStore.getTaskMetricStore(jobId.toString(), vertexId.toString());
+    }
 }

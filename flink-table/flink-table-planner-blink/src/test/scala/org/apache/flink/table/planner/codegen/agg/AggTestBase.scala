@@ -21,18 +21,19 @@ package org.apache.flink.table.planner.codegen.agg
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
-import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
-import org.apache.flink.table.planner.dataview.DataViewSpec
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, LongAvgAggFunction}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
+import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.runtime.context.ExecutionContext
-import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
+import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
 import org.powermock.api.mockito.PowerMockito.{mock, when}

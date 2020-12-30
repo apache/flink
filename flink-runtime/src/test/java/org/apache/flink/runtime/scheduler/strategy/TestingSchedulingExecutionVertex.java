@@ -24,74 +24,120 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
+import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A simple scheduling execution vertex for testing purposes.
- */
+/** A simple scheduling execution vertex for testing purposes. */
 public class TestingSchedulingExecutionVertex implements SchedulingExecutionVertex {
 
-	private final ExecutionVertexID executionVertexId;
+    private final ExecutionVertexID executionVertexId;
 
-	private final Collection<TestingSchedulingResultPartition> consumedPartitions;
+    private final Collection<TestingSchedulingResultPartition> consumedPartitions;
 
-	private final Collection<TestingSchedulingResultPartition> producedPartitions;
+    private final Collection<TestingSchedulingResultPartition> producedPartitions;
 
-	private InputDependencyConstraint inputDependencyConstraint;
+    private final InputDependencyConstraint inputDependencyConstraint;
 
-	public TestingSchedulingExecutionVertex(JobVertexID jobVertexId, int subtaskIndex) {
-		this(jobVertexId, subtaskIndex, InputDependencyConstraint.ANY);
-	}
+    private ExecutionState executionState;
 
-	public TestingSchedulingExecutionVertex(JobVertexID jobVertexId, int subtaskIndex,
-		InputDependencyConstraint constraint) {
+    public TestingSchedulingExecutionVertex(
+            JobVertexID jobVertexId,
+            int subtaskIndex,
+            InputDependencyConstraint constraint,
+            Collection<TestingSchedulingResultPartition> consumedPartitions,
+            ExecutionState executionState) {
 
-		this(jobVertexId, subtaskIndex, constraint, new ArrayList<>());
-	}
+        this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);
+        this.inputDependencyConstraint = constraint;
+        this.consumedPartitions = checkNotNull(consumedPartitions);
+        this.producedPartitions = new ArrayList<>();
+        this.executionState = executionState;
+    }
 
-	public TestingSchedulingExecutionVertex(
-		JobVertexID jobVertexId,
-		int subtaskIndex,
-		InputDependencyConstraint constraint,
-		Collection<TestingSchedulingResultPartition> consumedPartitions) {
+    @Override
+    public ExecutionVertexID getId() {
+        return executionVertexId;
+    }
 
-		this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);
-		this.inputDependencyConstraint = constraint;
-		this.consumedPartitions = checkNotNull(consumedPartitions);
-		this.producedPartitions = new ArrayList<>();
-	}
+    @Override
+    public ExecutionState getState() {
+        return executionState;
+    }
 
-	@Override
-	public ExecutionVertexID getId() {
-		return executionVertexId;
-	}
+    public void setState(ExecutionState state) {
+        this.executionState = state;
+    }
 
-	@Override
-	public ExecutionState getState() {
-		return ExecutionState.CREATED;
-	}
+    @Override
+    public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
+        return consumedPartitions;
+    }
 
-	@Override
-	public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
-		return consumedPartitions;
-	}
+    @Override
+    public Iterable<TestingSchedulingResultPartition> getProducedResults() {
+        return producedPartitions;
+    }
 
-	@Override
-	public Iterable<TestingSchedulingResultPartition> getProducedResults() {
-		return producedPartitions;
-	}
+    @Override
+    public InputDependencyConstraint getInputDependencyConstraint() {
+        return inputDependencyConstraint;
+    }
 
-	@Override
-	public InputDependencyConstraint getInputDependencyConstraint() {
-		return inputDependencyConstraint;
-	}
+    void addConsumedPartition(TestingSchedulingResultPartition partition) {
+        consumedPartitions.add(partition);
+    }
 
-	void addConsumedPartition(TestingSchedulingResultPartition partition) {
-		consumedPartitions.add(partition);
-	}
+    void addProducedPartition(TestingSchedulingResultPartition partition) {
+        producedPartitions.add(partition);
+    }
 
-	void addProducedPartition(TestingSchedulingResultPartition partition) {
-		producedPartitions.add(partition);
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
+    public static TestingSchedulingExecutionVertex withExecutionVertexID(
+            JobVertexID jobVertexId, int subtaskIndex) {
+        return newBuilder().withExecutionVertexID(jobVertexId, subtaskIndex).build();
+    }
+
+    /** Builder for {@link TestingSchedulingExecutionVertex}. */
+    public static class Builder {
+        private JobVertexID jobVertexId = new JobVertexID();
+        private int subtaskIndex = 0;
+        private InputDependencyConstraint inputDependencyConstraint = ANY;
+        private List<TestingSchedulingResultPartition> partitions = new ArrayList<>();
+        private ExecutionState executionState = ExecutionState.CREATED;
+
+        Builder withExecutionVertexID(JobVertexID jobVertexId, int subtaskIndex) {
+            this.jobVertexId = jobVertexId;
+            this.subtaskIndex = subtaskIndex;
+            return this;
+        }
+
+        Builder withInputDependencyConstraint(InputDependencyConstraint constraint) {
+            this.inputDependencyConstraint = constraint;
+            return this;
+        }
+
+        public Builder withConsumedPartitions(List<TestingSchedulingResultPartition> partitions) {
+            this.partitions = partitions;
+            return this;
+        }
+
+        public Builder withExecutionState(ExecutionState executionState) {
+            this.executionState = executionState;
+            return this;
+        }
+
+        public TestingSchedulingExecutionVertex build() {
+            return new TestingSchedulingExecutionVertex(
+                    jobVertexId,
+                    subtaskIndex,
+                    inputDependencyConstraint,
+                    partitions,
+                    executionState);
+        }
+    }
 }

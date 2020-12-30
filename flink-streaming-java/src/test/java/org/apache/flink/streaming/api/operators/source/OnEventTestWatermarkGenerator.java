@@ -24,11 +24,11 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
 
 final class OnEventTestWatermarkGenerator<T> implements WatermarkGenerator<T> {
 
-	@Override
-	public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
-		output.emitWatermark(new Watermark(eventTimestamp));
-	}
+    @Override
+    public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
+        output.emitWatermark(new Watermark(eventTimestamp));
+    }
 
-	@Override
-	public void onPeriodicEmit(WatermarkOutput output) {}
+    @Override
+    public void onPeriodicEmit(WatermarkOutput output) {}
 }

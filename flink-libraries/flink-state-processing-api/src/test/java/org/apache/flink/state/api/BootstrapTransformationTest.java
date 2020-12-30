@@ -39,164 +39,169 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests for bootstrap transformations.
- */
+/** Tests for bootstrap transformations. */
 @SuppressWarnings("serial")
 public class BootstrapTransformationTest extends AbstractTestBase {
 
-	@Test
-	public void testBroadcastStateTransformationParallelism() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(10);
+    @Test
+    public void testBroadcastStateTransformationParallelism() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(10);
 
-		DataSet<Integer> input = env.fromElements(0);
+        DataSet<Integer> input = env.fromElements(0);
 
-		BootstrapTransformation<Integer> transformation = OperatorTransformation
-			.bootstrapWith(input)
-			.transform(new ExampleBroadcastStateBootstrapFunction());
+        BootstrapTransformation<Integer> transformation =
+                OperatorTransformation.bootstrapWith(input)
+                        .transform(new ExampleBroadcastStateBootstrapFunction());
 
-		int maxParallelism = transformation.getMaxParallelism(4);
-		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
-			OperatorIDGenerator.fromUid("uid"),
-			new MemoryStateBackend(),
-			new Path(),
-			maxParallelism
-		);
+        int maxParallelism = transformation.getMaxParallelism(4);
+        DataSet<TaggedOperatorSubtaskState> result =
+                transformation.writeOperatorSubtaskStates(
+                        OperatorIDGenerator.fromUid("uid"),
+                        new MemoryStateBackend(),
+                        new Path(),
+                        maxParallelism);
 
-		Assert.assertEquals("Broadcast transformations should always be run at parallelism 1",
-			1,
-			getParallelism(result));
-	}
+        Assert.assertEquals(
+                "Broadcast transformations should always be run at parallelism 1",
+                1,
+                getParallelism(result));
+    }
 
-	@Test
-	public void testDefaultParallelismRespectedWhenLessThanMaxParallelism() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+    @Test
+    public void testDefaultParallelismRespectedWhenLessThanMaxParallelism() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-		DataSource<Integer> input = env.fromElements(0);
+        DataSource<Integer> input = env.fromElements(0);
 
-		BootstrapTransformation<Integer> transformation = OperatorTransformation
-			.bootstrapWith(input)
-			.transform(new ExampleStateBootstrapFunction());
+        BootstrapTransformation<Integer> transformation =
+                OperatorTransformation.bootstrapWith(input)
+                        .transform(new ExampleStateBootstrapFunction());
 
-		int maxParallelism = transformation.getMaxParallelism(10);
-		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
-			OperatorIDGenerator.fromUid("uid"),
-			new MemoryStateBackend(),
-			new Path(),
-			maxParallelism
-		);
+        int maxParallelism = transformation.getMaxParallelism(10);
+        DataSet<TaggedOperatorSubtaskState> result =
+                transformation.writeOperatorSubtaskStates(
+                        OperatorIDGenerator.fromUid("uid"),
+                        new MemoryStateBackend(),
+                        new Path(),
+                        maxParallelism);
 
-		Assert.assertEquals(
-			"The parallelism of a data set should not change when less than the max parallelism of the savepoint",
-			ExecutionConfig.PARALLELISM_DEFAULT,
-			getParallelism(result));
-	}
+        Assert.assertEquals(
+                "The parallelism of a data set should not change when less than the max parallelism of the savepoint",
+                ExecutionConfig.PARALLELISM_DEFAULT,
+                getParallelism(result));
+    }
 
-	@Test
-	public void testMaxParallelismRespected() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(10);
+    @Test
+    public void testMaxParallelismRespected() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(10);
 
-		DataSource<Integer> input = env.fromElements(0);
+        DataSource<Integer> input = env.fromElements(0);
 
-		BootstrapTransformation<Integer> transformation = OperatorTransformation
-			.bootstrapWith(input)
-			.transform(new ExampleStateBootstrapFunction());
+        BootstrapTransformation<Integer> transformation =
+                OperatorTransformation.bootstrapWith(input)
+                        .transform(new ExampleStateBootstrapFunction());
 
-		int maxParallelism = transformation.getMaxParallelism(4);
-		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
-			OperatorIDGenerator.fromUid("uid"),
-			new MemoryStateBackend(),
-			new Path(),
-			maxParallelism
-		);
+        int maxParallelism = transformation.getMaxParallelism(4);
+        DataSet<TaggedOperatorSubtaskState> result =
+                transformation.writeOperatorSubtaskStates(
+                        OperatorIDGenerator.fromUid("uid"),
+                        new MemoryStateBackend(),
+                        new Path(),
+                        maxParallelism);
 
-		Assert.assertEquals(
-			"The parallelism of a data set should be constrained my the savepoint max parallelism",
-			4,
-			getParallelism(result));
-	}
+        Assert.assertEquals(
+                "The parallelism of a data set should be constrained my the savepoint max parallelism",
+                4,
+                getParallelism(result));
+    }
 
-	@Test
-	public void testOperatorSpecificMaxParallelismRespected() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+    @Test
+    public void testOperatorSpecificMaxParallelismRespected() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-		DataSource<Integer> input = env.fromElements(0);
+        DataSource<Integer> input = env.fromElements(0);
 
-		BootstrapTransformation<Integer> transformation = OperatorTransformation
-			.bootstrapWith(input)
-			.setMaxParallelism(1)
-			.transform(new ExampleStateBootstrapFunction());
+        BootstrapTransformation<Integer> transformation =
+                OperatorTransformation.bootstrapWith(input)
+                        .setMaxParallelism(1)
+                        .transform(new ExampleStateBootstrapFunction());
 
-		int maxParallelism = transformation.getMaxParallelism(4);
-		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
-			OperatorIDGenerator.fromUid("uid"),
-			new MemoryStateBackend(),
-			new Path(),
-			maxParallelism
-		);
+        int maxParallelism = transformation.getMaxParallelism(4);
+        DataSet<TaggedOperatorSubtaskState> result =
+                transformation.writeOperatorSubtaskStates(
+                        OperatorIDGenerator.fromUid("uid"),
+                        new MemoryStateBackend(),
+                        new Path(),
+                        maxParallelism);
 
-		Assert.assertEquals("The parallelism of a data set should be constrained my the savepoint max parallelism", 1, getParallelism(result));
-	}
+        Assert.assertEquals(
+                "The parallelism of a data set should be constrained my the savepoint max parallelism",
+                1,
+                getParallelism(result));
+    }
 
-	@Test
-	public void testStreamConfig() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSource<String> input = env.fromElements("");
+    @Test
+    public void testStreamConfig() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSource<String> input = env.fromElements("");
 
-		BootstrapTransformation<String> transformation = OperatorTransformation
-			.bootstrapWith(input)
-			.keyBy(new CustomKeySelector())
-			.transform(new ExampleKeyedStateBootstrapFunction());
+        BootstrapTransformation<String> transformation =
+                OperatorTransformation.bootstrapWith(input)
+                        .keyBy(new CustomKeySelector())
+                        .transform(new ExampleKeyedStateBootstrapFunction());
 
-		StreamConfig config = transformation.getConfig(OperatorIDGenerator.fromUid("uid"), new MemoryStateBackend(), null);
-		KeySelector selector = config.getStatePartitioner(0, Thread.currentThread().getContextClassLoader());
+        StreamConfig config =
+                transformation.getConfig(
+                        OperatorIDGenerator.fromUid("uid"), new MemoryStateBackend(), null);
+        KeySelector selector =
+                config.getStatePartitioner(0, Thread.currentThread().getContextClassLoader());
 
-		Assert.assertEquals("Incorrect key selector forwarded to stream operator", CustomKeySelector.class, selector.getClass());
-	}
+        Assert.assertEquals(
+                "Incorrect key selector forwarded to stream operator",
+                CustomKeySelector.class,
+                selector.getClass());
+    }
 
-	private static class CustomKeySelector implements KeySelector<String, String> {
+    private static class CustomKeySelector implements KeySelector<String, String> {
 
-		@Override
-		public String getKey(String value) throws Exception {
-			return value;
-		}
-	}
+        @Override
+        public String getKey(String value) throws Exception {
+            return value;
+        }
+    }
 
-	private static <T> int getParallelism(DataSet<T> dataSet) {
-		//All concrete implementations of DataSet are operators so this should always be safe.
-		return ((Operator) dataSet).getParallelism();
-	}
+    private static <T> int getParallelism(DataSet<T> dataSet) {
+        // All concrete implementations of DataSet are operators so this should always be safe.
+        return ((Operator) dataSet).getParallelism();
+    }
 
-	private static class ExampleBroadcastStateBootstrapFunction extends BroadcastStateBootstrapFunction<Integer> {
+    private static class ExampleBroadcastStateBootstrapFunction
+            extends BroadcastStateBootstrapFunction<Integer> {
 
-		@Override
-		public void processElement(Integer value, Context ctx) throws Exception {
-		}
-	}
+        @Override
+        public void processElement(Integer value, Context ctx) throws Exception {}
+    }
 
-	private static class ExampleStateBootstrapFunction extends StateBootstrapFunction<Integer> {
+    private static class ExampleStateBootstrapFunction extends StateBootstrapFunction<Integer> {
 
-		@Override
-		public void processElement(Integer value, Context ctx) throws Exception {
-		}
+        @Override
+        public void processElement(Integer value, Context ctx) throws Exception {}
 
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		}
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {}
 
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-		}
-	}
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {}
+    }
 
-	private static class ExampleKeyedStateBootstrapFunction extends KeyedStateBootstrapFunction<String, String> {
+    private static class ExampleKeyedStateBootstrapFunction
+            extends KeyedStateBootstrapFunction<String, String> {
 
-		@Override
-		public void processElement(String value, Context ctx) throws Exception {
-		}
-	}
+        @Override
+        public void processElement(String value, Context ctx) throws Exception {}
+    }
 }

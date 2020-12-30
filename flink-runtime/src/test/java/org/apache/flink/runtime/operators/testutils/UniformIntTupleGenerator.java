@@ -23,53 +23,52 @@ import org.apache.flink.util.MutableObjectIterator;
 
 public class UniformIntTupleGenerator implements MutableObjectIterator<Tuple2<Integer, Integer>> {
 
-	private final int numKeys;
-	private final int numVals;
-	
-	private int keyCnt = 0;
-	private int valCnt = 0;
-	private boolean repeatKey;
-	
-	public UniformIntTupleGenerator(int numKeys, int numVals, boolean repeatKey) {
-		this.numKeys = numKeys;
-		this.numVals = numVals;
-		this.repeatKey = repeatKey;
-	}
+    private final int numKeys;
+    private final int numVals;
 
-	@Override
-	public Tuple2<Integer, Integer> next(Tuple2<Integer, Integer> target) {
-		if (!repeatKey) {
-			if(valCnt >= numVals) {
-				return null;
-			}
-			
-			target.f0 = keyCnt++;
-			target.f1 = valCnt;
-			
-			if (keyCnt == numKeys) {
-				keyCnt = 0;
-				valCnt++;
-			}
-		}
-		else {
-			if (keyCnt >= numKeys) {
-				return null;
-			}
-			
-			target.f0 = keyCnt;
-			target.f1 = valCnt++;
-			
-			if (valCnt == numVals) {
-				valCnt = 0;
-				keyCnt++;
-			}
-		}
-		
-		return target;
-	}
+    private int keyCnt = 0;
+    private int valCnt = 0;
+    private boolean repeatKey;
 
-	@Override
-	public Tuple2<Integer, Integer> next() {
-		return next(new Tuple2<Integer, Integer>());
-	}
+    public UniformIntTupleGenerator(int numKeys, int numVals, boolean repeatKey) {
+        this.numKeys = numKeys;
+        this.numVals = numVals;
+        this.repeatKey = repeatKey;
+    }
+
+    @Override
+    public Tuple2<Integer, Integer> next(Tuple2<Integer, Integer> target) {
+        if (!repeatKey) {
+            if (valCnt >= numVals) {
+                return null;
+            }
+
+            target.f0 = keyCnt++;
+            target.f1 = valCnt;
+
+            if (keyCnt == numKeys) {
+                keyCnt = 0;
+                valCnt++;
+            }
+        } else {
+            if (keyCnt >= numKeys) {
+                return null;
+            }
+
+            target.f0 = keyCnt;
+            target.f1 = valCnt++;
+
+            if (valCnt == numVals) {
+                valCnt = 0;
+                keyCnt++;
+            }
+        }
+
+        return target;
+    }
+
+    @Override
+    public Tuple2<Integer, Integer> next() {
+        return next(new Tuple2<Integer, Integer>());
+    }
 }

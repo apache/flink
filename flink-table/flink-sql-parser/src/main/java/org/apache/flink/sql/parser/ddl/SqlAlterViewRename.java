@@ -28,32 +28,31 @@ import javax.annotation.Nonnull;
 
 import java.util.List;
 
-/**
- * ALTER DDL to rename a view.
- */
+/** ALTER DDL to rename a view. */
 public class SqlAlterViewRename extends SqlAlterView {
 
-	private final SqlIdentifier newViewIdentifier;
+    private final SqlIdentifier newViewIdentifier;
 
-	public SqlAlterViewRename(SqlParserPos pos, SqlIdentifier viewIdentifier, SqlIdentifier newViewIdentifier) {
-		super(pos, viewIdentifier);
-		this.newViewIdentifier = newViewIdentifier;
-	}
+    public SqlAlterViewRename(
+            SqlParserPos pos, SqlIdentifier viewIdentifier, SqlIdentifier newViewIdentifier) {
+        super(pos, viewIdentifier);
+        this.newViewIdentifier = newViewIdentifier;
+    }
 
-	@Nonnull
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(viewIdentifier, newViewIdentifier);
-	}
+    @Nonnull
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(viewIdentifier, newViewIdentifier);
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("RENAME TO");
-		newViewIdentifier.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("RENAME TO");
+        newViewIdentifier.unparse(writer, leftPrec, rightPrec);
+    }
 
-	public String[] fullNewViewName() {
-		return newViewIdentifier.names.toArray(new String[0]);
-	}
+    public String[] fullNewViewName() {
+        return newViewIdentifier.names.toArray(new String[0]);
+    }
 }

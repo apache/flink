@@ -18,13 +18,10 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
@@ -53,98 +50,97 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
-/**
- * Tests how the {@link SlotPoolImpl} completes slot requests.
- */
+/** Tests how the {@link SlotPoolImpl} completes slot requests. */
 public class SlotPoolRequestCompletionTest extends TestLogger {
 
-	private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Time TIMEOUT = SlotPoolUtils.TIMEOUT;
 
-	private TestingResourceManagerGateway resourceManagerGateway;
+    private TestingResourceManagerGateway resourceManagerGateway;
 
-	@Before
-	public void setUp() throws Exception {
-		resourceManagerGateway = new TestingResourceManagerGateway();
-	}
+    @Before
+    public void setUp() throws Exception {
+        resourceManagerGateway = new TestingResourceManagerGateway();
+    }
 
-	/**
-	 * Tests that the {@link SlotPoolImpl} completes slots in request order.
-	 */
-	@Test
-	public void testRequestsAreCompletedInRequestOrder() {
-		runSlotRequestCompletionTest(
-			CheckedSupplier.unchecked(this::setUpSlotPoolAndConnectToResourceManager),
-			slotPool -> {});
-	}
+    /** Tests that the {@link SlotPoolImpl} completes slots in request order. */
+    @Test
+    public void testRequestsAreCompletedInRequestOrder() {
+        runSlotRequestCompletionTest(
+                CheckedSupplier.unchecked(this::createAndSetUpSlotPool), slotPool -> {});
+    }
 
-	/**
-	 * Tests that the {@link SlotPoolImpl} completes stashed slot requests in request order.
-	 */
-	@Test
-	public void testStashOrderMaintainsRequestOrder() {
-		runSlotRequestCompletionTest(
-			CheckedSupplier.unchecked(this::setUpSlotPool),
-			this::connectToResourceManager);
-	}
+    /** Tests that the {@link SlotPoolImpl} completes stashed slot requests in request order. */
+    @Test
+    public void testStashOrderMaintainsRequestOrder() {
+        runSlotRequestCompletionTest(
+                CheckedSupplier.unchecked(this::createAndSetUpSlotPoolWithoutResourceManager),
+                this::connectToResourceManager);
+    }
 
-	private void runSlotRequestCompletionTest(
-		Supplier<SlotPoolImpl> slotPoolSupplier,
-		Consumer<SlotPoolImpl> actionAfterSlotRequest) {
-		try (final SlotPoolImpl slotPool = slotPoolSupplier.get()) {
+    private void runSlotRequestCompletionTest(
+            Supplier<SlotPoolImpl> slotPoolSupplier,
+            Consumer<SlotPoolImpl> actionAfterSlotRequest) {
+        try (final SlotPoolImpl slotPool = slotPoolSupplier.get()) {
 
-			final int requestNum = 10;
+            final int requestNum = 10;
 
-			final List<SlotRequestId> slotRequestIds = IntStream.range(0, requestNum)
-				.mapToObj(ignored -> new SlotRequestId())
-				.collect(Collectors.toList());
+            final List<SlotRequestId> slotRequestIds =
+                    IntStream.range(0, requestNum)
+                            .mapToObj(ignored -> new SlotRequestId())
+                            .collect(Collectors.toList());
 
-			final List<SlotRequest> rmReceivedSlotRequests = new ArrayList<>(requestNum);
-			resourceManagerGateway.setRequestSlotConsumer(request -> rmReceivedSlotRequests.add(request));
+            final List<SlotRequest> rmReceivedSlotRequests = new ArrayList<>(requestNum);
+            resourceManagerGateway.setRequestSlotConsumer(
+                    request -> rmReceivedSlotRequests.add(request));
 
-			final List<CompletableFuture<PhysicalSlot>> slotRequests = slotRequestIds
-				.stream()
-				.map(slotRequestId -> slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, TIMEOUT))
-				.collect(Collectors.toList());
+            final List<CompletableFuture<PhysicalSlot>> slotRequests =
+                    slotRequestIds.stream()
+                            .map(
+                                    slotRequestId ->
+                                            slotPool.requestNewAllocatedSlot(
+                                                    slotRequestId,
+                                                    ResourceProfile.UNKNOWN,
+                                                    TIMEOUT))
+                            .collect(Collectors.toList());
 
-			actionAfterSlotRequest.accept(slotPool);
+            actionAfterSlotRequest.accept(slotPool);
 
-			final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-			slotPool.registerTaskManager(taskManagerLocation.getResourceID());
+            final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+            slotPool.registerTaskManager(taskManagerLocation.getResourceID());
 
-			// create a slot offer that is initiated by the last request
-			final AllocationID lastAllocationId = rmReceivedSlotRequests.get(requestNum - 1).getAllocationId();
-			final SlotOffer slotOffer = new SlotOffer(lastAllocationId, 0, ResourceProfile.ANY);
-			final Collection<SlotOffer> acceptedSlots = slotPool.offerSlots(taskManagerLocation, new SimpleAckingTaskManagerGateway(), Collections.singleton(slotOffer));
+            // create a slot offer that is initiated by the last request
+            final AllocationID lastAllocationId =
+                    rmReceivedSlotRequests.get(requestNum - 1).getAllocationId();
+            final SlotOffer slotOffer = new SlotOffer(lastAllocationId, 0, ResourceProfile.ANY);
+            final Collection<SlotOffer> acceptedSlots =
+                    slotPool.offerSlots(
+                            taskManagerLocation,
+                            new SimpleAckingTaskManagerGateway(),
+                            Collections.singleton(slotOffer));
 
-			assertThat(acceptedSlots, containsInAnyOrder(slotOffer));
+            assertThat(acceptedSlots, containsInAnyOrder(slotOffer));
 
-			final FlinkException testingReleaseException = new FlinkException("Testing release exception");
+            final FlinkException testingReleaseException =
+                    new FlinkException("Testing release exception");
 
-			// check that the slot requests get completed in sequential order
-			for (int i = 0; i < slotRequestIds.size(); i++) {
-				final CompletableFuture<PhysicalSlot> slotRequestFuture = slotRequests.get(i);
-				assertThat(slotRequestFuture.getNow(null), is(not(nullValue())));
-				slotPool.releaseSlot(slotRequestIds.get(i), testingReleaseException);
-			}
-		}
-	}
+            // check that the slot requests get completed in sequential order
+            for (int i = 0; i < slotRequestIds.size(); i++) {
+                final CompletableFuture<PhysicalSlot> slotRequestFuture = slotRequests.get(i);
+                assertThat(slotRequestFuture.getNow(null), is(not(nullValue())));
+                slotPool.releaseSlot(slotRequestIds.get(i), testingReleaseException);
+            }
+        }
+    }
 
-	private SlotPoolImpl setUpSlotPoolAndConnectToResourceManager() throws Exception {
-		final SlotPoolImpl slotPool = setUpSlotPool();
-		connectToResourceManager(slotPool);
+    private TestingSlotPoolImpl createAndSetUpSlotPool() throws Exception {
+        return SlotPoolUtils.createAndSetUpSlotPool(resourceManagerGateway);
+    }
 
-		return slotPool;
-	}
+    private void connectToResourceManager(SlotPoolImpl slotPool) {
+        slotPool.connectToResourceManager(resourceManagerGateway);
+    }
 
-	private void connectToResourceManager(SlotPoolImpl slotPool) {
-		slotPool.connectToResourceManager(resourceManagerGateway);
-	}
-
-	private SlotPoolImpl setUpSlotPool() throws Exception {
-		final SlotPoolImpl slotPool = new TestingSlotPoolImpl(new JobID());
-
-		slotPool.start(JobMasterId.generate(), "foobar", ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
-		return slotPool;
-	}
+    private TestingSlotPoolImpl createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
+        return SlotPoolUtils.createAndSetUpSlotPool(null);
+    }
 }

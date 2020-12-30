@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(c) FROM MyTable2 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
 +- LogicalProject(a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
 +- FlinkLogicalCalc(select=[a, c])
@@ -39,14 +39,14 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(*) FROM MyTable2 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
 +- LogicalProject(a=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
 +- FlinkLogicalCalc(select=[a])
@@ -58,7 +58,7 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
     <Resource name="sql">
       <![CDATA[SELECT a, SUM(b) AS s FROM MyTable3 GROUP BY CUBE(a, c, d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], s=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}, {0, 2}, {0}, {1, 2}, {1}, {2}, {}]], s=[SUM($3)])
@@ -66,7 +66,7 @@ LogicalProject(a=[$0], s=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, s])
 +- FlinkLogicalAggregate(group=[{0, 1, 2, 4}], s=[SUM($3)])
@@ -80,14 +80,14 @@ FlinkLogicalCalc(select=[a, s])
     <Resource name="sql">
       <![CDATA[SELECT a, MAX(c) from MyTable1 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
 +- LogicalProject(a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
 +- FlinkLogicalCalc(select=[a, c])
@@ -99,7 +99,7 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
     <Resource name="sql">
       <![CDATA[SELECT a, SUM(b) AS s FROM MyTable3 GROUP BY GROUPING SETS((a, c), (a, d))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], s=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], s=[SUM($3)])
@@ -107,7 +107,7 @@ LogicalProject(a=[$0], s=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b AS s])
 +- FlinkLogicalExpand(projects=[a, c, d, b, $e])
@@ -120,7 +120,7 @@ FlinkLogicalCalc(select=[a, b AS s])
     <Resource name="sql">
       <![CDATA[SELECT a, SUM(b) AS s FROM MyTable3 GROUP BY GROUPING SETS((a, c), (a), ())]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], s=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], s=[SUM($2)])
@@ -128,7 +128,7 @@ LogicalProject(a=[$0], s=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, s])
 +- FlinkLogicalAggregate(group=[{0, 1, 3}], s=[SUM($2)])
@@ -142,14 +142,14 @@ FlinkLogicalCalc(select=[a, s])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM MyTable2 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM(DISTINCT $1)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($1)])
 +- FlinkLogicalCalc(select=[a, b])
@@ -161,7 +161,7 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($1)])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT c), SUM(DISTINCT b) FROM MyTable3 GROUP BY a, d]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[$2], EXPR$2=[$3])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT(DISTINCT $2)], EXPR$2=[SUM(DISTINCT $3)])
@@ -169,7 +169,7 @@ LogicalProject(a=[$0], EXPR$1=[$2], EXPR$2=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, EXPR$1, EXPR$2])
 +- FlinkLogicalAggregate(group=[{0}], d=[AUXILIARY_GROUP($1)], EXPR$1=[COUNT($2) FILTER $4], EXPR$2=[SUM($3) FILTER $5])
@@ -184,13 +184,13 @@ FlinkLogicalCalc(select=[a, EXPR$1, EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT a, SUM(DISTINCT b), MAX(DISTINCT b), MIN(DISTINCT c) FROM MyTable2 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MAX($1)], EXPR$3=[MIN($2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b AS EXPR$1, b AS EXPR$2, c AS EXPR$3])
 +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -201,7 +201,7 @@ FlinkLogicalCalc(select=[a, b AS EXPR$1, b AS EXPR$2, c AS EXPR$3])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT c), SUM(b) FROM MyTable3 GROUP BY a, d]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[$2], EXPR$2=[$3])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT(DISTINCT $2)], EXPR$2=[SUM($3)])
@@ -209,7 +209,7 @@ LogicalProject(a=[$0], EXPR$1=[$2], EXPR$2=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, EXPR$1, EXPR$2])
 +- FlinkLogicalAggregate(group=[{0}], d=[AUXILIARY_GROUP($1)], EXPR$1=[COUNT($2) FILTER $4], EXPR$2=[MIN($3) FILTER $5])
@@ -224,7 +224,7 @@ FlinkLogicalCalc(select=[a, EXPR$1, EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT a, SUM(b) AS s FROM MyTable3 GROUP BY ROLLUP(a, c, d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], s=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}, {0}, {}]], s=[SUM($3)])
@@ -232,7 +232,7 @@ LogicalProject(a=[$0], s=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, s])
 +- FlinkLogicalAggregate(group=[{0, 1, 2, 4}], s=[SUM($3)])
@@ -246,14 +246,14 @@ FlinkLogicalCalc(select=[a, s])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT c) FROM MyTable2 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
 +- LogicalProject(a=[$0], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
 +- FlinkLogicalCalc(select=[a, c])
@@ -265,14 +265,14 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT c) FROM MyTable2 GROUP BY a, b]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT(DISTINCT $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, EXPR$1])
 +- FlinkLogicalAggregate(group=[{0}], b=[AUXILIARY_GROUP($1)], EXPR$1=[COUNT($2)])
@@ -284,14 +284,14 @@ FlinkLogicalCalc(select=[a, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT b), SUM(b) FROM MyTable2 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $3], EXPR$2=[MIN($2) FILTER $4])
 +- FlinkLogicalCalc(select=[a, b, b_0 AS EXPR$2, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
@@ -305,7 +305,7 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $3], EXPR$2=[MIN($2)
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT b), SUM(b) FROM MyTable2 GROUP BY a, c]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[$2], EXPR$2=[$3])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT(DISTINCT $2)], EXPR$2=[SUM($2)])
@@ -313,7 +313,7 @@ LogicalProject(a=[$0], EXPR$1=[$2], EXPR$2=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, EXPR$1, EXPR$2])
 +- FlinkLogicalAggregate(group=[{0}], c=[AUXILIARY_GROUP($1)], EXPR$1=[COUNT($2) FILTER $4], EXPR$2=[MIN($3) FILTER $5])
@@ -328,14 +328,14 @@ FlinkLogicalCalc(select=[a, EXPR$1, EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT c), SUM(b) FROM MyTable3 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)])
 +- LogicalProject(a=[$0], c=[$2], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $3], EXPR$2=[MIN($2) FILTER $4])
 +- FlinkLogicalCalc(select=[a, c, b AS EXPR$2, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
@@ -349,7 +349,7 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $3], EXPR$2=[MIN($2)
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT c), SUM(b) FROM MyTable3 GROUP BY a, d]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[$2], EXPR$2=[$3])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT(DISTINCT $2)], EXPR$2=[SUM($3)])
@@ -357,7 +357,7 @@ LogicalProject(a=[$0], EXPR$1=[$2], EXPR$2=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, EXPR$1, EXPR$2])
 +- FlinkLogicalAggregate(group=[{0}], d=[AUXILIARY_GROUP($1)], EXPR$1=[COUNT($2) FILTER $4], EXPR$2=[MIN($3) FILTER $5])
@@ -372,14 +372,14 @@ FlinkLogicalCalc(select=[a, EXPR$1, EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT a, MIN(c) FILTER (WHERE b > 0), MAX(b) FROM MyTable2 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1) FILTER $2], EXPR$2=[MAX($3)])
 +- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, 0))], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[MIN($1) FILTER $2], EXPR$2=[MAX($3)])
 +- FlinkLogicalCalc(select=[a, c, IS TRUE(>(b, 0)) AS $f2, b])
@@ -391,14 +391,13 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[MIN($1) FILTER $2], EXPR$2=[MAX($3)])
     <Resource name="sql">
       <![CDATA[SELECT a, b FROM MyTable2 GROUP BY a, b]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalAggregate(group=[{0, 1}])
-+- LogicalProject(a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+LogicalProject(a=[$0], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b])
 +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -409,14 +408,14 @@ FlinkLogicalCalc(select=[a, b])
     <Resource name="sql">
       <![CDATA[SELECT a, b + 1, c, s FROM (SELECT a, MIN(b) AS b, SUM(b) AS s, MAX(c) AS c FROM MyTable2 GROUP BY a)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[+($1, 1)], c=[$3], s=[$2])
 +- LogicalAggregate(group=[{0}], b=[MIN($1)], s=[SUM($1)], c=[MAX($2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, +(b, 1) AS EXPR$1, c, b AS s])
 +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -427,14 +426,14 @@ FlinkLogicalCalc(select=[a, +(b, 1) AS EXPR$1, c, b AS s])
     <Resource name="sql">
       <![CDATA[SELECT a, SUM(b) AS s FROM MyTable2 GROUP BY a]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], s=[SUM($1)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b])
 +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -445,13 +444,13 @@ FlinkLogicalCalc(select=[a, b])
     <Resource name="sql">
       <![CDATA[SELECT MAX(a), SUM(b), MIN(c) FROM MyTable2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[SUM($1)], EXPR$2=[MIN($2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[SUM($1)], EXPR$2=[MIN($2)])
 +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -462,13 +461,13 @@ FlinkLogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[SUM($1)], EXPR$2=[MI
     <Resource name="sql">
       <![CDATA[SELECT MAX(a), SUM(b), MIN(c) FROM (VALUES (1, 2, 3)) T(a, b, c)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[SUM($1)], EXPR$2=[MIN($2)])
 +- LogicalValues(tuples=[[{ 1, 2, 3 }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[SUM($1)], EXPR$2=[MIN($2)])
 +- FlinkLogicalValues(tuples=[[{ 1, 2, 3 }]])
@@ -479,7 +478,7 @@ FlinkLogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[SUM($1)], EXPR$2=[MI
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable2 WHERE EXISTS (SELECT SUM(a) FROM MyTable1 WHERE 1=2)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -491,7 +490,7 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c])
 +- FlinkLogicalJoin(condition=[$3], joinType=[semi])
@@ -509,7 +508,7 @@ FlinkLogicalCalc(select=[a, b, c])
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) FROM (SELECT a FROM MyTable2 WHERE 1=2)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
 +- LogicalProject(a=[$0])
@@ -517,7 +516,7 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
 +- FlinkLogicalCalc(select=[a])

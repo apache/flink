@@ -347,10 +347,6 @@ class MyPojoAggFunction extends AggregateFunction[MyPojo, CountAccumulator] {
     new CountAccumulator
   }
 
-  def resetAccumulator(acc: CountAccumulator): Unit = {
-    acc.f0 = 0L
-  }
-
   override def getAccumulatorType: TypeInformation[CountAccumulator] = {
     new TupleTypeInfo[CountAccumulator](classOf[CountAccumulator], Types.LONG)
   }
@@ -385,10 +381,6 @@ class VarArgsAggFunction extends AggregateFunction[JLong, CountAccumulator] {
 
   override def createAccumulator(): CountAccumulator = {
     new CountAccumulator
-  }
-
-  def resetAccumulator(acc: CountAccumulator): Unit = {
-    acc.f0 = 0L
   }
 }
 

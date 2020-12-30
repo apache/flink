@@ -26,70 +26,69 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Unit tests for the S3 file system support via Hadoop's {@link org.apache.hadoop.fs.s3a.S3AFileSystem}.
+ * Unit tests for the S3 file system support via Hadoop's {@link
+ * org.apache.hadoop.fs.s3a.S3AFileSystem}.
  */
 public class HadoopS3FileSystemTest {
 
-	@Test
-	public void testShadingOfAwsCredProviderConfig() {
-		final Configuration conf = new Configuration();
-		conf.setString("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.ContainerCredentialsProvider");
+    @Test
+    public void testShadingOfAwsCredProviderConfig() {
+        final Configuration conf = new Configuration();
+        conf.setString(
+                "fs.s3a.aws.credentials.provider",
+                "com.amazonaws.auth.ContainerCredentialsProvider");
 
-		HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
-		configLoader.setFlinkConfig(conf);
+        HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
+        configLoader.setFlinkConfig(conf);
 
-		org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
-		assertEquals("com.amazonaws.auth.ContainerCredentialsProvider",
-			hadoopConfig.get("fs.s3a.aws.credentials.provider"));
-	}
+        org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
+        assertEquals(
+                "com.amazonaws.auth.ContainerCredentialsProvider",
+                hadoopConfig.get("fs.s3a.aws.credentials.provider"));
+    }
 
-	// ------------------------------------------------------------------------
-	//  These tests check that the S3FileSystemFactory properly forwards
-	// various patterns of keys for credentials.
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  These tests check that the S3FileSystemFactory properly forwards
+    // various patterns of keys for credentials.
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Test forwarding of standard Hadoop-style credential keys.
-	 */
-	@Test
-	public void testConfigKeysForwardingHadoopStyle() {
-		Configuration conf = new Configuration();
-		conf.setString("fs.s3a.access.key", "test_access_key");
-		conf.setString("fs.s3a.secret.key", "test_secret_key");
+    /** Test forwarding of standard Hadoop-style credential keys. */
+    @Test
+    public void testConfigKeysForwardingHadoopStyle() {
+        Configuration conf = new Configuration();
+        conf.setString("fs.s3a.access.key", "test_access_key");
+        conf.setString("fs.s3a.secret.key", "test_secret_key");
 
-		checkHadoopAccessKeys(conf, "test_access_key", "test_secret_key");
-	}
+        checkHadoopAccessKeys(conf, "test_access_key", "test_secret_key");
+    }
 
-	/**
-	 * Test forwarding of shortened Hadoop-style credential keys.
-	 */
-	@Test
-	public void testConfigKeysForwardingShortHadoopStyle() {
-		Configuration conf = new Configuration();
-		conf.setString("s3.access.key", "my_key_a");
-		conf.setString("s3.secret.key", "my_key_b");
+    /** Test forwarding of shortened Hadoop-style credential keys. */
+    @Test
+    public void testConfigKeysForwardingShortHadoopStyle() {
+        Configuration conf = new Configuration();
+        conf.setString("s3.access.key", "my_key_a");
+        conf.setString("s3.secret.key", "my_key_b");
 
-		checkHadoopAccessKeys(conf, "my_key_a", "my_key_b");
-	}
+        checkHadoopAccessKeys(conf, "my_key_a", "my_key_b");
+    }
 
-	/**
-	 * Test forwarding of shortened Presto-style credential keys.
-	 */
-	@Test
-	public void testConfigKeysForwardingPrestoStyle() {
-		Configuration conf = new Configuration();
-		conf.setString("s3.access-key", "clé d'accès");
-		conf.setString("s3.secret-key", "clef secrète");
-				checkHadoopAccessKeys(conf, "clé d'accès", "clef secrète");
-	}
+    /** Test forwarding of shortened Presto-style credential keys. */
+    @Test
+    public void testConfigKeysForwardingPrestoStyle() {
+        Configuration conf = new Configuration();
+        conf.setString("s3.access-key", "clé d'accès");
+        conf.setString("s3.secret-key", "clef secrète");
+        checkHadoopAccessKeys(conf, "clé d'accès", "clef secrète");
+    }
 
-	private static void checkHadoopAccessKeys(Configuration flinkConf, String accessKey, String secretKey) {
-		HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
-		configLoader.setFlinkConfig(flinkConf);
+    private static void checkHadoopAccessKeys(
+            Configuration flinkConf, String accessKey, String secretKey) {
+        HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
+        configLoader.setFlinkConfig(flinkConf);
 
-		org.apache.hadoop.conf.Configuration hadoopConf = configLoader.getOrLoadHadoopConfig();
+        org.apache.hadoop.conf.Configuration hadoopConf = configLoader.getOrLoadHadoopConfig();
 
-		assertEquals(accessKey, hadoopConf.get("fs.s3a.access.key", null));
-		assertEquals(secretKey, hadoopConf.get("fs.s3a.secret.key", null));
-	}
+        assertEquals(accessKey, hadoopConf.get("fs.s3a.access.key", null));
+        assertEquals(secretKey, hadoopConf.get("fs.s3a.secret.key", null));
+    }
 }

@@ -18,40 +18,21 @@
 
 package org.apache.flink.test.testdata;
 
-/**
- * Test data for PageRank programs.
- */
+/** Test data for PageRank programs. */
 public class PageRankData {
 
-	public static final int NUM_VERTICES = 5;
+    public static final int NUM_VERTICES = 5;
 
-	public static final String VERTICES = 	"1\n" +
-											"2\n" +
-											"5\n" +
-											"3\n" +
-											"4";
+    public static final String VERTICES = "1\n" + "2\n" + "5\n" + "3\n" + "4";
 
-	public static final String EDGES = "2 1\n" +
-										"5 2\n" +
-										"5 4\n" +
-										"4 3\n" +
-										"4 2\n" +
-										"1 4\n" +
-										"1 2\n" +
-										"1 3\n" +
-										"3 5\n";
+    public static final String EDGES =
+            "2 1\n" + "5 2\n" + "5 4\n" + "4 3\n" + "4 2\n" + "1 4\n" + "1 2\n" + "1 3\n" + "3 5\n";
 
-	public static final String RANKS_AFTER_3_ITERATIONS = "1 0.237\n" +
-														"2 0.248\n" +
-														"3 0.173\n" +
-														"4 0.175\n" +
-														"5 0.165";
+    public static final String RANKS_AFTER_3_ITERATIONS =
+            "1 0.237\n" + "2 0.248\n" + "3 0.173\n" + "4 0.175\n" + "5 0.165";
 
-	public static final String RANKS_AFTER_EPSILON_0_0001_CONVERGENCE = "1 0.238\n" +
-																		"2 0.244\n" +
-																		"3 0.170\n" +
-																		"4 0.171\n" +
-																		"5 0.174";
+    public static final String RANKS_AFTER_EPSILON_0_0001_CONVERGENCE =
+            "1 0.238\n" + "2 0.244\n" + "3 0.170\n" + "4 0.171\n" + "5 0.174";
 
-	private PageRankData() {}
+    private PageRankData() {}
 }

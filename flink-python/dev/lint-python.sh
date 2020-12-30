@@ -137,7 +137,7 @@ function parse_component_args() {
         if [[ `contains_element "${SUPPORTED_INSTALLATION_COMPONENTS[*]}" "${component}"` = true ]]; then
             REAL_COMPONENTS+=(${component})
         else
-            echo "unknown install component ${component}, currently we only support installing basic,py_env,tox,flake8,sphinx,all."
+            echo "unknown install component ${component}, currently we only support installing basic,py_env,tox,flake8,sphinx,mypy,all."
             exit 1
         fi
     done
@@ -219,7 +219,11 @@ function install_miniconda() {
 
 # Install some kinds of py env.
 function install_py_env() {
-    py_env=("3.5" "3.6" "3.7")
+    if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
+        py_env=("3.8")
+    else
+        py_env=("3.5" "3.6" "3.7" "3.8")
+    fi
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.conda/envs/${py_env[i]}" ]; then
             rm -rf "$CURRENT_DIR/.conda/envs/${py_env[i]}"
@@ -231,10 +235,22 @@ function install_py_env() {
             fi
         fi
         print_function "STEP" "installing python${py_env[i]}..."
-        $CONDA_PATH create --name ${py_env[i]} -y -q python=${py_env[i]} 2>&1 >/dev/null
-        if [ $? -ne 0 ]; then
-            echo "conda install ${py_env[i]} failed.\
-            You can retry to exec the script."
+        max_retry_times=3
+        retry_times=0
+        install_command="$CONDA_PATH create --name ${py_env[i]} -y -q python=${py_env[i]}"
+        ${install_command} 2>&1 >/dev/null
+        status=$?
+        while [[ ${status} -ne 0 ]] && [[ ${retry_times} -lt ${max_retry_times} ]]; do
+            retry_times=$((retry_times+1))
+            # sleep 3 seconds and then reinstall.
+            sleep 3
+            echo "conda install ${py_env[i]} retrying ${retry_times}/${max_retry_times}"
+            ${install_command} 2>&1 >/dev/null
+            status=$?
+        done
+        if [[ ${status} -ne 0 ]]; then
+            echo "conda install ${py_env[i]} failed after retrying ${max_retry_times} times.\
+            You can retry to execute the script again."
             exit 1
         fi
         print_function "STEP" "install python${py_env[i]}... [SUCCESS]"
@@ -316,6 +332,30 @@ function install_sphinx() {
     conda deactivate
 }
 
+
+# Install mypy.
+# In some situations, you need to run the script with "sudo". e.g. sudo ./lint-python.sh
+function install_mypy() {
+    source ${CONDA_HOME}/bin/activate
+    if [[ -f "$MYPY_PATH" ]]; then
+        ${PIP_PATH} uninstall mypy -y -q 2>&1 >/dev/null
+        if [[ $? -ne 0 ]]; then
+            echo "pip uninstall mypy failed \
+            please try to exec the script again.\
+            if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
+            exit 1
+        fi
+    fi
+    ${CURRENT_DIR}/install_command.sh -q mypy==0.790 2>&1 >/dev/null
+    if [[ $? -ne 0 ]]; then
+        echo "pip install mypy failed \
+        please try to exec the script again.\
+        if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
+        exit 1
+    fi
+    conda deactivate
+}
+
 function need_install_component() {
     if [[ `contains_element "${SUPPORTED_INSTALLATION_COMPONENTS[*]}" "$1"` = true ]]; then
         echo true
@@ -357,7 +397,7 @@ function install_environment() {
     print_function "STEP" "install miniconda... [SUCCESS]"
 
     # step-3 install python environment whcih includes
-    # 3.5 3.6 3.7
+    # 3.5 3.6 3.7 3.8
     if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
@@ -391,6 +431,15 @@ function install_environment() {
         STEP=6
         checkpoint_stage $STAGE $STEP
         print_function "STEP" "install sphinx... [SUCCESS]"
+    fi
+
+    # step-7 install mypy
+    if [[ ${STEP} -lt 7 ]] && [[ `need_install_component "mypy"` = true ]]; then
+        print_function "STEP" "installing mypy..."
+        install_mypy
+        STEP=7
+        checkpoint_stage ${STAGE} ${STEP}
+        print_function "STEP" "install mypy... [SUCCESS]"
     fi
 
     print_function "STAGE"  "install environment... [SUCCESS]"
@@ -529,6 +578,7 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
+    LATEST_PYTHON="py38"
     print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate
@@ -536,7 +586,12 @@ function tox_check() {
     chmod +x $FLINK_PYTHON_DIR/../build-target/bin/*
     chmod +x $FLINK_PYTHON_DIR/dev/*
 
-    $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
+    if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
+        # Only run test in latest python version triggered by a Git push
+        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
+    else
+        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
+    fi
 
     TOX_RESULT=$((grep -c "congratulations :)" "$LOG_FILE") 2>&1)
     if [ $TOX_RESULT -eq '0' ]; then
@@ -603,6 +658,24 @@ function sphinx_check() {
         print_function "STAGE" "sphinx checks... [SUCCESS]"
     fi
 }
+
+# mypy check
+function mypy_check() {
+    print_function "STAGE" "mypy checks"
+
+    # the return value of a pipeline is the status of the last command to exit
+    # with a non-zero status or zero if no command exited with a non-zero status
+    set -o pipefail
+    (${MYPY_PATH} --config-file tox.ini) 2>&1 | tee -a ${LOG_FILE}
+    TYPE_HINT_CHECK_STATUS=$?
+    if [ ${TYPE_HINT_CHECK_STATUS} -ne 0 ]; then
+        print_function "STAGE" "mypy checks... [FAILED]"
+        # Stop the running script.
+        exit 1;
+    else
+        print_function "STAGE" "mypy checks... [SUCCESS]"
+    fi
+}
 ###############################################################All Checks Definitions###############################################################
 
 # CURRENT_DIR is "flink/flink-python/dev/"
@@ -628,6 +701,9 @@ FLAKE8_PATH=$CONDA_HOME/bin/flake8
 
 # sphinx path
 SPHINX_PATH=$CONDA_HOME/bin/sphinx-build
+
+# mypy path
+MYPY_PATH=${CONDA_HOME}/bin/mypy
 
 _OLD_PATH="$PATH"
 
@@ -659,7 +735,7 @@ echo >$LOG_FILE
 CONDA_INSTALL_SH=$CURRENT_DIR/download/miniconda.sh
 
 # stage "install" includes the num of steps.
-STAGE_INSTALL_STEPS=6
+STAGE_INSTALL_STEPS=7
 
 # whether force to restart the script.
 FORCE_START=0
@@ -684,20 +760,20 @@ USAGE="
 usage: $0 [options]
 -h          print this help message and exit
 -f          force to exec from the progress of installing environment
--s [basic,py_env,tox,flake8,sphinx,all]
+-s [basic,py_env,tox,flake8,sphinx,mypy,all]
             install environment with specified components which split by comma(,)
             note:
                 This option is used to install environment components and will skip all subsequent checks,
                 so do not use this option with -e,-i simultaneously.
--e [tox,flake8,sphinx]
+-e [tox,flake8,sphinx,mypy]
             exclude checks which split by comma(,)
--i [tox,flake8,sphinx]
+-i [tox,flake8,sphinx,mypy]
             include checks which split by comma(,)
 -l          list all checks supported.
 Examples:
   ./lint-python -s basic        =>  install environment with basic components.
-  ./lint-python -s py_env       =>  install environment with python env(3.5,3.6,3.7).
-  ./lint-python -s all          =>  install environment with all components such as python env,tox,flake8,sphinx etc.
+  ./lint-python -s py_env       =>  install environment with python env(3.5,3.6,3.7,3.8).
+  ./lint-python -s all          =>  install environment with all components such as python env,tox,flake8,sphinx,mypy etc.
   ./lint-python -s tox,flake8   =>  install environment with tox,flake8.
   ./lint-python -s tox -f       =>  reinstall environment with tox.
   ./lint-python -e tox,flake8   =>  exclude checks tox,flake8.

@@ -32,77 +32,84 @@ import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 
-import java.util.Arrays;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Attach the jvm command and args to the main container for running the TaskManager code.
- */
+/** Attach the jvm command and args to the main container for running the TaskManager code. */
 public class JavaCmdTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 
-	private final KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
+    private final KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
 
-	public JavaCmdTaskManagerDecorator(KubernetesTaskManagerParameters kubernetesTaskManagerParameters) {
-		this.kubernetesTaskManagerParameters = checkNotNull(kubernetesTaskManagerParameters);
-	}
+    public JavaCmdTaskManagerDecorator(
+            KubernetesTaskManagerParameters kubernetesTaskManagerParameters) {
+        this.kubernetesTaskManagerParameters = checkNotNull(kubernetesTaskManagerParameters);
+    }
 
-	@Override
-	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-		final Container mainContainerWithStartCmd = new ContainerBuilder(flinkPod.getMainContainer())
-			.withCommand(kubernetesTaskManagerParameters.getContainerEntrypoint())
-			.withArgs(Arrays.asList("/bin/bash", "-c", getTaskManagerStartCommand()))
-			.build();
+    @Override
+    public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
+        final Container mainContainerWithStartCmd =
+                new ContainerBuilder(flinkPod.getMainContainer())
+                        .withCommand(kubernetesTaskManagerParameters.getContainerEntrypoint())
+                        .withArgs(getTaskManagerStartCommand())
+                        .build();
 
-		return new FlinkPod.Builder(flinkPod)
-			.withMainContainer(mainContainerWithStartCmd)
-			.build();
-	}
+        return new FlinkPod.Builder(flinkPod).withMainContainer(mainContainerWithStartCmd).build();
+    }
 
-	private String getTaskManagerStartCommand() {
-		final String confDirInPod = kubernetesTaskManagerParameters.getFlinkConfDirInPod();
+    private List<String> getTaskManagerStartCommand() {
+        final String confDirInPod = kubernetesTaskManagerParameters.getFlinkConfDirInPod();
 
-		final String logDirInPod = kubernetesTaskManagerParameters.getFlinkLogDirInPod();
+        final String logDirInPod = kubernetesTaskManagerParameters.getFlinkLogDirInPod();
 
-		final String mainClassArgs = "--" + CommandLineOptions.CONFIG_DIR_OPTION.getLongOpt() + " " +
-			confDirInPod + " " + kubernetesTaskManagerParameters.getDynamicProperties();
+        final String mainClassArgs =
+                "--"
+                        + CommandLineOptions.CONFIG_DIR_OPTION.getLongOpt()
+                        + " "
+                        + confDirInPod
+                        + " "
+                        + kubernetesTaskManagerParameters.getDynamicProperties();
 
-		return getTaskManagerStartCommand(
-			kubernetesTaskManagerParameters.getFlinkConfiguration(),
-			kubernetesTaskManagerParameters.getContaineredTaskManagerParameters(),
-			confDirInPod,
-			logDirInPod,
-			kubernetesTaskManagerParameters.hasLogback(),
-			kubernetesTaskManagerParameters.hasLog4j(),
-			KubernetesTaskExecutorRunner.class.getCanonicalName(),
-			mainClassArgs);
-	}
+        final String javaCommand =
+                getTaskManagerStartCommand(
+                        kubernetesTaskManagerParameters.getFlinkConfiguration(),
+                        kubernetesTaskManagerParameters.getContaineredTaskManagerParameters(),
+                        confDirInPod,
+                        logDirInPod,
+                        kubernetesTaskManagerParameters.hasLogback(),
+                        kubernetesTaskManagerParameters.hasLog4j(),
+                        KubernetesTaskExecutorRunner.class.getCanonicalName(),
+                        mainClassArgs);
+        return KubernetesUtils.getStartCommandWithBashWrapper(javaCommand);
+    }
 
-	private static String getTaskManagerStartCommand(
-			Configuration flinkConfig,
-			ContaineredTaskManagerParameters tmParams,
-			String configDirectory,
-			String logDirectory,
-			boolean hasLogback,
-			boolean hasLog4j,
-			String mainClass,
-			String mainArgs) {
-		final TaskExecutorProcessSpec taskExecutorProcessSpec = tmParams.getTaskExecutorProcessSpec();
-		final String jvmMemOpts = ProcessMemoryUtils.generateJvmParametersStr(taskExecutorProcessSpec);
-		String args = TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec);
-		if (mainArgs != null) {
-			args += " " + mainArgs;
-		}
+    private static String getTaskManagerStartCommand(
+            Configuration flinkConfig,
+            ContaineredTaskManagerParameters tmParams,
+            String configDirectory,
+            String logDirectory,
+            boolean hasLogback,
+            boolean hasLog4j,
+            String mainClass,
+            String mainArgs) {
+        final TaskExecutorProcessSpec taskExecutorProcessSpec =
+                tmParams.getTaskExecutorProcessSpec();
+        final String jvmMemOpts =
+                ProcessMemoryUtils.generateJvmParametersStr(taskExecutorProcessSpec);
+        String args = TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec);
+        if (mainArgs != null) {
+            args += " " + mainArgs;
+        }
 
-		return KubernetesUtils.getCommonStartCommand(
-			flinkConfig,
-			KubernetesUtils.ClusterComponent.TASK_MANAGER,
-			jvmMemOpts,
-			configDirectory,
-			logDirectory,
-			hasLogback,
-			hasLog4j,
-			mainClass,
-			args);
-	}
+        return KubernetesUtils.getCommonStartCommand(
+                flinkConfig,
+                KubernetesUtils.ClusterComponent.TASK_MANAGER,
+                jvmMemOpts,
+                configDirectory,
+                logDirectory,
+                hasLogback,
+                hasLog4j,
+                mainClass,
+                args);
+    }
 }

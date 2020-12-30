@@ -16,22 +16,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-	<TestCase name="testPythonFunctionMixedWithJavaFunction">
-		<Resource name="sql">
-			<![CDATA[SELECT pyFunc1(a, b), c + 1 FROM MyTable]]>
-		</Resource>
-		<Resource name="planBefore">
-			<![CDATA[
+  <TestCase name="testPythonFunctionMixedWithJavaFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT pyFunc1(a, b), c + 1 FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
 LogicalProject(EXPR$0=[pyFunc1($0, $1)], EXPR$1=[+($2, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
-		</Resource>
-		<Resource name="planAfter">
-			<![CDATA[
-Calc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[f0 AS EXPR$0, (c + 1) AS EXPR$1])
 +- PythonCalc(select=[c, pyFunc1(a, b) AS f0])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
-		</Resource>
-	</TestCase>
+    </Resource>
+  </TestCase>
 </Root>

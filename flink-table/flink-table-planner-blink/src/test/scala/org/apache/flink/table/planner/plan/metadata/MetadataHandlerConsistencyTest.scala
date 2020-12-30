@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecGroupAggregateBase, BatchPhysicalCorrelate}
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, Correlate}
@@ -145,6 +145,6 @@ object MetadataHandlerConsistencyTest {
   def parameters(): util.Collection[Array[Any]] = {
     Seq[Array[Any]](
       Array(classOf[Aggregate], classOf[BatchExecGroupAggregateBase]),
-      Array(classOf[Correlate], classOf[BatchExecCorrelate]))
+      Array(classOf[Correlate], classOf[BatchPhysicalCorrelate]))
   }
 }

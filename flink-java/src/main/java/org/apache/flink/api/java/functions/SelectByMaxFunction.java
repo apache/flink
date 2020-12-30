@@ -25,73 +25,72 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
 /**
  * Function that enables selection by maximal value of a field.
+ *
  * @param <T>
  */
 @Internal
 public class SelectByMaxFunction<T extends Tuple> implements ReduceFunction<T> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// Fields which are used as KEYS
-	private int[] fields;
+    // Fields which are used as KEYS
+    private int[] fields;
 
-	/**
-	 * Constructor which is overwriting the default constructor.
-	 * @param type Types of tuple whether to check if given fields are key types.
-	 * @param fields Array of integers which are used as key for comparison. The order of indexes
-	 * is regarded in the reduce function. First index has highest priority and last index has
-	 * least priority.
-	 */
-	public SelectByMaxFunction(TupleTypeInfo<T> type, int... fields) {
-		this.fields = fields;
+    /**
+     * Constructor which is overwriting the default constructor.
+     *
+     * @param type Types of tuple whether to check if given fields are key types.
+     * @param fields Array of integers which are used as key for comparison. The order of indexes is
+     *     regarded in the reduce function. First index has highest priority and last index has
+     *     least priority.
+     */
+    public SelectByMaxFunction(TupleTypeInfo<T> type, int... fields) {
+        this.fields = fields;
 
-		// Check correctness of each position
-		for (int field : fields) {
-			// Is field inside array
-			if (field < 0 || field >= type.getArity()) {
-				throw new IndexOutOfBoundsException(
-						"MinReduceFunction field position " + field + " is out of range.");
-			}
+        // Check correctness of each position
+        for (int field : fields) {
+            // Is field inside array
+            if (field < 0 || field >= type.getArity()) {
+                throw new IndexOutOfBoundsException(
+                        "MinReduceFunction field position " + field + " is out of range.");
+            }
 
-			// Check whether type is comparable
-			if (!type.getTypeAt(field).isKeyType()) {
-				throw new java.lang.IllegalArgumentException(
-						"MinReduceFunction supports only key(Comparable) types.");
-			}
+            // Check whether type is comparable
+            if (!type.getTypeAt(field).isKeyType()) {
+                throw new java.lang.IllegalArgumentException(
+                        "MinReduceFunction supports only key(Comparable) types.");
+            }
+        }
+    }
 
-		}
-	}
+    /**
+     * Reduce implementation, returns bigger tuple or value1 if both tuples are equal. Comparison
+     * highly depends on the order and amount of fields chosen as indices. All given fields (at
+     * construction time) are checked in the same order as defined (at construction time). If both
+     * tuples are equal in one index, the next index is compared. Or if no next index is available
+     * value1 is returned. The tuple which has a bigger value at one index will be returned.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Override
+    public T reduce(T value1, T value2) throws Exception {
 
-	/**
-	 * Reduce implementation, returns bigger tuple or value1 if both tuples are
-	 * equal. Comparison highly depends on the order and amount of fields chosen
-	 * as indices. All given fields (at construction time) are checked in the same
-	 * order as defined (at construction time). If both tuples are equal in one
-	 * index, the next index is compared. Or if no next index is available value1
-	 * is returned.
-	 * The tuple which has a bigger value at one index will be returned.
-	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Override
-	public T reduce(T value1, T value2) throws Exception {
+        for (int index = 0; index < fields.length; index++) {
+            // Save position of compared key
+            int position = this.fields[index];
 
-		for (int index = 0; index < fields.length; index++) {
-			// Save position of compared key
-			int position = this.fields[index];
+            // Get both values - both implement comparable
+            Comparable comparable1 = value1.getFieldNotNull(position);
+            Comparable comparable2 = value2.getFieldNotNull(position);
 
-			// Get both values - both implement comparable
-			Comparable comparable1 = value1.getFieldNotNull(position);
-			Comparable comparable2 = value2.getFieldNotNull(position);
-
-			// Compare values
-			int comp = comparable1.compareTo(comparable2);
-			// If comp is bigger than 0 comparable 1 is bigger.
-			// Return the smaller value.
-			if (comp > 0) {
-				return value1;
-			} else if (comp < 0) {
-				return value2;
-			}
-		}
-		return value1;
-	}
+            // Compare values
+            int comp = comparable1.compareTo(comparable2);
+            // If comp is bigger than 0 comparable 1 is bigger.
+            // Return the smaller value.
+            if (comp > 0) {
+                return value1;
+            } else if (comp < 0) {
+                return value2;
+            }
+        }
+        return value1;
+    }
 }

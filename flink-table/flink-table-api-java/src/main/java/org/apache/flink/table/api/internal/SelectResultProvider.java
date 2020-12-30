@@ -30,13 +30,9 @@ import org.apache.flink.util.CloseableIterator;
  */
 @Internal
 public interface SelectResultProvider {
-	/**
-	 * Set the job client associated with the select job to retrieve the result.
-	 */
-	void setJobClient(JobClient jobClient);
+    /** Set the job client associated with the select job to retrieve the result. */
+    void setJobClient(JobClient jobClient);
 
-	/**
-	 * Returns the select result as row iterator.
-	 */
-	CloseableIterator<Row> getResultIterator();
+    /** Returns the select result as row iterator. */
+    CloseableIterator<Row> getResultIterator();
 }

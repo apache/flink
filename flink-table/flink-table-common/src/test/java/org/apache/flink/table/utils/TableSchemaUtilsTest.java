@@ -30,92 +30,103 @@ import static org.junit.Assert.assertEquals;
 
 /** Tests for TableSchemaUtils. */
 public class TableSchemaUtilsTest {
-	@Rule
-	public ExpectedException exceptionRule = ExpectedException.none();
+    @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
-	@Test
-	public void testBuilderWithGivenSchema() {
-		TableSchema oriSchema = TableSchema.builder()
-				.field("a", DataTypes.INT().notNull())
-				.field("b", DataTypes.STRING())
-				.field("c", DataTypes.INT(), "a + 1")
-				.field("t", DataTypes.TIMESTAMP(3))
-				.primaryKey("ct1", new String[] {"a"})
-				.watermark("t", "t", DataTypes.TIMESTAMP(3))
-				.build();
-		TableSchema newSchema = TableSchemaUtils.builderWithGivenSchema(oriSchema).build();
-		assertEquals(oriSchema, newSchema);
-	}
+    @Test
+    public void testBuilderWithGivenSchema() {
+        TableSchema oriSchema =
+                TableSchema.builder()
+                        .field("a", DataTypes.INT().notNull())
+                        .field("b", DataTypes.STRING())
+                        .field("c", DataTypes.INT(), "a + 1")
+                        .field("t", DataTypes.TIMESTAMP(3))
+                        .primaryKey("ct1", new String[] {"a"})
+                        .watermark("t", "t", DataTypes.TIMESTAMP(3))
+                        .build();
+        TableSchema newSchema = TableSchemaUtils.builderWithGivenSchema(oriSchema).build();
+        assertEquals(oriSchema, newSchema);
+    }
 
-	@Test
-	public void testDropConstraint() {
-		TableSchema oriSchema = TableSchema.builder()
-				.field("a", DataTypes.INT().notNull())
-				.field("b", DataTypes.STRING())
-				.field("c", DataTypes.INT(), "a + 1")
-				.field("t", DataTypes.TIMESTAMP(3))
-				.primaryKey("ct1", new String[] {"a"})
-				.watermark("t", "t", DataTypes.TIMESTAMP(3))
-				.build();
-		TableSchema newSchema = TableSchemaUtils.dropConstraint(oriSchema, "ct1");
-		final String expected = "root\n" +
-				" |-- a: INT NOT NULL\n" +
-				" |-- b: STRING\n" +
-				" |-- c: INT AS a + 1\n" +
-				" |-- t: TIMESTAMP(3)\n" +
-				" |-- WATERMARK FOR t AS t\n";
-		assertEquals(expected, newSchema.toString());
-		// Drop non-exist constraint.
-		exceptionRule.expect(ValidationException.class);
-		exceptionRule.expectMessage("Constraint ct2 to drop does not exist");
-		TableSchemaUtils.dropConstraint(oriSchema, "ct2");
-	}
+    @Test
+    public void testDropConstraint() {
+        TableSchema originalSchema =
+                TableSchema.builder()
+                        .field("a", DataTypes.INT().notNull())
+                        .field("b", DataTypes.STRING())
+                        .field("c", DataTypes.INT(), "a + 1")
+                        .field("t", DataTypes.TIMESTAMP(3))
+                        .primaryKey("ct1", new String[] {"a"})
+                        .watermark("t", "t", DataTypes.TIMESTAMP(3))
+                        .build();
+        TableSchema newSchema = TableSchemaUtils.dropConstraint(originalSchema, "ct1");
+        TableSchema expectedSchema =
+                TableSchema.builder()
+                        .field("a", DataTypes.INT().notNull())
+                        .field("b", DataTypes.STRING())
+                        .field("c", DataTypes.INT(), "a + 1")
+                        .field("t", DataTypes.TIMESTAMP(3))
+                        .watermark("t", "t", DataTypes.TIMESTAMP(3))
+                        .build();
+        assertEquals(expectedSchema, newSchema);
 
-	@Test
-	public void testInvalidProjectSchema() {
-		{
-			TableSchema schema = TableSchema.builder()
-				.field("a", DataTypes.INT().notNull())
-				.field("b", DataTypes.STRING())
-				.field("c", DataTypes.INT(), "a + 1")
-				.field("t", DataTypes.TIMESTAMP(3))
-				.primaryKey("ct1", new String[]{"a"})
-				.watermark("t", "t", DataTypes.TIMESTAMP(3))
-				.build();
-			exceptionRule.expect(IllegalArgumentException.class);
-			exceptionRule.expectMessage("It's illegal to project on a schema contains computed columns.");
-			int[][] projectedFields = {{1}};
-			TableSchemaUtils.projectSchema(schema, projectedFields);
-		}
+        // Drop non-exist constraint.
+        exceptionRule.expect(ValidationException.class);
+        exceptionRule.expectMessage("Constraint ct2 to drop does not exist");
+        TableSchemaUtils.dropConstraint(originalSchema, "ct2");
+    }
 
-		{
-			TableSchema schema = TableSchema.builder()
-				.field("a", DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.STRING())))
-				.field("b", DataTypes.STRING())
-				.build();
-			exceptionRule.expect(IllegalArgumentException.class);
-			exceptionRule.expectMessage("Nested projection push down is not supported yet.");
-			int[][] projectedFields = {{0, 1}};
-			TableSchemaUtils.projectSchema(schema, projectedFields);
-		}
-	}
+    @Test
+    public void testInvalidProjectSchema() {
+        TableSchema schema =
+                TableSchema.builder()
+                        .field("a", DataTypes.INT().notNull())
+                        .field("b", DataTypes.STRING())
+                        .field("c", DataTypes.INT(), "a + 1")
+                        .field("t", DataTypes.TIMESTAMP(3))
+                        .primaryKey("ct1", new String[] {"a"})
+                        .watermark("t", "t", DataTypes.TIMESTAMP(3))
+                        .build();
+        exceptionRule.expect(IllegalArgumentException.class);
+        exceptionRule.expectMessage("Projection is only supported for physical columns.");
+        int[][] projectedFields = {{1}};
+        TableSchemaUtils.projectSchema(schema, projectedFields);
+    }
 
-	@Test
-	public void testProjectSchema() {
-		TableSchema schema = TableSchema.builder()
-			.field("a", DataTypes.INT().notNull())
-			.field("b", DataTypes.STRING())
-			.field("t", DataTypes.TIMESTAMP(3))
-			.primaryKey("a")
-			.watermark("t", "t", DataTypes.TIMESTAMP(3))
-			.build();
+    @Test
+    public void testProjectSchema() {
+        TableSchema schema =
+                TableSchema.builder()
+                        .field("a", DataTypes.INT().notNull())
+                        .field("b", DataTypes.STRING())
+                        .field("t", DataTypes.TIMESTAMP(3))
+                        .primaryKey("a")
+                        .watermark("t", "t", DataTypes.TIMESTAMP(3))
+                        .build();
 
-		int[][] projectedFields = {{2}, {0}};
-		TableSchema projected = TableSchemaUtils.projectSchema(schema, projectedFields);
-		TableSchema expected = TableSchema.builder()
-			.field("t", DataTypes.TIMESTAMP(3))
-			.field("a", DataTypes.INT().notNull())
-			.build();
-		assertEquals(expected, projected);
-	}
+        int[][] projectedFields = {{2}, {0}};
+        TableSchema projected = TableSchemaUtils.projectSchema(schema, projectedFields);
+        TableSchema expected =
+                TableSchema.builder()
+                        .field("t", DataTypes.TIMESTAMP(3))
+                        .field("a", DataTypes.INT().notNull())
+                        .build();
+        assertEquals(expected, projected);
+    }
+
+    @Test
+    public void testProjectSchemaWithNameConflict() {
+        TableSchema schema =
+                TableSchema.builder()
+                        .field("a", DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.STRING())))
+                        .field("f0", DataTypes.STRING())
+                        .build();
+        int[][] projectedFields = {{0, 0}, {1}};
+        TableSchema projected = TableSchemaUtils.projectSchema(schema, projectedFields);
+        TableSchema expected =
+                TableSchema.builder()
+                        .field("a_f0", DataTypes.STRING())
+                        .field("f0", DataTypes.STRING())
+                        .build();
+        assertEquals(expected, projected);
+    }
 }

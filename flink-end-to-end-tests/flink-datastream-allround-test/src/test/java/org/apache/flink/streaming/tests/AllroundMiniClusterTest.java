@@ -34,48 +34,46 @@ import java.io.File;
 
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
 
-/**
- * DataStreamAllroundTestProgram on MiniCluster for manual debugging purposes.
- */
+/** DataStreamAllroundTestProgram on MiniCluster for manual debugging purposes. */
 @Ignore("Test is already part of end-to-end tests. This is for manual debugging.")
 public class AllroundMiniClusterTest extends TestLogger {
 
-	@BeforeClass
-	public static void beforeClass() {
-		org.apache.log4j.PropertyConfigurator.configure(
-			AllroundMiniClusterTest.class.getClassLoader().getResource("log4j.properties"));
-	}
+    @BeforeClass
+    public static void beforeClass() {
+        org.apache.log4j.PropertyConfigurator.configure(
+                AllroundMiniClusterTest.class.getClassLoader().getResource("log4j.properties"));
+    }
 
-	@ClassRule
-	public static MiniClusterWithClientResource miniClusterResource = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setNumberTaskManagers(4)
-			.setNumberSlotsPerTaskManager(2)
-			.setConfiguration(createConfiguration())
-			.build());
+    @ClassRule
+    public static MiniClusterWithClientResource miniClusterResource =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(4)
+                            .setNumberSlotsPerTaskManager(2)
+                            .setConfiguration(createConfiguration())
+                            .build());
 
-	@ClassRule
-	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static Configuration createConfiguration() {
-		Configuration configuration = new Configuration();
-		configuration.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
-		configuration.setString(EXECUTION_FAILOVER_STRATEGY.key(), "region");
-		return configuration;
-	}
+    private static Configuration createConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
+        configuration.setString(EXECUTION_FAILOVER_STRATEGY.key(), "region");
+        return configuration;
+    }
 
-	@Test
-	public void runTest() throws Exception {
-		File checkpointDir = temporaryFolder.newFolder();
-		DataStreamAllroundTestProgram.main(
-			new String[]{
-				"--environment.parallelism", "8",
-				"--state_backend.checkpoint_directory", checkpointDir.toURI().toString(),
-				"--state_backend", "rocks",
-				"--state_backend.rocks.incremental", "true",
-				"--test.simulate_failure", "true",
-				"--test.simulate_failure.max_failures", String.valueOf(Integer.MAX_VALUE),
-				"--test.simulate_failure.num_records", "100000"
-			});
-	}
+    @Test
+    public void runTest() throws Exception {
+        File checkpointDir = temporaryFolder.newFolder();
+        DataStreamAllroundTestProgram.main(
+                new String[] {
+                    "--environment.parallelism", "8",
+                    "--state_backend.checkpoint_directory", checkpointDir.toURI().toString(),
+                    "--state_backend", "rocks",
+                    "--state_backend.rocks.incremental", "true",
+                    "--test.simulate_failure", "true",
+                    "--test.simulate_failure.max_failures", String.valueOf(Integer.MAX_VALUE),
+                    "--test.simulate_failure.num_records", "100000"
+                });
+    }
 }

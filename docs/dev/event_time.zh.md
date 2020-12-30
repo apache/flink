@@ -28,7 +28,7 @@ under the License.
 
 有关如何在 Flink 程序中使用时间特性，请参阅[窗口]({% link dev/stream/operators/windows.zh.md %})和 [ProcessFunction]({% link dev/stream/operators/process_function.zh.md %}) 小节。
 
-使用*事件时间*处理数据之前需要在程序中设置正确的*时间语义*。此项设置会定义源数据的处理方式（例如：程序是否会对数据分配时间戳），以及程序应使用什么时间语义执行 `KeyedStream.timeWindow(Time.seconds(30))` 之类的窗口操作。
+使用*事件时间*处理数据之前需要在程序中设置正确的*时间语义*。此项设置会定义源数据的处理方式（例如：程序是否会对数据分配时间戳），以及程序应使用什么时间语义执行 `KeyedStream.window(TumblingEventTimeWindows.of(Time.seconds(30)))` 之类的窗口操作。
 
 可以通过 `StreamExecutionEnvironment.setStreamTimeCharacteristic()` 设置程序的时间语义，示例如下：
 
@@ -43,7 +43,7 @@ DataStream<MyEvent> stream = env.addSource(new FlinkKafkaConsumer<MyEvent>(topic
 
 stream
     .keyBy( (event) -> event.getUser() )
-    .timeWindow(Time.hours(1))
+    .window(TumblingEventTimeWindows.of(Time.hours(1)))
     .reduce( (a, b) -> a.add(b) )
     .addSink(...);
 {% endhighlight %}
@@ -58,7 +58,7 @@ val stream: DataStream[MyEvent] = env.addSource(new FlinkKafkaConsumer[MyEvent](
 
 stream
     .keyBy( _.getUser )
-    .timeWindow(Time.hours(1))
+    .window(TumblingEventTimeWindows.of(Time.hours(1)))
     .reduce( (a, b) => a.add(b) )
     .addSink(...)
 {% endhighlight %}
@@ -79,6 +79,6 @@ env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
 * [生成 Watermark]({% link dev/event_timestamps_watermarks.zh.md %})：展示如何编写 Flink 应用程序感知事件时间所必需的时间戳分配器和 watermark 生成器。
 * [内置 Watermark 生成器]({% link dev/event_timestamp_extractors.zh.md %})：概述了 Flink 框架内置的 watermark 生成器。
-* [调试窗口和事件时间]({% link monitoring/debugging_event_time.zh.md %})：展示如何在含有事件时间语义的 Flink 应用程序中调试 watermark 和时间戳相关的问题。
+* [调试窗口和事件时间]({% link ops/debugging/debugging_event_time.zh.md %})：展示如何在含有事件时间语义的 Flink 应用程序中调试 watermark 和时间戳相关的问题。
 
 {% top %}

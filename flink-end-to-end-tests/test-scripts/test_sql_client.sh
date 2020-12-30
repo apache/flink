@@ -20,16 +20,15 @@
 set -Eeuo pipefail
 
 PLANNER="${1:-old}"
-ELASTICSEARCH_VERSION=${2:-6}
 
 KAFKA_VERSION="2.2.2"
 CONFLUENT_VERSION="5.0.0"
 CONFLUENT_MAJOR_VERSION="5.0"
 KAFKA_SQL_VERSION="universal"
-
-ELASTICSEARCH6_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
-ELASTICSEARCH7_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.5.1-darwin-x86_64.tar.gz'
-ELASTICSEARCH7_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.5.1-linux-x86_64.tar.gz'
+ELASTICSEARCH_VERSION=7
+# we use the smallest version possible
+ELASTICSEARCH_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-oss-7.5.1-no-jdk-darwin-x86_64.tar.gz'
+ELASTICSEARCH_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-oss-7.5.1-no-jdk-linux-x86_64.tar.gz'
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka_sql_common.sh \
@@ -60,14 +59,27 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
     if ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/org/apache/flink"* ]] && \
         ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/META-INF"* ]] && \
         ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/LICENSE"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/NOTICE"* ]] ; then
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/NOTICE"* ]] && \
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/org/apache/avro"* ]] && \
+        # Following required by amazon-kinesis-producer in flink-connector-kinesis
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/amazon-kinesis-producer-native-binaries"* ]] && \
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/cacerts"* ]] ; then
       echo "Bad file in JAR: $EXTRACTED_FILE"
       exit 1
     fi
   done
 
-  # check for proper factory
-  if [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.TableFactory ]; then
+  # check for proper legacy table factory
+  # Kinesis connector does not support legacy Table API
+  if [[ $SQL_JAR == *"flink-sql-connector-kinesis"* ]]; then
+    echo "Skipping Legacy Table API for: $SQL_JAR"
+  elif [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.TableFactory ]; then
+    echo "No legacy table factory found in JAR: $SQL_JAR"
+    exit 1
+  fi
+
+  # check for table factory
+  if [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.Factory ]; then
     echo "No table factory found in JAR: $SQL_JAR"
     exit 1
   fi
@@ -91,7 +103,7 @@ function sql_cleanup() {
 on_exit sql_cleanup
 
 function prepare_elasticsearch {
-  echo "Preparing Elasticsearch(version=$ELASTICSEARCH_VERSION)..."
+  echo "Preparing Elasticsearch (version=$ELASTICSEARCH_VERSION)..."
   # elastcisearch offers different release binary file for corresponding system since version 7.
   case "$(uname -s)" in
       Linux*)     OS_TYPE=linux;;
@@ -99,14 +111,12 @@ function prepare_elasticsearch {
       *)          OS_TYPE="UNKNOWN:${unameOut}"
   esac
 
-  if [[ "$ELASTICSEARCH_VERSION" == 6 ]]; then
-    DOWNLOAD_URL=$ELASTICSEARCH6_DOWNLOAD_URL
-  elif [[ "$ELASTICSEARCH_VERSION" == 7 ]] && [[ "$OS_TYPE" == "mac" ]]; then
-    DOWNLOAD_URL=$ELASTICSEARCH7_MAC_DOWNLOAD_URL
-  elif [[ "$ELASTICSEARCH_VERSION" == 7 ]] && [[ "$OS_TYPE" == "linux" ]]; then
-    DOWNLOAD_URL=$ELASTICSEARCH7_LINUX_DOWNLOAD_URL
+  if [[ "$OS_TYPE" == "mac" ]]; then
+    DOWNLOAD_URL=$ELASTICSEARCH_MAC_DOWNLOAD_URL
+  elif [[ "$OS_TYPE" == "linux" ]]; then
+    DOWNLOAD_URL=$ELASTICSEARCH_LINUX_DOWNLOAD_URL
   else
-    echo "[ERROR] Unsupported elasticsearch version($ELASTICSEARCH_VERSION) for OS: $OS_TYPE"
+    echo "[ERROR] Unsupported OS for Elasticsearch: $OS_TYPE"
     exit 1
   fi
 

@@ -17,32 +17,28 @@
  */
 
 /**
- * The degree annotation package provides a collection of edge-centric graph
- * algorithms for counting the vertex degree of directed and undirected graphs.
+ * The degree annotation package provides a collection of edge-centric graph algorithms for counting
+ * the vertex degree of directed and undirected graphs.
  *
- * Undirected graphs have the property that for every vertex the in-degree is
- * equivalent to the out-degree.
+ * <p>Undirected graphs have the property that for every vertex the in-degree is equivalent to the
+ * out-degree.
  *
- * The undirected graph algorithms are:
- *   {@code VertexDegree}      annotates vertices as <v, deg(v)>
- *   {@code EdgeSourceDegree}  annotates edges as <s, t, (EV, deg(s))>
- *   {@code EdgeTargetDegree}  annotates edges as <s, t, (EV, deg(t))>
- *   {@code EdgeDegreePair}    annotates edges as <s, t, (EV, deg(s), deg(t))>
+ * <p>The undirected graph algorithms are: {@code VertexDegree} annotates vertices as <v, deg(v)>
+ * {@code EdgeSourceDegree} annotates edges as <s, t, (EV, deg(s))> {@code EdgeTargetDegree}
+ * annotates edges as <s, t, (EV, deg(t))> {@code EdgeDegreePair} annotates edges as <s, t, (EV,
+ * deg(s), deg(t))>
  *
- * The directed graph algorithms are:
- *   {@code VertexDegrees}     annotates vertices as <v, (deg(v), out(v), in(v))>
- *   {@code VertexOutDegree}   annotates vertices as <v, out(v)>
- *   {@code VertexInDegree}    annotates vertices as <v, in(v)>
- *   {@code EdgeSourceDegrees} annotates edges as <s, t, (deg(s), out(s), in(s))>
- *   {@code EdgeTargetDegrees} annotates edges as <s, t, (deg(t), out(t), in(t))>
- *   {@code EdgeDegreesPair}   annotates edges as <s, t, ((deg(s), out(s), in(s)), (deg(t), out(t), in(t)))>
+ * <p>The directed graph algorithms are: {@code VertexDegrees} annotates vertices as <v, (deg(v),
+ * out(v), in(v))> {@code VertexOutDegree} annotates vertices as <v, out(v)> {@code VertexInDegree}
+ * annotates vertices as <v, in(v)> {@code EdgeSourceDegrees} annotates edges as <s, t, (deg(s),
+ * out(s), in(s))> {@code EdgeTargetDegrees} annotates edges as <s, t, (deg(t), out(t), in(t))>
+ * {@code EdgeDegreesPair} annotates edges as <s, t, ((deg(s), out(s), in(s)), (deg(t), out(t),
+ * in(t)))>
  *
- * where:
- *   EV is the original edge value
- *   deg(x) is the number of vertex neighbors
- *   out(x) is the number of vertex neighbors connected by an out-edge
- *   in(x) is the number of vertex neighbors connected by an in-edge
+ * <p>where: EV is the original edge value deg(x) is the number of vertex neighbors out(x) is the
+ * number of vertex neighbors connected by an out-edge in(x) is the number of vertex neighbors
+ * connected by an in-edge
  *
- * (out(x) + in(x)) / 2 <= deg(x) <= out(x) + in(x)
+ * <p>(out(x) + in(x)) / 2 <= deg(x) <= out(x) + in(x)
  */
 package org.apache.flink.graph.asm.degree.annotate;

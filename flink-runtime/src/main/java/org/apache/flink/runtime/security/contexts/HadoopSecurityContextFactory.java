@@ -27,40 +27,45 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Default security context factory that instantiates {@link SecurityContext}
- * based on installed modules, it would instantiate {@link HadoopSecurityContext} if
- * a {@link HadoopModuleFactory} is included.
+ * Default security context factory that instantiates {@link SecurityContext} based on installed
+ * modules, it would instantiate {@link HadoopSecurityContext} if a {@link HadoopModuleFactory} is
+ * included.
  */
 public class HadoopSecurityContextFactory implements SecurityContextFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(HadoopSecurityContextFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HadoopSecurityContextFactory.class);
 
-	@Override
-	public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
-		// not compatible if no hadoop module factory configured.
-		if (!securityConfig.getSecurityModuleFactories().contains(HadoopModuleFactory.class.getCanonicalName())) {
-			return false;
-		}
-		// not compatible if Hadoop binary not in classpath.
-		try {
-			Class.forName(
-				"org.apache.hadoop.security.UserGroupInformation",
-				false,
-				HadoopSecurityContextFactory.class.getClassLoader());
-			return true;
-		} catch (ClassNotFoundException e) {
-			LOG.info("Cannot install HadoopSecurityContext because Hadoop cannot be found in the Classpath.");
-			return false;
-		}
-	}
+    @Override
+    public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
+        // not compatible if no hadoop module factory configured.
+        if (!securityConfig
+                .getSecurityModuleFactories()
+                .contains(HadoopModuleFactory.class.getCanonicalName())) {
+            return false;
+        }
+        // not compatible if Hadoop binary not in classpath.
+        try {
+            Class.forName(
+                    "org.apache.hadoop.security.UserGroupInformation",
+                    false,
+                    HadoopSecurityContextFactory.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException e) {
+            LOG.info(
+                    "Cannot install HadoopSecurityContext because Hadoop cannot be found in the Classpath.");
+            return false;
+        }
+    }
 
-	@Override
-	public SecurityContext createContext(SecurityConfiguration securityConfig) throws SecurityContextInitializeException {
-		try {
-			UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
-			return new HadoopSecurityContext(loginUser);
-		} catch (Exception e) {
-			LOG.error("Cannot instantiate HadoopSecurityContext.", e);
-			throw new SecurityContextInitializeException("Cannot instantiate HadoopSecurityContext.", e);
-		}
-	}
+    @Override
+    public SecurityContext createContext(SecurityConfiguration securityConfig)
+            throws SecurityContextInitializeException {
+        try {
+            UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
+            return new HadoopSecurityContext(loginUser);
+        } catch (Exception e) {
+            LOG.error("Cannot instantiate HadoopSecurityContext.", e);
+            throw new SecurityContextInitializeException(
+                    "Cannot instantiate HadoopSecurityContext.", e);
+        }
+    }
 }

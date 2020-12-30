@@ -20,24 +20,22 @@ package org.apache.flink.runtime.jobmaster;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Simple payload implementation for testing purposes.
- */
+/** Simple payload implementation for testing purposes. */
 public class TestingPayload implements LogicalSlot.Payload {
 
-	private final CompletableFuture<?> terminationFuture;
+    private final CompletableFuture<?> terminationFuture;
 
-	public TestingPayload() {
-		this.terminationFuture = new CompletableFuture<>();
-	}
+    public TestingPayload() {
+        this.terminationFuture = new CompletableFuture<>();
+    }
 
-	@Override
-	public void fail(Throwable cause) {
-		terminationFuture.complete(null);
-	}
+    @Override
+    public void fail(Throwable cause) {
+        terminationFuture.complete(null);
+    }
 
-	@Override
-	public CompletableFuture<?> getTerminalStateFuture() {
-		return terminationFuture;
-	}
+    @Override
+    public CompletableFuture<?> getTerminalStateFuture() {
+        return terminationFuture;
+    }
 }

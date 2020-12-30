@@ -41,7 +41,6 @@ import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataTy
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.InstantiationUtil
-
 import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.rex.{RexLiteral, RexNode}

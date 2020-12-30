@@ -24,17 +24,15 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
 
-/**
- * Module descriptor for {@link org.apache.flink.table.module.CoreModule}.
- */
+/** Module descriptor for {@link org.apache.flink.table.module.CoreModule}. */
 public class CoreModuleDescriptor extends ModuleDescriptor {
 
-	public CoreModuleDescriptor() {
-		super(MODULE_TYPE_CORE);
-	}
+    public CoreModuleDescriptor() {
+        super(MODULE_TYPE_CORE);
+    }
 
-	@Override
-	protected Map<String, String> toModuleProperties() {
-		return Collections.unmodifiableMap(new HashMap<>());
-	}
+    @Override
+    protected Map<String, String> toModuleProperties() {
+        return Collections.unmodifiableMap(new HashMap<>());
+    }
 }

@@ -40,86 +40,98 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link ProcessingTimeServiceImpl}.
- */
+/** Tests for {@link ProcessingTimeServiceImpl}. */
 public class ProcessingTimeServiceImplTest extends TestLogger {
 
-	private static final Time testingTimeout = Time.seconds(10L);
+    private static final Time testingTimeout = Time.seconds(10L);
 
-	private SystemProcessingTimeService timerService;
+    private SystemProcessingTimeService timerService;
 
-	@Before
-	public void setup() {
-		CompletableFuture<Throwable> errorFuture = new CompletableFuture<>();
+    @Before
+    public void setup() {
+        CompletableFuture<Throwable> errorFuture = new CompletableFuture<>();
 
-		timerService = new SystemProcessingTimeService(errorFuture::complete);
-	}
+        timerService = new SystemProcessingTimeService(errorFuture::complete);
+    }
 
-	@After
-	public void teardown() {
-		timerService.shutdownService();
-	}
+    @After
+    public void teardown() {
+        timerService.shutdownService();
+    }
 
-	@Test
-	public void testTimerRegistrationAndCancellation() throws TimeoutException, InterruptedException, ExecutionException {
-		ProcessingTimeServiceImpl processingTimeService = new ProcessingTimeServiceImpl(timerService, v -> v);
+    @Test
+    public void testTimerRegistrationAndCancellation()
+            throws TimeoutException, InterruptedException, ExecutionException {
+        ProcessingTimeServiceImpl processingTimeService =
+                new ProcessingTimeServiceImpl(timerService, v -> v);
 
-		// test registerTimer() and cancellation
-		ScheduledFuture<?> neverFiredTimer = processingTimeService.registerTimer(Long.MAX_VALUE, timestamp -> {});
-		assertEquals(1, timerService.getNumTasksScheduled());
-		assertTrue(neverFiredTimer.cancel(false));
-		assertTrue(neverFiredTimer.isDone());
-		assertTrue(neverFiredTimer.isCancelled());
+        // test registerTimer() and cancellation
+        ScheduledFuture<?> neverFiredTimer =
+                processingTimeService.registerTimer(Long.MAX_VALUE, timestamp -> {});
+        assertEquals(1, timerService.getNumTasksScheduled());
+        assertTrue(neverFiredTimer.cancel(false));
+        assertTrue(neverFiredTimer.isDone());
+        assertTrue(neverFiredTimer.isCancelled());
 
-		final CompletableFuture<?> firedTimerFuture = new CompletableFuture<>();
-		ScheduledFuture<?> firedTimer = processingTimeService.registerTimer(0, timestamp -> firedTimerFuture.complete(null));
-		firedTimer.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-		assertTrue(firedTimerFuture.isDone());
-		assertFalse(firedTimer.isCancelled());
+        final CompletableFuture<?> firedTimerFuture = new CompletableFuture<>();
+        ScheduledFuture<?> firedTimer =
+                processingTimeService.registerTimer(
+                        0, timestamp -> firedTimerFuture.complete(null));
+        firedTimer.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+        assertTrue(firedTimerFuture.isDone());
+        assertFalse(firedTimer.isCancelled());
 
-		// test scheduleAtFixedRate() and cancellation
-		final CompletableFuture<?> periodicTimerFuture = new CompletableFuture<>();
-		ScheduledFuture<?> periodicTimer = processingTimeService.scheduleAtFixedRate(
-			timestamp -> periodicTimerFuture.complete(null), 0, Long.MAX_VALUE);
+        // test scheduleAtFixedRate() and cancellation
+        final CompletableFuture<?> periodicTimerFuture = new CompletableFuture<>();
+        ScheduledFuture<?> periodicTimer =
+                processingTimeService.scheduleAtFixedRate(
+                        timestamp -> periodicTimerFuture.complete(null), 0, Long.MAX_VALUE);
 
-		periodicTimerFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-		assertTrue(periodicTimer.cancel(false));
-		assertTrue(periodicTimer.isDone());
-		assertTrue(periodicTimer.isCancelled());
-	}
+        periodicTimerFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+        assertTrue(periodicTimer.cancel(false));
+        assertTrue(periodicTimer.isDone());
+        assertTrue(periodicTimer.isCancelled());
+    }
 
-	@Test
-	public void testQuiesce() throws Exception {
-		ProcessingTimeServiceImpl processingTimeService = new ProcessingTimeServiceImpl(timerService, v -> v);
+    @Test
+    public void testQuiesce() throws Exception {
+        ProcessingTimeServiceImpl processingTimeService =
+                new ProcessingTimeServiceImpl(timerService, v -> v);
 
-		final CompletableFuture<?> timerRunFuture = new CompletableFuture();
-		final OneShotLatch timerWaitLatch = new OneShotLatch();
+        final CompletableFuture<?> timerRunFuture = new CompletableFuture();
+        final OneShotLatch timerWaitLatch = new OneShotLatch();
 
-		ScheduledFuture<?> timer = processingTimeService.registerTimer(0, timestamp -> {
-			timerRunFuture.complete(null);
-			timerWaitLatch.await();
-		});
+        ScheduledFuture<?> timer =
+                processingTimeService.registerTimer(
+                        0,
+                        timestamp -> {
+                            timerRunFuture.complete(null);
+                            timerWaitLatch.await();
+                        });
 
-		// wait for the timer to run, then quiesce the time service
-		timerRunFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-		CompletableFuture<?> quiesceCompletedFuture = processingTimeService.quiesce();
+        // wait for the timer to run, then quiesce the time service
+        timerRunFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+        CompletableFuture<?> quiesceCompletedFuture = processingTimeService.quiesce();
 
-		// after the timer server is quiesced, tests #registerTimer() and #scheduleAtFixedRate()
-		assertThat(processingTimeService.registerTimer(0, timestamp -> {}), is(instanceOf(NeverCompleteFuture.class)));
-		assertThat(processingTimeService.scheduleAtFixedRate(
-			timestamp -> {}, 0, Long.MAX_VALUE), is(instanceOf(NeverCompleteFuture.class)));
+        // after the timer server is quiesced, tests #registerTimer() and #scheduleAtFixedRate()
+        assertThat(
+                processingTimeService.registerTimer(0, timestamp -> {}),
+                is(instanceOf(NeverCompleteFuture.class)));
+        assertThat(
+                processingTimeService.scheduleAtFixedRate(timestamp -> {}, 0, Long.MAX_VALUE),
+                is(instanceOf(NeverCompleteFuture.class)));
 
-		// when the timer is finished, the quiesce-completed future should be completed
-		assertFalse(quiesceCompletedFuture.isDone());
-		timerWaitLatch.trigger();
-		timer.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-		assertTrue(quiesceCompletedFuture.isDone());
-	}
+        // when the timer is finished, the quiesce-completed future should be completed
+        assertFalse(quiesceCompletedFuture.isDone());
+        timerWaitLatch.trigger();
+        timer.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+        assertTrue(quiesceCompletedFuture.isDone());
+    }
 
-	@Test
-	public void testQuiesceWhenNoRunningTimers() {
-		ProcessingTimeServiceImpl processingTimeService = new ProcessingTimeServiceImpl(timerService, v -> v);
-		assertTrue(processingTimeService.quiesce().isDone());
-	}
+    @Test
+    public void testQuiesceWhenNoRunningTimers() {
+        ProcessingTimeServiceImpl processingTimeService =
+                new ProcessingTimeServiceImpl(timerService, v -> v);
+        assertTrue(processingTimeService.quiesce().isDone());
+    }
 }

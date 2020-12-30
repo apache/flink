@@ -21,10 +21,11 @@ import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, InMemoryLookupableTableSource}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Test}
+import org.junit.{After, Assume, Before, Test}
 
 import java.lang.{Boolean => JBoolean}
 import java.util
@@ -66,6 +67,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
     createLookupTable("userTable", userData)
     createLookupTable("userTableWithNull", userDataWithNull)
+    createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
 
     // TODO: enable object reuse until [FLINK-12351] is fixed.
     env.getConfig.disableObjectReuse()
@@ -97,6 +99,26 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
            |  `age` INT,
            |  `id` BIGINT,
            |  `name` STRING
+           |) WITH (
+           |  'connector' = 'values',
+           |  'data-id' = '$dataId',
+           |  'async' = '$isAsyncMode',
+           |  'bounded' = 'true'
+           |)
+           |""".stripMargin)
+    }
+  }
+
+  private def createLookupTableWithComputedColumn(tableName: String, data: List[Row]): Unit = {
+    if (!legacyTableSource) {
+      val dataId = TestValuesTableFactory.registerData(data)
+      tEnv.executeSql(
+        s"""
+           |CREATE TABLE $tableName (
+           |  `age` INT,
+           |  `id` BIGINT,
+           |  `name` STRING,
+           |  `nominal_age` as age + 1
            |) WITH (
            |  'connector' = 'values',
            |  'data-id' = '$dataId',
@@ -255,6 +277,37 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id"
     val expected = Seq()
+    checkResult(sql, expected)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumn(): Unit = {
+    //Computed column do not support in legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+
+    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
+      "FROM T JOIN userTableWithComputedColumn " +
+      "for system_time as of T.proctime AS D ON T.id = D.id"
+
+    val expected = Seq(
+      BatchTestBase.row(1, 12, "Julian", "Julian", 11, 12),
+      BatchTestBase.row(2, 15, "Hello", "Jark", 22, 23),
+      BatchTestBase.row(3, 15, "Fabian", "Fabian", 33, 34))
+    checkResult(sql, expected)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
+    //Computed column do not support in legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+
+    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
+      "FROM T JOIN userTableWithComputedColumn " +
+      "for system_time as of T.proctime AS D ON T.id = D.id and D.nominal_age > 12"
+
+    val expected = Seq(
+      BatchTestBase.row(2, 15, "Hello", "Jark", 22, 23),
+      BatchTestBase.row(3, 15, "Fabian", "Fabian", 33, 34))
     checkResult(sql, expected)
   }
 }

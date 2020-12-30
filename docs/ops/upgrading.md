@@ -1,7 +1,7 @@
 ---
 title: "Upgrading Applications and Flink Versions"
 nav-parent_id: ops
-nav-pos: 13
+nav-pos: 9
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -31,7 +31,7 @@ This document describes how to update a Flink streaming application and how to m
 
 ## Restarting Streaming Applications
 
-The line of action for upgrading a streaming application or migrating an application to a different cluster is based on Flink's [Savepoint]({{ site.baseurl }}/ops/state/savepoints.html) feature. A savepoint is a consistent snapshot of the state of an application at a specific point in time. 
+The line of action for upgrading a streaming application or migrating an application to a different cluster is based on Flink's [Savepoint]({% link ops/state/savepoints.md %}) feature. A savepoint is a consistent snapshot of the state of an application at a specific point in time. 
 
 There are two ways of taking a savepoint from a running streaming application.
 
@@ -83,14 +83,13 @@ When upgrading an application, user functions and operators can be freely modifi
 
 Operator state can be either user-defined or internal. 
 
-* **User-defined operator state:** In functions with user-defined operator state the type of the state is explicitly defined by the user. Although it is not possible to change the data type of operator state, a workaround to overcome this limitation can be to define a second state with a different data type and to implement logic to migrate the state from the original state into the new state. This approach requires a good migration strategy and a solid understanding of the behavior of [key-partitioned state]({{ site.baseurl }}/dev/stream/state/state.html).
+* **User-defined operator state:** In functions with user-defined operator state the type of the state is explicitly defined by the user. Although it is not possible to change the data type of operator state, a workaround to overcome this limitation can be to define a second state with a different data type and to implement logic to migrate the state from the original state into the new state. This approach requires a good migration strategy and a solid understanding of the behavior of [key-partitioned state]({% link dev/stream/state/state.md %}).
 
 * **Internal operator state:** Operators such as window or join operators hold internal operator state which is not exposed to the user. For these operators the data type of the internal state depends on the input or output type of the operator. Consequently, changing the respective input or output type breaks application state consistency and prevents an upgrade. The following table lists operators with internal state and shows how the state data type relates to their input and output types. For operators which are applied on a keyed stream, the key type (KEY) is always part of the state data type as well.
 
 | Operator                                            | Data Type of Internal Operator State |
 |:----------------------------------------------------|:-------------------------------------|
 | ReduceFunction[IOT]                                 | IOT (Input and output type) [, KEY]  |
-| FoldFunction[IT, OT]                                | OT (Output type) [, KEY]             |
 | WindowFunction[IT, OT, KEY, WINDOW]                 | IT (Input type), KEY                 |
 | AllWindowFunction[IT, OT, WINDOW]                   | IT (Input type)                      |
 | JoinFunction[IT1, IT2, OT]                          | IT1, IT2 (Type of 1. and 2. input), KEY |
@@ -141,8 +140,8 @@ about the steps that we outlined before.
 ### Preconditions
 
 Before starting the migration, please check that the jobs you are trying to migrate are following the
-best practices for [savepoints]({{ site.baseurl }}/ops/state/savepoints.html). Also, check out the 
-[API Migration Guides]({{ site.baseurl }}/dev/migration.html) to see if there is any API changes related to migrating
+best practices for [savepoints]({% link ops/state/savepoints.md %}). Also, check out the 
+[API Migration Guides]({% link dev/migration.md %}) to see if there is any API changes related to migrating
 savepoints to newer versions.
 
 In particular, we advise you to check that explicit `uid`s were set for operators in your job. 
@@ -163,20 +162,22 @@ Besides operator uids, there are currently two *hard* preconditions for job migr
 under the same (absolute) path. 
 This also includes access to any additional files that are referenced from inside the 
 savepoint file (the output from state backend snapshots), including, but not limited to additional referenced 
-savepoints from modifications with the [State Processor API]({{ site.baseurl }}/dev/libs/state_processor_api.html). 
+savepoints from modifications with the [State Processor API]({% link dev/libs/state_processor_api.md %}). 
 Any savepoint data is currently referenced by absolute paths inside the meta data file and thus a savepoint is 
 not relocatable via typical filesystem operations.
 
-### STEP 1: Take a savepoint in the old Flink version.
+### STEP 1: Stop the existing job with a savepoint
 
-First major step in job migration is taking a savepoint of your job running in the older Flink version.
+The first major step in version migration is taking a savepoint and stopping your job running on
+the old Flink version.
+
 You can do this with the command:
 
 {% highlight shell %}
-$ bin/flink savepoint :jobId [:targetDirectory]
+$ bin/flink stop [--savepointPath :savepointPath] :jobId
 {% endhighlight %}
 
-For more details, please read the [savepoint documentation]({{ site.baseurl }}/ops/state/savepoints.html).
+For more details, please read the [savepoint documentation]({% link ops/state/savepoints.md %}).
 
 ### STEP 2: Update your cluster to the new Flink version.
 
@@ -184,7 +185,7 @@ In this step, we update the framework version of the cluster. What this basicall
 the Flink installation with the new version. This step can depend on how you are running Flink in your cluster (e.g. 
 standalone, on Mesos, ...).
 
-If you are unfamiliar with installing Flink in your cluster, please read the [deployment and cluster setup documentation]({{ site.baseurl }}/ops/deployment/cluster_setup.html).
+If you are unfamiliar with installing Flink in your cluster, please read the [deployment and cluster setup documentation]({% link deployment/resource-providers/standalone/index.md %}).
 
 ### STEP 3: Resume the job under the new Flink version from savepoint.
 
@@ -195,7 +196,7 @@ this with the command:
 $ bin/flink run -s :savepointPath [:runArgs]
 {% endhighlight %}
 
-Again, for more details, please take a look at the [savepoint documentation]({{ site.baseurl }}/ops/state/savepoints.html).
+Again, for more details, please take a look at the [savepoint documentation]({% link ops/state/savepoints.md %}).
 
 ## Compatibility Table
 

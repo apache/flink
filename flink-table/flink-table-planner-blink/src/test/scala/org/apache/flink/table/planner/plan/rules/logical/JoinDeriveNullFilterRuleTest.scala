@@ -74,46 +74,46 @@ class JoinDeriveNullFilterRuleTest extends TableTestBase {
 
   @Test
   def testInnerJoin_NoneEquiJoinKeys(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a1 > a2")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a1 > a2")
   }
 
   @Test
   def testInnerJoin_NullCountOnLeftJoinKeys(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a1 = a2")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a1 = a2")
   }
 
   @Test
   def testInnerJoin_NullCountOnRightJoinKeys(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON b1 = b2")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON b1 = b2")
   }
 
   @Test
   def testInnerJoin_NullCountOnLeftRightJoinKeys(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON c1 = c2")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON c1 = c2")
   }
 
   @Test
   def testInnerJoin_NoNullCount(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON d1 = d2")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON d1 = d2")
   }
 
   @Test
   def testInnerJoin_NullCountLessThanThreshold(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON e1 = e2")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON e1 = e2")
   }
 
   @Test
   def testLeftJoin(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON c1 = c2")
+    util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON c1 = c2")
   }
 
   @Test
   def testRightJoin(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON c1 = c2")
+    util.verifyRelPlan("SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON c1 = c2")
   }
 
   @Test
   def testFullJoin(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 FULL JOIN MyTable2 ON c1 = c2")
+    util.verifyRelPlan("SELECT * FROM MyTable1 FULL JOIN MyTable2 ON c1 = c2")
   }
 }

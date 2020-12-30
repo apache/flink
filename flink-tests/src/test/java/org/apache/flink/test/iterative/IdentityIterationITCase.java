@@ -28,32 +28,29 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test empty (identity) bulk iteration.
- */
+/** Test empty (identity) bulk iteration. */
 public class IdentityIterationITCase extends JavaProgramTestBase {
 
-	private List<Long> result = new ArrayList<Long>();
+    private List<Long> result = new ArrayList<Long>();
 
-	@Override
-	protected void testProgram() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Override
+    protected void testProgram() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		IterativeDataSet<Long> iteration = env.generateSequence(1, 10).iterate(100);
-		iteration.closeWith(iteration)
-			.output(new LocalCollectionOutputFormat<Long>(result));
+        IterativeDataSet<Long> iteration = env.generateSequence(1, 10).iterate(100);
+        iteration.closeWith(iteration).output(new LocalCollectionOutputFormat<Long>(result));
 
-		env.execute();
-	}
+        env.execute();
+    }
 
-	@Override
-	protected void postSubmit()  {
-		assertEquals(10, result.size());
+    @Override
+    protected void postSubmit() {
+        assertEquals(10, result.size());
 
-		long sum = 0;
-		for (Long l : result) {
-			sum += l;
-		}
-		assertEquals(55, sum);
-	}
+        long sum = 0;
+        for (Long l : result) {
+            sum += l;
+        }
+        assertEquals(55, sum);
+    }
 }

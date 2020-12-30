@@ -21,32 +21,23 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.StringComparator;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 public class StringComparatorTest extends ComparatorTestBase<String> {
 
-	@Override
-	protected TypeComparator<String> createComparator(boolean ascending) {
-		return new StringComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<String> createComparator(boolean ascending) {
+        return new StringComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<String> createSerializer() {
-		return new StringSerializer();
-	}
+    @Override
+    protected TypeSerializer<String> createSerializer() {
+        return new StringSerializer();
+    }
 
-	@Override
-	protected String[] getSortedTestData() {
-		return new String[]{
-			"",
-			"Lorem Ipsum Dolor Omit Longer",
-			"aaaa",
-			"abcd",
-			"abce",
-			"abdd",
-			"accd",
-			"bbcd"
-		};
-	}
+    @Override
+    protected String[] getSortedTestData() {
+        return new String[] {
+            "", "Lorem Ipsum Dolor Omit Longer", "aaaa", "abcd", "abce", "abdd", "accd", "bbcd"
+        };
+    }
 }

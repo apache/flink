@@ -18,53 +18,30 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Test implementation of {@link BufferAvailabilityListener}.
- */
+/** Test implementation of {@link BufferAvailabilityListener}. */
 class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 
-	private final AtomicLong numNotifications = new AtomicLong();
+    private final AtomicLong numNotifications = new AtomicLong();
 
-	private final AtomicLong numPriorityEvents = new AtomicLong();
+    private final AtomicLong numPriorityEvents = new AtomicLong();
 
-	private final AtomicBoolean consumePriorityEvents = new AtomicBoolean();
+    @Override
+    public void notifyDataAvailable() {
+        numNotifications.getAndIncrement();
+    }
 
-	@Override
-	public void notifyDataAvailable() {
-		numNotifications.getAndIncrement();
-	}
+    public long getNumNotifications() {
+        return numNotifications.get();
+    }
 
-	public long getNumNotifications() {
-		return numNotifications.get();
-	}
+    @Override
+    public void notifyPriorityEvent(int priorityBufferNumber) {
+        numPriorityEvents.getAndIncrement();
+    }
 
-	@Override
-	public boolean notifyPriorityEvent(BufferConsumer eventBufferConsumer) {
-		numPriorityEvents.getAndIncrement();
-		return consumePriorityEvents.get();
-	}
-
-	public long getNumPriorityEvents() {
-		return numPriorityEvents.get();
-	}
-
-	public void consumePriorityEvents() {
-		consumePriorityEvents.set(true);
-	}
-
-	public void resetNotificationCounters() {
-		numNotifications.set(0L);
-	}
-
-	void awaitNotifications(long awaitedNumNotifications, long timeoutMillis) throws InterruptedException {
-		long deadline = System.currentTimeMillis() + timeoutMillis;
-		while (numNotifications.get() < awaitedNumNotifications && System.currentTimeMillis() < deadline) {
-			Thread.sleep(1);
-		}
-	}
+    public long getNumPriorityEvents() {
+        return numPriorityEvents.get();
+    }
 }

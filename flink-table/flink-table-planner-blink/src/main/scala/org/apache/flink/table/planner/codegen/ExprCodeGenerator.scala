@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
@@ -42,9 +43,9 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCou
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
-import org.apache.calcite.util.TimestampString
+import org.apache.calcite.util.{Sarg, TimestampString}
 
 import scala.collection.JavaConversions._
 
@@ -80,6 +81,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   var input2FieldMapping: Option[Array[Int]] = None
 
   /**
+   * information of the user-defined constructor
+   * */
+  var functionContextTerm: Option[String] = None
+
+  /**
     * Bind the input information, should be called before generating expression.
     */
   def bindInput(
@@ -106,6 +112,17 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     this
   }
 
+  /**
+   * In some cases, we should use user-defined input for constructor. For example,
+   * ScalaFunctionCodeGen allows to use user-defined context term rather than get
+   * from invoking getRuntimeContext() method.
+   * */
+  def bindConstructorTerm(
+      inputFunctionContextTerm: String): ExprCodeGenerator = {
+    functionContextTerm = Some(inputFunctionContextTerm)
+    this
+  }
+
   private lazy val input1Mapping: Array[Int] = input1FieldMapping match {
     case Some(mapping) => mapping
     case _ => fieldIndices(input1Type)
@@ -126,7 +143,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       Array(0)
     }
   }
- 
+
   /**
     * Generates an expression from a RexNode. If objects or variables can be reused, they will be
     * added to reusable code sections internally.
@@ -479,8 +496,22 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     throw new CodeGenException("Dynamic parameter references are not supported yet.")
 
   override def visitCall(call: RexCall): GeneratedExpression = {
-
     val resultType = FlinkTypeFactory.toLogicalType(call.getType)
+    if (call.getKind == SqlKind.SEARCH) {
+      val sarg = call.getOperands.get(1).asInstanceOf[RexLiteral]
+          .getValueAs(classOf[Sarg[_]])
+      val rexBuilder = new FlinkRexBuilder(FlinkTypeFactory.INSTANCE)
+      if (sarg.isPoints) {
+        val operands = FlinkRexUtil.expandSearchOperands(rexBuilder, call)
+            .map(operand => operand.accept(this))
+        return generateCallExpression(ctx, call, operands, resultType)
+      } else {
+        return RexUtil.expandSearch(
+          rexBuilder,
+          null,
+          call).accept(this)
+      }
+    }
 
     // convert operands and help giving untyped NULL literals a type
     val operands = call.getOperands.zipWithIndex.map {
@@ -687,7 +718,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         requireBoolean(operand)
         generateIsNotFalse(operand)
 
-      case IN =>
+      case SEARCH | IN =>
         val left = operands.head
         val right = operands.tail
         generateIn(ctx, left, right)
@@ -738,7 +769,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           case LogicalTypeRoot.ROW | LogicalTypeRoot.STRUCTURED_TYPE =>
             generateDot(ctx, operands)
 
-          case _ => throw new CodeGenException("Expect an array or a map.")
+          case _ => throw new CodeGenException("Expect an array, a map or a row.")
         }
 
       case CARDINALITY =>

@@ -16,6 +16,70 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testCorrelateSortToRank">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, b
+FROM
+  (SELECT DISTINCT a FROM MyTable) T1,
+  LATERAL (
+    SELECT b, c
+    FROM MyTable
+    WHERE a = T1.a
+    ORDER BY c
+    DESC LIMIT 3
+  )
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(a=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(b=[$1], c=[$2])
+         +- LogicalFilter(condition=[=($0, $cor0.a)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[c DESC], select=[a, b, c])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, c])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCreateViewWithRowNumber">
+    <Resource name="sql">
+      <![CDATA[insert into sink select name, eat, cnt
+from view2 where row_num <= 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
+   +- LogicalFilter(condition=[<=($3, 3)])
+      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[cnt DESC], select=[name, eat, cnt])
+   +- Exchange(distribution=[hash[name]])
+      +- GroupAggregate(groupBy=[name, eat], select=[name, eat, SUM(age) AS cnt])
+         +- Exchange(distribution=[hash[name, eat]])
+            +- TableSourceScan(table=[[default_catalog, default_database, test_source]], fields=[name, eat, age])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNestedTopN">
     <Resource name="sql">
       <![CDATA[
@@ -41,22 +105,22 @@ WHERE row_num <= 10
 WHERE rank_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[ROW_NUMBER() OVER (ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[ROW_NUMBER() OVER (ORDER BY $2 DESC NULLS LAST)])
       +- LogicalFilter(condition=[<=($3, 10)])
-         +- LogicalProject(a=[$0], b=[$1], count_c=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+         +- LogicalProject(a=[$0], b=[$1], count_c=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
             +- LogicalAggregate(group=[{0, 1, 2}], count_c=[COUNT()])
                +- LogicalProject(a=[$0], b=[$1], cn=[_UTF-16LE'cn'])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
-+- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0, w0$o0], changelogMode=[I,UA,D])
+Calc(select=[a, b, count_c, $3], changelogMode=[I,UA,D])
++- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0, $3], changelogMode=[I,UA,D])
    +- Exchange(distribution=[single], changelogMode=[I,UA,D])
       +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
          +- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
@@ -78,17 +142,17 @@ FROM (
 WHERE row_num <= 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, 1:BIGINT AS w0$o0])
+Calc(select=[a, b, c, 1:BIGINT AS $3])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b DESC], select=[a, b, c])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
@@ -104,15 +168,15 @@ SELECT * FROM (
 WHERE rk < 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], rk=[$1], b=[$2], c=[$3])
 +- LogicalFilter(condition=[<($1, 10)])
-   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], b=[$1], c=[$2])
+   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)], b=[$1], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, rk, b, c])
 +- Rank(strategy=[AppendFastStrategy], rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], select=[a, b, c, rk])
@@ -133,15 +197,15 @@ FROM (
 WHERE rk <= 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
 +- Rank(strategy=[AppendFastStrategy], rankType=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[proctime ASC], select=[a, b, c, proctime])
@@ -162,15 +226,15 @@ FROM (
 WHERE rk <= 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
 +- Rank(strategy=[AppendFastStrategy], rankType=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[proctime DESC], select=[a, b, c, proctime])
@@ -191,15 +255,15 @@ FROM (
 WHERE row_num <= 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
 +- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME])
@@ -220,15 +284,15 @@ FROM (
 WHERE row_num <= 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
 +- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME])
@@ -249,18 +313,18 @@ FROM (
 WHERE row_num <= 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$4], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$4], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime ASC], select=[a, b, c, rowtime])
++- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -278,18 +342,18 @@ FROM (
 WHERE row_num <= 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$4], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$4], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, b, c, rowtime])
++- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -307,17 +371,17 @@ FROM (
 WHERE row_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], changelogMode=[I,UA,D])
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, $3], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[a]], changelogMode=[I])
    +- Calc(select=[a, b, c], changelogMode=[I])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
@@ -335,17 +399,17 @@ FROM (
 WHERE 10 >= row_num
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[>=(10, $3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], changelogMode=[I,UA,D])
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, $3], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[a]], changelogMode=[I])
    +- Calc(select=[a, b, c], changelogMode=[I])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
@@ -367,17 +431,17 @@ GROUP BY a, b
 WHERE row_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST, $0 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST, $0 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], count_c=[COUNT()])
          +- LogicalProject(a=[$0], b=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC, a ASC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[b]], changelogMode=[I,UA])
@@ -403,17 +467,17 @@ GROUP BY a, b
 WHERE row_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
          +- LogicalProject(a=[$0], b=[$1], c=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA])
@@ -441,18 +505,18 @@ WHERE row_num <= 10
       )
        ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
 +- LogicalProject(a=[$0])
    +- LogicalFilter(condition=[<=($3, 10)])
-      +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalAggregate(group=[{0, 1}], count_c=[COUNT()])
             +- LogicalProject(a=[$0], b=[$1])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 GroupAggregate(select=[MAX_RETRACT(a) AS EXPR$0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[single], changelogMode=[I,UB,UA,D])
@@ -481,23 +545,23 @@ GROUP BY a, b
 WHERE row_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
          +- LogicalProject(a=[$0], b=[$1], $f2=[CASE(>($2, 10), 1, <($2, 0), 0, null:INTEGER)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM($f2) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
-         +- Calc(select=[a, b, CASE(>(c, 10), 1, <(c, 0), 0, null:INTEGER) AS $f2])
+         +- Calc(select=[a, b, CASE((c > 10), 1, (c < 0), 0, null:INTEGER) AS $f2])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -518,18 +582,18 @@ GROUP BY a, b
 WHERE row_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
          +- LogicalProject(a=[$0], b=[$1], c=[$2])
             +- LogicalFilter(condition=[>=($2, 0)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[b]], changelogMode=[I,UA])
@@ -555,23 +619,23 @@ GROUP BY a, b
 WHERE row_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2) FILTER $3])
          +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[IS TRUE(AND(>=($2, 0), <($0, 0)))])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
-         +- Calc(select=[a, b, c, IS TRUE(AND(>=(c, 0), <(a, 0))) AS $f3])
+         +- Calc(select=[a, b, c, ((c >= 0) AND (a < 0)) IS TRUE AS $f3])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -591,23 +655,23 @@ GROUP BY a, b
 WHERE row_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2) FILTER $3])
          +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[IS TRUE(AND(<=($2, 0), <($0, 0)))])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c ASC], select=[a, b, sum_c, w0$o0])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
-         +- Calc(select=[a, b, c, IS TRUE(AND(<=(c, 0), <(a, 0))) AS $f3])
+         +- Calc(select=[a, b, c, ((c <= 0) AND (a < 0)) IS TRUE AS $f3])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -627,23 +691,23 @@ GROUP BY a, b
 WHERE row_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
          +- LogicalProject(a=[$0], b=[$1], $f2=[IF(>($2, 10), 1, 0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM($f2) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
-         +- Calc(select=[a, b, IF(>(c, 10), 1, 0) AS $f2])
+         +- Calc(select=[a, b, IF((c > 10), 1, 0) AS $f2])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -659,15 +723,15 @@ FROM (
 WHERE row_num = 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, 10:BIGINT AS $3], changelogMode=[I,UA,D])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=10, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c], changelogMode=[I,UA,D])
@@ -692,17 +756,17 @@ GROUP BY a
 WHERE row_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0}], b=[LAST_VALUE($1)], sum_c=[SUM($2)])
          +- LogicalProject(a=[$0], b=[$1], c=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA])
@@ -725,16 +789,16 @@ FROM (
 WHERE row_num <= 10 AND b IS NOT NULL
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(row_num=[$3], a=[$0], c=[$2])
 +- LogicalFilter(condition=[AND(<=($3, 10), IS NOT NULL($1))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalFilter(condition=[>($2, 1000)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[row_num, a, c], where=[IS NOT NULL(b)], changelogMode=[I,UB,UA,D])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, row_num], changelogMode=[I,UB,UA,D])
@@ -762,17 +826,17 @@ GROUP BY a, b, cn
 WHERE row_num <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], count_c=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], count_c=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1, 2}], count_c=[COUNT()])
          +- LogicalProject(a=[$0], b=[$1], cn=[_UTF-16LE'cn'])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
@@ -798,48 +862,22 @@ FROM (
 WHERE row_num <= 3
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(category=[$0], shopId=[$1], max_price=[$2], row_num=[$3])
 +- LogicalFilter(condition=[<=($3, 3)])
-   +- LogicalProject(category=[$0], shopId=[$1], max_price=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(category=[$0], shopId=[$1], max_price=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], max_price=[MAX($2)])
          +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[category]], changelogMode=[I,UB,UA])
    +- GroupAggregate(groupBy=[category, shopId], select=[category, shopId, MAX(price) AS max_price], changelogMode=[I,UB,UA])
       +- Exchange(distribution=[hash[category, shopId]], changelogMode=[I])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCreateViewWithRowNumber">
-    <Resource name="sql">
-      <![CDATA[insert into sink select name, eat, cnt
-from view2 where row_num <= 3]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
-   +- LogicalFilter(condition=[<=($3, 3)])
-      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-         +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
-            +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[cnt DESC], select=[name, eat, cnt])
-   +- Exchange(distribution=[hash[name]])
-      +- GroupAggregate(groupBy=[name, eat], select=[name, eat, SUM(age) AS cnt])
-         +- Exchange(distribution=[hash[name, eat]])
-            +- TableSourceScan(table=[[default_catalog, default_database, test_source]], fields=[name, eat, age])
 ]]>
     </Resource>
   </TestCase>

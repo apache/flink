@@ -33,142 +33,131 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
-/**
- * Simple ZooKeeper and CuratorFramework setup for tests.
- */
+/** Simple ZooKeeper and CuratorFramework setup for tests. */
 public class ZooKeeperTestEnvironment {
 
-	private final TestingServer zooKeeperServer;
+    private final TestingServer zooKeeperServer;
 
-	private final TestingCluster zooKeeperCluster;
+    private final TestingCluster zooKeeperCluster;
 
-	private final CuratorFramework client;
+    private final CuratorFramework client;
 
-	/**
-	 * Starts a ZooKeeper cluster with the number of quorum peers and a client.
-	 *
-	 * @param numberOfZooKeeperQuorumPeers Starts a {@link TestingServer}, if <code>1</code>.
-	 *                                     Starts a {@link TestingCluster}, if <code>=>1</code>.
-	 */
-	public ZooKeeperTestEnvironment(int numberOfZooKeeperQuorumPeers) {
-		if (numberOfZooKeeperQuorumPeers <= 0) {
-			throw new IllegalArgumentException("Number of peers needs to be >= 1.");
-		}
+    /**
+     * Starts a ZooKeeper cluster with the number of quorum peers and a client.
+     *
+     * @param numberOfZooKeeperQuorumPeers Starts a {@link TestingServer}, if <code>1</code>. Starts
+     *     a {@link TestingCluster}, if <code>=>1</code>.
+     */
+    public ZooKeeperTestEnvironment(int numberOfZooKeeperQuorumPeers) {
+        if (numberOfZooKeeperQuorumPeers <= 0) {
+            throw new IllegalArgumentException("Number of peers needs to be >= 1.");
+        }
 
-		final Configuration conf = new Configuration();
+        final Configuration conf = new Configuration();
 
-		try {
-			if (numberOfZooKeeperQuorumPeers == 1) {
-				zooKeeperServer = new TestingServer(true);
-				zooKeeperCluster = null;
+        try {
+            if (numberOfZooKeeperQuorumPeers == 1) {
+                zooKeeperServer = new TestingServer(true);
+                zooKeeperCluster = null;
 
-				conf.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
-						zooKeeperServer.getConnectString());
-			}
-			else {
-				zooKeeperServer = null;
-				zooKeeperCluster = new TestingCluster(numberOfZooKeeperQuorumPeers);
+                conf.setString(
+                        HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
+                        zooKeeperServer.getConnectString());
+            } else {
+                zooKeeperServer = null;
+                zooKeeperCluster = new TestingCluster(numberOfZooKeeperQuorumPeers);
 
-				zooKeeperCluster.start();
+                zooKeeperCluster.start();
 
-				conf.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
-						zooKeeperCluster.getConnectString());
-			}
+                conf.setString(
+                        HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
+                        zooKeeperCluster.getConnectString());
+            }
 
-			client = ZooKeeperUtils.startCuratorFramework(conf);
+            client = ZooKeeperUtils.startCuratorFramework(conf);
 
-			client.newNamespaceAwareEnsurePath("/")
-					.ensure(client.getZookeeperClient());
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Error setting up ZooKeeperTestEnvironment", e);
-		}
-	}
+            client.newNamespaceAwareEnsurePath("/").ensure(client.getZookeeperClient());
+        } catch (Exception e) {
+            throw new RuntimeException("Error setting up ZooKeeperTestEnvironment", e);
+        }
+    }
 
-	/**
-	 * Shutdown the client and ZooKeeper server/cluster.
-	 */
-	public void shutdown() throws Exception {
-		if (client != null) {
-			client.close();
-		}
+    /** Shutdown the client and ZooKeeper server/cluster. */
+    public void shutdown() throws Exception {
+        if (client != null) {
+            client.close();
+        }
 
-		if (zooKeeperServer != null) {
-			zooKeeperServer.close();
-		}
+        if (zooKeeperServer != null) {
+            zooKeeperServer.close();
+        }
 
-		if (zooKeeperCluster != null) {
-			zooKeeperCluster.close();
-		}
-	}
+        if (zooKeeperCluster != null) {
+            zooKeeperCluster.close();
+        }
+    }
 
-	public String getConnectString() {
-		if (zooKeeperServer != null) {
-			return zooKeeperServer.getConnectString();
-		}
-		else {
-			return zooKeeperCluster.getConnectString();
-		}
-	}
+    public String getConnectString() {
+        if (zooKeeperServer != null) {
+            return zooKeeperServer.getConnectString();
+        } else {
+            return zooKeeperCluster.getConnectString();
+        }
+    }
 
-	/**
-	 * Returns a client for the started ZooKeeper server/cluster.
-	 */
-	public CuratorFramework getClient() {
-		return client;
-	}
+    /** Returns a client for the started ZooKeeper server/cluster. */
+    public CuratorFramework getClient() {
+        return client;
+    }
 
-	public String getClientNamespace() {
-		return client.getNamespace();
-	}
+    public String getClientNamespace() {
+        return client.getNamespace();
+    }
 
-	@Nullable
-	public TestingCluster getZooKeeperCluster() {
-		return zooKeeperCluster;
-	}
+    @Nullable
+    public TestingCluster getZooKeeperCluster() {
+        return zooKeeperCluster;
+    }
 
-	public List<String> getChildren(String path) throws Exception {
-		return client.getChildren().forPath(path);
-	}
+    public List<String> getChildren(String path) throws Exception {
+        return client.getChildren().forPath(path);
+    }
 
-	/**
-	 * Creates a new client for the started ZooKeeper server/cluster.
-	 */
-	public CuratorFramework createClient() {
-		Configuration config = new Configuration();
-		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, getConnectString());
-		return ZooKeeperUtils.startCuratorFramework(config);
-	}
+    /** Creates a new client for the started ZooKeeper server/cluster. */
+    public CuratorFramework createClient() {
+        Configuration config = new Configuration();
+        config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, getConnectString());
+        return ZooKeeperUtils.startCuratorFramework(config);
+    }
 
-	/**
-	 * Deletes all ZNodes under the root node.
-	 *
-	 * @throws Exception If the ZooKeeper operation fails
-	 */
-	public void deleteAll() throws Exception {
-		final String path = "/" + client.getNamespace();
+    /**
+     * Deletes all ZNodes under the root node.
+     *
+     * @throws Exception If the ZooKeeper operation fails
+     */
+    public void deleteAll() throws Exception {
+        final String path = "/" + client.getNamespace();
 
-		int maxAttempts = 10;
+        int maxAttempts = 10;
 
-		for (int i = 0; i < maxAttempts; i++) {
-			try {
-				ZKPaths.deleteChildren(client.getZookeeperClient().getZooKeeper(), path, false);
-				return;
-			}
-			catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
-				// that seems all right. if one of the children we want to delete is
-				// actually already deleted, that's fine.
-				return;
-			}
-			catch (KeeperException.ConnectionLossException e) {
-				// Keep retrying
-				Thread.sleep(100);
-			}
-		}
+        for (int i = 0; i < maxAttempts; i++) {
+            try {
+                ZKPaths.deleteChildren(client.getZookeeperClient().getZooKeeper(), path, false);
+                return;
+            } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
+                // that seems all right. if one of the children we want to delete is
+                // actually already deleted, that's fine.
+                return;
+            } catch (KeeperException.ConnectionLossException e) {
+                // Keep retrying
+                Thread.sleep(100);
+            }
+        }
 
-		throw new Exception("Could not clear the ZNodes under " + path + ". ZooKeeper is not in " +
-			"a clean state.");
-
-	}
-
+        throw new Exception(
+                "Could not clear the ZNodes under "
+                        + path
+                        + ". ZooKeeper is not in "
+                        + "a clean state.");
+    }
 }

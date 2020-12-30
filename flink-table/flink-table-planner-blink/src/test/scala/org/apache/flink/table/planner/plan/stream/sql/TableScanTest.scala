@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.MockedLookupTableSource
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -32,13 +33,13 @@ class TableScanTest extends TableTestBase {
   @Test
   def testLegacyTableSourceScan(): Unit = {
     util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    util.verifyPlan("SELECT * FROM MyTable")
+    util.verifyExecPlan("SELECT * FROM MyTable")
   }
 
   @Test
   def testDataStreamScan(): Unit = {
     util.addDataStream[(Int, Long, String)]("DataStreamTable", 'a, 'b, 'c)
-    util.verifyPlan("SELECT * FROM DataStreamTable")
+    util.verifyExecPlan("SELECT * FROM DataStreamTable")
   }
 
   @Test
@@ -54,7 +55,7 @@ class TableScanTest extends TableTestBase {
         |  'connector' = 'values'
         |)
       """.stripMargin)
-    util.verifyPlan("SELECT * FROM src WHERE a > 1")
+    util.verifyExecPlan("SELECT * FROM src WHERE a > 1")
   }
 
   @Test
@@ -73,7 +74,50 @@ class TableScanTest extends TableTestBase {
          |  'connector' = 'values'
          |)
        """.stripMargin)
-    util.verifyPlan("SELECT * FROM t1")
+    util.verifyExecPlan("SELECT * FROM t1")
+  }
+
+  @Test
+  def testDDLWithMetadataColumn(): Unit = {
+    // tests reordering, skipping, and casting of metadata
+    util.addTable(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `a` INT,
+         |  `other_metadata` INT METADATA FROM 'metadata_3' VIRTUAL,
+         |  `b` BIGINT,
+         |  `c` INT,
+         |  `metadata_1` STRING METADATA,
+         |  `computed` AS UPPER(`metadata_1`)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'false',
+         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN, metadata_3:BIGINT',
+         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN'
+         |)
+       """.stripMargin)
+    util.verifyExecPlan("SELECT * FROM MetadataTable")
+  }
+
+  @Test
+  def testDDLWithMetadataColumnProjectionPushDown(): Unit = {
+    // tests reordering, skipping, and casting of metadata
+    util.addTable(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `a` INT,
+         |  `other_metadata` INT METADATA FROM 'metadata_3' VIRTUAL,
+         |  `b` BIGINT,
+         |  `c` INT,
+         |  `metadata_1` STRING METADATA
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'false',
+         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN, metadata_3:BIGINT',
+         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN'
+         |)
+       """.stripMargin)
+    util.verifyExecPlan("SELECT `b`, `other_metadata` FROM MetadataTable")
   }
 
   @Test
@@ -93,7 +137,7 @@ class TableScanTest extends TableTestBase {
          |  'connector' = 'values'
          |)
        """.stripMargin)
-    util.verifyPlan("SELECT * FROM t1")
+    util.verifyExecPlan("SELECT * FROM t1")
   }
 
   @Test
@@ -111,7 +155,7 @@ class TableScanTest extends TableTestBase {
         |  'connector' = 'values'
         |)
       """.stripMargin)
-    util.verifyPlan("SELECT * FROM src WHERE a > 1")
+    util.verifyExecPlan("SELECT * FROM src WHERE a > 1")
   }
 
   @Test
@@ -133,7 +177,7 @@ class TableScanTest extends TableTestBase {
          |  'connector' = 'values'
          |)
        """.stripMargin)
-    util.verifyPlan("SELECT * FROM t1")
+    util.verifyExecPlan("SELECT * FROM t1")
   }
 
   @Test
@@ -150,7 +194,7 @@ class TableScanTest extends TableTestBase {
         |)
       """.stripMargin)
     // pass
-    util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -166,7 +210,7 @@ class TableScanTest extends TableTestBase {
         |  'changelog-mode' = 'I,UA,UB,D'
         |)
       """.stripMargin)
-    util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -182,7 +226,7 @@ class TableScanTest extends TableTestBase {
         |  'changelog-mode' = 'I,UA,UB,D'
         |)
       """.stripMargin)
-    util.verifyPlan("SELECT b,a,ts FROM src", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan("SELECT b,a,ts FROM src", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -218,7 +262,7 @@ class TableScanTest extends TableTestBase {
       |  SELECT MAX(ts) as t, a, MAX(b) as b FROM append_src GROUP BY a
       |)
       |""".stripMargin
-    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -234,39 +278,317 @@ class TableScanTest extends TableTestBase {
         |  'changelog-mode' = 'I,UA,UB'
         |)
       """.stripMargin)
-    util.verifyPlan("SELECT COUNT(*) FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan("SELECT COUNT(*) FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testJoinOnChangelogSource(): Unit = {
+    verifyJoinOnSource("I,UB,UA")
+  }
+
+  @Test
+  def testJoinOnChangelogSourceWithEventsDuplicate(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+    verifyJoinOnSource("I,UB,UA")
+  }
+
+  @Test
+  def testJoinOnNoUpdateSource(): Unit = {
+    verifyJoinOnSource("I,D")
+  }
+
+  @Test
+  def testJoinOnUpsertSource(): Unit = {
+    verifyJoinOnSource("UA,D")
+  }
+
+  private def verifyJoinOnSource(changelogMode: String): Unit = {
     util.addTable(
       """
-         |CREATE TABLE orders (
-         |  amount BIGINT,
-         |  currency STRING
-         |) WITH (
-         | 'connector' = 'values',
-         | 'changelog-mode' = 'I'
-         |)
-         |""".stripMargin)
+        |CREATE TABLE orders (
+        |  amount BIGINT,
+        |  currency_id BIGINT,
+        |  currency_name STRING
+        |) WITH (
+        | 'connector' = 'values',
+        | 'changelog-mode' = 'I'
+        |)
+        |""".stripMargin)
+    util.addTable(
+      s"""
+        |CREATE TABLE rates_history (
+        |  currency_id BIGINT,
+        |  currency_name STRING,
+        |  rate BIGINT,
+        |  PRIMARY KEY (currency_id) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = '$changelogMode'
+        |)
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT o.currency_name, o.amount, r.rate, o.amount * r.rate
+        |FROM orders AS o JOIN rates_history AS r
+        |ON o.currency_id = r.currency_id AND o.currency_name = r.currency_name
+        |""".stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testWatermarkAndChangelogSource(): Unit = {
     util.addTable(
       """
-         |CREATE TABLE rates_history (
-         |  currency STRING,
-         |  rate BIGINT
-         |) WITH (
-         |  'connector' = 'values',
-         |  'changelog-mode' = 'I,UB,UA'
-         |)
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  WATERMARK FOR `ts` AS `ts` - INTERVAL '5' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UB,UA,D'
+        |)
+      """.stripMargin)
+    util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testChangelogSourceWithEventsDuplicate(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  id STRING,
+        |  a INT,
+        |  b AS a + 1,
+        |  c STRING,
+        |  ts as to_timestamp(c),
+        |  PRIMARY KEY (id) NOT ENFORCED,
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UB,UA,D'
+        |)
+      """.stripMargin)
+    // the last node should keep UB because there is a filter on the changelog stream
+    util.verifyRelPlan("SELECT a, b, c FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testScanOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  id1 STRING,
+        |  a INT,
+        |  id2 BIGINT,
+        |  b DOUBLE,
+        |  PRIMARY KEY (id2, id1) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA'
+        |)
+      """.stripMargin)
+    // projection should be pushed down, but the full primary key (id2, id1) should be kept
+    util.verifyRelPlan("SELECT id1, a, b FROM src", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUpsertSourceWithComputedColumnAndWatermark(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  id STRING,
+        |  a INT,
+        |  b AS a + 1,
+        |  c STRING,
+        |  ts as to_timestamp(c),
+        |  PRIMARY KEY (id) NOT ENFORCED,
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    // the last node should keep UB because there is a filter on the changelog stream
+    util.verifyRelPlan("SELECT a, b, c FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUpsertSourceWithWatermarkPushDown(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  id STRING,
+        |  a INT,
+        |  b AS a + 1,
+        |  c STRING,
+        |  ts as to_timestamp(c),
+        |  PRIMARY KEY (id) NOT ENFORCED,
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D',
+        |  'enable-watermark-push-down' = 'true',
+        |  'disable-lookup' = 'true'
+        |)
+      """.stripMargin)
+    util.verifyRelPlan("SELECT id, ts FROM src", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUnionUpsertSourceAndAggregation(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE upsert_src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    util.addTable(
+      """
+        |CREATE TABLE append_src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I'
+        |)
+      """.stripMargin)
+
+    val query =
+      """
+        |SELECT b, ts, a
+        |FROM (
+        |  SELECT * FROM upsert_src
+        |  UNION ALL
+        |  SELECT MAX(ts) as t, a, MAX(b) as b FROM append_src GROUP BY a
+        |)
+        |""".stripMargin
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testAggregateOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  c STRING,
+        |  PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    // the MAX and MIN should work in retract mode
+    util.verifyRelPlan(
+      "SELECT b, COUNT(*), MAX(ts), MIN(ts) FROM src GROUP BY b",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testAggregateOnUpsertSourcePrimaryKey(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  c STRING,
+        |  PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    // the MAX and MIN should work in retract mode
+    util.verifyRelPlan(
+      "SELECT a, COUNT(*), MAX(ts), MIN(ts) FROM src GROUP BY a",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testProcTimeTemporalJoinOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE orders (
+        |  amount BIGINT,
+        |  currency STRING,
+        |  proctime AS PROCTIME()
+        |) WITH (
+        | 'connector' = 'values',
+        | 'changelog-mode' = 'I'
+        |)
+        |""".stripMargin)
+    util.addTable(
+      """
+        |CREATE TABLE rates_history (
+        |  currency STRING PRIMARY KEY NOT ENFORCED,
+        |  rate BIGINT
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D',
+        |  'disable-lookup' = 'true'
+        |)
       """.stripMargin)
 
     val sql =
       """
         |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
-        |FROM orders AS o JOIN rates_history AS r
+        |FROM orders AS o LEFT JOIN rates_history FOR SYSTEM_TIME AS OF o.proctime AS r
         |ON o.currency = r.currency
         |""".stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testEventTimeTemporalJoinOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE orders (
+        |  amount BIGINT,
+        |  currency STRING,
+        |  rowtime TIMESTAMP(3),
+        |  WATERMARK FOR rowtime AS rowtime
+        |) WITH (
+        | 'connector' = 'values',
+        | 'changelog-mode' = 'I'
+        |)
+        |""".stripMargin)
+    util.addTable(
+      """
+        |CREATE TABLE rates_history (
+        |  currency STRING PRIMARY KEY NOT ENFORCED,
+        |  rate BIGINT,
+        |  rowtime TIMESTAMP(3),
+        |  WATERMARK FOR rowtime AS rowtime
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D',
+        |  'disable-lookup' = 'true'
+        |)
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
+        |FROM orders AS o LEFT JOIN rates_history FOR SYSTEM_TIME AS OF o.rowtime AS r
+        |ON o.currency = r.currency
+        |""".stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -292,7 +614,7 @@ class TableScanTest extends TableTestBase {
     thrown.expectMessage(
       "GroupWindowAggregate doesn't support consuming update changes " +
         "which is produced by node TableSourceScan")
-    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -310,13 +632,15 @@ class TableScanTest extends TableTestBase {
       """.stripMargin)
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
-      "'default_catalog.default_database.src' source produces ChangelogMode " +
-        "which contains UPDATE_BEFORE but doesn't contain UPDATE_AFTER, this is invalid.")
-    util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+      "Invalid source for table 'default_catalog.default_database.src'. A ScanTableSource " +
+      "doesn't support a changelog which contains UPDATE_BEFORE but no UPDATE_AFTER. Please " +
+      "adapt the implementation of class 'org.apache.flink.table.planner.factories." +
+      "TestValuesTableFactory$TestValuesScanLookupTableSource'.")
+    util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
-  def testUnsupportedSourceChangelogMode(): Unit = {
+  def testMissingPrimaryKeyForUpsertSource(): Unit = {
     util.addTable(
       """
         |CREATE TABLE src (
@@ -328,31 +652,34 @@ class TableScanTest extends TableTestBase {
         |  'changelog-mode' = 'I,UA,D'
         |)
       """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
-    thrown.expectMessage("Currently, ScanTableSource doesn't support producing " +
-      "ChangelogMode which contains UPDATE_AFTER but no UPDATE_BEFORE. " +
-      "Please adapt the implementation of 'TestValues' source.")
-    util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Table 'default_catalog.default_database.src' produces a " +
+      "changelog stream contains UPDATE_AFTER, no UPDATE_BEFORE. " +
+      "This requires to define primary key constraint on the table.")
+    util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
-  def testUnsupportedWatermarkAndChangelogSource(): Unit = {
+  def testMissingPrimaryKeyForEventsDuplicate(): Unit = {
     util.addTable(
       """
         |CREATE TABLE src (
         |  ts TIMESTAMP(3),
         |  a INT,
-        |  b DOUBLE,
-        |  WATERMARK FOR `ts` AS `ts` - INTERVAL '5' SECOND
+        |  b DOUBLE
         |) WITH (
         |  'connector' = 'values',
         |  'changelog-mode' = 'I,UB,UA,D'
         |)
       """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
-    thrown.expectMessage(
-      "Currently, defining WATERMARK on a changelog source is not supported.")
-    util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Configuration 'table.exec.source.cdc-events-duplicate' is enabled " +
+      "which requires the changelog sources to define a PRIMARY KEY. " +
+      "However, table 'default_catalog.default_database.src' doesn't have a primary key.")
+    util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -370,7 +697,7 @@ class TableScanTest extends TableTestBase {
       """.stripMargin)
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    util.verifyPlan("SELECT * FROM src", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan("SELECT * FROM src", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

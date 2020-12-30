@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>execution.checkpointing.alignment-timeout</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>Only relevant if <span markdown="span">`execution.checkpointing.unaligned`</span> is enabled.<br /><br />If timeout is 0, checkpoints will always start unaligned.<br /><br />If timeout has a positive value, checkpoints will start aligned. If during checkpointing, checkpoint start delay exceeds this timeout, alignment will timeout and checkpoint barrier will start working as unaligned checkpoint.</td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.externalized-checkpoint-retention</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td><p>Enum</p>Possible values: [DELETE_ON_CANCELLATION, RETAIN_ON_CANCELLATION]</td>
@@ -54,7 +60,7 @@
             <td><h5>execution.checkpointing.tolerable-failed-checkpoints</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>The tolerable checkpoint failure number. If set to 0, that meanswe do not tolerance any checkpoint failure.</td>
+            <td>The tolerable checkpoint failure number. If set to 0, that means we do not tolerance any checkpoint failure.</td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.unaligned</h5></td>

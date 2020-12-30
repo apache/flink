@@ -23,30 +23,29 @@ import org.apache.flink.annotation.PublicEvolving;
 import java.io.Serializable;
 
 /**
- * The {@code AggregateFunction} is a flexible aggregation function, characterized by the
- * following features:
+ * The {@code AggregateFunction} is a flexible aggregation function, characterized by the following
+ * features:
  *
  * <ul>
- *     <li>The aggregates may use different types for input values, intermediate aggregates,
- *         and result type, to support a wide range of aggregation types.</li>
- *
- *     <li>Support for distributive aggregations: Different intermediate aggregates can be
- *         merged together, to allow for pre-aggregation/final-aggregation optimizations.</li>
+ *   <li>The aggregates may use different types for input values, intermediate aggregates, and
+ *       result type, to support a wide range of aggregation types.
+ *   <li>Support for distributive aggregations: Different intermediate aggregates can be merged
+ *       together, to allow for pre-aggregation/final-aggregation optimizations.
  * </ul>
  *
- * <p>The {@code AggregateFunction}'s intermediate aggregate (in-progress aggregation state)
- * is called the <i>accumulator</i>. Values are added to the accumulator, and final aggregates are
+ * <p>The {@code AggregateFunction}'s intermediate aggregate (in-progress aggregation state) is
+ * called the <i>accumulator</i>. Values are added to the accumulator, and final aggregates are
  * obtained by finalizing the accumulator state. This supports aggregation functions where the
  * intermediate state needs to be different than the aggregated values and the final result type,
- * such as for example <i>average</i> (which typically keeps a count and sum).
- * Merging intermediate aggregates (partial aggregates) means merging the accumulators.
+ * such as for example <i>average</i> (which typically keeps a count and sum). Merging intermediate
+ * aggregates (partial aggregates) means merging the accumulators.
  *
- * <p>The AggregationFunction itself is stateless. To allow a single AggregationFunction
- * instance to maintain multiple aggregates (such as one aggregate per key), the
- * AggregationFunction creates a new accumulator whenever a new aggregation is started.
+ * <p>The AggregationFunction itself is stateless. To allow a single AggregationFunction instance to
+ * maintain multiple aggregates (such as one aggregate per key), the AggregationFunction creates a
+ * new accumulator whenever a new aggregation is started.
  *
- * <p>Aggregation functions must be {@link Serializable} because they are sent around
- * between distributed processes during distributed execution.
+ * <p>Aggregation functions must be {@link Serializable} because they are sent around between
+ * distributed processes during distributed execution.
  *
  * <h1>Example: Average and Weighted Average</h1>
  *
@@ -107,59 +106,56 @@ import java.io.Serializable;
  * }
  * }</pre>
  *
- * @param <IN>  The type of the values that are aggregated (input values)
+ * @param <IN> The type of the values that are aggregated (input values)
  * @param <ACC> The type of the accumulator (intermediate aggregate state).
  * @param <OUT> The type of the aggregated result
  */
 @PublicEvolving
 public interface AggregateFunction<IN, ACC, OUT> extends Function, Serializable {
 
-	/**
-	 * Creates a new accumulator, starting a new aggregate.
-	 *
-	 * <p>The new accumulator is typically meaningless unless a value is added
-	 * via {@link #add(Object, Object)}.
-	 *
-	 * <p>The accumulator is the state of a running aggregation. When a program has multiple
-	 * aggregates in progress (such as per key and window), the state (per key and window)
-	 * is the size of the accumulator.
-	 *
-	 * @return A new accumulator, corresponding to an empty aggregate.
-	 */
-	ACC createAccumulator();
+    /**
+     * Creates a new accumulator, starting a new aggregate.
+     *
+     * <p>The new accumulator is typically meaningless unless a value is added via {@link
+     * #add(Object, Object)}.
+     *
+     * <p>The accumulator is the state of a running aggregation. When a program has multiple
+     * aggregates in progress (such as per key and window), the state (per key and window) is the
+     * size of the accumulator.
+     *
+     * @return A new accumulator, corresponding to an empty aggregate.
+     */
+    ACC createAccumulator();
 
-	/**
-	 * Adds the given input value to the given accumulator, returning the
-	 * new accumulator value.
-	 *
-	 * <p>For efficiency, the input accumulator may be modified and returned.
-	 *
-	 * @param value The value to add
-	 * @param accumulator The accumulator to add the value to
-	 *
-	 * @return The accumulator with the updated state
-	 */
-	ACC add(IN value, ACC accumulator);
+    /**
+     * Adds the given input value to the given accumulator, returning the new accumulator value.
+     *
+     * <p>For efficiency, the input accumulator may be modified and returned.
+     *
+     * @param value The value to add
+     * @param accumulator The accumulator to add the value to
+     * @return The accumulator with the updated state
+     */
+    ACC add(IN value, ACC accumulator);
 
-	/**
-	 * Gets the result of the aggregation from the accumulator.
-	 *
-	 * @param accumulator The accumulator of the aggregation
-	 * @return The final aggregation result.
-	 */
-	OUT getResult(ACC accumulator);
+    /**
+     * Gets the result of the aggregation from the accumulator.
+     *
+     * @param accumulator The accumulator of the aggregation
+     * @return The final aggregation result.
+     */
+    OUT getResult(ACC accumulator);
 
-	/**
-	 * Merges two accumulators, returning an accumulator with the merged state.
-	 *
-	 * <p>This function may reuse any of the given accumulators as the target for the merge
-	 * and return that. The assumption is that the given accumulators will not be used any
-	 * more after having been passed to this function.
-	 *
-	 * @param a An accumulator to merge
-	 * @param b Another accumulator to merge
-	 *
-	 * @return The accumulator with the merged state
-	 */
-	ACC merge(ACC a, ACC b);
+    /**
+     * Merges two accumulators, returning an accumulator with the merged state.
+     *
+     * <p>This function may reuse any of the given accumulators as the target for the merge and
+     * return that. The assumption is that the given accumulators will not be used any more after
+     * having been passed to this function.
+     *
+     * @param a An accumulator to merge
+     * @param b Another accumulator to merge
+     * @return The accumulator with the merged state
+     */
+    ACC merge(ACC a, ACC b);
 }

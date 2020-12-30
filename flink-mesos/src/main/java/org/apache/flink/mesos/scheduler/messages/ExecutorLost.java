@@ -23,44 +23,46 @@ import org.apache.mesos.Protos;
 import java.io.Serializable;
 
 /**
- * Message sent when an executor has exited/terminated. Note that any
- * tasks running will have TASK_LOST status updates automagically
- * generated.
+ * Message sent when an executor has exited/terminated. Note that any tasks running will have
+ * TASK_LOST status updates automagically generated.
  */
 public class ExecutorLost implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Protos.ExecutorID executorId;
+    private final Protos.ExecutorID executorId;
 
-	private final Protos.SlaveID slaveId;
+    private final Protos.SlaveID slaveId;
 
-	private final int status;
+    private final int status;
 
-	public ExecutorLost(Protos.ExecutorID executorId, Protos.SlaveID slaveId, int status) {
-		this.executorId = executorId;
-		this.slaveId = slaveId;
-		this.status = status;
-	}
+    public ExecutorLost(Protos.ExecutorID executorId, Protos.SlaveID slaveId, int status) {
+        this.executorId = executorId;
+        this.slaveId = slaveId;
+        this.status = status;
+    }
 
-	public Protos.ExecutorID executorId() {
-		return executorId;
-	}
+    public Protos.ExecutorID executorId() {
+        return executorId;
+    }
 
-	public Protos.SlaveID slaveId() {
-		return slaveId;
-	}
+    public Protos.SlaveID slaveId() {
+        return slaveId;
+    }
 
-	public int status() {
-		return status;
-	}
+    public int status() {
+        return status;
+    }
 
-	@Override
-	public String toString() {
-		return "ExecutorLost{" +
-			"executorId=" + executorId +
-			", slaveId=" + slaveId +
-			", status=" + status +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "ExecutorLost{"
+                + "executorId="
+                + executorId
+                + ", slaveId="
+                + slaveId
+                + ", status="
+                + status
+                + '}';
+    }
 }

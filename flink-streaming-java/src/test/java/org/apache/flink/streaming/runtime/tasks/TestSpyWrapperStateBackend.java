@@ -26,7 +26,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -47,55 +47,61 @@ import static org.powermock.api.mockito.PowerMockito.spy;
  */
 public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 
-		private final AbstractStateBackend delegate;
+    private final AbstractStateBackend delegate;
 
-		public TestSpyWrapperStateBackend(AbstractStateBackend delegate) {
-			this.delegate = Preconditions.checkNotNull(delegate);
-		}
+    public TestSpyWrapperStateBackend(AbstractStateBackend delegate) {
+        this.delegate = Preconditions.checkNotNull(delegate);
+    }
 
-		@Override
-		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup,
-			@Nonnull Collection<KeyedStateHandle> stateHandles,
-			CloseableRegistry cancelStreamRegistry) throws IOException {
-			return spy(delegate.createKeyedStateBackend(
-				env,
-				jobID,
-				operatorIdentifier,
-				keySerializer,
-				numberOfKeyGroups,
-				keyGroupRange,
-				kvStateRegistry,
-				ttlTimeProvider,
-				metricGroup,
-				stateHandles,
-				cancelStreamRegistry));
-		}
+    @Override
+    public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry)
+            throws IOException {
+        return spy(
+                delegate.createKeyedStateBackend(
+                        env,
+                        jobID,
+                        operatorIdentifier,
+                        keySerializer,
+                        numberOfKeyGroups,
+                        keyGroupRange,
+                        kvStateRegistry,
+                        ttlTimeProvider,
+                        metricGroup,
+                        stateHandles,
+                        cancelStreamRegistry));
+    }
 
-		@Override
-		public OperatorStateBackend createOperatorStateBackend(
-			Environment env,
-			String operatorIdentifier,
-			@Nonnull Collection<OperatorStateHandle> stateHandles,
-			CloseableRegistry cancelStreamRegistry) throws Exception {
-			return spy(delegate.createOperatorStateBackend(env, operatorIdentifier, stateHandles, cancelStreamRegistry));
-		}
+    @Override
+    public OperatorStateBackend createOperatorStateBackend(
+            Environment env,
+            String operatorIdentifier,
+            @Nonnull Collection<OperatorStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry)
+            throws Exception {
+        return spy(
+                delegate.createOperatorStateBackend(
+                        env, operatorIdentifier, stateHandles, cancelStreamRegistry));
+    }
 
-	@Override
-	public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException {
-		return spy(delegate.resolveCheckpoint(externalPointer));
-	}
+    @Override
+    public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer)
+            throws IOException {
+        return spy(delegate.resolveCheckpoint(externalPointer));
+    }
 
-	@Override
-	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-		return spy(delegate.createCheckpointStorage(jobId));
-	}
+    @Override
+    public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+        return spy(delegate.createCheckpointStorage(jobId));
+    }
 }

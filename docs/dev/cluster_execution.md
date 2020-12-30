@@ -33,7 +33,7 @@ are two ways to send a program to a cluster for execution:
 The command line interface lets you submit packaged programs (JARs) to a cluster
 (or single machine setup).
 
-Please refer to the [Command Line Interface]({{ site.baseurl }}/ops/cli.html) documentation for
+Please refer to the [Command Line Interface]({% link deployment/cli.md %}) documentation for
 details.
 
 ## Remote Environment

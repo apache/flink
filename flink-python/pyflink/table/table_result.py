@@ -15,9 +15,18 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from typing import Optional
+
+from py4j.java_gateway import get_method
+from pyflink.common.types import RowKind
+
+from pyflink.common import Row
 from pyflink.common.job_client import JobClient
+from pyflink.java_gateway import get_gateway
 from pyflink.table.result_kind import ResultKind
 from pyflink.table.table_schema import TableSchema
+from pyflink.table.types import _from_java_type
+from pyflink.table.utils import pickled_bytes_to_python_converter
 
 __all__ = ['TableResult']
 
@@ -32,7 +41,7 @@ class TableResult(object):
     def __init__(self, j_table_result):
         self._j_table_result = j_table_result
 
-    def get_job_client(self):
+    def get_job_client(self) -> Optional[JobClient]:
         """
         For DML and DQL statement, return the JobClient which associates the submitted Flink job.
         For other statements (e.g.  DDL, DCL) return empty.
@@ -48,7 +57,25 @@ class TableResult(object):
         else:
             return None
 
-    def get_table_schema(self):
+    def wait(self, timeout_ms: int = None):
+        """
+        Wait if necessary for at most the given time (milliseconds) for the data to be ready.
+
+        For a select operation, this method will wait until the first row can be accessed locally.
+        For an insert operation, this method will wait for the job to finish,
+        because the result contains only one row.
+        For other operations, this method will return immediately,
+        because the result is already available locally.
+
+        .. versionadded:: 1.12.0
+        """
+        if timeout_ms:
+            TimeUnit = get_gateway().jvm.java.util.concurrent.TimeUnit
+            get_method(self._j_table_result, "await")(timeout_ms, TimeUnit.MILLISECONDS)
+        else:
+            get_method(self._j_table_result, "await")()
+
+    def get_table_schema(self) -> TableSchema:
         """
         Get the schema of result.
 
@@ -116,7 +143,7 @@ class TableResult(object):
         """
         return TableSchema(j_table_schema=self._j_table_result.getTableSchema())
 
-    def get_result_kind(self):
+    def get_result_kind(self) -> ResultKind:
         """
         Return the ResultKind which represents the result type.
 
@@ -124,11 +151,49 @@ class TableResult(object):
         For other operations, the result kind is always SUCCESS_WITH_CONTENT.
 
         :return: The result kind.
-        :rtype: pyflink.table.ResultKind
 
         .. versionadded:: 1.11.0
         """
         return ResultKind._from_j_result_kind(self._j_table_result.getResultKind())
+
+    def collect(self) -> 'CloseableIterator':
+        """
+        Get the result contents as a closeable row iterator.
+
+        Note:
+
+        For SELECT operation, the job will not be finished unless all result data has been
+        collected. So we should actively close the job to avoid resource leak through
+        CloseableIterator#close method. Calling CloseableIterator#close method will cancel the job
+        and release related resources.
+
+        For DML operation, Flink does not support getting the real affected row count now. So the
+        affected row count is always -1 (unknown) for every sink, and them will be returned until
+        the job is finished.
+        Calling CloseableIterator#close method will cancel the job.
+
+        For other operations, no flink job will be submitted (get_job_client() is always empty), and
+        the result is bounded. Do noting when calling CloseableIterator#close method.
+
+        Recommended code to call CloseableIterator#close method looks like:
+
+        >>> table_result = t_env.execute("select ...")
+        >>> with table_result.collect() as results:
+        >>>    for result in results:
+        >>>        ...
+
+        In order to fetch result to local, you can call either collect() and print(). But, they can
+        not be called both on the same TableResult instance.
+
+        :return: A CloseableIterator.
+
+        .. versionadded:: 1.12.0
+        """
+        field_data_types = self._j_table_result.getTableSchema().getFieldDataTypes()
+
+        j_iter = self._j_table_result.collect()
+
+        return CloseableIterator(j_iter, field_data_types)
 
     def print(self):
         """
@@ -152,3 +217,49 @@ class TableResult(object):
         .. versionadded:: 1.11.0
         """
         self._j_table_result.print()
+
+
+class CloseableIterator(object):
+    """
+    Representing an Iterator that is also auto closeable.
+    """
+    def __init__(self, j_closeable_iterator, field_data_types):
+        self._j_closeable_iterator = j_closeable_iterator
+        self._j_field_data_types = field_data_types
+        self._data_types = [_from_java_type(j_field_data_type)
+                            for j_field_data_type in self._j_field_data_types]
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if not self._j_closeable_iterator.hasNext():
+            raise StopIteration("No more data.")
+        gateway = get_gateway()
+        pickle_bytes = gateway.jvm.PythonBridgeUtils. \
+            getPickledBytesFromRow(self._j_closeable_iterator.next(),
+                                   self._j_field_data_types)
+        row_kind = RowKind(int.from_bytes(pickle_bytes[0], byteorder='big', signed=False))
+        pickle_bytes = list(pickle_bytes[1:])
+        field_data = zip(pickle_bytes, self._data_types)
+        fields = []
+        for data, field_type in field_data:
+            if len(data) == 0:
+                fields.append(None)
+            else:
+                fields.append(pickled_bytes_to_python_converter(data, field_type))
+        result_row = Row(*fields)
+        result_row.set_row_kind(row_kind)
+        return result_row
+
+    def next(self):
+        return self.__next__()
+
+    def close(self):
+        self._j_closeable_iterator.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()

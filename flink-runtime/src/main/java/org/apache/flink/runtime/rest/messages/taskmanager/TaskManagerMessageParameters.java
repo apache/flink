@@ -26,20 +26,21 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * Message parameter for a TaskManager specific handler. The message parameters
- * define the TaskManager id as a path parameter.
+ * Message parameter for a TaskManager specific handler. The message parameters define the
+ * TaskManager id as a path parameter.
  */
 public class TaskManagerMessageParameters extends MessageParameters {
 
-	public final TaskManagerIdPathParameter taskManagerIdParameter = new TaskManagerIdPathParameter();
+    public final TaskManagerIdPathParameter taskManagerIdParameter =
+            new TaskManagerIdPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(taskManagerIdParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.singleton(taskManagerIdParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptySet();
+    }
 }

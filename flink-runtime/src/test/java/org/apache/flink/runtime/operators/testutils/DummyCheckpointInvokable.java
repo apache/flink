@@ -19,24 +19,20 @@
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 
-/**
- * An invokable that does nothing with checkpoint.
- */
+/** An invokable that does nothing with checkpoint. */
 public class DummyCheckpointInvokable extends DummyInvokable {
 
-	public DummyCheckpointInvokable() {
-		super();
-	}
+    public DummyCheckpointInvokable() {
+        super();
+    }
 
-	public void triggerCheckpointOnBarrier(
-		CheckpointMetaData checkpointMetaData,
-		CheckpointOptions checkpointOptions,
-		CheckpointMetrics checkpointMetrics) {
-	}
+    public void triggerCheckpointOnBarrier(
+            CheckpointMetaData checkpointMetaData,
+            CheckpointOptions checkpointOptions,
+            CheckpointMetricsBuilder checkpointMetrics) {}
 
-	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
-	}
+    public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {}
 }

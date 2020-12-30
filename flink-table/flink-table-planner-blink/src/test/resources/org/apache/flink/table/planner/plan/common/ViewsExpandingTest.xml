@@ -19,119 +19,125 @@ limitations under the License.
   <TestCase name="testMixedSqlTableViewExpanding[0]">
     <Resource name="sql">
       <![CDATA[select * from view4]]>
-
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
-
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 BoundedStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testMixedSqlTableViewExpanding[1]">
     <Resource name="sql">
       <![CDATA[select * from view4]]>
-
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
-
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 DataStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c])
 ]]>
-
+    </Resource>
+  </TestCase>
+  <TestCase name="testViewExpandingWithLateralTableFunction[0]">
+    <Resource name="sql">
+      <![CDATA[select * from tmp_view]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalProject(f0=[AS($0, _UTF-16LE'f0')])
+   :  +- LogicalValues(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]])
+   +- LogicalTableFunctionScan(invocation=[myFunc($cor1.f0)], rowType=[*org.apache.flink.table.planner.utils.SimpleUser*])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[f0, name AS f1])
++- Correlate(invocation=[myFunc($cor1.f0)], correlate=[table(myFunc($cor1.f0))], select=[f0,name,age], rowType=[RecordType(VARCHAR(9) f0, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
+   +- Calc(select=[f0])
+      +- Values(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]], values=[f0])
+]]>
     </Resource>
   </TestCase>
   <TestCase name="testSqlExpanding[0]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM view3]]>
-
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
-
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 BoundedStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c])
 ]]>
-
-    </Resource>
-  </TestCase>
-  <TestCase name="testTableApiExpanding[0]">
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalTableScan(table=[[default_catalog, default_database, t1]])
-]]>
-
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-BoundedStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c])
-]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testSqlExpanding[1]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM view3]]>
-
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
-
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 DataStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c])
 ]]>
-
     </Resource>
   </TestCase>
-  <TestCase name="testTableApiExpanding[1]">
-    <Resource name="planBefore">
+  <TestCase name="testTableApiExpanding[0]">
+    <Resource name="ast">
       <![CDATA[
 LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
-
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
+      <![CDATA[
+BoundedStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableApiExpanding[1]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
       <![CDATA[
 DataStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testViewExpandingWithMismatchRowType[0]">
     <Resource name="sql">
       <![CDATA[select * from view1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[CAST($0):INTEGER NOT NULL], b=[$1], c=[CAST($2):INTEGER])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CAST(a) AS a, b, CAST(EXPR$2) AS c])
 +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS EXPR$2])
@@ -141,18 +147,40 @@ Calc(select=[CAST(a) AS a, b, CAST(EXPR$2) AS c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testViewExpandingWithLateralTableFunction[1]">
+    <Resource name="sql">
+      <![CDATA[select * from tmp_view]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalProject(f0=[AS($0, _UTF-16LE'f0')])
+   :  +- LogicalValues(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]])
+   +- LogicalTableFunctionScan(invocation=[myFunc($cor1.f0)], rowType=[*org.apache.flink.table.planner.utils.SimpleUser*])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[f0, name AS f1])
++- Correlate(invocation=[myFunc($cor1.f0)], correlate=[table(myFunc($cor1.f0))], select=[f0,name,age], rowType=[RecordType(VARCHAR(9) f0, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
+   +- Calc(select=[f0])
+      +- Values(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testViewExpandingWithMismatchRowType[1]">
     <Resource name="sql">
       <![CDATA[select * from view1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[CAST($0):INTEGER NOT NULL], b=[$1], c=[CAST($2):INTEGER])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CAST(a) AS a, b, CAST(EXPR$2) AS c])
 +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$2])

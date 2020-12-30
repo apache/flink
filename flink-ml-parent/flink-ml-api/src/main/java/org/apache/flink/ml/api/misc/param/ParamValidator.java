@@ -29,11 +29,11 @@ import java.io.Serializable;
  */
 @PublicEvolving
 public interface ParamValidator<V> extends Serializable {
-	/**
-	 * Validates a parameter value.
-	 *
-	 * @param value value to validate
-	 * @return {@code true} if the value is valid, {@code false} otherwise
-	 */
-	boolean validate(V value);
+    /**
+     * Validates a parameter value.
+     *
+     * @param value value to validate
+     * @return {@code true} if the value is valid, {@code false} otherwise
+     */
+    boolean validate(V value);
 }

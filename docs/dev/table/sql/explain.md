@@ -30,9 +30,32 @@ EXPLAIN statements are used to explain the logical and optimized query plans of 
 
 ## Run an EXPLAIN statement
 
-EXPLAIN statements can be executed with the `executeSql()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `executeSql()` method returns explain result for a successful EXPLAIN operation, otherwise will throw an exception.
+<div class="codetabs" data-hide-tabs="1" markdown="1">
 
-The following examples show how to run an EXPLAIN statement in `TableEnvironment` and in SQL CLI.
+<div data-lang="java/scala" markdown="1">
+
+EXPLAIN statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns explain result for a successful EXPLAIN operation, otherwise will throw an exception.
+
+The following examples show how to run an EXPLAIN statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+EXPLAIN statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns explain result for a successful EXPLAIN operation, otherwise will throw an exception.
+
+The following examples show how to run an EXPLAIN statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+EXPLAIN statements can be executed in [SQL CLI]({% link dev/table/sqlClient.md %}).
+
+The following examples show how to run an EXPLAIN statement in SQL CLI.
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -41,22 +64,22 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 // register a table named "Orders"
-tEnv.executeSql("CREATE TABLE MyTable1 (count bigint, work VARCHAR(256) WITH (...)");
-tEnv.executeSql("CREATE TABLE MyTable2 (count bigint, work VARCHAR(256) WITH (...)");
+tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)");
+tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)");
 
 // explain SELECT statement through TableEnvironment.explainSql()
 String explanation = tEnv.explainSql(
-  "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' " +
+  "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' " +
   "UNION ALL " + 
-  "SELECT count, word FROM MyTable2");
+  "SELECT `count`, word FROM MyTable2");
 System.out.println(explanation);
 
 // explain SELECT statement through TableEnvironment.executeSql()
 TableResult tableResult = tEnv.executeSql(
   "EXPLAIN PLAN FOR " + 
-  "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' " +
+  "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' " +
   "UNION ALL " + 
-  "SELECT count, word FROM MyTable2");
+  "SELECT `count`, word FROM MyTable2");
 tableResult.print();
 
 {% endhighlight %}
@@ -68,22 +91,22 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tEnv = StreamTableEnvironment.create(env)
 
 // register a table named "Orders"
-tEnv.executeSql("CREATE TABLE MyTable1 (count bigint, work VARCHAR(256) WITH (...)")
-tEnv.executeSql("CREATE TABLE MyTable2 (count bigint, work VARCHAR(256) WITH (...)")
+tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)")
+tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)")
 
 // explain SELECT statement through TableEnvironment.explainSql()
 val explanation = tEnv.explainSql(
-  "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' " +
+  "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' " +
   "UNION ALL " + 
-  "SELECT count, word FROM MyTable2")
+  "SELECT `count`, word FROM MyTable2")
 println(explanation)
 
 // explain SELECT statement through TableEnvironment.executeSql()
 val tableResult = tEnv.executeSql(
   "EXPLAIN PLAN FOR " + 
-  "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' " +
+  "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' " +
   "UNION ALL " + 
-  "SELECT count, word FROM MyTable2")
+  "SELECT `count`, word FROM MyTable2")
 tableResult.print()
 
 {% endhighlight %}
@@ -94,22 +117,22 @@ tableResult.print()
 settings = EnvironmentSettings.new_instance()...
 table_env = StreamTableEnvironment.create(env, settings)
 
-t_env.execute_sql("CREATE TABLE MyTable1 (count bigint, work VARCHAR(256) WITH (...)")
-t_env.execute_sql("CREATE TABLE MyTable2 (count bigint, work VARCHAR(256) WITH (...)")
+t_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)")
+t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)")
 
 # explain SELECT statement through TableEnvironment.explain_sql()
 explanation1 = t_env.explain_sql(
-    "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' "
+    "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
     "UNION ALL "
-    "SELECT count, word FROM MyTable2")
+    "SELECT `count`, word FROM MyTable2")
 print(explanation1)
 
 # explain SELECT statement through TableEnvironment.execute_sql()
 table_result = t_env.execute_sql(
     "EXPLAIN PLAN FOR "
-    "SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' "
+    "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
     "UNION ALL "
-    "SELECT count, word FROM MyTable2")
+    "SELECT `count`, word FROM MyTable2")
 table_result.print()
 
 {% endhighlight %}
@@ -117,29 +140,51 @@ table_result.print()
 
 <div data-lang="SQL CLI" markdown="1">
 {% highlight sql %}
-Flink SQL> CREATE TABLE MyTable1 (count bigint, work VARCHAR(256);
+Flink SQL> CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256);
 [INFO] Table has been created.
 
-Flink SQL> CREATE TABLE MyTable2 (count bigint, work VARCHAR(256);
+Flink SQL> CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256);
 [INFO] Table has been created.
 
-Flink SQL> EXPLAIN PLAN FOR SELECT count, word FROM MyTable1 WHERE word LIKE 'F%' 
+Flink SQL> EXPLAIN PLAN FOR SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' 
 > UNION ALL 
-> SELECT count, word FROM MyTable2;
+> SELECT `count`, word FROM MyTable2;
 
 {% endhighlight %}
 </div>
 </div>
 
 The `EXPLAIN` result is:
-<div>
+<div class="codetabs" markdown="1">
+<div data-lang="Blink Planner" markdown="1">
+{% highlight text %}
+== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+  LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
+
+== Optimized Physical Plan ==
+Union(all=[true], union all=[count, word])
+  Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+    TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
+  TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
+
+== Optimized Execution Plan ==
+Union(all=[true], union all=[count, word])
+  Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+    TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
+  TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
+{% endhighlight %}
+</div>
+
+<div data-lang="Legacy Planner" markdown="1">
 {% highlight text %}
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
   LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
     FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
   FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
-  
 
 == Optimized Logical Plan ==
 DataStreamUnion(all=[true], union all=[count, word])
@@ -167,6 +212,7 @@ Stage 2 : Data Source
 				ship_strategy : REBALANCE
 {% endhighlight %}
 </div>
+</div>
 
 {% top %}
 
@@ -176,5 +222,5 @@ Stage 2 : Data Source
 EXPLAIN PLAN FOR <query_statement_or_insert_statement>
 {% endhighlight %}
 
-For query syntax, please refer to [Queries]({{ site.baseurl }}/dev/table/sql/queries.html#supported-syntax) page.
-For INSERT, please refer to [INSERT]({{ site.baseurl }}/dev/table/sql/insert.html) page.
+For query syntax, please refer to [Queries]({% link dev/table/sql/queries.md %}#supported-syntax) page.
+For INSERT, please refer to [INSERT]({% link dev/table/sql/insert.md %}) page.

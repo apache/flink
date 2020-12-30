@@ -30,75 +30,94 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-/**
- * Utilities for periodically polling the status of a job.
- */
+/** Utilities for periodically polling the status of a job. */
 class JobStatusPollingUtils {
 
-	/**
-	 * Polls the {@link JobStatus} of a job periodically and when the job has reached
-	 * a terminal state, it requests its {@link JobResult}.
-	 *
-	 * @param dispatcherGateway the {@link DispatcherGateway} to be used for requesting the details of the job.
-	 * @param jobId the id of the job
-	 * @param scheduledExecutor the executor to be used to periodically request the status of the job
-	 * @param rpcTimeout the timeout of the rpc
-	 * @param retryPeriod the interval between two consecutive job status requests
-	 * @return a future that will contain the job's {@link JobResult}.
-	 */
-	static CompletableFuture<JobResult> getJobResult(
-			final DispatcherGateway dispatcherGateway,
-			final JobID jobId,
-			final ScheduledExecutor scheduledExecutor,
-			final Time rpcTimeout,
-			final Time retryPeriod) {
+    /**
+     * Polls the {@link JobStatus} of a job periodically and when the job has reached a terminal
+     * state, it requests its {@link JobResult}.
+     *
+     * @param dispatcherGateway the {@link DispatcherGateway} to be used for requesting the details
+     *     of the job.
+     * @param jobId the id of the job
+     * @param scheduledExecutor the executor to be used to periodically request the status of the
+     *     job
+     * @param rpcTimeout the timeout of the rpc
+     * @param retryPeriod the interval between two consecutive job status requests
+     * @return a future that will contain the job's {@link JobResult}.
+     */
+    static CompletableFuture<JobResult> getJobResult(
+            final DispatcherGateway dispatcherGateway,
+            final JobID jobId,
+            final ScheduledExecutor scheduledExecutor,
+            final Time rpcTimeout,
+            final Time retryPeriod) {
 
-		return pollJobResultAsync(
-				() -> dispatcherGateway.requestJobStatus(jobId, rpcTimeout),
-				() -> dispatcherGateway.requestJobResult(jobId, rpcTimeout),
-				scheduledExecutor,
-				retryPeriod.toMilliseconds()
-		);
-	}
+        return pollJobResultAsync(
+                () -> dispatcherGateway.requestJobStatus(jobId, rpcTimeout),
+                () -> dispatcherGateway.requestJobResult(jobId, rpcTimeout),
+                scheduledExecutor,
+                retryPeriod.toMilliseconds());
+    }
 
-	@VisibleForTesting
-	static CompletableFuture<JobResult> pollJobResultAsync(
-			final Supplier<CompletableFuture<JobStatus>> jobStatusSupplier,
-			final Supplier<CompletableFuture<JobResult>> jobResultSupplier,
-			final ScheduledExecutor scheduledExecutor,
-			final long retryMsTimeout) {
-		return pollJobResultAsync(jobStatusSupplier, jobResultSupplier, scheduledExecutor, new CompletableFuture<>(), retryMsTimeout, 0);
-	}
+    @VisibleForTesting
+    static CompletableFuture<JobResult> pollJobResultAsync(
+            final Supplier<CompletableFuture<JobStatus>> jobStatusSupplier,
+            final Supplier<CompletableFuture<JobResult>> jobResultSupplier,
+            final ScheduledExecutor scheduledExecutor,
+            final long retryMsTimeout) {
+        return pollJobResultAsync(
+                jobStatusSupplier,
+                jobResultSupplier,
+                scheduledExecutor,
+                new CompletableFuture<>(),
+                retryMsTimeout,
+                0);
+    }
 
-	private static CompletableFuture<JobResult> pollJobResultAsync(
-			final Supplier<CompletableFuture<JobStatus>> jobStatusSupplier,
-			final Supplier<CompletableFuture<JobResult>> jobResultSupplier,
-			final ScheduledExecutor scheduledExecutor,
-			final CompletableFuture<JobResult> resultFuture,
-			final long retryMsTimeout,
-			final long attempt) {
+    private static CompletableFuture<JobResult> pollJobResultAsync(
+            final Supplier<CompletableFuture<JobStatus>> jobStatusSupplier,
+            final Supplier<CompletableFuture<JobResult>> jobResultSupplier,
+            final ScheduledExecutor scheduledExecutor,
+            final CompletableFuture<JobResult> resultFuture,
+            final long retryMsTimeout,
+            final long attempt) {
 
-		jobStatusSupplier.get().whenComplete((jobStatus, throwable) -> {
-			if (throwable != null) {
-				resultFuture.completeExceptionally(throwable);
-			} else {
-				if (jobStatus.isGloballyTerminalState()) {
-					jobResultSupplier.get().whenComplete((jobResult, t) -> {
+        jobStatusSupplier
+                .get()
+                .whenComplete(
+                        (jobStatus, throwable) -> {
+                            if (throwable != null) {
+                                resultFuture.completeExceptionally(throwable);
+                            } else {
+                                if (jobStatus.isGloballyTerminalState()) {
+                                    jobResultSupplier
+                                            .get()
+                                            .whenComplete(
+                                                    (jobResult, t) -> {
+                                                        if (t != null) {
+                                                            resultFuture.completeExceptionally(t);
+                                                        } else {
+                                                            resultFuture.complete(jobResult);
+                                                        }
+                                                    });
+                                } else {
+                                    scheduledExecutor.schedule(
+                                            () -> {
+                                                pollJobResultAsync(
+                                                        jobStatusSupplier,
+                                                        jobResultSupplier,
+                                                        scheduledExecutor,
+                                                        resultFuture,
+                                                        retryMsTimeout,
+                                                        attempt + 1);
+                                            },
+                                            retryMsTimeout,
+                                            TimeUnit.MILLISECONDS);
+                                }
+                            }
+                        });
 
-						if  (t != null) {
-							resultFuture.completeExceptionally(t);
-						} else {
-							resultFuture.complete(jobResult);
-						}
-					});
-				} else {
-					scheduledExecutor.schedule(() -> {
-						pollJobResultAsync(jobStatusSupplier, jobResultSupplier, scheduledExecutor, resultFuture, retryMsTimeout, attempt + 1);
-					}, retryMsTimeout, TimeUnit.MILLISECONDS);
-				}
-			}
-		});
-
-		return resultFuture;
-	}
+        return resultFuture;
+    }
 }

@@ -35,122 +35,135 @@ import org.apache.flink.types.Value;
  * represents the initial solution set via the {@link DataSet#iterate(int)} method.
  *
  * @param <T> The data type of set that is the input and feedback of the iteration.
- *
  * @see DataSet#iterate(int)
  */
 @Public
 public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeDataSet<T>> {
 
-	private final AggregatorRegistry aggregators = new AggregatorRegistry();
+    private final AggregatorRegistry aggregators = new AggregatorRegistry();
 
-	private int maxIterations;
+    private int maxIterations;
 
-	public IterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> input, int maxIterations) {
-		super(input, type);
-		this.maxIterations = maxIterations;
-	}
+    public IterativeDataSet(
+            ExecutionEnvironment context,
+            TypeInformation<T> type,
+            DataSet<T> input,
+            int maxIterations) {
+        super(input, type);
+        this.maxIterations = maxIterations;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Closes the iteration. This method defines the end of the iterative program part.
-	 *
-	 * @param iterationResult The data set that will be fed back to the next iteration.
-	 * @return The DataSet that represents the result of the iteration, after the computation has terminated.
-	 *
-	 * @see DataSet#iterate(int)
-	 */
-	public DataSet<T> closeWith(DataSet<T> iterationResult) {
-		return new BulkIterationResultSet<T>(getExecutionEnvironment(), getType(), this, iterationResult);
-	}
+    /**
+     * Closes the iteration. This method defines the end of the iterative program part.
+     *
+     * @param iterationResult The data set that will be fed back to the next iteration.
+     * @return The DataSet that represents the result of the iteration, after the computation has
+     *     terminated.
+     * @see DataSet#iterate(int)
+     */
+    public DataSet<T> closeWith(DataSet<T> iterationResult) {
+        return new BulkIterationResultSet<T>(
+                getExecutionEnvironment(), getType(), this, iterationResult);
+    }
 
-	/**
-	 * Closes the iteration and specifies a termination criterion. This method defines the end of
-	 * the iterative program part.
-	 *
-	 * <p>The termination criterion is a means of dynamically signaling the iteration to halt. It is expressed via a data
-	 * set that will trigger to halt the loop as soon as the data set is empty. A typical way of using the termination
-	 * criterion is to have a filter that filters out all elements that are considered non-converged. As soon as no more
-	 * such elements exist, the iteration finishes.
-	 *
-	 * @param iterationResult The data set that will be fed back to the next iteration.
-	 * @param terminationCriterion The data set that being used to trigger halt on operation once it is empty.
-	 * @return The DataSet that represents the result of the iteration, after the computation has terminated.
-	 *
-	 * @see DataSet#iterate(int)
-	 */
-	public DataSet<T> closeWith(DataSet<T> iterationResult, DataSet<?> terminationCriterion) {
-		return new BulkIterationResultSet<T>(getExecutionEnvironment(), getType(), this, iterationResult, terminationCriterion);
-	}
+    /**
+     * Closes the iteration and specifies a termination criterion. This method defines the end of
+     * the iterative program part.
+     *
+     * <p>The termination criterion is a means of dynamically signaling the iteration to halt. It is
+     * expressed via a data set that will trigger to halt the loop as soon as the data set is empty.
+     * A typical way of using the termination criterion is to have a filter that filters out all
+     * elements that are considered non-converged. As soon as no more such elements exist, the
+     * iteration finishes.
+     *
+     * @param iterationResult The data set that will be fed back to the next iteration.
+     * @param terminationCriterion The data set that being used to trigger halt on operation once it
+     *     is empty.
+     * @return The DataSet that represents the result of the iteration, after the computation has
+     *     terminated.
+     * @see DataSet#iterate(int)
+     */
+    public DataSet<T> closeWith(DataSet<T> iterationResult, DataSet<?> terminationCriterion) {
+        return new BulkIterationResultSet<T>(
+                getExecutionEnvironment(), getType(), this, iterationResult, terminationCriterion);
+    }
 
-	/**
-	 * Gets the maximum number of iterations.
-	 *
-	 * @return The maximum number of iterations.
-	 */
-	public int getMaxIterations() {
-		return maxIterations;
-	}
+    /**
+     * Gets the maximum number of iterations.
+     *
+     * @return The maximum number of iterations.
+     */
+    public int getMaxIterations() {
+        return maxIterations;
+    }
 
-	/**
-	 * Registers an {@link Aggregator} for the iteration. Aggregators can be used to maintain simple statistics during the
-	 * iteration, such as number of elements processed. The aggregators compute global aggregates: After each iteration step,
-	 * the values are globally aggregated to produce one aggregate that represents statistics across all parallel instances.
-	 * The value of an aggregator can be accessed in the next iteration.
-	 *
-	 * <p>Aggregators can be accessed inside a function via the
-	 * {@link org.apache.flink.api.common.functions.AbstractRichFunction#getIterationRuntimeContext()} method.
-	 *
-	 * @param name The name under which the aggregator is registered.
-	 * @param aggregator The aggregator class.
-	 *
-	 * @return The IterativeDataSet itself, to allow chaining function calls.
-	 */
-	@PublicEvolving
-	public IterativeDataSet<T> registerAggregator(String name, Aggregator<?> aggregator) {
-		this.aggregators.registerAggregator(name, aggregator);
-		return this;
-	}
+    /**
+     * Registers an {@link Aggregator} for the iteration. Aggregators can be used to maintain simple
+     * statistics during the iteration, such as number of elements processed. The aggregators
+     * compute global aggregates: After each iteration step, the values are globally aggregated to
+     * produce one aggregate that represents statistics across all parallel instances. The value of
+     * an aggregator can be accessed in the next iteration.
+     *
+     * <p>Aggregators can be accessed inside a function via the {@link
+     * org.apache.flink.api.common.functions.AbstractRichFunction#getIterationRuntimeContext()}
+     * method.
+     *
+     * @param name The name under which the aggregator is registered.
+     * @param aggregator The aggregator class.
+     * @return The IterativeDataSet itself, to allow chaining function calls.
+     */
+    @PublicEvolving
+    public IterativeDataSet<T> registerAggregator(String name, Aggregator<?> aggregator) {
+        this.aggregators.registerAggregator(name, aggregator);
+        return this;
+    }
 
-	/**
-	 * Registers an {@link Aggregator} for the iteration together with a {@link ConvergenceCriterion}. For a general description
-	 * of aggregators, see {@link #registerAggregator(String, Aggregator)} and {@link Aggregator}.
-	 * At the end of each iteration, the convergence criterion takes the aggregator's global aggregate value and decided whether
-	 * the iteration should terminate. A typical use case is to have an aggregator that sums up the total error of change
-	 * in an iteration step and have to have a convergence criterion that signals termination as soon as the aggregate value
-	 * is below a certain threshold.
-	 *
-	 * @param name The name under which the aggregator is registered.
-	 * @param aggregator The aggregator class.
-	 * @param convergenceCheck The convergence criterion.
-	 *
-	 * @return The IterativeDataSet itself, to allow chaining function calls.
-	 */
-	@PublicEvolving
-	public <X extends Value> IterativeDataSet<T> registerAggregationConvergenceCriterion(
-			String name, Aggregator<X> aggregator, ConvergenceCriterion<X> convergenceCheck) {
-		this.aggregators.registerAggregationConvergenceCriterion(name, aggregator, convergenceCheck);
-		return this;
-	}
+    /**
+     * Registers an {@link Aggregator} for the iteration together with a {@link
+     * ConvergenceCriterion}. For a general description of aggregators, see {@link
+     * #registerAggregator(String, Aggregator)} and {@link Aggregator}. At the end of each
+     * iteration, the convergence criterion takes the aggregator's global aggregate value and
+     * decided whether the iteration should terminate. A typical use case is to have an aggregator
+     * that sums up the total error of change in an iteration step and have to have a convergence
+     * criterion that signals termination as soon as the aggregate value is below a certain
+     * threshold.
+     *
+     * @param name The name under which the aggregator is registered.
+     * @param aggregator The aggregator class.
+     * @param convergenceCheck The convergence criterion.
+     * @return The IterativeDataSet itself, to allow chaining function calls.
+     */
+    @PublicEvolving
+    public <X extends Value> IterativeDataSet<T> registerAggregationConvergenceCriterion(
+            String name, Aggregator<X> aggregator, ConvergenceCriterion<X> convergenceCheck) {
+        this.aggregators.registerAggregationConvergenceCriterion(
+                name, aggregator, convergenceCheck);
+        return this;
+    }
 
-	/**
-	 * Gets the registry for aggregators. On the registry, one can add {@link Aggregator}s and an aggregator-based
-	 * {@link ConvergenceCriterion}. This method offers an alternative way to registering the aggregators via
-	 * {@link #registerAggregator(String, Aggregator)} and {@link #registerAggregationConvergenceCriterion(String, Aggregator, ConvergenceCriterion)}.
-	 *
-	 * @return The registry for aggregators.
-	 */
-	@PublicEvolving
-	public AggregatorRegistry getAggregators() {
-		return aggregators;
-	}
+    /**
+     * Gets the registry for aggregators. On the registry, one can add {@link Aggregator}s and an
+     * aggregator-based {@link ConvergenceCriterion}. This method offers an alternative way to
+     * registering the aggregators via {@link #registerAggregator(String, Aggregator)} and {@link
+     * #registerAggregationConvergenceCriterion(String, Aggregator, ConvergenceCriterion)}.
+     *
+     * @return The registry for aggregators.
+     */
+    @PublicEvolving
+    public AggregatorRegistry getAggregators() {
+        return aggregators;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	protected org.apache.flink.api.common.operators.SingleInputOperator<T, T, ?> translateToDataFlow(Operator<T> input) {
-		// All the translation magic happens when the iteration end is encountered.
-		throw new InvalidProgramException("A data set that is part of an iteration was used as a sink or action."
-				+ " Did you forget to close the iteration?");
-	}
+    @Override
+    protected org.apache.flink.api.common.operators.SingleInputOperator<T, T, ?>
+            translateToDataFlow(Operator<T> input) {
+        // All the translation magic happens when the iteration end is encountered.
+        throw new InvalidProgramException(
+                "A data set that is part of an iteration was used as a sink or action."
+                        + " Did you forget to close the iteration?");
+    }
 }

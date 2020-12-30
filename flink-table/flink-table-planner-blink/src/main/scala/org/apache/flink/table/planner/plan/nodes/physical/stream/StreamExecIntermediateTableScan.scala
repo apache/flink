@@ -45,5 +45,4 @@ class StreamExecIntermediateTableScan(
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamExecIntermediateTableScan(cluster, traitSet, getTable, outputRowType)
   }
-
 }

@@ -31,148 +31,147 @@ import java.io.ObjectInputStream;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-/**
- * Tests the backwards compatibility of the TypeSerializerConfigSnapshot.
- */
+/** Tests the backwards compatibility of the TypeSerializerConfigSnapshot. */
 @SuppressWarnings({"serial", "deprecation"})
 public class TypeSerializerSnapshotTest {
 
-	@Test
-	public void testSerializeConfigWhenSerializerMissing() throws Exception {
-		TestSerializer ser = new TestSerializer();
-		TypeSerializerConfigSnapshot<Object> snap = (TypeSerializerConfigSnapshot<Object>) ser.snapshotConfiguration();
+    @Test
+    public void testSerializeConfigWhenSerializerMissing() throws Exception {
+        TestSerializer ser = new TestSerializer();
+        TypeSerializerConfigSnapshot<Object> snap =
+                (TypeSerializerConfigSnapshot<Object>) ser.snapshotConfiguration();
 
-		try {
-			TypeSerializerSnapshot.writeVersionedSnapshot(new DataOutputSerializer(64), snap);
-			fail("exception expected");
-		}
-		catch (IllegalStateException e) {
-			// expected
-		}
-	}
+        try {
+            TypeSerializerSnapshot.writeVersionedSnapshot(new DataOutputSerializer(64), snap);
+            fail("exception expected");
+        } catch (IllegalStateException e) {
+            // expected
+        }
+    }
 
-	@Test
-	public void testSerializerDeserializationFailure() throws Exception {
-		TestSerializer ser = new TestSerializer();
-		TypeSerializerConfigSnapshot<Object> snap = (TypeSerializerConfigSnapshot<Object>) ser.snapshotConfiguration();
-		snap.setPriorSerializer(ser);
+    @Test
+    public void testSerializerDeserializationFailure() throws Exception {
+        TestSerializer ser = new TestSerializer();
+        TypeSerializerConfigSnapshot<Object> snap =
+                (TypeSerializerConfigSnapshot<Object>) ser.snapshotConfiguration();
+        snap.setPriorSerializer(ser);
 
-		DataOutputSerializer out = new DataOutputSerializer(64);
+        DataOutputSerializer out = new DataOutputSerializer(64);
 
-		TypeSerializerSnapshot.writeVersionedSnapshot(out, snap);
-		TypeSerializerSnapshot<Object> readBack = TypeSerializerSnapshot.readVersionedSnapshot(
-				new DataInputDeserializer(out.getCopyOfBuffer()), getClass().getClassLoader());
+        TypeSerializerSnapshot.writeVersionedSnapshot(out, snap);
+        TypeSerializerSnapshot<Object> readBack =
+                TypeSerializerSnapshot.readVersionedSnapshot(
+                        new DataInputDeserializer(out.getCopyOfBuffer()),
+                        getClass().getClassLoader());
 
-		assertNotNull(readBack);
+        assertNotNull(readBack);
 
-		try {
-			readBack.restoreSerializer();
-			fail("expected exception");
-		}
-		catch (IllegalStateException e) {
-			// expected
-		}
+        try {
+            readBack.restoreSerializer();
+            fail("expected exception");
+        } catch (IllegalStateException e) {
+            // expected
+        }
 
-		((TypeSerializerConfigSnapshot<Object>) readBack).setPriorSerializer(
-				new UnloadableDummyTypeSerializer<>(new byte[0]));
-		try {
-			readBack.restoreSerializer();
-			fail("expected exception");
-		}
-		catch (IllegalStateException e) {
-			// expected
-		}
-	}
+        ((TypeSerializerConfigSnapshot<Object>) readBack)
+                .setPriorSerializer(new UnloadableDummyTypeSerializer<>(new byte[0]));
+        try {
+            readBack.restoreSerializer();
+            fail("expected exception");
+        } catch (IllegalStateException e) {
+            // expected
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static final class TestSerializer extends TypeSerializer<Object> {
+    private static final class TestSerializer extends TypeSerializer<Object> {
 
-		private final boolean compatible;
+        private final boolean compatible;
 
-		TestSerializer() {
-			this(true);
-		}
+        TestSerializer() {
+            this(true);
+        }
 
-		TestSerializer(boolean compatible) {
-			this.compatible = compatible;
-		}
+        TestSerializer(boolean compatible) {
+            this.compatible = compatible;
+        }
 
-		@Override
-		public boolean isImmutableType() {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public boolean isImmutableType() {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public TypeSerializer<Object> duplicate() {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public TypeSerializer<Object> duplicate() {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public Object createInstance() {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public Object createInstance() {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public Object copy(Object from) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public Object copy(Object from) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public Object copy(Object from, Object reuse) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public Object copy(Object from, Object reuse) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public int getLength() {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public int getLength() {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public void serialize(Object record, DataOutputView target) throws IOException {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public void serialize(Object record, DataOutputView target) throws IOException {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public Object deserialize(DataInputView source) throws IOException {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public Object deserialize(DataInputView source) throws IOException {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public Object deserialize(Object reuse, DataInputView source) throws IOException {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public Object deserialize(Object reuse, DataInputView source) throws IOException {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public void copy(DataInputView source, DataOutputView target) throws IOException {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof TestSerializer;
-		}
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof TestSerializer;
+        }
 
-		@Override
-		public int hashCode() {
-			return 0;
-		}
+        @Override
+        public int hashCode() {
+            return 0;
+        }
 
-		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-			throw new IOException("cannot deserialize");
-		}
+        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+            throw new IOException("cannot deserialize");
+        }
 
-		@Override
-		public TypeSerializerSnapshot<Object> snapshotConfiguration() {
-			return new TestSerializerConfigSnapshot();
-		}
-	}
+        @Override
+        public TypeSerializerSnapshot<Object> snapshotConfiguration() {
+            return new TestSerializerConfigSnapshot();
+        }
+    }
 
-	public static class TestSerializerConfigSnapshot extends TypeSerializerConfigSnapshot<Object> {
+    public static class TestSerializerConfigSnapshot extends TypeSerializerConfigSnapshot<Object> {
 
-		@Override
-		public int getVersion() {
-			return 0;
-		}
-	}
+        @Override
+        public int getVersion() {
+            return 0;
+        }
+    }
 }

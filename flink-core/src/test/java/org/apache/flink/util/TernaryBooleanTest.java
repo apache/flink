@@ -28,52 +28,50 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link TernaryBoolean} class.
- */
+/** Tests for the {@link TernaryBoolean} class. */
 public class TernaryBooleanTest {
 
-	@Test
-	public void testWithDefault() {
-		assertTrue(TRUE.getOrDefault(true));
-		assertTrue(TRUE.getOrDefault(false));
+    @Test
+    public void testWithDefault() {
+        assertTrue(TRUE.getOrDefault(true));
+        assertTrue(TRUE.getOrDefault(false));
 
-		assertFalse(FALSE.getOrDefault(true));
-		assertFalse(FALSE.getOrDefault(false));
+        assertFalse(FALSE.getOrDefault(true));
+        assertFalse(FALSE.getOrDefault(false));
 
-		assertTrue(UNDEFINED.getOrDefault(true));
-		assertFalse(UNDEFINED.getOrDefault(false));
-	}
+        assertTrue(UNDEFINED.getOrDefault(true));
+        assertFalse(UNDEFINED.getOrDefault(false));
+    }
 
-	@Test
-	public void testResolveUndefined() {
-		assertEquals(TRUE, TRUE.resolveUndefined(true));
-		assertEquals(TRUE, TRUE.resolveUndefined(false));
+    @Test
+    public void testResolveUndefined() {
+        assertEquals(TRUE, TRUE.resolveUndefined(true));
+        assertEquals(TRUE, TRUE.resolveUndefined(false));
 
-		assertEquals(FALSE, FALSE.resolveUndefined(true));
-		assertEquals(FALSE, FALSE.resolveUndefined(false));
+        assertEquals(FALSE, FALSE.resolveUndefined(true));
+        assertEquals(FALSE, FALSE.resolveUndefined(false));
 
-		assertEquals(TRUE, UNDEFINED.resolveUndefined(true));
-		assertEquals(FALSE, UNDEFINED.resolveUndefined(false));
-	}
+        assertEquals(TRUE, UNDEFINED.resolveUndefined(true));
+        assertEquals(FALSE, UNDEFINED.resolveUndefined(false));
+    }
 
-	@Test
-	public void testToBoolean() {
-		assertTrue(Boolean.TRUE == TRUE.getAsBoolean());
-		assertTrue(Boolean.FALSE == FALSE.getAsBoolean());
-		assertNull(UNDEFINED.getAsBoolean());
-	}
+    @Test
+    public void testToBoolean() {
+        assertTrue(Boolean.TRUE == TRUE.getAsBoolean());
+        assertTrue(Boolean.FALSE == FALSE.getAsBoolean());
+        assertNull(UNDEFINED.getAsBoolean());
+    }
 
-	@Test
-	public void testFromBoolean() {
-		assertEquals(TRUE, TernaryBoolean.fromBoolean(true));
-		assertEquals(FALSE, TernaryBoolean.fromBoolean(false));
-	}
+    @Test
+    public void testFromBoolean() {
+        assertEquals(TRUE, TernaryBoolean.fromBoolean(true));
+        assertEquals(FALSE, TernaryBoolean.fromBoolean(false));
+    }
 
-	@Test
-	public void testFromBoxedBoolean() {
-		assertEquals(TRUE, TernaryBoolean.fromBoxedBoolean(Boolean.TRUE));
-		assertEquals(FALSE, TernaryBoolean.fromBoxedBoolean(Boolean.FALSE));
-		assertEquals(UNDEFINED, TernaryBoolean.fromBoxedBoolean(null));
-	}
+    @Test
+    public void testFromBoxedBoolean() {
+        assertEquals(TRUE, TernaryBoolean.fromBoxedBoolean(Boolean.TRUE));
+        assertEquals(FALSE, TernaryBoolean.fromBoxedBoolean(Boolean.FALSE));
+        assertEquals(UNDEFINED, TernaryBoolean.fromBoxedBoolean(null));
+    }
 }

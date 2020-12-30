@@ -16,19 +16,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testSingleSink">
-    <Resource name="planBefore">
+  <TestCase name="testDynamicPartWithOrderBy">
+    <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink], fields=[a])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b])
++- LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[a, b])
++- Sort(orderBy=[a ASC])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[a, b])
+         +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleSink">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[cnt])
 +- LogicalProject(cnt=[$1])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
       +- LogicalProject(a=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink], fields=[a])
+Sink(table=[default_catalog.default_database.sink], fields=[cnt])
 +- Calc(select=[cnt])
    +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
       +- Exchange(distribution=[hash[a]])
@@ -39,7 +58,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[a])
     </Resource>
   </TestCase>
   <TestCase name="testMultiSinks">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink1], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
@@ -56,9 +75,9 @@ LogicalSink(table=[default_catalog.default_database.sink2], fields=[total_min])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[sum_a], reuse_id=[1])
+Calc(select=[sum_a])(reuse_id=[1])
 +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])

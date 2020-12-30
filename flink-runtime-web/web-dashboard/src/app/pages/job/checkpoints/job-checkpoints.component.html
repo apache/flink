@@ -45,11 +45,11 @@
             <td *ngIf="checkPointStats['latest']['completed']">
               <span><strong>ID: </strong> {{ checkPointStats['latest']['completed']['id'] }}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Completion Time: </strong> {{ checkPointStats['latest']['completed']['latest_ack_timestamp'] | date:'HH:mm:ss' }}</span>
+              <span><strong>Completion Time: </strong> {{ checkPointStats['latest']['completed']['latest_ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</span>
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong>End to End Duration: </strong> {{ checkPointStats['latest']['completed']['end_to_end_duration'] | humanizeDuration}}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Checkpointed Data Size: </strong> {{ checkPointStats['latest']['completed']['checkpointed_data_size'] | humanizeBytes }}</span>
+              <span><strong>Checkpointed Data Size: </strong> {{ checkPointStats['latest']['completed']['state_size'] | humanizeBytes }}</span>
             </td>
             <td *ngIf="!checkPointStats['latest']['completed']">None</td>
           </tr>
@@ -63,7 +63,7 @@
             <td *ngIf="checkPointStats['latest']['failed']">
               <span><strong>ID: </strong> {{ checkPointStats['latest']['failed']['id'] }}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Failure Time: </strong> {{ checkPointStats['latest']['failed']['failure_timestamp'] | date:'HH:mm:ss' }}</span>
+              <span><strong>Failure Time: </strong> {{ checkPointStats['latest']['failed']['failure_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</span>
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong *ngIf="checkPointStats['latest']['failed']['failure_message']">Cause: </strong> {{ checkPointStats['latest']['failed']['failure_message'] }}</span>
               <span *ngIf="!checkPointStats['latest']['failed']['failure_message']"><strong>Cause:</strong> n/a</span>
@@ -80,7 +80,7 @@
             <td *ngIf="checkPointStats['latest']['savepoint']">
               <span><strong>ID: </strong> {{ checkPointStats['latest']['savepoint']['id'] }}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Completion Time: </strong> {{ checkPointStats['latest']['savepoint']['latest_ack_timestamp'] | date:'HH:mm:ss' }}</span>
+              <span><strong>Completion Time: </strong> {{ checkPointStats['latest']['savepoint']['latest_ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</span>
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong>Checkpointed Data Size: </strong> {{ checkPointStats['latest']['savepoint']['state_size'] | humanizeBytes }}</span>
               <nz-divider nzType="vertical"></nz-divider>
@@ -98,7 +98,7 @@
             <td *ngIf="checkPointStats['latest']['restored']">
               <span><strong>ID: </strong> {{ checkPointStats['latest']['restored']['id'] }}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Restore Time: </strong> {{ checkPointStats['latest']['restored']['restore_timestamp'] | date:'HH:mm:ss' }}</span>
+              <span><strong>Restore Time: </strong> {{ checkPointStats['latest']['restored']['restore_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</span>
               <nz-divider nzType="vertical"></nz-divider>
               <span *ngIf="checkPointStats['latest']['restored']['is_savepoint']"><strong>Type:</strong> Savepoint</span>
               <span *ngIf="!checkPointStats['latest']['restored']['is_savepoint']"><strong>Type:</strong> Checkpoint</span>
@@ -128,7 +128,7 @@
           <th><strong>Latest Acknowledgement</strong></th>
           <th><strong>End to End Duration</strong></th>
           <th><strong>Checkpointed Data Size</strong></th>
-          <th><strong>Buffered During Alignment</strong></th>
+          <th><strong>Processed (persisted) in-flight data</strong></th>
         </tr>
       </thead>
       <tbody>
@@ -145,13 +145,13 @@
               {{ checkpoint['num_acknowledged_subtasks'] }}/{{ checkpoint['num_subtasks'] }}
               <span *ngIf="checkpoint['status'] == 'IN_PROGRESS'">({{ (checkpoint['num_acknowledged_subtasks']/checkpoint['num_subtasks']) | percent }})</span>
             </td>
-            <td>{{ checkpoint['trigger_timestamp'] | date:'HH:mm:ss' }}</td>
-            <td *ngIf="checkpoint['latest_ack_timestamp'] >= 0">{{ checkpoint['latest_ack_timestamp'] | date:'HH:mm:ss' }}</td>
+            <td>{{ checkpoint['trigger_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+            <td *ngIf="checkpoint['latest_ack_timestamp'] >= 0">{{ checkpoint['latest_ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
             <td *ngIf="checkpoint['latest_ack_timestamp'] < 0">n/a</td>
             <td *ngIf="checkpoint['end_to_end_duration'] >= 0">{{ checkpoint['end_to_end_duration'] | humanizeDuration}}</td>
             <td *ngIf="checkpoint['end_to_end_duration'] <0">n/a</td>
             <td>{{ checkpoint['state_size'] | humanizeBytes }}</td>
-            <td>{{ checkpoint['alignment_buffered'] | humanizeBytes }}</td>
+            <td>{{ checkpoint['processed_data'] | humanizeBytes }} ({{ checkpoint['persisted_data'] | humanizeBytes }})</td>
           </tr>
           <tr [nzExpand]="checkpoint.expand">
             <td colspan="11" *ngIf="checkpoint.expand" class="collapse-td">
@@ -176,7 +176,7 @@
           <th></th>
           <th><strong>End to End Duration</strong></th>
           <th><strong>Checkpointed Data Size</strong></th>
-          <th><strong>Buffered During Alignment</strong></th>
+          <th><strong>Processed (persisted) in-flight data</strong></th>
         </tr>
       </thead>
       <tbody>
@@ -185,19 +185,19 @@
             <td><strong>Minimum</strong></td>
             <td>{{ checkPointStats['summary']['end_to_end_duration']['min'] | humanizeDuration}}</td>
             <td>{{ checkPointStats['summary']['state_size']['min'] | humanizeBytes }}</td>
-            <td>{{ checkPointStats['summary']['alignment_buffered']['min'] | humanizeBytes }}</td>
+            <td>{{ checkPointStats['summary']['processed_data']['min'] | humanizeBytes }} ({{ checkPointStats['summary']['persisted_data']['min'] | humanizeBytes }})</td>
           </tr>
           <tr>
             <td><strong>Average</strong></td>
             <td>{{ checkPointStats['summary']['end_to_end_duration']['avg'] | humanizeDuration}}</td>
             <td>{{ checkPointStats['summary']['state_size']['avg'] | humanizeBytes }}</td>
-            <td>{{ checkPointStats['summary']['alignment_buffered']['avg'] | humanizeBytes }}</td>
+            <td>{{ checkPointStats['summary']['processed_data']['avg'] | humanizeBytes }} ({{ checkPointStats['summary']['persisted_data']['avg'] | humanizeBytes }})</td>
           </tr>
           <tr>
             <td><strong>Maximum</strong></td>
             <td>{{ checkPointStats['summary']['end_to_end_duration']['max'] | humanizeDuration}}</td>
             <td>{{ checkPointStats['summary']['state_size']['max'] | humanizeBytes }}</td>
-            <td>{{ checkPointStats['summary']['alignment_buffered']['max'] | humanizeBytes }}</td>
+            <td>{{ checkPointStats['summary']['processed_data']['max'] | humanizeBytes }} ({{ checkPointStats['summary']['persisted_data']['max'] | humanizeBytes }})</td>
           </tr>
         </ng-container>
       </tbody>
@@ -240,6 +240,10 @@
             <td>Maximum Concurrent Checkpoints</td>
             <td>{{ checkPointConfig['max_concurrent'] }}</td>
           </tr>
+          <tr>
+            <td>Unaligned Checkpoints</td>
+            <td>{{ checkPointConfig['unaligned_checkpoints'] ? 'Enabled' : 'Disabled' }}</td>
+          </tr>
           <tr *ngIf="checkPointConfig['externalization']">
             <td>Persist Checkpoints Externally</td>
             <td *ngIf="checkPointConfig['externalization']['enabled']">Enabled
@@ -247,6 +251,10 @@
               <span *ngIf="!checkPointConfig['externalization']['delete_on_cancellation']">(retain on cancellation)</span>
             </td>
             <td *ngIf="!checkPointConfig['externalization']['enabled']">Disabled</td>
+          </tr>
+          <tr>
+            <td>Tolerable Failed Checkpoints</td>
+            <td>{{ checkPointConfig['tolerable_failed_checkpoints'] }}</td>
           </tr>
         </ng-container>
       </tbody>

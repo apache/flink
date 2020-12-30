@@ -25,56 +25,58 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link ClientCoordinationHandler}.
- */
+/** Message headers for the {@link ClientCoordinationHandler}. */
 @Documentation.ExcludeFromDocumentation(
-	"This API is not exposed to the users, as coordinators are used only internally.")
-public class ClientCoordinationHeaders implements MessageHeaders<ClientCoordinationRequestBody, ClientCoordinationResponseBody, ClientCoordinationMessageParameters> {
+        "This API is not exposed to the users, as coordinators are used only internally.")
+public class ClientCoordinationHeaders
+        implements MessageHeaders<
+                ClientCoordinationRequestBody,
+                ClientCoordinationResponseBody,
+                ClientCoordinationMessageParameters> {
 
-	public static final String URL = "/jobs/:jobid/coordinators/:operatorid";
+    public static final String URL = "/jobs/:jobid/coordinators/:operatorid";
 
-	private static final ClientCoordinationHeaders INSTANCE = new ClientCoordinationHeaders();
+    private static final ClientCoordinationHeaders INSTANCE = new ClientCoordinationHeaders();
 
-	private ClientCoordinationHeaders() {}
+    private ClientCoordinationHeaders() {}
 
-	@Override
-	public Class<ClientCoordinationRequestBody> getRequestClass() {
-		return ClientCoordinationRequestBody.class;
-	}
+    @Override
+    public Class<ClientCoordinationRequestBody> getRequestClass() {
+        return ClientCoordinationRequestBody.class;
+    }
 
-	@Override
-	public Class<ClientCoordinationResponseBody> getResponseClass() {
-		return ClientCoordinationResponseBody.class;
-	}
+    @Override
+    public Class<ClientCoordinationResponseBody> getResponseClass() {
+        return ClientCoordinationResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public ClientCoordinationMessageParameters getUnresolvedMessageParameters() {
-		return new ClientCoordinationMessageParameters();
-	}
+    @Override
+    public ClientCoordinationMessageParameters getUnresolvedMessageParameters() {
+        return new ClientCoordinationMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.POST;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.POST;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static ClientCoordinationHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static ClientCoordinationHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Send a request to a specified coordinator of the specified job and get the response. " +
-			"This API is for internal use only.";
-	}
+    @Override
+    public String getDescription() {
+        return "Send a request to a specified coordinator of the specified job and get the response. "
+                + "This API is for internal use only.";
+    }
 }

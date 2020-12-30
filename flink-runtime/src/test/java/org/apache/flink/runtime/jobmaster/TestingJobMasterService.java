@@ -19,75 +19,66 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
-/**
- * Implementation of the {@link JobMasterService} for testing purposes.
- */
+/** Implementation of the {@link JobMasterService} for testing purposes. */
 public class TestingJobMasterService implements JobMasterService {
 
-	@Nonnull
-	private final String address;
+    @Nonnull private final String address;
 
-	@Nonnull
-	private final Function<Exception, CompletableFuture<Acknowledge>> suspendFunction;
+    private final JobMasterGateway jobMasterGateway;
 
-	@Nonnull
-	private final Function<JobMasterId, CompletableFuture<Acknowledge>> startFunction;
+    private final CompletableFuture<Void> terminationFuture;
 
-	private JobMasterGateway jobMasterGateway;
+    private final boolean completeTerminationFutureOnCloseAsync;
 
-	public TestingJobMasterService(@Nonnull String address, @Nonnull Function<Exception, CompletableFuture<Acknowledge>> suspendFunction) {
-		this(address, suspendFunction, ignored -> CompletableFuture.completedFuture(Acknowledge.get()));
-	}
+    public TestingJobMasterService(
+            @Nonnull String address, @Nullable CompletableFuture<Void> terminationFuture) {
+        this.address = address;
 
-	public TestingJobMasterService(
-		@Nonnull String address,
-		@Nonnull Function<Exception, CompletableFuture<Acknowledge>> suspendFunction,
-		@Nonnull Function<JobMasterId, CompletableFuture<Acknowledge>> startFunction) {
-		this.address = address;
-		this.suspendFunction = suspendFunction;
-		this.startFunction = startFunction;
-	}
+        jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
 
-	public TestingJobMasterService() {
-		this(
-			"localhost",
-			e -> CompletableFuture.completedFuture(Acknowledge.get()));
-	}
+        if (terminationFuture == null) {
+            this.terminationFuture = new CompletableFuture<>();
+            this.completeTerminationFutureOnCloseAsync = true;
+        } else {
+            this.terminationFuture = terminationFuture;
+            this.completeTerminationFutureOnCloseAsync = false;
+        }
+    }
 
-	@Override
-	public CompletableFuture<Acknowledge> start(JobMasterId jobMasterId) {
-			jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
-			return startFunction.apply(jobMasterId);
-	}
+    public TestingJobMasterService() {
+        this("localhost", null);
+    }
 
-	@Override
-	public CompletableFuture<Acknowledge> suspend(Exception cause) {
-		jobMasterGateway = null;
-		return suspendFunction.apply(cause);
-	}
+    @Override
+    public JobMasterGateway getGateway() {
+        Preconditions.checkNotNull(
+                jobMasterGateway, "TestingJobMasterService has not been started yet.");
+        return jobMasterGateway;
+    }
 
-	@Override
-	public JobMasterGateway getGateway() {
-		Preconditions.checkNotNull(jobMasterGateway, "TestingJobMasterService has not been started yet.");
-		return jobMasterGateway;
-	}
+    @Override
+    public String getAddress() {
+        return address;
+    }
 
-	@Override
-	public String getAddress() {
-		return address;
-	}
+    @Override
+    public CompletableFuture<Void> getTerminationFuture() {
+        return terminationFuture;
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		jobMasterGateway = null;
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        if (completeTerminationFutureOnCloseAsync) {
+            terminationFuture.complete(null);
+        }
+
+        return terminationFuture;
+    }
 }

@@ -51,161 +51,166 @@ import static org.apache.flink.table.api.Expressions.lit;
  */
 @RunWith(Parameterized.class)
 public class JavaCatalogTableTest extends TableTestBase {
-	@Parameterized.Parameters(name = "streamingMode = {0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(true, false);
-	}
+    @Parameterized.Parameters(name = "streamingMode = {0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(true, false);
+    }
 
-	@Parameterized.Parameter
-	public boolean isStreamingMode;
+    @Parameterized.Parameter public boolean isStreamingMode;
 
-	private TableTestUtil getTestUtil() {
-		if (isStreamingMode) {
-			return streamTestUtil(new TableConfig());
-		} else {
-			return batchTestUtil(new TableConfig());
-		}
-	}
+    private TableTestUtil getTestUtil() {
+        if (isStreamingMode) {
+            return streamTestUtil(new TableConfig());
+        } else {
+            return batchTestUtil(new TableConfig());
+        }
+    }
 
-	@Test
-	public void testResolvingSchemaOfCustomCatalogTableSql() throws Exception {
-		TableTestUtil testUtil = getTestUtil();
-		TableEnvironment tableEnvironment = testUtil.getTableEnv();
-		GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
-		genericInMemoryCatalog.createTable(
-			new ObjectPath("default", "testTable"),
-			new CustomCatalogTable(isStreamingMode),
-			false);
-		tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
-		tableEnvironment.executeSql("CREATE VIEW testTable2 AS SELECT * FROM testCatalog.`default`.testTable");
+    @Test
+    public void testResolvingSchemaOfCustomCatalogTableSql() throws Exception {
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
+        genericInMemoryCatalog.createTable(
+                new ObjectPath("default", "testTable"),
+                new CustomCatalogTable(isStreamingMode),
+                false);
+        tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
+        tableEnvironment.executeSql(
+                "CREATE VIEW testTable2 AS SELECT * FROM testCatalog.`default`.testTable");
 
-		testUtil.verifyPlan(
-			"SELECT COUNT(*) FROM testTable2 GROUP BY TUMBLE(rowtime, INTERVAL '10' MINUTE)");
-	}
+        testUtil.verifyExecPlan(
+                "SELECT COUNT(*) FROM testTable2 GROUP BY TUMBLE(rowtime, INTERVAL '10' MINUTE)");
+    }
 
-	@Test
-	public void testResolvingSchemaOfCustomCatalogTableTableApi() throws Exception {
-		TableTestUtil testUtil = getTestUtil();
-		TableEnvironment tableEnvironment = testUtil.getTableEnv();
-		GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
-		genericInMemoryCatalog.createTable(
-			new ObjectPath("default", "testTable"),
-			new CustomCatalogTable(isStreamingMode),
-			false);
-		tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
+    @Test
+    public void testResolvingSchemaOfCustomCatalogTableTableApi() throws Exception {
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
+        genericInMemoryCatalog.createTable(
+                new ObjectPath("default", "testTable"),
+                new CustomCatalogTable(isStreamingMode),
+                false);
+        tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
 
-		Table table = tableEnvironment.from("testCatalog.`default`.testTable")
-			.window(Tumble.over(lit(10).minute()).on($("rowtime")).as("w"))
-			.groupBy($("w"))
-			.select(lit(1).count());
-		testUtil.verifyPlan(table);
-	}
+        Table table =
+                tableEnvironment
+                        .from("testCatalog.`default`.testTable")
+                        .window(Tumble.over(lit(10).minute()).on($("rowtime")).as("w"))
+                        .groupBy($("w"))
+                        .select(lit(1).count());
+        testUtil.verifyExecPlan(table);
+    }
 
-	@Test
-	public void testResolvingProctimeOfCustomTableSql() throws Exception {
-		if (!isStreamingMode) {
-			// proctime not supported in batch
-			return;
-		}
-		TableTestUtil testUtil = getTestUtil();
-		TableEnvironment tableEnvironment = testUtil.getTableEnv();
-		GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
-		genericInMemoryCatalog.createTable(
-			new ObjectPath("default", "testTable"),
-			new CustomCatalogTable(isStreamingMode),
-			false);
-		tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
+    @Test
+    public void testResolvingProctimeOfCustomTableSql() throws Exception {
+        if (!isStreamingMode) {
+            // proctime not supported in batch
+            return;
+        }
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
+        genericInMemoryCatalog.createTable(
+                new ObjectPath("default", "testTable"),
+                new CustomCatalogTable(isStreamingMode),
+                false);
+        tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
 
-		testUtil.verifyPlan("SELECT COUNT(*) FROM testCatalog.`default`.testTable " +
-			"GROUP BY TUMBLE(proctime, INTERVAL '10' MINUTE)");
-	}
+        testUtil.verifyExecPlan(
+                "SELECT COUNT(*) FROM testCatalog.`default`.testTable "
+                        + "GROUP BY TUMBLE(proctime, INTERVAL '10' MINUTE)");
+    }
 
-	@Test
-	public void testResolvingProctimeOfCustomTableTableApi() throws Exception {
-		if (!isStreamingMode) {
-			// proctime not supported in batch
-			return;
-		}
-		TableTestUtil testUtil = getTestUtil();
-		TableEnvironment tableEnvironment = testUtil.getTableEnv();
-		GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
-		genericInMemoryCatalog.createTable(
-			new ObjectPath("default", "testTable"),
-			new CustomCatalogTable(isStreamingMode),
-			false);
-		tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
+    @Test
+    public void testResolvingProctimeOfCustomTableTableApi() throws Exception {
+        if (!isStreamingMode) {
+            // proctime not supported in batch
+            return;
+        }
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
+        genericInMemoryCatalog.createTable(
+                new ObjectPath("default", "testTable"),
+                new CustomCatalogTable(isStreamingMode),
+                false);
+        tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
 
-		Table table = tableEnvironment.from("testCatalog.`default`.testTable")
-			.window(Tumble.over(lit(10).minute()).on($("proctime")).as("w"))
-			.groupBy($("w"))
-			.select(lit(1).count());
-		testUtil.verifyPlan(table);
-	}
+        Table table =
+                tableEnvironment
+                        .from("testCatalog.`default`.testTable")
+                        .window(Tumble.over(lit(10).minute()).on($("proctime")).as("w"))
+                        .groupBy($("w"))
+                        .select(lit(1).count());
+        testUtil.verifyExecPlan(table);
+    }
 
-	private static class CustomCatalogTable implements CatalogTable {
+    private static class CustomCatalogTable implements CatalogTable {
 
-		private final boolean isStreamingMode;
+        private final boolean isStreamingMode;
 
-		private CustomCatalogTable(boolean isStreamingMode) {
-			this.isStreamingMode = isStreamingMode;
-		}
+        private CustomCatalogTable(boolean isStreamingMode) {
+            this.isStreamingMode = isStreamingMode;
+        }
 
-		@Override
-		public boolean isPartitioned() {
-			return false;
-		}
+        @Override
+        public boolean isPartitioned() {
+            return false;
+        }
 
-		@Override
-		public List<String> getPartitionKeys() {
-			return Collections.emptyList();
-		}
+        @Override
+        public List<String> getPartitionKeys() {
+            return Collections.emptyList();
+        }
 
-		@Override
-		public CatalogTable copy(Map<String, String> options) {
-			return this;
-		}
+        @Override
+        public CatalogTable copy(Map<String, String> options) {
+            return this;
+        }
 
-		@Override
-		public Map<String, String> toProperties() {
-			return Collections.emptyMap();
-		}
+        @Override
+        public Map<String, String> toProperties() {
+            return Collections.emptyMap();
+        }
 
-		@Override
-		public Map<String, String> getProperties() {
-			Map<String, String> map = new HashMap<>();
-			map.put("connector", "values");
-			map.put("bounded", Boolean.toString(!isStreamingMode));
-			return map;
-		}
+        @Override
+        public Map<String, String> getProperties() {
+            Map<String, String> map = new HashMap<>();
+            map.put("connector", "values");
+            map.put("bounded", Boolean.toString(!isStreamingMode));
+            return map;
+        }
 
-		@Override
-		public TableSchema getSchema() {
-			return TableSchema.builder()
-				.field("count", DataTypes.BIGINT())
-				.field("rowtime", DataTypes.TIMESTAMP())
-				.field("proctime", DataTypes.TIMESTAMP(), "proctime()")
-				.watermark("rowtime", "rowtime - INTERVAL '5' SECONDS", DataTypes.TIMESTAMP())
-				.build();
-		}
+        @Override
+        public TableSchema getSchema() {
+            return TableSchema.builder()
+                    .field("count", DataTypes.BIGINT())
+                    .field("rowtime", DataTypes.TIMESTAMP())
+                    .field("proctime", DataTypes.TIMESTAMP(), "proctime()")
+                    .watermark("rowtime", "rowtime - INTERVAL '5' SECONDS", DataTypes.TIMESTAMP())
+                    .build();
+        }
 
-		@Override
-		public String getComment() {
-			return null;
-		}
+        @Override
+        public String getComment() {
+            return null;
+        }
 
-		@Override
-		public CatalogBaseTable copy() {
-			return this;
-		}
+        @Override
+        public CatalogBaseTable copy() {
+            return this;
+        }
 
-		@Override
-		public Optional<String> getDescription() {
-			return Optional.empty();
-		}
+        @Override
+        public Optional<String> getDescription() {
+            return Optional.empty();
+        }
 
-		@Override
-		public Optional<String> getDetailedDescription() {
-			return Optional.empty();
-		}
-	}
+        @Override
+        public Optional<String> getDetailedDescription() {
+            return Optional.empty();
+        }
+    }
 }

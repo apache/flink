@@ -34,68 +34,76 @@ import java.util.Collection;
 import static org.hamcrest.Matchers.is;
 
 /**
- * A {@link TypeSerializerUpgradeTestBase} for {@link LongValueWithProperHashCode.LongValueWithProperHashCodeSerializer}.
+ * A {@link TypeSerializerUpgradeTestBase} for {@link
+ * LongValueWithProperHashCode.LongValueWithProperHashCodeSerializer}.
  */
 @RunWith(Parameterized.class)
 public class LongValueWithProperHashCodeSerializerUpgradeTest
-		extends TypeSerializerUpgradeTestBase<LongValueWithProperHashCode, LongValueWithProperHashCode> {
+        extends TypeSerializerUpgradeTestBase<
+                LongValueWithProperHashCode, LongValueWithProperHashCode> {
 
-	public LongValueWithProperHashCodeSerializerUpgradeTest(
-			TestSpecification<LongValueWithProperHashCode, LongValueWithProperHashCode> testSpecification) {
-		super(testSpecification);
-	}
+    public LongValueWithProperHashCodeSerializerUpgradeTest(
+            TestSpecification<LongValueWithProperHashCode, LongValueWithProperHashCode>
+                    testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					"long-value-with-proper-hash-code-serializer",
-					migrationVersion,
-					LongValueWithProperHashCodeSerializerSetup.class,
-					LongValueWithProperHashCodeSerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "long-value-with-proper-hash-code-serializer",
+                            migrationVersion,
+                            LongValueWithProperHashCodeSerializerSetup.class,
+                            LongValueWithProperHashCodeSerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "long-value-with-proper-hash-code-serializer"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "long-value-with-proper-hash-code-serializer"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class LongValueWithProperHashCodeSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<LongValueWithProperHashCode> {
-		@Override
-		public TypeSerializer<LongValueWithProperHashCode> createPriorSerializer() {
-			return new LongValueWithProperHashCode.LongValueWithProperHashCodeSerializer();
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class LongValueWithProperHashCodeSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<LongValueWithProperHashCode> {
+        @Override
+        public TypeSerializer<LongValueWithProperHashCode> createPriorSerializer() {
+            return new LongValueWithProperHashCode.LongValueWithProperHashCodeSerializer();
+        }
 
-		@Override
-		public LongValueWithProperHashCode createTestData() {
-			return new LongValueWithProperHashCode(12345);
-		}
-	}
+        @Override
+        public LongValueWithProperHashCode createTestData() {
+            return new LongValueWithProperHashCode(12345);
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class LongValueWithProperHashCodeSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<LongValueWithProperHashCode> {
-		@Override
-		public TypeSerializer<LongValueWithProperHashCode> createUpgradedSerializer() {
-			return new LongValueWithProperHashCode.LongValueWithProperHashCodeSerializer();
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class LongValueWithProperHashCodeSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<LongValueWithProperHashCode> {
+        @Override
+        public TypeSerializer<LongValueWithProperHashCode> createUpgradedSerializer() {
+            return new LongValueWithProperHashCode.LongValueWithProperHashCodeSerializer();
+        }
 
-		@Override
-		public Matcher<LongValueWithProperHashCode> testDataMatcher() {
-			return is(new LongValueWithProperHashCode(12345));
-		}
+        @Override
+        public Matcher<LongValueWithProperHashCode> testDataMatcher() {
+            return is(new LongValueWithProperHashCode(12345));
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<LongValueWithProperHashCode>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<LongValueWithProperHashCode>>
+                schemaCompatibilityMatcher(MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 }

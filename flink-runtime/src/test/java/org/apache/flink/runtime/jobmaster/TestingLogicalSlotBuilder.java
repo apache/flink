@@ -26,68 +26,68 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
-/**
- * Builder for the {@link TestingLogicalSlot}.
- */
+/** Builder for the {@link TestingLogicalSlot}. */
 public class TestingLogicalSlotBuilder {
-	private TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
-	private TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-	private int slotNumber = 0;
-	private AllocationID allocationId = new AllocationID();
-	private SlotRequestId slotRequestId = new SlotRequestId();
-	private SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
-	private SlotOwner slotOwner = new DummySlotOwner();
-	private boolean automaticallyCompleteReleaseFuture = true;
+    private TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+    private TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+    private int slotNumber = 0;
+    private AllocationID allocationId = new AllocationID();
+    private SlotRequestId slotRequestId = new SlotRequestId();
+    private SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
+    private SlotOwner slotOwner = new DummySlotOwner();
+    private boolean automaticallyCompleteReleaseFuture = true;
 
-	public TestingLogicalSlotBuilder setTaskManagerGateway(TaskManagerGateway taskManagerGateway) {
-		this.taskManagerGateway = taskManagerGateway;
-		return this;
-	}
+    public TestingLogicalSlotBuilder setTaskManagerGateway(TaskManagerGateway taskManagerGateway) {
+        this.taskManagerGateway = taskManagerGateway;
+        return this;
+    }
 
-	public TestingLogicalSlotBuilder setTaskManagerLocation(TaskManagerLocation taskManagerLocation) {
-		this.taskManagerLocation = taskManagerLocation;
-		return this;
-	}
+    public TestingLogicalSlotBuilder setTaskManagerLocation(
+            TaskManagerLocation taskManagerLocation) {
+        this.taskManagerLocation = taskManagerLocation;
+        return this;
+    }
 
-	public TestingLogicalSlotBuilder setSlotNumber(int slotNumber) {
-		this.slotNumber = slotNumber;
-		return this;
-	}
+    public TestingLogicalSlotBuilder setSlotNumber(int slotNumber) {
+        this.slotNumber = slotNumber;
+        return this;
+    }
 
-	public TestingLogicalSlotBuilder setAllocationId(AllocationID allocationId) {
-		this.allocationId = allocationId;
-		return this;
-	}
+    public TestingLogicalSlotBuilder setAllocationId(AllocationID allocationId) {
+        this.allocationId = allocationId;
+        return this;
+    }
 
-	public TestingLogicalSlotBuilder setSlotRequestId(SlotRequestId slotRequestId) {
-		this.slotRequestId = slotRequestId;
-		return this;
-	}
+    public TestingLogicalSlotBuilder setSlotRequestId(SlotRequestId slotRequestId) {
+        this.slotRequestId = slotRequestId;
+        return this;
+    }
 
-	public TestingLogicalSlotBuilder setSlotSharingGroupId(SlotSharingGroupId slotSharingGroupId) {
-		this.slotSharingGroupId = slotSharingGroupId;
-		return this;
-	}
+    public TestingLogicalSlotBuilder setSlotSharingGroupId(SlotSharingGroupId slotSharingGroupId) {
+        this.slotSharingGroupId = slotSharingGroupId;
+        return this;
+    }
 
-	public TestingLogicalSlotBuilder setAutomaticallyCompleteReleaseFuture(boolean automaticallyCompleteReleaseFuture) {
-		this.automaticallyCompleteReleaseFuture = automaticallyCompleteReleaseFuture;
-		return this;
-	}
+    public TestingLogicalSlotBuilder setAutomaticallyCompleteReleaseFuture(
+            boolean automaticallyCompleteReleaseFuture) {
+        this.automaticallyCompleteReleaseFuture = automaticallyCompleteReleaseFuture;
+        return this;
+    }
 
-	public TestingLogicalSlotBuilder setSlotOwner(SlotOwner slotOwner) {
-		this.slotOwner = slotOwner;
-		return this;
-	}
+    public TestingLogicalSlotBuilder setSlotOwner(SlotOwner slotOwner) {
+        this.slotOwner = slotOwner;
+        return this;
+    }
 
-	public TestingLogicalSlot createTestingLogicalSlot() {
-		return new TestingLogicalSlot(
-			taskManagerLocation,
-			taskManagerGateway,
-			slotNumber,
-			allocationId,
-			slotRequestId,
-			slotSharingGroupId,
-			automaticallyCompleteReleaseFuture,
-			slotOwner);
-	}
+    public TestingLogicalSlot createTestingLogicalSlot() {
+        return new TestingLogicalSlot(
+                taskManagerLocation,
+                taskManagerGateway,
+                slotNumber,
+                allocationId,
+                slotRequestId,
+                slotSharingGroupId,
+                automaticallyCompleteReleaseFuture,
+                slotOwner);
+    }
 }

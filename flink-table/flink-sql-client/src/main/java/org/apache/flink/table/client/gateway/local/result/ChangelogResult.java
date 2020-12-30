@@ -31,8 +31,6 @@ import java.util.List;
  */
 public interface ChangelogResult<C> extends DynamicResult<C> {
 
-	/**
-	 * Retrieves the available result records.
-	 */
-	TypedResult<List<Tuple2<Boolean, Row>>> retrieveChanges();
+    /** Retrieves the available result records. */
+    TypedResult<List<Tuple2<Boolean, Row>>> retrieveChanges();
 }

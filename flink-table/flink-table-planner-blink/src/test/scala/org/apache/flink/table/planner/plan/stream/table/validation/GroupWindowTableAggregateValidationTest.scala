@@ -24,6 +24,8 @@ import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.{TableTestBase, Top3}
 
+import java.time.Duration
+
 import org.junit.Test
 
 class GroupWindowTableAggregateValidationTest extends TableTestBase {
@@ -71,7 +73,7 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
 
     val tableConf = util.getTableEnv.getConfig
     tableConf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, true)
-    tableConf.getConfiguration.setString(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, 10 + " ms")
+    tableConf.getConfiguration.set(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, Duration.ofMillis(10))
 
     val result = table
       .window(Tumble over 2.hours on 'proctime as 'w)
@@ -79,6 +81,6 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
       .flatAggregate(top3('int))
       .select('string, 'f0, 'w.start)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 }

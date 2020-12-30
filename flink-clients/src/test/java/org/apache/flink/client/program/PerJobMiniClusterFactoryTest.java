@@ -41,171 +41,185 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/**
- * Tests for {@link PerJobMiniClusterFactory}.
- */
+/** Tests for {@link PerJobMiniClusterFactory}. */
 public class PerJobMiniClusterFactoryTest extends TestLogger {
 
-	private MiniCluster miniCluster;
+    private MiniCluster miniCluster;
 
-	@After
-	public void teardown() throws Exception {
-		if (miniCluster != null) {
-			miniCluster.close();
-		}
-	}
+    @After
+    public void teardown() throws Exception {
+        if (miniCluster != null) {
+            miniCluster.close();
+        }
+    }
 
-	@Test
-	public void testJobExecution() throws Exception {
-		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
+    @Test
+    public void testJobExecution() throws Exception {
+        PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
 
-		JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph()).get();
+        JobClient jobClient =
+                perJobMiniClusterFactory
+                        .submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader())
+                        .get();
 
-		JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
-		assertThat(jobExecutionResult, is(notNullValue()));
+        JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult().get();
+        assertThat(jobExecutionResult, is(notNullValue()));
 
-		Map<String, Object> actual = jobClient.getAccumulators(getClass().getClassLoader()).get();
-		assertThat(actual, is(notNullValue()));
+        Map<String, Object> actual = jobClient.getAccumulators().get();
+        assertThat(actual, is(notNullValue()));
 
-		assertThatMiniClusterIsShutdown();
-	}
+        assertThatMiniClusterIsShutdown();
+    }
 
-	@Test
-	public void testJobClient() throws Exception {
-		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
+    @Test
+    public void testJobClient() throws Exception {
+        PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
 
-		JobGraph cancellableJobGraph = getCancellableJobGraph();
-		JobClient jobClient = perJobMiniClusterFactory
-			.submitJob(cancellableJobGraph)
-			.get();
+        JobGraph cancellableJobGraph = getCancellableJobGraph();
+        JobClient jobClient =
+                perJobMiniClusterFactory
+                        .submitJob(cancellableJobGraph, ClassLoader.getSystemClassLoader())
+                        .get();
 
-		assertThat(jobClient.getJobID(), is(cancellableJobGraph.getJobID()));
-		assertThat(jobClient.getJobStatus().get(), is(JobStatus.RUNNING));
+        assertThat(jobClient.getJobID(), is(cancellableJobGraph.getJobID()));
+        assertThat(jobClient.getJobStatus().get(), is(JobStatus.RUNNING));
 
-		jobClient.cancel().get();
+        jobClient.cancel().get();
 
-		assertThrows(
-			"Job was cancelled.",
-			ExecutionException.class,
-			() -> jobClient.getJobExecutionResult(getClass().getClassLoader()).get()
-		);
+        assertThrows(
+                "Job was cancelled.",
+                ExecutionException.class,
+                () -> jobClient.getJobExecutionResult().get());
 
-		assertThatMiniClusterIsShutdown();
-	}
+        assertThatMiniClusterIsShutdown();
+    }
 
-	@Test
-	public void testJobClientSavepoint() throws Exception {
-		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
-		JobClient jobClient = perJobMiniClusterFactory.submitJob(getCancellableJobGraph()).get();
+    @Test
+    public void testJobClientSavepoint() throws Exception {
+        PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
+        JobClient jobClient =
+                perJobMiniClusterFactory
+                        .submitJob(getCancellableJobGraph(), ClassLoader.getSystemClassLoader())
+                        .get();
 
-		assertThrows(
-			"is not a streaming job.",
-			ExecutionException.class,
-			() -> jobClient.triggerSavepoint(null).get());
+        assertThrows(
+                "is not a streaming job.",
+                ExecutionException.class,
+                () -> jobClient.triggerSavepoint(null).get());
 
-		assertThrows(
-			"is not a streaming job.",
-			ExecutionException.class,
-			() -> jobClient.stopWithSavepoint(true, null).get());
-	}
+        assertThrows(
+                "is not a streaming job.",
+                ExecutionException.class,
+                () -> jobClient.stopWithSavepoint(true, null).get());
+    }
 
-	@Test
-	public void testSubmissionError() throws Exception {
-		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
+    @Test
+    public void testSubmissionError() throws Exception {
+        PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
 
-		// JobGraph is not a valid job
-		JobGraph jobGraph = new JobGraph();
+        // JobGraph is not a valid job
+        JobGraph jobGraph = new JobGraph();
 
-		assertThrows(
-			"Failed to submit job.",
-			ExecutionException.class,
-			() -> perJobMiniClusterFactory.submitJob(jobGraph).get());
+        assertThrows(
+                "Could not instantiate JobManager",
+                ExecutionException.class,
+                () ->
+                        perJobMiniClusterFactory
+                                .submitJob(jobGraph, ClassLoader.getSystemClassLoader())
+                                .get());
+    }
 
-		assertThatMiniClusterIsShutdown();
-	}
+    @Test
+    public void testMultipleExecutions() throws Exception {
+        PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
+        {
+            JobClient jobClient =
+                    perJobMiniClusterFactory
+                            .submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader())
+                            .get();
+            jobClient.getJobExecutionResult().get();
+            assertThatMiniClusterIsShutdown();
+        }
+        {
+            JobClient jobClient =
+                    perJobMiniClusterFactory
+                            .submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader())
+                            .get();
+            jobClient.getJobExecutionResult().get();
+            assertThatMiniClusterIsShutdown();
+        }
+    }
 
-	@Test
-	public void testMultipleExecutions() throws Exception {
-		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
-		{
-			JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph()).get();
-			jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
-			assertThatMiniClusterIsShutdown();
-		}
-		{
-			JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph()).get();
-			jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
-			assertThatMiniClusterIsShutdown();
-		}
-	}
+    @Test
+    public void testJobClientInteractionAfterShutdown() throws Exception {
+        PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
+        JobClient jobClient =
+                perJobMiniClusterFactory
+                        .submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader())
+                        .get();
+        jobClient.getJobExecutionResult().get();
+        assertThatMiniClusterIsShutdown();
 
-	@Test
-	public void testJobClientInteractionAfterShutdown() throws Exception {
-		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
-		JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph()).get();
-		jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
-		assertThatMiniClusterIsShutdown();
+        assertThrows(
+                "MiniCluster is not yet running or has already been shut down.",
+                IllegalStateException.class,
+                jobClient::cancel);
+    }
 
-		assertThrows(
-			"MiniCluster is not yet running or has already been shut down.",
-			IllegalStateException.class,
-			jobClient::cancel);
-	}
+    private PerJobMiniClusterFactory initializeMiniCluster() {
+        return PerJobMiniClusterFactory.createWithFactory(
+                new Configuration(),
+                config -> {
+                    miniCluster = new MiniCluster(config);
+                    return miniCluster;
+                });
+    }
 
-	private PerJobMiniClusterFactory initializeMiniCluster() {
-		return PerJobMiniClusterFactory.createWithFactory(new Configuration(), config -> {
-			miniCluster = new MiniCluster(config);
-			return miniCluster;
-		});
-	}
+    private void assertThatMiniClusterIsShutdown() {
+        assertThat(miniCluster.isRunning(), is(false));
+    }
 
-	private void assertThatMiniClusterIsShutdown() {
-		assertThat(miniCluster.isRunning(), is(false));
-	}
+    private static JobGraph getNoopJobGraph() {
+        JobGraph jobGraph = new JobGraph();
+        JobVertex jobVertex = new JobVertex("jobVertex");
+        jobVertex.setInvokableClass(NoOpInvokable.class);
+        jobGraph.addVertex(jobVertex);
+        return jobGraph;
+    }
 
-	private static JobGraph getNoopJobGraph() {
-		JobGraph jobGraph = new JobGraph();
-		JobVertex jobVertex = new JobVertex("jobVertex");
-		jobVertex.setInvokableClass(NoOpInvokable.class);
-		jobGraph.addVertex(jobVertex);
-		return jobGraph;
-	}
+    private static JobGraph getCancellableJobGraph() {
+        JobGraph jobGraph = new JobGraph();
+        JobVertex jobVertex = new JobVertex("jobVertex");
+        jobVertex.setInvokableClass(MyCancellableInvokable.class);
+        jobGraph.addVertex(jobVertex);
+        return jobGraph;
+    }
 
-	private static JobGraph getCancellableJobGraph() {
-		JobGraph jobGraph = new JobGraph();
-		JobVertex jobVertex = new JobVertex("jobVertex");
-		jobVertex.setInvokableClass(MyCancellableInvokable.class);
-		jobGraph.addVertex(jobVertex);
-		return jobGraph;
-	}
+    /** Invokable which waits until it is cancelled. */
+    public static class MyCancellableInvokable extends CancelableInvokable {
 
-	/**
-	 * Invokable which waits until it is cancelled.
-	 */
-	public static class MyCancellableInvokable extends CancelableInvokable {
+        private final Object lock = new Object();
+        private boolean running = true;
 
-		private final Object lock = new Object();
-		private boolean running = true;
+        public MyCancellableInvokable(Environment environment) {
+            super(environment);
+        }
 
-		public MyCancellableInvokable(Environment environment) {
-			super(environment);
-		}
+        @Override
+        public void invoke() throws Exception {
+            synchronized (lock) {
+                while (running) {
+                    lock.wait();
+                }
+            }
+        }
 
-		@Override
-		public void invoke() throws Exception {
-			synchronized (lock) {
-				while (running) {
-					lock.wait();
-				}
-			}
-		}
-
-		@Override
-		public void cancel() {
-			synchronized (lock) {
-				running = false;
-				lock.notifyAll();
-			}
-		}
-	}
+        @Override
+        public void cancel() {
+            synchronized (lock) {
+                running = false;
+                lock.notifyAll();
+            }
+        }
+    }
 }
