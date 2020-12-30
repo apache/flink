@@ -89,6 +89,17 @@ public class KubernetesConfigOptions {
                                     + TASK_MANAGER_SERVICE_ACCOUNT.key()
                                     + "' for jobmanager and taskmanager respectively.");
 
+    public static final ConfigOption<List<Map<String, String>>> JOB_MANAGER_OWNER_REFERENCE =
+            key("kubernetes.jobmanager.owner.reference")
+                    .mapType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The user-specified owner reference to be set to the JobManager Deployment. "
+                                    + "The owner reference is used to delete deployment (and the actual cluster) when controlling resource is deleted. "
+                                    + "The value should be in the form of key:value,where keys define owner reference parameters: apiVersion, "
+                                    + "blockOwnerDeletion, controller, kind, name, uid");
+
     public static final ConfigOption<Double> JOB_MANAGER_CPU =
             key("kubernetes.jobmanager.cpu")
                     .doubleType()
