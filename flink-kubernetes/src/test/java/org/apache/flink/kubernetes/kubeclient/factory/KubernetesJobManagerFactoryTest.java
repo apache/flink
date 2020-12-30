@@ -37,16 +37,19 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +62,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** General tests for the {@link KubernetesJobManagerFactory}. */
@@ -69,6 +73,19 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
             KubernetesSessionClusterEntrypoint.class.getCanonicalName();
 
     private static final String EXISTING_HADOOP_CONF_CONFIG_MAP = "hadoop-conf";
+
+    private static final String OWNER_REFERENCE_STRING =
+            "apiVersion:cloudflow.io/v1beta1,blockOwnerDeletion:true,"
+                    + "controller:true,kind:FlinkApplication,name:testapp,uid:e3c9aa3f-cc42-4178-814a-64aa15c82373";
+    private static final List<OwnerReference> OWNER_REFERENCES =
+            Collections.singletonList(
+                    new OwnerReference(
+                            "cloudflow.io/v1beta1",
+                            true,
+                            true,
+                            "FlinkApplication",
+                            "testapp",
+                            "e3c9aa3f-cc42-4178-814a-64aa15c82373"));
 
     protected KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
 
@@ -83,6 +100,8 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
         flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, "test");
         flinkConfig.set(
                 SecurityOptions.KERBEROS_KRB5_PATH, kerberosDir.toString() + "/" + KRB5_CONF_FILE);
+        flinkConfig.setString(
+                KubernetesConfigOptions.JOB_MANAGER_OWNER_REFERENCE.key(), OWNER_REFERENCE_STRING);
     }
 
     @Override
@@ -109,6 +128,10 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
         expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
         expectedLabels.putAll(userLabels);
         assertEquals(expectedLabels, resultDeployment.getMetadata().getLabels());
+
+        assertThat(
+                resultDeployment.getMetadata().getOwnerReferences(),
+                Matchers.containsInAnyOrder(OWNER_REFERENCES.toArray()));
     }
 
     @Test

@@ -90,6 +90,19 @@ public class KubernetesConfigOptions {
                                     + TASK_MANAGER_SERVICE_ACCOUNT.key()
                                     + "' for jobmanager and taskmanager respectively.");
 
+    public static final ConfigOption<List<Map<String, String>>> JOB_MANAGER_OWNER_REFERENCE =
+            key("kubernetes.jobmanager.owner.reference")
+                    .mapType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The user-specified owner reference to be set to the JobManager Deployment. "
+                                    + "The owner reference is used to delete deployment when controlling resource is deleted. Deployment deletion will trigger deletion of all instances of Job manager. "
+                                    + "Job manager deletion will delete all of the Task managers that it controls. As a result usage owner reference will delete a cluster when controlling resource is deleted. "
+                                    + "The value should be in the form of key:value, where keys define owner reference parameters: apiVersion, "
+                                    + "blockOwnerDeletion, controller, kind, name, uid. Example of setting owner reference looks like following: "
+                                    + "-Dkubernetes.jobmanager.owner.reference=apiversion:flink.io/v1beta1,blockownerdeletion:true,controller:true,kind:FlinkApplication,name:testapp,uid:e3c9aa3f-cc42-4178-814a-64aa15c82373. "
+                                    + "Multiple owner references are not currently supported.");
     public static final ConfigOption<Double> JOB_MANAGER_CPU =
             key("kubernetes.jobmanager.cpu")
                     .doubleType()
