@@ -511,12 +511,12 @@ public class Task
         if (invokable == null || consumableNotifyingPartitionWriters.length == 0 || !isRunning()) {
             return false;
         }
-        final CompletableFuture<?>[] outputFutures =
-                new CompletableFuture[consumableNotifyingPartitionWriters.length];
-        for (int i = 0; i < outputFutures.length; ++i) {
-            outputFutures[i] = consumableNotifyingPartitionWriters[i].getAvailableFuture();
+        for (int i = 0; i < consumableNotifyingPartitionWriters.length; ++i) {
+            if (!consumableNotifyingPartitionWriters[i].isAvailable()) {
+                return true;
+            }
         }
-        return !CompletableFuture.allOf(outputFutures).isDone();
+        return false;
     }
 
     // ------------------------------------------------------------------------
