@@ -343,6 +343,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                         new ExecutorThreadFactory("channel-state-unspilling"));
 
         injectChannelStateWriterIntoChannels();
+
+        environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
     }
 
     private void injectChannelStateWriterIntoChannels() {

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
@@ -46,7 +47,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final Meter numRecordsOutRate;
     private final Meter numBuffersOutRate;
     private final Meter idleTimePerSecond;
+    private final Gauge busyTimePerSecond;
     private final Meter backPressuredTimePerSecond;
+
+    private volatile boolean busyTimeEnabled;
 
     public TaskIOMetricGroup(TaskMetricGroup parent) {
         super(parent);
@@ -71,6 +75,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 meter(MetricNames.TASK_IDLE_TIME, new MeterView(new SimpleCounter()));
         this.backPressuredTimePerSecond =
                 meter(MetricNames.TASK_BACK_PRESSURED_TIME, new MeterView(new SimpleCounter()));
+        this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
     }
 
     public IOMetrics createSnapshot() {
@@ -107,6 +112,15 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     public Meter getBackPressuredTimePerSecond() {
         return backPressuredTimePerSecond;
+    }
+
+    public void setEnableBusyTime(boolean enabled) {
+        busyTimeEnabled = enabled;
+    }
+
+    private double getBusyTimePerSecond() {
+        double busyTime = idleTimePerSecond.getRate() + backPressuredTimePerSecond.getRate();
+        return busyTimeEnabled ? 1000.0 - Math.min(busyTime, 1000.0) : Double.NaN;
     }
 
     // ============================================================================================
