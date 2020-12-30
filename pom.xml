@@ -1846,7 +1846,7 @@ under the License.
 							<removeUnusedImports />
 
 							<excludes>
-								<exclude>**/generated/*.java</exclude>
+								<exclude>**/avro/generated/*.java</exclude>
 								<exclude>**/InnerPayLoadAvro.java</exclude>
 								<exclude>**/ComplexPayloadAvro.java</exclude>
 								<exclude>**/example/avro/*.java</exclude>
