@@ -89,6 +89,26 @@ public class KubernetesConfigOptions {
                                     + TASK_MANAGER_SERVICE_ACCOUNT.key()
                                     + "' for jobmanager and taskmanager respectively.");
 
+    public static final ConfigOption<List<Map<String, String>>> JOB_MANAGER_OWNER_REFERENCE =
+            key("kubernetes.jobmanager.owner.reference")
+                    .mapType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The user-specified %s to be set to the JobManager Deployment. "
+                                                    + "When all the owner resources are deleted, the JobManager Deployment "
+                                                    + "will be deleted automatically, which also deletes all the resources "
+                                                    + "created by this Flink cluster. The value should be formatted as a "
+                                                    + "semicolon-separated list of owner references, where each owner "
+                                                    + "reference is a comma-separated list of `key:value` pairs. E.g., "
+                                                    + "apiVersion:v1,blockOwnerDeletion:true,controller:true,kind:FlinkApplication,name:flink-app-name,uid:flink-app-uid;"
+                                                    + "apiVersion:v1,kind:Deployment,name:deploy-name,uid:deploy-uid",
+                                            link(
+                                                    "https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/native_kubernetes.html#manual-resource-cleanup",
+                                                    "Owner References"))
+                                    .build());
     public static final ConfigOption<Double> JOB_MANAGER_CPU =
             key("kubernetes.jobmanager.cpu")
                     .doubleType()
