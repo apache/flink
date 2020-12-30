@@ -1822,6 +1822,7 @@ under the License.
 
 							<excludes>
 								<exclude>**/avro/generated/*.java</exclude>
+								<exclude>**/parquet/generated/*.java</exclude>
 								<exclude>**/InnerPayLoadAvro.java</exclude>
 								<exclude>**/ComplexPayloadAvro.java</exclude>
 								<exclude>**/example/avro/*.java</exclude>
