@@ -305,7 +305,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         expected = Row('Hi,Hi,hello,hello2', 'Hi', 'hello', 4, 5, 'Hi,Hi,hello2,hello',
                        'Hi|Hi|hello2|hello', 10, 11.0, 2, Decimal(3.0), 24, 28.0, 6, 7.0,
                        3.1622777, 3.6514838, 10.0, 13.333333)
-        expected.set_row_kind(RowKind.UPDATE_AFTER)
+        expected.set_row_kind(RowKind.INSERT)
         self.assertEqual(result[len(result) - 1], expected)
 
     def test_mixed_with_built_in_functions_without_retract(self):
@@ -338,7 +338,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         result = [i for i in result_table.execute().collect()]
         expected = Row('Hi,Hi,hello,hello2', 'Hi', 'hello', 4, 5, 'Hi,Hi,hello2,hello',
                        'Hi|Hi|hello2|hello', 10, 11.0, 2, Decimal(3.0), 24, 28.0)
-        expected.set_row_kind(RowKind.UPDATE_AFTER)
+        expected.set_row_kind(RowKind.INSERT)
         self.assertEqual(result[len(result) - 1], expected)
 
     def test_using_decorator(self):
@@ -405,7 +405,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         table_with_retract_message = self.t_env.sql_query(
             "select LAST_VALUE(b) as b, LAST_VALUE(c) as c from source group by a")
         result = table_with_retract_message.group_by(t.c).select(my_count(t.b).alias("a"), t.c)
-        assert_frame_equal(result.to_pandas(),
+        assert_frame_equal(result.to_pandas().sort_values('c').reset_index(drop=True),
                            pd.DataFrame([[2, "hello"],
                                          [3, "hi"]], columns=['a', 'c']))
 

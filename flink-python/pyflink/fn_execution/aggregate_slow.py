@@ -414,12 +414,21 @@ class GroupAggFunctionBase(object):
         self.state_value_coder = state_value_coder
         self.state_backend = state_backend
         self.record_counter = RecordCounter.of(index_of_count_star)
+        self.buffer = {}
 
     def open(self, function_context: FunctionContext):
         self.aggs_handle.open(StateDataViewStore(function_context, self.state_backend))
 
     def close(self):
         self.aggs_handle.close()
+
+    def process_element(self, input_data: Row):
+        input_value = input_data._values
+        key = self.key_selector.get_key(input_value)
+        try:
+            self.buffer[tuple(key)].append(input_data)
+        except KeyError:
+            self.buffer[tuple(key)] = [input_data]
 
     def on_timer(self, key):
         if self.state_cleaning_enabled:
@@ -438,7 +447,7 @@ class GroupAggFunctionBase(object):
         return data.get_row_kind() == RowKind.UPDATE_AFTER or data.get_row_kind() == RowKind.INSERT
 
     @abstractmethod
-    def process_element(self, input_data: Row):
+    def finish_bundle(self):
         pass
 
 
@@ -456,85 +465,86 @@ class GroupAggFunction(GroupAggFunctionBase):
             aggs_handle, key_selector, state_backend, state_value_coder, generate_update_before,
             state_cleaning_enabled, index_of_count_star)
 
-    def process_element(self, input_data: Row):
-        input_value = input_data._values
-        key = self.key_selector.get_key(input_value)
-        self.state_backend.set_current_key(key)
-        self.state_backend.clear_cached_iterators()
-        accumulator_state = self.state_backend.get_value_state(
-            "accumulators", self.state_value_coder)
-        accumulators = accumulator_state.value()  # type: List
-        if accumulators is None:
-            if self.is_retract_msg(input_data):
-                # Don't create a new accumulator for a retraction message. This might happen if the
-                # retraction message is the first message for the key or after a state clean up.
-                return
-            first_row = True
-            accumulators = self.aggs_handle.create_accumulators()
-        else:
+    def finish_bundle(self):
+        for current_key, input_rows in self.buffer.items():
+            current_key = list(current_key)
             first_row = False
-
-        # set accumulators to handler first
-        self.aggs_handle.set_accumulators(accumulators)
-        # get previous aggregate result
-        pre_agg_value = self.aggs_handle.get_value()  # type: List
-
-        # update aggregate result and set to the newRow
-        if self.is_accumulate_msg(input_data):
-            # accumulate input
-            self.aggs_handle.accumulate(input_value)
-        else:
-            # retract input
-            self.aggs_handle.retract(input_value)
-
-        # get current aggregate result
-        new_agg_value = self.aggs_handle.get_value()  # type: List
-
-        # get accumulator
-        accumulators = self.aggs_handle.get_accumulators()
-
-        if not self.record_counter.record_count_is_zero(accumulators):
-            # we aggregated at least one record for this key
-
-            # update the state
-            accumulator_state.update(accumulators)
-
-            # if this was not the first row and we have to emit retractions
-            if not first_row:
-                if not self.state_cleaning_enabled and pre_agg_value == new_agg_value:
-                    # newRow is the same as before and state cleaning is not enabled.
-                    # We do not emit retraction and acc message.
-                    # If state cleaning is enabled, we have to emit messages to prevent too early
-                    # state eviction of downstream operators.
+            self.state_backend.set_current_key(current_key)
+            self.state_backend.clear_cached_iterators()
+            accumulator_state = self.state_backend.get_value_state(
+                "accumulators", self.state_value_coder)
+            accumulators = accumulator_state.value()  # type: List
+            start_index = 0
+            if accumulators is None:
+                for i in range(len(input_rows)):
+                    if self.is_retract_msg(input_rows[i]):
+                        start_index += 1
+                    else:
+                        break
+                if start_index == len(input_rows):
                     return
+                accumulators = self.aggs_handle.create_accumulators()
+                first_row = True
+
+            # set accumulators to handler first
+            self.aggs_handle.set_accumulators(accumulators)
+
+            # get previous aggregate result
+            pre_agg_value = self.aggs_handle.get_value()  # type: List
+
+            for input_row in input_rows[start_index:]:
+                # update aggregate result and set to the newRow
+                if self.is_accumulate_msg(input_row):
+                    # accumulate input
+                    self.aggs_handle.accumulate(input_row._values)
                 else:
-                    # retract previous result
-                    if self.generate_update_before:
-                        # prepare UPDATE_BEFORE message for previous row
-                        retract_row = join_row(key, pre_agg_value)
-                        retract_row.set_row_kind(RowKind.UPDATE_BEFORE)
-                        yield retract_row
-                    # prepare UPDATE_AFTER message for new row
-                    result_row = join_row(key, new_agg_value)
-                    result_row.set_row_kind(RowKind.UPDATE_AFTER)
+                    # retract input
+                    self.aggs_handle.retract(input_row._values)
+
+            # get current aggregate result
+            new_agg_value = self.aggs_handle.get_value()  # type: List
+
+            # get accumulator
+            accumulators = self.aggs_handle.get_accumulators()
+
+            if not self.record_counter.record_count_is_zero(accumulators):
+                # we aggregated at least one record for this key
+
+                # update the state
+                accumulator_state.update(accumulators)
+
+                # if this was not the first row and we have to emit retractions
+                if not first_row:
+                    if pre_agg_value != new_agg_value:
+                        # retract previous result
+                        if self.generate_update_before:
+                            # prepare UPDATE_BEFORE message for previous row
+                            retract_row = join_row(current_key, pre_agg_value)
+                            retract_row.set_row_kind(RowKind.UPDATE_BEFORE)
+                            yield retract_row
+                        # prepare UPDATE_AFTER message for new row
+                        result_row = join_row(current_key, new_agg_value)
+                        result_row.set_row_kind(RowKind.UPDATE_AFTER)
+                        yield result_row
+                else:
+                    # this is the first, output new result
+                    # prepare INSERT message for new row
+                    result_row = join_row(current_key, new_agg_value)
+                    result_row.set_row_kind(RowKind.INSERT)
+                    yield result_row
             else:
-                # this is the first, output new result
-                # prepare INSERT message for new row
-                result_row = join_row(key, new_agg_value)
-                result_row.set_row_kind(RowKind.INSERT)
-            yield result_row
-        else:
-            # we retracted the last record for this key
-            # sent out a delete message
-            if not first_row:
-                # prepare delete message for previous row
-                result_row = join_row(key, pre_agg_value)
-                result_row.set_row_kind(RowKind.DELETE)
-                yield result_row
-            # and clear all state
-            accumulator_state.clear()
-            # cleanup dataview under current key
-            self.aggs_handle.cleanup()
+                # we retracted the last record for this key
+                # sent out a delete message
+                if not first_row:
+                    # prepare delete message for previous row
+                    result_row = join_row(current_key, pre_agg_value)
+                    result_row.set_row_kind(RowKind.DELETE)
+                    yield result_row
+                # and clear all state
+                accumulator_state.clear()
+                # cleanup dataview under current key
+                self.aggs_handle.cleanup()
+        self.buffer = {}
 
 
 class GroupTableAggFunction(GroupAggFunctionBase):
@@ -550,42 +560,51 @@ class GroupTableAggFunction(GroupAggFunctionBase):
             aggs_handle, key_selector, state_backend, state_value_coder, generate_update_before,
             state_cleaning_enabled, index_of_count_star)
 
-    def process_element(self, input_data: Row):
-        input_value = input_data._values
-        key = self.key_selector.get_key(input_value)
-        self.state_backend.set_current_key(key)
-        self.state_backend.clear_cached_iterators()
-        accumulator_state = self.state_backend.get_value_state(
-            "accumulators", self.state_value_coder)
-        accumulators = accumulator_state.value()
-        if accumulators is None:
-            first_row = True
-            accumulators = self.aggs_handle.create_accumulators()
-        else:
+    def finish_bundle(self):
+        for current_key, input_rows in self.buffer.items():
+            current_key = list(current_key)
             first_row = False
+            self.state_backend.set_current_key(current_key)
+            self.state_backend.clear_cached_iterators()
+            accumulator_state = self.state_backend.get_value_state(
+                "accumulators", self.state_value_coder)
+            accumulators = accumulator_state.value()
+            start_index = 0
+            if accumulators is None:
+                for i in range(len(input_rows)):
+                    if self.is_retract_msg(input_rows[i]):
+                        start_index += 1
+                    else:
+                        break
+                if start_index == len(input_rows):
+                    return
+                accumulators = self.aggs_handle.create_accumulators()
+                first_row = True
 
-        # set accumulators to handler first
-        self.aggs_handle.set_accumulators(accumulators)
+            # set accumulators to handler first
+            self.aggs_handle.set_accumulators(accumulators)
 
-        if not first_row and self.generate_update_before:
-            yield from self.aggs_handle.emit_value(key, True)
+            if not first_row and self.generate_update_before:
+                yield from self.aggs_handle.emit_value(current_key, True)
 
-        # update aggregate result and set to the newRow
-        if self.is_accumulate_msg(input_data):
-            # accumulate input
-            self.aggs_handle.accumulate(input_value)
-        else:
-            # retract input
-            self.aggs_handle.retract(input_value)
+            for input_row in input_rows[start_index:]:
+                # update aggregate result and set to the newRow
+                if self.is_accumulate_msg(input_row):
+                    # accumulate input
+                    self.aggs_handle.accumulate(input_row._values)
+                else:
+                    # retract input
+                    self.aggs_handle.retract(input_row._values)
 
-        # get accumulator
-        accumulators = self.aggs_handle.get_accumulators()
+            # get accumulator
+            accumulators = self.aggs_handle.get_accumulators()
 
-        if not self.record_counter.record_count_is_zero(accumulators):
-            yield from self.aggs_handle.emit_value(key, False)
-            accumulator_state.update(accumulators)
-        else:
-            # and clear all state
-            accumulator_state.clear()
-            # cleanup dataview under current key
-            self.aggs_handle.cleanup()
+            if not self.record_counter.record_count_is_zero(accumulators):
+                yield from self.aggs_handle.emit_value(current_key, False)
+                accumulator_state.update(accumulators)
+            else:
+                # and clear all state
+                accumulator_state.clear()
+                # cleanup dataview under current key
+                self.aggs_handle.cleanup()
+        self.buffer = {}

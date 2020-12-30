@@ -85,6 +85,14 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
     cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         self._encode_list_value(iter_value, output_stream)
 
+    cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
+        cdef list result
+        result = []
+        while input_stream.available():
+            self._decode_next_row(input_stream)
+            result.append(self.row[:])
+        return result
+
     cdef void _encode_list_value(self, list results, LengthPrefixOutputStream output_stream):
         cdef list result
         cdef InternalRow value
