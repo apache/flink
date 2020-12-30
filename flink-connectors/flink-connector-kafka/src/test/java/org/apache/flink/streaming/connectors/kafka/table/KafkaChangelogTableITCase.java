@@ -37,6 +37,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -209,6 +210,8 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
         final String topic = "changelog_canal";
         createTestTopic(topic, 1, 1);
 
+        // configure time zone of  the Canal Json metadata "ingestion-timestamp"
+        tEnv.getConfig().setLocalTimeZone(ZoneId.of("UTC"));
         // enables MiniBatch processing to verify MiniBatch + FLIP-95, see FLINK-18769
         Configuration tableConf = tEnv.getConfig().getConfiguration();
         tableConf.setString("table.exec.mini-batch.enabled", "true");
@@ -333,11 +336,11 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 
         List<String> expected =
                 Arrays.asList(
-                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T20:38:35.477,spare tire",
-                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T20:39:06.301,hammer",
-                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T20:39:09.489,rocks",
-                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T20:39:18.230,jacket",
-                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T20:42:33.939,scooter");
+                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T12:38:35.477,spare tire",
+                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T12:39:06.301,hammer",
+                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T12:39:09.489,rocks",
+                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T12:39:18.230,jacket",
+                        "changelog_canal,inventory,products2,{name=12, weight=7, description=12, id=4},[id],2020-05-13T12:42:33.939,scooter");
 
         waitingExpectedResults("sink", expected, Duration.ofSeconds(10));
 
