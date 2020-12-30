@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
+import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
@@ -95,6 +96,30 @@ public class PartitionRequestClientFactoryTest {
         started.get();
         thread.interrupt();
         interrupted.get();
+    }
+
+    @Test
+    public void testExceptionsAreNotCached() throws Exception {
+        NettyTestUtil.NettyServerAndClient nettyServerAndClient = createNettyServerAndClient();
+
+        try {
+            final PartitionRequestClientFactory factory =
+                    new PartitionRequestClientFactory(
+                            new UnstableNettyClient(nettyServerAndClient.client(), 1), 0);
+
+            final ConnectionID connectionID = nettyServerAndClient.getConnectionID(0);
+            try {
+                factory.createPartitionRequestClient(connectionID);
+                fail("Expected the first request to fail.");
+            } catch (RemoteTransportException expected) {
+                // expected
+            }
+
+            factory.createPartitionRequestClient(connectionID);
+        } finally {
+            nettyServerAndClient.client().shutdown();
+            nettyServerAndClient.server().shutdown();
+        }
     }
 
     @Test
