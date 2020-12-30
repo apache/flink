@@ -40,9 +40,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A utility class helps parse, verify, and manage the Kubernetes side parameters
- * that are used for constructing the JobManager Pod and all accompanying resources
- * connected to it.
+ * A utility class helps parse, verify, and manage the Kubernetes side parameters that are used for
+ * constructing the JobManager Pod and all accompanying resources connected to it.
  */
 public class KubernetesJobManagerParameters extends AbstractKubernetesParameters {
 
@@ -50,7 +49,8 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 
 	private final ClusterSpecification clusterSpecification;
 
-	public KubernetesJobManagerParameters(Configuration flinkConfig, ClusterSpecification clusterSpecification) {
+	public KubernetesJobManagerParameters(
+		Configuration flinkConfig, ClusterSpecification clusterSpecification) {
 		super(flinkConfig);
 		this.clusterSpecification = checkNotNull(clusterSpecification);
 	}
@@ -58,7 +58,10 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 	@Override
 	public Map<String, String> getLabels() {
 		final Map<String, String> labels = new HashMap<>();
-		labels.putAll(flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_LABELS).orElse(Collections.emptyMap()));
+		labels.putAll(
+			flinkConfig
+				.getOptional(KubernetesConfigOptions.JOB_MANAGER_LABELS)
+				.orElse(Collections.emptyMap()));
 		labels.putAll(getCommonLabels());
 		labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
 		return Collections.unmodifiableMap(labels);
@@ -67,22 +70,29 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 	@Override
 	public Map<String, String> getNodeSelector() {
 		return Collections.unmodifiableMap(
-			flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_NODE_SELECTOR).orElse(Collections.emptyMap()));
+			flinkConfig
+				.getOptional(KubernetesConfigOptions.JOB_MANAGER_NODE_SELECTOR)
+				.orElse(Collections.emptyMap()));
 	}
 
 	@Override
 	public Map<String, String> getEnvironments() {
-		return ConfigurationUtils.getPrefixedKeyValuePairs(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, flinkConfig);
+		return ConfigurationUtils.getPrefixedKeyValuePairs(
+			ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, flinkConfig);
 	}
 
 	@Override
 	public Map<String, String> getAnnotations() {
-		return flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS).orElse(Collections.emptyMap());
+		return flinkConfig
+			.getOptional(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS)
+			.orElse(Collections.emptyMap());
 	}
 
 	@Override
 	public List<Map<String, String>> getTolerations() {
-		return flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS).orElse(Collections.emptyList());
+		return flinkConfig
+			.getOptional(KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS)
+			.orElse(Collections.emptyList());
 	}
 
 	public List<Map<String, String>> getOwnerReference() {
@@ -90,7 +100,9 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 	}
 
 	public Map<String, String> getRestServiceAnnotations() {
-		return flinkConfig.getOptional(KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS).orElse(Collections.emptyMap());
+		return flinkConfig
+			.getOptional(KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS)
+			.orElse(Collections.emptyMap());
 	}
 
 	public String getJobManagerMainContainerName() {
@@ -124,12 +136,17 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 	}
 
 	public String getServiceAccount() {
-		return flinkConfig.getString(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT);
+		return flinkConfig
+			.getOptional(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT)
+			.orElse(flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT));
 	}
 
 	public String getEntrypointClass() {
-		final String entrypointClass = flinkConfig.getString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS);
-		checkNotNull(entrypointClass, KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS + " must be specified!");
+		final String entrypointClass =
+			flinkConfig.getString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS);
+		checkNotNull(
+			entrypointClass,
+			KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS + " must be specified!");
 
 		return entrypointClass;
 	}
