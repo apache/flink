@@ -17,9 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import java.lang.{Integer => JInt, Long => JLong}
-import java.math.{BigDecimal => JBigDecimal}
-
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -47,15 +44,18 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
+import java.lang.{Integer => JInt, Long => JLong}
+import java.math.{BigDecimal => JBigDecimal}
+
 import scala.collection.{Seq, mutable}
 import scala.util.Random
 
 @RunWith(classOf[Parameterized])
 class AggregateITCase(
-                         aggMode: AggMode,
-                         miniBatch: MiniBatchMode,
-                         backend: StateBackendMode)
-    extends StreamingWithAggTestBase(aggMode, miniBatch, backend) {
+    aggMode: AggMode,
+    miniBatch: MiniBatchMode,
+    backend: StateBackendMode)
+  extends StreamingWithAggTestBase(aggMode, miniBatch, backend) {
 
   val data = List(
     (1000L, 1, "Hello"),

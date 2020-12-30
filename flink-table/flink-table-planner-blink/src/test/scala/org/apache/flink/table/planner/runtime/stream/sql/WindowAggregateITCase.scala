@@ -18,10 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import java.math.BigDecimal
-import java.time.Duration
-import java.util.concurrent.TimeUnit
-
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
@@ -34,14 +30,19 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.S
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
+import java.math.BigDecimal
+import java.time.Duration
+import java.util.concurrent.TimeUnit
+
 @RunWith(classOf[Parameterized])
 class WindowAggregateITCase(mode: StateBackendMode)
-    extends StreamingWithStateTestBase(mode) {
+  extends StreamingWithStateTestBase(mode) {
 
   val data = List(
     (1L, 1, 1d, 1f, new BigDecimal("1"), "Hi", "a"),
@@ -59,9 +60,9 @@ class WindowAggregateITCase(mode: StateBackendMode)
     tEnv.registerFunction("concat_distinct_agg", new ConcatDistinctAggFunction())
 
     val stream = failingDataSource(data)
-        .assignTimestampsAndWatermarks(
-          new TimestampAndWatermarkWithOffset
-              [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset
+          [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
     val table = stream.toTable(tEnv,
       'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
     tEnv.registerTable("T1", table)
@@ -104,9 +105,9 @@ class WindowAggregateITCase(mode: StateBackendMode)
   @Test
   def testCascadingTumbleWindow(): Unit = {
     val stream = failingDataSource(data)
-        .assignTimestampsAndWatermarks(
-          new TimestampAndWatermarkWithOffset
-              [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset
+          [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
     val table = stream.toTable(tEnv,
       'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
     tEnv.registerTable("T1", table)
@@ -144,8 +145,8 @@ class WindowAggregateITCase(mode: StateBackendMode)
       (16L, 16, "Hello", "d"))
 
     val stream = failingDataSource(sessionData)
-        .assignTimestampsAndWatermarks(
-          new TimestampAndWatermarkWithOffset[(Long, Int, String, String)](10L))
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(Long, Int, String, String)](10L))
     val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'string, 'name)
     tEnv.registerTable("T1", table)
 
@@ -193,7 +194,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
       (3L, 1, "Hi")) // too late, drop
 
     val stream = failingDataSource(data)
-        .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
+      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
     tEnv.registerTable("T1", table)
     tEnv.createTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
@@ -255,7 +256,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
       (16L, 16, "Hello")) // (3, Hello)       - window (not merged)
 
     val stream = failingDataSource(sessionWindowTestData)
-        .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
+      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
     val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     tEnv.registerTable("MyTable", table)
 
@@ -283,9 +284,9 @@ class WindowAggregateITCase(mode: StateBackendMode)
   @Test
   def testMinMaxWithTumblingWindow(): Unit = {
     val stream = failingDataSource(data)
-        .assignTimestampsAndWatermarks(
-          new TimestampAndWatermarkWithOffset[(
-              Long, Int, Double, Float, BigDecimal, String, String)](10L))
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
     val table =
       stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
     tEnv.registerTable("T1", table)
@@ -324,9 +325,9 @@ class WindowAggregateITCase(mode: StateBackendMode)
   @Test
   def testWindowAggregateOnConstantValue(): Unit = {
     val stream = failingDataSource(data)
-        .assignTimestampsAndWatermarks(
-          new TimestampAndWatermarkWithOffset[(
-              Long, Int, Double, Float, BigDecimal, String, String)](10L))
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
     val table =
       stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
     tEnv.registerTable("T1", table)
@@ -351,8 +352,8 @@ class WindowAggregateITCase(mode: StateBackendMode)
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
     val lateFireDelay: Duration = tableConfig.getConfiguration
-        .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
-        .orElse(null)
+      .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
+      .orElse(null)
     if (lateFireDelay != null && (lateFireDelay.toMillis != intervalInMillis)) {
       // lateFireInterval of the two query config is not equal and not the default
       throw new RuntimeException(
