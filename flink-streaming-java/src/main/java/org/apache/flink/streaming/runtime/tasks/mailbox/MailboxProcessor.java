@@ -19,10 +19,6 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.MeterView;
-import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
@@ -91,8 +87,6 @@ public class MailboxProcessor implements Closeable {
 
     private final StreamTaskActionExecutor actionExecutor;
 
-    private Meter idleTime = new MeterView(new SimpleCounter());
-
     @VisibleForTesting
     public MailboxProcessor() {
         this(MailboxDefaultAction.Controller::suspendDefaultAction);
@@ -129,10 +123,6 @@ public class MailboxProcessor implements Closeable {
      */
     public MailboxExecutor getMailboxExecutor(int priority) {
         return new MailboxExecutorImpl(mailbox, priority, actionExecutor, this);
-    }
-
-    public void initMetric(TaskMetricGroup metricGroup) {
-        idleTime = metricGroup.getIOMetricGroup().getIdleTimeMsPerSecond();
     }
 
     /** Lifecycle method to close the mailbox for action submission. */
@@ -315,9 +305,7 @@ public class MailboxProcessor implements Closeable {
         while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
             maybeMail = mailbox.tryTake(MIN_PRIORITY);
             if (!maybeMail.isPresent()) {
-                long start = System.currentTimeMillis();
                 maybeMail = Optional.of(mailbox.take(MIN_PRIORITY));
-                idleTime.markEvent(System.currentTimeMillis() - start);
             }
             maybeMail.get().run();
             processed = true;
@@ -352,11 +340,6 @@ public class MailboxProcessor implements Closeable {
     @VisibleForTesting
     public boolean isMailboxLoopRunning() {
         return mailboxLoopRunning;
-    }
-
-    @VisibleForTesting
-    public Meter getIdleTime() {
-        return idleTime;
     }
 
     @VisibleForTesting

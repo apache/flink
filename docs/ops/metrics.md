@@ -1250,7 +1250,12 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
     </tr>
     <tr>
       <td>idleTimeMsPerSecond</td>
-      <td>The time (in milliseconds) this task is idle (either has no data to process or it is back pressured) per second.</td>
+      <td>The time (in milliseconds) this task is idle (has no data to process) per second. Idle time excludes back pressured time, so if the task is back pressured it is not idle.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <td>backPressuredTimeMsPerSecond</td>
+      <td>The time (in milliseconds) this task is back pressured per second.</td>
       <td>Meter</td>
     </tr>
     <tr>
