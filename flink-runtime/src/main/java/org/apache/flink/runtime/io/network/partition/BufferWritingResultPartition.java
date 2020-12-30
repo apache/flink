@@ -64,7 +64,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     /** For broadcast mode, a single BufferBuilder is shared by all subpartitions. */
     private BufferBuilder broadcastBufferBuilder;
 
-    private Meter idleTimeMsPerSecond = new MeterView(new SimpleCounter());
+    private Meter backPressuredTimeMsPerSecond = new MeterView(new SimpleCounter());
 
     public BufferWritingResultPartition(
             String owningTaskName,
@@ -193,7 +193,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     @Override
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         super.setMetricGroup(metrics);
-        idleTimeMsPerSecond = metrics.getIdleTimeMsPerSecond();
+        backPressuredTimeMsPerSecond = metrics.getBackPressuredTimePerSecond();
     }
 
     @Override
@@ -335,10 +335,11 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             return bufferBuilder;
         }
 
-        final long start = System.currentTimeMillis();
         try {
+            long start = System.currentTimeMillis();
             bufferBuilder = bufferPool.requestBufferBuilderBlocking(targetSubpartition);
-            idleTimeMsPerSecond.markEvent(System.currentTimeMillis() - start);
+            long backPressuredTime = System.currentTimeMillis() - start;
+            backPressuredTimeMsPerSecond.markEvent(backPressuredTime);
             return bufferBuilder;
         } catch (InterruptedException e) {
             throw new IOException("Interrupted while waiting for buffer");
@@ -377,8 +378,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @VisibleForTesting
-    public Meter getIdleTimeMsPerSecond() {
-        return idleTimeMsPerSecond;
+    public Meter getBackPressuredTimeMsPerSecond() {
+        return backPressuredTimeMsPerSecond;
     }
 
     @VisibleForTesting

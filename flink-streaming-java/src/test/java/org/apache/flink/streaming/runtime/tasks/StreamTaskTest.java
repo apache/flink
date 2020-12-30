@@ -51,6 +51,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -116,6 +117,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1241,6 +1243,7 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testProcessWithUnAvailableOutput() throws Exception {
+        final long sleepTime = 42;
         try (final MockEnvironment environment = setupEnvironment(new boolean[] {true, false})) {
             final int numberOfProcessCalls = 10;
             final AvailabilityTestInputProcessor inputProcessor =
@@ -1253,6 +1256,7 @@ public class StreamTaskTest extends TestLogger {
 
             final RunnableWithException completeFutureTask =
                     () -> {
+                        Thread.sleep(sleepTime + 1);
                         assertEquals(1, inputProcessor.currentNumProcessCalls);
                         assertTrue(task.mailboxProcessor.isDefaultActionUnavailable());
                         environment.getWriter(1).getAvailableFuture().complete(null);
@@ -1266,8 +1270,36 @@ public class StreamTaskTest extends TestLogger {
                     },
                     "This task will submit another task to execute after processing input once.");
 
+            TaskIOMetricGroup ioMetricGroup =
+                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
             task.invoke();
+            assertThat(
+                    ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
+                    Matchers.greaterThanOrEqualTo(sleepTime));
+            assertThat(ioMetricGroup.getIdleTimeMsPerSecond().getCount(), is(0L));
             assertEquals(numberOfProcessCalls, inputProcessor.currentNumProcessCalls);
+        }
+    }
+
+    @Test
+    public void testProcessWithUnAvailableInput() throws Exception {
+        final long unAvailableTime = 42;
+        try (final MockEnvironment environment = setupEnvironment(new boolean[] {true, true})) {
+            final UnAvailableTestInputProcessor inputProcessor =
+                    new UnAvailableTestInputProcessor(unAvailableTime);
+            final StreamTask task =
+                    new MockStreamTaskBuilder(environment)
+                            .setStreamInputProcessor(inputProcessor)
+                            .build();
+
+            TaskIOMetricGroup ioMetricGroup =
+                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
+            task.invoke();
+
+            assertThat(
+                    ioMetricGroup.getIdleTimeMsPerSecond().getCount(),
+                    Matchers.greaterThanOrEqualTo(unAvailableTime));
+            assertThat(ioMetricGroup.getBackPressuredTimePerSecond().getCount(), is(0L));
         }
     }
 
@@ -1430,6 +1462,76 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public CompletableFuture<?> getAvailableFuture() {
             return AVAILABLE;
+        }
+    }
+
+    /**
+     * A stream input processor implementation with input unavailable for a specified amount of
+     * time, after which processor is closing.
+     */
+    private static class UnAvailableTestInputProcessor implements StreamInputProcessor {
+        private final AvailabilityHelper availabilityProvider = new AvailabilityHelper();
+        private final Thread timerThread;
+
+        private boolean timerTriggered;
+
+        private volatile Exception asyncException;
+
+        public UnAvailableTestInputProcessor(long unAvailableTime) {
+            timerThread =
+                    new Thread() {
+                        @Override
+                        public void run() {
+                            try {
+                                Thread.sleep(unAvailableTime);
+                                availabilityProvider
+                                        .getUnavailableToResetAvailable()
+                                        .complete(null);
+                            } catch (Exception e) {
+                                asyncException = e;
+                            }
+                        }
+                    };
+        }
+
+        @Override
+        public InputStatus processInput() {
+            maybeTriggerTimer();
+            return availabilityProvider.isAvailable()
+                    ? InputStatus.END_OF_INPUT
+                    : InputStatus.NOTHING_AVAILABLE;
+        }
+
+        @Override
+        public CompletableFuture<Void> prepareSnapshot(
+                ChannelStateWriter channelStateWriter, final long checkpointId) {
+            return FutureUtils.completedVoidFuture();
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (asyncException != null) {
+                throw new IOException(asyncException);
+            }
+            try {
+                timerThread.join();
+            } catch (InterruptedException e) {
+                throw new IOException(e);
+            }
+        }
+
+        @Override
+        public CompletableFuture<?> getAvailableFuture() {
+            maybeTriggerTimer();
+            return availabilityProvider.getAvailableFuture();
+        }
+
+        private void maybeTriggerTimer() {
+            if (timerTriggered) {
+                return;
+            }
+            timerTriggered = true;
+            timerThread.start();
         }
     }
 
