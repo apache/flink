@@ -21,7 +21,7 @@ from functools import reduce
 from itertools import chain
 
 from apache_beam.coders import PickleCoder
-from typing import Tuple, Any
+from typing import Tuple, Any, List
 
 from pyflink.datastream import TimeDomain
 from pyflink.datastream.functions import RuntimeContext, TimerService, ProcessFunction, \
@@ -333,15 +333,16 @@ class AbstractStreamGroupAggregateOperation(StatefulFunctionOperation):
 
         return self.process_element_or_timer, []
 
-    def process_element_or_timer(self, input_data: Tuple[int, Row, int, Row]):
+    def process_element_or_timer(self, input_datas: List[Tuple[int, Row, int, Row]]):
         # the structure of the input data:
         # [element_type, element(for process_element), timestamp(for timer), key(for timer)]
         # all the fields are nullable except the "element_type"
-        if input_data[0] != TRIGGER_TIMER:
-            return self.group_agg_function.process_element(input_data[1])
-        else:
-            self.group_agg_function.on_timer(input_data[3])
-            return []
+        for input_data in input_datas:
+            if input_data[0] != TRIGGER_TIMER:
+                self.group_agg_function.process_element(input_data[1])
+            else:
+                self.group_agg_function.on_timer(input_data[3])
+        return self.group_agg_function.finish_bundle()
 
     @abc.abstractmethod
     def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
