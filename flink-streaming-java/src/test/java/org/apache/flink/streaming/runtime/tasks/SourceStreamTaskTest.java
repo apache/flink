@@ -110,7 +110,7 @@ public class SourceStreamTaskTest {
     }
 
     @Test(timeout = 60_000)
-    public void testStartDelayMetric() throws Exception {
+    public void testMetrics() throws Exception {
         long sleepTime = 42;
         StreamTaskMailboxTestHarnessBuilder<String> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
@@ -145,6 +145,8 @@ public class SourceStreamTaskTest {
                 (Gauge<Long>) metrics.get(MetricNames.CHECKPOINT_START_DELAY_TIME);
         assertThat(
                 checkpointStartDelayGauge.getValue(), greaterThanOrEqualTo(sleepTime * 1_000_000));
+        Gauge<Double> busyTimeGauge = (Gauge<Double>) metrics.get(MetricNames.TASK_BUSY_TIME);
+        assertTrue(Double.isNaN(busyTimeGauge.getValue()));
     }
 
     /**

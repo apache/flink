@@ -1259,6 +1259,11 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Meter</td>
     </tr>
     <tr>
+      <td>busyTimeMsPerSecond</td>
+      <td>The time (in milliseconds) this task is busy (neither idle nor back pressured) per second. Can be NaN, if the value could not be calculated.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
       <th rowspan="6"><strong>Task/Operator</strong></th>
       <td>numRecordsIn</td>
       <td>The total number of records this operator/task has received.</td>
