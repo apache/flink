@@ -1596,6 +1596,28 @@ public class LocalExecutorITCase extends TestLogger {
         executor.closeSession(sessionId);
     }
 
+    @Test
+    public void testCreateFunctionWithHiveCatalog() throws Exception {
+        final Map<String, String> replaceVars = new HashMap<>();
+        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+        replaceVars.put("$VAR_MAX_ROWS", "100");
+        replaceVars.put("$VAR_RESULT_MODE", "table");
+
+        final Executor executor =
+                createModifiedExecutor(CATALOGS_ENVIRONMENT_FILE, clusterClient, replaceVars);
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        assertEquals("test-session", sessionId);
+
+        executor.executeSql(sessionId, "use catalog hivecatalog");
+        executor.executeSql(sessionId, "create function lowerudf AS 'LowerUDF'");
+        assertShowResult(executor.executeSql(sessionId, "show functions"), hasItems("lowerudf"));
+
+        executor.closeSession(sessionId);
+    }
+
     private void executeStreamQueryTable(
             Map<String, String> replaceVars, String query, List<String> expectedResults)
             throws Exception {
@@ -1710,7 +1732,7 @@ public class LocalExecutorITCase extends TestLogger {
         replaceVars.putIfAbsent("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
         return new LocalExecutor(
                 EnvironmentFileUtil.parseModified(yamlFile, replaceVars),
-                Collections.emptyList(),
+                Collections.singletonList(udfDependency),
                 clusterClient.getFlinkConfiguration(),
                 new DefaultCLI(),
                 new DefaultClusterClientServiceLoader());
