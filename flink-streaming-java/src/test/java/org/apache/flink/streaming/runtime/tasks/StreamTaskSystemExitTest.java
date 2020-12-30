@@ -18,113 +18,241 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.UserSystemExitException;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
+import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
-import org.apache.flink.runtime.security.FlinkUserSecurityManager;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.security.FlinkSecurityManager;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
+import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.taskmanager.TaskManagerActions;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertFalse;
+import java.util.Collections;
+
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 
 /**
- * Tests for stream task where user-invokable codes try to exit JVM.
- * Currently, monitoring system exit is enabled inside relevant methods that can call user-defined
- * functions in {@code StreamTask}.
+ * Tests for stream task where user-invokable codes try to exit JVM. Currently, monitoring system
+ * exit is enabled inside relevant methods that can call user-defined functions in {@code
+ * StreamTask}.
  */
-public class StreamTaskSystemExitTest {
-	private static final int TEST_EXIT_CODE = 123;
-	private FlinkUserSecurityManager flinkUserSecurityManager;
+public class StreamTaskSystemExitTest extends TestLogger {
+    private static final int TEST_EXIT_CODE = 123;
+    private SecurityManager originalSecurityManager;
 
-	@Before
-	public void setUp() {
-		flinkUserSecurityManager = new FlinkUserSecurityManager(FlinkUserSecurityManager.CheckExitMode.THROW);
-		System.setSecurityManager(flinkUserSecurityManager);
-	}
+    @Before
+    public void setUp() {
+        Configuration configuration = new Configuration();
+        configuration.set(
+                ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT, ClusterOptions.UserSystemExitMode.THROW);
+        originalSecurityManager = System.getSecurityManager();
+        FlinkSecurityManager.setFromConfiguration(configuration);
+    }
 
-	@After
-	public void tearDown() {
-		assertFalse(flinkUserSecurityManager.systemExitMonitored());
-		System.setSecurityManager(flinkUserSecurityManager.getOriginalSecurityManager());
-	}
+    @After
+    public void tearDown() {
+        System.setSecurityManager(originalSecurityManager);
+    }
 
-	@Test(expected = UserSystemExitException.class)
-	public void testInitSystemExitStreamTask() throws Exception {
-		Environment mockEnvironment = new MockEnvironmentBuilder().build();
-		SystemExitStreamTask systemExitStreamTask = new SystemExitStreamTask(mockEnvironment, SystemExitStreamTask.ExitPoint.INIT);
-		systemExitStreamTask.invoke();
-	}
+    @Test
+    public void testInitSystemExitStreamTask() throws Exception {
+        Task task = createSystemExitTask(InitSystemExitStreamTask.class.getName());
+        task.run();
+        assertEquals(task.getFailureCause().getClass(), UserSystemExitException.class);
+    }
 
-	@Test(expected = UserSystemExitException.class)
-	public void testProcessInputSystemExitStreamTask() throws Exception {
-		Environment mockEnvironment = new MockEnvironmentBuilder().build();
-		SystemExitStreamTask systemExitStreamTask = new SystemExitStreamTask(mockEnvironment, SystemExitStreamTask.ExitPoint.PROCESS_INPUT);
-		systemExitStreamTask.invoke();
-	}
+    @Test
+    public void testProcessInputSystemExitStreamTask() throws Exception {
+        Task task = createSystemExitTask(ProcessInputSystemExitStreamTask.class.getName());
+        task.run();
+        assertEquals(task.getFailureCause().getClass(), UserSystemExitException.class);
+    }
 
-	@Test(expected = UserSystemExitException.class)
-	public void testCancelSystemExitStreamTask() throws Exception {
-		Environment mockEnvironment = new MockEnvironmentBuilder().build();
-		SystemExitStreamTask systemExitStreamTask = new SystemExitStreamTask(mockEnvironment);
-		systemExitStreamTask.cancel();
-	}
+    @Test(expected = UserSystemExitException.class)
+    public void testCancelSystemExitStreamTask() throws Exception {
+        Environment mockEnvironment = new MockEnvironmentBuilder().build();
+        SystemExitStreamTask systemExitStreamTask =
+                new SystemExitStreamTask(mockEnvironment, SystemExitStreamTask.ExitPoint.CANCEL);
+        systemExitStreamTask.cancel();
+    }
 
-	private static class SystemExitStreamTask extends StreamTask<String, AbstractStreamOperator<String>> {
-		/**
-		 * Inside invoke() call, specify where system exit is called.
-		 */
-		private enum ExitPoint {
-			NONE,
-			INIT,
-			PROCESS_INPUT,
-		}
+    private Task createSystemExitTask(final String invokableClassName) throws Exception {
+        final Configuration taskConfiguration = new Configuration();
+        final StreamConfig streamConfig = new StreamConfig(taskConfiguration);
 
-		private final ExitPoint exitPoint;
+        streamConfig.setOperatorID(new OperatorID());
 
-		public SystemExitStreamTask(Environment env) throws Exception {
-			this(env, ExitPoint.NONE);
-		}
+        final JobInformation jobInformation =
+                new JobInformation(
+                        new JobID(),
+                        "Test Job",
+                        new SerializedValue<>(new ExecutionConfig()),
+                        new Configuration(),
+                        Collections.emptyList(),
+                        Collections.emptyList());
 
-		public SystemExitStreamTask(Environment env, ExitPoint exitPoint) throws Exception {
-			super(env, null);
-			this.exitPoint = exitPoint;
-		}
+        final TaskInformation taskInformation =
+                new TaskInformation(
+                        new JobVertexID(),
+                        "Test Task",
+                        1,
+                        1,
+                        invokableClassName,
+                        taskConfiguration);
 
-		@Override
-		protected void init() {
-			if (exitPoint == ExitPoint.INIT) {
-				systemExit();
-			}
-		}
+        final TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
-		@Override
-		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-			if (exitPoint == ExitPoint.PROCESS_INPUT) {
-				systemExit();
-			}
-		}
+        final ShuffleEnvironment<?, ?> shuffleEnvironment =
+                new NettyShuffleEnvironmentBuilder().build();
 
-		@Override
-		protected void cleanup() {}
+        return new Task(
+                jobInformation,
+                taskInformation,
+                new ExecutionAttemptID(),
+                new AllocationID(),
+                0,
+                0,
+                Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+                Collections.<InputGateDeploymentDescriptor>emptyList(),
+                0,
+                MemoryManagerBuilder.newBuilder().setMemorySize(32L * 1024L).build(),
+                new IOManagerAsync(),
+                shuffleEnvironment,
+                new KvStateService(new KvStateRegistry(), null, null),
+                mock(BroadcastVariableManager.class),
+                new TaskEventDispatcher(),
+                ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                new TestTaskStateManager(),
+                mock(TaskManagerActions.class),
+                mock(InputSplitProvider.class),
+                mock(CheckpointResponder.class),
+                new NoOpTaskOperatorEventGateway(),
+                new TestGlobalAggregateManager(),
+                TestingClassLoaderLease.newBuilder().build(),
+                mock(FileCache.class),
+                taskManagerRuntimeInfo,
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                new NoOpResultPartitionConsumableNotifier(),
+                mock(PartitionProducerStateChecker.class),
+                Executors.directExecutor());
+    }
 
-		@Override
-		protected void cancelTask() {
-			systemExit();
-		}
+    /** StreamTask emulating system exit behavior from different callback functions. */
+    public static class SystemExitStreamTask
+            extends StreamTask<String, AbstractStreamOperator<String>> {
+        private final ExitPoint exitPoint;
 
-		/**
-		 * Perform the check System.exit() does through security manager without actually calling System.exit() not to
-		 * confuse Junit about failed test.
-		 */
-		private void systemExit() {
-			SecurityManager securityManager = System.getSecurityManager();
-			if (securityManager != null) {
-				securityManager.checkExit(TEST_EXIT_CODE);
-			}
-		}
-	}
+        public SystemExitStreamTask(Environment env) throws Exception {
+            this(env, ExitPoint.NONE);
+        }
+
+        public SystemExitStreamTask(Environment env, ExitPoint exitPoint) throws Exception {
+            super(env, null);
+            this.exitPoint = exitPoint;
+        }
+
+        @Override
+        protected void init() {
+            if (exitPoint == ExitPoint.INIT) {
+                systemExit();
+            }
+        }
+
+        @Override
+        protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+            if (exitPoint == ExitPoint.PROCESS_INPUT) {
+                systemExit();
+            }
+        }
+
+        @Override
+        protected void cleanup() {}
+
+        @Override
+        protected void cancelTask() {
+            if (exitPoint == ExitPoint.CANCEL) {
+                systemExit();
+            }
+        }
+
+        /**
+         * Perform the check System.exit() does through security manager without actually calling
+         * System.exit() not to confuse Junit about failed test.
+         */
+        private void systemExit() {
+            SecurityManager securityManager = System.getSecurityManager();
+            if (securityManager != null) {
+                securityManager.checkExit(TEST_EXIT_CODE);
+            }
+        }
+
+        /** Inside invoke() call, specify where system exit is called. */
+        protected enum ExitPoint {
+            NONE,
+            INIT,
+            PROCESS_INPUT,
+            CANCEL,
+        }
+    }
+
+    /**
+     * {@link SystemExitStreamTask} with default constructor configured to exit at init function.
+     */
+    public static class InitSystemExitStreamTask extends SystemExitStreamTask {
+        public InitSystemExitStreamTask(Environment env) throws Exception {
+            super(env, ExitPoint.INIT);
+        }
+    }
+
+    /**
+     * {@link SystemExitStreamTask} with default constructor configured to exit at process input
+     * function.
+     */
+    public static class ProcessInputSystemExitStreamTask extends SystemExitStreamTask {
+        public ProcessInputSystemExitStreamTask(Environment env) throws Exception {
+            super(env, ExitPoint.PROCESS_INPUT);
+        }
+    }
 }

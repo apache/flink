@@ -21,10 +21,15 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Options which control the cluster behaviour. */
 @PublicEvolving
@@ -88,20 +93,27 @@ public class ClusterOptions {
                                     .build());
 
     @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
-    public static final ConfigOption<Boolean> HALT_ON_FATAL_ERROR =
-            key("cluster.processes.halt-on-fatal-error")
+    public static final ConfigOption<Boolean> HALT_ON_SYSTEM_EXIT =
+            key("cluster.processes.halt-on-system-exit")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Whether processes should halt on fatal errors instead of performing a graceful shutdown. "
+                                            "Whether processes should halt on system exit instead of performing a graceful shutdown. "
                                                     + "In some environments (e.g. Java 8 with the G1 garbage collector), a regular graceful shutdown can lead "
                                                     + "to a JVM deadlock. See %s for details.",
                                             link(
                                                     "https://issues.apache.org/jira/browse/FLINK-16510",
                                                     "FLINK-16510"))
                                     .build());
+
+    @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
+    public static final ConfigOption<UserSystemExitMode> INTERCEPT_USER_SYSTEM_EXIT =
+            key("cluster.intercept-user-system-exit")
+                    .enumType(UserSystemExitMode.class)
+                    .defaultValue(UserSystemExitMode.DISABLED)
+                    .withDescription(UserSystemExitMode.getConfigDescription());
 
     @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Boolean> ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT =
@@ -114,5 +126,36 @@ public class ClusterOptions {
     public static boolean isDeclarativeResourceManagementEnabled(Configuration configuration) {
         return configuration.get(ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT)
                 && !System.getProperties().containsKey("flink.tests.disable-declarative");
+    }
+
+    /** The mode of how to handle user code attempting to exit JVM. */
+    public enum UserSystemExitMode {
+        DISABLED("No check is enabled, that is allowing exit without any action"),
+        LOG("Log exit attempt with stack trace but still allowing exit to be performed"),
+        THROW("Throw exception when exit is attempted disallowing JVM termination");
+
+        private final String description;
+
+        UserSystemExitMode(String description) {
+            this.description = description;
+        }
+
+        public static Description getConfigDescription() {
+            Description.DescriptionBuilder builder = Description.builder();
+            List<TextElement> modeDescriptions =
+                    new ArrayList<>(UserSystemExitMode.values().length);
+            builder.text(
+                    "Flag to check user code exiting system by terminating JVM (e.g., System.exit())");
+            for (UserSystemExitMode mode : UserSystemExitMode.values()) {
+                modeDescriptions.add(
+                        text(String.format("%s - %s", mode.name(), mode.getDescription())));
+            }
+            builder.list(modeDescriptions.toArray(new TextElement[modeDescriptions.size()]));
+            return builder.build();
+        }
+
+        public String getDescription() {
+            return description;
+        }
     }
 }
