@@ -69,7 +69,8 @@ public class CatalogFunctionImpl implements CatalogFunction {
             return true;
         }
         try {
-            Class c = Class.forName(className);
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            Class c = Class.forName(className, true, cl);
             if (UserDefinedFunction.class.isAssignableFrom(c)) {
                 return true;
             }
