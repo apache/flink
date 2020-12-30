@@ -493,7 +493,7 @@ public class ResultPartitionTest {
     }
 
     @Test
-    public void testIdleTime() throws IOException, InterruptedException {
+    public void testIdleAndBackPressuredTime() throws IOException, InterruptedException {
         // setup
         int bufferSize = 1024;
         NetworkBufferPool globalPool = new NetworkBufferPool(10, bufferSize);
@@ -509,8 +509,8 @@ public class ResultPartitionTest {
         Buffer buffer = readView.getNextBuffer().buffer();
         assertNotNull(buffer);
 
-        // idle time is zero when there is buffer available.
-        assertEquals(0, resultPartition.getIdleTimeMsPerSecond().getCount());
+        // back-pressured time is zero when there is buffer available.
+        assertEquals(0, resultPartition.getBackPressuredTimeMsPerSecond().getCount());
 
         CountDownLatch syncLock = new CountDownLatch(1);
         final Thread requestThread =
@@ -536,7 +536,8 @@ public class ResultPartitionTest {
         requestThread.join();
 
         Assert.assertThat(
-                resultPartition.getIdleTimeMsPerSecond().getCount(), Matchers.greaterThan(0L));
+                resultPartition.getBackPressuredTimeMsPerSecond().getCount(),
+                Matchers.greaterThan(0L));
         assertNotNull(readView.getNextBuffer().buffer());
     }
 
