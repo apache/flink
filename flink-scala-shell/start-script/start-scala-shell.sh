@@ -82,18 +82,14 @@ fi
 MODE=$1
 LOG=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-scala-shell-$MODE-$HOSTNAME.log
 
-if [[ ($MODE = "local") || ($MODE = "remote") ]]
+if [[ $MODE = "yarn" ]]
 then
-    LOG4J_CONFIG=log4j.properties
-    LOGBACK_CONFIG=logback.xml
-elif [[ $MODE = "yarn" ]]
-then
-    LOG4J_CONFIG=log4j-session.properties
+	LOG4J_CONFIG=log4j-session.properties
     LOGBACK_CONFIG=logback-session.xml
     FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
 else
-# Fallback when mode is not provided or illegal
-    LOG4J_CONFIG=log4j.properties
+	# Set the default log config when MODE is something other than yarn. eg: local, remote or other invalid mode.
+	LOG4J_CONFIG=log4j.properties
     LOGBACK_CONFIG=logback.xml
 fi
 
