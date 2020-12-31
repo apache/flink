@@ -23,7 +23,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -47,6 +46,7 @@ import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -406,8 +406,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         }
 
         TaskIOMetricGroup ioMetrics = getEnvironment().getMetricGroup().getIOMetricGroup();
-        final long startTime = System.currentTimeMillis();
-        Meter timer;
+        TimerGauge timer;
         CompletableFuture<?> resumeFuture;
         if (!recordWriter.isAvailable()) {
             timer = ioMetrics.getBackPressuredTimePerSecond();
@@ -417,7 +416,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             resumeFuture = inputProcessor.getAvailableFuture();
         }
         assertNoException(
-                resumeFuture.thenRun(new ResumeWrapper(controller.suspendDefaultAction(), timer, startTime)));
+                resumeFuture.thenRun(new ResumeWrapper(controller.suspendDefaultAction(), timer)));
     }
 
     private void resetSynchronousSavepointId() {
@@ -1323,18 +1322,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     private static class ResumeWrapper implements Runnable {
         private final Suspension suspendedDefaultAction;
-        private final Meter timer;
-        private final long startTime;
+        private final TimerGauge timer;
 
-        public ResumeWrapper(Suspension suspendedDefaultAction, Meter timer, long startTime) {
+        public ResumeWrapper(Suspension suspendedDefaultAction, TimerGauge timer) {
             this.suspendedDefaultAction = suspendedDefaultAction;
+            timer.markStart();
             this.timer = timer;
-            this.startTime = startTime;
         }
 
         @Override
         public void run() {
-            timer.markEvent(System.currentTimeMillis() - startTime);
+            timer.markEnd();
             suspendedDefaultAction.resume();
         }
     }
