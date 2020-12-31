@@ -424,7 +424,7 @@ public class KafkaSourceBuilder<OUT> {
                 true);
 
         // If the source is bounded, do not run periodic partition discovery.
-        if (maybeOverride(
+        if (maybeOverridePartitionDiscovery(
                 KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(),
                 "-1",
                 boundedness == Boundedness.BOUNDED)) {
@@ -454,6 +454,29 @@ public class KafkaSourceBuilder<OUT> {
             }
         } else {
             props.setProperty(key, value);
+        }
+        return overridden;
+    }
+
+    private boolean maybeOverridePartitionDiscovery(String key, String value, boolean override) {
+        boolean overridden = false;
+        String userValue = props.getProperty(key);
+        if (override) {
+            LOG.warn(
+                    String.format(
+                            "Property %s is provided but will be overridden from %s to %s",
+                            key, userValue, value));
+            props.setProperty(key, value);
+            overridden = true;
+        } else {
+            if (userValue != null) {
+
+            } else {
+                props.setProperty(key,
+                        KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS
+                                .defaultValue()
+                                .toString());
+            }
         }
         return overridden;
     }
