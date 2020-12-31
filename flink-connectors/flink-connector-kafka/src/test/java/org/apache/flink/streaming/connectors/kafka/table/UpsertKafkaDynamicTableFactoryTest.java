@@ -21,6 +21,10 @@ package org.apache.flink.streaming.connectors.kafka.table;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
+import org.apache.flink.formats.avro.RowDataToAvroConverters;
+import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSerializationSchema;
+import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
@@ -47,6 +51,7 @@ import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.TestLogger;
 
@@ -61,6 +66,7 @@ import java.util.Properties;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.AVRO_CONFLUENT;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -72,6 +78,10 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
     private static final String SOURCE_TOPIC = "sourceTopic_1";
 
     private static final String SINK_TOPIC = "sinkTopic";
+
+    private static final String TEST_REGISTRY_URL = "http://localhost:8081";
+    private static final String DEFAULT_VALUE_SUBJECT = SINK_TOPIC + "-value";
+    private static final String DEFAULT_KEY_SUBJECT = SINK_TOPIC + "-key";
 
     private static final TableSchema SOURCE_SCHEMA =
             TableSchema.builder()
@@ -211,6 +221,112 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
         assertTrue(sinkFunctionProvider.getParallelism().isPresent());
         assertEquals(100, (long) sinkFunctionProvider.getParallelism().get());
+    }
+
+    @Test
+    public void testTableSinkAutoCompleteSchemaRegistrySubject() {
+        // value.format + key.format
+        verifyEncoderSubject(
+                options -> {
+                    options.put("value.format", "avro-confluent");
+                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("key.format", "avro-confluent");
+                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                },
+                DEFAULT_VALUE_SUBJECT,
+                DEFAULT_KEY_SUBJECT);
+
+        // value.format + non-avro key.format
+        verifyEncoderSubject(
+                options -> {
+                    options.put("value.format", "avro-confluent");
+                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("key.format", "csv");
+                },
+                DEFAULT_VALUE_SUBJECT,
+                "N/A");
+
+        // non-avro value.format + key.format
+        verifyEncoderSubject(
+                options -> {
+                    options.put("value.format", "json");
+                    options.put("key.format", "avro-confluent");
+                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                },
+                "N/A",
+                DEFAULT_KEY_SUBJECT);
+
+        // not override for 'key.format'
+        verifyEncoderSubject(
+                options -> {
+                    options.put("value.format", "avro-confluent");
+                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("key.format", "avro-confluent");
+                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("key.avro-confluent.schema-registry.subject", "sub2");
+                },
+                DEFAULT_VALUE_SUBJECT,
+                "sub2");
+
+        // not override for 'value.format'
+        verifyEncoderSubject(
+                options -> {
+                    options.put("value.format", "avro-confluent");
+                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("value.avro-confluent.schema-registry.subject", "sub1");
+                    options.put("key.format", "avro-confluent");
+                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                },
+                "sub1",
+                DEFAULT_KEY_SUBJECT);
+    }
+
+    private void verifyEncoderSubject(
+            Consumer<Map<String, String>> optionModifier,
+            String expectedValueSubject,
+            String expectedKeySubject) {
+        Map<String, String> options = new HashMap<>();
+        // Kafka specific options.
+        options.put("connector", UpsertKafkaDynamicTableFactory.IDENTIFIER);
+        options.put("topic", SINK_TOPIC);
+        options.put("properties.group.id", "dummy");
+        options.put("properties.bootstrap.servers", "dummy");
+        optionModifier.accept(options);
+
+        final RowType rowType = (RowType) SINK_SCHEMA.toRowDataType().getLogicalType();
+        final String valueFormat =
+                options.getOrDefault(
+                        FactoryUtil.FORMAT.key(), options.get(KafkaOptions.VALUE_FORMAT.key()));
+        final String keyFormat = options.get(KafkaOptions.KEY_FORMAT.key());
+
+        KafkaDynamicSink sink = (KafkaDynamicSink) createActualSink(SINK_SCHEMA, options);
+
+        if (AVRO_CONFLUENT.equals(valueFormat)) {
+            SerializationSchema<RowData> actualValueEncoder =
+                    sink.valueEncodingFormat.createRuntimeEncoder(
+                            new SinkRuntimeProviderContext(false), SINK_SCHEMA.toRowDataType());
+            assertEquals(
+                    createConfluentAvroSerSchema(rowType, expectedValueSubject),
+                    actualValueEncoder);
+        }
+
+        if (AVRO_CONFLUENT.equals(keyFormat)) {
+            assert sink.keyEncodingFormat != null;
+            SerializationSchema<RowData> actualKeyEncoder =
+                    sink.keyEncodingFormat.createRuntimeEncoder(
+                            new SinkRuntimeProviderContext(false), SINK_SCHEMA.toRowDataType());
+            assertEquals(
+                    createConfluentAvroSerSchema(rowType, expectedKeySubject), actualKeyEncoder);
+        }
+    }
+
+    private SerializationSchema<RowData> createConfluentAvroSerSchema(
+            RowType rowType, String subject) {
+        return new AvroRowDataSerializationSchema(
+                rowType,
+                ConfluentRegistryAvroSerializationSchema.forGeneric(
+                        subject, AvroSchemaConverter.convertToSchema(rowType), TEST_REGISTRY_URL),
+                RowDataToAvroConverters.createConverter(rowType));
     }
 
     // --------------------------------------------------------------------------------------------
