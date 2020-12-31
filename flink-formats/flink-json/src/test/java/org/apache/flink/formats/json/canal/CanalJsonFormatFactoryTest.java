@@ -36,6 +36,7 @@ import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
@@ -43,6 +44,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -61,7 +63,9 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                     .field("c", DataTypes.BOOLEAN())
                     .build();
 
-    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
+    private static final DataType PHYSICAL_DATA_TYPE = SCHEMA.toPhysicalRowDataType();
+
+    private static final RowType ROW_TYPE = (RowType) PHYSICAL_DATA_TYPE.getLogicalType();
 
     private static final InternalTypeInfo<RowData> ROW_TYPE_INFO = InternalTypeInfo.of(ROW_TYPE);
 
@@ -71,7 +75,8 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 
         // test Deser
         CanalJsonDeserializationSchema expectedDeser =
-                CanalJsonDeserializationSchema.builder(ROW_TYPE, ROW_TYPE_INFO)
+                CanalJsonDeserializationSchema.builder(
+                                PHYSICAL_DATA_TYPE, Collections.emptyList(), ROW_TYPE_INFO)
                         .setIgnoreParseErrors(false)
                         .setTimestampFormat(TimestampFormat.SQL)
                         .build();
@@ -98,7 +103,8 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 
         // test Deser
         CanalJsonDeserializationSchema expectedDeser =
-                CanalJsonDeserializationSchema.builder(ROW_TYPE, ROW_TYPE_INFO)
+                CanalJsonDeserializationSchema.builder(
+                                PHYSICAL_DATA_TYPE, Collections.emptyList(), ROW_TYPE_INFO)
                         .setIgnoreParseErrors(true)
                         .setTimestampFormat(TimestampFormat.ISO_8601)
                         .setDatabase("mydb")
@@ -198,7 +204,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                 (TestDynamicTableFactory.DynamicTableSourceMock) source;
 
         return scanSourceMock.valueFormat.createRuntimeDecoder(
-                ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+                ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
     }
 
     private static SerializationSchema<RowData> createSerializationSchema(
@@ -217,6 +223,6 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                 (TestDynamicTableFactory.DynamicTableSinkMock) sink;
 
         return sinkMock.valueFormat.createRuntimeEncoder(
-                new SinkRuntimeProviderContext(false), SCHEMA.toRowDataType());
+                new SinkRuntimeProviderContext(false), PHYSICAL_DATA_TYPE);
     }
 }

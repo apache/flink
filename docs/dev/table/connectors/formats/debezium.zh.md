@@ -228,11 +228,15 @@ The following example shows how to access Debezium metadata fields in Kafka:
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE KafkaTable (
-  `event_time` TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
-  `origin_table` STRING METADATA FROM 'value.source.table' VIRTUAL,
-  `user_id` BIGINT,
-  `item_id` BIGINT,
-  `behavior` STRING
+  origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+  event_time TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
+  origin_database STRING METADATA FROM 'value.source.database' VIRTUAL,
+  origin_schema STRING METADATA FROM 'value.source.schema' VIRTUAL,
+  origin_table STRING METADATA FROM 'value.source.table' VIRTUAL,
+  origin_properties MAP<STRING, STRING> METADATA FROM 'value.source.properties' VIRTUAL,
+  user_id BIGINT,
+  item_id BIGINT,
+  behavior STRING
 ) WITH (
   'connector' = 'kafka',
   'topic' = 'user_behavior',
