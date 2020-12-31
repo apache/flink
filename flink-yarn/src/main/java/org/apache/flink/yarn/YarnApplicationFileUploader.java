@@ -27,6 +27,7 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
@@ -163,8 +164,15 @@ class YarnApplicationFileUploader implements AutoCloseable {
         addToRemotePaths(whetherToAddToRemotePaths, resourcePath);
 
         if (Utils.isRemotePath(resourcePath.toString())) {
-            final FileStatus fileStatus = fileSystem.getFileStatus(resourcePath);
-            LOG.debug("Using remote file {} to register local resource", fileStatus.getPath());
+            final FileSystem srcFs = resourcePath.getFileSystem(fileSystem.getConf());
+            final FileStatus resourceFileStatus = srcFs.getFileStatus(resourcePath);
+            LOG.debug("Using remote file {} to register local resource", resourceFileStatus.getPath());
+            final Path applicationDir = getApplicationDirPath(homeDir, applicationId);
+            final String suffix = (relativeDstPath.isEmpty() ? "" : relativeDstPath + "/") + resourcePath.getName();
+            final Path dst = new Path(applicationDir, suffix);
+            LOG.debug("Copying from {} to {} with replication factor {}", resourcePath, dst, fileReplication);
+            FileUtil.copy(srcFs, resourcePath, fileSystem, dst, false, fileSystem.getConf());
+            final FileStatus fileStatus = fileSystem.getFileStatus(dst);
 
             final YarnLocalResourceDescriptor descriptor =
                     YarnLocalResourceDescriptor.fromFileStatus(
@@ -238,10 +246,10 @@ class YarnApplicationFileUploader implements AutoCloseable {
         final List<Path> relativePaths = new ArrayList<>();
         for (Path shipFile : shipFiles) {
             if (Utils.isRemotePath(shipFile.toString())) {
-                if (fileSystem.isDirectory(shipFile)) {
+                final FileSystem fs = shipFile.getFileSystem(fileSystem.getConf());
+                if (fs.isDirectory(shipFile)) {
                     final URI parentURI = shipFile.getParent().toUri();
-                    final RemoteIterator<LocatedFileStatus> iterable =
-                            fileSystem.listFiles(shipFile, true);
+                    final RemoteIterator<LocatedFileStatus> iterable = fs.listFiles(shipFile, true);
                     while (iterable.hasNext()) {
                         final Path current = iterable.next().getPath();
                         localPaths.add(current);

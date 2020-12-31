@@ -586,15 +586,19 @@ public class YarnClusterDescriptorTest extends TestLogger {
         try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
             descriptor.setLocalJarPath(new Path("/path/to/flink.jar"));
 
-            File libFile = temporaryFolder.newFile("libFile.jar");
-            File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
+            Path libFile = new Path(temporaryFolder.newFile("libFile.jar").toURI());
+            Path libFolder = new Path(temporaryFolder.newFolder().getAbsoluteFile().toURI());
+            Path remoteArchiveFile = new Path("hdfs://path/to/config.zip");
+            Path remoteUdfFile = new Path("hdfs://path/to/udf.jar");
 
             Assert.assertFalse(descriptor.getShipFiles().contains(libFile));
             Assert.assertFalse(descriptor.getShipFiles().contains(libFolder));
 
-            List<File> shipFiles = new ArrayList<>();
+            List<Path> shipFiles = new ArrayList<>();
             shipFiles.add(libFile);
             shipFiles.add(libFolder);
+            shipFiles.add(remoteArchiveFile);
+            shipFiles.add(remoteUdfFile);
 
             descriptor.addShipFiles(shipFiles);
 
@@ -602,13 +606,15 @@ public class YarnClusterDescriptorTest extends TestLogger {
             Assert.assertTrue(descriptor.getShipFiles().contains(libFolder));
 
             // only execute part of the deployment to test for shipped files
-            Set<File> effectiveShipFiles = new HashSet<>();
+            Set<Path> effectiveShipFiles = new HashSet<>();
             descriptor.addLibFoldersToShipFiles(effectiveShipFiles);
 
             Assert.assertEquals(0, effectiveShipFiles.size());
-            Assert.assertEquals(2, descriptor.getShipFiles().size());
+            Assert.assertEquals(4, descriptor.getShipFiles().size());
             Assert.assertTrue(descriptor.getShipFiles().contains(libFile));
             Assert.assertTrue(descriptor.getShipFiles().contains(libFolder));
+            Assert.assertTrue(descriptor.getShipFiles().contains(remoteArchiveFile));
+            Assert.assertTrue(descriptor.getShipFiles().contains(remoteUdfFile));
         }
     }
 
@@ -626,10 +632,12 @@ public class YarnClusterDescriptorTest extends TestLogger {
             throws Exception {
         try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
             File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
+            Path libFolderPath = new Path(libFolder.toURI());
             File libFile = new File(libFolder, "libFile.jar");
+            Path libFilePath = new Path(libFile.toURI());
             assertTrue(libFile.createNewFile());
 
-            Set<File> effectiveShipFiles = new HashSet<>();
+            Set<Path> effectiveShipFiles = new HashSet<>();
 
             final Map<String, String> oldEnv = System.getenv();
             try {
@@ -647,10 +655,10 @@ public class YarnClusterDescriptorTest extends TestLogger {
             }
 
             // only add the ship the folder, not the contents
-            Assert.assertFalse(effectiveShipFiles.contains(libFile));
-            Assert.assertTrue(effectiveShipFiles.contains(libFolder));
-            Assert.assertFalse(descriptor.getShipFiles().contains(libFile));
-            Assert.assertFalse(descriptor.getShipFiles().contains(libFolder));
+            Assert.assertFalse(effectiveShipFiles.contains(libFilePath));
+            Assert.assertTrue(effectiveShipFiles.contains(libFolderPath));
+            Assert.assertFalse(descriptor.getShipFiles().contains(libFilePath));
+            Assert.assertFalse(descriptor.getShipFiles().contains(libFolderPath));
         }
     }
 
@@ -662,7 +670,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
                                     temporaryFolder.getRoot().getAbsolutePath(),
                                     "s0m3_p4th_th4t_sh0uld_n0t_3x1sts")
                             .toFile();
-            Set<File> effectiveShipFiles = new HashSet<>();
+            Set<Path> effectiveShipFiles = new HashSet<>();
 
             final Map<String, String> oldEnv = System.getenv();
             try {
@@ -690,7 +698,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
         try {
             yarnClusterDescriptor.addShipFiles(
                     Collections.singletonList(
-                            temporaryFolder.newFolder(ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR)));
+                            new Path(temporaryFolder.newFolder(ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR).toURI())));
             fail();
         } catch (IllegalArgumentException exception) {
             assertThat(

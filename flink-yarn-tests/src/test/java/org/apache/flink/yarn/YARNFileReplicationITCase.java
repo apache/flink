@@ -43,7 +43,9 @@ import org.junit.Test;
 import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.hamcrest.Matchers.is;
@@ -83,7 +85,11 @@ public class YARNFileReplicationITCase extends YarnTestBase {
                 createYarnClusterDescriptor(configuration)) {
 
             yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-            yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+            List<Path> paths = Arrays.asList(flinkLibFolder.listFiles()).stream()
+                .map(File::toURI)
+                .map(Path::new)
+                .collect(Collectors.toList());
+            yarnClusterDescriptor.addShipFiles(paths);
 
             final int masterMemory =
                     yarnClusterDescriptor
