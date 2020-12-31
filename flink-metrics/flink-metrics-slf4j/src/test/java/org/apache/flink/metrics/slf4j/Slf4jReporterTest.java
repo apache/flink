@@ -48,6 +48,7 @@ import java.util.Collections;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -125,8 +126,9 @@ public class Slf4jReporterTest extends TestLogger {
     public void testAddGauge() throws Exception {
         String gaugeName = "gauge";
 
+        int gaugesBefore = reporter.getGauges().size();
         taskMetricGroup.gauge(gaugeName, null);
-        assertTrue(reporter.getGauges().isEmpty());
+        assertThat(reporter.getGauges().size(), is(gaugesBefore));
 
         Gauge<Long> gauge = () -> null;
         taskMetricGroup.gauge(gaugeName, gauge);

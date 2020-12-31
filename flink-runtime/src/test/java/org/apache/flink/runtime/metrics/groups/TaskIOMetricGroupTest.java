@@ -24,13 +24,15 @@ import org.apache.flink.runtime.executiongraph.IOMetrics;
 
 import org.junit.Test;
 
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link TaskIOMetricGroup}. */
 public class TaskIOMetricGroupTest {
     @Test
-    public void testTaskIOMetricGroup() {
+    public void testTaskIOMetricGroup() throws InterruptedException {
         TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
         TaskIOMetricGroup taskIO = task.getIOMetricGroup();
 
@@ -52,7 +54,12 @@ public class TaskIOMetricGroupTest {
         taskIO.getNumBytesInCounter().inc(100L);
         taskIO.getNumBytesOutCounter().inc(250L);
         taskIO.getNumBuffersOutCounter().inc(3L);
-        taskIO.getIdleTimeMsPerSecond().markEvent(2L);
+        taskIO.getIdleTimeMsPerSecond().markStart();
+        taskIO.getBackPressuredTimePerSecond().markStart();
+        long sleepTime = 2L;
+        Thread.sleep(sleepTime);
+        taskIO.getIdleTimeMsPerSecond().markEnd();
+        taskIO.getBackPressuredTimePerSecond().markEnd();
 
         IOMetrics io = taskIO.createSnapshot();
         assertEquals(32L, io.getNumRecordsIn());
@@ -60,6 +67,8 @@ public class TaskIOMetricGroupTest {
         assertEquals(100L, io.getNumBytesIn());
         assertEquals(250L, io.getNumBytesOut());
         assertEquals(3L, taskIO.getNumBuffersOutCounter().getCount());
-        assertEquals(2L, taskIO.getIdleTimeMsPerSecond().getCount());
+        assertThat(taskIO.getIdleTimeMsPerSecond().getCount(), greaterThanOrEqualTo(sleepTime));
+        assertThat(
+                taskIO.getBackPressuredTimePerSecond().getCount(), greaterThanOrEqualTo(sleepTime));
     }
 }
