@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,13 +35,15 @@ public class JdbcOptions extends JdbcConnectionOptions {
 
     private static final long serialVersionUID = 1L;
 
-    private String tableName;
+    private @Nullable String tableName;
+    private @Nullable Pattern tablePattern;
     private JdbcDialect dialect;
     private final @Nullable Integer parallelism;
 
     private JdbcOptions(
             String dbURL,
             String tableName,
+            Pattern tablePattern,
             String driverName,
             String username,
             String password,
@@ -49,12 +52,17 @@ public class JdbcOptions extends JdbcConnectionOptions {
             int connectionCheckTimeoutSeconds) {
         super(dbURL, driverName, username, password, connectionCheckTimeoutSeconds);
         this.tableName = tableName;
+        this.tablePattern = tablePattern;
         this.dialect = dialect;
         this.parallelism = parallelism;
     }
 
     public String getTableName() {
         return tableName;
+    }
+
+    public Pattern getTablePattern() {
+        return tablePattern;
     }
 
     public JdbcDialect getDialect() {
@@ -75,6 +83,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
             JdbcOptions options = (JdbcOptions) o;
             return Objects.equals(url, options.url)
                     && Objects.equals(tableName, options.tableName)
+                    && Objects.equals(String.valueOf(tablePattern), String.valueOf(options.tablePattern))
                     && Objects.equals(driverName, options.driverName)
                     && Objects.equals(username, options.username)
                     && Objects.equals(password, options.password)
@@ -93,6 +102,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
         return Objects.hash(
                 url,
                 tableName,
+                String.valueOf(tablePattern),
                 driverName,
                 username,
                 password,
@@ -105,6 +115,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
     public static class Builder {
         private String dbURL;
         private String tableName;
+        private Pattern tablePattern;
         private String driverName;
         private String username;
         private String password;
@@ -112,9 +123,15 @@ public class JdbcOptions extends JdbcConnectionOptions {
         private Integer parallelism;
         private int connectionCheckTimeoutSeconds = 60;
 
-        /** required, table name. */
+        /** optional, table name, Either 'table-name' or 'table-pattern' must be set. */
         public Builder setTableName(String tableName) {
             this.tableName = tableName;
+            return this;
+        }
+
+        /** optional, table pattern, Either 'table-name' or 'table-pattern' must be set. */
+        public Builder setTablePattern(Pattern tablePattern) {
+            this.tablePattern = tablePattern;
             return this;
         }
 
@@ -167,7 +184,6 @@ public class JdbcOptions extends JdbcConnectionOptions {
 
         public JdbcOptions build() {
             checkNotNull(dbURL, "No dbURL supplied.");
-            checkNotNull(tableName, "No tableName supplied.");
             if (this.dialect == null) {
                 Optional<JdbcDialect> optional = JdbcDialects.get(dbURL);
                 this.dialect =
@@ -189,6 +205,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
             return new JdbcOptions(
                     dbURL,
                     tableName,
+                    tablePattern,
                     driverName,
                     username,
                     password,

@@ -30,6 +30,7 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
@@ -43,6 +44,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -63,7 +65,13 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
             ConfigOptions.key("table-name")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("the jdbc table name.");
+                    .withDescription("the jdbc table name. Either 'table-name' or 'table-pattern' must be set.");
+    public static final ConfigOption<String> TABLE_PATTERN =
+            ConfigOptions.key("table-pattern")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Optional table pattern from which the table is read for source. Either 'table-name' or 'table-pattern' must be set.");
     public static final ConfigOption<String> USERNAME =
             ConfigOptions.key("username")
                     .stringType()
@@ -173,6 +181,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 
         helper.validate();
         validateConfigOptions(config);
+        validateSinkAndLookUpTable(config);
         JdbcOptions jdbcOptions = getJdbcOptions(config);
         TableSchema physicalSchema =
                 TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
@@ -192,6 +201,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 
         helper.validate();
         validateConfigOptions(config);
+        validateSourceTable(config);
         TableSchema physicalSchema =
                 TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
         return new JdbcDynamicTableSource(
@@ -207,6 +217,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                 JdbcOptions.builder()
                         .setDBUrl(url)
                         .setTableName(readableConfig.get(TABLE_NAME))
+                        .setTablePattern(readableConfig.getOptional(TABLE_PATTERN).map(Pattern::compile).orElse(null))
                         .setDialect(JdbcDialects.get(url).get())
                         .setParallelism(
                                 readableConfig
@@ -274,7 +285,6 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
     public Set<ConfigOption<?>> requiredOptions() {
         Set<ConfigOption<?>> requiredOptions = new HashSet<>();
         requiredOptions.add(URL);
-        requiredOptions.add(TABLE_NAME);
         return requiredOptions;
     }
 
@@ -284,6 +294,8 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         optionalOptions.add(DRIVER);
         optionalOptions.add(USERNAME);
         optionalOptions.add(PASSWORD);
+        optionalOptions.add(TABLE_NAME);
+        optionalOptions.add(TABLE_PATTERN);
         optionalOptions.add(SCAN_PARTITION_COLUMN);
         optionalOptions.add(SCAN_PARTITION_LOWER_BOUND);
         optionalOptions.add(SCAN_PARTITION_UPPER_BOUND);
@@ -373,5 +385,31 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                 configOptions.length == presentCount || presentCount == 0,
                 "Either all or none of the following options should be provided:\n"
                         + String.join("\n", propertyNames));
+    }
+
+    public static void validateSourceTable(ReadableConfig config) {
+        Optional<String> table = config.getOptional(TABLE_NAME);
+        Optional<String> pattern = config.getOptional(TABLE_PATTERN);
+
+        if (table.isPresent() && pattern.isPresent()) {
+            throw new ValidationException(
+                    "Option 'table-name' and 'table-pattern' shouldn't be set together.");
+        }
+
+        if (!table.isPresent() && !pattern.isPresent()) {
+            throw new ValidationException("Either 'table-name' or 'table-pattern' must be set.");
+        }
+    }
+
+    public static void validateSinkAndLookUpTable(ReadableConfig config) {
+        String errorMessageTemp =
+                "Flink Jdbc sink currently only supports table name, but got %s: %s.";
+            if (config.getOptional(TABLE_PATTERN).isPresent()) {
+                throw new ValidationException(
+                        String.format(
+                                errorMessageTemp,
+                                "'table-pattern'",
+                                config.get(TABLE_PATTERN)));
+            }
     }
 }
