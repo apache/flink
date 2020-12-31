@@ -593,14 +593,13 @@ cdef class GroupTableAggFunction(GroupAggFunctionBase):
         cdef size_t start_index, i, input_rows_num
         cdef object state_backend, accumulator_state
         results = []
-        # input_value = input_data.values
-        # input_row_kind = input_data.row_kind
         aggs_handle = <SimpleTableAggsHandleFunction> self.aggs_handle
         state_backend = self.state_backend
         for current_key in self.buffer:
             input_rows = self.buffer[current_key]
             input_rows_num = len(input_rows)
             key = list(current_key)
+            first_row = False
             state_backend.set_current_key(key)
             state_backend.clear_cached_iterators()
             accumulator_state = state_backend.get_value_state(
