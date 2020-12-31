@@ -482,9 +482,9 @@ CREATE TABLE Orders_in_file (
     order_time AS to_timestamp(order_time)
     
 )
-PARTITIONED BY `user` 
+PARTITIONED BY (`user`) 
 WITH ( 
-    'connector' = 'filesystem'
+    'connector' = 'filesystem',
     'path' = '...'
 );
 
@@ -493,7 +493,7 @@ CREATE TABLE Orders_in_kafka (
     -- 添加 watermark 定义
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
 ) WITH (
-    'connector': 'kafka'
+    'connector' = 'kafka',
     ...
 )
 LIKE Orders_in_file (
