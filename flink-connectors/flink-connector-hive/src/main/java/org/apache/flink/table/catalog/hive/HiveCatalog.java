@@ -1332,6 +1332,10 @@ public class HiveCatalog extends AbstractCatalog {
                 return new CatalogFunctionImpl(
                         function.getClassName().substring(FLINK_SCALA_FUNCTION_PREFIX.length()),
                         FunctionLanguage.SCALA);
+            } else if (function.getClassName().startsWith("flink:")) {
+                // to be compatible with old behavior
+                return new CatalogFunctionImpl(
+                        function.getClassName().substring("flink:".length()));
             } else {
                 return new CatalogFunctionImpl(function.getClassName());
             }

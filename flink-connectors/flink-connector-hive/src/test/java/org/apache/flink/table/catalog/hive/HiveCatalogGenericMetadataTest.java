@@ -293,6 +293,15 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
         }
     }
 
+    @Test
+    public void testFunctionCompatibility() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createFunction(path1, new CatalogFunctionImpl("flink:class.name"), false);
+        CatalogFunction catalogFunction = catalog.getFunction(path1);
+        assertEquals("class.name", catalogFunction.getClassName());
+        assertEquals(FunctionLanguage.JAVA, catalogFunction.getFunctionLanguage());
+    }
+
     // ------ functions ------
 
     @Test
