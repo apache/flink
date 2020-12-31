@@ -21,10 +21,15 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
+import org.apache.flink.table.functions.TestGenericUDF;
+import org.apache.flink.table.functions.TestSimpleUDF;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -288,6 +293,36 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
         }
     }
 
+    // ------ functions ------
+
+    @Test
+    public void testFunctionWithNonExistClass() throws Exception {
+        // to make sure hive catalog doesn't check function class
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogFunction catalogFunction =
+                new CatalogFunctionImpl("non.exist.scala.class", FunctionLanguage.SCALA);
+        catalog.createFunction(path1, catalogFunction, false);
+        assertEquals(catalogFunction.getClassName(), catalog.getFunction(path1).getClassName());
+        assertEquals(
+                catalogFunction.getFunctionLanguage(),
+                catalog.getFunction(path1).getFunctionLanguage());
+        // alter the function
+        catalogFunction = new CatalogFunctionImpl("non.exist.java.class", FunctionLanguage.JAVA);
+        catalog.alterFunction(path1, catalogFunction, false);
+        assertEquals(catalogFunction.getClassName(), catalog.getFunction(path1).getClassName());
+        assertEquals(
+                catalogFunction.getFunctionLanguage(),
+                catalog.getFunction(path1).getFunctionLanguage());
+
+        catalogFunction =
+                new CatalogFunctionImpl("non.exist.python.class", FunctionLanguage.PYTHON);
+        catalog.alterFunction(path1, catalogFunction, false);
+        assertEquals(catalogFunction.getClassName(), catalog.getFunction(path1).getClassName());
+        assertEquals(
+                catalogFunction.getFunctionLanguage(),
+                catalog.getFunction(path1).getFunctionLanguage());
+    }
+
     // ------ partitions ------
 
     @Test
@@ -384,5 +419,16 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
     @Override
     public CatalogPartition createPartition() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected CatalogFunction createFunction() {
+        return new CatalogFunctionImpl(TestGenericUDF.class.getCanonicalName());
+    }
+
+    @Override
+    protected CatalogFunction createAnotherFunction() {
+        return new CatalogFunctionImpl(
+                TestSimpleUDF.class.getCanonicalName(), FunctionLanguage.SCALA);
     }
 }
