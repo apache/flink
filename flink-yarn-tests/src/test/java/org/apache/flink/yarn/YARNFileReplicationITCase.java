@@ -85,10 +85,11 @@ public class YARNFileReplicationITCase extends YarnTestBase {
                 createYarnClusterDescriptor(configuration)) {
 
             yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-            List<Path> paths = Arrays.asList(flinkLibFolder.listFiles()).stream()
-                .map(File::toURI)
-                .map(Path::new)
-                .collect(Collectors.toList());
+            List<Path> paths =
+                    Arrays.asList(flinkLibFolder.listFiles()).stream()
+                            .map(File::toURI)
+                            .map(Path::new)
+                            .collect(Collectors.toList());
             yarnClusterDescriptor.addShipFiles(paths);
 
             final int masterMemory =

@@ -54,6 +54,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
@@ -286,39 +287,42 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         this.shipFiles.addAll(shipFiles);
     }
 
-    private void addShipArchives(List<Path> shipArchives) {
+    public void addShipArchives(List<Path> shipArchives) {
         checkArgument(
                 isArchiveOnlyIncludedInShipArchiveFiles(shipArchives, yarnConfiguration),
                 "Non-archive files are included.");
         this.shipArchives.addAll(shipArchives);
     }
 
-    private static boolean isArchiveOnlyIncludedInShipArchiveFiles(List<Path> shipFiles, YarnConfiguration yarnConfig) {
-        for (Path shipFile : shipFiles) {
-            try {
-                if (Utils.isRemotePath(shipFile.toString())) {
-                    final FileSystem fs = shipFile.getFileSystem(yarnConfig);
-                    final String name = shipFile.getName().toLowerCase();
-                    if (fs.isFile(shipFile) && !(name.endsWith(".tar.gz") || name.endsWith(".tar") || name.endsWith(
-                        ".tgz") || name.endsWith(".dst") || name.endsWith(".jar") || name.endsWith(".zip"))) {
-                        return false;
-                    }
-                } else {
-                    final File localFile = new File(shipFile.toUri().getPath());
-                    final String name = localFile.getName().toLowerCase();
-                    if (localFile.isFile() && !(name.endsWith(".tar.gz") || name.endsWith(".tar") || name.endsWith(
-                        ".tgz") || name.endsWith(".dst") || name.endsWith(".jar") || name.endsWith(".zip"))) {
-                        return false;
-                    }
-                }
-            } catch (IOException e) {
-                LOG.error("The shipping archive archive {} parsing failed.", shipFile);
-                throw new RuntimeException("The shipping archive " + shipFile + " parsing failed. " +
-                    "Error message: " + e.getMessage());
-            }
-        }
-
-        return true;
+    private static boolean isArchiveOnlyIncludedInShipArchiveFiles(
+            List<Path> shipFiles, YarnConfiguration yarnConfig) {
+        return shipFiles.stream()
+                .map(
+                        FunctionUtils.uncheckedFunction(
+                                shipFile -> {
+                                    String fileName = null;
+                                    if (Utils.isRemotePath(shipFile.toString())) {
+                                        final FileSystem fs = shipFile.getFileSystem(yarnConfig);
+                                        if (fs.isFile(shipFile)) {
+                                            fileName = shipFile.getName().toLowerCase();
+                                        }
+                                    } else {
+                                        final File localFile = new File(shipFile.toUri().getPath());
+                                        if (localFile.isFile()) {
+                                            fileName = localFile.getName().toLowerCase();
+                                        }
+                                    }
+                                    return fileName;
+                                }))
+                .filter(name -> name != null)
+                .allMatch(
+                        name ->
+                                name.endsWith(".tar.gz")
+                                        || name.endsWith(".tar")
+                                        || name.endsWith(".tgz")
+                                        || name.endsWith(".dst")
+                                        || name.endsWith(".jar")
+                                        || name.endsWith(".zip"));
     }
 
     private void isReadyForDeployment(ClusterSpecification clusterSpecification) throws Exception {
@@ -864,7 +868,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 if (!Utils.isRemotePath(entry.getValue().filePath)) {
                     Path localPath = new Path(entry.getValue().filePath);
                     Tuple2<Path, Long> remoteFileInfo =
-                            fileUploader.uploadLocalFileToRemote(localPath, entry.getKey());
+                            fileUploader.uploadLocalFileToRemote(localPath, entry.getKey(), true);
                     jobGraph.setUserArtifactRemotePath(
                             entry.getKey(), remoteFileInfo.f0.toString());
                 }
@@ -1676,9 +1680,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     @VisibleForTesting
     void addPluginsFoldersToShipFiles(Collection<Path> effectiveShipFiles) {
         final Optional<File> pluginsDir = PluginConfig.getPluginsDir();
-        final Optional<Path> pluginsDirPath = pluginsDir.isPresent()
-            ? Optional.of(new Path(pluginsDir.get().toURI()))
-            : Optional.empty();
+        final Optional<Path> pluginsDirPath =
+                pluginsDir.isPresent()
+                        ? Optional.of(new Path(pluginsDir.get().toURI()))
+                        : Optional.empty();
         pluginsDirPath.ifPresent(effectiveShipFiles::add);
     }
 
@@ -1743,28 +1748,28 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         return config.get(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
     }
 
-    private static boolean isUsrLibDirIncludedInShipFiles(List<Path> shipFiles, YarnConfiguration yarnConfig) {
-        for (Path shipFile : shipFiles) {
-            try {
-                if (Utils.isRemotePath(shipFile.toString())) {
-                    final FileSystem fileSystem = shipFile.getFileSystem(yarnConfig);
-                    if (fileSystem.isDirectory(shipFile) && shipFile.getName().equals(DEFAULT_FLINK_USR_LIB_DIR)) {
-                        return false;
-                    }
-                } else {
-                    final File localFile = new File(shipFile.toUri().getPath());
-                    if (localFile.isDirectory() && localFile.getName().equals(DEFAULT_FLINK_USR_LIB_DIR)) {
-                        return false;
-                    }
-                }
-            } catch (IOException e) {
-                LOG.error("The shipping file {} parsing failed.", shipFile);
-                throw new RuntimeException("The shipping file " + shipFile + " parsing failed. " +
-                    "Error message: " + e.getMessage());
-            }
-        }
-
-        return true;
+    private static boolean isUsrLibDirIncludedInShipFiles(
+            List<Path> shipFiles, YarnConfiguration yarnConfig) {
+        return shipFiles.stream()
+                .map(
+                        FunctionUtils.uncheckedFunction(
+                                shipFile -> {
+                                    String fileName = null;
+                                    if (Utils.isRemotePath(shipFile.toString())) {
+                                        final FileSystem fs = shipFile.getFileSystem(yarnConfig);
+                                        if (fs.isDirectory(shipFile)) {
+                                            fileName = shipFile.getName();
+                                        }
+                                    } else {
+                                        final File localFile = new File(shipFile.toUri().getPath());
+                                        if (localFile.isDirectory()) {
+                                            fileName = localFile.getName();
+                                        }
+                                    }
+                                    return fileName;
+                                }))
+                .filter(name -> name != null)
+                .noneMatch(name -> name.equals(DEFAULT_FLINK_USR_LIB_DIR));
     }
 
     private void setClusterEntrypointInfoToConfig(final ApplicationReport report) {

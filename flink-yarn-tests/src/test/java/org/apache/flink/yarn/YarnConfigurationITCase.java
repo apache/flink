@@ -101,10 +101,11 @@ public class YarnConfigurationITCase extends YarnTestBase {
                                     true);
 
                     clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-                    List<Path> paths = Arrays.asList(flinkLibFolder.listFiles()).stream()
-                        .map(File::toURI)
-                        .map(Path::new)
-                        .collect(Collectors.toList());
+                    List<Path> paths =
+                            Arrays.asList(flinkLibFolder.listFiles()).stream()
+                                    .map(File::toURI)
+                                    .map(Path::new)
+                                    .collect(Collectors.toList());
                     clusterDescriptor.addShipFiles(paths);
 
                     final File streamingWordCountFile = getTestJarPath("WindowJoin.jar");

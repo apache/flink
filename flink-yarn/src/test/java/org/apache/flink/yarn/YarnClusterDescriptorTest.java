@@ -47,6 +47,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -86,6 +87,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
             new ApplicationConfiguration(new String[0], null);
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public ExpectedException exception = ExpectedException.none();
 
     private File flinkJar;
 
@@ -588,22 +590,26 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
             Path libFile = new Path(temporaryFolder.newFile("libFile.jar").toURI());
             Path libFolder = new Path(temporaryFolder.newFolder().getAbsoluteFile().toURI());
-            Path remoteArchiveFile = new Path("hdfs://path/to/config.zip");
-            Path remoteUdfFile = new Path("hdfs://path/to/udf.jar");
+            Path remoteConfFolder = new Path("hdfs://localhost:9000/path/conf");
+            Path remoteUdfFile = new Path("hdfs://localhost:9000/path/udf.jar");
 
             Assert.assertFalse(descriptor.getShipFiles().contains(libFile));
             Assert.assertFalse(descriptor.getShipFiles().contains(libFolder));
+            Assert.assertFalse(descriptor.getShipFiles().contains(remoteConfFolder));
+            Assert.assertFalse(descriptor.getShipFiles().contains(remoteUdfFile));
 
             List<Path> shipFiles = new ArrayList<>();
             shipFiles.add(libFile);
             shipFiles.add(libFolder);
-            shipFiles.add(remoteArchiveFile);
+            shipFiles.add(remoteConfFolder);
             shipFiles.add(remoteUdfFile);
 
             descriptor.addShipFiles(shipFiles);
 
             Assert.assertTrue(descriptor.getShipFiles().contains(libFile));
             Assert.assertTrue(descriptor.getShipFiles().contains(libFolder));
+            Assert.assertTrue(descriptor.getShipFiles().contains(remoteConfFolder));
+            Assert.assertTrue(descriptor.getShipFiles().contains(remoteUdfFile));
 
             // only execute part of the deployment to test for shipped files
             Set<Path> effectiveShipFiles = new HashSet<>();
@@ -613,7 +619,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
             Assert.assertEquals(4, descriptor.getShipFiles().size());
             Assert.assertTrue(descriptor.getShipFiles().contains(libFile));
             Assert.assertTrue(descriptor.getShipFiles().contains(libFolder));
-            Assert.assertTrue(descriptor.getShipFiles().contains(remoteArchiveFile));
+            Assert.assertTrue(descriptor.getShipFiles().contains(remoteConfFolder));
             Assert.assertTrue(descriptor.getShipFiles().contains(remoteUdfFile));
         }
     }
@@ -688,6 +694,66 @@ public class YarnClusterDescriptorTest extends TestLogger {
     }
 
     @Test
+    public void testShipArchivesWithIlleagalFormat() throws Exception {
+        final Configuration flinkConfig = new Configuration();
+        final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig);
+
+        final Path tarGzFile = new Path(temporaryFolder.newFile("aaa.tar.gz").toURI());
+        final Path tarFile = new Path(temporaryFolder.newFile("bbb.tar").toURI());
+        final Path zipFile = new Path(temporaryFolder.newFile("ccc.zip").toURI());
+        final Path txtFile = new Path(temporaryFolder.newFile("ddd.txt").toURI());
+        final Path confFolder = new Path(temporaryFolder.newFolder("conf").toURI());
+
+        // ship archives with "tar.gz", "tar", "zip"
+        List<Path> shipFiles = new ArrayList<>();
+        shipFiles.add(tarGzFile);
+        shipFiles.add(tarFile);
+        shipFiles.add(zipFile);
+        yarnClusterDescriptor.addShipArchives(shipFiles);
+
+        // ship illeage archives
+        shipFiles.add(txtFile);
+        shipFiles.add(confFolder);
+        exception.expect(IllegalArgumentException.class);
+        exception.expectMessage("Non-archive files are included.");
+        yarnClusterDescriptor.addShipArchives(shipFiles);
+    }
+
+    @Test
+    public void testShipFilesWithUsrLibDir() throws Exception {
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.set(
+                YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR,
+                YarnConfigOptions.UserJarInclusion.DISABLED.name());
+
+        final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig);
+        final Path usrJarFile = new Path(temporaryFolder.newFile("usr.jar").toURI());
+        final Path confFolder = new Path(temporaryFolder.newFolder("conf").toURI());
+        final Path usrLibFolder = new Path(temporaryFolder.newFolder("usrlib").toURI());
+
+        // ship files not include usrlib directory
+        List<Path> shipFiles = new ArrayList<>();
+        shipFiles.add(usrJarFile);
+        shipFiles.add(confFolder);
+        yarnClusterDescriptor.addShipFiles(shipFiles);
+
+        // ship files include usrlib directory
+        shipFiles.add(usrLibFolder);
+        exception.expect(IllegalArgumentException.class);
+        exception.expectMessage(
+                String.format(
+                        "This is an illegal ship directory : %s."
+                                + " When setting the %s to %s the name of ship directory can not be %s.",
+                        ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR,
+                        YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
+                        YarnConfigOptions.UserJarInclusion.DISABLED,
+                        ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR));
+        yarnClusterDescriptor.addShipFiles(shipFiles);
+    }
+
+    @Test
     public void testDisableSystemClassPathIncludeUserJarAndWithIllegalShipDirectoryName()
             throws IOException {
         final Configuration configuration = new Configuration();
@@ -698,7 +764,10 @@ public class YarnClusterDescriptorTest extends TestLogger {
         try {
             yarnClusterDescriptor.addShipFiles(
                     Collections.singletonList(
-                            new Path(temporaryFolder.newFolder(ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR).toURI())));
+                            new Path(
+                                    temporaryFolder
+                                            .newFolder(ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR)
+                                            .toURI())));
             fail();
         } catch (IllegalArgumentException exception) {
             assertThat(

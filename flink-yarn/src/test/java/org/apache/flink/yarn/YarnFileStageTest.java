@@ -144,6 +144,10 @@ public class YarnFileStageTest extends TestLogger {
                 targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder);
     }
 
+    /**
+     * Verifies that nested directories are properly copied with a <tt>hdfs://</tt> file system
+     * (from a <tt>hdfs://</tt> source remote path).
+     */
     @Test
     public void testRegisterMultipleLocalResourcesWithRemoteFiles() throws Exception {
         final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);

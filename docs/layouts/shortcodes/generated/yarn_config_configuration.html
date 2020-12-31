@@ -156,13 +156,13 @@
             <td><h5>yarn.ship-archives</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>A semicolon-separated list of archives to be shipped to the YARN cluster. These archives can come from the local client and remote file system, They will be un-packed when localizing and they can be any of the following types: ".tar.gz", ".tar", ".tgz", ".dst", ".jar", ".zip".</td>
+            <td>A semicolon-separated list of archives to be shipped to the YARN cluster. These archives can come from the local client and remote file system, they will be un-packed when localizing and they can be any of the following types: ".tar.gz", ".tar", ".tgz", ".dst", ".jar", ".zip". For example, yarn.ship-archives=/opt/path/conf.zip;hdfs://$namenode_address/path/jars.tar</td>
         </tr>
         <tr>
             <td><h5>yarn.ship-files</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>A semicolon-separated list of files and/or directories to be shipped to the YARN cluster. These files/directories can come from the local client and remote file system.</td>
+            <td>A semicolon-separated list of files and/or directories to be shipped to the YARN cluster. These files and/or directories can come from the local client and remote file system. For example, yarn.ship-files=/opt/path/conf;hdfs://$namenode_address/path/jars;hdfs://$namenode_address/path/extra.jar</td>
         </tr>
         <tr>
             <td><h5>yarn.staging-directory</h5></td>

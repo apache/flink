@@ -165,14 +165,15 @@ class YarnApplicationFileUploader implements AutoCloseable {
 
         if (Utils.isRemotePath(resourcePath.toString())) {
             final FileSystem srcFs = resourcePath.getFileSystem(fileSystem.getConf());
-            final FileStatus resourceFileStatus = srcFs.getFileStatus(resourcePath);
-            LOG.debug("Using remote file {} to register local resource", resourceFileStatus.getPath());
-            final Path applicationDir = getApplicationDirPath(homeDir, applicationId);
-            final String suffix = (relativeDstPath.isEmpty() ? "" : relativeDstPath + "/") + resourcePath.getName();
-            final Path dst = new Path(applicationDir, suffix);
-            LOG.debug("Copying from {} to {} with replication factor {}", resourcePath, dst, fileReplication);
-            FileUtil.copy(srcFs, resourcePath, fileSystem, dst, false, fileSystem.getConf());
-            final FileStatus fileStatus = fileSystem.getFileStatus(dst);
+            final FileStatus fileStatus;
+            if (srcFs.getScheme().equals(fileSystem.getScheme())) {
+                fileStatus = srcFs.getFileStatus(resourcePath);
+            } else {
+                Tuple2<Path, Long> remoteFileInfo =
+                        uploadLocalFileToRemote(resourcePath, relativeDstPath, false);
+                fileStatus = fileSystem.getFileStatus(remoteFileInfo.f0);
+            }
+            LOG.debug("Using remote file {} to register local resource", fileStatus.getPath());
 
             final YarnLocalResourceDescriptor descriptor =
                     YarnLocalResourceDescriptor.fromFileStatus(
@@ -184,7 +185,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 
         final File localFile = new File(resourcePath.toUri().getPath());
         final Tuple2<Path, Long> remoteFileInfo =
-                uploadLocalFileToRemote(resourcePath, relativeDstPath);
+                uploadLocalFileToRemote(resourcePath, relativeDstPath, true);
         final YarnLocalResourceDescriptor descriptor =
                 new YarnLocalResourceDescriptor(
                         key,
@@ -199,13 +200,22 @@ class YarnApplicationFileUploader implements AutoCloseable {
     }
 
     Tuple2<Path, Long> uploadLocalFileToRemote(
-            final Path localSrcPath, final String relativeDstPath) throws IOException {
+            final Path localSrcPath, final String relativeDstPath, final boolean isLocal) throws IOException {
 
-        final File localFile = new File(localSrcPath.toUri().getPath());
-        checkArgument(
+        final Long lastModified;
+        if (isLocal) {
+            final File localFile = new File(localSrcPath.toUri().getPath());
+            checkArgument(
                 !localFile.isDirectory(), "File to copy cannot be a directory: " + localSrcPath);
+            lastModified = localFile.lastModified();
+        } else {
+            final FileSystem srcFs = localSrcPath.getFileSystem(fileSystem.getConf());
+            checkArgument(
+                !srcFs.isDirectory(localSrcPath), "File to copy cannot be a directory: " + localSrcPath);
+            lastModified = srcFs.getFileStatus(localSrcPath).getModificationTime();
+        }
 
-        final Path dst = copyToRemoteApplicationDir(localSrcPath, relativeDstPath, fileReplication);
+        final Path dst = copyToRemoteApplicationDir(localSrcPath, relativeDstPath, isLocal, fileReplication);
 
         // Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access
         // the remote
@@ -217,8 +227,8 @@ class YarnApplicationFileUploader implements AutoCloseable {
             LOG.debug(
                     "Failed to fetch remote modification time from {}, using local timestamp {}",
                     dst,
-                    localFile.lastModified());
-            return Tuple2.of(dst, localFile.lastModified());
+                    lastModified);
+            return Tuple2.of(dst, lastModified);
         }
 
         LOG.debug(
@@ -391,7 +401,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
     }
 
     private Path copyToRemoteApplicationDir(
-            final Path localSrcPath, final String relativeDstPath, final int replicationFactor)
+            final Path localSrcPath, final String relativeDstPath, final boolean isLocal, final int replicationFactor)
             throws IOException {
 
         final Path applicationDir = getApplicationDirPath(homeDir, applicationId);
@@ -405,7 +415,12 @@ class YarnApplicationFileUploader implements AutoCloseable {
                 dst,
                 replicationFactor);
 
-        fileSystem.copyFromLocalFile(false, true, localSrcPath, dst);
+        if (isLocal) {
+            fileSystem.copyFromLocalFile(false, true, localSrcPath, dst);
+        } else {
+            FileSystem srcFs = localSrcPath.getFileSystem(fileSystem.getConf());
+            FileUtil.copy(srcFs, localSrcPath, fileSystem, dst, false, fileSystem.getConf());
+        }
         fileSystem.setReplication(dst, (short) replicationFactor);
         return dst;
     }
