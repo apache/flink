@@ -25,6 +25,7 @@ import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.TimerGauge;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,9 +47,9 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final Meter numRecordsInRate;
     private final Meter numRecordsOutRate;
     private final Meter numBuffersOutRate;
-    private final Meter idleTimePerSecond;
+    private final TimerGauge idleTimePerSecond;
     private final Gauge busyTimePerSecond;
-    private final Meter backPressuredTimePerSecond;
+    private final TimerGauge backPressuredTimePerSecond;
 
     private volatile boolean busyTimeEnabled;
 
@@ -71,10 +72,9 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.numBuffersOutRate =
                 meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
 
-        this.idleTimePerSecond =
-                meter(MetricNames.TASK_IDLE_TIME, new MeterView(new SimpleCounter()));
+        this.idleTimePerSecond = gauge(MetricNames.TASK_IDLE_TIME, new TimerGauge());
         this.backPressuredTimePerSecond =
-                meter(MetricNames.TASK_BACK_PRESSURED_TIME, new MeterView(new SimpleCounter()));
+                gauge(MetricNames.TASK_BACK_PRESSURED_TIME, new TimerGauge());
         this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
     }
 
@@ -106,11 +106,11 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         return numBuffersOut;
     }
 
-    public Meter getIdleTimeMsPerSecond() {
+    public TimerGauge getIdleTimeMsPerSecond() {
         return idleTimePerSecond;
     }
 
-    public Meter getBackPressuredTimePerSecond() {
+    public TimerGauge getBackPressuredTimePerSecond() {
         return backPressuredTimePerSecond;
     }
 
@@ -119,7 +119,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     }
 
     private double getBusyTimePerSecond() {
-        double busyTime = idleTimePerSecond.getRate() + backPressuredTimePerSecond.getRate();
+        double busyTime = idleTimePerSecond.getValue() + backPressuredTimePerSecond.getValue();
         return busyTimeEnabled ? 1000.0 - Math.min(busyTime, 1000.0) : Double.NaN;
     }
 

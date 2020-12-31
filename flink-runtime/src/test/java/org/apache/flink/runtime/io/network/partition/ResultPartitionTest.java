@@ -50,6 +50,7 @@ import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.c
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -510,7 +511,7 @@ public class ResultPartitionTest {
         assertNotNull(buffer);
 
         // back-pressured time is zero when there is buffer available.
-        assertEquals(0, resultPartition.getBackPressuredTimeMsPerSecond().getCount());
+        assertThat(resultPartition.getBackPressuredTimeMsPerSecond().getValue(), equalTo(0L));
 
         CountDownLatch syncLock = new CountDownLatch(1);
         final Thread requestThread =
