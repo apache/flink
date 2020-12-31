@@ -96,6 +96,13 @@ public class HBaseUpsertTableSink implements UpsertStreamTableSink<Row> {
         hbaseOptions
                 .getZkNodeParent()
                 .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
+        // add HBase properties
+        hbaseOptions
+                .getHbaseProperties()
+                .ifPresent(
+                        prop ->
+                                prop.forEach(
+                                        (k, v) -> hbaseClientConf.set(k.toString(), v.toString())));
         HBaseSinkFunction sinkFunction =
                 new HBaseSinkFunction(
                         hbaseOptions.getTableName(),

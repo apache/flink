@@ -43,6 +43,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 
@@ -69,6 +70,7 @@ public class HBaseTableFactoryTest {
         tableProperties.put("connector.write.buffer-flush.max-size", "10mb");
         tableProperties.put("connector.write.buffer-flush.max-rows", "1000");
         tableProperties.put("connector.write.buffer-flush.interval", "10s");
+        tableProperties.put("connector.properties.hbase.security.authentication", "kerberos");
 
         DescriptorProperties descriptorProperties = new DescriptorProperties(true);
         descriptorProperties.putTableSchema(SCHEMA, tableSchema);
@@ -202,11 +204,14 @@ public class HBaseTableFactoryTest {
                 },
                 hbaseSchema.getQualifierTypes("f4"));
 
+        Properties hbaseProperties = new Properties();
+        hbaseProperties.setProperty("hbase.security.authentication", "kerberos");
         HBaseOptions expectedHBaseOptions =
                 HBaseOptions.builder()
                         .setTableName("testHBastTable")
                         .setZkQuorum("localhost:2181")
                         .setZkNodeParent("/flink")
+                        .setHbaseProperties(hbaseProperties)
                         .build();
         HBaseOptions actualHBaseOptions = ((HBaseUpsertTableSink) sink).getHBaseOptions();
         Assert.assertEquals(expectedHBaseOptions, actualHBaseOptions);

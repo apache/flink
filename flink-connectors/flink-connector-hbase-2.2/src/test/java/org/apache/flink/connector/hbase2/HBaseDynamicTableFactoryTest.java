@@ -348,6 +348,7 @@ public class HBaseDynamicTableFactoryTest {
         options.put("table-name", "testHBastTable");
         options.put("zookeeper.quorum", "localhost:2181");
         options.put("zookeeper.znode.parent", "/flink");
+        options.put("properties.hbase.security.authentication", "kerberos");
         return options;
     }
 

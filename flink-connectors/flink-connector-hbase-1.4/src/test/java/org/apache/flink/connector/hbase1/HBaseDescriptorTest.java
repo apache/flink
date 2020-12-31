@@ -64,7 +64,18 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
                         .writeBufferFlushMaxRows(100)
                         .writeBufferFlushMaxSize("1mb");
 
-        return Arrays.asList(hbaseDesc0, hbaseDesc1);
+        HBase hbaseDesc2 =
+                new HBase()
+                        .version("1.4.3")
+                        .tableName("testNs:table1")
+                        .zookeeperQuorum("localhost:2181")
+                        .zookeeperNodeParent("/hbase/root")
+                        .writeBufferFlushInterval("2s")
+                        .writeBufferFlushMaxRows(100)
+                        .writeBufferFlushMaxSize("1mb")
+                        .property("hbase.security.authentication", "kerberos");
+
+        return Arrays.asList(hbaseDesc0, hbaseDesc1, hbaseDesc2);
     }
 
     @Override
@@ -88,7 +99,19 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
         prop1.put("connector.write.buffer-flush.max-rows", "100");
         prop1.put("connector.write.buffer-flush.max-size", "1 mb");
 
-        return Arrays.asList(prop0, prop1);
+        Map<String, String> prop2 = new HashMap<>();
+        prop2.put("connector.version", "1.4.3");
+        prop2.put("connector.type", "hbase");
+        prop2.put("connector.table-name", "testNs:table1");
+        prop2.put("connector.zookeeper.quorum", "localhost:2181");
+        prop2.put("connector.zookeeper.znode.parent", "/hbase/root");
+        prop2.put("connector.property-version", "1");
+        prop2.put("connector.write.buffer-flush.interval", "2s");
+        prop2.put("connector.write.buffer-flush.max-rows", "100");
+        prop2.put("connector.write.buffer-flush.max-size", "1 mb");
+        prop2.put("connector.properties.hbase.security.authentication", "kerberos");
+
+        return Arrays.asList(prop0, prop1, prop2);
     }
 
     @Override

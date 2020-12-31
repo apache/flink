@@ -38,8 +38,10 @@ import org.apache.hadoop.hbase.HConstants;
 
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Properties;
 import java.util.Set;
 
+import static org.apache.flink.connector.hbase.source.AbstractHBaseDynamicTableSource.getHBaseClientProperties;
 import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.apache.flink.table.factories.FactoryUtil.createTableFactoryHelper;
 
@@ -103,30 +105,45 @@ public class HBase2DynamicTableFactory
                                     + "Can be set to '0' to disable it. Note, both 'sink.buffer-flush.max-size' and 'sink.buffer-flush.max-rows' "
                                     + "can be set to '0' with the flush interval set allowing for complete async processing of buffered actions.");
 
+    // Prefix for HBase properties.
+    public static final String PROPERTIES_PREFIX = "properties.";
+
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
         TableFactoryHelper helper = createTableFactoryHelper(this, context);
-        helper.validate();
+        helper.validateExcept(PROPERTIES_PREFIX);
+
         TableSchema tableSchema = context.getCatalogTable().getSchema();
         validatePrimaryKey(tableSchema);
 
         String hTableName = helper.getOptions().get(TABLE_NAME);
 
+        Configuration hbaseConf = getHbaseConf(helper);
+        // add hbase properties
+        final Properties properties =
+                getHBaseClientProperties(context.getCatalogTable().getOptions(), PROPERTIES_PREFIX);
+        properties.forEach((k, v) -> hbaseConf.set(k.toString(), v.toString()));
+
         String nullStringLiteral = helper.getOptions().get(NULL_STRING_LITERAL);
         HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
 
-        return new HBaseDynamicTableSource(
-                getHbaseConf(helper), hTableName, hbaseSchema, nullStringLiteral);
+        return new HBaseDynamicTableSource(hbaseConf, hTableName, hbaseSchema, nullStringLiteral);
     }
 
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
         TableFactoryHelper helper = createTableFactoryHelper(this, context);
-        helper.validate();
+        helper.validateExcept(PROPERTIES_PREFIX);
         TableSchema tableSchema = context.getCatalogTable().getSchema();
         validatePrimaryKey(tableSchema);
 
         String hTableName = helper.getOptions().get(TABLE_NAME);
+
+        Configuration hbaseConf = getHbaseConf(helper);
+        // add HBase properties
+        final Properties properties =
+                getHBaseClientProperties(context.getCatalogTable().getOptions(), PROPERTIES_PREFIX);
+        properties.forEach((k, v) -> hbaseConf.set(k.toString(), v.toString()));
 
         HBaseWriteOptions.Builder writeBuilder = HBaseWriteOptions.builder();
         writeBuilder.setBufferFlushMaxSizeInBytes(
@@ -139,11 +156,7 @@ public class HBase2DynamicTableFactory
         HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
 
         return new HBaseDynamicTableSink(
-                hTableName,
-                hbaseSchema,
-                getHbaseConf(helper),
-                writeBuilder.build(),
-                nullStringLiteral);
+                hTableName, hbaseSchema, hbaseConf, writeBuilder.build(), nullStringLiteral);
     }
 
     @Override

@@ -50,6 +50,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_TABLE_NAME;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL;
@@ -80,6 +81,15 @@ public class HBase2TableFactory
         final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
         Configuration hbaseClientConf = getHConf(descriptorProperties);
 
+        // add HBase properties
+        properties.forEach(
+                (k, v) -> {
+                    if (k.startsWith(CONNECTOR_PROPERTIES)) {
+                        final String subKey = k.substring((CONNECTOR_PROPERTIES + '.').length());
+                        hbaseClientConf.set(subKey, v);
+                    }
+                });
+
         String hTableName = descriptorProperties.getString(CONNECTOR_TABLE_NAME);
         TableSchema tableSchema =
                 TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA));
@@ -96,6 +106,16 @@ public class HBase2TableFactory
                 TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA));
         HBaseTableSchema hbaseSchema = validateTableSchema(tableSchema);
 
+        Configuration hbaseClientConf = getHConf(descriptorProperties);
+        // add HBase properties
+        properties.forEach(
+                (k, v) -> {
+                    if (k.startsWith(CONNECTOR_PROPERTIES)) {
+                        final String subKey = k.substring((CONNECTOR_PROPERTIES + '.').length());
+                        hbaseClientConf.set(subKey, v);
+                    }
+                });
+
         HBaseWriteOptions.Builder writeBuilder = HBaseWriteOptions.builder();
         descriptorProperties
                 .getOptionalInt(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS)
@@ -110,7 +130,7 @@ public class HBase2TableFactory
         return new HBaseUpsertTableSink(
                 descriptorProperties.getString(CONNECTOR_TABLE_NAME),
                 hbaseSchema,
-                getHConf(descriptorProperties),
+                hbaseClientConf,
                 writeBuilder.build());
     }
 
@@ -187,6 +207,9 @@ public class HBase2TableFactory
         // table constraint
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+
+        // HBase properties
+        properties.add(CONNECTOR_PROPERTIES + ".*");
 
         return properties;
     }

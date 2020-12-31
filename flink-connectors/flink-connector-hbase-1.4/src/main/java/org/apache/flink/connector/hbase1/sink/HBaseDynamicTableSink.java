@@ -62,6 +62,13 @@ public class HBaseDynamicTableSink implements DynamicTableSink {
         hbaseOptions
                 .getZkNodeParent()
                 .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
+        // add hbase properties
+        hbaseOptions
+                .getHbaseProperties()
+                .ifPresent(
+                        prop ->
+                                prop.forEach(
+                                        (k, v) -> hbaseClientConf.set(k.toString(), v.toString())));
         HBaseSinkFunction<RowData> sinkFunction =
                 new HBaseSinkFunction<>(
                         hbaseOptions.getTableName(),

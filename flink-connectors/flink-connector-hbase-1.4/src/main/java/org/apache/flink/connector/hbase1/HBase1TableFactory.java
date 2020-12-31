@@ -50,15 +50,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_PROPERTIES;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_TABLE_NAME;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
 import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_VERSION_VALUE_143;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_TABLE_NAME;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_ZK_NODE_PARENT;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_ZK_QUORUM;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_ZK_NODE_PARENT;
+import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_ZK_QUORUM;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
@@ -88,7 +90,14 @@ public class HBase1TableFactory
         descriptorProperties
                 .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
                 .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
-
+        // add HBase properties
+        properties.forEach(
+                (k, v) -> {
+                    if (k.startsWith(CONNECTOR_PROPERTIES)) {
+                        final String subKey = k.substring((CONNECTOR_PROPERTIES + '.').length());
+                        hbaseClientConf.set(subKey, v);
+                    }
+                });
         String hTableName = descriptorProperties.getString(CONNECTOR_TABLE_NAME);
         TableSchema tableSchema =
                 TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA));
@@ -106,6 +115,16 @@ public class HBase1TableFactory
         descriptorProperties
                 .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
                 .ifPresent(hbaseOptionsBuilder::setZkNodeParent);
+        Properties hbaseProperties = new Properties();
+        // add HBase properties
+        properties.forEach(
+                (k, v) -> {
+                    if (k.startsWith(CONNECTOR_PROPERTIES)) {
+                        final String subKey = k.substring((CONNECTOR_PROPERTIES + '.').length());
+                        hbaseProperties.setProperty(subKey, v);
+                    }
+                });
+        hbaseOptionsBuilder.setHbaseProperties(hbaseProperties);
 
         TableSchema tableSchema =
                 TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA));
@@ -199,6 +218,9 @@ public class HBase1TableFactory
         // table constraint
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+
+        // HBase properties
+        properties.add(CONNECTOR_PROPERTIES + ".*");
 
         return properties;
     }

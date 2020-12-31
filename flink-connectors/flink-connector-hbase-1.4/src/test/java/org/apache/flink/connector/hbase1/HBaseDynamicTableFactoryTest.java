@@ -48,6 +48,7 @@ import org.junit.rules.ExpectedException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
@@ -182,11 +183,14 @@ public class HBaseDynamicTableFactoryTest {
                 new DataType[] {DECIMAL(10, 3), TIMESTAMP(3), DATE(), TIME()},
                 hbaseSchema.getQualifierDataTypes("f4"));
 
+        Properties properties = new Properties();
+        properties.setProperty("hbase.security.authentication", "kerberos");
         HBaseOptions expectedHBaseOptions =
                 HBaseOptions.builder()
                         .setTableName("testHBastTable")
                         .setZkQuorum("localhost:2181")
                         .setZkNodeParent("/flink")
+                        .setHbaseProperties(properties)
                         .build();
         HBaseOptions actualHBaseOptions = hbaseSink.getHBaseOptions();
         assertEquals(expectedHBaseOptions, actualHBaseOptions);
@@ -358,6 +362,7 @@ public class HBaseDynamicTableFactoryTest {
         options.put("table-name", "testHBastTable");
         options.put("zookeeper.quorum", "localhost:2181");
         options.put("zookeeper.znode.parent", "/flink");
+        options.put("properties.hbase.security.authentication", "kerberos");
         return options;
     }
 
