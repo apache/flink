@@ -23,27 +23,31 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
 import org.apache.flink.formats.json.TimestampFormat;
+import org.apache.flink.formats.json.canal.CanalJsonDecodingFormat.ReadableMetadata;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
  * Deserialization schema from Canal JSON to Flink Table/SQL internal data structure {@link
- * RowData}. The deserialization schema knows Debezium's schema definition and can extract the
- * database data and convert into {@link RowData} with {@link RowKind}.
+ * RowData}. The deserialization schema knows Canal's schema definition and can extract the database
+ * data and convert into {@link RowData} with {@link RowKind}.
  *
  * <p>Deserializes a <code>byte[]</code> message as a JSON object and reads the specified fields.
  *
@@ -59,11 +63,17 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     private static final String OP_DELETE = "DELETE";
     private static final String OP_CREATE = "CREATE";
 
-    /** The deserializer to deserialize Debezium JSON data. */
+    /** The deserializer to deserialize Canal JSON data. */
     private final JsonRowDataDeserializationSchema jsonDeserializer;
 
-    /** TypeInformation of the produced {@link RowData}. * */
-    private final TypeInformation<RowData> resultTypeInfo;
+    /** Flag that indicates that an additional projection is required for metadata. */
+    private final boolean hasMetadata;
+
+    /** Metadata to be extracted for every record. */
+    private final MetadataConverter[] metadataConverters;
+
+    /** {@link TypeInformation} of the produced {@link RowData} (physical + meta data). */
+    private final TypeInformation<RowData> producedTypeInfo;
 
     /** Only read changelogs from the specific database. */
     private final @Nullable String database;
@@ -78,27 +88,31 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     private final int fieldCount;
 
     private CanalJsonDeserializationSchema(
-            RowType rowType,
-            TypeInformation<RowData> resultTypeInfo,
+            DataType physicalDataType,
+            List<ReadableMetadata> requestedMetadata,
+            TypeInformation<RowData> producedTypeInfo,
             @Nullable String database,
             @Nullable String table,
             boolean ignoreParseErrors,
-            TimestampFormat timestampFormatOption) {
-        this.resultTypeInfo = resultTypeInfo;
-        this.database = database;
-        this.table = table;
-        this.ignoreParseErrors = ignoreParseErrors;
-        this.fieldCount = rowType.getFieldCount();
+            TimestampFormat timestampFormat) {
+        final RowType jsonRowType = createJsonRowType(physicalDataType, requestedMetadata);
         this.jsonDeserializer =
                 new JsonRowDataDeserializationSchema(
-                        createJsonRowType(fromLogicalToDataType(rowType)),
-                        // the result type is never used, so it's fine to pass in Canal's result
-                        // type
-                        resultTypeInfo,
+                        jsonRowType,
+                        // the result type is never used, so it's fine to pass in the produced type
+                        // info
+                        producedTypeInfo,
                         false, // ignoreParseErrors already contains the functionality of
                         // failOnMissingField
                         ignoreParseErrors,
-                        timestampFormatOption);
+                        timestampFormat);
+        this.hasMetadata = requestedMetadata.size() > 0;
+        this.metadataConverters = createMetadataConverters(jsonRowType, requestedMetadata);
+        this.producedTypeInfo = producedTypeInfo;
+        this.database = database;
+        this.table = table;
+        this.ignoreParseErrors = ignoreParseErrors;
+        this.fieldCount = ((RowType) physicalDataType.getLogicalType()).getFieldCount();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -106,23 +120,31 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     // ------------------------------------------------------------------------------------------
 
     /** Creates A builder for building a {@link CanalJsonDeserializationSchema}. */
-    public static Builder builder(RowType rowType, TypeInformation<RowData> resultTypeInfo) {
-        return new Builder(rowType, resultTypeInfo);
+    public static Builder builder(
+            DataType physicalDataType,
+            List<ReadableMetadata> requestedMetadata,
+            TypeInformation<RowData> producedTypeInfo) {
+        return new Builder(physicalDataType, requestedMetadata, producedTypeInfo);
     }
 
     /** A builder for creating a {@link CanalJsonDeserializationSchema}. */
     @Internal
     public static final class Builder {
-        private final RowType rowType;
-        private final TypeInformation<RowData> resultTypeInfo;
+        private final DataType physicalDataType;
+        private final List<ReadableMetadata> requestedMetadata;
+        private final TypeInformation<RowData> producedTypeInfo;
         private String database = null;
         private String table = null;
         private boolean ignoreParseErrors = false;
         private TimestampFormat timestampFormat = TimestampFormat.SQL;
 
-        private Builder(RowType rowType, TypeInformation<RowData> resultTypeInfo) {
-            this.rowType = rowType;
-            this.resultTypeInfo = resultTypeInfo;
+        private Builder(
+                DataType physicalDataType,
+                List<ReadableMetadata> requestedMetadata,
+                TypeInformation<RowData> producedTypeInfo) {
+            this.physicalDataType = physicalDataType;
+            this.requestedMetadata = requestedMetadata;
+            this.producedTypeInfo = producedTypeInfo;
         }
 
         public Builder setDatabase(String database) {
@@ -147,7 +169,13 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
 
         public CanalJsonDeserializationSchema build() {
             return new CanalJsonDeserializationSchema(
-                    rowType, resultTypeInfo, database, table, ignoreParseErrors, timestampFormat);
+                    physicalDataType,
+                    requestedMetadata,
+                    producedTypeInfo,
+                    database,
+                    table,
+                    ignoreParseErrors,
+                    timestampFormat);
         }
     }
 
@@ -162,7 +190,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     @Override
     public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
         try {
-            RowData row = jsonDeserializer.deserialize(message);
+            GenericRowData row = (GenericRowData) jsonDeserializer.deserialize(message);
             if (database != null) {
                 String currentDatabase = row.getString(3).toString();
                 if (!database.equals(currentDatabase)) {
@@ -180,9 +208,9 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                 // "data" field is an array of row, contains inserted rows
                 ArrayData data = row.getArray(0);
                 for (int i = 0; i < data.size(); i++) {
-                    RowData insert = data.getRow(i, fieldCount);
+                    GenericRowData insert = (GenericRowData) data.getRow(i, fieldCount);
                     insert.setRowKind(RowKind.INSERT);
-                    out.collect(insert);
+                    emitRow(row, insert, out);
                 }
             } else if (OP_UPDATE.equals(type)) {
                 // "data" field is an array of row, contains new rows
@@ -203,16 +231,16 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                     }
                     before.setRowKind(RowKind.UPDATE_BEFORE);
                     after.setRowKind(RowKind.UPDATE_AFTER);
-                    out.collect(before);
-                    out.collect(after);
+                    emitRow(row, before, out);
+                    emitRow(row, after, out);
                 }
             } else if (OP_DELETE.equals(type)) {
                 // "data" field is an array of row, contains deleted rows
                 ArrayData data = row.getArray(0);
                 for (int i = 0; i < data.size(); i++) {
-                    RowData insert = data.getRow(i, fieldCount);
+                    GenericRowData insert = (GenericRowData) data.getRow(i, fieldCount);
                     insert.setRowKind(RowKind.DELETE);
-                    out.collect(insert);
+                    emitRow(row, insert, out);
                 }
             } else if (OP_CREATE.equals(type)) {
                 // "data" field is null and "type" is "CREATE" which means
@@ -235,6 +263,27 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
         }
     }
 
+    private void emitRow(
+            GenericRowData rootRow, GenericRowData physicalRow, Collector<RowData> out) {
+        // shortcut in case no output projection is required
+        if (!hasMetadata) {
+            out.collect(physicalRow);
+            return;
+        }
+        final int physicalArity = physicalRow.getArity();
+        final int metadataArity = metadataConverters.length;
+        final GenericRowData producedRow =
+                new GenericRowData(physicalRow.getRowKind(), physicalArity + metadataArity);
+        for (int physicalPos = 0; physicalPos < physicalArity; physicalPos++) {
+            producedRow.setField(physicalPos, physicalRow.getField(physicalPos));
+        }
+        for (int metadataPos = 0; metadataPos < metadataArity; metadataPos++) {
+            producedRow.setField(
+                    physicalArity + metadataPos, metadataConverters[metadataPos].convert(rootRow));
+        }
+        out.collect(producedRow);
+    }
+
     @Override
     public boolean isEndOfStream(RowData nextElement) {
         return false;
@@ -242,7 +291,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
 
     @Override
     public TypeInformation<RowData> getProducedType() {
-        return resultTypeInfo;
+        return producedTypeInfo;
     }
 
     @Override
@@ -254,26 +303,81 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
             return false;
         }
         CanalJsonDeserializationSchema that = (CanalJsonDeserializationSchema) o;
-        return ignoreParseErrors == that.ignoreParseErrors
-                && fieldCount == that.fieldCount
-                && Objects.equals(jsonDeserializer, that.jsonDeserializer)
-                && Objects.equals(resultTypeInfo, that.resultTypeInfo);
+        return Objects.equals(jsonDeserializer, that.jsonDeserializer)
+                && hasMetadata == that.hasMetadata
+                && Objects.equals(producedTypeInfo, that.producedTypeInfo)
+                && Objects.equals(database, that.database)
+                && Objects.equals(table, that.table)
+                && ignoreParseErrors == that.ignoreParseErrors
+                && fieldCount == that.fieldCount;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(jsonDeserializer, resultTypeInfo, ignoreParseErrors, fieldCount);
+        return Objects.hash(
+                jsonDeserializer,
+                hasMetadata,
+                producedTypeInfo,
+                database,
+                table,
+                ignoreParseErrors,
+                fieldCount);
     }
 
-    private static RowType createJsonRowType(DataType databaseSchema) {
+    // --------------------------------------------------------------------------------------------
+
+    private static RowType createJsonRowType(
+            DataType physicalDataType, List<ReadableMetadata> readableMetadata) {
         // Canal JSON contains other information, e.g. "ts", "sql", but we don't need them
-        return (RowType)
+        DataType root =
                 DataTypes.ROW(
-                                DataTypes.FIELD("data", DataTypes.ARRAY(databaseSchema)),
-                                DataTypes.FIELD("old", DataTypes.ARRAY(databaseSchema)),
-                                DataTypes.FIELD("type", DataTypes.STRING()),
-                                DataTypes.FIELD("database", DataTypes.STRING()),
-                                DataTypes.FIELD("table", DataTypes.STRING()))
-                        .getLogicalType();
+                        DataTypes.FIELD("data", DataTypes.ARRAY(physicalDataType)),
+                        DataTypes.FIELD("old", DataTypes.ARRAY(physicalDataType)),
+                        DataTypes.FIELD("type", DataTypes.STRING()),
+                        ReadableMetadata.DATABASE.requiredJsonField,
+                        ReadableMetadata.TABLE.requiredJsonField);
+        // append fields that are required for reading metadata in the root
+        final List<DataTypes.Field> rootMetadataFields =
+                readableMetadata.stream()
+                        .filter(m -> m != ReadableMetadata.DATABASE && m != ReadableMetadata.TABLE)
+                        .map(m -> m.requiredJsonField)
+                        .distinct()
+                        .collect(Collectors.toList());
+        return (RowType) DataTypeUtils.appendRowFields(root, rootMetadataFields).getLogicalType();
+    }
+
+    private static MetadataConverter[] createMetadataConverters(
+            RowType jsonRowType, List<ReadableMetadata> requestedMetadata) {
+        return requestedMetadata.stream()
+                .map(m -> convert(jsonRowType, m))
+                .toArray(MetadataConverter[]::new);
+    }
+
+    private static MetadataConverter convert(RowType jsonRowType, ReadableMetadata metadata) {
+        final int pos = jsonRowType.getFieldNames().indexOf(metadata.requiredJsonField.getName());
+        return new MetadataConverter() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Object convert(GenericRowData root, int unused) {
+                return metadata.converter.convert(root, pos);
+            }
+        };
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Converter that extracts a metadata field from the row that comes out of the JSON schema and
+     * converts it to the desired data type.
+     */
+    interface MetadataConverter extends Serializable {
+
+        // Method for top-level access.
+        default Object convert(GenericRowData row) {
+            return convert(row, -1);
+        }
+
+        Object convert(GenericRowData row, int pos);
     }
 }
