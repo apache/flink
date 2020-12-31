@@ -462,16 +462,10 @@ public class KafkaSourceBuilder<OUT> {
         boolean overridden = false;
         String userValue = props.getProperty(key);
         if (override) {
-            LOG.warn(
-                    String.format(
-                            "Property %s is provided but will be overridden from %s to %s",
-                            key, userValue, value));
             props.setProperty(key, value);
             overridden = true;
         } else {
-            if (userValue != null) {
-
-            } else {
+            if (userValue == null) {
                 props.setProperty(key,
                         KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS
                                 .defaultValue()
